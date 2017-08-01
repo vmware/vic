@@ -17,6 +17,14 @@ Documentation  Test 5-4 - High Availability
 Resource  ../../resources/Util.robot
 Suite Teardown  Nimbus Cleanup  ${list}
 
+*** Variables ***
+${esx_number}=  3
+${datacenter}=  ha-datacenter
+${namedVolume}=  named-volume
+${mntDataTestContainer}=  mount-data-test
+${mntTest}=  /mnt/test
+${mntNamed}=  /mnt/named
+
 *** Keywords ***
 Run Regression Test With More Log Information
     Check ImageStore
@@ -79,61 +87,69 @@ Run Regression Test With More Log Information
 
     Scrape Logs For The Password
 
+Verify Volume Inspect Info
+    [Arguments]  ${inspectedWhen}  ${volTestContainer}
+    Log To Console  Container Mount Inspected ${inspectedWhen} VCH restart
+    ${rc}  ${mountInfo}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' ${volTestContainer}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${mountInfo}  ${mntTest}
+    Should Contain  ${mountInfo}  ${mntNamed}
+    Should Contain  ${mountInfo}  ${namedVolume}
+
 *** Test Cases ***
 Test
     ${status}=  Get State Of Github Issue  4858
     Run Keyword If  '${status}' == 'closed'  Fail  Test 5-4-High-Availability.robot needs to be updated now that Issue #4858 has been resolved
 
+    ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
+    ${pid}=  Deploy Nimbus vCenter Server Async  ${vc}
+    Set Suite Variable  ${VC}  ${vc}
+
     Log To Console  \nStarting test...
     # Let's make 5 because it is free and in parallel, but only use 3 of them
     &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  5  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    @{esx-names}=  Get Dictionary Keys  ${esxes}
-    @{esx-ips}=  Get Dictionary Values  ${esxes}
-    ${esx1}=  Get From List  ${esx-names}  0
-    ${esx2}=  Get From List  ${esx-names}  1
-    ${esx3}=  Get From List  ${esx-names}  2
-    ${esx1-ip}=  Get From List  ${esx-ips}  0
-    ${esx2-ip}=  Get From List  ${esx-ips}  1
-    ${esx3-ip}=  Get From List  ${esx-ips}  2
 
-    ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${VC}  ${vc}
+    @{esx_names}=  Get Dictionary Keys  ${esxes}
+    @{esx_ips}=  Get Dictionary Values  ${esxes}
 
-    Set Global Variable  @{list}  ${esx-names}  ${vc}
+    Set Global Variable  @{list}  ${esx_names}  ${vc}
+
+    # Finish vCenter deploy
+    ${output}=  Wait For Process  ${pid}
+    Should Contain  ${output.stdout}  Overall Status: Succeeded
+
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc_ip}=  Get IP  ${vc}
+    Close Connection
+
+    Set Environment Variable  GOVC_INSECURE  1
+    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  GOVC_PASSWORD  Admin!23
+    Set Environment Variable  GOVC_URL  ${vc_ip}
 
     Log To Console  Create a datacenter on the VC
-    ${out}=  Run  govc datacenter.create ha-datacenter
+    ${out}=  Run  govc datacenter.create ${datacenter}
     Should Be Empty  ${out}
 
     Log To Console  Create a cluster on the VC
     ${out}=  Run  govc cluster.create cls
     Should Be Empty  ${out}
 
-    Log To Console  Add ESX host to the VC
-    ${out}=  Run  govc cluster.add -hostname=${esx1-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc cluster.add -hostname=${esx2-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc cluster.add -hostname=${esx3-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
+    Create A Distributed Switch  ${datacenter}
 
-    Log To Console  Create a distributed switch
-    ${out}=  Run  govc dvs.create -dc=ha-datacenter test-ds
-    Should Contain  ${out}  OK
+    Create Three Distributed Port Groups  ${datacenter}
 
-    Log To Console  Create three new distributed switch port groups for management and vm network traffic
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds management
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds vm-network
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds bridge
-    Should Contain  ${out}  OK
+    Log To Console  Add ESX hosts to the cluster
+    :FOR  ${IDX}  IN RANGE  ${esx_number}
+    \   ${out}=  Run  govc cluster.add -hostname=@{esx_ips}[${IDX}] -username=root -dc=${datacenter} -password=${NIMBUS_ESX_PASSWORD} -noverify=true
+    \   Should Contain  ${out}  OK
 
     Log To Console  Add all the hosts to the distributed switch
-    Wait Until Keyword Succeeds  5x  5min  Add Host To Distributed Switch  /ha-datacenter/host/cls
+    Wait Until Keyword Succeeds  5x  5min  Add Host To Distributed Switch  /${datacenter}/host/cls
 
-    Log To Console  Enable HA on the cluster
-    ${out}=  Run  govc cluster.change -drs-enabled -ha-enabled /ha-datacenter/host/cls
+    Log To Console  Enable HA and DRS on the cluster
+    ${out}=  Run  govc cluster.change -drs-enabled -ha-enabled /${datacenter}/host/cls
     Should Be Empty  ${out}
 
     ${name}  ${ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
@@ -143,7 +159,7 @@ Test
     Should Be Empty  ${out}
 
     Log To Console  Deploy VIC to the VC cluster
-    Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
+    Set Environment Variable  TEST_URL_ARRAY  ${vc_ip}
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
@@ -160,8 +176,6 @@ Test
     # shut down the host and HA brings it up again
     # make sure we have busybox
     Pull image  busybox
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
-    #Should Be Equal As Integers  ${rc}  0
 
     @{running}=  Create List
     :FOR  ${index}  IN RANGE  3
@@ -184,15 +198,15 @@ Test
     ${info}=  Run  govc vm.info \\*
     Log  ${info}
 
-    # Create a named volume and run inspect on the container before the host is shut down
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=named-volume
+    Log To Console  \nCreate a named volume and mount it to a container (Mount Inspect Test 1 of 2 - before VCH restart)\n
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=${namedVolume}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=mount-data-test -v /mnt/test -v named-volume:/mnt/named busybox
+    Should Contain  ${container}  ${namedVolume}
+
+    ${rc}  ${containerMountDataTestID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=${mntDataTestContainer} -v ${mntTest} -v ${namedVolume}:${mntNamed} busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' mount-data-test
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${out}  /mnt/test
-    Should Contain  ${out}  /mnt/named
+
+    Verify Volume Inspect Info  Before  ${containerMountDataTestID}
 
     # Abruptly power off the host
     Open Connection  ${curHost}  prompt=:~]
@@ -211,11 +225,12 @@ Test
     ${info}=  Run  govc vm.info \\*
     Log  ${info}
 
-    # Inspect the container to make sure mount info is the same after a VCH restart event
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' mount-data-test
+    Verify Volume Inspect Info  After  ${containerMountDataTestID}
+
+    # Remove Mount Data Test Container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${containerMountDataTestID}
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${out}  /mnt/test
-    Should Contain  ${out}  /mnt/named
+    Wait Until Keyword Succeeds  10x  6s  Check That VM Is Removed  ${containerMountDataTestID}
 
     # check running containers are still running
     :FOR  ${c}  IN  @{running}
