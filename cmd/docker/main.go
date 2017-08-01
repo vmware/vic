@@ -71,7 +71,6 @@ var (
 )
 
 func init() {
-	// #nosec
 	pprof.StartPprof("docker personality", pprof.DockerPort)
 
 	flag.Usage = Usage
@@ -85,10 +84,8 @@ func init() {
 }
 
 func Usage() {
-	// #nosec
 	fmt.Fprintf(os.Stderr, "\nvSphere Integrated Container Daemon Usage:\n")
 	flag.PrintDefaults()
-	// #nosec
 	fmt.Fprintf(os.Stderr, "\n")
 }
 
@@ -109,8 +106,6 @@ func main() {
 	}
 
 	plEventMonitor := vicbackends.NewPortlayerEventMonitor(vicbackends.PlEventProxy{}, vicbackends.DockerEventPublisher{})
-
-	// #nosec
 	plEventMonitor.Start()
 	// Start API server wit options from command line args
 	api := startServer()
