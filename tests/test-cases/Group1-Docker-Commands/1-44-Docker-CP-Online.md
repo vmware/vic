@@ -76,4 +76,5 @@ This test requires that a vSphere server is running and available
 * Step 39-54 should all succeed
 
 # Possible Problems:
-* 39-53 are online sub volume cp tests and may be unstable
+* 29-38 are online concurrent tests and are unstable
+* 39-53 are online sub volume cp tests and are unstable

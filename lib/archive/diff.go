@@ -225,10 +225,6 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 		strippedName := strings.TrimPrefix(change.Path, spec.StripPath)
 		change.Path = strings.TrimPrefix(change.Path, "/")
 		hdr.Name = filepath.Join(spec.RebasePath, strippedName)
-
-		if fi.IsDir() && !strings.HasSuffix(change.Path, "/") {
-			hdr.Name += "/"
-		}
 	}
 
 	if xattr {
