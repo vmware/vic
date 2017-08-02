@@ -223,7 +223,7 @@ goimports: $(GOIMPORTS)
 	@echo checking go imports...
 	@! $(GOIMPORTS) -local github.com/vmware -d $$(test -e ./swagger-gen.log \
 			&& comm -12 <(echo "$(vendored)" | sort) \
-							 <(for x in $$(cat swagger-gen.log | grep creating | cut -d" " -f4 | sed -e "s/\"\(.*\)\"/\1/g");\
+			            <(for x in $$(cat swagger-gen.log | grep creating | cut -d" " -f4 | sed -e "s/\"\(.*\)\"/\1/g");\
 										do find . -name "$x"; done | sort) \
 			|| echo "$(vendored)") 2>&1 | egrep -v '^$$'
 
