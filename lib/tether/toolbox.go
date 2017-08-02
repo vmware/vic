@@ -285,12 +285,12 @@ func toolboxOverrideArchiveRead(u *url.URL, tr *tar.Reader) error {
 		op.Debugf("Reading from tar archive to path %s: %s", u.Path, u.String())
 		spec, err := archive.DecodeFilterSpec(op, &filterSpec)
 		if err != nil {
-			op.Debugf(err.Error())
+			op.Errorf(err.Error())
 			return err
 		}
 		diskPath, err := mountDiskLabel(diskLabel)
 		if err != nil {
-			op.Debugf(err.Error())
+			op.Errorf(err.Error())
 			return err
 		}
 		defer unmount(op, diskPath)
@@ -299,7 +299,7 @@ func toolboxOverrideArchiveRead(u *url.URL, tr *tar.Reader) error {
 		// Unpack will rebase tar headers for us. :thumbsup:
 		err = archive.Unpack(op, tr, spec, diskPath)
 		if err != nil {
-			op.Debugf(err.Error())
+			op.Errorf(err.Error())
 		}
 		op.Debugf("Finished reading from tar archive to path %s: %s", u.Path, u.String())
 		return err
@@ -323,14 +323,14 @@ func toolboxOverrideArchiveWrite(u *url.URL, tw *tar.Writer) error {
 
 		spec, err := archive.DecodeFilterSpec(op, &filterSpec)
 		if err != nil {
-			op.Debugf(err.Error())
+			op.Errorf(err.Error())
 			return err
 		}
 
 		// get the container fs mount
 		diskPath, err := mountDiskLabel(diskLabel)
 		if err != nil {
-			op.Debugf(err.Error())
+			op.Errorf(err.Error())
 			return err
 		}
 		defer unmount(op, diskPath)
@@ -352,7 +352,7 @@ func toolboxOverrideArchiveWrite(u *url.URL, tw *tar.Writer) error {
 		}
 
 		if err != nil {
-			op.Debugf(err.Error())
+			op.Errorf(err.Error())
 			return err
 		}
 
@@ -370,18 +370,18 @@ func toolboxOverrideArchiveWrite(u *url.URL, tw *tar.Writer) error {
 					break
 				}
 				if err != nil {
-					op.Debugf("error writing tar: %s", err.Error())
+					op.Errorf("error writing tar: %s", err.Error())
 					break
 				}
 				op.Debugf("Writing header: %#s", *hdr)
 				err = tw.WriteHeader(hdr)
 				if err != nil {
-					op.Debugf("error writing tar header: %s", err.Error())
+					op.Errorf("error writing tar header: %s", err.Error())
 					break
 				}
 				_, err = io.Copy(tw, tr)
 				if err != nil {
-					op.Debugf("error writing tar contents: %s", err.Error())
+					op.Errorf("error writing tar contents: %s", err.Error())
 					break
 				}
 			}
@@ -409,7 +409,7 @@ func mountDiskLabel(label string) (string, error) {
 	// label exists, mount the device to a tmp directory
 	tmpDir, err := ioutil.TempDir("", fmt.Sprintf("toolbox-%s", label))
 	if err := Sys.Syscall.Mount(path, tmpDir, ext4FileSystemType, syscall.MS_NOATIME, ""); err != nil {
-		return "", fmt.Errorf("faild to mount %s to %s: %s", path, tmpDir, err)
+		return "", fmt.Errorf("failed to mount %s to %s: %s", path, tmpDir, err)
 	}
 
 	return tmpDir, nil
@@ -423,8 +423,8 @@ func unmount(op trace.Operation, unmountPath string) {
 
 	// unmount the disk from the temporary directory
 	if err := Sys.Syscall.Unmount(unmountPath, syscall.MNT_DETACH); err != nil {
-		op.Debugf("failed to unmount %s: %s", unmountPath, err.Error())
+		op.Errorf("failed to unmount %s: %s", unmountPath, err.Error())
 	}
 	// finally, remove the temporary directory
-	os.RemoveAll(unmountPath)
+	os.Remove(unmountPath)
 }
