@@ -99,8 +99,12 @@ func (a *ArchiveProxy) ArchiveExportReader(ctx context.Context, store, ancestorS
 				plErr := InternalServerError(fmt.Sprintf("Server error from archive reader for device %s", deviceID))
 				log.Errorf(plErr.Error())
 				pipeWriter.CloseWithError(plErr)
-			case *storage.ImportArchiveLocked:
+			case *storage.ExportArchiveLocked:
 				plErr := ResourceLockedError(fmt.Sprintf("Resource locked for device %s", deviceID))
+				log.Errorf(plErr.Error())
+				pipeWriter.CloseWithError(plErr)
+			case *storage.ExportArchiveUnprocessableEntity:
+				plErr := InternalServerError("failed to process given path")
 				log.Errorf(plErr.Error())
 				pipeWriter.CloseWithError(plErr)
 			default:
@@ -179,6 +183,10 @@ func (a *ArchiveProxy) ArchiveImportWriter(ctx context.Context, store, deviceID 
 				pipeReader.CloseWithError(plErr)
 			case *storage.ImportArchiveNotFound:
 				plErr = ResourceNotFoundError("file or directory")
+				log.Errorf(plErr.Error())
+				pipeReader.CloseWithError(plErr)
+			case *storage.ImportArchiveUnprocessableEntity:
+				plErr = InternalServerError("failed to process given path")
 				log.Errorf(plErr.Error())
 				pipeReader.CloseWithError(plErr)
 			default:

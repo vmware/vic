@@ -176,20 +176,18 @@ func (spec *FilterSpec) Excludes(op trace.Operation, filePath string) bool {
 
 	for path := range spec.Inclusions {
 		if strings.HasPrefix(filePath, path) {
-			temp := len(path)
-			if temp > inclusionLength {
+			if len(path) > inclusionLength {
 				// more specific inclusion, so update
-				inclusionLength = temp
+				inclusionLength = len(path)
 			}
 		}
 	}
 
 	for path := range spec.Exclusions {
 		if strings.HasPrefix(filePath, path) {
-			temp := len(path)
-			if temp > exclusionLength {
+			if len(path) > exclusionLength {
 				// more specific exclusion, so update
-				exclusionLength = temp
+				exclusionLength = len(path)
 			}
 		}
 	}

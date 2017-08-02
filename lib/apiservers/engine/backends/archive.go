@@ -236,6 +236,8 @@ func (c *Container) ContainerStatPath(name string, path string) (stat *types.Con
 		switch err := err.(type) {
 		case *storage.StatPathNotFound:
 			return nil, ResourceNotFoundError(vc.Name, "file or directory")
+		case *storage.StatPathUnprocessableEntity:
+			return nil, InternalServerError("failed to process given path")
 		default:
 			return nil, InternalServerError(err.Error())
 		}
@@ -543,7 +545,8 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 	// Including the periods in the prefix walk would not match with subvolume
 	// mounts like /mnt/vol1 or /mnt/vol2.
 	// Find all mounts for the sourcepath
-	prefix := patricia.Prefix(vicarchive.Clean(containerSourcePath, false))
+	cleanPath := vicarchive.Clean(containerSourcePath, false)
+	prefix := patricia.Prefix(cleanPath)
 	err = rm.prefixTrie.VisitSubtree(prefix, walkPrefixSubtree)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to find a node for prefix %s: %s", containerSourcePath, err.Error())
@@ -588,12 +591,14 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 	// 		header from /mnt/vol1 located on containerfs
 	// 		data from /mnt/vol1/ located on deviceId vol1
 	if isMountPoint && path.Base(containerSourcePath) != "." {
+		rm.op.Debugf("%s is a mountpoint, getting dir permissions from parent", cleanPath)
 		// find the parent node using VisitPrefixes
-		prefix = patricia.Prefix(path.Dir(containerSourcePath))
+		parent := path.Dir(cleanPath)
+		prefix = patricia.Prefix(parent)
 		startingNode = nil
 		err = rm.prefixTrie.VisitPrefixes(prefix, findStartingPrefix)
 		if err != nil {
-			msg := fmt.Sprintf("Failed generate parent node for mountpoint %s: %s", path.Dir(containerSourcePath), err.Error())
+			msg := fmt.Sprintf("Failed to generate parent node for mountpoint %s: %s", parent, err.Error())
 			rm.op.Errorf(msg)
 			return nil, fmt.Errorf(msg)
 		}
