@@ -15,8 +15,9 @@
 package vsphere
 
 import (
-	"fmt"
+	"net/url"
 	"path"
+	"strconv"
 
 	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/guest/toolbox"
@@ -48,7 +49,13 @@ func BuildArchiveURL(op trace.Operation, disklabel, target string, fs *archive.F
 	}
 
 	// note that the query parameters a SkipX for recurse and data so values are inverted
-	target += fmt.Sprintf("?%s=%s&%s=%s&%s=%t&%s=%t", DiskLabelQueryName, disklabel, FilterSpecQueryName, *encodedSpec, SkipRecurseQueryName, !recurse, SkipDataQueryName, !data)
+	target += "?" + (url.Values{
+		DiskLabelQueryName:   []string{disklabel},
+		FilterSpecQueryName:  []string{*encodedSpec},
+		SkipRecurseQueryName: []string{strconv.FormatBool(!recurse)},
+		SkipDataQueryName:    []string{strconv.FormatBool(!data)},
+	}).Encode()
+
 	op.Debugf("OnlineData* Url: %s", target)
 	return target, nil
 }

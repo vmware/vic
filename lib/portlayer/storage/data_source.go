@@ -75,8 +75,8 @@ func (m *MountDataSource) Export(op trace.Operation, spec *archive.FilterSpec, d
 		return nil, errors.New("path must be a directory")
 	}
 
-	// NOTE: this isn't actually diffing - it's just creating a tar. @jzt to explain why
 	op.Infof("Exporting data from %s", name)
+	// Diff is supplied "" to indicate that we are performing a read against a single target.
 	rc, err := archive.Diff(cop, name, "", spec, data, false)
 
 	// return the proxy regardless of error so that Close can be called
@@ -86,7 +86,7 @@ func (m *MountDataSource) Export(op trace.Operation, spec *archive.FilterSpec, d
 	}, err
 }
 
-// Export reads data from the associated data source and returns it as a tar archive
+// Stat stats the filesystem target indicated by the last entry in the given Filterspecs inclusion map
 func (m *MountDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (*FileStat, error) {
 	// retrieve relative path
 

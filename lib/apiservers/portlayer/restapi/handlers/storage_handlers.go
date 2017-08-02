@@ -564,7 +564,6 @@ func (h *StorageHandlersImpl) ImportArchive(params storage.ImportArchiveParams) 
 
 	err = store.Import(op, id, filterSpec, params.Archive)
 	if err != nil {
-		// hickeng: see if we can return usefully typed errors here
 		op.Errorf("import failed: %s", err)
 		if os.IsNotExist(err) {
 			return storage.NewImportArchiveNotFound()

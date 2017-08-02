@@ -107,6 +107,8 @@ func (v *VolumeStore) newDataSink(op trace.Operation, url *url.URL) (storage.Dat
 }
 
 func (v *VolumeStore) newOnlineDataSink(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSink, error) {
+	op.Debugf("Constructing toolbox data sink: %s.%s", owner.Reference(), id)
+
 	return &ToolboxDataSink{
 		VM:    owner,
 		ID:    storage.Label(id),

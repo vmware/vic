@@ -60,15 +60,8 @@ type Toolbox struct {
 }
 
 var (
-	defaultArchiveHandler hgfs.ArchiveHandler
+	defaultArchiveHandler = hgfs.NewArchiveHandler().(*hgfs.ArchiveHandler)
 )
-
-func init() {
-	fileHandler := hgfs.NewArchiveHandler()
-	if afh, ok := fileHandler.(*hgfs.ArchiveHandler); ok {
-		defaultArchiveHandler = *afh
-	}
-}
 
 // NewToolbox returns a tether.Extension that wraps the vsphere/toolbox service
 func NewToolbox() *Toolbox {
@@ -271,10 +264,7 @@ func (t *Toolbox) halt() error {
 	return session.Cmd.Process.Kill()
 }
 
-// ----------
-// Online DataSource and DataSink Override Handlers
-// ----------
-
+// toolboxOverrideArchiveRead is the online DataSink Override Handler
 func toolboxOverrideArchiveRead(u *url.URL, tr *tar.Reader) error {
 
 	// special behavior when using disk-labels and filterspec
@@ -308,6 +298,7 @@ func toolboxOverrideArchiveRead(u *url.URL, tr *tar.Reader) error {
 
 }
 
+// toolboxOverrideArchiveWrite is the Online DataSource Override Handler
 func toolboxOverrideArchiveWrite(u *url.URL, tw *tar.Writer) error {
 
 	// special behavior when using disk-labels and filterspec
@@ -356,38 +347,32 @@ func toolboxOverrideArchiveWrite(u *url.URL, tw *tar.Writer) error {
 			return err
 		}
 
-		wg := sync.WaitGroup{}
-		wg.Add(1)
-		go func() {
-			defer rc.Close()
-			defer wg.Done()
-			tr := tar.NewReader(rc)
-			for {
-				hdr, err := tr.Next()
-				if err == io.EOF {
-					err = nil
-					op.Debugf("Finished writing to archive from %s: %s with error %#v", u.Path, u.String(), err)
-					break
-				}
-				if err != nil {
-					op.Errorf("error writing tar: %s", err.Error())
-					break
-				}
-				op.Debugf("Writing header: %#s", *hdr)
-				err = tw.WriteHeader(hdr)
-				if err != nil {
-					op.Errorf("error writing tar header: %s", err.Error())
-					break
-				}
-				_, err = io.Copy(tw, tr)
-				if err != nil {
-					op.Errorf("error writing tar contents: %s", err.Error())
-					break
-				}
+		tr := tar.NewReader(rc)
+		defer rc.Close()
+		for {
+			hdr, err := tr.Next()
+			if err == io.EOF {
+				op.Debugf("Finished writing to archive from %s: %s with error %#v", u.Path, u.String(), err)
+				break
 			}
-		}()
-		wg.Wait()
-		return err
+			if err != nil {
+				op.Errorf("error writing tar: %s", err.Error())
+				return err
+			}
+			op.Debugf("Writing header: %#s", *hdr)
+			err = tw.WriteHeader(hdr)
+			if err != nil {
+				op.Errorf("error writing tar header: %s", err.Error())
+				return err
+			}
+			_, err = io.Copy(tw, tr)
+			if err != nil {
+				op.Errorf("error writing tar contents: %s", err.Error())
+				return err
+			}
+		}
+
+		return nil
 	}
 	return defaultArchiveHandler.Write(u, tw)
 }

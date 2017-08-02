@@ -236,6 +236,8 @@ func (c *Container) ContainerStatPath(name string, path string) (stat *types.Con
 		switch err := err.(type) {
 		case *storage.StatPathNotFound:
 			return nil, ResourceNotFoundError(vc.Name, "file or directory")
+		case *storage.StatPathUnprocessableEntity:
+			return nil, InternalServerError("failed to process given path")
 		default:
 			return nil, InternalServerError(err.Error())
 		}
@@ -543,7 +545,8 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 	// Including the periods in the prefix walk would not match with subvolume
 	// mounts like /mnt/vol1 or /mnt/vol2.
 	// Find all mounts for the sourcepath
-	prefix := patricia.Prefix(vicarchive.Clean(containerSourcePath, false))
+	cleanPath := vicarchive.Clean(containerSourcePath, false)
+	prefix := patricia.Prefix(cleanPath)
 	err = rm.prefixTrie.VisitSubtree(prefix, walkPrefixSubtree)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to find a node for prefix %s: %s", containerSourcePath, err.Error())
@@ -588,12 +591,14 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 	// 		header from /mnt/vol1 located on containerfs
 	// 		data from /mnt/vol1/ located on deviceId vol1
 	if isMountPoint && path.Base(containerSourcePath) != "." {
+		rm.op.Debugf("%s is a mountpoint, getting dir permissions from parent", cleanPath)
 		// find the parent node using VisitPrefixes
-		prefix = patricia.Prefix(path.Dir(containerSourcePath))
+		parent := path.Dir(cleanPath)
+		prefix = patricia.Prefix(parent)
 		startingNode = nil
 		err = rm.prefixTrie.VisitPrefixes(prefix, findStartingPrefix)
 		if err != nil {
-			msg := fmt.Sprintf("Failed generate parent node for mountpoint %s: %s", path.Dir(containerSourcePath), err.Error())
+			msg := fmt.Sprintf("Failed to generate parent node for mountpoint %s: %s", parent, err.Error())
 			rm.op.Errorf(msg)
 			return nil, fmt.Errorf(msg)
 		}
@@ -688,7 +693,7 @@ func (rm *ArchiveStreamReaderMap) Close() {
 	rm.prefixTrie.Visit(closeStream)
 }
 
-// try to fake the statpath for path that targets the mountpoint or along the mountpoint
+//  tryFakeStatPath tries to fake the statpath for path that targets the mountpoint or along the mountpoint
 func tryFakeStatPath(mounts []types.MountPoint, target string) (*types.ContainerPathStat, bool) {
 	isMountPathTarget := false
 
@@ -705,13 +710,14 @@ func tryFakeStatPath(mounts []types.MountPoint, target string) (*types.Container
 			Size:       int64(4096),
 			Mode:       os.ModeDir,
 			Mtime:      time.Now(),
-			LinkTarget: ""}, true
+			LinkTarget: "",
+		}, true
 	}
 
 	return nil, false
 }
 
-// use mountpoints to strip the target to a relative path
+// resolvePathWithMountPoints use mounts to generate a filter spec for the given path
 func resolvePathWithMountPoints(op trace.Operation, mounts []types.MountPoint, path string) *ArchiveReader {
 	var primaryTarget *ArchiveReader
 
@@ -726,7 +732,6 @@ func resolvePathWithMountPoints(op trace.Operation, mounts []types.MountPoint, p
 	}
 
 	return primaryTarget
-
 }
 
 func (rm *ArchiveStreamReaderMap) buildFilterSpec(containerSourcePath string, nodes []*ArchiveReader, startingNode *ArchiveReader) error {
@@ -742,10 +747,10 @@ func (rm *ArchiveStreamReaderMap) buildFilterSpec(containerSourcePath string, no
 	return nil
 }
 
-// This function will return the node pointers from the prefix tree as well as all mounts involved in the operation
+// buildMountsAndNodes returns the node pointers from the prefix tree as well as all mounts involved in the operation
 func (rm *ArchiveStreamReaderMap) buildMountsAndNodes(path string, node *ArchiveReader) ([]string, []*ArchiveReader, error) {
 
-	// We can modify this to make proper exclusions in the future. For now,
+	// NOTE(sflxn): We can modify this to make proper exclusions in the future. For now,
 	// we assemble the list of mounts which are involved in the operation
 	// and use the util.go function for generating all the needed information
 

@@ -120,7 +120,5 @@ func IsSelf(op trace.Operation, uuid string) (bool, error) {
 		return false, err
 	}
 
-	op.Debugf("Checking for self reference: %s == %s", self, uuid)
-
 	return self == uuid, nil
 }
