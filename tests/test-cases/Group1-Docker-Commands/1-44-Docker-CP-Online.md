@@ -25,20 +25,20 @@ This test requires that a vSphere server is running and available
 12. Issue docker cp ./bar online:/ to the new VIC appliance
 13. Inspect online:/ to verify that the copy operations succeeded
 14. Remove online
-15. Run a container called online with a single volume attached to it
-16. Issue docker cp ./bar online:/vol1/ to the new VIC appliance
-17. Inspect online:/vol1 to verify that the copy operation succeeded
-18. Create a container callecd offline that shares a volume with online
+15. Run a container called online_vol with a single volume attached to it
+16. Issue docker cp ./bar online_vol:/vol1/ to the new VIC appliance
+17. Inspect online_vol:/vol1 to verify that the copy operation succeeded
+18. Create a container called offline that shares a volume with online
 19. Issue docker cp content offline:/vol1 to the new VIC appliance
-20. Inspect online:/vol1 to verify that the copy operation succeeded
+20. Inspect online_vol:/vol1 to verify that the copy operation succeeded
 21. Issue docker cp offline:/vol1 . to the new VIC appliance
 22. Verify that /vol1 and its content are copied over to host successfully and clean up copied files
 23. Remove offline
-24. Issue docker cp largefile.txt online:/vol1/ to the new VIC appliance
-25. Inspect online:/vol1 to verify that the large file is copied successfully
-26. Issue docker cp online:/dne/dne . to the new VIC appliance
-27. Issue docker cp online:/dne/. . to the new VIC appliance
-28. Remove online
+24. Issue docker cp largefile.txt online_vol:/vol1/ to the new VIC appliance
+25. Inspect online_vol:/vol1 to verify that the large file is copied successfully
+26. Issue docker cp online_vol:/dne/dne . to the new VIC appliance
+27. Issue docker cp online_vol:/dne/. . to the new VIC appliance
+28. Remove online_vol
 29. Start 10 background processes that issues docker cp foo.txt concurrent:/foo-${idx} to the new VIC appliance
 30. Wait for these processes to finish
 31. Inspect concurrent:/ to verify that copy operation succeeded
@@ -76,4 +76,4 @@ This test requires that a vSphere server is running and available
 * Step 39-54 should all succeed
 
 # Possible Problems:
-* 39-53 are online subvolume cp tests and may be unstable
+* 39-53 are online sub volume cp tests and may be unstable
