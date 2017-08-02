@@ -76,4 +76,4 @@ This test requires that a vSphere server is running and available
 * Step 39-54 should all succeed
 
 # Possible Problems:
-Step 6-9 won't pass until we support cid:/. as source path
+* 39-53 are online subvolume cp tests and may be unstable

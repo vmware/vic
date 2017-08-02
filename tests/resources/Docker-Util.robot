@@ -172,3 +172,13 @@ Launch Container
     ${id}=  Get Line  ${output}  -1
     ${ip}=  Get Container IP  %{VCH-PARAMS}  ${id}  ${network}  ${dockercmd}
     [Return]  ${id}  ${ip}
+
+Start Container and Exec Command
+    [Arguments]  ${containerName}  ${cmd}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerName}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${containerName} ${cmd}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    [Return]  ${output}

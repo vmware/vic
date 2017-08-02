@@ -30,7 +30,7 @@ Set up test files and install VIC appliance to test server
     Create File  ${CURDIR}/mnt/root.txt   rw layer file
     Create File  ${CURDIR}/mnt/vol1/v1.txt   vol1 file
     Create File  ${CURDIR}/mnt/vol2/v2.txt   vol2 file
-    ${rc}  ${output}=  Run And Return Rc And Output  dd if=/dev/zero of=${CURDIR}/largefile.txt count=1024 bs=1024
+    ${rc}  ${output}=  Run And Return Rc And Output  dd if=/dev/urandom of=${CURDIR}/largefile.txt count=1024 bs=1024
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name vol1
@@ -44,22 +44,12 @@ Set up test files and install VIC appliance to test server
     Should Not Contain  ${output}  Error
 
 Clean up test files and VIC appliance to test server
-    Remove File  ${CURDIR}/foo.txt
-    Remove File  ${CURDIR}/content
-    Remove File  ${CURDIR}/largefile.txt
-    Remove Directory  ${CURDIR}/bar  recursive=True
-    Remove Directory  ${CURDIR}/mnt  recursive=True
+    Run Keyword and Continue on Failure  Remove File  ${CURDIR}/foo.txt
+    Run Keyword and Continue on Failure  Remove File  ${CURDIR}/content
+    Run Keyword and Continue on Failure  Remove File  ${CURDIR}/largefile.txt
+    Run Keyword and Continue on Failure  Remove Directory  ${CURDIR}/bar  recursive=True
+    Run Keyword and Continue on Failure  Remove Directory  ${CURDIR}/mnt  recursive=True
     Cleanup VIC Appliance On Test Server
-
-Start container and run command
-    [Arguments]  ${containerName}  ${cmd}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerName}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${containerName} ${cmd}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    [Return]  ${output}
 
 *** Test Cases ***
 Copy a directory from online container to host, dst path doesn't exist
@@ -186,7 +176,7 @@ Concurrent copy: create processes to copy a small file from host to online conta
     :FOR  ${pid}  IN  @{pids}
     \   Log To Console  \nWaiting for ${pid}
     \   ${res}=  Wait For Process  ${pid}
-    \   Log To Console  ${res.stdout}
+    \   Log  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec concurrent ls /
     Should Be Equal As Integers  ${rc}  0
@@ -205,7 +195,7 @@ Concurrent copy: repeat copy a large file from host to offline container several
     :FOR  ${pid}  IN  @{pids}
     \   Log To Console  \nWaiting for ${pid}
     \   ${res}=  Wait For Process  ${pid}
-    \   Log To Console  ${res.stdout}
+    \   Log  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec concurrent ls /vol1
     Should Be Equal As Integers  ${rc}  0
@@ -224,7 +214,7 @@ Concurrent copy: repeat copy a large file from offline container to host several
     :FOR  ${pid}  IN  @{pids}
     \   Log To Console  \nWaiting for ${pid}
     \   ${res}=  Wait For Process  ${pid}
-    \   Log To Console  ${res.stdout}
+    \   Log  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
     Log To Console  \nCheck if the copy operations succeeded
     :FOR  ${idx}  IN RANGE  0  10
@@ -275,7 +265,7 @@ Sub volumes: copy from host to an offline container, dst includes a shared vol w
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop subVol_on
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${output}=  Start container and run command  subVol_off  find /mnt
+    ${output}=  Start Container and Exec Command  subVol_off  find /mnt
     Should Contain  ${output}  /mnt/root.txt
     Should Contain  ${output}  /mnt/vol1/v1.txt
     Should Contain  ${output}  /mnt/vol2/v2.txt
