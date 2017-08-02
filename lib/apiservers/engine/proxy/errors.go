@@ -31,7 +31,7 @@ func ResourceLockedError(msg string) error {
 	return derr.NewErrorWithStatusCode(fmt.Errorf("Resource locked: %s", msg), http.StatusLocked)
 }
 
-// ResourceLockedError returns a 423 http status
+// ResourceNotFoundError returns a 404 http status
 func ResourceNotFoundError(msg string) error {
 	return derr.NewErrorWithStatusCode(fmt.Errorf("No such %s", msg), http.StatusNotFound)
 }

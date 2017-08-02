@@ -44,7 +44,6 @@ import (
 	plmodels "github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/metadata"
-
 	"github.com/vmware/vic/pkg/trace"
 )
 

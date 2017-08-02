@@ -19,9 +19,8 @@ import (
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/docker/docker/api/types"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/pkg/trace"
 )

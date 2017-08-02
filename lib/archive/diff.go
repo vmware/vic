@@ -69,7 +69,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 		hdr *tar.Header
 	)
 
-	// I don't like this as we've not assurance that it's appropriately buffered, but cannot think of a go-idomatic way to
+	// NOTE(jzt): I don't like this as we've not assurance that it's appropriately buffered, but cannot think of a go-idomatic way to
 	// do better right now
 	var notify *sync.WaitGroup
 	n := op.Value(CancelNotifyKey{})
