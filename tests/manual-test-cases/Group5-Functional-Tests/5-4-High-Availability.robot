@@ -87,15 +87,6 @@ Run Regression Test With More Log Information
 
     Scrape Logs For The Password
 
-Verify Volume Inspect Info
-    [Arguments]  ${inspectedWhen}  ${volTestContainer}
-    Log To Console  Container Mount Inspected ${inspectedWhen} VCH restart
-    ${rc}  ${mountInfo}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' ${volTestContainer}
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${mountInfo}  ${mntTest}
-    Should Contain  ${mountInfo}  ${mntNamed}
-    Should Contain  ${mountInfo}  ${namedVolume}
-
 *** Test Cases ***
 Test
     ${status}=  Get State Of Github Issue  4858
@@ -206,7 +197,10 @@ Test
     ${rc}  ${containerMountDataTestID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=${mntDataTestContainer} -v ${mntTest} -v ${namedVolume}:${mntNamed} busybox
     Should Be Equal As Integers  ${rc}  0
 
-    Verify Volume Inspect Info  Before  ${containerMountDataTestID}
+    # Create check list for Volume Inspect
+    @{checkList}=  Create List  ${mntTest}  ${mntNamed}  ${namedVolume}
+
+    Verify Volume Inspect Info  Before Host Power OFF  ${containerMountDataTestID}  ${checkList}
 
     # Abruptly power off the host
     Open Connection  ${curHost}  prompt=:~]
@@ -225,7 +219,7 @@ Test
     ${info}=  Run  govc vm.info \\*
     Log  ${info}
 
-    Verify Volume Inspect Info  After  ${containerMountDataTestID}
+    Verify Volume Inspect Info  After Host Power OFF  ${containerMountDataTestID}  ${checkList}
 
     # Remove Mount Data Test Container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${containerMountDataTestID}
