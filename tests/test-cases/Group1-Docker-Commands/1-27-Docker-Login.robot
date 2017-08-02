@@ -42,21 +42,11 @@ Docker login and pull from docker.io
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logout
     Should Be Equal As Integers  ${rc}  0
 
-    ${ip}=  Install Harbor To Test Server  name=19-4-harbor  protocol=https
-
-    # Install Harbor Self Signed Cert
-    ${out}=  Run  wget --tries=10 --connect-timeout=10 --auth-no-challenge --no-check-certificate --user %{TEST_USERNAME} --password %{TEST_PASSWORD} https://${ip}/api/systeminfo/getcert
-    Log  ${out}
-    ${out}=  Run  mkdir -p /etc/docker/certs.d/${ip}
-    Move File  getcert  /etc/docker/certs.d/${ip}/ca.crt
-    ${out}=  Run  systemctl daemon-reload
-    ${out}=  Run  systemctl restart docker
-
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${ip}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=%{TEST_USERNAME} --password=%{TEST_PASSWORD} harbor.ci.drone.local
     Should Contain  ${output}  Login Succeeded
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=%{TEST_USERNAME} --password=%{TEST_PASSWORD}1 ${ip}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=%{TEST_USERNAME} --password=%{TEST_PASSWORD}1 harbor.ci.drone.local
     Should Contain  ${output}  incorrect username or password
     Should Be Equal As Integers  ${rc}  1
 
