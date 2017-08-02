@@ -218,9 +218,14 @@ golint: $(GOLINT)
 gopath:
 	@echo -n $(GOPATH)
 
+vendored := $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 goimports: $(GOIMPORTS)
 	@echo checking go imports...
-	@! $(GOIMPORTS) -local github.com/vmware -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
+	@! $(GOIMPORTS) -local github.com/vmware -d $$(test -e ./swagger-gen.log \
+			&& comm -12 <(echo "$(vendored)" | sort) \
+			            <(for x in $$(cat swagger-gen.log | grep creating | cut -d" " -f4 | sed -e "s/\"\(.*\)\"/\1/g");\
+			              	do find . -name "$x"; done | sort) \
+			|| echo "$(vendored)") 2>&1 | egrep -v '^$$'
 
 gofmt:
 	@echo checking gofmt...
@@ -478,6 +483,9 @@ clean:
 	@rm -rf ./lib/apiservers/portlayer/cmd/
 	@rm -rf ./lib/apiservers/portlayer/models/
 	@rm -rf ./lib/apiservers/portlayer/restapi/operations/
+	@rm -rf ./lib/config/dynamic/admiral/client
+	@rm -rf ./lib/config/dynamic/admiral/models
+	@rm -rf ./lib/config/dynamic/admiral/operations
 
 	@rm -f *.log
 	@rm -f *.pem
