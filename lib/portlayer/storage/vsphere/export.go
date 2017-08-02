@@ -121,6 +121,8 @@ func (v *VolumeStore) newDataSource(op trace.Operation, url *url.URL) (storage.D
 }
 
 func (v *VolumeStore) newOnlineDataSource(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSource, error) {
+	op.Debugf("Constructing toolbox data source: %s.%s", owner.Reference(), id)
+
 	return &ToolboxDataSource{
 		VM:    owner,
 		ID:    storage.Label(id),
@@ -176,9 +178,7 @@ func (i *ImageStore) Export(op trace.Operation, id, ancestor string, spec *archi
 	}
 
 	// if we want data, exclude the xattrs, otherwise assume diff
-	xattrs := !data
-
-	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data, xattrs)
+	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data, !data)
 	if err != nil {
 		go closers()
 		return nil, err

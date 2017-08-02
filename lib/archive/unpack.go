@@ -67,6 +67,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		return err
 	}
 
+	op.Debugf("using FilterSpec : (%#v)", *filter)
 	// process the tarball onto the filesystem
 	for {
 		header, err := tr.Next()
@@ -80,8 +81,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 			return err
 		}
 
-		op.Debugf("processing tar header: %#v", *header)
-		op.Debugf("using FilterSpec : (%#v)", *filter)
+		op.Debugf("processing tar header: asset(%s), size(%d)", header.Name, header.Size)
 		// skip excluded elements unless explicitly included
 		if filter.Excludes(op, header.Name) {
 			continue
@@ -91,9 +91,6 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		stripped := strings.TrimPrefix(header.Name, filter.StripPath)
 		rebased := filepath.Join(filter.RebasePath, stripped)
 		absPath := filepath.Join(root, rebased)
-		op.Debugf("attempting to write to target (%s)", absPath)
-
-		op.Debugf("writing %d bytes to: %s", header.Size, absPath)
 
 		switch header.Typeflag {
 		case tar.TypeDir:

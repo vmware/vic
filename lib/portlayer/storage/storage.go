@@ -160,7 +160,7 @@ type DataSource interface {
 	//     via guesttools:  	 toolbox client
 	Source() interface{}
 
-	// Given a filter spec
+	// Stat stats the filesystem target indicated by the last entry in the given Filterspecs inclusion map
 	Stat(op trace.Operation, spec *archive.FilterSpec) (*FileStat, error)
 }
 

@@ -54,14 +54,10 @@ func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool
 		}
 	}
 
-	// this is in the case that we are part of a read that is crossing a mount point.
-	// It should be addressed by include/excludes.
 	changes, err := docker.ChangesDirs(newDir, oldDir)
 	if err != nil {
 		return nil, err
 	}
-	// this is in the case that we are part of a read that is crossing a mount point.
-	// It should be addressed by include/excludes.
 	sort.Sort(changesByPath(changes))
 
 	return Tar(op, newDir, changes, spec, data, xattr)
@@ -112,7 +108,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 				if cerr != nil {
 					op.Errorf("Closing down tar writer with clean exit: %s", cerr)
 				} else {
-					op.Infof("Closing down tar writer with pristine exit")
+					op.Debugf("Closing down tar writer with pristine exit")
 				}
 				_ = w.CloseWithError(cerr)
 			} else {
@@ -229,6 +225,10 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 		strippedName := strings.TrimPrefix(change.Path, spec.StripPath)
 		change.Path = strings.TrimPrefix(change.Path, "/")
 		hdr.Name = filepath.Join(spec.RebasePath, strippedName)
+
+		if fi.IsDir() && !strings.HasSuffix(change.Path, "/") {
+			hdr.Name += "/"
+		}
 	}
 
 	if xattr {

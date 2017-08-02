@@ -28,7 +28,10 @@ const (
 	CopyFrom = false
 )
 
-// GenerateFilterSpec will populate the appropriate relative Rebase and Strip paths based on the supplied scenarios. Inclusion/Exclusion should be constructed separately. Please also note that any mount that exists before the copy target that is not primary and comes before the primary target will have a bogus filterspec, since it would not be written or read to.
+// GenerateFilterSpec will populate the appropriate relative Rebase and Strip paths based on the supplied scenarios.
+// Inclusion/Exclusion should be constructed separately. Please also note that any mount that exists before the copy
+// target that is not primary and comes before the primary target will have a bogus filterspec, since it would not be
+// written or read to.
 func GenerateFilterSpec(copyPath string, mountPoint string, primaryTarget bool, direction bool) FilterSpec {
 	var filter FilterSpec
 
