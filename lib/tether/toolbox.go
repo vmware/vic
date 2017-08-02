@@ -130,7 +130,7 @@ func (t *Toolbox) Reload(config *ExecutorConfig) error {
 	// we also allow any device IDs that are attached
 	for _, mspec := range config.Mounts {
 		// mounstpect.source.path is the disk label for vmdks
-		// XXX: this is not the case for other volumes, eg nfs vols.
+		// TODO: this is not the case for other volumes, eg nfs vols.
 		if mspec.Source.Scheme == "label" {
 			t.authIDs[mspec.Source.Path] = struct{}{}
 		}

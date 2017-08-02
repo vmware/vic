@@ -143,7 +143,6 @@ func (mr *multiReader) WriteTo(w io.Writer) (sum int64, err error) {
 
 		// err was non-nil/EOF and we read data - legitimate error scenario
 		if n > 0 {
-
 			return
 		}
 	}
