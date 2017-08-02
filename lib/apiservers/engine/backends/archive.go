@@ -693,7 +693,7 @@ func (rm *ArchiveStreamReaderMap) Close() {
 	rm.prefixTrie.Visit(closeStream)
 }
 
-// try to fake the statpath for path that targets the mountpoint or along the mountpoint
+//  tryFakeStatPath tries to fake the statpath for path that targets the mountpoint or along the mountpoint
 func tryFakeStatPath(mounts []types.MountPoint, target string) (*types.ContainerPathStat, bool) {
 	isMountPathTarget := false
 
@@ -710,13 +710,14 @@ func tryFakeStatPath(mounts []types.MountPoint, target string) (*types.Container
 			Size:       int64(4096),
 			Mode:       os.ModeDir,
 			Mtime:      time.Now(),
-			LinkTarget: ""}, true
+			LinkTarget: "",
+		}, true
 	}
 
 	return nil, false
 }
 
-// use mountpoints to strip the target to a relative path
+// resolvePathWithMountPoints use mounts to generate a filter spec for the given path
 func resolvePathWithMountPoints(op trace.Operation, mounts []types.MountPoint, path string) *ArchiveReader {
 	var primaryTarget *ArchiveReader
 
@@ -731,7 +732,6 @@ func resolvePathWithMountPoints(op trace.Operation, mounts []types.MountPoint, p
 	}
 
 	return primaryTarget
-
 }
 
 func (rm *ArchiveStreamReaderMap) buildFilterSpec(containerSourcePath string, nodes []*ArchiveReader, startingNode *ArchiveReader) error {
@@ -747,10 +747,10 @@ func (rm *ArchiveStreamReaderMap) buildFilterSpec(containerSourcePath string, no
 	return nil
 }
 
-// This function will return the node pointers from the prefix tree as well as all mounts involved in the operation
+// buildMountsAndNodes returns the node pointers from the prefix tree as well as all mounts involved in the operation
 func (rm *ArchiveStreamReaderMap) buildMountsAndNodes(path string, node *ArchiveReader) ([]string, []*ArchiveReader, error) {
 
-	// We can modify this to make proper exclusions in the future. For now,
+	// NOTE(sflxn): We can modify this to make proper exclusions in the future. For now,
 	// we assemble the list of mounts which are involved in the operation
 	// and use the util.go function for generating all the needed information
 
