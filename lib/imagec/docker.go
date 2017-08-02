@@ -476,9 +476,17 @@ func getManifestDigest(content []byte, ref reference.Named) (string, error) {
 	log.Debugf("Manifest Digest: %v", digest)
 	return string(digest), nil
 }
-func PushImageBlob(ctx context.Context, options Options, as *ArchiveStream, layerReader io.ReadCloser, po progress.Output) (err error) {
+
+func PushImageBlob(ctx context.Context, options Options, as *ArchiveStream, layerReader io.ReadCloser, po progress.Output, simulate bool) (err error) {
 	defer trace.End(trace.Begin(options.Image))
 
+	if simulate {
+		return nil
+	}
+
+	// input arguments from caller:
+	// diffID: the sha256sum of decompressed layer
+	//diffID := "sha256:27144aa8f1b9e066514d7f765909367584e552915d0d4bc2f5b7438ba7d1033a"
 	layerID := ShortID(as.layerID)
 
 	// The workflow: (https://docs.docker.com/registry/spec/api/#pushing-an-image)

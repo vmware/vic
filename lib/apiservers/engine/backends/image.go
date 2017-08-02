@@ -392,7 +392,7 @@ func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders ma
 		options.Host,
 		portLayerServer)
 
-	ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter(), SimpleArchiveReader)
+	ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter(), archiveProxy)
 	ic.ParseReference()
 
 	err = ic.PullImage()

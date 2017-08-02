@@ -106,28 +106,21 @@ func (lum *LayerUploader) makeUploadFunc(ic *ImageC, layerID string) xfer.DoFunc
 			Transfer: xfer.NewTransfer(),
 		}
 
-		log.Infof("Getting stream reader from upload function")
-		aStream, reader, err := ic.Pusher.GetReaderForLayer(layerID)
-		if err != nil {
-			u.err = err
-			return u
-		}
-
 		go func() {
-			select {
-			case <-u.Transfer.Done():
-				reader.Close()
+			progressOutput := progress.ChanOutput(progressChan)
+
+			log.Infof("Getting stream reader from upload function")
+			aStream, reader, err := ic.Pusher.GetReaderForLayer(layerID, progressOutput)
+			if err != nil {
+				u.err = err
+				return
 			}
-		}()
 
-		go func() {
-			log.Info("About to upload...")
 			defer func() {
 				close(progressChan)
 				aStream.Close()
+				reader.Close()
 			}()
-
-			progressOutput := progress.ChanOutput(progressChan)
 
 			select {
 			case <-start:
@@ -137,7 +130,7 @@ func (lum *LayerUploader) makeUploadFunc(ic *ImageC, layerID string) xfer.DoFunc
 			}
 
 			// PushImageBlob will handle retries and backoff
-			err := PushImageBlob(u.Transfer.Context(), ic.Options, aStream, reader, progressOutput)
+			err = PushImageBlob(u.Transfer.Context(), ic.Options, aStream, reader, progressOutput, ic.Pusher.Simulate)
 			if err != nil {
 				log.Errorf("Error pushing image blob for %s/%s: %s", ic.Image, layerID, err)
 				return

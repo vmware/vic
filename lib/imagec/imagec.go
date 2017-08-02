@@ -25,6 +25,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -44,7 +45,9 @@ import (
 	"github.com/docker/docker/reference"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
+	"github.com/vmware/vic/lib/apiservers/engine/proxy"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+	vicarchive "github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
@@ -69,14 +72,15 @@ type ImageC struct {
 }
 
 // NewImageC returns a new instance of ImageC
-func NewImageC(options Options, strfmtr *streamformatter.StreamFormatter, getArchiveReader GetArchiveReader) *ImageC {
+func NewImageC(options Options, strfmtr *streamformatter.StreamFormatter, proxy proxy.VicArchiveProxy) *ImageC {
 	return &ImageC{
 		Options:        options,
 		sf:             strfmtr,
 		progressOutput: strfmtr.NewProgressOutput(options.Outstream, false),
 		Pusher: Pusher{
-			streamMap:     make(map[string]*ArchiveStream),
-			ArchiveReader: getArchiveReader,
+			Simulate:     true,
+			streamMap:    make(map[string]*ArchiveStream),
+			archiveProxy: proxy,
 		},
 	}
 }
@@ -148,18 +152,15 @@ type ArchiveStream struct {
 
 // Pusher contains all "prepared" data needed to push an image
 type Pusher struct {
+	Simulate     bool
 	PushManifest schema2.Manifest
 	streamMap    map[string]*ArchiveStream
 
-	// Function from imagec caller to get archive reader.  This reduce the need for imageC
-	// from knowing about the portlayer and persona.
-	ArchiveReader GetArchiveReader
+	archiveProxy proxy.VicArchiveProxy
 
 	// imageConfig marshaled as bytes
 	configJSON []byte
 }
-
-type GetArchiveReader func(ctx context.Context, layerID, parentLayerID string) (io.ReadCloser, error)
 
 func (i *ImageWithMeta) String() string {
 	return stringid.TruncateID(i.Layer.BlobSum)
@@ -927,7 +928,7 @@ func (ic *ImageC) dockerImageFromVicImage(images []*ImageWithMeta) ([]byte, stri
 // GetReaderForLayer returns a io.ReadCloser for the data from the archive stream.  The
 // archive stream reads the layer data from the portlayer.  It is written to a temp file
 // in order to obtain the digest before actual upload.
-func (p *Pusher) GetReaderForLayer(layerID string) (*ArchiveStream, io.ReadCloser, error) {
+func (p *Pusher) GetReaderForLayer(layerID string, progressOutput progress.Output) (*ArchiveStream, io.ReadCloser, error) {
 	defer trace.End(trace.Begin(layerID))
 
 	stream, ok := p.streamMap[layerID]
@@ -936,14 +937,48 @@ func (p *Pusher) GetReaderForLayer(layerID string) (*ArchiveStream, io.ReadClose
 	}
 
 	// Check if we have a function to retrieve the stream
-	if p.ArchiveReader == nil {
-		return nil, nil, fmt.Errorf("No archive reader function provided to ImageC")
+	if p.archiveProxy == nil {
+		return nil, nil, fmt.Errorf("No archive proxy provided to ImageC")
+	}
+
+	tarFilePath, tarSize, err := p.writeTempArchiveFile(layerID)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() {
+		os.Remove(tarFilePath)
+	}()
+
+	gzPath, gzDigest, gzSize, err := p.writeCompressedTarFile(layerID, tarFilePath, tarSize, progressOutput)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	lf, err := os.Open(gzPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	stream.layerFile = lf
+	stream.size = gzSize
+	stream.digest = gzDigest
+
+	log.Infof("Read stream: %#v", stream)
+
+	return stream, lf, nil
+}
+
+func (p *Pusher) writeTempArchiveFile(layerID string) (string, int64, error) {
+	var filterSpec vicarchive.FilterSpec
+
+	host, err := sys.UUID()
+	if err != nil {
+		return "", 0, err
 	}
 
 	//Initialize an archive stream from the portlayer for the layer
-	ar, err := p.ArchiveReader(context.Background(), layerID, p.streamMap[layerID].parentLayerID)
+	ar, err := p.archiveProxy.ArchiveExportReader(context.Background(), host, host, layerID, p.streamMap[layerID].parentLayerID, true, filterSpec)
 	if err != nil || ar == nil {
-		return nil, nil, fmt.Errorf("Failed to get reader for layer %s", layerID)
+		return "", 0, fmt.Errorf("Failed to get reader for layer %s", layerID)
 	}
 	defer ar.Close()
 
@@ -953,46 +988,72 @@ func (p *Pusher) GetReaderForLayer(layerID string) (*ArchiveStream, io.ReadClose
 	if err != nil {
 		msg := fmt.Sprintf("Failed to create tmp file: %s", err.Error())
 		log.Info(msg)
-		return nil, nil, fmt.Errorf(msg)
+		return "", 0, fmt.Errorf(msg)
 	}
 
-	log.Infof("Writing layer to temp file %s", f.Name())
-
-	blobSum := sha256.New()
-	mw := io.MultiWriter(f, blobSum)
-	gzipWriter := gzip.NewWriter(mw)
-	defer func() {
-		if gzipWriter != nil {
-			gzipWriter.Close()
-		}
-	}()
-
-	written, err := io.Copy(gzipWriter, ar)
-	if err != io.EOF && err != nil {
+	tarSize, err := io.Copy(f, ar)
+	if err != nil {
 		f.Close()
 		os.Remove(f.Name())
+		msg := fmt.Sprintf("Failed to read from acrhive stream: %s", err.Error())
+		log.Info(msg)
+		return "", 0, fmt.Errorf(msg)
+	}
+
+	if err = f.Sync(); err != nil {
+		f.Close()
+		os.Remove(f.Name())
+		msg := fmt.Sprintf("Failed to flush tar file: %s", err.Error())
+		log.Info(msg)
+		return "", 0, fmt.Errorf(msg)
+	}
+	f.Close()
+
+	log.Infof("Wrote tar archive to %s, len = %d", f.Name(), tarSize)
+	return f.Name(), tarSize, nil
+}
+
+func (p *Pusher) writeCompressedTarFile(layerID string, tarFilePath string, tarSize int64, progressOutput progress.Output) (string, string, int64, error) {
+	tarFile, err := os.Open(tarFilePath)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to open tar file %s: %s", tarFilePath, err.Error())
+		log.Info(msg)
+		return "", "", 0, fmt.Errorf(msg)
+	}
+
+	gzPath := filepath.Join(os.TempDir(), layerID+".tar.gz")
+	gzFile, err := os.OpenFile(gzPath, os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to create gzipped tar file: %s", err.Error())
+		log.Info(msg)
+		return "", "", 0, fmt.Errorf(msg)
+	}
+
+	log.Infof("Writing compressed layer to temp file %s", gzFile.Name())
+
+	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(context.Background(), tarFile), progressOutput, tarSize, layerID, "Pushing")
+
+	blobSum := sha256.New()
+	mw := io.MultiWriter(gzFile, blobSum)
+	gzipWriter := gzip.NewWriter(mw)
+	written, err := io.Copy(gzipWriter, reader)
+	if err != io.EOF && err != nil {
+		gzFile.Close()
+		os.Remove(gzPath)
 
 		msg := fmt.Sprintf("Fail to write layer stream to tmpfile: %s", err.Error())
 		log.Info(msg)
-		return nil, nil, fmt.Errorf(msg)
+		return "", "", 0, fmt.Errorf(msg)
 	}
 
 	// Close the file to finalize the gz file
 	gzipWriter.Flush()
-	f.Sync()
-	f.Close()
+	gzFile.Sync()
+	gzFile.Close()
 
-	lf, err := os.Open(f.Name())
-	if err != nil {
-		return nil, nil, err
-	}
-	stream.layerFile = lf
-	stream.size = written
-	stream.digest = fmt.Sprintf("sha256:%x", blobSum.Sum(nil))
+	digest := fmt.Sprintf("sha256:%x", blobSum.Sum(nil))
 
-	log.Infof("Read stream: %#v", stream)
-
-	return stream, lf, nil
+	return gzPath, digest, written, nil
 }
 
 // Close closes and clears out the archive reader
