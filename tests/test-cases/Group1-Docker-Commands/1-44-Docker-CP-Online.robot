@@ -33,13 +33,13 @@ Set up test files and install VIC appliance to test server
     ${rc}  ${output}=  Run And Return Rc And Output  dd if=/dev/urandom of=${CURDIR}/largefile.txt count=1024 bs=1024
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name vol1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create vol1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name v1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create v1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name v2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create v2
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
@@ -105,13 +105,13 @@ Copy a file and directory from host to online container
     Should Not Contain  ${output}  Error
 
 Copy a directory from host to online container, dst is a volume
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -it --name online -v vol1:/vol1 ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -it --name online_vol -v vol1:/vol1 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/bar online:/vol1/
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/bar online_vol:/vol1/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online ls /vol1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online_vol ls /vol1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  bar
@@ -123,7 +123,7 @@ Copy a file from host to offline container, dst is a volume shared with an onlin
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/content offline:/vol1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online ls /vol1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online_vol ls /vol1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  content
@@ -141,25 +141,25 @@ Copy a directory from offline container to host, dst is a volume shared with an 
     Should Not Contain  ${output}  Error
 
 Copy a large file to an online container, dst is a volume
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt online:/vol1/
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt online_vol:/vol1/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online ls -l /vol1/
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online_vol ls -l /vol1/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  1048576
     Should Contain  ${output}  largefile.txt
 
 Copy a non-existent file out of an online container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/dne/dne ${CURDIR}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online_vol:/dne/dne ${CURDIR}
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Error
 
 Copy a non-existent directory out of an online container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/dne/. ${CURDIR}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online_vol:/dne/. ${CURDIR}
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f online
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f online_vol
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 

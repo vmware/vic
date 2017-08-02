@@ -33,16 +33,16 @@ Set up test files and install VIC appliance to test server
     ${rc}  ${output}=  Run And Return Rc And Output  dd if=/dev/urandom of=${CURDIR}/largefile.txt count=4096 bs=4096
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name vol1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create vol1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name vol2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create vol2
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name vol3
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create vol3
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name smallVol --opt Capacity=1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create smallVol --opt Capacity=1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
@@ -114,13 +114,13 @@ Copy a non-existent directory into an offline container
     Should Not Contain  ${output}  Error
 
 Copy a large file that exceeds the container volume into an offline container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v smallVol:/small --name offline ${busybox}
+    ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v smallVol:/small ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt offline:/small
+    Should Not Contain  ${cid}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt ${cid}:/small
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${cid}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
@@ -164,13 +164,13 @@ Copy a file from host to offline container, dst is a nested volume with 3 levels
     Should Not Contain  ${output}  Error
 
 Concurrent copy: create processes to copy a small file from host to offline container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline -v vol1:/vol1 ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name concurrent -v vol1:/vol1 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${pids}=  Create List
     Log To Console  \nIssue 10 docker cp commands for small file
     :FOR  ${idx}  IN RANGE  0  10
-    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt offline:/foo-${idx}  shell=True
+    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt concurrent:/foo-${idx}  shell=True
     \   Append To List  ${pids}  ${pid}
     Log To Console  \nWait for them to finish and check their RC
     :FOR  ${pid}  IN  @{pids}
@@ -178,11 +178,11 @@ Concurrent copy: create processes to copy a small file from host to offline cont
     \   ${res}=  Wait For Process  ${pid}
     \   Log  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
-    ${output}=  Start Container and Exec Command  offline  ls /
+    ${output}=  Start Container and Exec Command  concurrent  ls /
     Log To Console  \nCheck if the copy operations succeeded
     :FOR  ${idx}  IN RANGE  0  10
     \   Should Contain  ${output}  foo-${idx}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop offline
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop concurrent
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
@@ -190,7 +190,7 @@ Concurrent copy: repeat copy a large file from host to offline container several
     ${pids}=  Create List
     Log To Console  \nIssue 10 docker cp commands for large file
     :FOR  ${idx}  IN RANGE  0  10
-    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt offline:/vol1/lg-${idx}  shell=True
+    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt concurrent:/vol1/lg-${idx}  shell=True
     \   Append To List  ${pids}  ${pid}
     Log To Console  \nWait for them to finish and check their RC
     :FOR  ${pid}  IN  @{pids}
@@ -198,11 +198,11 @@ Concurrent copy: repeat copy a large file from host to offline container several
     \   ${res}=  Wait For Process  ${pid}
     \   Log  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
-    ${output}=  Start Container and Exec Command  offline  ls /vol1
+    ${output}=  Start Container and Exec Command  concurrent  ls /vol1
     Log To Console  \nCheck if the copy operations succeeded
     :FOR  ${idx}  IN RANGE  0  10
     \   Should Contain  ${output}  lg-${idx}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop offline
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop concurrent
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
@@ -210,7 +210,7 @@ Concurrent copy: repeat copy a large file from offline container to host several
     ${pids}=  Create List
     Log To Console  \nIssue 10 docker cp commands for large file
     :FOR  ${idx}  IN RANGE  0  10
-    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp offline:/vol1/lg-${idx} ${CURDIR}  shell=True
+    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp concurrent:/vol1/lg-${idx} ${CURDIR}  shell=True
     \   Append To List  ${pids}  ${pid}
     Log To Console  \nWait for them to finish and check their RC
     :FOR  ${pid}  IN  @{pids}
@@ -222,7 +222,7 @@ Concurrent copy: repeat copy a large file from offline container to host several
     :FOR  ${idx}  IN RANGE  0  10
     \   OperatingSystem.File Should Exist  ${CURDIR}/lg-${idx}
     \   Remove File  ${CURDIR}/lg-${idx}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f concurrent
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 

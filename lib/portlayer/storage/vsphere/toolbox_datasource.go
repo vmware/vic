@@ -79,7 +79,20 @@ func (t *ToolboxDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (
 	}
 
 	// should only find a single path to stat, but make sure here.
+	if len(spec.Inclusions) != 1 {
+		op.Errorf("Stat called on more than one path: %+v", spec.Inclusions)
+	}
+
 	var statPath string
+	inclusions := len(spec.Inclusions)
+	if inclusions == 0 {
+		op.Debugf("filter spec for stat operation has no inclusion specified : %#v", *spec)
+	}
+
+	if inclusions > 1 {
+		op.Debugf("filter spec for stat operation had multiple inclusion paths : %#v", *spec)
+	}
+
 	for inclusion := range spec.Inclusions {
 		statPath = inclusion
 	}
@@ -98,12 +111,11 @@ func (t *ToolboxDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (
 
 	// decode from guest tools
 	header, err := tar.NewReader(statTar).Next()
+	if err == io.EOF {
+		// special case - unable to get a single header translates to Not Found
+		return nil, os.ErrNotExist
+	}
 	if err != nil {
-		if err == io.EOF {
-			// special case - unable to get a single header translates to Not Found
-			return nil, os.ErrNotExist
-		}
-
 		return nil, err
 	}
 

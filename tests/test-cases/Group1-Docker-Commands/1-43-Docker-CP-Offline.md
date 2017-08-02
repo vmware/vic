@@ -26,8 +26,8 @@ This test requires that a vSphere server is running and available
 13. Issue docker cp offline:/dne/. . to the new VIC appliance
 14. Issue docker cp dne/ offline:/ to the new VIC appliance
 15. Remove offline container
-16. Create a container named offline with a small volume attached to it
-17. Issue docker cp largefile.txt offline:/small to the new VIC appliance
+16. Create a container with a small volume attached to it
+17. Issue docker cp largefile.txt ${cid}:/small to the new VIC appliance
 18. Remove offline container
 19. Create a container with a single volume attached to it
 20. Issue docker cp foo.txt ${cid}:/vol1 to the new VIC appliance
@@ -41,19 +41,19 @@ This test requires that a vSphere server is running and available
 28. Issue docker cp foo.txt ${cid}:/vol1/vol2/vol3 to the new VIC appliance
 29. Start ${cid} and verify that the copy operation succeeded
 30. Remove ${cid} container
-31. Create a container named offline with a single volume attached to it
-32. Start 10 background processes that issues docker cp foo.txt offline:/foo-${idx} to the new VIC appliance
+31. Create a container named concurrent with a single volume attached to it
+32. Start 10 background processes that issues docker cp foo.txt concurrent:/foo-${idx} to the new VIC appliance
 33. Wait for these processes to finish
-34. Start and inspect offline:/ to verify that copy operation succeeded
-35. Stop offline
-36. Start 10 background processes that issues docker cp largefile.txt offline:/vol1/lg-${idx} to the new VIC appliance
+34. Start and inspect concurrent:/ to verify that copy operation succeeded
+35. Stop concurrent
+36. Start 10 background processes that issues docker cp largefile.txt concurrent:/vol1/lg-${idx} to the new VIC appliance
 37. Wait for these processes to finish
-38. Start and inspect offline:/vol1 to verify that copy operation succeeded
-39. Stop offline
-40. Start 10 background processes that issues docker cp offline:/vol1/lg-${idx} . to the new VIC appliance
+38. Start and inspect concurrent:/vol1 to verify that copy operation succeeded
+39. Stop concurrent
+40. Start 10 background processes that issues docker cp concurrent:/vol1/lg-${idx} . to the new VIC appliance
 41. Wait for these processes to finish
 42. Verify that the copy operation succeeded and clean up all the files copied to the host
-43. Remove offline container
+43. Remove concurrent
 44. Create a container called subVol with 2 volumes attached to it
 45. Issue docker cp ./mnt subVol:/ to the new VIC appliance
 46. Start subVol and inspect its /mnt, /mnt/vol1 and /mnt/vol2 to verify that copy operation succeeded

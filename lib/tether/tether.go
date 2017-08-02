@@ -253,17 +253,17 @@ func (t *tether) setNetworks() error {
 
 func (t *tether) setMounts() error {
 	// provides a lookup from path to volume reference.
-	NameLookupMap := make(map[string]string, 0)
+	pathIndex := make(map[string]string, 0)
 	mounts := make([]string, 0, len(t.config.Mounts))
 	for k, v := range t.config.Mounts {
 		mounts = append(mounts, v.Path)
-		NameLookupMap[v.Path] = k
+		pathIndex[v.Path] = k
 	}
 	// Order the mount paths so that we are doing them in shortest order first.
 	sort.Strings(mounts)
 
 	for _, v := range mounts {
-		targetRef := NameLookupMap[v]
+		targetRef := pathIndex[v]
 		mountTarget := t.config.Mounts[targetRef]
 		switch mountTarget.Source.Scheme {
 		case "label":
