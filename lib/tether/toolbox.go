@@ -264,10 +264,7 @@ func (t *Toolbox) halt() error {
 	return session.Cmd.Process.Kill()
 }
 
-// ----------
-// Online DataSource and DataSink Override Handlers
-// ----------
-
+// toolboxOverrideArchiveRead is the online DataSink Override Handler
 func toolboxOverrideArchiveRead(u *url.URL, tr *tar.Reader) error {
 
 	// special behavior when using disk-labels and filterspec
@@ -301,6 +298,7 @@ func toolboxOverrideArchiveRead(u *url.URL, tr *tar.Reader) error {
 
 }
 
+// toolboxOverrideArchiveWrite is the Online DataSource Override Handler
 func toolboxOverrideArchiveWrite(u *url.URL, tw *tar.Writer) error {
 
 	// special behavior when using disk-labels and filterspec
