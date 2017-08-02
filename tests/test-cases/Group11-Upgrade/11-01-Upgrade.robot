@@ -152,14 +152,6 @@ Create Container with Named Volume
     Should Be Equal As Integers  ${rc}  0
     Set Suite Variable  ${TestContainerVolume}  ${output}
 
-Verify Volume Inspect Info
-    [Arguments]  ${inspectedWhen}  ${volTestContainer}
-    Log To Console  Container Mount Inspected ${inspectedWhen} VCH restart
-    ${rc}  ${mountInfo}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} inspect -f '{{.Mounts}}' ${volTestContainer}
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${mountInfo}  ${mntTest}
-    Should Contain  ${mountInfo}  ${mntNamed}
-    Should Contain  ${mountInfo}  ${namedVolume}
 
 *** Test Cases ***
 Upgrade Present in vic-machine
@@ -181,12 +173,16 @@ Upgrade VCH with unreasonably short timeout and automatic rollback after failure
 
 Upgrade VCH
     Create Docker Containers
+
     Create Container with Named Volume
+
+    # Create check list for Volume Inspect
+    @{checkList}=  Create List  ${mntTest}  ${mntNamed}  ${namedVolume}
 
     Upgrade
     Check Upgraded Version
 
-    Verify Volume Inspect Info  After Upgrade and Before Rollback  ${TestContainerVolume}
+    Verify Volume Inspect Info  After Upgrade and Before Rollback  ${TestContainerVolume}  ${checkList}
 
     Rollback
     Check Original Version
@@ -194,7 +190,7 @@ Upgrade VCH
     Upgrade with ID
     Check Upgraded Version
 
-    Verify Volume Inspect Info  After Upgrade with ID  ${TestContainerVolume}
+    Verify Volume Inspect Info  After Upgrade with ID  ${TestContainerVolume}  ${checkList}
 
     Run Docker Checks
 

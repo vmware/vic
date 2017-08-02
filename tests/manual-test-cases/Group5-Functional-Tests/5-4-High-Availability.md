@@ -20,12 +20,9 @@ This test requires access to VMWare Nimbus cluster for dynamic ESXi and vCenter 
 5. Create a named volume
 6. Create a container with a mounted anonymous and named volume
 7. Verify that the volumes are still there using inspect before powering off the ESXi
-
 8. Power off the ESXi host that the VCH is currently running on
-
 9. Verify that the volumes are still there using inspect after powering off the ESXi
 10. Clean up the created container (docker rm)
-
 11. Run a variety of docker commands on the VCH appliance
 
 # Expected Outcome:
