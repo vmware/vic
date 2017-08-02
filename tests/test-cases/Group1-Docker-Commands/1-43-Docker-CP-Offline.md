@@ -73,6 +73,5 @@ This test requires that a vSphere server is running and available
 * Step 44-51 should all succeed
 
 # Possible Problems:
-12-13 are skipped until we properly propagate errors back to user
-17 should fail with not enough disk space, but currently returns a broken pipe
-31-43 are skipped until we properly handle concurrent requests for offline cp
+* 17 should fail with not enough disk space, but currently returns a broken pipe
+* 31-43 are offline concurrent cp tests and may be unstable
