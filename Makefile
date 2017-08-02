@@ -218,6 +218,7 @@ golint: $(GOLINT)
 gopath:
 	@echo -n $(GOPATH)
 
+vendored := $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 goimports: $(GOIMPORTS)
 	@echo checking go imports...
 	@! $(GOIMPORTS) -local github.com/vmware -d $$(\
