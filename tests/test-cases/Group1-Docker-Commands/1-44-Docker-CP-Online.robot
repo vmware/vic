@@ -239,15 +239,16 @@ Sub volumes: copy from host to an online container, dst includes several volumes
     Should Contain  ${output}  /mnt/vol2/v2.txt
 
 Sub volumes: copy from online container to host, src includes several volumes
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp subVol:/mnt ${CURDIR}/result
+    Remove Directory  ${CURDIR}/result1  recursive=True
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp subVol:/mnt ${CURDIR}/result1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    OperatingSystem.Directory Should Exist  ${CURDIR}/result/vol1
-    OperatingSystem.Directory Should Exist  ${CURDIR}/result/vol2
-    OperatingSystem.File Should Exist  ${CURDIR}/result/root.txt
-    OperatingSystem.File Should Exist  ${CURDIR}/result/vol1/v1.txt
-    OperatingSystem.File Should Exist  ${CURDIR}/result/vol2/v2.txt
-    Remove Directory  ${CURDIR}/result  recursive=True
+    OperatingSystem.Directory Should Exist  ${CURDIR}/result1/vol1
+    OperatingSystem.Directory Should Exist  ${CURDIR}/result1/vol2
+    OperatingSystem.File Should Exist  ${CURDIR}/result1/root.txt
+    OperatingSystem.File Should Exist  ${CURDIR}/result1/vol1/v1.txt
+    OperatingSystem.File Should Exist  ${CURDIR}/result1/vol2/v2.txt
+    Remove Directory  ${CURDIR}/result1  recursive=True
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f subVol
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
@@ -277,15 +278,16 @@ Sub volumes: copy from host to an offline container, dst includes a shared vol w
     Should Not Contain  ${output}  Error
 
 Sub volumes: copy from an offline container to host, src includes a shared vol with an online container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp subVol_off:/mnt ${CURDIR}/result
+    Remove Directory  ${CURDIR}/result2  recursive=True
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp subVol_off:/mnt ${CURDIR}/result2
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    OperatingSystem.Directory Should Exist  ${CURDIR}/result/vol1
-    OperatingSystem.Directory Should Exist  ${CURDIR}/result/vol2
-    OperatingSystem.File Should Exist  ${CURDIR}/result/root.txt
-    OperatingSystem.File Should Exist  ${CURDIR}/result/vol1/v1.txt
-    OperatingSystem.File Should Exist  ${CURDIR}/result/vol2/v2.txt
-    Remove Directory  ${CURDIR}/result  recursive=True
+    OperatingSystem.Directory Should Exist  ${CURDIR}/result2/vol1
+    OperatingSystem.Directory Should Exist  ${CURDIR}/result2/vol2
+    OperatingSystem.File Should Exist  ${CURDIR}/result2/root.txt
+    OperatingSystem.File Should Exist  ${CURDIR}/result2/vol1/v1.txt
+    OperatingSystem.File Should Exist  ${CURDIR}/result2/vol2/v2.txt
+    Remove Directory  ${CURDIR}/result2  recursive=True
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f subVol_off
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
