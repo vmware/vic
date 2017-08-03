@@ -136,7 +136,7 @@ func handleFlags() bool {
 
 	if vchConfig.Diagnostics.DebugLevel > 2 {
 		// use debug port layer mode
-		cli.portLayerPort = constants.DebugPortLayerPort
+		*cli.portLayerPort = constants.DebugPortLayerPort
 		clientIP, err := util.ClientIP()
 		if err != nil {
 			log.Fatalf("Unable to look up %s for portlayer API: %s", constants.ClientHostName, err)

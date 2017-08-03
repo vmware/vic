@@ -250,7 +250,7 @@ func saveImage(ap proxy.VicArchiveProxy, ic *imagec.ImageC, ref reference.Named)
 				return
 			}
 			filePath := path.Join(fileDir, cid+".tar")
-			log.Debugf("save layer %s to file %s", filePath)
+			log.Debugf("save layer %s to file %s", cid, filePath)
 			if pid == imagec.ScratchLayerID {
 				pid = ""
 			}
