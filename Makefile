@@ -220,7 +220,10 @@ gopath:
 
 goimports: $(GOIMPORTS)
 	@echo checking go imports...
-	@! $(GOIMPORTS) -local github.com/vmware -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
+	@! $(GOIMPORTS) -local github.com/vmware -d $$(\
+		 comm -23 <(find . -type f -name '*.go' -not -path "./vendor/*" | sort) \
+		          <(grep creating swagger-gen.log | awk '{print $$6 $$4};' | sed -e "s-\"\(.*\)\"-\./\1-g" | sed "s-\"\"-/-g" | sort)) \
+		 | egrep -v '^$$'
 
 gofmt:
 	@echo checking gofmt...
@@ -478,6 +481,9 @@ clean:
 	@rm -rf ./lib/apiservers/portlayer/cmd/
 	@rm -rf ./lib/apiservers/portlayer/models/
 	@rm -rf ./lib/apiservers/portlayer/restapi/operations/
+	@rm -rf ./lib/config/dynamic/admiral/client
+	@rm -rf ./lib/config/dynamic/admiral/models
+	@rm -rf ./lib/config/dynamic/admiral/operations
 
 	@rm -f *.log
 	@rm -f *.pem
