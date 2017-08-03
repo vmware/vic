@@ -30,38 +30,38 @@ Get Thumbprint From Log
     [Return]  ${thumbprint}
 
 *** Test Cases ***
-# Delete with defaults
-#     Set Test Environment Variables
+Delete with defaults
+    Set Test Environment Variables
 
-#     ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD}
-#     Should Contain  ${ret}  vic-machine-linux delete failed:  resource pool
-#     Should Contain  ${ret}  /Resources/virtual-container-host' not found
+    ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD}
+    Should Contain  ${ret}  vic-machine-linux delete failed:  resource pool
+    Should Contain  ${ret}  /Resources/virtual-container-host' not found
 
-# Wrong Password No Panic
-#     Set Test Environment Variables
-#     ${ret}=  Run  bin/vic-machine-linux create --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
-#     Should Contain  ${ret}  vic-machine-linux create failed
-#     Should Not Contain  ${ret}  panic:
+Wrong Password No Panic
+    Set Test Environment Variables
+    ${ret}=  Run  bin/vic-machine-linux create --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
+    Should Contain  ${ret}  vic-machine-linux create failed
+    Should Not Contain  ${ret}  panic:
 
-#     ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
-#     Should Contain  ${ret}  vic-machine-linux delete failed
-#     Should Not Contain  ${ret}  panic:
+    ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
+    Should Contain  ${ret}  vic-machine-linux delete failed
+    Should Not Contain  ${ret}  panic:
 
-#     ${ret}=  Run  bin/vic-machine-linux inspect --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
-#     Should Contain  ${ret}  vic-machine-linux inspect  failed
-#     Should Not Contain  ${ret}  panic:
+    ${ret}=  Run  bin/vic-machine-linux inspect --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
+    Should Contain  ${ret}  vic-machine-linux inspect  failed
+    Should Not Contain  ${ret}  panic:
 
-#     ${ret}=  Run  bin/vic-machine-linux ls --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
-#     Should Contain  ${ret}  vic-machine-linux ls failed
-#     Should Not Contain  ${ret}  panic:
+    ${ret}=  Run  bin/vic-machine-linux ls --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
+    Should Contain  ${ret}  vic-machine-linux ls failed
+    Should Not Contain  ${ret}  panic:
 
-#     ${ret}=  Run  bin/vic-machine-linux upgrade --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
-#     Should Contain  ${ret}  vic-machine-linux upgrade failed
-#     Should Not Contain  ${ret}  panic:
+    ${ret}=  Run  bin/vic-machine-linux upgrade --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
+    Should Contain  ${ret}  vic-machine-linux upgrade failed
+    Should Not Contain  ${ret}  panic:
 
-#     ${ret}=  Run  bin/vic-machine-linux configure --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
-#     Should Contain  ${ret}  vic-machine-linux configure failed
-#     Should Not Contain  ${ret}  panic:
+    ${ret}=  Run  bin/vic-machine-linux configure --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
+    Should Contain  ${ret}  vic-machine-linux configure failed
+    Should Not Contain  ${ret}  panic:
 
 Check That VMOMI Sessions Don't Leak From VIC Machine
     Set Test Environment Variables
