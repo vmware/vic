@@ -110,6 +110,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	defer trace.End(trace.Begin(""))
 	log.Infof("Creating new validator")
 	v := &Validator{}
+
 	if version.Version != "" {
 		v.Version = version.Version
 	}
@@ -231,6 +232,11 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		log.Errorf("Had a problem querying the datastores: %s", err.Error())
 	}
 	v.QueryVCHStatus(vch, sess)
+	defer func() {
+		if sess != nil && len(nwErrors) > 0 {
+			sess.Logout(ctx)
+		}
+	}()
 	return v
 }
 
