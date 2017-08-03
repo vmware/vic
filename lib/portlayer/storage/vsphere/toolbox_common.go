@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"path"
 	"strconv"
+	"time"
 
 	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/guest/toolbox"
@@ -25,6 +26,7 @@ import (
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -35,6 +37,19 @@ const (
 	SkipRecurseQueryName = "skip-recurse"
 	SkipDataQueryName    = "skip-data"
 )
+
+var (
+	toolboxRetryConf *retry.BackoffConfig
+)
+
+func init() {
+	toolboxRetryConf = retry.NewBackoffConfig()
+
+	// These numbers are somewhat arbitrary best guesses
+	toolboxRetryConf.MaxElapsedTime = time.Second * 30
+	toolboxRetryConf.InitialInterval = time.Millisecond * 500
+	toolboxRetryConf.MaxInterval = time.Second * 5
+}
 
 // Parse Archive builds an archive url with disklabel, filtersec, recursive, and data booleans.
 func BuildArchiveURL(op trace.Operation, disklabel, target string, fs *archive.FilterSpec, recurse, data bool) (string, error) {

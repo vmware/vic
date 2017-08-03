@@ -58,13 +58,6 @@ func (t *ToolboxDataSource) Export(op trace.Operation, spec *archive.FilterSpec,
 			op.Errorf("Cannot build archive url: %s", err.Error())
 			return nil, err
 		}
-
-		// These numbers are somewhat arbitrary best guesses
-		retryConf := retry.NewBackoffConfig()
-		retryConf.MaxElapsedTime = time.Second * 30
-		retryConf.InitialInterval = time.Millisecond * 500
-		retryConf.MaxInterval = time.Second * 5
-
 		var tar io.ReadCloser
 		var contentLength int64
 
@@ -74,7 +67,7 @@ func (t *ToolboxDataSource) Export(op trace.Operation, spec *archive.FilterSpec,
 			return retryErr
 		}
 
-		err = retry.DoWithConfig(retryFunc, isInvalidStateError, retryConf)
+		err = retry.DoWithConfig(retryFunc, isInvalidStateError, toolboxRetryConf)
 		if err != nil {
 			op.Errorf("Download error: %s", err.Error())
 			return nil, err
@@ -121,12 +114,6 @@ func (t *ToolboxDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (
 		return nil, err
 	}
 
-	// These numbers are somewhat arbitrary best guesses
-	retryConf := retry.NewBackoffConfig()
-	retryConf.MaxElapsedTime = time.Second * 30
-	retryConf.InitialInterval = time.Millisecond * 500
-	retryConf.MaxInterval = time.Second * 5
-
 	var statTar io.ReadCloser
 
 	retryFunc := func() error {
@@ -135,7 +122,7 @@ func (t *ToolboxDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (
 		return retryErr
 	}
 
-	err = retry.DoWithConfig(retryFunc, isInvalidStateError, retryConf)
+	err = retry.DoWithConfig(retryFunc, isInvalidStateError, toolboxRetryConf)
 	if err != nil {
 		op.Errorf("Download error: %s", err.Error())
 		return nil, err

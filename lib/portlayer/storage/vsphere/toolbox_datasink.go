@@ -56,17 +56,12 @@ func (t *ToolboxDataSink) Import(op trace.Operation, spec *archive.FilterSpec, d
 
 	// upload the gzip archive.
 	p := soap.DefaultUpload
-	// These numbers are somewhat arbitrary best guesses
-	retryConf := retry.NewBackoffConfig()
-	retryConf.MaxElapsedTime = time.Second * 30
-	retryConf.InitialInterval = time.Millisecond * 500
-	retryConf.MaxInterval = time.Second * 5
 
 	retryFunc := func() error {
 		return client.Upload(op, data, target, p, &types.GuestPosixFileAttributes{}, true)
 	}
 
-	err = retry.DoWithConfig(retryFunc, isInvalidStateError, retryConf)
+	err = retry.DoWithConfig(retryFunc, isInvalidStateError, toolboxRetryConf)
 
 	if err != nil {
 		op.Debugf("Upload error: %s", err.Error())
