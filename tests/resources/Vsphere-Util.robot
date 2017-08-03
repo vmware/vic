@@ -234,14 +234,3 @@ Check VM Guestinfo
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e ${vm} | grep ${str}
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${output}
-
-Clean VMOMI Sessions
-    [Arguments]  ${user-agent}
-    Run  for x in $(govc session.ls); grep "${user-agent}" | xargs govc session.rm
-
-No Leaked Sessions
-    [Arguments]  ${user-agent}
-    Log To Console  Ensuring ${user-agent} does not leak vmomi sessions
-    ${rc}  ${output}=  Run And Return Rc And Output  govc session.ls | grep "${user-agent}" | wc -l
-    Should Be Equal As Integers  ${rc}  0
-    Should Be Equal As Integers  ${output}  0
