@@ -220,7 +220,7 @@ gopath:
 
 goimports: $(GOIMPORTS)
 	@echo checking go imports...
-	@! goimports -local github.com/vmware -d $$(\
+	@! $(GOIMPORTS) -local github.com/vmware -d $$(\
 		 comm -23 <(find . -type f -name '*.go' -not -path "./vendor/*" | sort) \
 		          <(grep creating swagger-gen.log | awk '{print $$6 $$4};' | sed -e "s-\"\(.*\)\"-\./\1-g" | sed "s-\"\"-/-g" | sort)) \
 		 | egrep -v '^$$'
