@@ -38,6 +38,11 @@ const (
 	// You can assign the device to (1:z ), where 1 is SCSI controller 1 and z is a virtual device node from 0 to 15.
 	// https://pubs.vmware.com/vsphere-65/index.jsp#com.vmware.vsphere.vm_admin.doc/GUID-5872D173-A076-42FE-8D0B-9DB0EB0E7362.html
 	MaxAttachedDisks = 16
+
+	// for now we do not use non-persistent disk - otherwise we get collisions between Stat and Import in concurrent scenarios
+	useNonPersistentDisks = false
+	// until we have mount refcounts separate from disk refcounts we cannot have different mount options for the same vmdk
+	useReadOnlyMounts = false
 )
 
 // Manager manages disks for the vm it runs on.  The expectation is this is run
@@ -497,7 +502,7 @@ func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.Datast
 
 	op.Infof("Attach/Mount %s", datastoreURI.String())
 
-	if !persistent {
+	if !persistent && useNonPersistentDisks {
 		config = NewNonPersistentDisk(datastoreURI)
 	} else {
 		config = NewPersistentDisk(datastoreURI)
@@ -510,7 +515,8 @@ func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.Datast
 
 	// don't update access time - that would cause the diff operation to mutate the filesystem
 	opts := []string{"noatime"}
-	if !persistent {
+
+	if !persistent && useReadOnlyMounts {
 		opts = append(opts, "ro")
 	}
 
@@ -522,7 +528,7 @@ func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.Datast
 func (m *Manager) UnmountAndDetach(op trace.Operation, datastoreURI *object.DatastorePath, persistent bool) error {
 	var config *VirtualDiskConfig
 
-	if !persistent {
+	if !persistent && useNonPersistentDisks {
 		config = NewNonPersistentDisk(datastoreURI)
 	} else {
 		config = NewPersistentDisk(datastoreURI)
