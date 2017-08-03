@@ -218,14 +218,12 @@ golint: $(GOLINT)
 gopath:
 	@echo -n $(GOPATH)
 
-vendored := $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 goimports: $(GOIMPORTS)
 	@echo checking go imports...
-	@! $(GOIMPORTS) -local github.com/vmware -d $$(test -e ./swagger-gen.log \
-			&& comm -12 <(echo "$(vendored)" | sort) \
-			            <(for x in $$(cat swagger-gen.log | grep creating | cut -d" " -f4 | sed -e "s/\"\(.*\)\"/\1/g");\
-			              	do find . -name "$x"; done | sort) \
-			|| echo "$(vendored)") 2>&1 | egrep -v '^$$'
+	@! goimports -local github.com/vmware -d $$(\
+		 comm -23 <(find . -type f -name '*.go' -not -path "./vendor/*" | sort) \
+		          <(grep creating swagger-gen.log | awk '{print $$6 $$4};' | sed -e "s-\"\(.*\)\"-\./\1-g" | sed "s-\"\"-/-g" | sort)) \
+     | egrep -v '^$$'
 
 gofmt:
 	@echo checking gofmt...
