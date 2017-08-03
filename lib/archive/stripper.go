@@ -58,14 +58,12 @@ func (s *Stripper) WriteTo(w io.Writer) (sum int64, err error) {
 	// semantic?
 
 	tw := tar.NewWriter(w)
-
 	for {
 		var header *tar.Header
 		header, err = s.source.Next()
 		if err == io.EOF {
 			// do NOT call tarwriter.Close() and drop the EOF for io.Copy behaviour
 			err = nil
-
 			s.op.Debugf("Stripper dropping end of archive")
 			return
 		}

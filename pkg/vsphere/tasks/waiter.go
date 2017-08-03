@@ -108,10 +108,10 @@ func isRetryError(op trace.Operation, err error) bool {
 		switch f := soap.ToSoapFault(err).VimFault().(type) {
 		case types.TaskInProgress:
 			return true
-		case *types.NetworkDisruptedAndConfigRolledBack:
+		case types.NetworkDisruptedAndConfigRolledBack:
 			logExpectedFault(op, soapFault, f)
 			return true
-		case *types.InvalidArgument:
+		case types.InvalidArgument:
 			logExpectedFault(op, soapFault, f)
 			return true
 		default:

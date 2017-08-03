@@ -163,6 +163,7 @@ func (c *Container) importToContainer(op trace.Operation, vc *viccontainer.VicCo
 			break
 		}
 		if err != nil {
+			op.Errorf("Error reading tar header from client archive: %s", err)
 			return err
 		}
 
@@ -180,6 +181,10 @@ func (c *Container) importToContainer(op trace.Operation, vc *viccontainer.VicCo
 		if _, err = io.Copy(tarWriter, tarReader); err != nil {
 			op.Errorf("Error while copying tar data for %s: %s", header.Name, err.Error())
 			return err
+		}
+		// TODO: change this to log level 3
+		if vchConfig.Cfg.Diagnostics.DebugLevel >= 1 {
+			op.Debugf("Wrote entry: %s", header.Name)
 		}
 	}
 

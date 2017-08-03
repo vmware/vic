@@ -52,8 +52,8 @@ This test requires that a vSphere server is running and available
 39. Run a container called subVol with 2 volumes attached to it
 40. Issue docker cp ./mnt subVol:/ to the new VIC appliance
 41. Inspect subVol:/mnt, subVol:/mnt/vol1 and subVol:/mnt/vol2 to verify that the copy operation succeeded
-42. Issue docker cp subVol:/mnt ./result to the new VIC appliance
-43. Inspect ./result on the host to verify that copy succeeded and remove it afterwards
+42. Issue docker cp subVol:/mnt ./result1 to the new VIC appliance
+43. Inspect ./result1 on the host to verify that copy succeeded and remove it afterwards
 44. Remove subVol
 45. Run a detached container called subVol_on with one volume attached to it
 46. Create a container called subVol_off with a volume that's shared with the online container subVol_on
@@ -61,8 +61,8 @@ This test requires that a vSphere server is running and available
 48. Stop subVol_on container
 49. Start subVol_off to inspect subVol_off:/mnt, subVol_off:/mnt/vol1 and subVol_off:/mnt/vol2 to verify the copy operation succeeded
 50. Stop subVol and start subVol_on
-51. Issue docker cp subVol_off:/mnt ./result to the new VIC appliance
-52. Inspect ./result on the host to verify that copy succeeded and remove it afterwards
+51. Issue docker cp subVol_off:/mnt ./result2 to the new VIC appliance
+52. Inspect ./result2 on the host to verify that copy succeeded and remove it afterwards
 53. Remove subVol_off and subVol_on
 54. Clean up created files, directories and volumes
 

@@ -22,6 +22,7 @@ import (
 
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -56,7 +57,16 @@ func (t *ToolboxDataSource) Export(op trace.Operation, spec *archive.FilterSpec,
 			op.Errorf("Cannot build archive url: %s", err.Error())
 			return nil, err
 		}
-		tar, contentLength, err := client.Download(op, target)
+		var tar io.ReadCloser
+		var contentLength int64
+
+		retryFunc := func() error {
+			var retryErr error
+			tar, contentLength, retryErr = client.Download(op, target)
+			return retryErr
+		}
+
+		err = retry.DoWithConfig(retryFunc, isInvalidStateError, toolboxRetryConf)
 		if err != nil {
 			op.Errorf("Download error: %s", err.Error())
 			return nil, err
@@ -102,7 +112,16 @@ func (t *ToolboxDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (
 		op.Errorf("Cannot build archive url: %s", err.Error())
 		return nil, err
 	}
-	statTar, _, err := client.Download(op, target)
+
+	var statTar io.ReadCloser
+
+	retryFunc := func() error {
+		var retryErr error
+		statTar, _, retryErr = client.Download(op, target)
+		return retryErr
+	}
+
+	err = retry.DoWithConfig(retryFunc, isInvalidStateError, toolboxRetryConf)
 	if err != nil {
 		op.Errorf("Download error: %s", err.Error())
 		return nil, err
