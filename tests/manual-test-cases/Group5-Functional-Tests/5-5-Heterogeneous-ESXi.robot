@@ -37,7 +37,9 @@ Test
     Append To List  ${list}  ${esx3}
 
     # Finish vCenter deploy
-    ${output}=  Wait For Process  ${pid-vc}
+    ${output}=  Wait For Process  ${pid-vc}  timeout=40 minutes  on_timeout=terminate
+    Log  ${output.stdout}
+    Log  ${output.stderr}
     Should Contain  ${output.stdout}  Overall Status: Succeeded
 
     Open Connection  %{NIMBUS_GW}
