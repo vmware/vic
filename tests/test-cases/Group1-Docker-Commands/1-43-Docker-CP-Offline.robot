@@ -206,6 +206,7 @@ Concurrent copy: repeat copy a large file from host to offline container several
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
+# NOTE: this test depends on the prior test passing as it uses the copied files from that test as the source files for this test
 Concurrent copy: repeat copy a large file from offline container to host several times
     ${pids}=  Create List
     Log To Console  \nIssue 10 docker cp commands for large file
