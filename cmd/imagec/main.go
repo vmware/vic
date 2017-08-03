@@ -101,7 +101,7 @@ func init() {
 
 	flag.StringVar(&imageCOptions.options.Registry, "registry", imagec.DefaultDockerURL, "Registry to pull/push images (default: registry-1.docker.io)")
 
-	flag.StringVar(&imageCOptions.options.ImageStore, "image-store", imagec.DefaultDockerURL, "image store name or url used to query image data")
+	flag.StringVar(&imageCOptions.options.ImageStore, "image-store", imagec.DefaultDockerURL, "portlayer image store name or url used to query image data")
 
 	flag.Parse()
 
