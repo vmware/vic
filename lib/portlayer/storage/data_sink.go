@@ -80,7 +80,7 @@ func (m *MountDataSink) Import(op trace.Operation, spec *archive.FilterSpec, dat
 }
 
 func (m *MountDataSink) Close() error {
-	m.cleanOp.Infof("cleaning up after export")
+	m.cleanOp.Infof("cleaning up after import")
 
 	m.Path.Close()
 	if m.Clean != nil {

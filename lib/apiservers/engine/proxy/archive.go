@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -32,7 +33,7 @@ import (
 
 type VicArchiveProxy interface {
 	ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec vicarchive.FilterSpec) (io.ReadCloser, error)
-	ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec vicarchive.FilterSpec) (io.WriteCloser, error)
+	ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec vicarchive.FilterSpec, wg *sync.WaitGroup, errchan chan error) (io.WriteCloser, error)
 }
 
 //------------------------------------
@@ -98,8 +99,12 @@ func (a *ArchiveProxy) ArchiveExportReader(ctx context.Context, store, ancestorS
 				plErr := InternalServerError(fmt.Sprintf("Server error from archive reader for device %s", deviceID))
 				log.Errorf(plErr.Error())
 				pipeWriter.CloseWithError(plErr)
-			case *storage.ImportArchiveLocked:
+			case *storage.ExportArchiveLocked:
 				plErr := ResourceLockedError(fmt.Sprintf("Resource locked for device %s", deviceID))
+				log.Errorf(plErr.Error())
+				pipeWriter.CloseWithError(plErr)
+			case *storage.ExportArchiveUnprocessableEntity:
+				plErr := InternalServerError("failed to process given path")
 				log.Errorf(plErr.Error())
 				pipeWriter.CloseWithError(plErr)
 			default:
@@ -123,7 +128,7 @@ func (a *ArchiveProxy) ArchiveExportReader(ctx context.Context, store, ancestorS
 
 // ArchiveImportWriter initializes a write stream for a path.  This is usually called
 // for getting a writer during docker cp TO container.
-func (a *ArchiveProxy) ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec vicarchive.FilterSpec) (io.WriteCloser, error) {
+func (a *ArchiveProxy) ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec vicarchive.FilterSpec, wg *sync.WaitGroup, errchan chan error) (io.WriteCloser, error) {
 	defer trace.End(trace.Begin(deviceID))
 
 	if store == "" || deviceID == "" {
@@ -142,7 +147,15 @@ func (a *ArchiveProxy) ArchiveImportWriter(ctx context.Context, store, deviceID 
 		}
 	}()
 
+	wg.Add(1)
 	go func() {
+		var plErr error
+		defer func() {
+			log.Debugf("Stream for device %s has returned from PL. Err received is %v ", deviceID, plErr)
+			errchan <- plErr
+			wg.Done()
+		}()
+
 		// encodedFilter and destination are not required (from swagge spec) because
 		// they are allowed to be empty.
 		params := storage.NewImportArchiveParamsWithContext(ctx).
@@ -161,17 +174,26 @@ func (a *ArchiveProxy) ArchiveImportWriter(ctx context.Context, store, deviceID 
 		if err != nil {
 			switch err := err.(type) {
 			case *storage.ImportArchiveInternalServerError:
-				plErr := InternalServerError(fmt.Sprintf("Server error from archive writer for device %s", deviceID))
+				plErr = InternalServerError(fmt.Sprintf("error writing files to device %s", deviceID))
 				log.Errorf(plErr.Error())
 				pipeReader.CloseWithError(plErr)
 			case *storage.ImportArchiveLocked:
-				plErr := ResourceLockedError(fmt.Sprintf("Resource locked for device %s", deviceID))
+				plErr = ResourceLockedError(fmt.Sprintf("resource locked for device %s", deviceID))
+				log.Errorf(plErr.Error())
+				pipeReader.CloseWithError(plErr)
+			case *storage.ImportArchiveNotFound:
+				plErr = ResourceNotFoundError("file or directory")
+				log.Errorf(plErr.Error())
+				pipeReader.CloseWithError(plErr)
+			case *storage.ImportArchiveUnprocessableEntity:
+				plErr = InternalServerError("failed to process given path")
 				log.Errorf(plErr.Error())
 				pipeReader.CloseWithError(plErr)
 			default:
 				//Check for EOF.  Since the connection, transport, and data handling are
 				//encapsulated inside of Swagger, we can only detect EOF by checking the
 				//error string
+				plErr = err
 				if strings.Contains(err.Error(), swaggerSubstringEOF) {
 					log.Errorf(err.Error())
 					pipeReader.Close()

@@ -37,6 +37,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -95,6 +96,8 @@ type VicContainerProxy interface {
 	StreamContainerLogs(ctx context.Context, name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 	StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error
 
+	StatPath(op trace.Operation, sotre, deviceID string, filterSpec archive.FilterSpec) (*types.ContainerPathStat, error)
+
 	Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error
 	State(vc *viccontainer.VicContainer) (*types.ContainerState, error)
 	Wait(vc *viccontainer.VicContainer, timeout time.Duration) (*types.ContainerState, error)
@@ -102,7 +105,7 @@ type VicContainerProxy interface {
 	Resize(id string, height, width int32) error
 	Rename(vc *viccontainer.VicContainer, newName string) error
 
-	GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error)
+	GetContainerChanges(op trace.Operation, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error)
 
 	Handle(id, name string) (string, error)
 	Client() *client.PortLayer
@@ -146,6 +149,7 @@ const (
 	swaggerSubstringEOF                 = "EOF"
 	forceLogType                        = "json-file" //Use in inspect to allow docker logs to work
 	ShortIDLen                          = 12
+	archiveStreamBufSize                = 64 * 1024
 
 	DriverArgFlagKey      = "flags"
 	DriverArgContainerKey = "container"
@@ -482,7 +486,7 @@ func (c *ContainerProxy) AddLoggingToContainer(handle string, config types.Conta
 	return handle, nil
 }
 
-// AddInteractionToContainer adds interaction capabilies to a container, referenced by handle.
+// AddInteractionToContainer adds interaction capabilities to a container, referenced by handle.
 // If an error is return, the returned handle should not be used.
 //
 // returns:
@@ -509,7 +513,7 @@ func (c *ContainerProxy) AddInteractionToContainer(handle string, config types.C
 	return handle, nil
 }
 
-// BindInteraction enables interaction capabilies
+// BindInteraction enables interaction capabilities
 func (c *ContainerProxy) BindInteraction(handle string, name string, id string) (string, error) {
 	defer trace.End(trace.Begin(handle))
 
@@ -538,7 +542,7 @@ func (c *ContainerProxy) BindInteraction(handle string, name string, id string) 
 	return handle, nil
 }
 
-// UnbindInteraction disables interaction capabilies
+// UnbindInteraction disables interaction capabilities
 func (c *ContainerProxy) UnbindInteraction(handle string, name string, id string) (string, error) {
 	defer trace.End(trace.Begin(handle))
 
@@ -683,7 +687,7 @@ func (c *ContainerProxy) StreamContainerStats(ctx context.Context, config *conve
 
 // GetContainerChanges returns container changes from portlayer.
 // Set data to true will return file data, otherwise, only return file headers with change type.
-func (c *ContainerProxy) GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error) {
+func (c *ContainerProxy) GetContainerChanges(op trace.Operation, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error) {
 	host, err := sys.UUID()
 	if err != nil {
 		return nil, InternalServerError("Failed to determine host UUID")
@@ -695,12 +699,52 @@ func (c *ContainerProxy) GetContainerChanges(ctx context.Context, vc *viccontain
 		Exclusions: map[string]struct{}{},
 	}
 
-	r, err := archiveProxy.ArchiveExportReader(ctx, constants.ContainerStoreName, host, vc.ContainerID, parent, data, spec)
+	r, err := archiveProxy.ArchiveExportReader(op, constants.ContainerStoreName, host, vc.ContainerID, parent, data, spec)
 	if err != nil {
 		return nil, InternalServerError(err.Error())
 	}
 
 	return r, nil
+}
+
+// StatPath requests the portlayer to stat the filesystem resource at the
+// specified path in the container vc.
+func (c *ContainerProxy) StatPath(op trace.Operation, store, deviceID string, filterSpec archive.FilterSpec) (*types.ContainerPathStat, error) {
+	defer trace.End(trace.Begin(deviceID))
+
+	statPathParams := storage.
+		NewStatPathParamsWithContext(op).
+		WithStore(store).
+		WithDeviceID(deviceID)
+
+	spec, err := archive.EncodeFilterSpec(op, &filterSpec)
+	if err != nil {
+		op.Errorf(err.Error())
+		return nil, InternalServerError(err.Error())
+	}
+	statPathParams = statPathParams.WithFilterSpec(spec)
+
+	statPathOk, err := c.client.Storage.StatPath(statPathParams)
+	if err != nil {
+		op.Errorf(err.Error())
+		return nil, err
+	}
+
+	stat := &types.ContainerPathStat{
+		Name:       statPathOk.Name,
+		Mode:       os.FileMode(statPathOk.Mode),
+		Size:       statPathOk.Size,
+		LinkTarget: statPathOk.LinkTarget,
+	}
+
+	var modTime time.Time
+	if err := modTime.GobDecode([]byte(statPathOk.ModTime)); err != nil {
+		op.Debugf("error getting mod time from statpath: %s", err.Error())
+	} else {
+		stat.Mtime = modTime
+	}
+
+	return stat, nil
 }
 
 // Stop will stop (shutdown) a VIC container.
@@ -1685,7 +1729,7 @@ func networkFromContainerInfo(vc *viccontainer.VicContainer, info *models.Contai
 
 // portMapFromVicContainer() constructs a docker portmap from both the container's
 // hostconfig and config (both stored in VicContainer).  They are added and modified
-// during docker create.  This function creates a new map that is adhere's to docker's
+// during docker create.  This function creates a new map that is adheres to docker's
 // structure for types.NetworkSettings.Ports.
 func portMapFromVicContainer(vc *viccontainer.VicContainer) nat.PortMap {
 	var portMap nat.PortMap

@@ -45,7 +45,14 @@ const (
 func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string) error {
 	op.Debugf("unpacking archive to root: %s, filter: %+v", root, filter)
 
-	tr := tar.NewReader(tarStream)
+	// Online datasource is sending a tar reader instead of an io reader.
+	// Type check here to see if we actually need to create a tar reader.
+	var tr *tar.Reader
+	if trCheck, ok := tarStream.(*tar.Reader); ok {
+		tr = trCheck
+	} else {
+		tr = tar.NewReader(tarStream)
+	}
 
 	fi, err := os.Stat(root)
 	if err != nil {
@@ -54,13 +61,13 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		return err
 	}
 
-	// TODO: handle single file case
 	if !fi.IsDir() {
-		err := fmt.Errorf("tar unpack target is not a directory: %s", root)
+		err := fmt.Errorf("unpack root target is not a directory: %s", root)
 		op.Error(err)
 		return err
 	}
 
+	op.Debugf("using FilterSpec : (%#v)", *filter)
 	// process the tarball onto the filesystem
 	for {
 		header, err := tr.Next()
@@ -74,15 +81,13 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 			return err
 		}
 
-		op.Debugf("processing tar header: %s", header.Name)
-
+		op.Debugf("processing tar header: asset(%s), size(%d)", header.Name, header.Size)
 		// skip excluded elements unless explicitly included
 		if filter.Excludes(op, header.Name) {
 			continue
 		}
 
 		// fix up path
-		// TODO: update with revised filterspec
 		stripped := strings.TrimPrefix(header.Name, filter.StripPath)
 		rebased := filepath.Join(filter.RebasePath, stripped)
 		absPath := filepath.Join(root, rebased)
@@ -91,33 +96,31 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		case tar.TypeDir:
 			err = os.MkdirAll(absPath, header.FileInfo().Mode())
 			if err != nil {
+				op.Errorf("Failed to create directory%s: %s", absPath, err)
 				return err
 			}
-			continue
 		case tar.TypeSymlink:
-
 			err := os.Symlink(header.Linkname, absPath)
 			if err != nil {
 				op.Errorf("Failed to create symlink %s->%s: %s", absPath, header.Linkname, err)
 				return err
 			}
-
 		case tar.TypeReg:
 			f, err := os.OpenFile(absPath, fileWriteFlags, header.FileInfo().Mode())
 			if err != nil {
-				return nil
+				op.Errorf("Failed to open file %s: %s", absPath, err)
+				return err
 			}
-
 			_, err = io.Copy(f, tr)
 			// TODO: add ctx.Done cancellation
 			f.Close()
 			if err != nil {
 				return err
 			}
-
 		default:
 			// TODO: add support for special file types - otherwise we will do absurd things such as read infinitely from /dev/random
 		}
+		op.Debugf("Finished writing to: %s", absPath)
 	}
 	return nil
 }

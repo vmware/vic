@@ -17,18 +17,31 @@
 package tether
 
 import (
+	"archive/tar"
+	"context"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/url"
+	"os"
+	"path"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	dar "github.com/docker/docker/pkg/archive"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/govmomi/toolbox"
+	"github.com/vmware/govmomi/toolbox/hgfs"
 	"github.com/vmware/govmomi/toolbox/vix"
 	"github.com/vmware/vic/cmd/tether/msgs"
+	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // Toolbox is a tether extension that wraps toolbox.Service
@@ -45,6 +58,10 @@ type Toolbox struct {
 
 	stop chan struct{}
 }
+
+var (
+	defaultArchiveHandler = hgfs.NewArchiveHandler().(*hgfs.ArchiveHandler)
+)
 
 // NewToolbox returns a tether.Extension that wraps the vsphere/toolbox service
 func NewToolbox() *Toolbox {
@@ -112,7 +129,11 @@ func (t *Toolbox) Reload(config *ExecutorConfig) error {
 	t.authIDs[config.ID] = struct{}{}
 	// we also allow any device IDs that are attached
 	for _, mspec := range config.Mounts {
-		t.authIDs[mspec.Source.Host] = struct{}{}
+		// mounstpect.source.path is the disk label for vmdks
+		// TODO: this is not the case for other volumes, eg nfs vols.
+		if mspec.Source.Scheme == "label" {
+			t.authIDs[mspec.Source.Path] = struct{}{}
+		}
 	}
 
 	return nil
@@ -125,6 +146,11 @@ func (t *Toolbox) InContainer() *Toolbox {
 	cmd := t.Service.Command
 	cmd.Authenticate = t.containerAuthenticate
 	cmd.ProcessStartCommand = t.containerStartCommand
+
+	cmd.FileServer.RegisterFileHandler(hgfs.ArchiveScheme, &hgfs.ArchiveHandler{
+		Read:  toolboxOverrideArchiveRead,
+		Write: toolboxOverrideArchiveWrite,
+	})
 
 	return t
 }
@@ -236,4 +262,154 @@ func (t *Toolbox) halt() error {
 	log.Warnf("killing %s", session.ID)
 
 	return session.Cmd.Process.Kill()
+}
+
+// toolboxOverrideArchiveRead is the online DataSink Override Handler
+func toolboxOverrideArchiveRead(u *url.URL, tr *tar.Reader) error {
+
+	// special behavior when using disk-labels and filterspec
+	diskLabel := u.Query().Get(vsphere.DiskLabelQueryName)
+	filterSpec := u.Query().Get(vsphere.FilterSpecQueryName)
+	if diskLabel != "" && filterSpec != "" {
+		op := trace.NewOperation(context.Background(), "ToolboxOnlineDataSink: %s", u.String())
+		op.Debugf("Reading from tar archive to path %s: %s", u.Path, u.String())
+		spec, err := archive.DecodeFilterSpec(op, &filterSpec)
+		if err != nil {
+			op.Errorf(err.Error())
+			return err
+		}
+		diskPath, err := mountDiskLabel(diskLabel)
+		if err != nil {
+			op.Errorf(err.Error())
+			return err
+		}
+		defer unmount(op, diskPath)
+
+		// no need to join on u.Path here. u.Path == spec.Rebase, but
+		// Unpack will rebase tar headers for us. :thumbsup:
+		err = archive.Unpack(op, tr, spec, diskPath)
+		if err != nil {
+			op.Errorf(err.Error())
+		}
+		op.Debugf("Finished reading from tar archive to path %s: %s", u.Path, u.String())
+		return err
+	}
+	return defaultArchiveHandler.Read(u, tr)
+
+}
+
+// toolboxOverrideArchiveWrite is the Online DataSource Override Handler
+func toolboxOverrideArchiveWrite(u *url.URL, tw *tar.Writer) error {
+
+	// special behavior when using disk-labels and filterspec
+	diskLabel := u.Query().Get(vsphere.DiskLabelQueryName)
+	filterSpec := u.Query().Get(vsphere.FilterSpecQueryName)
+
+	skiprecurse, _ := strconv.ParseBool(u.Query().Get(vsphere.SkipRecurseQueryName))
+	skipdata, _ := strconv.ParseBool(u.Query().Get(vsphere.SkipDataQueryName))
+
+	if diskLabel != "" && filterSpec != "" {
+		op := trace.NewOperation(context.Background(), "ToolboxOnlineDataSource: %s", u.String())
+		op.Debugf("Writing to archive from %s: %s", u.Path, u.String())
+
+		spec, err := archive.DecodeFilterSpec(op, &filterSpec)
+		if err != nil {
+			op.Errorf(err.Error())
+			return err
+		}
+
+		// get the container fs mount
+		diskPath, err := mountDiskLabel(diskLabel)
+		if err != nil {
+			op.Errorf(err.Error())
+			return err
+		}
+		defer unmount(op, diskPath)
+
+		var rc io.ReadCloser
+		if skiprecurse {
+			// we only want a single file - this is a hack while we're abusing Diff, but
+			// accomplish this by generating a single entry ChangeSet
+			changes := []dar.Change{
+				{
+					Kind: dar.ChangeModify,
+					Path: u.Path,
+				},
+			}
+
+			rc, err = archive.Tar(op, diskPath, changes, spec, !skipdata, false)
+		} else {
+			rc, err = archive.Diff(op, diskPath, "", spec, !skipdata, false)
+		}
+
+		if err != nil {
+			op.Errorf(err.Error())
+			return err
+		}
+
+		tr := tar.NewReader(rc)
+		defer rc.Close()
+		for {
+			hdr, err := tr.Next()
+			if err == io.EOF {
+				op.Debugf("Finished writing to archive from %s: %s with error %#v", u.Path, u.String(), err)
+				break
+			}
+			if err != nil {
+				op.Errorf("error writing tar: %s", err.Error())
+				return err
+			}
+			op.Debugf("Writing header: %#s", *hdr)
+			err = tw.WriteHeader(hdr)
+			if err != nil {
+				op.Errorf("error writing tar header: %s", err.Error())
+				return err
+			}
+			_, err = io.Copy(tw, tr)
+			if err != nil {
+				op.Errorf("error writing tar contents: %s", err.Error())
+				return err
+			}
+		}
+
+		return nil
+	}
+	return defaultArchiveHandler.Write(u, tw)
+}
+
+func mountDiskLabel(label string) (string, error) {
+	// We know the vmdk will always be attached at '/'
+	if label == "containerfs" {
+		return "/", nil
+	}
+
+	// otherwise, label represents a volume that needs to be mounted
+	path := path.Join("/dev/disk/by-label/", label)
+	_, err := os.Lstat(path)
+	// label does not exist
+	if err != nil {
+		return "", err
+	}
+
+	// label exists, mount the device to a tmp directory
+	tmpDir, err := ioutil.TempDir("", fmt.Sprintf("toolbox-%s", label))
+	if err := Sys.Syscall.Mount(path, tmpDir, ext4FileSystemType, syscall.MS_NOATIME, ""); err != nil {
+		return "", fmt.Errorf("failed to mount %s to %s: %s", path, tmpDir, err)
+	}
+
+	return tmpDir, nil
+}
+
+func unmount(op trace.Operation, unmountPath string) {
+	// don't unmount the root vmdk
+	if unmountPath == "/" {
+		return
+	}
+
+	// unmount the disk from the temporary directory
+	if err := Sys.Syscall.Unmount(unmountPath, syscall.MNT_DETACH); err != nil {
+		op.Errorf("failed to unmount %s: %s", unmountPath, err.Error())
+	}
+	// finally, remove the temporary directory
+	os.Remove(unmountPath)
 }

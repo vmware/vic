@@ -38,6 +38,11 @@ const (
 	// You can assign the device to (1:z ), where 1 is SCSI controller 1 and z is a virtual device node from 0 to 15.
 	// https://pubs.vmware.com/vsphere-65/index.jsp#com.vmware.vsphere.vm_admin.doc/GUID-5872D173-A076-42FE-8D0B-9DB0EB0E7362.html
 	MaxAttachedDisks = 16
+
+	// for now we do not use non-persistent disk - otherwise we get collisions between Stat and Import in concurrent scenarios
+	useNonPersistentDisks = false
+	// until we have mount refcounts separate from disk refcounts we cannot have different mount options for the same vmdk
+	useReadOnlyMounts = false
 )
 
 // Manager manages disks for the vm it runs on.  The expectation is this is run
@@ -179,18 +184,8 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 
 	// we use findDiskByFilename to check if the disk is already attached
 	// if it is then it's indicative of an error because it wasn't found in the cache, but this lets us recover
-	_, ferr := findDiskByFilename(op, m.vm, d.DatastoreURI.String())
+	_, ferr := findDiskByFilename(op, m.vm, d.DatastoreURI.String(), d.IsPersistent())
 	if os.IsNotExist(ferr) {
-		// ensure we abide by max attached disks limits
-		m.maxAttached <- true
-
-		// make sure the op is still valid as the above line could block for a long time
-		select {
-		case <-op.Done():
-			return nil, op.Err()
-		default:
-		}
-
 		if err := m.attach(op, config); err != nil {
 			return nil, errors.Trace(err)
 		}
@@ -200,7 +195,7 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 	}
 
 	op.Debugf("Mapping vmdk to pci device %s", config.DatastoreURI)
-	devicePath, err := m.devicePathByURI(op, config.DatastoreURI)
+	devicePath, err := m.devicePathByURI(op, config.DatastoreURI, d.IsPersistent())
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -210,7 +205,7 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 		op.Errorf("waitForDevice failed for %s with %s", d.DatastoreURI, errors.ErrorStack(err))
 		// ensure that the disk is detached if it's the publish that's failed
 
-		disk, findErr := findDiskByFilename(op, m.vm, d.DatastoreURI.String())
+		disk, findErr := findDiskByFilename(op, m.vm, d.DatastoreURI.String(), d.IsPersistent())
 		if findErr != nil {
 			op.Debugf("findDiskByFilename(%s) failed with %s", d.DatastoreURI, errors.ErrorStack(findErr))
 		}
@@ -352,8 +347,18 @@ func (m *Manager) attach(op trace.Operation, config *VirtualDiskConfig) error {
 	machineSpec := types.VirtualMachineConfigSpec{}
 	machineSpec.DeviceChange = append(machineSpec.DeviceChange, changeSpec...)
 
+	// ensure we abide by max attached disks limits
+	m.maxAttached <- true
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	// make sure the op is still valid as the above line could block for a long time
+	select {
+	case <-op.Done():
+		return op.Err()
+	default:
+	}
 
 	_, err = m.vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		t, er := m.vm.Reconfigure(ctx, machineSpec)
@@ -366,6 +371,11 @@ func (m *Manager) attach(op trace.Operation, config *VirtualDiskConfig) error {
 	})
 
 	if err != nil {
+		select {
+		case <-m.maxAttached:
+		default:
+		}
+
 		op.Errorf("vmdk storage driver failed to attach disk: %s", errors.ErrorStack(err))
 		return errors.Trace(err)
 	}
@@ -403,7 +413,7 @@ func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 
 	op.Infof("Detaching disk %s", d.DevicePath)
 
-	disk, err := findDiskByFilename(op, m.vm, d.DatastoreURI.String())
+	disk, err := findDiskByFilename(op, m.vm, d.DatastoreURI.String(), d.IsPersistent())
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -415,11 +425,6 @@ func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 
 	// this deletes the disk from the disk cache
 	d.setDetached(op, m.Disks)
-
-	select {
-	case <-m.maxAttached:
-	default:
-	}
 
 	return nil
 }
@@ -469,11 +474,18 @@ func (m *Manager) detach(op trace.Operation, disk *types.VirtualDisk) error {
 		return t, er
 	})
 
+	if err == nil {
+		select {
+		case <-m.maxAttached:
+		default:
+		}
+	}
+
 	return err
 }
 
-func (m *Manager) devicePathByURI(op trace.Operation, datastoreURI *object.DatastorePath) (string, error) {
-	disk, err := findDiskByFilename(op, m.vm, datastoreURI.String())
+func (m *Manager) devicePathByURI(op trace.Operation, datastoreURI *object.DatastorePath, persistent bool) (string, error) {
+	disk, err := findDiskByFilename(op, m.vm, datastoreURI.String(), persistent)
 	if err != nil {
 		op.Errorf("findDisk failed for %s with %s", datastoreURI.String(), errors.ErrorStack(err))
 		return "", errors.Trace(err)
@@ -490,7 +502,7 @@ func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.Datast
 
 	op.Infof("Attach/Mount %s", datastoreURI.String())
 
-	if !persistent {
+	if !persistent && useNonPersistentDisks {
 		config = NewNonPersistentDisk(datastoreURI)
 	} else {
 		config = NewPersistentDisk(datastoreURI)
@@ -501,14 +513,22 @@ func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.Datast
 		return "", err
 	}
 
-	return d.Mount(op, nil)
+	// don't update access time - that would cause the diff operation to mutate the filesystem
+	opts := []string{"noatime"}
+
+	if !persistent && useReadOnlyMounts {
+		opts = append(opts, "ro")
+	}
+
+	return d.Mount(op, opts)
+
 }
 
 // UnmountAndDetach unmounts and detaches a disk, subsequently cleaning the mount path
 func (m *Manager) UnmountAndDetach(op trace.Operation, datastoreURI *object.DatastorePath, persistent bool) error {
 	var config *VirtualDiskConfig
 
-	if !persistent {
+	if !persistent && useNonPersistentDisks {
 		config = NewNonPersistentDisk(datastoreURI)
 	} else {
 		config = NewPersistentDisk(datastoreURI)
@@ -538,13 +558,19 @@ func (m *Manager) UnmountAndDetach(op trace.Operation, datastoreURI *object.Data
 func (m *Manager) InUse(op trace.Operation, config *VirtualDiskConfig, filter func(vm *mo.VirtualMachine) bool) ([]*vm.VirtualMachine, error) {
 	defer trace.End(trace.Begin(""))
 
-	if m.view == nil {
-		return nil, fmt.Errorf("ContainerView is nil")
+	mngr := view.NewManager(m.vm.Vim25())
+
+	// Create view of VirtualMachine objects under the VCH's resource pool
+	view2, err := mngr.CreateContainerView(op, m.vm.Session.Pool.Reference(), []string{"VirtualMachine"}, true)
+	if err != nil {
+		op.Errorf("failed to create view: %s", err)
+		return nil, err
 	}
+	defer view2.Destroy(op)
 
 	var mos []mo.VirtualMachine
 	// Retrieve needed properties of all machines under this view
-	err := m.view.Retrieve(op, []string{"VirtualMachine"}, []string{"name", "config.hardware", "runtime.powerState"}, &mos)
+	err = view2.Retrieve(op, []string{"VirtualMachine"}, []string{"name", "config.hardware", "runtime.powerState"}, &mos)
 	if err != nil {
 		return nil, err
 	}
@@ -569,9 +595,8 @@ func (m *Manager) InUse(op trace.Operation, config *VirtualDiskConfig, filter fu
 
 			switch t := db.(type) {
 			case types.BaseVirtualDeviceFileBackingInfo:
-				op.Debugf("Checking the device %q with correct backing type on vm %q", label, mo.Name)
 				if config.DatastoreURI.String() == t.GetVirtualDeviceFileBackingInfo().FileName {
-					op.Debugf("Match found. Appending vm %q to the response", mo.Name)
+					op.Infof("Found active user of target disk %s: %q", label, mo.Name)
 					vms = append(vms, vm.NewVirtualMachine(context.Background(), m.vm.Session, mo.Reference()))
 				}
 			default:
@@ -615,11 +640,9 @@ func (m *Manager) DiskFinder(op trace.Operation, filter func(p string) bool) (st
 
 			switch t := db.(type) {
 			case types.BaseVirtualDeviceFileBackingInfo:
-				op.Debugf("Checking the device %q with correct backing type on vm %q", label, mo.Name)
 				diskPath := t.GetVirtualDeviceFileBackingInfo().FileName
-				op.Infof("Disk path: %s", diskPath)
 				if filter(diskPath) {
-					op.Debugf("Match found. Returning filepath %s", diskPath)
+					op.Infof("Found disk matching filter: (label: %s), %q", label, diskPath)
 					return diskPath, nil
 				}
 			default:

@@ -25,6 +25,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path"
+	"sort"
 	"sync"
 	"syscall"
 	"time"
@@ -251,19 +252,33 @@ func (t *tether) setNetworks() error {
 }
 
 func (t *tether) setMounts() error {
+	// provides a lookup from path to volume reference.
+	pathIndex := make(map[string]string, 0)
+	mounts := make([]string, 0, len(t.config.Mounts))
 	for k, v := range t.config.Mounts {
-		switch v.Source.Scheme {
+		mounts = append(mounts, v.Path)
+		pathIndex[v.Path] = k
+	}
+	// Order the mount paths so that we are doing them in shortest order first.
+	sort.Strings(mounts)
+
+	for _, v := range mounts {
+		targetRef := pathIndex[v]
+		mountTarget := t.config.Mounts[targetRef]
+		switch mountTarget.Source.Scheme {
 		case "label":
 			// this could block indefinitely while waiting for a volume to present
-			t.ops.MountLabel(context.Background(), v.Source.Path, v.Path)
+			t.ops.MountLabel(context.Background(), mountTarget.Source.Path, mountTarget.Path)
 
 		case "nfs":
-			t.ops.MountTarget(context.Background(), v.Source, v.Path, v.Mode)
+			t.ops.MountTarget(context.Background(), mountTarget.Source, mountTarget.Path, mountTarget.Mode)
 
 		default:
-			return fmt.Errorf("unsupported volume mount type for %s: %s", k, v.Source.Scheme)
+			return fmt.Errorf("unsupported volume mount type for %s: %s", targetRef, mountTarget.Source.Scheme)
 		}
 	}
+
+	// FIXME: populateVolumes() does not handle the nested volume case properly.
 	return t.populateVolumes()
 }
 

@@ -30,3 +30,8 @@ func InternalServerError(msg string) error {
 func ResourceLockedError(msg string) error {
 	return derr.NewErrorWithStatusCode(fmt.Errorf("Resource locked: %s", msg), http.StatusLocked)
 }
+
+// ResourceNotFoundError returns a 404 http status
+func ResourceNotFoundError(msg string) error {
+	return derr.NewErrorWithStatusCode(fmt.Errorf("No such %s", msg), http.StatusNotFound)
+}
