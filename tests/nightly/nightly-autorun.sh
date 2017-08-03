@@ -27,6 +27,10 @@ git fetch https://github.com/vmware/vic master
 git pull
 
 # Kick off the nightly
-now=$(date +"%m_%d_%Y")
-mkdir -p /home/vicadmin/nightly-log/
-sudo -E ./tests/nightly/nightly-kickoff.sh > /home/vicadmin/nightly-log/nightly_$now.txt 2>&1
+echo "Removing VIC directory if present"
+echo "Cleanup logs from previous run"
+
+rm -rf *.zip *.log
+rm -rf bin 60 65
+
+sudo -E ./tests/nightly/nightly-kickoff.sh > ./nightly_console.log 2>&1
