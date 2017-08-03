@@ -40,7 +40,6 @@ import (
 	"github.com/vmware/vic/lib/imagec"
 	optrace "github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
-	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
 var (
@@ -101,6 +100,8 @@ func init() {
 	flag.StringVar(&imageCOptions.operation, "operation", "pull", "Pull image/push image/listlayers for image")
 
 	flag.StringVar(&imageCOptions.options.Registry, "registry", imagec.DefaultDockerURL, "Registry to pull/push images (default: registry-1.docker.io)")
+
+	flag.StringVar(&imageCOptions.options.ImageStore, "image-store", imagec.DefaultDockerURL, "image store name or url used to query image data")
 
 	flag.Parse()
 
@@ -254,7 +255,7 @@ func saveImage(ap proxy.VicArchiveProxy, ic *imagec.ImageC, ref reference.Named)
 			if pid == imagec.ScratchLayerID {
 				pid = ""
 			}
-			err = writeArchiveFile(ap, cid, pid, filePath)
+			err = writeArchiveFile(ap, ic.ImageStore, ic.ImageStore, cid, pid, filePath)
 		}(layers[i].Parent, layers[i].ID)
 	}
 	wg.Wait()
@@ -291,22 +292,17 @@ func archiveProxy(portLayerAddr string) proxy.VicArchiveProxy {
 	return archiveProxy
 }
 
-func writeArchiveFile(archiveProxy proxy.VicArchiveProxy, layerID, parentID, archivePath string) error {
+func writeArchiveFile(archiveProxy proxy.VicArchiveProxy, store, ancestorStore, layerID, ancestorID, archivePath string) error {
 	var filterSpec vicarchive.FilterSpec
-
-	host, err := sys.UUID()
-	if err != nil {
-		return err
-	}
 
 	op := optrace.NewOperation(context.Background(), "export layer %s:%s", layerID, parentID)
 	//Initialize an archive stream from the portlayer for the layer
-	ar, err := archiveProxy.ArchiveExportReader(op, host, host, layerID, parentID, true, filterSpec)
+	ar, err := archiveProxy.ArchiveExportReader(op, store, ancestorStore, layerID, parentID, true, filterSpec)
 	if err != nil || ar == nil {
 		return fmt.Errorf("Failed to get reader for layer %s", layerID)
 	}
 
-	log.Infof("Obtain archive reader for layer %s, parent %s", layerID, parentID)
+	log.Infof("Obtain archive reader for layer %s, parent %s", layerID, ancestorID)
 
 	tarFile, err := os.OpenFile(archivePath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
