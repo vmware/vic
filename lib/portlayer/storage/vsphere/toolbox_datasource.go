@@ -19,7 +19,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"time"
 
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/storage"

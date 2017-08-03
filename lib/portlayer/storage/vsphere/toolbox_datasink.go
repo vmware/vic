@@ -16,7 +16,6 @@ package vsphere
 
 import (
 	"io"
-	"time"
 
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
