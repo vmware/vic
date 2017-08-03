@@ -16,10 +16,12 @@ package vsphere
 
 import (
 	"io"
+	"time"
 
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -54,10 +56,22 @@ func (t *ToolboxDataSink) Import(op trace.Operation, spec *archive.FilterSpec, d
 
 	// upload the gzip archive.
 	p := soap.DefaultUpload
-	err = client.Upload(op, data, target, p, &types.GuestPosixFileAttributes{}, true)
+	// These numbers are somewhat arbitrary best guesses
+	retryConf := retry.NewBackoffConfig()
+	retryConf.MaxElapsedTime = time.Second * 30
+	retryConf.InitialInterval = time.Millisecond * 500
+	retryConf.MaxInterval = time.Second * 5
+
+	retryFunc := func() error {
+		return client.Upload(op, data, target, p, &types.GuestPosixFileAttributes{}, true)
+	}
+
+	err = retry.DoWithConfig(retryFunc, isInvalidStateError, retryConf)
+
 	if err != nil {
 		op.Debugf("Upload error: %s", err.Error())
 	}
+
 	return err
 }
 

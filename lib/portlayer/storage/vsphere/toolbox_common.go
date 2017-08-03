@@ -21,6 +21,8 @@ import (
 
 	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/guest/toolbox"
+	"github.com/vmware/govmomi/task"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/pkg/trace"
@@ -81,4 +83,35 @@ func GetToolboxClient(op trace.Operation, vm *vm.VirtualMachine, id string) (*to
 			Username: id,
 		},
 	}, nil
+}
+
+// isInvalidStateError is used to identify whether the supplied error is an InvalidState fault
+func isInvalidStateError(err error) bool {
+	if soap.IsSoapFault(err) {
+		switch soap.ToSoapFault(err).VimFault().(type) {
+		case types.InvalidState:
+			return true
+		}
+	}
+
+	if soap.IsVimFault(err) {
+		switch soap.ToVimFault(err).(type) {
+		case *types.InvalidState:
+			return true
+		}
+	}
+
+	switch err := err.(type) {
+	case task.Error:
+		switch err.Fault().(type) {
+		case *types.InvalidState:
+			return true
+		}
+	default:
+		if _, ok := err.(types.HasFault); ok {
+			// log this at the very least.
+			return false
+		}
+	}
+	return false
 }
