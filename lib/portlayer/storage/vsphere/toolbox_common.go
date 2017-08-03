@@ -107,11 +107,6 @@ func isInvalidStateError(err error) bool {
 		case *types.InvalidState:
 			return true
 		}
-	default:
-		if _, ok := err.(types.HasFault); ok {
-			// log this at the very least.
-			return false
-		}
 	}
 	return false
 }
