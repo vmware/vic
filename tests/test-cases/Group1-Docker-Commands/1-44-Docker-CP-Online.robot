@@ -185,7 +185,7 @@ Concurrent copy: create processes to copy a small file from host to online conta
     :FOR  ${idx}  IN RANGE  0  10
     \   Should Contain  ${output}  foo-${idx}
 
-Concurrent copy: repeat copy a large file from host to offline container several times
+Concurrent copy: repeat copy a large file from host to online container several times
     ${pids}=  Create List
     Log To Console  \nIssue 10 docker cp commands for large file
     :FOR  ${idx}  IN RANGE  0  10
@@ -204,7 +204,7 @@ Concurrent copy: repeat copy a large file from host to offline container several
     :FOR  ${idx}  IN RANGE  0  10
     \   Should Contain  ${output}  lg-${idx}
 
-Concurrent copy: repeat copy a large file from offline container to host several times
+Concurrent copy: repeat copy a large file from online container to host several times
     ${pids}=  Create List
     Log To Console  \nIssue 10 docker cp commands for large file
     :FOR  ${idx}  IN RANGE  0  10

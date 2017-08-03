@@ -58,7 +58,6 @@ func (s *Stripper) WriteTo(w io.Writer) (sum int64, err error) {
 	// semantic?
 
 	tw := tar.NewWriter(w)
-	defer tw.Flush()
 	for {
 		var header *tar.Header
 		header, err = s.source.Next()
