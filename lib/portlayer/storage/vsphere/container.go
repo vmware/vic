@@ -104,7 +104,8 @@ func (c *ContainerStore) NewDataSource(op trace.Operation, id string) (storage.D
 offline:
 	offlineAttempt++
 
-	source, err := c.newDataSource(op, uri)
+	// This is persistent to avoid issues with concurrent Stat/Import calls
+	source, err := c.newDataSource(op, uri, true)
 	if err == nil {
 		return source, err
 	}
@@ -146,8 +147,8 @@ offline:
 	return nil, errors.New("unable to create online or offline data source")
 }
 
-func (c *ContainerStore) newDataSource(op trace.Operation, url *url.URL) (storage.DataSource, error) {
-	mountPath, cleanFunc, err := c.Mount(op, url, false)
+func (c *ContainerStore) newDataSource(op trace.Operation, url *url.URL, persistent bool) (storage.DataSource, error) {
+	mountPath, cleanFunc, err := c.Mount(op, url, persistent)
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +283,7 @@ func (c *ContainerStore) Export(op trace.Operation, id, ancestor string, spec *a
 	}
 	op.Debugf("Mapped ancestor %s to %s", ancestor, img.String())
 
-	r, err := c.newDataSource(op, img)
+	r, err := c.newDataSource(op, img, false)
 	if err != nil {
 		op.Debugf("Unable to get datasource for ancestor: %s", err)
 
