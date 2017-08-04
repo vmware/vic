@@ -15,6 +15,7 @@
 *** Settings ***
 Documentation  Test 11-03 - Upgrade-InsecureRegistry
 Resource  ../../resources/Util.robot
+Suite Setup  Set Test Environment Variables
 #Test Teardown  Cleanup Test Environment
 
 *** Variables ***
@@ -90,23 +91,23 @@ Cleanup Test Environment
 
 *** Test Cases ***
 Upgrade VCH with Harbor On HTTP
-    #${status}=  Get State Of Github Issue  5473
-    #Run Keyword If  '${status}' == 'closed'  Fail  Test 11-03-Upgrade-InsecureRegistry.robot needs to be updated now that Issue #5473 has been resolved
-    Set Test Variable  ${harbor_name}  ${http_harbor_name}
-    ${ip}=  Install Harbor To Test Server  ${harbor_name}
-    Set Test Variable  ${harbor_ip}  ${ip}
-    Add Project On Registry  ${harbor_ip}  http
-    ${hdl}  ${pid}=  Setup Test Environment  ${harbor_ip}
-    Set Test Variable  ${handle}  ${hdl}
-    Set Test Variable  ${docker_daemon_pid}  ${pid}
+    ${status}=  Get State Of Github Issue  5473
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-03-Upgrade-InsecureRegistry.robot needs to be updated now that Issue #5473 has been resolved
+    #Set Test Variable  ${harbor_name}  ${http_harbor_name}
+    #${ip}=  Install Harbor To Test Server  ${harbor_name}
+    #Set Test Variable  ${harbor_ip}  ${ip}
+    #Add Project On Registry  ${harbor_ip}  http
+    #${hdl}  ${pid}=  Setup Test Environment  ${harbor_ip}
+    #Set Test Variable  ${handle}  ${hdl}
+    #Set Test Variable  ${docker_daemon_pid}  ${pid}
 
-    Install VIC with version to Test Server  ${test_vic_version}  --insecure-registry ${harbor_ip} --no-tls
+    #Install VIC with version to Test Server  ${test_vic_version}  --insecure-registry ${harbor_ip} --no-tls
 
-    Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
+    #Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
 
-    Upgrade
-    Check Upgraded Version
-    Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
+    #Upgrade
+    #Check Upgraded Version
+    #Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
 
 Upgrade VCH with Harbor On HTTPS
     #${status}=  Get State Of Github Issue  5473
