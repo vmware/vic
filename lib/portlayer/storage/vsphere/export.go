@@ -105,7 +105,8 @@ offline:
 }
 
 func (v *VolumeStore) newDataSource(op trace.Operation, url *url.URL) (storage.DataSource, error) {
-	mountPath, cleanFunc, err := v.Mount(op, url, false)
+	// This is persistent to avoid issues with concurrent Stat/Import calls
+	mountPath, cleanFunc, err := v.Mount(op, url, true)
 	if err != nil {
 		return nil, err
 	}
