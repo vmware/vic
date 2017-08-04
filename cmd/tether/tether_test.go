@@ -126,7 +126,7 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 	return nil
 }
 
-func (t *Mocker) SetupFirewall(*tether.ExecutorConfig) error {
+func (t *Mocker) SetupFirewall(ctx context.Context, config *tether.ExecutorConfig) error {
 	return nil
 }
 
