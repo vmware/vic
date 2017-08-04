@@ -24,7 +24,6 @@ import (
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/index"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/disk"
 )
 
 // ImageStorer is an interface to store images in the Image Store
@@ -102,7 +101,7 @@ type Image struct {
 	Metadata map[string][]byte
 
 	// Disk is the underlying disk implementation
-	Disk *disk.VirtualDisk
+	// Disk *disk.VirtualDisk
 }
 
 func (i *Image) Copy() index.Element {

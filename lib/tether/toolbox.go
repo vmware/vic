@@ -40,7 +40,7 @@ import (
 	"github.com/vmware/govmomi/toolbox/vix"
 	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/lib/archive"
-	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
+	"github.com/vmware/vic/lib/tether/shared"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -268,8 +268,8 @@ func (t *Toolbox) halt() error {
 func toolboxOverrideArchiveRead(u *url.URL, tr *tar.Reader) error {
 
 	// special behavior when using disk-labels and filterspec
-	diskLabel := u.Query().Get(vsphere.DiskLabelQueryName)
-	filterSpec := u.Query().Get(vsphere.FilterSpecQueryName)
+	diskLabel := u.Query().Get(shared.DiskLabelQueryName)
+	filterSpec := u.Query().Get(shared.FilterSpecQueryName)
 	if diskLabel != "" && filterSpec != "" {
 		op := trace.NewOperation(context.Background(), "ToolboxOnlineDataSink: %s", u.String())
 		op.Debugf("Reading from tar archive to path %s: %s", u.Path, u.String())
@@ -302,13 +302,11 @@ func toolboxOverrideArchiveRead(u *url.URL, tr *tar.Reader) error {
 func toolboxOverrideArchiveWrite(u *url.URL, tw *tar.Writer) error {
 
 	// special behavior when using disk-labels and filterspec
-	diskLabel := u.Query().Get(vsphere.DiskLabelQueryName)
-	filterSpec := u.Query().Get(vsphere.FilterSpecQueryName)
+	diskLabel := u.Query().Get(shared.DiskLabelQueryName)
+	filterSpec := u.Query().Get(shared.FilterSpecQueryName)
 
-	// #nosec: Errors unhandled.
-	skiprecurse, _ := strconv.ParseBool(u.Query().Get(vsphere.SkipRecurseQueryName))
-	// #nosec: Errors unhandled.
-	skipdata, _ := strconv.ParseBool(u.Query().Get(vsphere.SkipDataQueryName))
+	skiprecurse, _ := strconv.ParseBool(u.Query().Get(shared.SkipRecurseQueryName))
+	skipdata, _ := strconv.ParseBool(u.Query().Get(shared.SkipDataQueryName))
 
 	if diskLabel != "" && filterSpec != "" {
 		op := trace.NewOperation(context.Background(), "ToolboxOnlineDataSource: %s", u.String())
