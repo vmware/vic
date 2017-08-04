@@ -18,6 +18,7 @@ import (
 	"context"
 	"io"
 	"net/url"
+	"os"
 
 	"github.com/vmware/vic/pkg/dio"
 )
@@ -33,7 +34,7 @@ type Operations interface {
 	Log() (io.Writer, error)
 
 	SetHostname(hostname string, aliases ...string) error
-	SetupFirewall(config *ExecutorConfig) error
+	SetupFirewall(ctx context.Context, config *ExecutorConfig) error
 	Apply(endpoint *NetworkEndpoint) error
 	MountLabel(ctx context.Context, label, target string) error
 	MountTarget(ctx context.Context, source url.URL, target string, mountOptions string) error
@@ -52,6 +53,7 @@ type Tether interface {
 	Stop() error
 	Reload()
 	Register(name string, ext Extension)
+	LaunchUtility(fn func() (*os.Process, error)) (<-chan int, error)
 }
 
 // Extension is a very simple extension interface for supporting code that need to be

@@ -140,10 +140,18 @@ func (t *tether) childReaper() error {
 
 						t.handleSessionExit(session)
 						session.Unlock()
-					} else {
-						// This is an adopted zombie. The Wait4 call already clean it up from the kernel
-						log.Warnf("Reaped zombie process PID %d", pid)
+						continue
 					}
+
+					pidChannel, ok := t.removeUtilityPid(pid)
+					log.Debugf("Remove utility pid: %d ok: %t", pid, ok)
+					if ok {
+						exitCode := status.ExitStatus()
+						pidChannel <- exitCode
+						close(pidChannel)
+						continue
+					}
+					log.Warnf("Reaped zombie process PID %d", pid)
 				}
 			}()
 		}
