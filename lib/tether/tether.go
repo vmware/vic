@@ -111,6 +111,30 @@ func (t *tether) removeChildPid(pid int) (*SessionConfig, bool) {
 	return session, ok
 }
 
+func (t *tether) LaunchUtility(fn func() (*os.Process, error)) (<-chan int, error) {
+	t.config.pidMutex.Lock()
+	defer t.config.pidMutex.Unlock()
+
+	proc, err := fn()
+	if err != nil {
+		return nil, err
+	}
+
+	pid := proc.Pid
+	t.config.utilityPids[pid] = make(chan int, 1)
+
+	return t.config.utilityPids[pid], nil
+}
+
+func (t *tether) removeUtilityPid(pid int) (chan int, bool) {
+	t.config.pidMutex.Lock()
+	defer t.config.pidMutex.Unlock()
+
+	pidchannel, ok := t.config.utilityPids[pid]
+	delete(t.config.utilityPids, pid)
+	return pidchannel, ok
+}
+
 // lenChildPid returns the number of entries
 func (t *tether) lenChildPid() int {
 	t.config.pidMutex.Lock()
@@ -454,6 +478,8 @@ func (t *tether) processSessions() error {
 	return nil
 }
 
+type TetherKey struct{}
+
 func (t *tether) Start() error {
 	defer trace.End(trace.Begin("main tether loop"))
 
@@ -495,7 +521,7 @@ func (t *tether) Start() error {
 		extraconfig.Encode(t.sink, t.config)
 
 		// setup the firewall
-		if err := retryOnError(func() error { return t.ops.SetupFirewall(t.config) }, 5); err != nil {
+		if err := retryOnError(func() error { return t.ops.SetupFirewall(context.WithValue(t.ctx, TetherKey{}, t), t.config) }, 5); err != nil {
 			err = fmt.Errorf("Couldn't set up container-network firewall: %v", err)
 			log.Error(err)
 			return err
