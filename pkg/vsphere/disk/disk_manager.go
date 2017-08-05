@@ -624,7 +624,14 @@ func (m *Manager) DiskFinder(op trace.Operation, filter func(p string) bool) (st
 	// iterate over them to see whether they have the disk we want
 	for i := range mos {
 		mo := mos[i]
+
 		op.Debugf("Working on vm %q", mo.Name)
+
+		// observed empty fields here when copying to all 14 volumes on a cVM so being paranoid
+		if mo.Config == nil || mo.Config.Hardware.Device == nil {
+			op.Warnf("Skipping disk presence check for %q: failed to retrieve vm config", mo.Name)
+			continue
+		}
 
 		for _, device := range mo.Config.Hardware.Device {
 			label := device.GetVirtualDevice().DeviceInfo.GetDescription().Label
