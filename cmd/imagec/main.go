@@ -35,6 +35,7 @@ import (
 	apiclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
 	vicarchive "github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/imagec"
+	optrace "github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
@@ -226,8 +227,9 @@ func writeArchiveFile(archiveProxy proxy.VicArchiveProxy, layerID, parentID, arc
 		return err
 	}
 
+	op := optrace.NewOperation(context.Background(), "export layer %s:%s", layerID, parentID)
 	//Initialize an archive stream from the portlayer for the layer
-	ar, err := archiveProxy.ArchiveExportReader(context.Background(), host, host, layerID, parentID, true, filterSpec)
+	ar, err := archiveProxy.ArchiveExportReader(op, host, host, layerID, parentID, true, filterSpec)
 	if err != nil || ar == nil {
 		return fmt.Errorf("Failed to get reader for layer %s", layerID)
 	}
