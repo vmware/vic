@@ -117,6 +117,10 @@ func (t *Mocker) Log() (io.Writer, error) {
 	return os.Stdout, nil
 }
 
+func (t *Mocker) SetupFirewall(cxt context.Context, conf *ExecutorConfig) error {
+	return nil
+}
+
 func (t *Mocker) SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, dio.DynamicMultiWriter, error) {
 	return dio.MultiWriter(&t.SessionLogBuffer), dio.MultiWriter(&t.SessionLogBuffer), nil
 }
@@ -142,10 +146,6 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 	// that would exercise the file modification paths, however it's much less generalizable
 	t.Hostname = hostname
 	t.Aliases = aliases
-	return nil
-}
-
-func (t *Mocker) SetupFirewall(*ExecutorConfig) error {
 	return nil
 }
 
