@@ -174,39 +174,37 @@ func iptables(ctx context.Context, args []string) error {
 		},
 	}
 
-	if t := ctx.Value(tether.TetherKey{}); t != nil {
-		t, ok := t.(tether.Tether)
-		if !ok {
-			return errors.New("couldn't cast a tether object")
-		}
+	t := ctx.Value(tether.TetherKey{})
+	tether, ok := t.(tether.Tether)
+	if tether == nil || !ok {
+		// tether wasn't passed in -- do it the old way
+		logrus.Debugln("No tether object provided to iptables call")
 
-		exitChannel, err := t.LaunchUtility(func() (*os.Process, error) {
-			return os.StartProcess(cmd.Path, cmd.Args, &os.ProcAttr{
-				Dir: cmd.Dir,
-				Sys: cmd.SysProcAttr,
-			})
+		proc, err := os.StartProcess(cmd.Path, cmd.Args, &os.ProcAttr{
+			Dir: cmd.Dir,
+			Sys: cmd.SysProcAttr,
 		})
+
 		if err != nil {
-			// can log the pid in launchUtilityProcess instead
-			logrus.Errorf("iptables %q error: %s", args, err)
-			return err
+			logrus.Errorf("iptables %q (Pid %v) error: %s", args, proc.Pid, err.Error())
 		}
-
-		<-exitChannel
-		return nil
+		return err
 	}
-	// tether wasn't passed in -- do it the old way
-	logrus.Debugln("No tether object provided to iptables call")
 
-	proc, err := os.StartProcess(cmd.Path, cmd.Args, &os.ProcAttr{
-		Dir: cmd.Dir,
-		Sys: cmd.SysProcAttr,
+	exitChannel, err := tether.LaunchUtility(func() (*os.Process, error) {
+		return os.StartProcess(cmd.Path, cmd.Args, &os.ProcAttr{
+			Dir: cmd.Dir,
+			Sys: cmd.SysProcAttr,
+		})
 	})
-
 	if err != nil {
-		logrus.Errorf("iptables %q (Pid %v) error: %s", args, proc.Pid, err.Error())
+		// can log the pid in launchUtilityProcess instead
+		logrus.Errorf("iptables %q error: %s", args, err)
+		return err
 	}
-	return err
+
+	<-exitChannel
+	return nil
 }
 
 func Flush(ctx context.Context, table string) error {

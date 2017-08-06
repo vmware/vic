@@ -130,28 +130,27 @@ func (t *tether) childReaper() error {
 						continue
 					}
 
-					log.Debugf("Reaped process %d, return code: %d", pid, status.ExitStatus())
+					exitCode := status.ExitStatus()
+					log.Debugf("Reaped process %d, return code: %d", pid, exitCode)
 
 					session, ok := t.removeChildPid(pid)
-					log.Debugf("Remove child pid: %d ok: %t", pid, ok)
 					if ok {
+						log.Debugf("Removed child pid: %d", pid)
 						session.Lock()
-						session.ExitStatus = status.ExitStatus()
+						session.ExitStatus = exitCode
 
 						t.handleSessionExit(session)
 						session.Unlock()
 						continue
 					}
 
-					pidChannel, ok := t.removeUtilityPid(pid)
-					log.Debugf("Remove utility pid: %d ok: %t", pid, ok)
+					ok = t.ops.HandleUtilityExit(pid, exitCode)
 					if ok {
-						exitCode := status.ExitStatus()
-						pidChannel <- exitCode
-						close(pidChannel)
+						log.Debugf("Remove utility pid: %d", pid)
 						continue
 					}
-					log.Warnf("Reaped zombie process PID %d", pid)
+
+					log.Infof("Reaped zombie process PID %d", pid)
 				}
 			}()
 		}

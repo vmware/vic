@@ -25,6 +25,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path"
+	"runtime/debug"
 	"sort"
 	"sync"
 	"syscall"
@@ -55,8 +56,15 @@ const (
 	bindDir = "/.tether/.bind"
 )
 
-var Sys = system.New()
-var once sync.Once
+// Sys is used to configure where the target system files are
+var (
+	// Used to access the acutal system paths and files
+	Sys = system.New()
+	// Used to access and manipulate the tether modified bind sources
+	// that are mounted over the system ones.
+	BindSys = system.NewWithRoot("/.tether")
+	once    sync.Once
+)
 
 type tether struct {
 	// the implementation to use for tailored operations
@@ -109,30 +117,6 @@ func (t *tether) removeChildPid(pid int) (*SessionConfig, bool) {
 	session, ok := t.config.pids[pid]
 	delete(t.config.pids, pid)
 	return session, ok
-}
-
-func (t *tether) LaunchUtility(fn func() (*os.Process, error)) (<-chan int, error) {
-	t.config.pidMutex.Lock()
-	defer t.config.pidMutex.Unlock()
-
-	proc, err := fn()
-	if err != nil {
-		return nil, err
-	}
-
-	pid := proc.Pid
-	t.config.utilityPids[pid] = make(chan int, 1)
-
-	return t.config.utilityPids[pid], nil
-}
-
-func (t *tether) removeUtilityPid(pid int) (chan int, bool) {
-	t.config.pidMutex.Lock()
-	defer t.config.pidMutex.Unlock()
-
-	pidchannel, ok := t.config.utilityPids[pid]
-	delete(t.config.utilityPids, pid)
-	return pidchannel, ok
 }
 
 // lenChildPid returns the number of entries
@@ -490,6 +474,15 @@ func (t *tether) Start() error {
 	}
 	defer t.cleanup()
 
+	defer func() {
+		// NOTE: this must not be checked in - results in unknown states as
+		// we're suppressing the panic from rolling up the stack
+		e := recover()
+		if e != nil {
+			log.Errorf("Logging panic: %s: %s", e, debug.Stack())
+		}
+	}()
+
 	// initial entry, so seed this
 	t.reload <- struct{}{}
 	for range t.reload {
@@ -648,7 +641,8 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 
 	log.Debugf("Calling wait on cmd")
 	if err := session.Cmd.Wait(); err != nil {
-		log.Warnf("Wait returned %s", err)
+		// we expect this to get an error because the child reaper will have gathered it
+		log.Debugf("Wait returned %s", err)
 	}
 
 	t.cleanupSession(session)

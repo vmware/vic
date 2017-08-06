@@ -22,6 +22,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"path"
 	"runtime"
 	"testing"
 
@@ -68,6 +69,8 @@ type Mocker struct {
 	WindowCol uint32
 	WindowRow uint32
 	Signal    ssh.Signal
+
+	FirewallRules []string
 }
 
 // Start implements the extension method
@@ -192,18 +195,26 @@ func (t *Mocker) Fork() error {
 	return errors.New("Fork test not implemented")
 }
 
+// LaunchUtility uses the underlying implementation for launching and tracking utility processes
+func (t *Mocker) LaunchUtility(fn func() (*os.Process, error)) (<-chan int, error) {
+	return launchUtility(&t.Base, fn)
+}
+
+func (t *Mocker) HandleUtilityExit(pid, exitCode int) bool {
+	return handleUtilityExit(&t.Base, pid, exitCode)
+}
+
 // TestMain simply so we have control of debugging level and somewhere to call package wide test setup
 func TestMain(m *testing.M) {
 	log.SetLevel(log.DebugLevel)
 	trace.Logger = log.StandardLogger()
 
 	// replace the Sys variable with a mock
-	Sys = system.System{
-		Hosts:      &MockHosts{},
-		ResolvConf: &MockResolvConf{},
-		Syscall:    &MockSyscall{},
-		Root:       os.TempDir(),
-	}
+	Sys = system.NewWithRoot(os.TempDir())
+	Sys.Syscall = &MockSyscall{}
+
+	BindSys = system.NewWithRoot(path.Join(os.TempDir(), "/.tether"))
+	Sys.Syscall = &MockSyscall{}
 
 	retCode := m.Run()
 
