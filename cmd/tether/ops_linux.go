@@ -131,14 +131,14 @@ func (t *operations) Setup(sink tether.Config) error {
 
 // SetupFirewall sets up firewall rules on the external scope only.  Any
 // portmaps are honored as are port exposes.
-func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
+func (t *operations) SetupFirewall(ctx context.Context, config *tether.ExecutorConfig) error {
 	// XXX It looks like we'd want to collect the errors here, but we
 	// can't.  Since this is running inside init (tether) and tether
 	// reaps all children, the os.exec package won't be able to collect
 	// the error code in time before the reaper does.  The exec package
 	// calls wait and attempts to collect its child, but the reaper will
 	// have raptured the pid before that.  So, best effort, just keep going.
-	if err := netfilter.Flush(context.Background(), ""); err != nil {
+	if err := netfilter.Flush(ctx, ""); err != nil {
 		return err
 	}
 	if err := generalPolicy(netfilter.Drop); err != nil {
@@ -171,7 +171,7 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 						Chain:     chain,
 						Target:    netfilter.Accept,
 						Interface: ifaceName,
-					}).Commit(context.TODO()); err != nil {
+					}).Commit(ctx); err != nil {
 						return err
 					}
 				}
@@ -182,13 +182,13 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 
 			case executor.Outbound:
 				// Reject all incoming traffic, but allow outgoing
-				if err := setupOutboundFirewall(ifaceName); err != nil {
+				if err := t.setupOutboundFirewall(ctx, ifaceName); err != nil {
 					return err
 				}
 
 			case executor.Peers:
 				// Outbound + all ports open to source addresses in --container-network-ip-range
-				if err := setupOutboundFirewall(ifaceName); err != nil {
+				if err := t.setupOutboundFirewall(ctx, ifaceName); err != nil {
 					return err
 				}
 				sourceAddresses := make([]string, len(endpoint.Network.Pools))
@@ -200,28 +200,28 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 					Target:          netfilter.Accept,
 					SourceAddresses: sourceAddresses,
 					Interface:       ifaceName,
-				}).Commit(context.TODO()); err != nil {
+				}).Commit(ctx); err != nil {
 					return err
 				}
-				if err := allowPingTraffic(ifaceName, sourceAddresses); err != nil {
+				if err := t.allowPingTraffic(ctx, ifaceName, sourceAddresses); err != nil {
 					return err
 				}
 
 			case executor.Published:
-				if err := setupPublishedFirewall(endpoint, ifaceName); err != nil {
+				if err := t.setupPublishedFirewall(ctx, endpoint, ifaceName); err != nil {
 					return err
 				}
 
 			case executor.Unspecified:
 				// Unspecified network firewalls default to published.
-				if err := setupPublishedFirewall(endpoint, ifaceName); err != nil {
+				if err := t.setupPublishedFirewall(ctx, endpoint, ifaceName); err != nil {
 					return err
 				}
 
 			default:
 				log.Warningf("Received invalid firewall configuration %v: defaulting to published.",
 					endpoint.Network.TrustLevel)
-				if err := setupPublishedFirewall(endpoint, ifaceName); err != nil {
+				if err := t.setupPublishedFirewall(ctx, endpoint, ifaceName); err != nil {
 					return err
 				}
 			}
@@ -242,7 +242,7 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 			log.Debugf("slot %d -> %s", endpoint.ID, ifaceName)
 
 			// Traffic over container bridge network should be peers+outbound.
-			if err := setupOutboundFirewall(ifaceName); err != nil {
+			if err := t.setupOutboundFirewall(ctx, ifaceName); err != nil {
 				return err
 			}
 			sourceAddresses := make([]string, len(endpoint.Network.Pools))
@@ -255,7 +255,7 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 				Target:          netfilter.Accept,
 				SourceAddresses: sourceAddresses,
 				Interface:       ifaceName,
-			}).Commit(context.TODO()); err != nil {
+			}).Commit(ctx); err != nil {
 				return err
 			}
 		}
@@ -264,14 +264,14 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 	return nil
 }
 
-func setupOutboundFirewall(ifaceName string) error {
+func (t *operations) setupOutboundFirewall(ctx context.Context, ifaceName string) error {
 	// All already established inputs are accepted
 	if err := (&netfilter.Rule{
 		Chain:     netfilter.Input,
 		States:    []netfilter.State{netfilter.Established, netfilter.Related},
 		Target:    netfilter.Accept,
 		Interface: ifaceName,
-	}).Commit(context.TODO()); err != nil {
+	}).Commit(ctx); err != nil {
 		return err
 	}
 	// All output is accepted
@@ -279,17 +279,17 @@ func setupOutboundFirewall(ifaceName string) error {
 		Chain:     netfilter.Output,
 		Target:    netfilter.Accept,
 		Interface: ifaceName,
-	}).Commit(context.TODO()); err != nil {
+	}).Commit(ctx); err != nil {
 		return err
 	}
 	return nil
 }
 
-func setupPublishedFirewall(endpoint *tether.NetworkEndpoint, ifaceName string) error {
-	if err := setupOutboundFirewall(ifaceName); err != nil {
+func (t *operations) setupPublishedFirewall(ctx context.Context, endpoint *tether.NetworkEndpoint, ifaceName string) error {
+	if err := t.setupOutboundFirewall(ctx, ifaceName); err != nil {
 		return err
 	}
-	if err := allowPingTraffic(ifaceName, nil); err != nil {
+	if err := t.allowPingTraffic(ctx, ifaceName, nil); err != nil {
 		return err
 	}
 
@@ -304,7 +304,7 @@ func setupPublishedFirewall(endpoint *tether.NetworkEndpoint, ifaceName string) 
 
 		log.Infof("Applying rule for port %s", p)
 		r.Interface = ifaceName
-		if err := r.Commit(context.TODO()); err != nil {
+		if err := r.Commit(ctx); err != nil {
 			return err
 		}
 	}
@@ -320,7 +320,7 @@ func generalPolicy(target netfilter.Target) error {
 	return nil
 }
 
-func allowPingTraffic(ifaceName string, sourceAddresses []string) error {
+func (t *operations) allowPingTraffic(ctx context.Context, ifaceName string, sourceAddresses []string) error {
 	if err := (&netfilter.Rule{
 		Chain:           netfilter.Input,
 		Target:          netfilter.Accept,
@@ -328,7 +328,7 @@ func allowPingTraffic(ifaceName string, sourceAddresses []string) error {
 		Protocol:        netfilter.ICMP,
 		ICMPType:        netfilter.EchoRequest,
 		SourceAddresses: sourceAddresses,
-	}).Commit(context.TODO()); err != nil {
+	}).Commit(ctx); err != nil {
 		return err
 	}
 	if err := (&netfilter.Rule{
@@ -338,7 +338,7 @@ func allowPingTraffic(ifaceName string, sourceAddresses []string) error {
 		Protocol:        netfilter.ICMP,
 		ICMPType:        netfilter.EchoReply,
 		SourceAddresses: sourceAddresses,
-	}).Commit(context.TODO()); err != nil {
+	}).Commit(ctx); err != nil {
 		return err
 	}
 	return nil

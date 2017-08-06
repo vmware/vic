@@ -46,6 +46,9 @@ type ExecutorConfig struct {
 	// Set of child PIDs created by us.
 	pids map[int]*SessionConfig `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
+	// set of child PIDs for one-off non-persistent processes
+	utilityPids map[int]chan int
+
 	// Sessions is the set of sessions currently hosted by this executor
 	// These are keyed by session ID
 	Sessions map[string]*SessionConfig `vic:"0.1" scope:"read-only" key:"sessions"`

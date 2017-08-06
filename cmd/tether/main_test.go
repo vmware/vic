@@ -138,6 +138,10 @@ func (m *mockery) Stop() error {
 func (m *mockery) Register(name string, config tether.Extension) {
 }
 
+func (m *mockery) LaunchUtility(fn func() (*os.Process, error)) (<-chan int, error) {
+	return nil, nil
+}
+
 // Test reloading via signal helper
 func TestReload(t *testing.T) {
 	m := &mockery{make(chan bool)}
