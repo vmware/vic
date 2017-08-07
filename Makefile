@@ -153,7 +153,7 @@ gas: $(GAS)
 misspell: $(MISSPELL)
 
 # convenience targets
-all: components tethers isos vic-machine vic-ui
+all: components tethers isos vic-machine imagec vic-ui
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) $(MISSPELL) goversion
 check: goversion goimports gofmt misspell govet golint copyright whitespace gas
 apiservers: $(portlayerapi) $(docker-engine-api)
