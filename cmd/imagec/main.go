@@ -97,7 +97,7 @@ func init() {
 	flag.StringVar(&imageCOptions.profiling, "profile.mode", "", "Enable profiling mode, one of [cpu, mem, block]")
 	flag.BoolVar(&imageCOptions.tracing, "tracing", false, "Enable runtime tracing")
 
-	flag.StringVar(&imageCOptions.operation, "operation", "pull", "Pull image/push image/listlayers for image")
+	flag.StringVar(&imageCOptions.operation, "operation", "pull", "Pull image/push image/listlayers/save image")
 
 	flag.StringVar(&imageCOptions.options.Registry, "registry", imagec.DefaultDockerURL, "Registry to pull/push images (default: registry-1.docker.io)")
 
@@ -208,7 +208,7 @@ func main() {
 
 		ap := archiveProxy(options.Host)
 		ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
-		if err := saveImage(ap, ic, options.Reference); err != nil {
+		if err := saveImage(ap, ic); err != nil {
 			log.Fatalf("Saving image %s failed due to %s\n", options.Reference.String(), err)
 		}
 	default:
@@ -216,8 +216,8 @@ func main() {
 	}
 }
 
-func saveImage(ap proxy.VicArchiveProxy, ic *imagec.ImageC, ref reference.Named) error {
-	log.Debugf("Save image %s", ref.String())
+func saveImage(ap proxy.VicArchiveProxy, ic *imagec.ImageC) error {
+	log.Debugf("Save image %s", ic.Options.Reference)
 	err := ic.ListLayers()
 	if err != nil {
 		return err
@@ -295,9 +295,9 @@ func archiveProxy(portLayerAddr string) proxy.VicArchiveProxy {
 func writeArchiveFile(archiveProxy proxy.VicArchiveProxy, store, ancestorStore, layerID, ancestorID, archivePath string) error {
 	var filterSpec vicarchive.FilterSpec
 
-	op := optrace.NewOperation(context.Background(), "export layer %s:%s", layerID, parentID)
+	op := optrace.NewOperation(context.Background(), "export layer %s:%s", layerID, ancestorID)
 	//Initialize an archive stream from the portlayer for the layer
-	ar, err := archiveProxy.ArchiveExportReader(op, store, ancestorStore, layerID, parentID, true, filterSpec)
+	ar, err := archiveProxy.ArchiveExportReader(op, store, ancestorStore, layerID, ancestorID, true, filterSpec)
 	if err != nil || ar == nil {
 		return fmt.Errorf("Failed to get reader for layer %s", layerID)
 	}

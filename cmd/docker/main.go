@@ -140,7 +140,6 @@ func handleFlags() bool {
 		clientIP, err := util.ClientIP()
 		if err != nil {
 			log.Fatalf("Unable to look up %s for portlayer API: %s", constants.ClientHostName, err)
-			log.Fatal(err)
 		}
 		*cli.portLayerAddr = clientIP.String()
 	}

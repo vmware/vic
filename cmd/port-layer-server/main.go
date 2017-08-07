@@ -112,7 +112,6 @@ func main() {
 		clientIP, err := util.ClientIP()
 		if err != nil {
 			log.Fatalf("Unable to look up %s to serve portlayer API: %s", constants.ClientHostName, err)
-			log.Fatal(err)
 		}
 		server.Host = clientIP.String()
 	}
