@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/config/executor"
@@ -31,6 +32,9 @@ import (
 )
 
 const VolumesDir = "volumes"
+
+// VolumeDataDir is used to insulate containers from the presence of lost+found
+const VolumeDataDir = ".vic.vol.data"
 
 // VolumeStore caches Volume references to volumes in the system.
 type VolumeStore struct {
@@ -118,6 +122,19 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 
 	// Make the filesystem and set its label
 	if err = vmdisk.Mkfs(op, vol.Label); err != nil {
+		return nil, err
+	}
+
+	// mask lost+found from containerVM
+	opts := []string{"noatime"}
+	path, err := vmdisk.Mount(op, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer vmdisk.Unmount(op)
+
+	err = os.Mkdir(filepath.Join(path, VolumeDataDir), 0755)
+	if err != nil {
 		return nil, err
 	}
 

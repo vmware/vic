@@ -52,9 +52,6 @@ const (
 
 	// the length of a truncated ID for use as hostname
 	shortLen = 12
-
-	// temp directory to copy existing data to mounts
-	bindDir = "/.tether/.bind"
 )
 
 // Sys is used to configure where the target system files are

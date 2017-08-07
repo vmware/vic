@@ -73,6 +73,15 @@ const (
 	nfsFileSystemType  = "nfs"
 	ext4FileSystemType = "ext4"
 	bridgeTableNumber  = 201
+
+	// directory in which to perform the direct mount of disk for bind mount to actual
+	// target
+	diskBindBase = "/.filesystem-by-label/"
+	// used to isolate applications from the lost+found in the root of ext4
+	volumeDataDir = "/.vic.vol.data"
+
+	// temp directory to copy existing data to mounts
+	bindDir = "/.bind"
 )
 
 type BaseOperations struct {
@@ -716,6 +725,8 @@ func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc cli
 func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", label, target)))
 
+	bindTarget := path.Join(BindSys.Root, diskBindBase, label)
+
 	fi, err := os.Stat(target)
 	if err != nil {
 		// #nosec
@@ -723,6 +734,10 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 			// same as MountFileSystem error for consistency
 			return fmt.Errorf("unable to create mount point %s: %s", target, err)
 		}
+	}
+	// #nosec
+	if err := os.MkdirAll(bindTarget, 0744); err != nil {
+		return fmt.Errorf("unable to create mount point %s: %s", bindTarget, err)
 	}
 
 	// convert the label to a filesystem path
@@ -745,7 +760,31 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 		return errors.New(detail)
 	}
 
-	if err := Sys.Syscall.Mount(label, target, ext4FileSystemType, syscall.MS_NOATIME, ""); err != nil {
+	if err := Sys.Syscall.Mount(label, bindTarget, ext4FileSystemType, syscall.MS_NOATIME, ""); err != nil {
+		// consistent with MountFileSystem
+		detail := fmt.Sprintf("mounting %s on %s failed: %s", label, target, err)
+		return errors.New(detail)
+	}
+
+	mntsrc := path.Join(bindTarget, volumeDataDir)
+	mnttype := "bind"
+	mntflags := uintptr(syscall.MS_BIND)
+	// if the volume contains a volumeDataDir directory then mount that instead of the root of the filesystem
+	// if we cannot read it we go with the root of the filesystem
+	_, err = os.Stat(mntsrc)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// if there's not such directory then revert to using the device directly
+			log.Info("No " + volumeDataDir + " data directory in volume, mounting filesystem directly")
+			mntsrc = label
+			mnttype = ext4FileSystemType
+			mntflags = syscall.MS_NOATIME
+		} else {
+			return fmt.Errorf("unable to determine whether lost+found masking is required: %s", err)
+		}
+	}
+
+	if err := Sys.Syscall.Mount(mntsrc, target, mnttype, mntflags, ""); err != nil {
 		// consistent with MountFileSystem
 		detail := fmt.Sprintf("mounting %s on %s failed: %s", label, target, err)
 		return errors.New(detail)
@@ -796,6 +835,8 @@ func (t *BaseOperations) CopyExistingContent(source string) error {
 
 	source = filepath.Clean(source)
 
+	bind := path.Join(BindSys.Root, bindDir)
+
 	// if mounted volume is not empty skip the copy task
 	if empty, err := isEmpty(source); err != nil || !empty {
 		if err != nil {
@@ -806,40 +847,40 @@ func (t *BaseOperations) CopyExistingContent(source string) error {
 		return nil
 	}
 
-	log.Debugf("creating directory %s", bindDir)
-	if err := os.MkdirAll(bindDir, 0644); err != nil {
-		log.Errorf("error creating directory %s: %+v", bindDir, err)
+	log.Debugf("creating directory %s", bind)
+	if err := os.MkdirAll(bind, 0644); err != nil {
+		log.Errorf("error creating directory %s: %+v", bind, err)
 		return err
 	}
 
 	// remove dir
 	defer func() {
-		log.Debugf("removing %s", bindDir)
-		if err := os.Remove(bindDir); err != nil {
-			log.Errorf("error removing directory %s: %+v", bindDir, err)
+		log.Debugf("removing %s", bind)
+		if err := os.Remove(bind); err != nil {
+			log.Errorf("error removing directory %s: %+v", bind, err)
 		}
 	}()
 
 	parentDir := filepath.Dir(source)
-	// mount the parent directory of the source to bindDir
-	// e.g if source is /foo/bar, mount /foo to ./bindDir
-	log.Debugf("mounting %s on %s", parentDir, bindDir)
-	if err := Sys.Syscall.Mount(parentDir, bindDir, ext4FileSystemType, syscall.MS_BIND, ""); err != nil {
-		log.Errorf("error mounting to %s: %+v", bindDir, err)
+	// mount the parent directory of the source to bind
+	// e.g if source is /foo/bar, mount /foo to ./bind
+	log.Debugf("mounting %s on %s", parentDir, bind)
+	if err := Sys.Syscall.Mount(parentDir, bind, ext4FileSystemType, syscall.MS_BIND, ""); err != nil {
+		log.Errorf("error mounting to %s: %+v", bind, err)
 		return err
 	}
 
 	// unmount
 	defer func() {
-		log.Debugf("unmounting %s", bindDir)
-		if err := Sys.Syscall.Unmount(bindDir, syscall.MNT_DETACH); err != nil {
+		log.Debugf("unmounting %s", bind)
+		if err := Sys.Syscall.Unmount(bind, syscall.MNT_DETACH); err != nil {
 			log.Errorf("error unmounting %+v", err)
 		}
 	}()
 
-	mountedSource := filepath.Join(bindDir, filepath.Base(source))
-	// copy data from the bindDir to the source
-	// e.g if source is /foo/bar, copy ./bindDir/bar to /foo/bar
+	mountedSource := filepath.Join(bind, filepath.Base(source))
+	// copy data from the bind to the source
+	// e.g if source is /foo/bar, copy ./bind/bar to /foo/bar
 	log.Debugf("copying contents from to %s to %s", mountedSource, source)
 	if err := archive.CopyWithTar(mountedSource, source); err != nil {
 		log.Errorf("err copying %s to %s: %+v", mountedSource, source, err)
