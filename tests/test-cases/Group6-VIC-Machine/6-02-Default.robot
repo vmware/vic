@@ -91,7 +91,7 @@ Check That VMOMI Sessions Don't Leak From VIC Machine
     ${thumbprint}=  Get Thumbprint From Log  ${output}
     Should Not Have VMOMI Session  ${thumbprint}
 
-    ${output}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --debug=1 --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME}
+    ${output}=  Cleanup VIC Appliance On Test Server
     Log  ${output}
     ${thumbprint}=  Get Thumbprint From Log  ${output}
     Should Not Have VMOMI Session  ${thumbprint}
