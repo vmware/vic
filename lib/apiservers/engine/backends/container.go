@@ -1551,6 +1551,7 @@ payloadLoop:
 		// verify that the repo:tag exists for the container -- if it doesn't then we should present the
 		// truncated imageID -- if we have a failure determining then we'll show the data we have
 		repo := *t.ContainerConfig.RepoName
+		// #nosec: Errors unhandled.
 		ref, _ := reference.ParseNamed(*t.ContainerConfig.RepoName)
 		if ref != nil {
 			imageID, err := cache.RepositoryCache().Get(ref)
@@ -1945,6 +1946,7 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 				}
 			}
 
+			// #nosec: Errors unhandled.
 			start, end, _ := gonat.ParsePortRangeToInt(pb.HostPort)
 			if start != end {
 				return InternalServerError("host port ranges are not supported for port bindings")

@@ -146,6 +146,7 @@ func (v *Validator) checkPortGroups(input *data.Data, ips map[string][]data.Netw
 		}
 
 		// check if same subnet assigned to multiple portgroups - this can cause routing problems
+		// #nosec: Errors unhandled.
 		_, net, _ := net.ParseCIDR(config[0].IP.String())
 		netAddr := net.String()
 		if networks[netAddr] != "" {

@@ -86,6 +86,7 @@ func (w *writer) connect() (err error) {
 	if err == nil {
 		Logger.Info("successfully connected to syslog server")
 		if w.hostname == "" {
+			// #nosec: Errors unhandled.
 			w.hostname, _, _ = net.SplitHostPort(w.conn.LocalAddr().String())
 		}
 	}

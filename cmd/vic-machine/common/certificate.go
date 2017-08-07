@@ -144,7 +144,8 @@ func (c *CertFactory) ProcessCertificates(displayName string, force bool, debug 
 		}
 
 		if c.Cname != "" {
-			// Strip network mask from IP address if set
+			// Strip network mask from IP address if set.
+			// #nosec: Errors unhandled.
 			if cnameIP, _, _ := net.ParseCIDR(c.Cname); cnameIP != nil {
 				c.Cname = cnameIP.String()
 			}

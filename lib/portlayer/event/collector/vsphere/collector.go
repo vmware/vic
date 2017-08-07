@@ -55,6 +55,7 @@ func NewCollector(client *vim25.Client, objects ...string) *EventCollector {
 	}
 
 	for i := range objects {
+		// #nosec: Errors unhandled.
 		ec.AddMonitoredObject(objects[i])
 	}
 

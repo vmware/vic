@@ -120,11 +120,13 @@ func (l *List) prettyPrint(ctx context.Context, cli *cli.Context, vchs []*vm.Vir
 			items{vch.Reference().Value, parentPath, name, version, upgradeStatus})
 	}
 	t := template.New("vic-machine ls")
+	// #nosec: Errors unhandled.
 	t, _ = t.Parse(templ)
 	w := tabwriter.NewWriter(cli.App.Writer, 8, 8, 8, ' ', 0)
 	if err := t.Execute(w, data); err != nil {
 		log.Fatal(err)
 	}
+	// #nosec: Errors unhandled.
 	w.Flush()
 }
 

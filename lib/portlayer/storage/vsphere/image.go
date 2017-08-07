@@ -326,15 +326,18 @@ func (v *ImageStore) cleanupDisk(op trace.Operation, ID, storeName string, vmdis
 	if vmdisk != nil {
 		if vmdisk.Mounted() {
 			op.Debugf("Unmounting abandoned disk")
+			// #nosec: Errors unhandled.
 			vmdisk.Unmount(op)
 		}
 
 		if vmdisk.Attached() {
 			op.Debugf("Detaching abandoned disk")
+			// #nosec: Errors unhandled.
 			v.Detach(op, vmdisk.VirtualDiskConfig)
 		}
 	}
 
+	// #nosec: Errors unhandled.
 	v.deleteImage(op, storeName, ID)
 }
 
