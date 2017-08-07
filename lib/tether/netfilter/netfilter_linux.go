@@ -102,10 +102,10 @@ type Rule struct {
 	FromPort, ToPort int
 }
 
-func (r *Rule) Commit(ctx context.Context) error {
+func (r *Rule) Commit(ctx context.Context) (tether.UtilityFn, error) {
 	args, err := r.args()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	return iptables(ctx, args)
@@ -160,7 +160,7 @@ func (r *Rule) args() ([]string, error) {
 	return args, nil
 }
 
-func iptables(ctx context.Context, args []string) error {
+func iptables(ctx context.Context, args []string) (tether.UtilityFn, error) {
 	args = append(args, "-w")
 	logrus.Infof("Execing iptables %q", args)
 
@@ -174,40 +174,15 @@ func iptables(ctx context.Context, args []string) error {
 		},
 	}
 
-	t := ctx.Value(tether.TetherKey{})
-	tether, ok := t.(tether.Tether)
-	if tether == nil || !ok {
-		// tether wasn't passed in -- do it the old way
-		logrus.Debugln("No tether object provided to iptables call")
-
-		proc, err := os.StartProcess(cmd.Path, cmd.Args, &os.ProcAttr{
-			Dir: cmd.Dir,
-			Sys: cmd.SysProcAttr,
-		})
-
-		if err != nil {
-			logrus.Errorf("iptables %q (Pid %v) error: %s", args, proc.Pid, err.Error())
-		}
-		return err
-	}
-
-	exitChannel, err := tether.LaunchUtility(func() (*os.Process, error) {
+	return func() (*os.Process, error) {
 		return os.StartProcess(cmd.Path, cmd.Args, &os.ProcAttr{
 			Dir: cmd.Dir,
 			Sys: cmd.SysProcAttr,
 		})
-	})
-	if err != nil {
-		// can log the pid in launchUtilityProcess instead
-		logrus.Errorf("iptables %q error: %s", args, err)
-		return err
-	}
-
-	<-exitChannel
-	return nil
+	}, nil
 }
 
-func Flush(ctx context.Context, table string) error {
+func Flush(ctx context.Context, table string) (tether.UtilityFn, error) {
 	args := []string{"-F"}
 	if table != "" {
 		args = append(args, "-t", table)
@@ -216,7 +191,7 @@ func Flush(ctx context.Context, table string) error {
 	return iptables(ctx, args)
 }
 
-func Policy(ctx context.Context, chain Chain, target Target) error {
+func Policy(ctx context.Context, chain Chain, target Target) (tether.UtilityFn, error) {
 	return iptables(ctx, []string{"-P", string(chain), string(target)})
 }
 

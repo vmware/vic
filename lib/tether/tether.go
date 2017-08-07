@@ -514,7 +514,7 @@ func (t *tether) Start() error {
 		extraconfig.Encode(t.sink, t.config)
 
 		// setup the firewall
-		if err := retryOnError(func() error { return t.ops.SetupFirewall(context.WithValue(t.ctx, TetherKey{}, t), t.config) }, 5); err != nil {
+		if err := retryOnError(func() error { return t.ops.SetupFirewall(t.ctx, t.config) }, 5); err != nil {
 			err = fmt.Errorf("Couldn't set up container-network firewall: %v", err)
 			log.Error(err)
 			return err

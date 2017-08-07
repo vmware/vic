@@ -203,7 +203,7 @@ func lookPath(file string, env []string, dir string) (string, error) {
 		file = fmt.Sprintf("%s%c%s", dir, os.PathSeparator, file)
 		err := findExecutable(file)
 		if err == nil {
-			return file, nil
+			return filepath.Clean(file), nil
 		}
 		return "", err
 	}
@@ -212,7 +212,7 @@ func lookPath(file string, env []string, dir string) (string, error) {
 	if strings.Contains(file, "/") {
 		err := findExecutable(file)
 		if err == nil {
-			return file, nil
+			return filepath.Clean(file), nil
 		}
 		return "", err
 	}
@@ -236,7 +236,7 @@ func lookPath(file string, env []string, dir string) (string, error) {
 		}
 		path := dir + "/" + file
 		if err := findExecutable(path); err == nil {
-			return path, nil
+			return filepath.Clean(path), nil
 		}
 	}
 

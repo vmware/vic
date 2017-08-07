@@ -532,10 +532,10 @@ func (t *BaseOperations) updateNameservers(endpoint *NetworkEndpoint) error {
 func (t *BaseOperations) Apply(endpoint *NetworkEndpoint) error {
 	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
-	return apply(t, t, endpoint)
+	return ApplyEndpoint(t, t, endpoint)
 }
 
-func apply(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
+func ApplyEndpoint(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
 	if endpoint.configured {
 		log.Infof("skipping applying config for network %s as it has been applied already", endpoint.Network.Name)
 		return nil // already applied
@@ -1084,11 +1084,11 @@ func createBindSrcTarget(files map[string]os.FileMode) error {
 // process while in the presence of an embedded child reaper.
 // The function passed in will be launched under lock and MUST NOT wait for the process to
 // exit. It's expected the function be a closure wrapped around StartProcess or similar.
-func (t *BaseOperations) LaunchUtility(fn func() (*os.Process, error)) (<-chan int, error) {
+func (t *BaseOperations) LaunchUtility(fn UtilityFn) (<-chan int, error) {
 	return launchUtility(t, fn)
 }
 
-func launchUtility(t *BaseOperations, fn func() (*os.Process, error)) (<-chan int, error) {
+func launchUtility(t *BaseOperations, fn UtilityFn) (<-chan int, error) {
 	t.utilityPidMutex.Lock()
 	defer t.utilityPidMutex.Unlock()
 

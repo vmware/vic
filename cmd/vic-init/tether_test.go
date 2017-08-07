@@ -178,6 +178,15 @@ func (t *Mocker) Fork() error {
 	return errors.New("Fork test not implemented")
 }
 
+// LaunchUtility uses the underlying implementation for launching and tracking utility processes
+func (t *Mocker) LaunchUtility(fn tether.UtilityFn) (<-chan int, error) {
+	return t.Base.LaunchUtility(fn)
+}
+
+func (t *Mocker) HandleUtilityExit(pid, exitCode int) bool {
+	return t.Base.HandleUtilityExit(pid, exitCode)
+}
+
 // TestMain simply so we have control of debugging level and somewhere to call package wide test setup
 func TestMain(m *testing.M) {
 	log.SetLevel(log.DebugLevel)

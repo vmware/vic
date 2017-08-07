@@ -23,6 +23,9 @@ import (
 	"github.com/vmware/vic/pkg/dio"
 )
 
+// UtilityFn is the sigature of a function that can be used to launch a utility process
+type UtilityFn func() (*os.Process, error)
+
 // Operations defines the set of operations that Tether depends upon. These are split out for:
 // * portability
 // * dependency injection (primarily for testing)
@@ -47,7 +50,7 @@ type Operations interface {
 	ProcessEnv(env []string) []string
 	// LaunchUtility starts a process and provides a way to block on completion and retrieve
 	// it's exit code. This is needed to co-exist with a childreaper.
-	LaunchUtility(fn func() (*os.Process, error)) (<-chan int, error)
+	LaunchUtility(UtilityFn) (<-chan int, error)
 	// HandleUtilityExit will process the utility exit. If the pid cannot be matched to a launched
 	// utility process then this returns false and does nothing.
 	HandleUtilityExit(pid, exitCode int) bool

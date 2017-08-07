@@ -79,13 +79,13 @@ func createFakeDevices() error {
 func testSetup(t *testing.T) *Mocker {
 	var err error
 
-	mocker := tetherTestSetup(t)
-
 	pathPrefix, err = ioutil.TempDir("", path.Base(t.Name()))
 	if err != nil {
 		fmt.Println(err)
 		t.Error(err)
 	}
+
+	mocker := tetherTestSetup(t)
 
 	err = os.MkdirAll(pathPrefix, 0777)
 	if err != nil {
@@ -138,7 +138,7 @@ func (m *mockery) Stop() error {
 func (m *mockery) Register(name string, config tether.Extension) {
 }
 
-func (m *mockery) LaunchUtility(fn func() (*os.Process, error)) (<-chan int, error) {
+func (m *mockery) LaunchUtility(fn tether.UtilityFn) (<-chan int, error) {
 	return nil, nil
 }
 
