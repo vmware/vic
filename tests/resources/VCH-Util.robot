@@ -173,8 +173,10 @@ Install VIC Appliance To Test Server
     ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${additional-args}
     Log  ${output}
     Should Contain  ${output}  Installer completed successfully
+
     Get Docker Params  ${output}  ${certs}
     Log To Console  Installer completed successfully: %{VCH-NAME}...
+
     [Return]  ${output}
 
 Run VIC Machine Command
@@ -198,6 +200,7 @@ Run Secret VIC Machine Inspect Command
     [Tags]  secret
     [Arguments]  ${name}
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --thumbprint=%{TEST_THUMBPRINT}
+
     [Return]  ${rc}  ${output}
 
 Run VIC Machine Delete Command
@@ -412,6 +415,7 @@ Install VIC with version to Test Server
     ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
     Set Environment Variable  TEST_TIMEOUT  20m0s
     Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}  vol=default ${insecureregistry}
+
     Set Environment Variable  VIC-ADMIN  %{VCH-IP}:2378
     Set Environment Variable  INITIAL-VERSION  ${version}
     Run  rm -rf vic.tar.gz vic

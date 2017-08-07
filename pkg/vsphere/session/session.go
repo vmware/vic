@@ -90,6 +90,7 @@ type Session struct {
 // it creates a Flags object from the command line arguments or
 // environment, and uses that instead to create a Session.
 func NewSession(config *Config) *Session {
+	log.Debugf("Creating VMOMI session with thumbprint %s", config.Thumbprint)
 	return &Session{Config: config}
 }
 

@@ -131,6 +131,8 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 		log.Errorf("Upgrade cannot continue - failed to create validator: %s", err)
 		return errors.New("upgrade failed")
 	}
+	defer validator.Session.Logout(ctx)
+
 	_, err = validator.ValidateTarget(ctx, u.Data)
 	if err != nil {
 		log.Errorf("Upgrade cannot continue - target validation failed: %s", err)
