@@ -373,7 +373,7 @@ func allowPingTraffic(ctx context.Context, t *tether.BaseOperations, ifaceName s
 		ICMPType:        netfilter.EchoReply,
 		SourceAddresses: sourceAddresses,
 	}).Commit(ctx)
-	if err := invoke(t, fn, err, "allow poing outbound"); err != nil {
+	if err := invoke(t, fn, err, "allow ping outbound"); err != nil {
 		return err
 	}
 	return nil

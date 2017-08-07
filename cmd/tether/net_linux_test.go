@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,18 +21,17 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/vishvananda/netlink"
-
 	"github.com/stretchr/testify/assert"
+	"github.com/vishvananda/netlink"
 
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
-// Utility method to add an interface to Mocked
+// addInterface utility method to add an interface to Mocked
 // This assigns the interface name and returns the "slot" as a string
-func AddInterface(name string, mocker *Mocker) string {
+func addInterface(name string, mocker *Mocker) string {
 	mocker.maxSlot++
 
 	mocker.Interfaces[name] = &Interface{
@@ -50,7 +49,7 @@ func TestOutboundRuleAndCmd(t *testing.T) {
 	mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
-	bridge := AddInterface("eth1", mocker)
+	bridge := addInterface("eth1", mocker)
 
 	ip, _ := netlink.ParseIPNet("172.16.0.2/24")
 	gwIP, _ := netlink.ParseIPNet("172.16.0.1/24")

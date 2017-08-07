@@ -467,21 +467,21 @@ type TetherKey struct{}
 func (t *tether) Start() error {
 	defer trace.End(trace.Begin("main tether loop"))
 
+	defer func() {
+		e := recover()
+		if e != nil {
+			log.Errorf("Panic in main tether loop: %s: %s", e, debug.Stack())
+			// continue panicing now it's logged
+			panic(e)
+		}
+	}()
+
 	// do the initial setup and start the extensions
 	if err := t.setup(); err != nil {
 		log.Errorf("Failed to run setup: %s", err)
 		return err
 	}
 	defer t.cleanup()
-
-	defer func() {
-		// NOTE: this must not be checked in - results in unknown states as
-		// we're suppressing the panic from rolling up the stack
-		e := recover()
-		if e != nil {
-			log.Errorf("Logging panic: %s: %s", e, debug.Stack())
-		}
-	}()
 
 	// initial entry, so seed this
 	t.reload <- struct{}{}

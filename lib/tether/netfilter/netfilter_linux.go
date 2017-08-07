@@ -161,7 +161,6 @@ func (r *Rule) args() ([]string, error) {
 }
 
 func iptables(ctx context.Context, args []string) (tether.UtilityFn, error) {
-	args = append(args, "-w")
 	logrus.Infof("Execing iptables %q", args)
 
 	// #nosec: Subprocess launching with variable

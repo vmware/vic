@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +26,9 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
+// This has been copied from lib/tether/ but should be split into a common base package that is
+// dedicated to mocking these operations. We cannot reference lib/tether/*_test elements from
+// outside that package.
 type Interface struct {
 	netlink.LinkAttrs
 	Up    bool

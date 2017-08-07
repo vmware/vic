@@ -105,11 +105,6 @@ type Netlink interface {
 	LinkBySlot(slot int32) (netlink.Link, error)
 }
 
-// func init() {
-// 	Sys.Hosts = etcconf.NewHosts(hostsPathBindSrc)
-// 	Sys.ResolvConf = etcconf.NewResolvConf(resolvConfPathBindSrc)
-// }
-
 func (t *BaseOperations) LinkByName(name string) (netlink.Link, error) {
 	return netlink.LinkByName(name)
 }
