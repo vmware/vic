@@ -332,7 +332,6 @@ func TestWaitForKeyInExtraConfig(t *testing.T) {
 
 	opt := &types.OptionValue{Key: "foo", Value: "bar"}
 	obj := simulator.Map.Get(vm.Reference()).(*simulator.VirtualMachine)
-	obj.Config.ExtraConfig = append(obj.Config.ExtraConfig, opt)
 
 	val, err := vm.WaitForKeyInExtraConfig(ctx, opt.Key)
 
@@ -340,6 +339,7 @@ func TestWaitForKeyInExtraConfig(t *testing.T) {
 		t.Error("expected error")
 	}
 
+	obj.Config.ExtraConfig = append(obj.Config.ExtraConfig, opt)
 	obj.Summary.Runtime.PowerState = types.VirtualMachinePowerStatePoweredOn
 
 	val, err = vm.WaitForKeyInExtraConfig(ctx, opt.Key)
