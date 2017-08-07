@@ -70,7 +70,7 @@ const (
 
 	pciDevPath         = "/sys/bus/pci/devices"
 	nfsFileSystemType  = "nfs"
-	ext4FileSystemType = "ext4"
+	Ext4FileSystemType = "ext4"
 	bridgeTableNumber  = 201
 )
 
@@ -743,7 +743,7 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 		return errors.New(detail)
 	}
 
-	if err := Sys.Syscall.Mount(label, target, ext4FileSystemType, syscall.MS_NOATIME, ""); err != nil {
+	if err := Sys.Syscall.Mount(label, target, Ext4FileSystemType, syscall.MS_NOATIME, ""); err != nil {
 		// consistent with MountFileSystem
 		detail := fmt.Sprintf("mounting %s on %s failed: %s", label, target, err)
 		return errors.New(detail)
@@ -822,7 +822,7 @@ func (t *BaseOperations) CopyExistingContent(source string) error {
 	// mount the parent directory of the source to bindDir
 	// e.g if source is /foo/bar, mount /foo to ./bindDir
 	log.Debugf("mounting %s on %s", parentDir, bindDir)
-	if err := Sys.Syscall.Mount(parentDir, bindDir, ext4FileSystemType, syscall.MS_BIND, ""); err != nil {
+	if err := Sys.Syscall.Mount(parentDir, bindDir, Ext4FileSystemType, syscall.MS_BIND, ""); err != nil {
 		log.Errorf("error mounting to %s: %+v", bindDir, err)
 		return err
 	}
