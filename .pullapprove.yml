@@ -30,6 +30,7 @@ groups:
       - mhagen-vmware
       - rajanashok
       - rogeliosanchez
+      - mdharamadas1
     conditions:
       files:
         include:
