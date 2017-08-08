@@ -14,7 +14,16 @@
 
 package main
 
-import "github.com/vmware/vic/lib/tether"
+import (
+	"fmt"
+	"os"
+	"syscall"
+
+	log "github.com/Sirupsen/logrus"
+
+	"github.com/vmware/vic/lib/etcconf"
+	"github.com/vmware/vic/lib/tether"
+)
 
 // pathPrefix is present to allow the various files referenced by tether to be placed
 // in specific directories, primarily for testing.
@@ -25,7 +34,25 @@ func (t *operations) Cleanup() error {
 }
 
 func (t *operations) Apply(endpoint *tether.NetworkEndpoint) error {
-	return t.BaseOperations.Apply(endpoint)
+	err := t.BaseOperations.Apply(endpoint)
+	if err != nil {
+		return err
+	}
+
+	bindMountMap := map[string]string{
+		hostsPathBindSrc:      etcconf.HostsPath,
+		resolvConfPathBindSrc: etcconf.ResolvConfPath,
+		hostnameFileBindSrc:   etcconf.HostnamePath,
+	}
+
+	for src, target := range bindMountMap {
+		err = bindMount(src, target)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // HandleSessionExit controls the behaviour on session exit - for the tether if the session exiting
@@ -37,4 +64,19 @@ func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *t
 			tthr.Stop()
 		}
 	}
+}
+
+func bindMount(src, target string) error {
+	log.Infof("bind-mounting %s on %s", src, target)
+	if err := tether.Sys.Syscall.Mount(src, target, "bind", syscall.MS_BIND, ""); err != nil {
+		return fmt.Errorf("faild to mount %s to %s: %s", src, target, err)
+	}
+
+	// make sure the file is readable
+	// #nosec: Expect file permissions to be 0600 or less
+	if err := os.Chmod(target, 0644); err != nil {
+		return err
+	}
+
+	return nil
 }

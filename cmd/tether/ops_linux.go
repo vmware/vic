@@ -29,6 +29,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/etcconf"
 	"github.com/vmware/vic/lib/iolog"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/tether"
@@ -37,12 +38,34 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-const runMountPoint = "/run"
+const (
+	runMountPoint         = "/run"
+	hostnameFileBindSrc   = "/.tether/etc/hostname"
+	hostsPathBindSrc      = "/.tether/etc/hosts"
+	resolvConfPathBindSrc = "/.tether/etc/resolv.conf"
+)
+
+var (
+	filesForMinOSLinux = map[string]os.FileMode{
+		"/etc/hostname":            0644,
+		"/etc/hosts":               0644,
+		"/etc/resolv.conf":         0644,
+		"/.tether/etc/hostname":    0644,
+		"/.tether/etc/hosts":       0644,
+		"/.tether/etc/resolv.conf": 0644,
+	}
+)
 
 type operations struct {
 	tether.BaseOperations
 
 	logging bool
+}
+
+func init() {
+	tether.Sys.Hosts = etcconf.NewHosts(hostsPathBindSrc)
+	tether.Sys.ResolvConf = etcconf.NewResolvConf(resolvConfPathBindSrc)
+	tether.Sys.Hostname = hostnameFileBindSrc
 }
 
 func (t *operations) Log() (io.Writer, error) {
@@ -115,6 +138,10 @@ func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMulti
 }
 
 func (t *operations) Setup(sink tether.Config) error {
+	if err := createBindSrcTarget(filesForMinOSLinux); err != nil {
+		return err
+	}
+
 	if err := t.BaseOperations.Setup(sink); err != nil {
 		return err
 	}
@@ -379,4 +406,31 @@ func portToRule(p string) (*netfilter.Rule, error) {
 	rule.FromPort = port
 
 	return rule, nil
+}
+
+// Create necessary directories/files as the src/target for bind mount.
+// See https://github.com/vmware/vic/issues/489
+func createBindSrcTarget(files map[string]os.FileMode) error {
+	log.Infof("set up bind mount src and target")
+
+	// The directory has to exist before creating the new file
+	for filePath, fmode := range files {
+		dir := path.Dir(filePath)
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			// #nosec: Expect file permissions to be 0600 or less
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return fmt.Errorf("failed to create directory %s: %s", dir, err)
+			}
+		}
+		f, err := os.OpenFile(filePath, os.O_CREATE, fmode)
+		if err != nil {
+			return fmt.Errorf("failed to open file %s: %s", filePath, err)
+		}
+
+		if err = f.Close(); err != nil {
+			return fmt.Errorf("failed to close file %s: %s", filePath, err)
+		}
+	}
+
+	return nil
 }

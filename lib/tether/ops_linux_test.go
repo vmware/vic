@@ -19,6 +19,8 @@ package tether
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"os/user"
 	"path"
 	"strconv"
@@ -28,10 +30,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"
-
-	"os"
-
-	"io/ioutil"
 
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -276,29 +274,4 @@ func TestIsEmpty(t *testing.T) {
 	assert.False(t, ok)
 	assert.NoError(t, err)
 
-}
-
-func TestCreateBindSrcTarget(t *testing.T) {
-	dir, err := ioutil.TempDir("", "testCreateBindSrcTarget")
-	assert.NoError(t, err)
-
-	defer os.RemoveAll(dir)
-
-	// Create a file under an existing directory
-	file := dir + "/test1"
-	err = createBindSrcTarget(map[string]os.FileMode{file: 0644})
-	assert.NoError(t, err, "createBindSrcTarget failed: %s", err)
-	_, err = os.Stat(dir)
-	assert.NoError(t, err)
-
-	// Create a file under non-existent directory
-	file = dir + "/testDir/test1"
-	err = createBindSrcTarget(map[string]os.FileMode{file: 0644})
-	assert.NoError(t, err, "createBindSrcTarget failed: %s", err)
-	_, err = os.Stat(dir)
-	assert.NoError(t, err)
-
-	// Create an existing file
-	err = createBindSrcTarget(map[string]os.FileMode{file: 0644})
-	assert.NoError(t, err, "createBindSrcTarget failed: %s", err)
 }
