@@ -292,13 +292,17 @@ Kill NFS Server
 
     Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${NFS}
 
+    ${status}=  Get State Of Github Issue  5946
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 5-22-NFS-Volume.robot needs to be updated now that Issue #5946 has been resolved
+    # Issue 5946 should provide a better error message for the next three tests
+
     ${rc}  ${tailOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "tail -5 /mydata/test_nfs_kill.txt"
     Should Be Equal As Integers  ${rc}  125
-    Should Contain  ${tailOutput}  Server error from portlayer: unable to wait for process launch status:
+    #Should Contain  ${tailOutput}  Server error from portlayer: unable to wait for process launch status:
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "echo 'Where am I writing to?...\n' >> /mydata/test_nfs_kill.txt"
     Should Be Equal As Integers  ${rc}  125
 
     ${rc}  ${lsOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "ls mydata"
     Should Be Equal As Integers  ${rc}  125
-    Should Contain  ${lsOutput}  Server error from portlayer: unable to wait for process launch status:
+    #Should Contain  ${lsOutput}  Server error from portlayer: unable to wait for process launch status:
