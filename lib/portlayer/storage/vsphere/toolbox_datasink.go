@@ -60,7 +60,7 @@ func (t *ToolboxDataSink) Import(op trace.Operation, spec *archive.FilterSpec, d
 	// NOW: need a check that size doesn't exceed available memory - and error recommending offline
 	// copy as alternative
 	buf := new(bytes.Buffer)
-	_, err = io.Copy(buf, data)
+	n, err := io.Copy(buf, data)
 	if err != nil {
 		op.Errorf("Unable to buffer archive data for upload")
 		return err
@@ -68,6 +68,7 @@ func (t *ToolboxDataSink) Import(op trace.Operation, spec *archive.FilterSpec, d
 
 	// upload the gzip archive.
 	p := soap.DefaultUpload
+	p.ContentLength = n
 
 	retryFunc := func() error {
 		return client.Upload(op, buf, target, p, &types.GuestPosixFileAttributes{}, true)

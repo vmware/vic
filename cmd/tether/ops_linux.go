@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"strconv"
@@ -414,4 +415,45 @@ func portToRule(p string) (*netfilter.Rule, error) {
 	rule.FromPort = port
 
 	return rule, nil
+}
+
+// MountDiskLabel mounts a device based on it's label name located
+// in /dev/disk/by-label
+func MountDiskLabel(label string) (string, error) {
+	// We know the vmdk will always be attached at '/'
+	if label == "containerfs" {
+		return "/", nil
+	}
+
+	// otherwise, label represents a volume that needs to be mounted
+	path := path.Join("/dev/disk/by-label/", label)
+	_, err := os.Lstat(path)
+	// label does not exist
+	if err != nil {
+		return "", err
+	}
+
+	// label exists, mount the device to a tmp directory
+	tmpDir, err := ioutil.TempDir("", fmt.Sprintf("toolbox-%s", label))
+	if err := tether.Sys.Syscall.Mount(path, tmpDir, tether.Ext4FileSystemType, syscall.MS_NOATIME, ""); err != nil {
+		return "", fmt.Errorf("failed to mount %s to %s: %s", path, tmpDir, err)
+	}
+
+	return tmpDir, nil
+}
+
+// UnmountDiskLabel is intended to be used after MountDiskLabel. It unmounts the disk at
+// unmountPath from the container filesystem.
+func UnmountDiskLabel(op trace.Operation, unmountPath string) {
+	// don't unmount the root vmdk
+	if unmountPath == "/" {
+		return
+	}
+
+	// unmount the disk from the temporary directory
+	if err := tether.Sys.Syscall.Unmount(unmountPath, syscall.MNT_DETACH); err != nil {
+		op.Errorf("failed to unmount %s: %s", unmountPath, err.Error())
+	}
+	// finally, remove the temporary directory
+	os.Remove(unmountPath)
 }
