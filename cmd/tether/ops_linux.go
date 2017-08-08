@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path"
 	"strconv"
@@ -43,7 +44,7 @@ const (
 
 	// default values to set for ulimit fields
 	defaultNOFILE = 1024 * 1024
-	defaultULimit = ^uint64(0)
+	defaultULimit = math.MaxUint64
 )
 
 type operations struct {
@@ -134,42 +135,37 @@ func (t *operations) Setup(sink tether.Config) error {
 	}
 
 	// NOTE: ulimit default values should change when we support ulimit configuration
-	setupDefaultULimit()
+	ApplyDefaultULimit()
 
 	return nil
 }
 
-// set ulimit fields to unlimited as their default value
-func setupDefaultULimit() {
+// ApplyDefaultULimit sets ulimit fields to their defined default value
+func ApplyDefaultULimit() {
 	var rLimit syscall.Rlimit
 
 	// NOFILE does not support defaultULimit as a value due to kernel restriction on number of open files
 	rLimit.Max = defaultNOFILE
 	rLimit.Cur = rLimit.Max
-	err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit)
-	if err != nil {
+	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
 		log.Errorf("Cannot set ulimit for nofile: %s", err.Error())
 	}
 
 	rLimit.Max = defaultULimit
 	rLimit.Cur = rLimit.Max
-	err = syscall.Setrlimit(syscall.RLIMIT_STACK, &rLimit)
-	if err != nil {
+	if err := syscall.Setrlimit(syscall.RLIMIT_STACK, &rLimit); err != nil {
 		log.Errorf("Cannot set ulimit for stack: %s ", err.Error())
 	}
 
-	err = syscall.Setrlimit(syscall.RLIMIT_CORE, &rLimit)
-	if err != nil {
+	if err := syscall.Setrlimit(syscall.RLIMIT_CORE, &rLimit); err != nil {
 		log.Errorf("Cannot set ulimit for core blocks: %s", err.Error())
 	}
 
-	err = syscall.Setrlimit(unix.RLIMIT_MEMLOCK, &rLimit)
-	if err != nil {
+	if err := syscall.Setrlimit(unix.RLIMIT_MEMLOCK, &rLimit); err != nil {
 		log.Errorf("Cannot set ulimit for memlock: %s", err.Error())
 	}
 
-	err = syscall.Setrlimit(unix.RLIMIT_NPROC, &rLimit)
-	if err != nil {
+	if err := syscall.Setrlimit(unix.RLIMIT_NPROC, &rLimit); err != nil {
 		log.Errorf("Cannot set ulimit for nproc: %s", err.Error())
 	}
 }
