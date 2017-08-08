@@ -72,6 +72,12 @@ const (
 	nfsFileSystemType  = "nfs"
 	ext4FileSystemType = "ext4"
 	bridgeTableNumber  = 201
+
+	defaultNOFILE	   = 1024 * 1024
+	defaultULimit	   = ^uint64(0)
+	// can replace with 'golang.org/x/sys/unix' package once vendor code is updated
+	RLIMIT_MEMLOCK     = 0x8
+	RLIMIT_NPROC       = 0x6
 )
 
 type BaseOperations struct {
@@ -928,6 +934,9 @@ func (t *BaseOperations) Setup(config Config) error {
 		return err
 	}
 
+	// NOTE: ulimit default values should change when we support ulimit configuration
+	setupDefaultULimit()
+
 	t.dynEndpoints = make(map[string][]*NetworkEndpoint)
 	t.dhcpLoops = make(map[string]chan struct{})
 	t.config = config
@@ -1071,4 +1080,38 @@ func createBindSrcTarget(files map[string]os.FileMode) error {
 	}
 
 	return nil
+}
+
+// set ulimit fields to unlimited as their default value
+func setupDefaultULimit() {
+	var rLimit syscall.Rlimit
+
+	rLimit.Max = defaultNOFILE
+	rLimit.Cur = rLimit.Max
+	err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit)
+	if err != nil {
+		log.Errorf("Cannot set ulimit for nofile: %s", err.Error())
+	}
+
+	rLimit.Max = defaultULimit
+	rLimit.Cur = rLimit.Max
+	err = syscall.Setrlimit(syscall.RLIMIT_STACK, &rLimit)
+	if err != nil {
+		log.Errorf("Cannot set ulimit for stack: %s ", err.Error())
+	}
+
+	err = syscall.Setrlimit(syscall.RLIMIT_CORE, &rLimit)
+	if err != nil {
+		log.Errorf("Cannot set ulimit for core blocks: %s", err.Error())
+	}
+
+	err = syscall.Setrlimit(RLIMIT_MEMLOCK, &rLimit)
+	if err != nil {
+		log.Errorf("Cannot set ulimit for memlock: %s", err.Error())
+	}
+
+	err = syscall.Setrlimit(RLIMIT_NPROC, &rLimit)
+	if err != nil {
+		log.Errorf("Cannot set ulimit for nproc: %s", err.Error())
+	}
 }
