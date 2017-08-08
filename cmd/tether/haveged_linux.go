@@ -12,38 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tether
+package main
 
 import (
 	"fmt"
 	"os"
 	"os/exec"
 
-	"github.com/Sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
+
+	"github.com/vmware/vic/lib/tether"
 )
 
-// Executor is a tether extension that wraps command
-type Executor struct {
+// Haveged is a tether extension that wraps command
+type Haveged struct {
 	p    *os.Process
 	exec func() (*os.Process, error)
 }
 
-// NewExecutor returns a tether.Extension that wraps the executor service
-func NewExecutor() *Executor {
-	return &Executor{}
-}
-
 // NewHaveged returns a tether.Extension that wraps haveged
-func NewHaveged() *Executor {
-	return &Executor{
+func NewHaveged() *Haveged {
+	return &Haveged{
 		exec: func() (*os.Process, error) {
 			args := []string{"/.tether/lib/ld-linux-x86-64.so.2", "--library-path", "/.tether/lib", "/.tether/haveged", "-w", "1024", "-v", "1", "-F"}
 			// #nosec: Subprocess launching with variable
 			cmd := exec.Command(args[0], args[1:]...)
 
-			logrus.Infof("Starting haveged with args: %q", args)
+			log.Infof("Starting haveged with args: %q", args)
 			if err := cmd.Start(); err != nil {
-				logrus.Errorf("Starting haveged failed with %q", err.Error())
+				log.Errorf("Starting haveged failed with %q", err.Error())
 				return nil, err
 			}
 			return cmd.Process, nil
@@ -52,26 +49,26 @@ func NewHaveged() *Executor {
 }
 
 // Start implementation of the tether.Extension interface
-func (e *Executor) Start() error {
-	logrus.Infof("Starting haveged")
+func (h *Haveged) Start() error {
+	log.Infof("Starting haveged")
 
 	var err error
-	e.p, err = e.exec()
+	h.p, err = h.exec()
 	return err
 }
 
 // Stop implementation of the tether.Extension interface
-func (e *Executor) Stop() error {
-	logrus.Infof("Stopping haveged")
+func (h *Haveged) Stop() error {
+	log.Infof("Stopping haveged")
 
-	if e.p != nil {
-		return e.p.Kill()
+	if h.p != nil {
+		return h.p.Kill()
 	}
 	return fmt.Errorf("haveged process is missing")
 }
 
 // Reload implementation of the tether.Extension interface
-func (e *Executor) Reload(config *ExecutorConfig) error {
+func (h *Haveged) Reload(config *tether.ExecutorConfig) error {
 	// haveged doesn't support reloading
 	return nil
 }

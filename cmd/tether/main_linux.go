@@ -98,7 +98,7 @@ func main() {
 	tthr.Register("Toolbox", tether.NewToolbox().InContainer())
 
 	// register the executor extension
-	tthr.Register("Haveged", tether.NewHaveged())
+	tthr.Register("Haveged", NewHaveged())
 
 	err = tthr.Start()
 	if err != nil {
