@@ -111,6 +111,9 @@ type Options struct {
 
 	// If true, do not bother portlayer or persona
 	Standalone bool
+
+	// image store name or url
+	ImageStore string
 }
 
 // ImageWithMeta wraps the models.Image with some additional metadata
