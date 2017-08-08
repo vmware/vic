@@ -17,6 +17,7 @@
 package tether
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net"
 	"strconv"
@@ -28,6 +29,7 @@ import (
 
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/etcconf"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 // Utility method to add an interface to Mocked
@@ -154,4 +156,90 @@ func TestSetIpAddress(t *testing.T) {
 	assert.NotNil(t, eIface)
 
 	assert.Equal(t, 1, len(eIface.Addrs), "Expected one address on public interface")
+}
+
+func TestOutboundRuleAndCmd(t *testing.T) {
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
+
+	// give us a hosts file we can modify
+	defer func(hosts etcconf.Hosts, resolv etcconf.ResolvConf) {
+		Sys.Hosts = hosts
+		Sys.ResolvConf = resolv
+	}(Sys.Hosts, Sys.ResolvConf)
+
+	fmt.Printf("Test root dir: %s, hosts: %s\n", Sys.Root, Sys.Hosts.Path())
+
+	bridge := AddInterface("eth1", mocker)
+
+	gwIP, _ := netlink.ParseIPNet("172.16.0.1/24")
+
+	cfg := executor.ExecutorConfig{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
+			ID:   "outboundrule",
+			Name: "tether_test_executor",
+		},
+		Diagnostics: executor.Diagnostics{
+			DebugLevel: 3,
+		},
+		Networks: map[string]*executor.NetworkEndpoint{
+			"bridge": {
+				Common: executor.Common{
+					ID: bridge,
+					// interface rename
+					Name: "bridge",
+				},
+				Network: executor.ContainerNetwork{
+					Common: executor.Common{
+						Name: "bridge",
+					},
+					Default: true,
+					Gateway: *gwIP,
+				},
+				Static: true,
+				IP: &net.IPNet{
+					IP:   localhost,
+					Mask: lmask.Mask,
+				},
+			},
+		},
+
+		Sessions: map[string]*executor.SessionConfig{
+			"outboundrule": {
+				Common: executor.Common{
+					ID:   "outboundrule",
+					Name: "tether_test_session",
+				},
+				Tty:    false,
+				Active: true,
+
+				Cmd: executor.Cmd{
+					// test relative path
+					Path: "./date",
+					Args: []string{"./date", "--reference=/"},
+					Env:  []string{"PATH="},
+					Dir:  "/bin",
+				},
+			},
+		},
+	}
+
+	_, src, _ := StartTether(t, &cfg, mocker)
+
+	fmt.Println("Waiting for tether start")
+	<-mocker.Started
+
+	// wait for tether to exit
+	fmt.Println("Waiting for tether exit")
+	<-mocker.Cleaned
+
+	result := ExecutorConfig{}
+	extraconfig.Decode(src, &result)
+
+	// confirm command ran - necessary to detect early exit due to net config error
+	assert.Equal(t, "true", result.Sessions["outboundrule"].Started, "Expected command to have been started successfully")
+	assert.Equal(t, 0, result.Sessions["outboundrule"].ExitStatus, "Expected command to have exited cleanly")
+
+	// confirm outbound rules configured
+
 }

@@ -128,7 +128,7 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 	return nil
 }
 
-func (t *Mocker) SetupFirewall(*tether.ExecutorConfig) error {
+func (t *Mocker) SetupFirewall(cxt context.Context, conf *tether.ExecutorConfig) error {
 	return nil
 }
 
@@ -176,6 +176,15 @@ func (t *Mocker) CopyExistingContent(source string) error {
 func (t *Mocker) Fork() error {
 	defer trace.End(trace.Begin("mocking fork"))
 	return errors.New("Fork test not implemented")
+}
+
+// LaunchUtility uses the underlying implementation for launching and tracking utility processes
+func (t *Mocker) LaunchUtility(fn tether.UtilityFn) (<-chan int, error) {
+	return t.Base.LaunchUtility(fn)
+}
+
+func (t *Mocker) HandleUtilityExit(pid, exitCode int) bool {
+	return t.Base.HandleUtilityExit(pid, exitCode)
 }
 
 // TestMain simply so we have control of debugging level and somewhere to call package wide test setup

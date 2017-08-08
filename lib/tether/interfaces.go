@@ -18,9 +18,13 @@ import (
 	"context"
 	"io"
 	"net/url"
+	"os"
 
 	"github.com/vmware/vic/pkg/dio"
 )
+
+// UtilityFn is the sigature of a function that can be used to launch a utility process
+type UtilityFn func() (*os.Process, error)
 
 // Operations defines the set of operations that Tether depends upon. These are split out for:
 // * portability
@@ -33,7 +37,7 @@ type Operations interface {
 	Log() (io.Writer, error)
 
 	SetHostname(hostname string, aliases ...string) error
-	SetupFirewall(config *ExecutorConfig) error
+	SetupFirewall(ctx context.Context, config *ExecutorConfig) error
 	Apply(endpoint *NetworkEndpoint) error
 	MountLabel(ctx context.Context, label, target string) error
 	MountTarget(ctx context.Context, source url.URL, target string, mountOptions string) error
@@ -44,6 +48,12 @@ type Operations interface {
 	// Returns a function to invoke after the session state has been persisted
 	HandleSessionExit(config *ExecutorConfig, session *SessionConfig) func()
 	ProcessEnv(env []string) []string
+	// LaunchUtility starts a process and provides a way to block on completion and retrieve
+	// it's exit code. This is needed to co-exist with a childreaper.
+	LaunchUtility(UtilityFn) (<-chan int, error)
+	// HandleUtilityExit will process the utility exit. If the pid cannot be matched to a launched
+	// utility process then this returns false and does nothing.
+	HandleUtilityExit(pid, exitCode int) bool
 }
 
 // Tether presents the consumption interface for code needing to run a tether
