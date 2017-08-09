@@ -89,9 +89,6 @@ Run Regression Test With More Log Information
 
 *** Test Cases ***
 Test
-    ${status}=  Get State Of Github Issue  4858
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 5-4-High-Availability.robot needs to be updated now that Issue #4858 has been resolved
-
     ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     ${pid}=  Deploy Nimbus vCenter Server Async  ${vc}
     Set Suite Variable  ${VC}  ${vc}
