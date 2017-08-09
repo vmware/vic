@@ -107,8 +107,6 @@ Upgrade VCH with Harbor On HTTP
     Check Upgraded Version
     Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
 
-    Cleanup Test Environment
-
 Upgrade VCH with Harbor On HTTPS
     Set Test Variable  ${harbor_name}  ${https_harbor_name}
     ${ip}=  Install Harbor To Test Server  ${harbor_name}  https
