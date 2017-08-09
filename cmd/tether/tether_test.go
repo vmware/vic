@@ -24,6 +24,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"sync"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
@@ -74,6 +75,8 @@ type Mocker struct {
 	WindowCol uint32
 	WindowRow uint32
 	Signal    ssh.Signal
+
+	once sync.Once
 }
 
 // Start implements the extension method
@@ -88,8 +91,10 @@ func (t *Mocker) Stop() error {
 
 // Reload implements the extension method
 func (t *Mocker) Reload(config *tether.ExecutorConfig) error {
-	// the tether has definitely finished it's startup by the time we hit this
-	close(t.Started)
+	t.once.Do(func() {
+		// the tether has definitely finished it's startup by the time we hit this
+		close(t.Started)
+	})
 	return nil
 }
 
