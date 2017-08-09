@@ -15,8 +15,8 @@
 *** Settings ***
 Documentation  Test 1-02 - Docker Pull
 Resource  ../../resources/Util.robot
-#Suite Setup  Install VIC Appliance To Test Server
-#Suite Teardown  Cleanup VIC Appliance On Test Server
+Suite Setup  Install VIC Appliance To Test Server
+Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Variables ***
 ${default_local_docker_endpoint}  unix:///var/run/docker-local.sock
