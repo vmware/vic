@@ -175,3 +175,5 @@ Verify image manifest digest against vanilla docker
     ${digest2}=  Get Lines Containing String  ${output}  sha256
 
     Should Be Equal As Strings  ${digest1}  ${digest2}
+
+
