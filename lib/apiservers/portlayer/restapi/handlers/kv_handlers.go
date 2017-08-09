@@ -40,6 +40,7 @@ func (handler *KvHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCt
 
 	// Get the APIKV store -- it should always be present since it's
 	// initialized when the portlayer starts
+	// #nosec: Errors unhandled.
 	s, _ := store.Store(store.APIKV)
 	handler.defaultStore = s
 }

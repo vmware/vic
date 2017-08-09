@@ -63,6 +63,7 @@ type VolumeStore struct {
 }
 
 func NewVolumeStore(op trace.Operation, storeName string, mount MountServer) (*VolumeStore, error) {
+	// #nosec: Errors unhandled.
 	u, _ := mount.URL()
 	op.Infof("Creating nfs volumestore %s on %s", storeName, u.String())
 
@@ -121,6 +122,7 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 		return nil, err
 	}
 
+	// #nosec: Errors unhandled.
 	u, _ := v.Service.URL()
 	if u.Scheme != nfsFilesystemTypeString {
 		op.Errorf("URL from nfs mount target had scheme (%s) instead of nfs for volume store (%s)", u.Scheme, v.Name)
@@ -193,6 +195,7 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 			continue
 		}
 
+		// #nosec: Errors unhandled.
 		u, _ := v.Service.URL()
 		vol, err := storage.NewVolume(v.SelfLink, fileInfo.Name(), volMetadata, NewVolume(u, v.volDirPath(fileInfo.Name())), executor.CopyNew)
 		if err != nil {

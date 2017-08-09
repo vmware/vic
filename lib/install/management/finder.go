@@ -316,6 +316,7 @@ func (d *Dispatcher) getChildVCHs(pool *object.ResourcePool, searchVapp bool) ([
 	}
 	if vmm != nil {
 		vmm.InventoryPath = path.Join(pool.InventoryPath, poolName)
+		// #nosec: Errors unhandled.
 		if ok, _ := d.isVCH(vmm); ok {
 			log.Debugf("%q is VCH", vmm.InventoryPath)
 			vchs = append(vchs, vmm)

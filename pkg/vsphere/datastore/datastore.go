@@ -266,6 +266,7 @@ func (d *Helper) Rm(ctx context.Context, pth string) error {
 }
 
 func (d *Helper) IsVSAN(ctx context.Context) bool {
+	// #nosec: Errors unhandled.
 	dsType, _ := d.ds.Type(ctx)
 	return dsType == types.HostFileSystemVolumeFileSystemTypeVsan
 }

@@ -240,6 +240,7 @@ func (g *Gandalf) status() string {
 	}
 	defer resp.Body.Close()
 
+	// #nosec: Errors unhandled.
 	body, _ := ioutil.ReadAll(resp.Body)
 	err = json.Unmarshal(body, &status)
 	if err != nil {
@@ -313,6 +314,7 @@ func (g *Gandalf) enable() error {
 	// https://developer.github.com/v3/repos/branches/#replace-required-status-checks-contexts-of-protected-branch is not supported by the Go github API yet so we improvise
 	url := fmt.Sprintf(GitHubContextsAPIURL, g.User, g.Repo, g.Branch)
 
+	// #nosec: Errors unhandled.
 	req, _ := http.NewRequest("PUT", url, bytes.NewBuffer([]byte(ExistingContext)))
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", g.GithubToken))
 	req.Header.Set("Accept", "application/vnd.github.loki-preview+json")

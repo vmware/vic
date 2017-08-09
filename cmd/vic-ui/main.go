@@ -82,6 +82,7 @@ func main() {
 	// #nosec: Expect file permissions to be 0600 or less
 	f, err := os.OpenFile(LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
+		// #nosec: Errors unhandled.
 		fmt.Fprintf(os.Stderr, "Error opening logfile %s: %v\n", LogFile, err)
 	} else {
 		defer f.Close()
@@ -101,6 +102,7 @@ func main() {
 }
 
 func showVersion(cli *cli.Context) error {
+	// #nosec: Errors unhandled.
 	fmt.Fprintf(cli.App.Writer, "%v version %v\n", cli.App.Name, cli.App.Version)
 	return nil
 }
