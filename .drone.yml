@@ -152,7 +152,7 @@ pipeline:
     when:
       repo: vmware/vic
       branch: [ master, releases/*, refs/tags/* ]
-      status: failure
+      status: [ failure, success ]
 
   publish-gcs-builds:
     image: maplain/drone-gcs:latest
