@@ -615,13 +615,11 @@ func TestEcho(t *testing.T) {
 
 	// unblock before grabbing stdout - this should buffer in ssh
 	sshSession.Unblock()
-	stdin := sshSession.Stdin()
 	stdout := sshSession.Stdout()
 	stderr := sshSession.Stderr()
 
 	doneStdout := make(chan bool)
 	doneStderr := make(chan bool)
-	doneStdin := make(chan bool)
 
 	// read from session into buffer
 	bufout := &bytes.Buffer{}
@@ -638,18 +636,6 @@ func TestEcho(t *testing.T) {
 		log.Debug("stderr copy complete")
 		doneStderr <- true
 	}()
-
-	// nothing being sent, but is attached
-	pr, _, err := os.Pipe()
-	assert.NoError(t, err)
-	go func() {
-		io.Copy(stdin, pr)
-		log.Debug("stdin copy complete")
-		doneStdin <- true
-	}()
-
-	// seeing if premature close of stdin causes problems
-	sshSession.CloseStdin()
 
 	// wait for the close to propagate
 	<-doneStdout
