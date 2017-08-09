@@ -66,7 +66,7 @@ Basic Whitelisting
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Registry Whitelist Mode: enabled
     Should Contain  ${output}  Whitelisted Registries:
-    Should Contain  ${output}  Registry: registry-1.docker.io
+    Should Contain  ${output}  Registry: registry.hub.docker.io
 
     # Try to login and pull from the HTTPS whitelisted registry (should succeed)
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u admin -p %{TEST_PASSWORD} %{HTTPS_HARBOR_IP}
