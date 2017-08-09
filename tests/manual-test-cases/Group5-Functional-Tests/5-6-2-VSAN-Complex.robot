@@ -46,7 +46,7 @@ Complex VSAN
     Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
     Set Environment Variable  GOVC_PASSWORD  Admin\!23
 
-    Add Host To Distributed Switch  /vcqaDC/host/cluster-vsan-1
+    Wait Until Keyword Succeeds  5x  5min  Add Host To Distributed Switch  /vcqaDC/host/cluster-vsan-1
 
     Log To Console  Enable DRS and VSAN on the cluster
     ${out}=  Run  govc cluster.change -drs-enabled /vcqaDC/host/cluster-vsan-1
