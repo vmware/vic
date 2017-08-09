@@ -214,6 +214,7 @@ func (c *Conn) dataHandlerWrapper(w io.Writer, r io.Reader) {
 			ch <- struct{}{}
 			return
 		case <-c.dataWrittenCh:
+			// #nosec: Errors unhandled.
 			if b, _ := ioutil.ReadAll(r); len(b) > 0 {
 				c.DataHandler(w, b, c)
 			}
@@ -222,6 +223,7 @@ func (c *Conn) dataHandlerWrapper(w io.Writer, r io.Reader) {
 }
 
 func (c *Conn) cmdHandlerWrapper(w io.Writer, r io.Reader) {
+	// #nosec: Errors unhandled.
 	if cmd, _ := ioutil.ReadAll(r); len(cmd) > 0 {
 		c.CmdHandler(w, cmd, c)
 	}

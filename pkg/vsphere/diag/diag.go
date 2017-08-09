@@ -130,8 +130,10 @@ func queryAPI(op trace.Operation, getter func(string) (*http.Response, error), a
 		return VCStatusErrorResponse
 	}
 	if n >= len(data) {
+		// #nosec: Errors unhandled.
 		io.Copy(ioutil.Discard, resp.Body)
 	}
+	// #nosec: Errors unhandled.
 	resp.Body.Close()
 
 	contentType := strings.ToLower(resp.Header.Get("Content-Type"))

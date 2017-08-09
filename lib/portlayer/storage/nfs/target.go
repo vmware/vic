@@ -90,6 +90,7 @@ func (m *NfsMount) Mount(op trace.Operation) (Target, error) {
 
 	defer func() {
 		if err != nil {
+			// #nosec: Errors unhandled.
 			m.s.Close()
 		}
 	}()

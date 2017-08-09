@@ -1646,6 +1646,7 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 	var imageConfig *metadata.ImageConfig
 
 	if info.ContainerConfig.LayerID != "" {
+		// #nosec: Errors unhandled.
 		imageConfig, _ = cache.ImageCache().Get(info.ContainerConfig.LayerID)
 	}
 

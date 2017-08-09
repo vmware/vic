@@ -39,6 +39,7 @@ type System struct {
 }
 
 func New() System {
+	// #nosec: Errors unhandled.
 	id, _ := sys.UUID()
 	return System{
 		Hosts:      etcconf.NewHosts(""),      // default hosts files, e.g. /etc/hosts on linux

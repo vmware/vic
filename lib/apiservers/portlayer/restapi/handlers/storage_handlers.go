@@ -152,6 +152,7 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 		spl.RegisterExporter(op, dsurl.String(), vs)
 
 		// get the mangled store URLs that the cache uses
+		// #nosec: Errors unhandled.
 		cURL, _ := h.volumeCache.GetVolumeStore(op, name)
 		if cURL != nil {
 			spl.RegisterImporter(op, cURL.String(), vs)

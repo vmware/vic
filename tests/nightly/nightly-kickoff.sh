@@ -116,7 +116,7 @@ for i in $nightly_list_var; do
     #Clean up any previous runs creds
     rm -rf VCH-0-*
     echo "Executing nightly test $i on vSphere 6.0"
-    drone exec --trusted -e test="pybot --variable ESX_VERSION:ob-5572656 --variable VC_VERSION:ob-5318172 -d 60/$i --suite $i tests/manual-test-cases/" -E $nightly_secrets_file --yaml .drone.nightly.yml
+    drone exec --trusted -e test="pybot --variable ESX_VERSION:ob-5251623 --variable VC_VERSION:ob-5112509 -d 60/$i --suite $i tests/manual-test-cases/" -E $nightly_secrets_file --yaml .drone.nightly.yml
 
     if [ $? -eq 0 ]
     then

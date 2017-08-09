@@ -281,6 +281,7 @@ func tarEntries(readers map[string]entryReader, out io.Writer) error {
 		// be written to during this exercise
 		if e != nil {
 			_, err = io.CopyN(t, e, sz)
+			// #nosec: Errors unhandled.
 			_ = e.Close()
 		}
 		if err != nil {
@@ -289,9 +290,12 @@ func tarEntries(readers map[string]entryReader, out io.Writer) error {
 		}
 	}
 
+	// #nosec: Errors unhandled.
 	_ = t.Flush()
+	// #nosec: Errors unhandled.
 	_ = w.Close()
 	wg.Wait()
+	// #nosec: Errors unhandled.
 	_ = r.Close()
 
 	return nil
@@ -339,6 +343,7 @@ func zipEntries(readers map[string]entryReader, out *zip.Writer) error {
 		// be written to during this exercise
 		if e != nil {
 			_, err = io.CopyN(w, e, sz)
+			// #nosec: Errors unhandled.
 			_ = e.Close()
 		}
 		if err != nil {
