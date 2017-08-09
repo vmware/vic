@@ -38,3 +38,5 @@ pipeline:
     commands:
       - tests/integration-test.sh
       #- pybot tests/test-cases/Group1-Docker-Commands/1-13-Docker-Version.robot
+    volumes:
+      - /tmp
