@@ -113,7 +113,7 @@ func (r *Rule) args() []string {
 	}
 
 	if r.Chain == Forward {
-		args = append(args, "-A", r.Chain)
+		args = append(args, "-A", string(r.Chain))
 	} else {
 		args = append(args, "-A", "VIC")
 	}
