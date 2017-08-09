@@ -18,9 +18,6 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
-*** Variables ***
-${default_local_docker_endpoint}  unix:///var/run/docker-local.sock
-
 *** Test Cases ***
 Pull nginx
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ${nginx}
@@ -157,23 +154,7 @@ Pull images from gcr.io
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gcr.io/google_samples/cassandra:v12
 
 Verify image manifest digest against vanilla docker
-    ${hdl}  ${pid}=  Start Docker Daemon Locally
-    Set Test Variable  ${handle}  ${hdl}
-    Set Test Variable  ${docker_daemon_pid}  ${pid}
-    Set Test Variable  ${docker}  DOCKER_API_VERSION=1.23 docker
-    ${rc}  ${output}=  Run And Return Rc And Output  ${docker} -H ${default_local_docker_endpoint} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox:1.26
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${digest1}=  Get Lines Containing String  ${output}  sha256
-    ${rc}=  Run And Return Rc  ${docker} -H ${default_local_docker_endpoint} rmi busybox
-    Should Be Equal As Integers  ${rc}  0
-    Kill Local Docker Daemon  ${handle}  ${docker_daemon_pid}
-
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    ${digest2}=  Get Lines Containing String  ${output}  sha256
-
-    Should Be Equal As Strings  ${digest1}  ${digest2}
-
-
+    Should Contain  ${output}  sha256:be3c11fdba7cfe299214e46edc642e09514dbb9bbefcd0d3836c05a1e0cd0642

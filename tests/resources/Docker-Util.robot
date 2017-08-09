@@ -56,7 +56,7 @@ Get Container IP
 # docker:1.13-dind
 # If you are running this keyword in a container, make sure it is run with --privileged turned on
 Start Docker Daemon Locally
-    [Arguments]  ${dockerd-params}=${EMPTY}  ${dockerd-path}=/usr/local/bin/dockerd-entrypoint.sh  ${log}=./daemon-local.log
+    [Arguments]  ${dockerd-params}  ${dockerd-path}=/usr/local/bin/dockerd-entrypoint.sh  ${log}=./daemon-local.log
     OperatingSystem.File Should Exist  ${dockerd-path}
     Log To Console  Starting docker daemon locally
     ${pid}=  Run  pidof dockerd
