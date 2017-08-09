@@ -112,10 +112,10 @@ func (r *Rule) args() []string {
 		args = append(args, "-t", string(r.Table))
 	}
 
-	if r.Chain == Forward {
-		args = append(args, "-A", string(r.Chain))
-	} else {
+	if r.Chain == Input || r.Chain == Output {
 		args = append(args, "-A", "VIC")
+	} else {
+		args = append(args, "-A", string(r.Chain))
 	}
 
 	if r.Protocol != "" {
