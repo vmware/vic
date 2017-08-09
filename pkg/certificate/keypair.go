@@ -120,6 +120,7 @@ func (kp *KeyPair) Certificate() (*tls.Certificate, error) {
 		return nil, err
 	}
 
+	// #nosec: Errors unhandled.
 	cert.Leaf, _, _ = ParseCertificate(kp.CertPEM, kp.KeyPEM)
 
 	return &cert, nil

@@ -107,11 +107,14 @@ type Image struct {
 
 func (i *Image) Copy() index.Element {
 
+	// #nosec: Errors unhandled.
 	selflink, _ := url.Parse(i.SelfLink.String())
+	// #nosec: Errors unhandled.
 	store, _ := url.Parse(i.Store.String())
 
 	var parent *url.URL
 	if i.ParentLink != nil {
+		// #nosec: Errors unhandled.
 		parent, _ = url.Parse(i.ParentLink.String())
 	}
 

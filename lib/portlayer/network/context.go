@@ -1028,6 +1028,7 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 		// only one "external" scope per container is allowed
 		if s.Type() == constants.ExternalScopeType {
 			for name := range h.ExecConfig.Networks {
+				// #nosec: Errors unhandled.
 				sc, _ := c.resolveScope(name)
 				if sc.Type() == constants.ExternalScopeType {
 					return fmt.Errorf("container can only be added to at most one mapped network")
@@ -1136,6 +1137,7 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 		return fmt.Errorf("handle is required")
 	}
 
+	// #nosec: Errors unhandled.
 	if con, _ := c.container(h); con != nil {
 		return fmt.Errorf("container is bound")
 	}
@@ -1280,6 +1282,7 @@ func (c *Context) deleteScope(s *Scope) {
 }
 
 func atoiOrZero(a string) int32 {
+	// #nosec: Errors unhandled.
 	i, _ := strconv.Atoi(a)
 	return int32(i)
 }

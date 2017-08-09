@@ -727,6 +727,7 @@ func resolvePathWithMountPoints(op trace.Operation, mounts []types.MountPoint, p
 	var primaryTarget *ArchiveReader
 
 	readerMap := NewArchiveStreamReaderMap(op, mounts, path)
+	// #nosec: Errors unhandled.
 	nodes, _ := readerMap.FindArchiveReaders(path)
 
 	for _, node := range nodes {
