@@ -26,6 +26,11 @@ const (
 	SerialOverLANPort  = 2377
 	AttachServerPort   = 2379
 	ManagementHostName = "management.localhost"
+	ClientHostName     = "client.localhost"
+
+	// DebugPortLayerPort defines the portlayer port while debug level is greater than 2
+	DebugPortLayerPort = 2380
+
 	// BridgeScopeType denotes a scope that is of type bridge
 	BridgeScopeType = "bridge"
 	// ExternalScopeType denotes a scope that is of type external

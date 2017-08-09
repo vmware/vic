@@ -37,7 +37,7 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # report the guest disabling the CPU
     mount -t tmpfs -o size=64m tmpfs ${MOUNTPOINT}/.tether/
 
-    # enable full system functionality in the container 
+    # enable full system functionality in the container
     ln -s lib64 ${MOUNTPOINT}/.tether/lib
     mkdir -p ${MOUNTPOINT}/.tether/{lib64,usr/lib/iptables,run}
 
@@ -72,6 +72,8 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     cp -a /lib/libm.* /lib/libm-* /lib/libgcc_s* /lib/libip*tc* /lib/libxtables* /lib/libdl* /lib/libc.so* /lib/libc-* ${MOUNTPOINT}/.tether/lib
     cp -a /lib64/ld-* ${MOUNTPOINT}/.tether/lib64
     cp -r /usr/lib/iptables ${MOUNTPOINT}/.tether/usr/lib/
+    cp /lib/libhavege.so.1  ${MOUNTPOINT}/.tether/lib
+    cp /usr/sbin/haveged ${MOUNTPOINT}/.tether/
 
     iptables -N VIC
     iptables -P INPUT DROP

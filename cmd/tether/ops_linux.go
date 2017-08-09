@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path"
 	"strconv"
@@ -27,6 +28,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/sys/unix"
 
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/iolog"
@@ -37,7 +39,13 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-const runMountPoint = "/run"
+const (
+	runMountPoint = "/run"
+
+	// default values to set for ulimit fields
+	defaultNOFILE = 1024 * 1024
+	defaultULimit = math.MaxUint64
+)
 
 type operations struct {
 	tether.BaseOperations
@@ -126,7 +134,40 @@ func (t *operations) Setup(sink tether.Config) error {
 		}
 	}
 
+	// NOTE: ulimit default values should change when we support ulimit configuration
+	ApplyDefaultULimit()
+
 	return nil
+}
+
+// ApplyDefaultULimit sets ulimit fields to their defined default value
+func ApplyDefaultULimit() {
+	var rLimit syscall.Rlimit
+
+	// NOFILE does not support defaultULimit as a value due to kernel restriction on number of open files
+	rLimit.Max = defaultNOFILE
+	rLimit.Cur = rLimit.Max
+	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
+		log.Errorf("Cannot set ulimit for nofile: %s", err.Error())
+	}
+
+	rLimit.Max = defaultULimit
+	rLimit.Cur = rLimit.Max
+	if err := syscall.Setrlimit(syscall.RLIMIT_STACK, &rLimit); err != nil {
+		log.Errorf("Cannot set ulimit for stack: %s ", err.Error())
+	}
+
+	if err := syscall.Setrlimit(syscall.RLIMIT_CORE, &rLimit); err != nil {
+		log.Errorf("Cannot set ulimit for core blocks: %s", err.Error())
+	}
+
+	if err := syscall.Setrlimit(unix.RLIMIT_MEMLOCK, &rLimit); err != nil {
+		log.Errorf("Cannot set ulimit for memlock: %s", err.Error())
+	}
+
+	if err := syscall.Setrlimit(unix.RLIMIT_NPROC, &rLimit); err != nil {
+		log.Errorf("Cannot set ulimit for nproc: %s", err.Error())
+	}
 }
 
 // invoke will invoke the closure returned from the tether netfilter prep and

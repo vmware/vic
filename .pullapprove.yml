@@ -30,6 +30,7 @@ groups:
       - mhagen-vmware
       - rajanashok
       - rogeliosanchez
+      - mdharamadas1
     conditions:
       files:
         include:
@@ -206,6 +207,7 @@ groups:
   ui:
     users:
       - jooskim
+      - cristianfalcone
       - jak-atx
     conditions:
       files:
