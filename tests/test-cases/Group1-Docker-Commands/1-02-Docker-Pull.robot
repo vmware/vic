@@ -15,8 +15,17 @@
 *** Settings ***
 Documentation  Test 1-02 - Docker Pull
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
-Suite Teardown  Cleanup VIC Appliance On Test Server
+#Suite Setup  Install VIC Appliance To Test Server
+#Suite Teardown  Cleanup VIC Appliance On Test Server
+
+*** Variables ***
+${default_local_docker_endpoint}  unix:///var/run/docker-local.sock
+
+*** Keywords ***
+Obtain Image Manifest Digest From Docker Pull Output
+    [Arguments]  ${output}
+    ${lines} =	Get Lines Containing String  ${output}  sha256
+    [Return]  ${lines}
 
 *** Test Cases ***
 Pull nginx
@@ -152,3 +161,23 @@ Pull images from gcr.io
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gcr.io/google_samples/gb-redisslave:v1
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gcr.io/google_samples/cassandra:v11
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gcr.io/google_samples/cassandra:v12
+
+Verify image manifest digest against vanilla docker
+    ${hdl}  ${pid}=  Start Docker Daemon Locally  ""
+    Set Test Variable  ${handle}  ${hdl}
+    Set Test Variable  ${docker_daemon_pid}  ${pid}
+    Set Test Variable  ${docker}  DOCKER_API_VERSION=1.23 docker
+    ${rc}  ${output}=  Run And Return Rc And Output  ${docker} -H ${default_local_docker_endpoint} pull busybox
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    ${digest1}=  Obtain Image Manifest Digest From Docker Pull Output  ${output}
+    ${rc}=  Run And Return Rc  ${docker} -H ${default_local_docker_endpoint} rmi busybox
+    Should Be Equal As Integers  ${rc}  0
+    Kill Local Docker Daemon  ${handle}  ${docker_daemon_pid}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    ${digest2}=  Obtain Image Manifest Digest From Docker Pull Output  ${output}
+
+    Should Be Equal As Strings  ${digest1}  ${digest2}
