@@ -15,9 +15,11 @@
 package vsphere
 
 import (
+	"net"
 	"net/url"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/vmware/govmomi/guest"
@@ -36,6 +38,7 @@ const (
 	FilterSpecQueryName  = "filter-spec"
 	SkipRecurseQueryName = "skip-recurse"
 	SkipDataQueryName    = "skip-data"
+	VixEToolsNotRunning  = "(3016, 0)"
 )
 
 var (
@@ -123,5 +126,36 @@ func isInvalidStateError(err error) bool {
 			return true
 		}
 	}
+	return false
+}
+
+// IsToolBoxConflictErr checks for conflictError for online import
+func IsToolBoxStateChangeErr(err error) bool {
+	// check if error has to do with toolbox state changes
+	if soap.IsSoapFault(err) {
+		switch soap.ToSoapFault(err).VimFault().(type) {
+		case types.InvalidState:
+			return true
+		case types.InvalidPowerState:
+			return true
+		case types.GuestOperationsUnavailable:
+			return true
+		case types.SystemError:
+			return strings.Contains(err.Error(), VixEToolsNotRunning)
+		}
+	}
+
+	switch err.(type) {
+	case *url.Error:
+		err = err.(*url.Error).Err
+		switch err.(type) {
+		case *net.OpError:
+			// can check for error message as well
+			return true
+		}
+	}
+
+	// NOTE: on certain failures toolbox only returns 500 which can be caused by state change in the middle
+	// but can also be caused by invalid command. There is no way to tell unless toolbox returns more information.
 	return false
 }
