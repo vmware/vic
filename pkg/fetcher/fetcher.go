@@ -265,6 +265,11 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 		return nil, nil, TagNotFoundError{Err: err}
 	}
 
+	if u.IsUnretryableClientError() {
+		err = fmt.Errorf("Unretryable error '%s (%d)': URL %s.", http.StatusText(u.StatusCode), u.StatusCode, url)
+		return nil, nil, DoNotRetry{Err: err}
+	}
+
 	if u.IsStatusUnauthorized() {
 		hdr := res.Header.Get("www-authenticate")
 
@@ -399,6 +404,19 @@ func (u *URLFetcher) IsStatusOK() bool {
 // IsStatusNotFound returns true if status code is StatusNotFound
 func (u *URLFetcher) IsStatusNotFound() bool {
 	return u.StatusCode == http.StatusNotFound
+}
+
+// IsClientError returns true if status code is an unretryable 4XX error. This includes all
+// 4XX errors except 'request timeout', 'locked', and 'too many requests'. Additionally, it
+// does not return 'not found' or 'unauthorized' errors since those are handled uniquely.
+func (u *URLFetcher) IsUnretryableClientError() bool {
+	s := u.StatusCode
+	return 400 <= s && s < 500 &&
+		s != http.StatusNotFound &&
+		s != http.StatusUnauthorized &&
+		s != http.StatusRequestTimeout &&
+		s != http.StatusLocked &&
+		s != http.StatusTooManyRequests
 }
 
 func (u *URLFetcher) setUserAgent(req *http.Request) {
