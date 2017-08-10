@@ -87,7 +87,7 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # Always allow traffic on loopback interface
     iptables -A INPUT -i lo -j ACCEPT
     iptables -A OUTPUT -o lo -j ACCEPT
-    iptables -A FORWARD -o lo -j ACCEPT
+    iptables -A FORWARD -i lo -o lo -j ACCEPT
 
     echo 'tether tmpfs size after copying libraries: '
     df -k ${MOUNTPOINT}/.tether
