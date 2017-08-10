@@ -175,11 +175,7 @@ func ApplyDefaultULimit() {
 // errors.
 // the 'task' specified is used to construct error messages with the specific operation
 // embedded
-func invoke(t *tether.BaseOperations, fn tether.UtilityFn, preperr error, task string) error {
-	if preperr != nil {
-		return fmt.Errorf("%s preparation failed : %s", task, preperr)
-	}
-
+func invoke(t *tether.BaseOperations, fn tether.UtilityFn, task string) error {
 	exitChan, err := t.LaunchUtility(fn)
 	if err != nil {
 		return fmt.Errorf("%s failed: %s", task, err)
@@ -201,12 +197,8 @@ func (t *operations) SetupFirewall(ctx context.Context, config *tether.ExecutorC
 
 // setupFirewall is broken out from SetupFirewall so that it can be referenced from the test code
 func setupFirewall(ctx context.Context, t *tether.BaseOperations, config *tether.ExecutorConfig) error {
-	fn, err := netfilter.Flush(ctx, "")
-	if err := invoke(t, fn, err, "flush"); err != nil {
-		return err
-	}
-
-	if err := generalPolicy(ctx, t, netfilter.Drop); err != nil {
+	fn := netfilter.Flush(ctx, "VIC")
+	if err := invoke(t, fn, "flush"); err != nil {
 		return err
 	}
 
@@ -232,12 +224,12 @@ func setupFirewall(ctx context.Context, t *tether.BaseOperations, config *tether
 			case executor.Open:
 				// Accept all incoming and outgoing traffic
 				for _, chain := range []netfilter.Chain{netfilter.Input, netfilter.Output, netfilter.Forward} {
-					fn, err := (&netfilter.Rule{
+					fn := (&netfilter.Rule{
 						Chain:     chain,
 						Target:    netfilter.Accept,
 						Interface: ifaceName,
 					}).Commit(ctx)
-					if err := invoke(t, fn, err, "accept all"); err != nil {
+					if err := invoke(t, fn, "accept all"); err != nil {
 						return err
 					}
 				}
@@ -261,13 +253,13 @@ func setupFirewall(ctx context.Context, t *tether.BaseOperations, config *tether
 				for i, v := range endpoint.Network.Pools {
 					sourceAddresses[i] = v.String()
 				}
-				fn, err := (&netfilter.Rule{
+				fn := (&netfilter.Rule{
 					Chain:           netfilter.Input,
 					Target:          netfilter.Accept,
 					SourceAddresses: sourceAddresses,
 					Interface:       ifaceName,
 				}).Commit(ctx)
-				if err := invoke(t, fn, err, "allow outbound and peers"); err != nil {
+				if err := invoke(t, fn, "allow outbound and peers"); err != nil {
 					return err
 				}
 				if err := allowPingTraffic(ctx, t, ifaceName, sourceAddresses); err != nil {
@@ -317,43 +309,40 @@ func setupFirewall(ctx context.Context, t *tether.BaseOperations, config *tether
 			for i, v := range endpoint.Network.Pools {
 				sourceAddresses[i] = v.String()
 			}
-			fn, err := (&netfilter.Rule{
+			fn := (&netfilter.Rule{
 				Chain:           netfilter.Input,
 				Target:          netfilter.Accept,
 				SourceAddresses: sourceAddresses,
 				Interface:       ifaceName,
 			}).Commit(ctx)
-			if err := invoke(t, fn, err, "configure for bridge scope"); err != nil {
+			if err := invoke(t, fn, "configure for bridge scope"); err != nil {
 				return err
 			}
 		}
 	}
 
-	return nil
+	return invoke(t, netfilter.Return(ctx, "VIC"), "return from VIC chain")
 }
 
 func setupOutboundFirewall(ctx context.Context, t *tether.BaseOperations, ifaceName string) error {
 	// All already established inputs are accepted
-	fn, err := (&netfilter.Rule{
+	fn := (&netfilter.Rule{
 		Chain:     netfilter.Input,
 		States:    []netfilter.State{netfilter.Established, netfilter.Related},
 		Target:    netfilter.Accept,
 		Interface: ifaceName,
 	}).Commit(ctx)
-	if err := invoke(t, fn, err, "permit established inbound"); err != nil {
+	if err := invoke(t, fn, "permit established inbound"); err != nil {
 		return err
 	}
 
 	// All output is accepted
-	fn, err = (&netfilter.Rule{
+	fn = (&netfilter.Rule{
 		Chain:     netfilter.Output,
 		Target:    netfilter.Accept,
 		Interface: ifaceName,
 	}).Commit(ctx)
-	if err := invoke(t, fn, err, "permit all outbound"); err != nil {
-		return err
-	}
-	return nil
+	return invoke(t, fn, "permit all outbound")
 }
 
 func setupPublishedFirewall(ctx context.Context, t *tether.BaseOperations, endpoint *tether.NetworkEndpoint, ifaceName string) error {
@@ -375,26 +364,17 @@ func setupPublishedFirewall(ctx context.Context, t *tether.BaseOperations, endpo
 
 		log.Infof("Applying rule for port %s", p)
 		r.Interface = ifaceName
-		fn, err := r.Commit(ctx)
-		if err := invoke(t, fn, err, "allow incoming on published port"); err != nil {
+		fn := r.Commit(ctx)
+		if err := invoke(t, fn, "allow incoming on published port"); err != nil {
 			return err
 		}
 	}
-	return nil
-}
 
-func generalPolicy(ctx context.Context, t *tether.BaseOperations, target netfilter.Target) error {
-	for _, chain := range []netfilter.Chain{netfilter.Input, netfilter.Output, netfilter.Forward} {
-		fn, err := netfilter.Policy(ctx, chain, target)
-		if err := invoke(t, fn, err, "set general policy"); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
 func allowPingTraffic(ctx context.Context, t *tether.BaseOperations, ifaceName string, sourceAddresses []string) error {
-	fn, err := (&netfilter.Rule{
+	fn := (&netfilter.Rule{
 		Chain:           netfilter.Input,
 		Target:          netfilter.Accept,
 		Interface:       ifaceName,
@@ -402,11 +382,11 @@ func allowPingTraffic(ctx context.Context, t *tether.BaseOperations, ifaceName s
 		ICMPType:        netfilter.EchoRequest,
 		SourceAddresses: sourceAddresses,
 	}).Commit(ctx)
-	if err := invoke(t, fn, err, "allow ping inbound"); err != nil {
+	if err := invoke(t, fn, "allow ping inbound"); err != nil {
 		return err
 	}
 
-	fn, err = (&netfilter.Rule{
+	fn = (&netfilter.Rule{
 		Chain:           netfilter.Output,
 		Target:          netfilter.Accept,
 		Interface:       ifaceName,
@@ -414,10 +394,7 @@ func allowPingTraffic(ctx context.Context, t *tether.BaseOperations, ifaceName s
 		ICMPType:        netfilter.EchoReply,
 		SourceAddresses: sourceAddresses,
 	}).Commit(ctx)
-	if err := invoke(t, fn, err, "allow ping outbound"); err != nil {
-		return err
-	}
-	return nil
+	return invoke(t, fn, "allow ping outbound")
 }
 
 func portToRule(p string) (*netfilter.Rule, error) {
