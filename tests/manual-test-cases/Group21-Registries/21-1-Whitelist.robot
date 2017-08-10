@@ -94,7 +94,7 @@ Basic Whitelisting
 
 Check Login to Insecure Registry (http)
     # Install VCH w/o specifying insecure registry
-    ${output}=  Install VIC Appliance To Test Server  --registry-ca=./ca.crt
+    ${output}=  Install VIC Appliance To Test Server  additional-args=--registry-ca=./ca.crt
     Should Not Contain  ${output}  Insecure registry %{HTTP_HARBOR_IP} confirmed
     Get Docker Params  ${output}  true
 
@@ -107,7 +107,7 @@ Check Login to Insecure Registry (http)
 
     Cleanup VIC Appliance On Test Server
 
-    ${output}=  Install VIC Appliance To Test Server  --insecure-registry=%{HTTP_HARBOR_IP} --registry-ca=./ca.crt
+    ${output}=  Install VIC Appliance To Test Server  additional-args=--insecure-registry=%{HTTP_HARBOR_IP} --registry-ca=./ca.crt
     Should Contain  ${output}  Insecure registry %{HTTP_HARBOR_IP} confirmed
     Get Docker Params  ${output}  true
 
