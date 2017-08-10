@@ -1308,7 +1308,7 @@ func (c *Container) ContainerChanges(name string) ([]docker.Change, error) {
 		}
 
 		change := docker.Change{
-			Path: hdr.Name,
+			Path: filepath.Join("/", hdr.Name),
 		}
 		switch hdr.Xattrs[archive.ChangeTypeKey] {
 		case "A":
