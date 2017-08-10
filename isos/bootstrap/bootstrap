@@ -72,9 +72,15 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     cp -a /lib/libm.* /lib/libm-* /lib/libgcc_s* /lib/libip*tc* /lib/libxtables* /lib/libdl* /lib/libc.so* /lib/libc-* ${MOUNTPOINT}/.tether/lib
     cp -a /lib64/ld-* ${MOUNTPOINT}/.tether/lib64
     cp -r /usr/lib/iptables ${MOUNTPOINT}/.tether/usr/lib/
-
     cp /lib/libhavege.so.1  ${MOUNTPOINT}/.tether/lib
     cp /usr/sbin/haveged ${MOUNTPOINT}/.tether/
+
+    iptables -N VIC
+    iptables -P INPUT DROP
+    iptables -P OUTPUT DROP
+    iptables -P FORWARD DROP
+    iptables -A INPUT -j VIC
+    iptables -A OUTPUT -j VIC
 
     echo 'tether tmpfs size after copying libraries: '
     df -k ${MOUNTPOINT}/.tether
