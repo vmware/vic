@@ -19,58 +19,6 @@ Suite Setup  Install VIC Appliance To Test Server  certs=${false}
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
-Container ping itself when created on multiple bridge networks
-    ${status}=  Get State Of Github Issue  5660
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-07-Docker-Network-Connect.robot needs to be updated now that Issue #5660 has been resolved
-    
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create bridge1
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create bridge2
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name test1 --net bridge1 ${busybox} ping -c2 test1
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect bridge2 test1
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start test1
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow test1
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Contain  ${output}  2 packets transmitted, 2 packets received
-
-Connect container to a new network
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create test-network
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} ip -4 addr show eth0
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect test-network ${containerID}
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow ${containerID}
-    Should Be Equal As Integers  ${rc}  0
-    ${ips}=  Get Lines Containing String  ${output}  inet
-    @{lines}=  Split To Lines  ${ips}
-    Length Should Be  ${lines}  2
-
-Connect to non-existent container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect test-network fakeContainer
-    Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  not found
-
-Connect to non-existent network
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
-    Should Be Equal As Integers  ${rc}  0
-
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name connectTest3 ${busybox} ifconfig
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect fakeNetwork connectTest3
-    Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  not found
-
 Connect containers to multiple networks overlapping
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create cross1-network
     Should Be Equal As Integers  ${rc}  0
@@ -98,6 +46,46 @@ Connect containers to multiple networks overlapping
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow cross1-container2
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  2 packets transmitted, 2 packets received
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name cross1-container3 --net cross1-network ${busybox} ping -c2 cross1-container3
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect cross1-network2 cross1-container3
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start cross1-container3
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow cross1-container3
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  2 packets transmitted, 2 packets received
+
+Connect container to a new network
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create test-network
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} ip -4 addr show eth0
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect test-network ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+    ${ips}=  Get Lines Containing String  ${output}  inet
+    @{lines}=  Split To Lines  ${ips}
+    Length Should Be  ${lines}  2
+
+Connect to non-existent container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect test-network fakeContainer
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  not found
+
+Connect to non-existent network
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name connectTest3 ${busybox} ifconfig
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect fakeNetwork connectTest3
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  not found
 
 Connect containers to multiple networks non-overlapping
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create cross2-network
