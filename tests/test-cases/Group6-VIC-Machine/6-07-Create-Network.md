@@ -200,6 +200,7 @@ This test requires that a vSphere server is running and available
    c. Verify that a container on network `B` cannot connect to network `A` through an arbitrary port.
    d. Verify that a new container on network `A` (a peer) can connect to another container on network `A`
       on an arbitrary port.
+6. Verify that a closed container can ping its own ip address
 
 # VCH static IP
 
