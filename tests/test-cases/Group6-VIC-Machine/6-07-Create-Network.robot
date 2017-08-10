@@ -563,7 +563,7 @@ Container Firewalls
     Should Not Be Equal As Integers  ${rc}  0
 
     ### Ping local container ###
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --network=closed-net --name pinglocal busybox ping -c1 pinglocal
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --network=closed-net --name pinglocal ${busybox} ping -c1 pinglocal
     Should Be Equal As Integers  ${rc}  0
 
 Container network invalid 1
