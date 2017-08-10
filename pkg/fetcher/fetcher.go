@@ -406,8 +406,8 @@ func (u *URLFetcher) IsStatusNotFound() bool {
 	return u.StatusCode == http.StatusNotFound
 }
 
-// IsClientError returns true if status code is an unretryable 4XX error. This includes all
-// 4XX errors except 'request timeout', 'locked', and 'too many requests'. Additionally, it
+// IsUnretryableClientError returns true if status code is an unretryable 4XX error. This includes
+// all 4XX errors except 'request timeout', 'locked', and 'too many requests'. Additionally, it
 // does not return 'not found' or 'unauthorized' errors since those are handled uniquely.
 func (u *URLFetcher) IsUnretryableClientError() bool {
 	s := u.StatusCode
