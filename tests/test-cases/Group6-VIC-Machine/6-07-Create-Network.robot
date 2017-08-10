@@ -563,8 +563,11 @@ Container Firewalls
     Should Not Be Equal As Integers  ${rc}  0
 
     ### Ping localhost ###
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --network=closed-net ${busybox} ping -c1 localhost
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name localping --network=closed-net ${busybox} ping -c1 localhost
     Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow localping
+    Should Be Equal As Integers  ${rc}  0  Should Contain  ${output}  1 packets transmitted, 1 packets received
 
 Container network invalid 1
     Pass execution  Test not implemented
