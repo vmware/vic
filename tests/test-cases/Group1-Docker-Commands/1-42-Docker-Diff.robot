@@ -28,17 +28,21 @@ Make changes to busybox image
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} diff ${id}
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  A a
-    Should Contain  ${output}  A b
-    Should Contain  ${output}  A c
-    Should Contain  ${output}  D tmp
-    Should Contain  ${output}  C etc/passwd
-    Should Contain  ${output}  C etc
-    Should Contain  ${output}  C etc/group
-    Should Contain  ${output}  A etc/group-
-    Should Contain  ${output}  C etc/passwd
-    Should Contain  ${output}  A etc/passwd-
-    Should Contain  ${output}  C etc/shadow
-    Should Contain  ${output}  A etc/shadow-
-    Should Contain  ${output}  C home
-    Should Contain  ${output}  A home/krusty
+    Should Contain  ${output}  A /a
+    Should Contain  ${output}  A /b
+    Should Contain  ${output}  A /c
+    Should Contain  ${output}  D /tmp
+    Should Contain  ${output}  C /etc/passwd
+    Should Contain  ${output}  C /etc
+    Should Contain  ${output}  C /etc/group
+    Should Contain  ${output}  A /etc/group-
+    Should Contain  ${output}  C /etc/passwd
+    Should Contain  ${output}  A /etc/passwd-
+    Should Contain  ${output}  C /etc/shadow
+    Should Contain  ${output}  A /etc/shadow-
+    Should Contain  ${output}  C /home
+    Should Contain  ${output}  A /home/krusty
+    Should Not Contain  ${output}  hostname
+    Should Not Contain  ${output}  hosts
+    Should Not Contain  ${output}  resolv.conf
+    Should Not Contain  ${output}  .tether
