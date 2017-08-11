@@ -69,7 +69,6 @@ vic-upgrade () {
 }
 
 vic-ls () {
-
     $(vic-path)/bin/vic-machine-"$OS" ls --target="$GOVC_URL" --thumbprint=$THUMBPRINT $*
 }
 
@@ -80,7 +79,7 @@ vic-ssh () {
     fi
 
     out=$($(vic-path)/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh "$keyarg" --rootpw=password --thumbprint=$THUMBPRINT $*)
-    host=$(echo $out | grep DOCKER_HOST | sed -n 's/.*DOCKER_HOST=\([^:\s]*\).*/\1/p')
+    host=$(echo $out | grep DOCKER_HOST | awk -F"DOCKER_HOST=" '{print $2}' | cut -d ":" -f1 | cut -d "=" -f2)
 
     echo "SSH to ${host}"
     sshpass -ppassword ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@${host}
@@ -90,15 +89,35 @@ vic-admin () {
     out=$($(vic-path)/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh $keyarg --rootpw=password --thumbprint=$THUMBPRINT $*)
     host=$(echo $out | grep DOCKER_HOST | sed -n 's/.*DOCKER_HOST=\([^:\s*\).*/\1/p')
 
-   open http://${host}:2378
+    open http://${host}:2378
 }
 
 addr-from-dockerhost () {
     echo $DOCKER_HOST | sed -e 's/:[0-9]*$//'
 }
 
-vic-tail() {
-    $(vic-path)/infra/scripts/vic-logs.sh -f $(echo $DOCKER_HOST | cut -d\: -f1) $*
+vic-tail-portlayer() {
+    unset keyarg
+    if [ -e $HOME/.ssh/authorized_keys ]; then
+        keyarg="--authorized-key=$HOME/.ssh/authorized_keys"
+    fi
+
+    out=$($(vic-path)/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh "$keyarg" --rootpw=password --thumbprint=$THUMBPRINT $*)
+    host=$(echo $out | grep DOCKER_HOST | awk -F"DOCKER_HOST=" '{print $2}' | cut -d ":" -f1 | cut -d "=" -f2)
+
+    sshpass -ppassword ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@${host} tail -f /var/log/vic/port-layer.log
+}
+
+vic-tail-docker() {
+    unset keyarg
+    if [ -e $HOME/.ssh/authorized_keys ]; then
+        keyarg="--authorized-key=$HOME/.ssh/authorized_keys"
+    fi
+
+    out=$($(vic-path)/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh "$keyarg" --rootpw=password --thumbprint=$THUMBPRINT $*)
+    host=$(echo $out | grep DOCKER_HOST | awk -F"DOCKER_HOST=" '{print $2}' | cut -d ":" -f1 | cut -d "=" -f2)
+
+    sshpass -ppassword ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@${host} tail -f /var/log/vic/docker-personality.log
 }
 
 # import the custom sites
