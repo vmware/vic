@@ -186,6 +186,10 @@ func (a *ArchiveProxy) ArchiveImportWriter(op trace.Operation, store, deviceID s
 				plErr = InternalServerError("failed to process given path")
 				op.Errorf(plErr.Error())
 				pipeReader.CloseWithError(plErr)
+			case *storage.ImportArchiveConflict:
+				plErr = InternalServerError("unexpected copy failure may result in truncated copy, please try again")
+				op.Errorf(plErr.Error())
+				pipeReader.CloseWithError(plErr)
 			default:
 				//Check for EOF.  Since the connection, transport, and data handling are
 				//encapsulated inside of Swagger, we can only detect EOF by checking the

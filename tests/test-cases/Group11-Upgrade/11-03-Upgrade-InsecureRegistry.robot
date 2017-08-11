@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 11-03 - Upgrade-InsecureRegistry
 Resource  ../../resources/Util.robot
-#Test Teardown  Cleanup Test Environment
+Test Teardown  Cleanup Test Environment
 
 *** Variables ***
 ${test_vic_version}  7315
@@ -90,40 +90,41 @@ Cleanup Test Environment
 
 *** Test Cases ***
 Upgrade VCH with Harbor On HTTP
-    ${status}=  Get State Of Github Issue  5473
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-03-Upgrade-InsecureRegistry.robot needs to be updated now that Issue #5473 has been resolved
-    #Set Test Variable  ${harbor_name}  ${http_harbor_name}
-    #${ip}=  Install Harbor To Test Server  ${harbor_name}
-    #Set Test Variable  ${harbor_ip}  ${ip}
-    #Add Project On Registry  ${harbor_ip}  http
-    #${hdl}  ${pid}=  Setup Test Environment  ${harbor_ip}
-    #Set Test Variable  ${handle}  ${hdl}
-    #Set Test Variable  ${docker_daemon_pid}  ${pid}
+    Set Test Environment Variables
+    Cleanup Harbor  ${http_harbor_name}
+    Cleanup Harbor  ${https_harbor_name}
+    Set Test Variable  ${harbor_name}  ${http_harbor_name}
+    ${ip}=  Install Harbor To Test Server  ${harbor_name}
+    Set Test Variable  ${harbor_ip}  ${ip}
+    Add Project On Registry  ${harbor_ip}  http
+    ${hdl}  ${pid}=  Setup Test Environment  ${harbor_ip}
+    Set Test Variable  ${handle}  ${hdl}
+    Set Test Variable  ${docker_daemon_pid}  ${pid}
 
-    #Install VIC with version to Test Server  ${test_vic_version}  --insecure-registry ${harbor_ip} --no-tls
+    Install VIC with version to Test Server  ${test_vic_version}  --insecure-registry ${harbor_ip} --no-tls
 
-    #Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
+    Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
 
-    #Upgrade
-    #Check Upgraded Version
-    #Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
+    Upgrade
+    Check Upgraded Version
+    Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
 
 Upgrade VCH with Harbor On HTTPS
-    ${status}=  Get State Of Github Issue  5473
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-03-Upgrade-InsecureRegistry.robot needs to be updated now that Issue #5473 has been resolved
-    #Set Test Variable  ${harbor_name}  ${https_harbor_name}
-    #${ip}=  Install Harbor To Test Server  ${harbor_name}  https
-    #Set Test Variable  ${harbor_ip}  ${ip}
-    #Add Project On Registry  ${harbor_ip}  https
-    #${hdl}  ${pid}=  Setup Test Environment  ${harbor_ip}
-    #Set Test Variable  ${handle}  ${hdl}
-    #Set Test Variable  ${docker_daemon_pid}  ${pid}
+    Cleanup Harbor  ${http_harbor_name}
+    Cleanup Harbor  ${https_harbor_name}
+    Set Test Variable  ${harbor_name}  ${https_harbor_name}
+    ${ip}=  Install Harbor To Test Server  ${harbor_name}  https
+    Set Test Variable  ${harbor_ip}  ${ip}
+    Add Project On Registry  ${harbor_ip}  https
+    ${hdl}  ${pid}=  Setup Test Environment  ${harbor_ip}
+    Set Test Variable  ${handle}  ${hdl}
+    Set Test Variable  ${docker_daemon_pid}  ${pid}
 
-    #${harbor_cert}=  Fetch Harbor Self Signed Cert  ${harbor_ip}
-    #Install VIC with version to Test Server  ${test_vic_version}  --insecure-registry ${harbor_ip} --no-tls --registry-ca ${harbor_cert}
+    ${harbor_cert}=  Fetch Harbor Self Signed Cert  ${harbor_ip}
+    Install VIC with version to Test Server  ${test_vic_version}  --insecure-registry ${harbor_ip} --no-tls --registry-ca ${harbor_cert}
 
-    #Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
+    Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
 
-    #Upgrade
-    #Check Upgraded Version
-    #Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
+    Upgrade
+    Check Upgraded Version
+    Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
