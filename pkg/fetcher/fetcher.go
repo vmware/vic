@@ -265,8 +265,8 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 		return nil, nil, TagNotFoundError{Err: err}
 	}
 
-	if u.IsUnretryableClientError() {
-		err = fmt.Errorf("Unretryable error '%s (%d)': URL %s.", http.StatusText(u.StatusCode), u.StatusCode, url)
+	if u.IsNonretryableClientError() {
+		err = fmt.Errorf("Nonretryable error '%s (%d)': URL %s.", http.StatusText(u.StatusCode), u.StatusCode, url)
 		return nil, nil, DoNotRetry{Err: err}
 	}
 
@@ -406,10 +406,10 @@ func (u *URLFetcher) IsStatusNotFound() bool {
 	return u.StatusCode == http.StatusNotFound
 }
 
-// IsUnretryableClientError returns true if status code is an unretryable 4XX error. This includes
+// IsNonretryableClientError returns true if status code is a nonretryable 4XX error. This includes
 // all 4XX errors except 'request timeout', 'locked', and 'too many requests'. Additionally, it
 // does not return 'not found' or 'unauthorized' errors since those are handled uniquely.
-func (u *URLFetcher) IsUnretryableClientError() bool {
+func (u *URLFetcher) IsNonretryableClientError() bool {
 	s := u.StatusCode
 	return 400 <= s && s < 500 &&
 		s != http.StatusNotFound &&
