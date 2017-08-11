@@ -306,6 +306,9 @@
 					"404": {
 						"description": "Supplied target not found"
 					},
+					"409": {
+						"description": "Unexpected resource conflict"
+					},
 					"423": {
 						"description": "Device or resource is locked"
 					},

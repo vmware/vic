@@ -20,8 +20,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"runtime/debug"
 	"runtime/trace"
+	"strings"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -35,8 +38,8 @@ import (
 	apiclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
 	vicarchive "github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/imagec"
+	optrace "github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
-	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
 var (
@@ -50,6 +53,7 @@ const (
 	PullImage  = "pull"
 	PushImage  = "push"
 	ListLayers = "listlayers"
+	Save       = "save"
 )
 
 // ImageCOptions wraps the cli arguments
@@ -93,9 +97,11 @@ func init() {
 	flag.StringVar(&imageCOptions.profiling, "profile.mode", "", "Enable profiling mode, one of [cpu, mem, block]")
 	flag.BoolVar(&imageCOptions.tracing, "tracing", false, "Enable runtime tracing")
 
-	flag.StringVar(&imageCOptions.operation, "operation", "pull", "Pull image/push image/listlayers for image")
+	flag.StringVar(&imageCOptions.operation, "operation", "pull", "Pull image/push image/listlayers/save image")
 
 	flag.StringVar(&imageCOptions.options.Registry, "registry", imagec.DefaultDockerURL, "Registry to pull/push images (default: registry-1.docker.io)")
+
+	flag.StringVar(&imageCOptions.options.ImageStore, "image-store", imagec.DefaultDockerURL, "portlayer image store name or url used to query image data")
 
 	flag.Parse()
 
@@ -195,9 +201,77 @@ func main() {
 		if err := ic.ListLayers(); err != nil {
 			log.Fatalf("Listing layers for image failed due to %s\n", err)
 		}
+	case Save:
+		options := imageCOptions.options
+
+		options.Outstream = os.Stdout
+
+		ap := archiveProxy(options.Host)
+		ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
+		if err := saveImage(ap, ic); err != nil {
+			log.Fatalf("Saving image %s failed due to %s\n", options.Reference.String(), err)
+		}
 	default:
 		log.Errorf("The operation '%s' is not valid\n", imageCOptions.operation)
 	}
+}
+
+func saveImage(ap proxy.VicArchiveProxy, ic *imagec.ImageC) error {
+	log.Debugf("Save image %s", ic.Options.Reference)
+	err := ic.ListLayers()
+	if err != nil {
+		return err
+	}
+	layers, err := ic.LayersToDownload()
+	if err != nil {
+		return err
+	}
+
+	dest := imagec.DestinationDirectory(ic.Options)
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(layers))
+
+	for i := len(layers) - 1; i >= 0; i-- {
+		if layers[i].ID == imagec.ScratchLayerID {
+			continue
+		}
+		wg.Add(1)
+		go func(pid, cid string) {
+			defer wg.Done()
+			var err error
+			log.Debugf("parent id: %s, layer id: %s", pid, cid)
+
+			defer func() {
+				errChan <- err
+			}()
+
+			fileDir := path.Join(dest, cid)
+			err = os.MkdirAll(fileDir, 0755) /* #nosec */
+			if err != nil {
+				return
+			}
+			filePath := path.Join(fileDir, cid+".tar")
+			log.Debugf("save layer %s to file %s", cid, filePath)
+			if pid == imagec.ScratchLayerID {
+				pid = ""
+			}
+			err = writeArchiveFile(ap, ic.ImageStore, ic.ImageStore, cid, pid, filePath)
+		}(layers[i].Parent, layers[i].ID)
+	}
+	wg.Wait()
+	close(errChan)
+
+	var errs []string
+	for e := range errChan {
+		if e == nil {
+			continue
+		}
+		errs = append(errs, e.Error())
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("save image layers failed: %s", strings.Join(errs, ","))
+	}
+	return nil
 }
 
 func portlayerClient(portLayerAddr string) *apiclient.PortLayer {
@@ -218,21 +292,17 @@ func archiveProxy(portLayerAddr string) proxy.VicArchiveProxy {
 	return archiveProxy
 }
 
-func writeArchiveFile(archiveProxy proxy.VicArchiveProxy, layerID, parentID, archivePath string) error {
+func writeArchiveFile(archiveProxy proxy.VicArchiveProxy, store, ancestorStore, layerID, ancestorID, archivePath string) error {
 	var filterSpec vicarchive.FilterSpec
 
-	host, err := sys.UUID()
-	if err != nil {
-		return err
-	}
-
+	op := optrace.NewOperation(context.Background(), "export layer %s:%s", layerID, ancestorID)
 	//Initialize an archive stream from the portlayer for the layer
-	ar, err := archiveProxy.ArchiveExportReader(context.Background(), host, host, layerID, parentID, true, filterSpec)
+	ar, err := archiveProxy.ArchiveExportReader(op, store, ancestorStore, layerID, ancestorID, true, filterSpec)
 	if err != nil || ar == nil {
 		return fmt.Errorf("Failed to get reader for layer %s", layerID)
 	}
 
-	log.Infof("Obtain archive reader for layer %s, parent %s", layerID, parentID)
+	log.Infof("Obtain archive reader for layer %s, parent %s", layerID, ancestorID)
 
 	tarFile, err := os.OpenFile(archivePath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {

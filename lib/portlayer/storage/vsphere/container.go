@@ -104,7 +104,8 @@ func (c *ContainerStore) NewDataSource(op trace.Operation, id string) (storage.D
 offline:
 	offlineAttempt++
 
-	source, err := c.newDataSource(op, uri)
+	// This is persistent to avoid issues with concurrent Stat/Import calls
+	source, err := c.newDataSource(op, uri, true)
 	if err == nil {
 		return source, err
 	}
@@ -116,6 +117,7 @@ offline:
 	}
 
 	// online - Owners() should filter out the appliance VM
+	// #nosec: Errors unhandled.
 	owners, _ := c.Owners(op, uri, disk.LockedVMDKFilter)
 	if len(owners) == 0 {
 		op.Infof("No online owners were found for %s", id)
@@ -128,6 +130,7 @@ offline:
 		uuid, err := o.UUID(op)
 		if err == nil {
 			// check if the vm is appliance VM if we can successfully get its UUID
+			// #nosec: Errors unhandled.
 			self, _ := guest.IsSelf(op, uuid)
 			if self && offlineAttempt < 2 {
 				op.Infof("Appliance is owner of online vmdk - retrying offline source path")
@@ -146,8 +149,8 @@ offline:
 	return nil, errors.New("unable to create online or offline data source")
 }
 
-func (c *ContainerStore) newDataSource(op trace.Operation, url *url.URL) (storage.DataSource, error) {
-	mountPath, cleanFunc, err := c.Mount(op, url, false)
+func (c *ContainerStore) newDataSource(op trace.Operation, url *url.URL, persistent bool) (storage.DataSource, error) {
+	mountPath, cleanFunc, err := c.Mount(op, url, persistent)
 	if err != nil {
 		return nil, err
 	}
@@ -195,6 +198,7 @@ offline:
 	}
 
 	// online - Owners() should filter out the appliance VM
+	// #nosec: Errors unhandled.
 	owners, _ := c.Owners(op, uri, disk.LockedVMDKFilter)
 	if len(owners) == 0 {
 		op.Infof("No online owners were found for %s", id)
@@ -207,6 +211,7 @@ offline:
 		uuid, err := o.UUID(op)
 		if err == nil {
 			// check if the vm is appliance VM if we can successfully get its UUID
+			// #nosec: Errors unhandled.
 			self, _ := guest.IsSelf(op, uuid)
 			if self && offlineAttempt < 2 {
 				op.Infof("Appliance is owner of online vmdk - retrying offline source path")
@@ -282,7 +287,7 @@ func (c *ContainerStore) Export(op trace.Operation, id, ancestor string, spec *a
 	}
 	op.Debugf("Mapped ancestor %s to %s", ancestor, img.String())
 
-	r, err := c.newDataSource(op, img)
+	r, err := c.newDataSource(op, img, false)
 	if err != nil {
 		op.Debugf("Unable to get datasource for ancestor: %s", err)
 

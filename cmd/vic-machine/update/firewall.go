@@ -133,6 +133,7 @@ func (i *UpdateFw) Run(clic *cli.Context) (err error) {
 		log.Errorf("Update cannot continue - failed to create validator: %s", err)
 		return errors.New("update firewall failed")
 	}
+	defer validator.Session.Logout(ctx)
 
 	_, err = validator.ValidateTarget(ctx, i.Data)
 	if err != nil {

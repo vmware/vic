@@ -16,7 +16,6 @@ package netfilter
 
 import (
 	"context"
-	"errors"
 	"os"
 	"os/exec"
 	"strconv"
@@ -25,6 +24,8 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+
+	"github.com/vmware/vic/lib/tether"
 )
 
 //
@@ -100,23 +101,22 @@ type Rule struct {
 	FromPort, ToPort int
 }
 
-func (r *Rule) Commit(ctx context.Context) error {
-	args, err := r.args()
-	if err != nil {
-		return err
-	}
-
-	return iptables(ctx, args)
+func (r *Rule) Commit(ctx context.Context) tether.UtilityFn {
+	return iptables(ctx, r.args())
 }
 
-func (r *Rule) args() ([]string, error) {
+func (r *Rule) args() []string {
 	var args []string
 
 	if r.Table != "" {
 		args = append(args, "-t", string(r.Table))
 	}
 
-	args = append(args, "-A", string(r.Chain))
+	if r.Chain == Input || r.Chain == Output {
+		args = append(args, "-A", "VIC")
+	} else {
+		args = append(args, "-A", string(r.Chain))
+	}
 
 	if r.Protocol != "" {
 		args = append(args, "-p", string(r.Protocol))
@@ -146,20 +146,16 @@ func (r *Rule) args() ([]string, error) {
 		}
 	}
 
-	if r.Target == "" {
-		return nil, errors.New("target cannot be empty")
-	}
 	args = append(args, "-j", string(r.Target))
 
 	if r.ToPort != 0 {
 		args = append(args, "--to-port", strconv.Itoa(r.ToPort))
 	}
 
-	return args, nil
+	return args
 }
 
-func iptables(ctx context.Context, args []string) error {
-	args = append(args, "-w")
+func iptables(ctx context.Context, args []string) tether.UtilityFn {
 	logrus.Infof("Execing iptables %q", args)
 
 	// #nosec: Subprocess launching with variable
@@ -171,28 +167,29 @@ func iptables(ctx context.Context, args []string) error {
 			Chroot: "/.tether",
 		},
 	}
-	proc, err := os.StartProcess(cmd.Path, cmd.Args, &os.ProcAttr{
-		Dir: cmd.Dir,
-		Sys: cmd.SysProcAttr,
-	})
 
-	if err != nil {
-		logrus.Errorf("iptables %q (Pid %v) error: %s", args, proc.Pid, err.Error())
+	return func() (*os.Process, error) {
+		return os.StartProcess(cmd.Path, cmd.Args, &os.ProcAttr{
+			Dir: cmd.Dir,
+			Sys: cmd.SysProcAttr,
+		})
 	}
-
-	return err
 }
 
-func Flush(ctx context.Context, table string) error {
+func Flush(ctx context.Context, chain string) tether.UtilityFn {
 	args := []string{"-F"}
-	if table != "" {
-		args = append(args, "-t", table)
+	if chain != "" {
+		args = append(args, chain)
 	}
 
 	return iptables(ctx, args)
 }
 
-func Policy(ctx context.Context, chain Chain, target Target) error {
+func Return(ctx context.Context, chain string) tether.UtilityFn {
+	return iptables(ctx, []string{"-A", chain, "-j", "RETURN"})
+}
+
+func Policy(ctx context.Context, chain Chain, target Target) tether.UtilityFn {
 	return iptables(ctx, []string{"-P", string(chain), string(target)})
 }
 

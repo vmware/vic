@@ -22,6 +22,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"path"
 	"runtime"
 	"testing"
 
@@ -31,6 +32,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/etcconf"
 	"github.com/vmware/vic/lib/system"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
@@ -68,6 +70,8 @@ type Mocker struct {
 	WindowCol uint32
 	WindowRow uint32
 	Signal    ssh.Signal
+
+	FirewallRules []string
 }
 
 // Start implements the extension method
@@ -117,6 +121,10 @@ func (t *Mocker) Log() (io.Writer, error) {
 	return os.Stdout, nil
 }
 
+func (t *Mocker) SetupFirewall(ctx context.Context, conf *ExecutorConfig) error {
+	return nil
+}
+
 func (t *Mocker) SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, dio.DynamicMultiWriter, error) {
 	return dio.MultiWriter(&t.SessionLogBuffer), dio.MultiWriter(&t.SessionLogBuffer), nil
 }
@@ -145,13 +153,9 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 	return nil
 }
 
-func (t *Mocker) SetupFirewall(*ExecutorConfig) error {
-	return nil
-}
-
 // Apply takes the network endpoint configuration and applies it to the system
 func (t *Mocker) Apply(endpoint *NetworkEndpoint) error {
-	return apply(t, &t.Base, endpoint)
+	return ApplyEndpoint(t, &t.Base, endpoint)
 }
 
 // MountLabel performs a mount with the source treated as a disk label
@@ -192,18 +196,36 @@ func (t *Mocker) Fork() error {
 	return errors.New("Fork test not implemented")
 }
 
+// LaunchUtility uses the underlying implementation for launching and tracking utility processes
+func (t *Mocker) LaunchUtility(fn UtilityFn) (<-chan int, error) {
+	return launchUtility(&t.Base, fn)
+}
+
+func (t *Mocker) HandleUtilityExit(pid, exitCode int) bool {
+	return handleUtilityExit(&t.Base, pid, exitCode)
+}
+
 // TestMain simply so we have control of debugging level and somewhere to call package wide test setup
 func TestMain(m *testing.M) {
 	log.SetLevel(log.DebugLevel)
 	trace.Logger = log.StandardLogger()
 
+	// restore what we inherited.
+	defer func(hosts etcconf.Hosts, resolv etcconf.ResolvConf) {
+		Sys.Hosts = hosts
+		Sys.ResolvConf = resolv
+	}(Sys.Hosts, Sys.ResolvConf)
+
 	// replace the Sys variable with a mock
-	Sys = system.System{
-		Hosts:      &MockHosts{},
-		ResolvConf: &MockResolvConf{},
-		Syscall:    &MockSyscall{},
-		Root:       os.TempDir(),
-	}
+	Sys = system.NewWithRoot(os.TempDir())
+	Sys.Syscall = &MockSyscall{}
+
+	BindSys = system.NewWithRoot(path.Join(os.TempDir(), "/.tether"))
+	BindSys.Syscall = &MockSyscall{}
+
+	// ensure that the bindsys root exists
+	// #nosec
+	os.MkdirAll(BindSys.Root, 0644)
 
 	retCode := m.Run()
 

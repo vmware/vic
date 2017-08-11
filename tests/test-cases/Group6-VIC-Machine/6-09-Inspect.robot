@@ -147,6 +147,8 @@ Verify inspect output for a full tls VCH
     Should Contain  ${output}  Unable to find valid client certs
     Should Contain  ${output}  DOCKER_CERT_PATH must be provided in environment or certificates specified individually via CLI arguments
 
+    Cleanup VIC Appliance On Test Server
+
 Verify inspect output for a --no-tls VCH
     Set Test Environment Variables
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --no-tls

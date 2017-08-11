@@ -19,8 +19,8 @@ Resource  ../../resources/Util.robot
 
 *** Test Cases ***
 Docker run an image from a container that was removed OOB
-    ${status}=  Get State Of Github Issue  3845
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 5-14-Remove-Container-OOB.robot needs to be updated now that Issue #3845 has been resolved
+    ${status}=  Get State Of Github Issue  4666
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 5-14-Remove-Container-OOB.robot needs to be updated now that Issue #4666 has been resolved
     #${esx1}  ${esx2}  ${esx3}  ${vc}  ${esx1-ip}  ${esx2-ip}  ${esx3-ip}  ${vc-ip}=  Create a Simple VC Cluster
     #Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
 

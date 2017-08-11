@@ -15,6 +15,7 @@
 package vsphere
 
 import (
+	"bytes"
 	"io"
 
 	"github.com/vmware/govmomi/vim25/soap"
@@ -53,11 +54,23 @@ func (t *ToolboxDataSink) Import(op trace.Operation, spec *archive.FilterSpec, d
 		return err
 	}
 
+	// buffer the data - needed to allow retry or the Upload drains the reader before the failure
+	// and we lose the data
+	// TODO: should look into chunking so that we can support copy of very large files.
+	// NOW: need a check that size doesn't exceed available memory - and error recommending offline
+	// copy as alternative
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, data)
+	if err != nil {
+		op.Errorf("Unable to buffer archive data for upload")
+		return err
+	}
+
 	// upload the gzip archive.
 	p := soap.DefaultUpload
 
 	retryFunc := func() error {
-		return client.Upload(op, data, target, p, &types.GuestPosixFileAttributes{}, true)
+		return client.Upload(op, buf, target, p, &types.GuestPosixFileAttributes{}, true)
 	}
 
 	err = retry.DoWithConfig(retryFunc, isInvalidStateError, toolboxRetryConf)

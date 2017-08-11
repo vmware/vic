@@ -104,6 +104,7 @@ type logfile struct {
 }
 
 func Init() {
+	// #nosec: Errors unhandled.
 	_ = pprof.StartPprof("vicadmin", pprof.VicadminPort)
 
 	defer trace.End(trace.Begin(""))
@@ -247,6 +248,7 @@ func (path fileReader) open() (entry, error) {
 	// Files in /proc always have struct stat.st_size==0, so just read it into memory.
 	if s.Size() == 0 && strings.HasPrefix(f.Name(), "/proc/") {
 		b, err := ioutil.ReadAll(f)
+		// #nosec: Errors unhandled.
 		_ = f.Close()
 		if err != nil {
 			return nil, err
@@ -280,6 +282,7 @@ func httpEntry(name string, res *http.Response) (entry, error) {
 
 	// If we don't have Content-Length, read into memory for the tar.Header.Size
 	body, err := ioutil.ReadAll(res.Body)
+	// #nosec: Errors unhandled.
 	_ = res.Body.Close()
 	if err != nil {
 		return nil, err

@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path"
 	"strconv"
@@ -27,6 +28,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/sys/unix"
 
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/iolog"
@@ -37,7 +39,13 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-const runMountPoint = "/run"
+const (
+	runMountPoint = "/run"
+
+	// default values to set for ulimit fields
+	defaultNOFILE = 1024 * 1024
+	defaultULimit = math.MaxUint64
+)
 
 type operations struct {
 	tether.BaseOperations
@@ -126,22 +134,71 @@ func (t *operations) Setup(sink tether.Config) error {
 		}
 	}
 
+	// NOTE: ulimit default values should change when we support ulimit configuration
+	ApplyDefaultULimit()
+
+	return nil
+}
+
+// ApplyDefaultULimit sets ulimit fields to their defined default value
+func ApplyDefaultULimit() {
+	var rLimit syscall.Rlimit
+
+	// NOFILE does not support defaultULimit as a value due to kernel restriction on number of open files
+	rLimit.Max = defaultNOFILE
+	rLimit.Cur = rLimit.Max
+	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
+		log.Errorf("Cannot set ulimit for nofile: %s", err.Error())
+	}
+
+	rLimit.Max = defaultULimit
+	rLimit.Cur = rLimit.Max
+	if err := syscall.Setrlimit(syscall.RLIMIT_STACK, &rLimit); err != nil {
+		log.Errorf("Cannot set ulimit for stack: %s ", err.Error())
+	}
+
+	if err := syscall.Setrlimit(syscall.RLIMIT_CORE, &rLimit); err != nil {
+		log.Errorf("Cannot set ulimit for core blocks: %s", err.Error())
+	}
+
+	if err := syscall.Setrlimit(unix.RLIMIT_MEMLOCK, &rLimit); err != nil {
+		log.Errorf("Cannot set ulimit for memlock: %s", err.Error())
+	}
+
+	if err := syscall.Setrlimit(unix.RLIMIT_NPROC, &rLimit); err != nil {
+		log.Errorf("Cannot set ulimit for nproc: %s", err.Error())
+	}
+}
+
+// invoke will invoke the closure returned from the tether netfilter prep and
+// block until complete. It handles both potential preparation errors and invocation
+// errors.
+// the 'task' specified is used to construct error messages with the specific operation
+// embedded
+func invoke(t *tether.BaseOperations, fn tether.UtilityFn, task string) error {
+	exitChan, err := t.LaunchUtility(fn)
+	if err != nil {
+		return fmt.Errorf("%s failed: %s", task, err)
+	}
+
+	exitCode := <-exitChan
+	if exitCode != 0 {
+		return fmt.Errorf("%s returned non-zero: %d", task, exitCode)
+	}
+
 	return nil
 }
 
 // SetupFirewall sets up firewall rules on the external scope only.  Any
 // portmaps are honored as are port exposes.
-func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
-	// XXX It looks like we'd want to collect the errors here, but we
-	// can't.  Since this is running inside init (tether) and tether
-	// reaps all children, the os.exec package won't be able to collect
-	// the error code in time before the reaper does.  The exec package
-	// calls wait and attempts to collect its child, but the reaper will
-	// have raptured the pid before that.  So, best effort, just keep going.
-	if err := netfilter.Flush(context.Background(), ""); err != nil {
-		return err
-	}
-	if err := generalPolicy(netfilter.Drop); err != nil {
+func (t *operations) SetupFirewall(ctx context.Context, config *tether.ExecutorConfig) error {
+	return setupFirewall(ctx, &t.BaseOperations, config)
+}
+
+// setupFirewall is broken out from SetupFirewall so that it can be referenced from the test code
+func setupFirewall(ctx context.Context, t *tether.BaseOperations, config *tether.ExecutorConfig) error {
+	fn := netfilter.Flush(ctx, "VIC")
+	if err := invoke(t, fn, "flush"); err != nil {
 		return err
 	}
 
@@ -167,11 +224,12 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 			case executor.Open:
 				// Accept all incoming and outgoing traffic
 				for _, chain := range []netfilter.Chain{netfilter.Input, netfilter.Output, netfilter.Forward} {
-					if err := (&netfilter.Rule{
+					fn := (&netfilter.Rule{
 						Chain:     chain,
 						Target:    netfilter.Accept,
 						Interface: ifaceName,
-					}).Commit(context.TODO()); err != nil {
+					}).Commit(ctx)
+					if err := invoke(t, fn, "accept all"); err != nil {
 						return err
 					}
 				}
@@ -182,46 +240,47 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 
 			case executor.Outbound:
 				// Reject all incoming traffic, but allow outgoing
-				if err := setupOutboundFirewall(ifaceName); err != nil {
+				if err := setupOutboundFirewall(ctx, t, ifaceName); err != nil {
 					return err
 				}
 
 			case executor.Peers:
 				// Outbound + all ports open to source addresses in --container-network-ip-range
-				if err := setupOutboundFirewall(ifaceName); err != nil {
+				if err := setupOutboundFirewall(ctx, t, ifaceName); err != nil {
 					return err
 				}
 				sourceAddresses := make([]string, len(endpoint.Network.Pools))
 				for i, v := range endpoint.Network.Pools {
 					sourceAddresses[i] = v.String()
 				}
-				if err := (&netfilter.Rule{
+				fn := (&netfilter.Rule{
 					Chain:           netfilter.Input,
 					Target:          netfilter.Accept,
 					SourceAddresses: sourceAddresses,
 					Interface:       ifaceName,
-				}).Commit(context.TODO()); err != nil {
+				}).Commit(ctx)
+				if err := invoke(t, fn, "allow outbound and peers"); err != nil {
 					return err
 				}
-				if err := allowPingTraffic(ifaceName, sourceAddresses); err != nil {
+				if err := allowPingTraffic(ctx, t, ifaceName, sourceAddresses); err != nil {
 					return err
 				}
 
 			case executor.Published:
-				if err := setupPublishedFirewall(endpoint, ifaceName); err != nil {
+				if err := setupPublishedFirewall(ctx, t, endpoint, ifaceName); err != nil {
 					return err
 				}
 
 			case executor.Unspecified:
 				// Unspecified network firewalls default to published.
-				if err := setupPublishedFirewall(endpoint, ifaceName); err != nil {
+				if err := setupPublishedFirewall(ctx, t, endpoint, ifaceName); err != nil {
 					return err
 				}
 
 			default:
 				log.Warningf("Received invalid firewall configuration %v: defaulting to published.",
 					endpoint.Network.TrustLevel)
-				if err := setupPublishedFirewall(endpoint, ifaceName); err != nil {
+				if err := setupPublishedFirewall(ctx, t, endpoint, ifaceName); err != nil {
 					return err
 				}
 			}
@@ -242,7 +301,7 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 			log.Debugf("slot %d -> %s", endpoint.ID, ifaceName)
 
 			// Traffic over container bridge network should be peers+outbound.
-			if err := setupOutboundFirewall(ifaceName); err != nil {
+			if err := setupOutboundFirewall(ctx, t, ifaceName); err != nil {
 				return err
 			}
 			sourceAddresses := make([]string, len(endpoint.Network.Pools))
@@ -250,46 +309,47 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 			for i, v := range endpoint.Network.Pools {
 				sourceAddresses[i] = v.String()
 			}
-			if err := (&netfilter.Rule{
+			fn := (&netfilter.Rule{
 				Chain:           netfilter.Input,
 				Target:          netfilter.Accept,
 				SourceAddresses: sourceAddresses,
 				Interface:       ifaceName,
-			}).Commit(context.TODO()); err != nil {
+			}).Commit(ctx)
+			if err := invoke(t, fn, "configure for bridge scope"); err != nil {
 				return err
 			}
 		}
 	}
 
-	return nil
+	return invoke(t, netfilter.Return(ctx, "VIC"), "return from VIC chain")
 }
 
-func setupOutboundFirewall(ifaceName string) error {
+func setupOutboundFirewall(ctx context.Context, t *tether.BaseOperations, ifaceName string) error {
 	// All already established inputs are accepted
-	if err := (&netfilter.Rule{
+	fn := (&netfilter.Rule{
 		Chain:     netfilter.Input,
 		States:    []netfilter.State{netfilter.Established, netfilter.Related},
 		Target:    netfilter.Accept,
 		Interface: ifaceName,
-	}).Commit(context.TODO()); err != nil {
+	}).Commit(ctx)
+	if err := invoke(t, fn, "permit established inbound"); err != nil {
 		return err
 	}
+
 	// All output is accepted
-	if err := (&netfilter.Rule{
+	fn = (&netfilter.Rule{
 		Chain:     netfilter.Output,
 		Target:    netfilter.Accept,
 		Interface: ifaceName,
-	}).Commit(context.TODO()); err != nil {
-		return err
-	}
-	return nil
+	}).Commit(ctx)
+	return invoke(t, fn, "permit all outbound")
 }
 
-func setupPublishedFirewall(endpoint *tether.NetworkEndpoint, ifaceName string) error {
-	if err := setupOutboundFirewall(ifaceName); err != nil {
+func setupPublishedFirewall(ctx context.Context, t *tether.BaseOperations, endpoint *tether.NetworkEndpoint, ifaceName string) error {
+	if err := setupOutboundFirewall(ctx, t, ifaceName); err != nil {
 		return err
 	}
-	if err := allowPingTraffic(ifaceName, nil); err != nil {
+	if err := allowPingTraffic(ctx, t, ifaceName, nil); err != nil {
 		return err
 	}
 
@@ -304,44 +364,37 @@ func setupPublishedFirewall(endpoint *tether.NetworkEndpoint, ifaceName string) 
 
 		log.Infof("Applying rule for port %s", p)
 		r.Interface = ifaceName
-		if err := r.Commit(context.TODO()); err != nil {
+		fn := r.Commit(ctx)
+		if err := invoke(t, fn, "allow incoming on published port"); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
-func generalPolicy(target netfilter.Target) error {
-	for _, chain := range []netfilter.Chain{netfilter.Input, netfilter.Output, netfilter.Forward} {
-		if err := netfilter.Policy(context.TODO(), chain, target); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func allowPingTraffic(ifaceName string, sourceAddresses []string) error {
-	if err := (&netfilter.Rule{
+func allowPingTraffic(ctx context.Context, t *tether.BaseOperations, ifaceName string, sourceAddresses []string) error {
+	fn := (&netfilter.Rule{
 		Chain:           netfilter.Input,
 		Target:          netfilter.Accept,
 		Interface:       ifaceName,
 		Protocol:        netfilter.ICMP,
 		ICMPType:        netfilter.EchoRequest,
 		SourceAddresses: sourceAddresses,
-	}).Commit(context.TODO()); err != nil {
+	}).Commit(ctx)
+	if err := invoke(t, fn, "allow ping inbound"); err != nil {
 		return err
 	}
-	if err := (&netfilter.Rule{
+
+	fn = (&netfilter.Rule{
 		Chain:           netfilter.Output,
 		Target:          netfilter.Accept,
 		Interface:       ifaceName,
 		Protocol:        netfilter.ICMP,
 		ICMPType:        netfilter.EchoReply,
 		SourceAddresses: sourceAddresses,
-	}).Commit(context.TODO()); err != nil {
-		return err
-	}
-	return nil
+	}).Commit(ctx)
+	return invoke(t, fn, "allow ping outbound")
 }
 
 func portToRule(p string) (*netfilter.Rule, error) {

@@ -16,6 +16,7 @@ package util
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 
@@ -69,4 +70,20 @@ func DisplayName(config *spec.VirtualMachineConfigSpecConfig) string {
 	}
 
 	return fmt.Sprintf("%s-%s", prettyName, shortID)
+}
+
+func ClientIP() (net.IP, error) {
+	ips, err := net.LookupIP(constants.ClientHostName)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(ips) == 0 {
+		return nil, fmt.Errorf("No IP found on %s", constants.ClientHostName)
+	}
+
+	if len(ips) > 1 {
+		return nil, fmt.Errorf("Multiple IPs found on %s: %#v", constants.ClientHostName, ips)
+	}
+	return ips[0], nil
 }

@@ -25,6 +25,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path"
+	"runtime/debug"
 	"sort"
 	"sync"
 	"syscall"
@@ -55,8 +56,15 @@ const (
 	bindDir = "/.tether/.bind"
 )
 
-var Sys = system.New()
-var once sync.Once
+// Sys is used to configure where the target system files are
+var (
+	// Used to access the acutal system paths and files
+	Sys = system.New()
+	// Used to access and manipulate the tether modified bind sources
+	// that are mounted over the system ones.
+	BindSys = system.NewWithRoot("/.tether")
+	once    sync.Once
+)
 
 type tether struct {
 	// the implementation to use for tailored operations
@@ -454,8 +462,19 @@ func (t *tether) processSessions() error {
 	return nil
 }
 
+type TetherKey struct{}
+
 func (t *tether) Start() error {
 	defer trace.End(trace.Begin("main tether loop"))
+
+	defer func() {
+		e := recover()
+		if e != nil {
+			log.Errorf("Panic in main tether loop: %s: %s", e, debug.Stack())
+			// continue panicing now it's logged
+			panic(e)
+		}
+	}()
 
 	// do the initial setup and start the extensions
 	if err := t.setup(); err != nil {
@@ -495,7 +514,7 @@ func (t *tether) Start() error {
 		extraconfig.Encode(t.sink, t.config)
 
 		// setup the firewall
-		if err := retryOnError(func() error { return t.ops.SetupFirewall(t.config) }, 5); err != nil {
+		if err := retryOnError(func() error { return t.ops.SetupFirewall(t.ctx, t.config) }, 5); err != nil {
 			err = fmt.Errorf("Couldn't set up container-network firewall: %v", err)
 			log.Error(err)
 			return err
@@ -622,13 +641,15 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 
 	log.Debugf("Calling wait on cmd")
 	if err := session.Cmd.Wait(); err != nil {
-		log.Warnf("Wait returned %s", err)
+		// we expect this to get an error because the child reaper will have gathered it
+		log.Debugf("Wait returned %s", err)
 	}
 
 	t.cleanupSession(session)
 
 	// Remove associated PID file
 	cmdname := path.Base(session.Cmd.Path)
+	// #nosec: Errors unhandled.
 	_ = os.Remove(fmt.Sprintf("%s.pid", path.Join(PIDFileDir(), cmdname)))
 
 	// set the stop time

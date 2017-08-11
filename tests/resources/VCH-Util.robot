@@ -32,7 +32,9 @@ Set Test Environment Variables
     ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
 
     Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
-    Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
+    Set Environment Variable  GOVC_URL  %{TEST_URL}
+    Set Environment Variable  GOVC_USERNAME  %{TEST_USERNAME}
+    Set Environment Variable  GOVC_PASSWORD  %{TEST_PASSWORD}
     # TODO: need an integration/vic-test image update to include the about.cert command
     #${rc}  ${thumbprint}=  Run And Return Rc And Output  govc about.cert -k | jq -r .ThumbprintSHA1
     ${rc}  ${thumbprint}=  Run And Return Rc And Output  openssl s_client -connect $(govc env -x GOVC_URL_HOST):443 </dev/null 2>/dev/null | openssl x509 -fingerprint -noout | cut -d= -f2
@@ -49,6 +51,7 @@ Set Test Environment Variables
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_RESOURCE  ${host}/Resources
     Set Environment Variable  GOVC_RESOURCE_POOL  %{TEST_RESOURCE}
     ${noQuotes}=  Strip String  %{TEST_DATASTORE}  characters="
+    #"
     Set Environment Variable  GOVC_DATASTORE  ${noQuotes}
 
     ${about}=  Run  govc about
@@ -173,8 +176,10 @@ Install VIC Appliance To Test Server
     ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${additional-args}
     Log  ${output}
     Should Contain  ${output}  Installer completed successfully
+
     Get Docker Params  ${output}  ${certs}
     Log To Console  Installer completed successfully: %{VCH-NAME}...
+
     [Return]  ${output}
 
 Run VIC Machine Command
@@ -198,6 +203,7 @@ Run Secret VIC Machine Inspect Command
     [Tags]  secret
     [Arguments]  ${name}
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --thumbprint=%{TEST_THUMBPRINT}
+
     [Return]  ${rc}  ${output}
 
 Run VIC Machine Delete Command
@@ -412,6 +418,7 @@ Install VIC with version to Test Server
     ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
     Set Environment Variable  TEST_TIMEOUT  20m0s
     Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}  vol=default ${insecureregistry}
+
     Set Environment Variable  VIC-ADMIN  %{VCH-IP}:2378
     Set Environment Variable  INITIAL-VERSION  ${version}
     Run  rm -rf vic.tar.gz vic

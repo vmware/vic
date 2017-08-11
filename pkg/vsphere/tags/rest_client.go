@@ -174,6 +174,7 @@ func (c *RestClient) Login(ctx context.Context) error {
 		return errors.New("response is nil in Login")
 	}
 	if resp.StatusCode != http.StatusOK {
+		// #nosec: Errors unhandled.
 		body, _ := ioutil.ReadAll(resp.Body)
 		resp.Body.Close()
 		return errors.Errorf("Login failed: body: %s, status: %s", bytes.TrimSpace(body), resp.Status)

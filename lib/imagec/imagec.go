@@ -111,6 +111,9 @@ type Options struct {
 
 	// If true, do not bother portlayer or persona
 	Standalone bool
+
+	// image store name or url
+	ImageStore string
 }
 
 // ImageWithMeta wraps the models.Image with some additional metadata
@@ -180,6 +183,7 @@ func (ic *ImageC) ParseReference() {
 
 // DestinationDirectory returns the path of the output directory
 func DestinationDirectory(options Options) string {
+	// #nosec: Errors unhandled.
 	u, _ := url.Parse(options.Registry)
 
 	// Use a hierarchy like following so that we can support multiple schemes, registries and versions

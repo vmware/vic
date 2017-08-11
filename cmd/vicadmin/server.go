@@ -167,6 +167,7 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 	defer trace.End(trace.Begin(""))
 
 	authHandler := func(w http.ResponseWriter, r *http.Request) {
+		// #nosec: Errors unhandled.
 		websession, _ := s.uss.cookies.Get(r, sessionCookieKey) // ignore error because it is okay if it doesn't exist
 
 		if len(r.TLS.PeerCertificates) > 0 { // the user is authenticated by certificate at connection time
@@ -436,6 +437,7 @@ func (s *server) stop() error {
 
 // logout handler expires the user's session cookie by setting its creation time to the beginning of time
 func (s *server) logoutHandler(res http.ResponseWriter, req *http.Request) {
+	// #nosec: Errors unhandled.
 	websession, _ := s.uss.cookies.Get(req, sessionCookieKey)
 	// ignore parsing/marshalling errors because we're parsing a hardcoded beginning-of-time string
 	websession.Values[sessionCreationTimeKey] = beginningOfTime

@@ -182,3 +182,12 @@ Start Container and Exec Command
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     [Return]  ${output}
+
+Verify Volume Inspect Info
+    [Arguments]  ${inspectedWhen}  ${volTestContainer}  ${checkList}
+    Log To Console  \nContainer Mount Inspected ${inspectedWhen}
+    ${rc}  ${mountInfo}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' ${volTestContainer}
+    Should Be Equal As Integers  ${rc}  0
+
+    :FOR  ${item}  IN  @{checkList}
+    \   Should Contain  ${mountInfo}  ${item}

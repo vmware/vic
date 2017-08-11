@@ -97,6 +97,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 
 			if oerr := op.Err(); oerr != nil {
 				// don't close the archive if we're truncating the copy - it's misleading
+				// #nosec: Errors unhandled.
 				_ = w.CloseWithError(oerr)
 				return
 			}
@@ -110,9 +111,11 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 				} else {
 					op.Debugf("Closing down tar writer with pristine exit")
 				}
+				// #nosec: Errors unhandled.
 				_ = w.CloseWithError(cerr)
 			} else {
 				op.Errorf("Closing down tar writer with error during tar: %s", err)
+				// #nosec: Errors unhandled.
 				_ = w.CloseWithError(err)
 			}
 		}()
@@ -141,6 +144,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 				hdr.Size = 0
 			}
 
+			// #nosec: Errors unhandled.
 			_ = tw.WriteHeader(hdr)
 			p := filepath.Join(dir, change.Path)
 			if (hdr.Typeflag == tar.TypeReg || hdr.Typeflag == tar.TypeRegA) && hdr.Size != 0 {
@@ -169,6 +173,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 
 					_, err = io.Copy(tw, f)
 					close(done)
+					// #nosec: Errors unhandled.
 					_ = f.Close()
 					if err != nil {
 						op.Errorf("Error writing archive data: %s", err.Error())

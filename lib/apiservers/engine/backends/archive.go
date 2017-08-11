@@ -151,7 +151,7 @@ func (c *Container) importToContainer(op trace.Operation, vc *viccontainer.VicCo
 	defer func() {
 		// This should shutdown all the stream connections to the portlayer.
 		e1 := writerMap.Close(op)
-		if err == nil {
+		if e1 != nil {
 			err = e1
 			op.Debugf("import to container: assigned err as %v", err)
 		}
@@ -727,6 +727,7 @@ func resolvePathWithMountPoints(op trace.Operation, mounts []types.MountPoint, p
 	var primaryTarget *ArchiveReader
 
 	readerMap := NewArchiveStreamReaderMap(op, mounts, path)
+	// #nosec: Errors unhandled.
 	nodes, _ := readerMap.FindArchiveReaders(path)
 
 	for _, node := range nodes {

@@ -27,6 +27,8 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/dns"
+	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/lib/vspc"
 	viclog "github.com/vmware/vic/pkg/log"
@@ -104,7 +106,18 @@ func main() {
 		}
 	}
 
+	if vchConfig.Diagnostics.DebugLevel > 2 {
+		// expose portlayer service on client interface
+		server.Port = constants.DebugPortLayerPort
+		clientIP, err := util.ClientIP()
+		if err != nil {
+			log.Fatalf("Unable to look up %s to serve portlayer API: %s", constants.ClientHostName, err)
+		}
+		server.Host = clientIP.String()
+	}
+
 	log.Infof("%+v", *logcfg)
+	// #nosec: Errors unhandled.
 	viclog.Init(logcfg)
 
 	server.ConfigureAPI()

@@ -49,12 +49,14 @@ func startCommand(m *toolbox.ProcessManager, r *vix.StartProgramRequest) (int64,
 	case "enable-ssh":
 		p = toolbox.NewProcessFunc(func(ctx context.Context, args string) error {
 			err := enableSSH(args)
+			// #nosec: Errors unhandled.
 			_ = enableShell()
 			return err
 		})
 	case "passwd":
 		p = toolbox.NewProcessFunc(func(ctx context.Context, args string) error {
 			err := passwd(args)
+			// #nosec: Errors unhandled.
 			_ = enableShell()
 			return err
 		})
@@ -85,6 +87,7 @@ func enableShell() error {
 	defer trace.End(trace.Begin(""))
 
 	// if reset fails, try the rest anyway
+	// #nosec: Errors unhandled.
 	resetPasswdExpiry()
 
 	// #nosec: Subprocess launching should be audited
@@ -98,6 +101,7 @@ func enableShell() error {
 
 	// ignore the error - it's likely raced with child reaper, we just want to make sure
 	// that it's exited by the time we pass this point
+	// #nosec: Errors unhandled.
 	chsh.Wait()
 
 	// confirm the change
@@ -159,6 +163,7 @@ func passwd(pass string) error {
 
 	// so that we're actively waiting when the process exits, or we'll race (and lose) to child reaper
 	go func() {
+		// #nosec: Errors unhandled.
 		setPasswd.Wait()
 	}()
 
@@ -168,6 +173,7 @@ func passwd(pass string) error {
 		log.Error(err)
 
 		// fire and forget as we're already on error path
+		// #nosec: Errors unhandled.
 		setPasswd.Process.Kill()
 
 		return err
@@ -218,6 +224,7 @@ func startSSH() error {
 	go func() {
 		// because init is explicitly reaping child processes we cannot use simple
 		// exec commands to gather status
+		// #nosec: Errors unhandled.
 		_ = c.Wait()
 		log.Info("Attempted to start ssh service:\n %s", b)
 	}()
@@ -245,6 +252,7 @@ func resetPasswdExpiry() error {
 
 	// ignore the error - it's likely raced with child reaper, we just want to make sure
 	// that it's exited by the time we pass this point
+	// #nosec: Errors unhandled.
 	chage.Wait()
 
 	log.Infof("Attempted reset of password expiry: /bin/chage -M 1 -d %s root", expireDate)

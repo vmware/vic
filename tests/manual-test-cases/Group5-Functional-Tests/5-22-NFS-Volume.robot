@@ -27,6 +27,9 @@ ${unnamedNFSVolContainer}  unnamedNFSvolContainer
 ${namedNFSVolContainer}  namednfsVolContainer
 ${createFileContainer}=  createFileContainer
 ${nfs_bogon_ip}=  198.51.100.1
+${mntDataTestContainer}=  mount-data-test
+${mntTest}=  /mnt/test
+${mntNamed}=  /mnt/named
 
 
 *** Keywords ***
@@ -82,6 +85,24 @@ Verify NFS Volume Already Created
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: A volume named ${containerVolName} already exists. Choose a different volume name.
 
+Reboot VM and Verify Basic VCH Info
+    Log To Console  Rebooting VCH\n - %{VCH-NAME}
+    Reboot VM  %{VCH-NAME}
+
+    Log To Console  Getting VCH IP ...
+    ${new_vch_ip}=  Get VM IP  %{VCH-NAME}
+    Log To Console  New VCH IP is ${new_vch_ip}
+    ${updated_vch_ip}=  Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new_vch_ip}
+    Should Contain  %{VCH-PARAMS}  ${new_vch_ip}
+    Should Be Equal  ${updated_vch_ip}  %{VCH-PARAMS}
+
+    # wait for docker info to succeed
+    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${busybox}
+
 
 *** Test Cases ***
 VIC Appliance Install with Read Only NFS Volume
@@ -114,7 +135,7 @@ VIC Appliance Install With Correct NFS Server
     ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${NFS_IP}/store?uid=0&gid=0:${nfsVolumeStore}"
     Should Contain  ${output}  Installer completed successfully
 
-Simple docker volume create
+Simple Docker Volume Create
     #Pull image  ${busybox}
 
     ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --opt VolumeStore=${nfsVolumeStore}
@@ -124,7 +145,7 @@ Simple docker volume create
 
     Verify NFS Volume Basic Setup  ${nfsUnNamedVolume}  ${unnamedNFSVolContainer}  ${NFS_IP}  rw
 
-Docker volume create named volume
+Docker Volume Create Named Volume
     ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name nfs-volume_%{VCH-NAME} --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${volumeOutput}  nfs-volume_%{VCH-NAME}
@@ -133,12 +154,12 @@ Docker volume create named volume
 
     Verify NFS Volume Basic Setup  nfs-volume_%{VCH-NAME}  ${namedNFSVolContainer}  ${NFS_IP}  rw
 
-Docker volume create already named volume
+Docker Volume Create Already Named Volume
     Run Keyword And Ignore Error  Verify NFS Volume Already Created  ${nfsUnNamedVolume}
 
     Run Keyword And Ignore Error  Verify NFS Volume Already Created  ${nfsNamedVolume}
 
-Docker volume create with possibly invalid name
+Docker Volume Create with possibly Invalid Name
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name="test!@\#$%^&*()" --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  1
     Should Be Equal As Strings  ${output}  Error response from daemon: volume name "test!@\#$%^&*()" includes invalid characters, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed
@@ -159,7 +180,7 @@ Docker Single Write and Read to/from File from one Container using NFS Volume
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  The Texas and Chile flag look similar.
 
-Docker multiple writes from multiple containers (one at a time) and read from one
+Docker Multiple Writes from Multiple Containers (one at a time) and Read from Another
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "echo 'The Chad and Romania flag look the same.\n' >> /mydata/test_nfs_file.txt"
     Should Be Equal As Integers  ${rc}  0
 
@@ -201,11 +222,11 @@ Simultaneous Container Write to File
 
     Log To Console  \nSpin up Write Containers
     :FOR  ${item}  IN  @{inputList}
-    \   ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo ${item} >> /mydata/test_nfs_mult_write.txt; sleep 1; done"
+    \   ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo ${item} >> /mydata/test_nfs_mult_write.txt; sleep 5; done"
     \   Should Be Equal As Integers  ${rc}  0
     \   Append To List  ${containers}  ${id}
 
-    ${rc}  ${catOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "cat mydata/test_nfs_mult_write.txt"
+    ${rc}  ${catOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "tail -40 /mydata/test_nfs_mult_write.txt"
     Should Be Equal As Integers  ${rc}  0
 
     Log To Console  \nCheck tail output for write items
@@ -218,23 +239,24 @@ Simultaneous Container Write to File
     \   Should Be Equal As Integers  ${rc}  0
 
 
-Simple docker volume inspect
+Simple Docker Volume Inspect
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume inspect ${nfsNamedVolume}
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Evaluate  json.loads(r'''${output}''')  json
     ${id}=  Get From Dictionary  ${output[0]}  Name
     Should Be Equal As Strings  ${id}  ${nfsNamedVolume}
 
-Simple Volume ls test
+Simple Volume ls Test
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  vsphere
     Should Contain  ${output}  ${nfsNamedVolume}
     Should Contain  ${output}  ${nfsUnNamedVolume}
+
     Should Contain  ${output}  DRIVER
     Should Contain  ${output}  VOLUME NAME
 
-Volume rm tests
+Volume rm Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm ${nfsUnNamedVolume}
     Should Be Equal As Integers  ${rc}  0
 
@@ -246,8 +268,22 @@ Volume rm tests
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: volume ${nfsNamedVolume} in use by
 
+Docker Inspect Mount Data after Reboot
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${mntDataTestContainer} -v ${mntTest} -v ${nfsNamedVolume}:${mntNamed} ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Create check list for Volume Inspect
+    @{checkList}=  Create List  ${mntTest}  ${mntNamed}  ${nfsNamedVolume}
+
+    Verify Volume Inspect Info  Before VM Reboot  ${mntDataTestContainer}  ${checkList}
+
+    Reboot VM and Verify Basic VCH Info
+
+    Verify Volume Inspect Info  After VM Reboot  ${mntDataTestContainer}  ${checkList}
+
+
 Kill NFS Server
-    ${rc}  ${runningContainer}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo 'Still here...\n' >> /mydata/test_nfs_kill.txt; sleep 1; done"
+    ${rc}  ${runningContainer}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo 'Still here...\n' >> /mydata/test_nfs_kill.txt; sleep 2; done"
     Should Be Equal As Integers  ${rc}  0
 
     ${rc}  ${tailOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "tail -5 /mydata/test_nfs_kill.txt"
@@ -256,13 +292,17 @@ Kill NFS Server
 
     Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${NFS}
 
+    ${status}=  Get State Of Github Issue  5946
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 5-22-NFS-Volume.robot needs to be updated now that Issue #5946 has been resolved
+    # Issue 5946 should provide a better error message for the next three tests
+
     ${rc}  ${tailOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "tail -5 /mydata/test_nfs_kill.txt"
     Should Be Equal As Integers  ${rc}  125
-    Should Contain  ${tailOutput}  Server error from portlayer: unable to wait for process launch status:
+    #Should Contain  ${tailOutput}  Server error from portlayer: unable to wait for process launch status:
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "echo 'Where am I writing to?...\n' >> /mydata/test_nfs_kill.txt"
     Should Be Equal As Integers  ${rc}  125
 
     ${rc}  ${lsOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "ls mydata"
     Should Be Equal As Integers  ${rc}  125
-    Should Contain  ${lsOutput}  Server error from portlayer: unable to wait for process launch status:
+    #Should Contain  ${lsOutput}  Server error from portlayer: unable to wait for process launch status:

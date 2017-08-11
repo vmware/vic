@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -78,6 +79,11 @@ type BaseOperations struct {
 	dhcpLoops    map[string]chan struct{}
 	dynEndpoints map[string][]*NetworkEndpoint
 	config       Config
+
+	// Exclusive access to utilityPids table
+	utilityPidMutex sync.Mutex
+	// set of child PIDs for one-off non-persistent processes
+	utilityPids map[int]chan int
 }
 
 // NetLink gives us an interface to the netlink calls used so that
@@ -97,11 +103,6 @@ type Netlink interface {
 	// Not quite netlink, but tightly associated
 
 	LinkBySlot(slot int32) (netlink.Link, error)
-}
-
-func init() {
-	Sys.Hosts = etcconf.NewHosts(hostsPathBindSrc)
-	Sys.ResolvConf = etcconf.NewResolvConf(resolvConfPathBindSrc)
 }
 
 func (t *BaseOperations) LinkByName(name string) (netlink.Link, error) {
@@ -204,10 +205,10 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	// add entry to hosts for resolution without nameservers
 	lo4 := net.IPv4(127, 0, 1, 1)
 	for _, a := range append(aliases, hostname) {
-		Sys.Hosts.SetHost(a, lo4)
+		BindSys.Hosts.SetHost(a, lo4)
 	}
 
-	if err = bindMountAndSave(etcconf.HostsPath, Sys.Hosts); err != nil {
+	if err = bindMountAndSave(Sys.Hosts, BindSys.Hosts); err != nil {
 		return err
 	}
 
@@ -447,6 +448,7 @@ func updateDefaultRoute(t Netlink, link netlink.Link, endpoint *NetworkEndpoint)
 		return nil
 	}
 
+	// #nosec: Errors unhandled.
 	_, defaultNet, _ := net.ParseCIDR("0.0.0.0/0")
 	// delete default route first
 	if err := t.RouteDel(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet}); err != nil {
@@ -489,9 +491,9 @@ func (t *BaseOperations) updateHosts(endpoint *NetworkEndpoint) error {
 		return nil
 	}
 
-	Sys.Hosts.SetHost(fmt.Sprintf("%s.localhost", endpoint.Network.Name), endpoint.Assigned.IP)
+	BindSys.Hosts.SetHost(fmt.Sprintf("%s.localhost", endpoint.Network.Name), endpoint.Assigned.IP)
 
-	if err := bindMountAndSave(etcconf.HostsPath, Sys.Hosts); err != nil {
+	if err := bindMountAndSave(Sys.Hosts, BindSys.Hosts); err != nil {
 		return err
 	}
 
@@ -509,14 +511,14 @@ func (t *BaseOperations) updateNameservers(endpoint *NetworkEndpoint) error {
 	// Add nameservers
 	// This is incredibly trivial for now - should be updated to a less messy approach
 	if len(ns) > 0 {
-		Sys.ResolvConf.AddNameservers(ns...)
+		BindSys.ResolvConf.AddNameservers(ns...)
 		log.Infof("Added nameservers: %+v", ns)
 	} else if !ip.IsUnspecifiedIP(gw.IP) {
-		Sys.ResolvConf.AddNameservers(gw.IP)
+		BindSys.ResolvConf.AddNameservers(gw.IP)
 		log.Infof("Added nameserver: %s", gw.IP)
 	}
 
-	if err := bindMountAndSave(etcconf.ResolvConfPath, Sys.ResolvConf); err != nil {
+	if err := bindMountAndSave(Sys.ResolvConf, BindSys.ResolvConf); err != nil {
 		return err
 	}
 
@@ -526,10 +528,10 @@ func (t *BaseOperations) updateNameservers(endpoint *NetworkEndpoint) error {
 func (t *BaseOperations) Apply(endpoint *NetworkEndpoint) error {
 	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
-	return apply(t, t, endpoint)
+	return ApplyEndpoint(t, t, endpoint)
 }
 
-func apply(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
+func ApplyEndpoint(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
 	if endpoint.configured {
 		log.Infof("skipping applying config for network %s as it has been applied already", endpoint.Network.Name)
 		return nil // already applied
@@ -921,10 +923,10 @@ func (t *BaseOperations) Setup(config Config) error {
 	}
 
 	for _, e := range entries {
-		Sys.Hosts.SetHost(e.hostname, e.addr)
+		BindSys.Hosts.SetHost(e.hostname, e.addr)
 	}
 
-	if err := bindMountAndSave(etcconf.HostsPath, Sys.Hosts); err != nil {
+	if err := bindMountAndSave(Sys.Hosts, BindSys.Hosts); err != nil {
 		return err
 	}
 
@@ -1038,14 +1040,12 @@ func bindMount(src, target string) error {
 	return nil
 }
 
-func bindMountAndSave(target string, conf etcconf.Conf) error {
-	if err := conf.Save(); err != nil {
+func bindMountAndSave(conf etcconf.Conf, bind etcconf.Conf) error {
+	if err := bind.Save(); err != nil {
 		return err
 	}
 
-	src := conf.Path()
-
-	return bindMount(src, target)
+	return bindMount(bind.Path(), conf.Path())
 }
 
 // Create necessary directories/files as the src/target for bind mount.
@@ -1053,6 +1053,9 @@ func bindMountAndSave(target string, conf etcconf.Conf) error {
 func createBindSrcTarget(files map[string]os.FileMode) error {
 	// The directory has to exist before creating the new file
 	for filePath, fmode := range files {
+		// this allows us to prefix arbitrary path so as to support unit testing
+		filePath = path.Join(Sys.Root, filePath)
+
 		dir := path.Dir(filePath)
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			// #nosec: Expect file permissions to be 0600 or less
@@ -1071,4 +1074,55 @@ func createBindSrcTarget(files map[string]os.FileMode) error {
 	}
 
 	return nil
+}
+
+// LaunchUtility allows for starting, blocking on, and receiving the exit code of a
+// process while in the presence of an embedded child reaper.
+// The function passed in will be launched under lock and MUST NOT wait for the process to
+// exit. It's expected the function be a closure wrapped around StartProcess or similar.
+func (t *BaseOperations) LaunchUtility(fn UtilityFn) (<-chan int, error) {
+	return launchUtility(t, fn)
+}
+
+func launchUtility(t *BaseOperations, fn UtilityFn) (<-chan int, error) {
+	t.utilityPidMutex.Lock()
+	defer t.utilityPidMutex.Unlock()
+
+	if t.utilityPids == nil {
+		t.utilityPids = make(map[int]chan int)
+		log.Debug("Initialized utility process pid map")
+	}
+
+	log.Debug("Launching utility process")
+	proc, err := fn()
+	if err != nil {
+		return nil, err
+	}
+
+	pid := proc.Pid
+	exitChan := make(chan int, 1)
+	t.utilityPids[pid] = exitChan
+	log.Debugf("Registered utility pid: %d", pid)
+
+	return exitChan, nil
+}
+
+func (t *BaseOperations) HandleUtilityExit(pid, exitCode int) bool {
+	return handleUtilityExit(t, pid, exitCode)
+}
+
+func handleUtilityExit(t *BaseOperations, pid, exitCode int) bool {
+	t.utilityPidMutex.Lock()
+	defer t.utilityPidMutex.Unlock()
+
+	pidchannel, ok := t.utilityPids[pid]
+	if !ok {
+		return false
+	}
+
+	delete(t.utilityPids, pid)
+	pidchannel <- exitCode
+	close(pidchannel)
+
+	return true
 }

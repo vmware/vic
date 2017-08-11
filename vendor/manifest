@@ -1249,7 +1249,7 @@
 			"importpath": "golang.org/x/sys/unix",
 			"repository": "https://go.googlesource.com/sys",
 			"vcs": "git",
-			"revision": "99f16d856c9836c42d24e7ab64ea72916925fa97",
+			"revision": "d8f5ea21b9295e315e612b4bcf4bedea93454d4d",
 			"branch": "master",
 			"path": "/unix",
 			"notests": true

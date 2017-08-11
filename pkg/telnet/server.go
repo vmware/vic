@@ -98,6 +98,7 @@ func NewServer(opts ServerOpts) *Server {
 
 // Accept accepts a connection and returns the Telnet connection
 func (ts *Server) Accept() (*Conn, error) {
+	// #nosec: Errors unhandled.
 	conn, _ := ts.ln.Accept()
 	log.Info("connection received")
 	opts := connOpts{

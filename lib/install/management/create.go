@@ -23,7 +23,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
@@ -137,13 +137,24 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 				// attempt to delete the iso image first in case of failed upload
 				dc := d.session.Datacenter
 				fm := d.session.Datastore.NewFileManager(dc, false)
+				ds := d.session.Datastore
 
 				isoTargetPath := path.Join(d.vmPathName, key)
-				log.Debugf("target delete path = %s", isoTargetPath)
-				err := fm.Delete(d.ctx, isoTargetPath)
-				if err != nil && !types.IsFileNotFound(err) {
-					log.Debugf("Failed to delete image (%s) with error (%s)", image, err.Error())
-					return err
+				// check iso first
+				_, err := ds.Stat(d.ctx, isoTargetPath)
+				if err != nil {
+					switch err.(type) {
+					// if not found, do nothing
+					case object.DatastoreNoSuchFileError:
+					// otherwise force delete
+					default:
+						log.Debugf("target delete path = %s", isoTargetPath)
+						err := fm.Delete(d.ctx, isoTargetPath)
+						if err != nil {
+							log.Debugf("Failed to delete image (%s) with error (%s)", image, err.Error())
+							return err
+						}
+					}
 				}
 
 				return d.session.Datastore.UploadFile(d.ctx, image, path.Join(d.vmPathName, key), nil)
