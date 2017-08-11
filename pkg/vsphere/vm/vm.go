@@ -70,6 +70,7 @@ func NewVirtualMachine(ctx context.Context, session *session.Session, moref type
 	return NewVirtualMachineFromVM(ctx, session, object.NewVirtualMachine(session.Vim25(), moref))
 }
 
+// NewVirtualMachineFromVM returns a NewVirtualMachine object
 func NewVirtualMachineFromVM(ctx context.Context, session *session.Session, vm *object.VirtualMachine) *VirtualMachine {
 	return &VirtualMachine{
 		VirtualMachine: vm,
@@ -77,20 +78,9 @@ func NewVirtualMachineFromVM(ctx context.Context, session *session.Session, vm *
 	}
 }
 
-// FolderName returns the name of the namespace(vsan) or directory(vmfs) that holds the VM
-// this equates to the normal directory that contains the vmx file, stripped of any parent path
-func (vm *VirtualMachine) FolderName(ctx context.Context) (string, error) {
-	u, err := vm.DSPath(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	return path.Base(u.Path), nil
-}
-
-// DSPath returns the full datastore path of the VM as a url. The datastore name is in the host
+// VMPathNameAsURL returns the full datastore path of the VM as a url. The datastore name is in the host
 // portion, the path is in the Path field, the scheme is set to "ds"
-func (vm *VirtualMachine) DSPath(ctx context.Context) (url.URL, error) {
+func (vm *VirtualMachine) VMPathNameAsURL(ctx context.Context) (url.URL, error) {
 	var mvm mo.VirtualMachine
 
 	if err := vm.Properties(ctx, vm.Reference(), []string{"config.files.vmPathName"}, &mvm); err != nil {
@@ -101,6 +91,7 @@ func (vm *VirtualMachine) DSPath(ctx context.Context) (url.URL, error) {
 	if mvm.Config == nil {
 		return url.URL{}, errors.New("failed to get datastore path - config not found")
 	}
+
 	path := path.Dir(mvm.Config.Files.VmPathName)
 	val := url.URL{
 		Scheme: "ds",
@@ -113,6 +104,17 @@ func (vm *VirtualMachine) DSPath(ctx context.Context) (url.URL, error) {
 	}
 
 	return val, nil
+}
+
+// FolderName returns the name of the namespace(vsan) or directory(vmfs) that holds the VM
+// this equates to the normal directory that contains the vmx file, stripped of any parent path
+func (vm *VirtualMachine) FolderName(ctx context.Context) (string, error) {
+	u, err := vm.VMPathNameAsURL(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	return path.Base(u.Path), nil
 }
 
 func (vm *VirtualMachine) getNetworkName(ctx context.Context, nic types.BaseVirtualEthernetCard) (string, error) {
@@ -148,17 +150,14 @@ func (vm *VirtualMachine) FetchExtraConfigBaseOptions(ctx context.Context) ([]ty
 }
 
 func (vm *VirtualMachine) FetchExtraConfig(ctx context.Context) (map[string]string, error) {
-	var err error
-
-	var mvm mo.VirtualMachine
 	info := make(map[string]string)
 
-	if err = vm.Properties(ctx, vm.Reference(), []string{"config.extraConfig"}, &mvm); err != nil {
-		log.Errorf("Unable to get vm config: %s", err)
-		return info, err
+	v, err := vm.FetchExtraConfigBaseOptions(ctx)
+	if err != nil {
+		return nil, err
 	}
 
-	for _, bov := range mvm.Config.ExtraConfig {
+	for _, bov := range v {
 		ov := bov.GetOptionValue()
 		value, _ := ov.Value.(string)
 		info[ov.Key] = value
@@ -277,11 +276,10 @@ func (vm *VirtualMachine) VMPathName(ctx context.Context) (string, error) {
 	var err error
 	var mvm mo.VirtualMachine
 
-	if err = vm.Properties(ctx, vm.Reference(), []string{"config.files"}, &mvm); err != nil {
+	if err = vm.Properties(ctx, vm.Reference(), []string{"config.files.vmPathName"}, &mvm); err != nil {
 		log.Errorf("Unable to get vm config.files property: %s", err)
 		return "", err
 	}
-
 	return mvm.Config.Files.VmPathName, nil
 }
 
