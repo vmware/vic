@@ -80,6 +80,7 @@ func newBase(vm *vm.VirtualMachine, c *types.VirtualMachineConfigInfo, r *types.
 	if c != nil && c.ExtraConfig != nil {
 		var migratedConf map[string]string
 		containerExecKeyValues := vmomi.OptionValueMap(c.ExtraConfig)
+		// #nosec: Errors unhandled.
 		base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
 		migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
 		extraconfig.Decode(extraconfig.MapSource(migratedConf), base.ExecConfig)
@@ -144,6 +145,7 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 	}
 
 	log.Debugf("Update: change version %s, extraconfig id: %+v", o.Config.ChangeVersion, containerExecKeyValues["guestinfo.vice./common/id"])
+	// #nosec: Errors unhandled.
 	base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
 	migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
 	extraconfig.Decode(extraconfig.MapSource(migratedConf), base.ExecConfig)

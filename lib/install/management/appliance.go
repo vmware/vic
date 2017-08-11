@@ -883,6 +883,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 				addr, err := addrToUse([]net.IP{cip}, cert, conf.CertificateAuthorities)
 				if err != nil {
 					log.Debugf("Unable to determine address to use with remote certificate, checking SANs")
+					// #nosec: Errors unhandled.
 					addr, _ = viableHostAddress([]net.IP{cip}, cert, conf.CertificateAuthorities)
 					log.Debugf("Using host address: %s", addr)
 				}

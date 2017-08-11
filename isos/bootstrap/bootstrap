@@ -72,9 +72,22 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     cp -a /lib/libm.* /lib/libm-* /lib/libgcc_s* /lib/libip*tc* /lib/libxtables* /lib/libdl* /lib/libc.so* /lib/libc-* ${MOUNTPOINT}/.tether/lib
     cp -a /lib64/ld-* ${MOUNTPOINT}/.tether/lib64
     cp -r /usr/lib/iptables ${MOUNTPOINT}/.tether/usr/lib/
-
     cp /lib/libhavege.so.1  ${MOUNTPOINT}/.tether/lib
     cp /usr/sbin/haveged ${MOUNTPOINT}/.tether/
+
+    # Create VIC chain
+    iptables -N VIC
+    # Set the default policy on all chains to drop traffic
+    iptables -P INPUT DROP
+    iptables -P OUTPUT DROP
+    iptables -P FORWARD DROP
+    # Direct any incoming/outgoing traffic immediately to VIC chain
+    iptables -A INPUT -j VIC
+    iptables -A OUTPUT -j VIC
+    # Always allow traffic on loopback interface
+    iptables -A INPUT -i lo -j ACCEPT
+    iptables -A OUTPUT -o lo -j ACCEPT
+    iptables -A FORWARD -i lo -o lo -j ACCEPT
 
     echo 'tether tmpfs size after copying libraries: '
     df -k ${MOUNTPOINT}/.tether

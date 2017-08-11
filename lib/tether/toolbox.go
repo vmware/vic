@@ -305,7 +305,9 @@ func toolboxOverrideArchiveWrite(u *url.URL, tw *tar.Writer) error {
 	diskLabel := u.Query().Get(vsphere.DiskLabelQueryName)
 	filterSpec := u.Query().Get(vsphere.FilterSpecQueryName)
 
+	// #nosec: Errors unhandled.
 	skiprecurse, _ := strconv.ParseBool(u.Query().Get(vsphere.SkipRecurseQueryName))
+	// #nosec: Errors unhandled.
 	skipdata, _ := strconv.ParseBool(u.Query().Get(vsphere.SkipDataQueryName))
 
 	if diskLabel != "" && filterSpec != "" {

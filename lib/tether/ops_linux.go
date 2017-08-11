@@ -448,6 +448,7 @@ func updateDefaultRoute(t Netlink, link netlink.Link, endpoint *NetworkEndpoint)
 		return nil
 	}
 
+	// #nosec: Errors unhandled.
 	_, defaultNet, _ := net.ParseCIDR("0.0.0.0/0")
 	// delete default route first
 	if err := t.RouteDel(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet}); err != nil {

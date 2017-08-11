@@ -288,6 +288,7 @@ func decodeSlice(src DataSource, dest reflect.Value, prefix string, depth recurs
 			}
 
 			var result reflect.Value
+			// #nosec: Errors unhandled.
 			result, _ = decode(src, cur, key, depth)
 			if result.IsValid() {
 				this.Index(i).Set(result)
@@ -354,6 +355,7 @@ func decodeMap(src DataSource, dest reflect.Value, prefix string, depth recursio
 
 		// check to see if the resulting object is not nil
 		// If it is nil, then there was nothing to decode and the pointer remains nil
+		// #nosec: Errors unhandled.
 		result, _ := decode(src, target, key, depth)
 		if result.IsValid() {
 			this.SetMapIndex(k, result)
@@ -442,6 +444,7 @@ func Decode(src DataSource, dest interface{}) interface{} {
 		return dest
 	}
 
+	// #nosec: Errors unhandled.
 	value, _ := decode(src, reflect.ValueOf(dest), DefaultPrefix, Unbounded)
 
 	return value.Interface()
@@ -455,6 +458,7 @@ func DecodeWithPrefix(src DataSource, dest interface{}, prefix string) interface
 		return dest
 	}
 
+	// #nosec: Errors unhandled.
 	value, _ := decode(src, reflect.ValueOf(dest), prefix, Unbounded)
 
 	return value.Interface()

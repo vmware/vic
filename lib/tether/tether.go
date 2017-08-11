@@ -649,6 +649,7 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 
 	// Remove associated PID file
 	cmdname := path.Base(session.Cmd.Path)
+	// #nosec: Errors unhandled.
 	_ = os.Remove(fmt.Sprintf("%s.pid", path.Join(PIDFileDir(), cmdname)))
 
 	// set the stop time

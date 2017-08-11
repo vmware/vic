@@ -16,7 +16,6 @@ package netfilter
 
 import (
 	"context"
-	"errors"
 	"os"
 	"os/exec"
 	"strconv"
@@ -102,23 +101,22 @@ type Rule struct {
 	FromPort, ToPort int
 }
 
-func (r *Rule) Commit(ctx context.Context) (tether.UtilityFn, error) {
-	args, err := r.args()
-	if err != nil {
-		return nil, err
-	}
-
-	return iptables(ctx, args)
+func (r *Rule) Commit(ctx context.Context) tether.UtilityFn {
+	return iptables(ctx, r.args())
 }
 
-func (r *Rule) args() ([]string, error) {
+func (r *Rule) args() []string {
 	var args []string
 
 	if r.Table != "" {
 		args = append(args, "-t", string(r.Table))
 	}
 
-	args = append(args, "-A", string(r.Chain))
+	if r.Chain == Input || r.Chain == Output {
+		args = append(args, "-A", "VIC")
+	} else {
+		args = append(args, "-A", string(r.Chain))
+	}
 
 	if r.Protocol != "" {
 		args = append(args, "-p", string(r.Protocol))
@@ -148,19 +146,16 @@ func (r *Rule) args() ([]string, error) {
 		}
 	}
 
-	if r.Target == "" {
-		return nil, errors.New("target cannot be empty")
-	}
 	args = append(args, "-j", string(r.Target))
 
 	if r.ToPort != 0 {
 		args = append(args, "--to-port", strconv.Itoa(r.ToPort))
 	}
 
-	return args, nil
+	return args
 }
 
-func iptables(ctx context.Context, args []string) (tether.UtilityFn, error) {
+func iptables(ctx context.Context, args []string) tether.UtilityFn {
 	logrus.Infof("Execing iptables %q", args)
 
 	// #nosec: Subprocess launching with variable
@@ -178,19 +173,23 @@ func iptables(ctx context.Context, args []string) (tether.UtilityFn, error) {
 			Dir: cmd.Dir,
 			Sys: cmd.SysProcAttr,
 		})
-	}, nil
+	}
 }
 
-func Flush(ctx context.Context, table string) (tether.UtilityFn, error) {
+func Flush(ctx context.Context, chain string) tether.UtilityFn {
 	args := []string{"-F"}
-	if table != "" {
-		args = append(args, "-t", table)
+	if chain != "" {
+		args = append(args, chain)
 	}
 
 	return iptables(ctx, args)
 }
 
-func Policy(ctx context.Context, chain Chain, target Target) (tether.UtilityFn, error) {
+func Return(ctx context.Context, chain string) tether.UtilityFn {
+	return iptables(ctx, []string{"-A", chain, "-j", "RETURN"})
+}
+
+func Policy(ctx context.Context, chain Chain, target Target) tether.UtilityFn {
 	return iptables(ctx, []string{"-P", string(chain), string(target)})
 }
 

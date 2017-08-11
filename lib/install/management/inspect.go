@@ -83,6 +83,7 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 
 	// try looking up preferred name, irrespective of CAs
 	if cert, err := conf.HostCertificate.X509Certificate(); err == nil {
+		// #nosec: Errors unhandled.
 		name, _ := viableHostAddress([]net.IP{clientIP}, cert, conf.CertificateAuthorities)
 		if name != "" {
 			log.Debugf("Retrieved proposed name from host certificate: %q", name)

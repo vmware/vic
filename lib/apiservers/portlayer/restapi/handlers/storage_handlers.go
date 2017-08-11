@@ -152,6 +152,7 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 		spl.RegisterExporter(op, dsurl.String(), vs)
 
 		// get the mangled store URLs that the cache uses
+		// #nosec: Errors unhandled.
 		cURL, _ := h.volumeCache.GetVolumeStore(op, name)
 		if cURL != nil {
 			spl.RegisterImporter(op, cURL.String(), vs)
@@ -572,11 +573,15 @@ func (h *StorageHandlersImpl) ImportArchive(params storage.ImportArchiveParams) 
 	}
 
 	err = store.Import(op, id, filterSpec, params.Archive)
-
 	if err != nil {
 		op.Errorf("import failed: %s", err)
+		// error checking for no such file/directory
 		if os.IsNotExist(err) {
 			return storage.NewImportArchiveNotFound()
+		}
+		// error checking for internal server error from toolbox
+		if vsphere.IsToolBoxStateChangeErr(err) {
+			return storage.NewImportArchiveConflict()
 		}
 		return storage.NewExportArchiveInternalServerError()
 	}
@@ -652,10 +657,9 @@ func (h *StorageHandlersImpl) StatPath(params storage.StatPathParams) middleware
 	if err != nil {
 		if os.IsNotExist(err) {
 			// would like to be able to differentiate between store and files, but....
-			op.Debugf("Stat target did not exit: %s", err)
+			op.Debugf("Stat target did not exist: %s", err)
 			return storage.NewStatPathNotFound()
 		}
-
 		op.Errorf("Error getting datasource stats: %s", err)
 		return storage.NewStatPathInternalServerError()
 	}

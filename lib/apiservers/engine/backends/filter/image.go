@@ -110,8 +110,10 @@ func IncludeImage(imgFilters filters.Args, listContext *ImageListContext) Filter
 		for _, ref := range refs {
 			for _, rf := range refFilters {
 				// match on complete ref ie. busybox:latest
+				// #nosec: Errors unhandled.
 				matchRef, _ := path.Match(rf, ref.String())
 				// match on repo only ie. busybox
+				// #nosec: Errors unhandled.
 				matchName, _ := path.Match(rf, ref.Name())
 				// if either matched then add to tag / digest
 				if matchRef || matchName {

@@ -46,6 +46,8 @@ func addInterface(name string, mocker *Mocker) string {
 }
 
 func TestOutboundRuleAndCmd(t *testing.T) {
+	t.Skip("https://github.com/vmware/vic/issues/5965")
+
 	mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 

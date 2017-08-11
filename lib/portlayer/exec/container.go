@@ -452,6 +452,7 @@ func (c *Container) onStop() {
 
 	log.Debugf("Container(%s) closing %d log followers", c.ExecConfig.ID, len(lf))
 	for _, l := range lf {
+		// #nosec: Errors unhandled.
 		_ = l.Close()
 	}
 }
@@ -475,9 +476,11 @@ func (c *Container) LogReader(ctx context.Context, tail int, follow bool, since 
 	var via string
 
 	if c.state == StateRunning && c.vm.IsVC() {
+		// #nosec: Errors unhandled.
 		hosts, _ := c.vm.Datastore.AttachedHosts(ctx)
 		if len(hosts) > 1 {
 			// In this case, we need download from the VM host as it owns the file lock
+			// #nosec: Errors unhandled.
 			h, _ := c.vm.HostSystem(ctx)
 			if h != nil {
 				ctx = c.vm.Datastore.HostContext(ctx, h)

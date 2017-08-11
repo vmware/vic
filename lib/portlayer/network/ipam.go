@@ -366,6 +366,7 @@ func (s *AddressSpace) ReleaseIP4Range(space *AddressSpace) error {
 	}
 
 	s.availableRanges = insertAddressRanges(s.availableRanges, i, space.availableRanges...)
+	// #nosec: Errors unhandled.
 	s.Defragment()
 	return nil
 }

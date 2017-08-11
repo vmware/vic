@@ -32,7 +32,9 @@ Set Test Environment Variables
     ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
 
     Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
-    Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
+    Set Environment Variable  GOVC_URL  %{TEST_URL}
+    Set Environment Variable  GOVC_USERNAME  %{TEST_USERNAME}
+    Set Environment Variable  GOVC_PASSWORD  %{TEST_PASSWORD}
     # TODO: need an integration/vic-test image update to include the about.cert command
     #${rc}  ${thumbprint}=  Run And Return Rc And Output  govc about.cert -k | jq -r .ThumbprintSHA1
     ${rc}  ${thumbprint}=  Run And Return Rc And Output  openssl s_client -connect $(govc env -x GOVC_URL_HOST):443 </dev/null 2>/dev/null | openssl x509 -fingerprint -noout | cut -d= -f2
@@ -49,6 +51,7 @@ Set Test Environment Variables
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_RESOURCE  ${host}/Resources
     Set Environment Variable  GOVC_RESOURCE_POOL  %{TEST_RESOURCE}
     ${noQuotes}=  Strip String  %{TEST_DATASTORE}  characters="
+    #"
     Set Environment Variable  GOVC_DATASTORE  ${noQuotes}
 
     ${about}=  Run  govc about

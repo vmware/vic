@@ -96,9 +96,11 @@ func GetMgmtIP() net.IPNet {
 
 func LinkByOneOfNameOrAlias(name ...string) netlink.Link {
 	for _, n := range name {
+		// #nosec: Errors unhandled.
 		if l, _ := netlink.LinkByName(n); l != nil {
 			return l
 		}
+		// #nosec: Errors unhandled.
 		if l, _ := netlink.LinkByAlias(n); l != nil {
 			return l
 		}
@@ -133,6 +135,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	} else {
 		v.VCHReachable = true
 		// Firewall status check
+		// #nosec: Errors unhandled.
 		v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
 		mgmtIP := GetMgmtIP()
 		log.Infof("Using management IP %s for firewall check", mgmtIP)

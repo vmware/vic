@@ -187,11 +187,13 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 	for i := range tags {
 		// remove from cache, but don't save -- we'll do that afer all
 		// updates
+		// #nosec: Errors unhandled.
 		refNamed, _ := cache.RepositoryCache().Remove(tags[i], false)
 		deletedRes = append(deletedRes, types.ImageDelete{Untagged: refNamed})
 	}
 
 	for i := range digests {
+		// #nosec: Errors unhandled.
 		refNamed, _ := cache.RepositoryCache().Remove(digests[i], false)
 		deletedRes = append(deletedRes, types.ImageDelete{Untagged: refNamed})
 	}
