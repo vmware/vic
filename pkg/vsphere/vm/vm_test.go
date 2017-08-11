@@ -50,15 +50,8 @@ func CreateVM(ctx context.Context, session *session.Session, host *object.HostSy
 		return nil, err
 	}
 
-	// Find the Virtual Machine folder that we use
-	folders, err := session.Datacenter.Folders(ctx)
-	if err != nil {
-		return nil, err
-	}
-	parent := folders.VmFolder
-
 	// Create the vm
-	task, err := parent.CreateVM(ctx, *linux.Spec().Spec(), session.Pool, host)
+	task, err := session.VMFolder.CreateVM(ctx, *linux.Spec().Spec(), session.Pool, host)
 	if err != nil {
 		return nil, err
 	}
