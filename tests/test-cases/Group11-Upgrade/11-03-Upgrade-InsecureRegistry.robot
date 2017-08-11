@@ -91,6 +91,8 @@ Cleanup Test Environment
 *** Test Cases ***
 Upgrade VCH with Harbor On HTTP
     Set Test Environment Variables
+    Cleanup Harbor  ${http_harbor_name}
+    Cleanup Harbor  ${https_harbor_name}
     Set Test Variable  ${harbor_name}  ${http_harbor_name}
     ${ip}=  Install Harbor To Test Server  ${harbor_name}
     Set Test Variable  ${harbor_ip}  ${ip}
@@ -108,6 +110,8 @@ Upgrade VCH with Harbor On HTTP
     Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
 
 Upgrade VCH with Harbor On HTTPS
+    Cleanup Harbor  ${http_harbor_name}
+    Cleanup Harbor  ${https_harbor_name}
     Set Test Variable  ${harbor_name}  ${https_harbor_name}
     ${ip}=  Install Harbor To Test Server  ${harbor_name}  https
     Set Test Variable  ${harbor_ip}  ${ip}
