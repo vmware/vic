@@ -25,6 +25,7 @@ Run Docker Info
 
 Pull image
     [Arguments]  ${image}
+    [Timeout]  10 minutes
     Log To Console  \nRunning docker pull ${image}...
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${image}
     Log  ${output}
