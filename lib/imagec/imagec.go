@@ -607,26 +607,8 @@ func (ic *ImageC) prepareTransfer(ctx context.Context) error {
 
 // pullManifest attempts to pull manifest for an image.  Attempts to get schema 2 but will fall back to schema 1.
 func (ic *ImageC) pullManifest(ctx context.Context) error {
-	// Attempt to get schema2 manifest
-	manifest, digest, err := FetchImageManifest(ctx, ic.Options, 2, ic.progressOutput)
-	if err == nil {
-		if schema2, ok := manifest.(*schema2.DeserializedManifest); ok {
-			if schema2 != nil {
-				log.Infof("pullManifest - schema 2: %#v", schema2)
-			}
-			ic.ImageManifestSchema2 = schema2
-
-			// Override the manifest digest as Docker uses schema 2, unless the image
-			// is pulled by digest since we only support pull-by-digest for schema 1.
-			// TODO(anchal): this check should be removed once issue #5187 is implemented.
-			if _, ok := ic.Reference.(reference.Canonical); !ok {
-				ic.ManifestDigest = digest
-			}
-		}
-	}
-
 	// Get the schema1 manifest
-	manifest, digest, err = FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
+	manifest, digest, err := FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
 	if err != nil {
 		log.Infof(err.Error())
 		switch err := err.(type) {
@@ -646,6 +628,24 @@ func (ic *ImageC) pullManifest(ctx context.Context) error {
 
 	ic.ImageManifestSchema1 = schema1
 	ic.ManifestDigest = digest
+
+	// Attempt to get schema2 manifest
+	manifest, digest, err = FetchImageManifest(ctx, ic.Options, 2, ic.progressOutput)
+	if err == nil {
+		if schema2, ok := manifest.(*schema2.DeserializedManifest); ok {
+			if schema2 != nil {
+				log.Infof("pullManifest - schema 2: %#v", schema2)
+			}
+			ic.ImageManifestSchema2 = schema2
+
+			// Override the manifest digest as Docker uses schema 2, unless the image
+			// is pulled by digest since we only support pull-by-digest for schema 1.
+			// TODO(anchal): this check should be removed once issue #5187 is implemented.
+			if _, ok := ic.Reference.(reference.Canonical); !ok {
+				ic.ManifestDigest = digest
+			}
+		}
+	}
 
 	return nil
 }

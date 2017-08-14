@@ -252,9 +252,6 @@ func saveImage(ap proxy.VicArchiveProxy, ic *imagec.ImageC) error {
 			}
 			filePath := path.Join(fileDir, cid+".tar")
 			log.Debugf("save layer %s to file %s", cid, filePath)
-			if pid == imagec.ScratchLayerID {
-				pid = ""
-			}
 			err = writeArchiveFile(ap, ic.ImageStore, ic.ImageStore, cid, pid, filePath)
 		}(layers[i].Parent, layers[i].ID)
 	}
@@ -304,7 +301,8 @@ func writeArchiveFile(archiveProxy proxy.VicArchiveProxy, store, ancestorStore, 
 
 	log.Infof("Obtain archive reader for layer %s, parent %s", layerID, ancestorID)
 
-	tarFile, err := os.OpenFile(archivePath, os.O_RDWR|os.O_CREATE, 0600)
+	// #nosec - there's nothing secret/sensitive about these image layer files
+	tarFile, err := os.OpenFile(archivePath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to create tmp file: %s", err.Error())
 		log.Info(msg)
