@@ -152,3 +152,9 @@ Pull images from gcr.io
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gcr.io/google_samples/gb-redisslave:v1
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gcr.io/google_samples/cassandra:v11
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gcr.io/google_samples/cassandra:v12
+
+Verify image manifest digest against vanilla docker
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox:1.26
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  sha256:be3c11fdba7cfe299214e46edc642e09514dbb9bbefcd0d3836c05a1e0cd0642
