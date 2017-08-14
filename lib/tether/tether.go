@@ -430,20 +430,6 @@ func (t *tether) processSessions() error {
 					extraconfig.EncodeWithPrefix(t.sink, session, extraconfig.CalculateKeys(t.config, fmt.Sprintf("%s.%s", session.extraconfigKey, id), "")[0])
 					log.Warnf("Re-launching process for session %s (count: %d)", id, session.Diagnostics.ResurrectionCount)
 					session.Cmd = *restartableCmd(&session.Cmd)
-
-					err := t.loggingLocked(session)
-					if err != nil {
-						log.Errorf("Re-initializing logging for session failed with %s", err)
-
-						resultsCh <- results{
-							id:    session.ID,
-							path:  session.Cmd.Path,
-							err:   t.launch(session),
-							fatal: m.fatal,
-						}
-						session.Unlock()
-						continue
-					}
 				}
 
 				wg.Add(1)
@@ -749,6 +735,15 @@ func (t *tether) launch(session *SessionConfig) error {
 			return err
 		}
 		session.Cmd.SysProcAttr = user
+	}
+
+	if session.Diagnostics.ResurrectionCount > 0 {
+		// override session logging only while it's restarted to avoid break exec #6004
+		err = t.loggingLocked(session)
+		if err != nil {
+			log.Errorf("initializing logging for session failed with %s", err)
+			return err
+		}
 	}
 
 	session.Cmd.Env = t.ops.ProcessEnv(session.Cmd.Env)
