@@ -4,6 +4,12 @@ After=permissions.service
 
 [Service]
 Type=idle
+
+LimitAS=infinity
+LimitRSS=infinity
+LimitCORE=infinity
+LimitNOFILE=65536
+
 # This is not configured for restart as currently vic-init isn't able to
 # reacquire knowledge about whether sessions are running.
 # Instead there is a top level trigger to restart the VM - reverting to
