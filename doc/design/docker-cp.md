@@ -29,7 +29,7 @@ Here is a more complex look at the call operation/state flow.
 | Import |  ContainerRunning | No | Single call from personality to portlayer. Guest tools will be used on the target rather than a `Write` |
 |  Import | ContainerRunning | Yes |  Single call from personality to portlayer. Guest tools will be used on the target rather than a `Write` |
 | Import | ContainerStopped |  No | Single call from personality to portlayer. `Write` will be used to mount the r/w layer and then write the contents based on the supplied filespec  |
-| Import | ContainerStopped | Yes |  Multiple calls from personality to portlayer. One for the r/w layer, and n more calls where n is the number of volumes. `Write` is invoked n+1 times based on each call from the personality. If the container is started during this time we cannot mount the volumes or the r/w layer and we will report a failure requesting the user to try again. Alternatively, we block start events until operation completetion. |
+| Import | ContainerStopped | Yes |  Multiple calls from personality to portlayer. One for the r/w layer, and n more calls where n is the number of volumes. `Write` is invoked n+1 times based on each call from the personality. If the container is started during this time we cannot mount the volumes or the r/w layer and we will report a failure requesting the user to try again. Alternatively, we block start events until operation completion. |
 
 
 ### Personality to Portlayer Communication
