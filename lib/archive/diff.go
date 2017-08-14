@@ -37,12 +37,40 @@ const (
 // CancelNotifyKey allows for a notification when cancelation is complete
 type CancelNotifyKey struct{}
 
+var (
+	seenFiles map[uint64]string
+)
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 // for sort.Sort
 type changesByPath []docker.Change
 
-func (c changesByPath) Less(i, j int) bool { return c[i].Path < c[j].Path }
-func (c changesByPath) Len() int           { return len(c) }
-func (c changesByPath) Swap(i, j int)      { c[j], c[i] = c[i], c[j] }
+// This will walk the two path components up to min(i, j) length.
+// If at any time those components do not match, a comparison of the non-matching
+// components is returned.
+// If the shorter path is a prefix of the longer path, the shorter path wins.
+func (c changesByPath) Less(i, j int) bool {
+	a := strings.Split(c[i].Path[1:], "/")
+	b := strings.Split(c[j].Path[1:], "/")
+
+	m := min(len(a), len(b))
+	for x := 0; x < m; x++ {
+		if a[x] != b[x] {
+			return a[x] < b[x]
+		}
+	}
+
+	return len(a) < len(b)
+}
+
+func (c changesByPath) Len() int      { return len(c) }
+func (c changesByPath) Swap(i, j int) { c[j], c[i] = c[i], c[j] }
 
 // Diff produces a tar archive containing the differences between two filesystems
 func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool, xattr bool) (io.ReadCloser, error) {
@@ -58,6 +86,7 @@ func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool
 	if err != nil {
 		return nil, err
 	}
+
 	sort.Sort(changesByPath(changes))
 
 	return Tar(op, newDir, changes, spec, data, xattr)
@@ -69,7 +98,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 		hdr *tar.Header
 	)
 
-	// NOTE(jzt): I don't like this as we've not assurance that it's appropriately buffered, but cannot think of a go-idomatic way to
+	// NOTE(hickeng): I don't like this as we've not assurance that it's appropriately buffered, but cannot think of a go-idomatic way to
 	// do better right now
 	var notify *sync.WaitGroup
 	n := op.Value(CancelNotifyKey{})
@@ -80,6 +109,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 			notify.Add(1)
 		}
 	}
+	seenFiles = make(map[uint64]string)
 
 	// Note: it is up to the caller to handle errors and the closing of the read side of the pipe
 	r, w := io.Pipe()
@@ -199,9 +229,9 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 		whiteOutBase := filepath.Base(change.Path)
 		whiteOut := filepath.Join(whiteOutDir, docker.WhiteoutPrefix+whiteOutBase)
 
-		// FIXME: consult @jzt about how strip should work here
 		hdr = &tar.Header{
 			ModTime:    timestamp,
+			Size:       0,
 			AccessTime: timestamp,
 			ChangeTime: timestamp,
 		}
@@ -210,26 +240,54 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 		strippedName := strings.TrimPrefix(whiteOut, spec.StripPath)
 		hdr.Name = filepath.Join(spec.RebasePath, strippedName)
 	default:
-		fi, err := os.Lstat(filepath.Join(dir, change.Path))
+		path := filepath.Join(dir, change.Path)
+		fi, err := os.Lstat(path)
 		if err != nil {
 			op.Errorf("Error getting file info: %s", err.Error())
 			return nil, err
 		}
 
-		link, err := os.Readlink(filepath.Join(dir, change.Path))
-		if err != nil {
-			link = change.Path
+		link := ""
+		if fi.Mode()&os.ModeSymlink != 0 {
+			if link, err = os.Readlink(path); err != nil {
+				return nil, err
+			}
 		}
+
 		hdr, err = tar.FileInfoHeader(fi, link)
 		if err != nil {
 			op.Errorf("Error getting file info header: %s", err.Error())
 			return nil, err
 		}
 
-		change.Path = strings.TrimPrefix(change.Path, "/")
-		strippedName := strings.TrimPrefix(change.Path, spec.StripPath)
-		change.Path = strings.TrimPrefix(change.Path, "/")
-		hdr.Name = filepath.Join(spec.RebasePath, strippedName)
+		name := strings.TrimPrefix(change.Path, "/")
+		name = strings.TrimPrefix(name, spec.StripPath)
+		name = filepath.Join(spec.RebasePath, name)
+
+		if fi.IsDir() && !strings.HasSuffix(change.Path, "/") {
+			name += "/"
+		}
+
+		hdr.Name = strings.TrimPrefix(name, "/")
+
+		inode, err := setHeaderForSpecialDevice(hdr, fi.Sys())
+		if err != nil {
+			return nil, err
+		}
+
+		// if it's not a directory and has more than 1 link,
+		// it's hard linked, so set the type flag accordingly
+		if !fi.IsDir() && hasHardlinks(fi) {
+			// a link should have a name that it links to
+			// and that linked name should be first in the tar archive
+			if oldpath, ok := seenFiles[inode]; ok {
+				hdr.Typeflag = tar.TypeLink
+				hdr.Linkname = oldpath
+				hdr.Size = 0 // This Must be here for the writer math to add up!
+			} else {
+				seenFiles[inode] = strings.TrimPrefix(name, "/")
+			}
+		}
 	}
 
 	if xattr {
