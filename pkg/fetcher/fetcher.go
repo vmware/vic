@@ -248,35 +248,40 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 
 	u.StatusCode = res.StatusCode
 
-	if u.options.Token == nil && u.IsStatusUnauthorized() {
-		hdr := res.Header.Get("www-authenticate")
-		if hdr == "" {
-			return nil, nil, fmt.Errorf("www-authenticate header is missing")
+	if u.IsNonretryableClientError() {
+		if u.options.Token == nil && u.IsStatusUnauthorized() {
+			hdr := res.Header.Get("www-authenticate")
+			if hdr == "" {
+				return nil, nil, fmt.Errorf("www-authenticate header is missing")
+			}
+			u.OAuthEndpoint, err = u.ExtractOAuthURL(hdr, url)
+			if err != nil {
+				return nil, nil, err
+			}
+			return nil, nil, DoNotRetry{Err: fmt.Errorf("Authentication required")}
 		}
-		u.OAuthEndpoint, err = u.ExtractOAuthURL(hdr, url)
-		if err != nil {
-			return nil, nil, err
+
+		if u.IsStatusNotFound() {
+			err = fmt.Errorf("Not found: %d, URL: %s", u.StatusCode, url)
+			return nil, nil, TagNotFoundError{Err: err}
 		}
-		return nil, nil, DoNotRetry{Err: fmt.Errorf("Authentication required")}
-	}
 
-	if u.IsStatusNotFound() {
-		err = fmt.Errorf("Not found: %d, URL: %s", u.StatusCode, url)
-		return nil, nil, TagNotFoundError{Err: err}
-	}
+		if u.IsStatusUnauthorized() {
+			hdr := res.Header.Get("www-authenticate")
 
-	if u.IsStatusUnauthorized() {
-		hdr := res.Header.Get("www-authenticate")
-
-		// check if image is non-existent (#757)
-		if strings.Contains(hdr, "error=\"insufficient_scope\"") {
-			err = fmt.Errorf("image not found")
-			return nil, nil, ImageNotFoundError{Err: err}
-		} else if strings.Contains(hdr, "error=\"invalid_token\"") {
-			return nil, nil, fmt.Errorf("not authorized")
-		} else {
-			return nil, nil, fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
+			// check if image is non-existent (#757)
+			if strings.Contains(hdr, "error=\"insufficient_scope\"") {
+				err = fmt.Errorf("image not found")
+				return nil, nil, ImageNotFoundError{Err: err}
+			} else if strings.Contains(hdr, "error=\"invalid_token\"") {
+				return nil, nil, fmt.Errorf("not authorized")
+			} else {
+				return nil, nil, fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
+			}
 		}
+
+		err = fmt.Errorf("Nonretryable error '%s (%d)': URL %s.", http.StatusText(u.StatusCode), u.StatusCode, url)
+		return nil, nil, DoNotRetry{Err: err}
 	}
 
 	// FIXME: handle StatusTemporaryRedirect and StatusFound
@@ -399,6 +404,14 @@ func (u *URLFetcher) IsStatusOK() bool {
 // IsStatusNotFound returns true if status code is StatusNotFound
 func (u *URLFetcher) IsStatusNotFound() bool {
 	return u.StatusCode == http.StatusNotFound
+}
+
+// IsNonretryableClientError returns true if status code is a nonretryable 4XX error. This includes
+// all 4XX errors except 'locked', and 'too many requests'.
+func (u *URLFetcher) IsNonretryableClientError() bool {
+	s := u.StatusCode
+	return 400 <= s && s < 500 &&
+		s != http.StatusLocked && s != http.StatusTooManyRequests
 }
 
 func (u *URLFetcher) setUserAgent(req *http.Request) {
