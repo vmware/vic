@@ -29,9 +29,11 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/property"
+	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
+	internal "github.com/vmware/vic/internal/govmomi"
 
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -256,19 +258,22 @@ func (vm *VirtualMachine) UUID(ctx context.Context) (string, error) {
 
 // DeleteExceptDisks destroys the VM after detaching all virtual disks
 func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*object.Task, error) {
-	devices, err := vm.Device(ctx)
+	h, err := vm.HostSystem(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	disks := devices.SelectByType(&types.VirtualDisk{})
-
-	err = vm.RemoveDevice(ctx, true, disks...)
+	icm, err := internal.NewHostInternalConfigManager(ctx, vm.Vim25(), h)
 	if err != nil {
 		return nil, err
 	}
 
-	return vm.Destroy(ctx)
+	v, err := vm.VMPathName(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return icm.Llpm.DeleteExceptDisks(ctx, v)
 }
 
 func (vm *VirtualMachine) VMPathName(ctx context.Context) (string, error) {
@@ -455,6 +460,17 @@ func (vm *VirtualMachine) needsFix(ctx context.Context, err error) bool {
 	if err == nil {
 		return false
 	}
+
+	// Special handling of ConcurrentAccess error
+	switch err := err.(type) {
+	case task.Error:
+		switch err.Fault().(type) {
+
+		case *types.ConcurrentAccess:
+			return false
+		}
+	}
+
 	if vm.IsInvalidState(ctx) {
 		log.Debugf("vm %s is invalid", vm.Reference())
 		return true

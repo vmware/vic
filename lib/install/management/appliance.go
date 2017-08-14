@@ -32,6 +32,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/davecgh/go-spew/spew"
 
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/opts"
@@ -191,17 +192,36 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		}
 	}
 
+	// if DeleteExceptDisks succeeds on VC, it leaves the VM orphan so we need to call Unregister
+	// if DeleteExceptDisks succeeds on ESXi, no further action needed
+	// if DeleteExceptDisks fails, we should call Unregister and only return an error if that fails too
 	_, err = vm.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return vm.DeleteExceptDisks(ctx)
 	})
 	if err != nil {
-		err = errors.Errorf("Failed to destroy VM %q: %s", vm.Reference(), err)
+		err = errors.Errorf("Failed to destroy VM %q %q: %s", d.getName(vm), vm.Reference(), err)
 		err2 := vm.Unregister(d.ctx)
 		if err2 != nil {
+			log.Errorf("Unregister error for vm %q %q is %q", d.getName(vm), vm.Reference(), spew.Sdump(err2))
 			return errors.Errorf("%s then failed to unregister VM: %s", err, err2)
 		}
 		log.Infof("Unregistered VM to cleanup after failed destroy: %q", vm.Reference())
 	}
+	if err == nil && d.isVC {
+		// FIXME (caglar10ur): Unregister can throw ConcurrentAccess fault, still debugging but we may end up ignoring it
+		if err := vm.Unregister(d.ctx); err != nil {
+			ok := false
+			if soap.IsSoapFault(err) {
+				// because internal
+				ok = soap.ToSoapFault(err).String == "vim.fault.ConcurrentAccess"
+			}
+			if !ok {
+				return fmt.Errorf("Failed to unregister VM %q: %s", vm.Reference(), err)
+			}
+			log.Debugf("Ignoring ConcurrentAccess error for %s", vm.Reference())
+		}
+	}
+
 	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
 		log.Warnf("Failed to remove datastore files for VM path %q: %s", folder, err)
 	}

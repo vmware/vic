@@ -36,6 +36,8 @@ import (
 )
 
 func TestDelete(t *testing.T) {
+	t.Skip("FIXME: Add internal methods to simulator")
+
 	log.SetLevel(log.DebugLevel)
 	trace.Logger.Level = log.DebugLevel
 	ctx := context.Background()
