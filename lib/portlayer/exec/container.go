@@ -466,7 +466,7 @@ func (c *Container) LogReader(ctx context.Context, tail int, follow bool, since 
 		return nil, fmt.Errorf("vm not set")
 	}
 
-	url, err := c.vm.DSPath(ctx)
+	url, err := c.vm.VMPathNameAsURL(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -554,7 +554,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	existingState := c.updateState(StateRemoving)
 
 	// get the folder the VM is in
-	url, err := c.vm.DSPath(ctx)
+	url, err := c.vm.VMPathNameAsURL(ctx)
 	if err != nil {
 
 		// handle the out-of-band removal case

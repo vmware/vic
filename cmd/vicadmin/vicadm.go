@@ -337,7 +337,7 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 
 	logfiles := []logfile{}
 	for _, child := range children {
-		path, err := child.DSPath(ctx)
+		path, err := child.VMPathNameAsURL(ctx)
 
 		if err != nil {
 			log.Errorf("Unable to get datastore path for child VM %s: %s", child.Reference(), err)
@@ -394,7 +394,7 @@ func addApplianceLogs(ctx context.Context, s *session.Session, readers map[strin
 	}
 
 	self2 := vm.NewVirtualMachineFromVM(ctx, s, self)
-	path, err := self2.DSPath(ctx)
+	path, err := self2.VMPathNameAsURL(ctx)
 	if err != nil {
 		return err
 	}
