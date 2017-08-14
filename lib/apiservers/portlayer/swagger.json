@@ -3298,6 +3298,12 @@
 						"type": "string"
 					}
 				},
+        "cmd": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
 				"annotations": {
 					"type": "object",
 					"additionalProperties": {

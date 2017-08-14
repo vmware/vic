@@ -30,6 +30,8 @@ import (
 	rc "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/swag"
 
+	"github.com/davecgh/go-spew/spew"
+
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	vicproxy "github.com/vmware/vic/lib/apiservers/engine/proxy"
@@ -289,7 +291,11 @@ func syncContainerCache() error {
 		if err = setPortMapping(info, backend, container); err != nil {
 			errs = append(errs, err.Error())
 		}
+		log.Debugf("%s ------> %s", info.ContainerConfig.Cmd, container.Config.Cmd)
+
+		log.Debugf("\n\n %s", spew.Sdump(container))
 	}
+
 	if len(errs) > 0 {
 		return errors.Errorf("Failed to set port mapping: %s", strings.Join(errs, "\n"))
 	}

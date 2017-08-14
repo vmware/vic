@@ -40,6 +40,7 @@ var (
 )
 
 func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSource, _ extraconfig.DataSink) error {
+	log.Info("Beginning initialization of portlayer exec component")
 	initializer.once.Do(func() {
 		var err error
 		defer func() {
@@ -124,9 +125,12 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		// sync container cache
 		vmSub.Suspend(true)
 		defer vmSub.Resume()
+		log.Info("Syncing container cache")
 		if err = Containers.sync(ctx, sess); err != nil {
+			log.Infof("Error encountered during container cache sync during init process: %s", err)
 			return
 		}
+
 	})
 
 	return initializer.err

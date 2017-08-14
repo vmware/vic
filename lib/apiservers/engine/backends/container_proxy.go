@@ -1794,6 +1794,7 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 	if info.ContainerConfig.LayerID != "" {
 		vc.LayerID = info.ContainerConfig.LayerID
 	}
+
 	if info.ContainerConfig.ImageID != "" {
 		vc.ImageID = info.ContainerConfig.ImageID
 	}
@@ -1817,6 +1818,9 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 		vc.HostConfig.Binds = append(vc.HostConfig.Binds, mount)
 		log.Debugf("add volume mount %s to config.volumes and hostconfig.binds", mount)
 	}
+
+	vc.Config.Cmd = info.ContainerConfig.Cmd
+
 	return vc
 }
 
