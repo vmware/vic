@@ -54,8 +54,8 @@ func TestMain(m *testing.M) {
 		"include/excludeme", "include/includeme",
 		"excludeme"}
 	files["removed"] = []string{"file2", "original/file1", "original/remove"}
-	files["excluded"] = []string{"exclude", "excludeme", "include/excludeme"}
-	files["included"] = []string{"exclude/includeme", "include"}
+	files["excluded"] = []string{"exclude/", "excludeme", "include/excludeme"}
+	files["included"] = []string{"exclude/includeme", "include/"}
 
 	newDir, err = ioutil.TempDir("", "mnt")
 	if err != nil {
@@ -72,7 +72,7 @@ func TestMain(m *testing.M) {
 	a = []byte("The mollusk lingers with its wandering eye\n")
 	b = []byte("The waking of all creatures that live on the land\n")
 
-	for _, dir := range []string{"original", "add", "exclude", "include"} {
+	for _, dir := range []string{"original/", "add/", "exclude/", "include/"} {
 		directories[dir] = struct{}{}
 		if err = os.Mkdir(filepath.Join(oldDir, dir), 0777); err != nil {
 			log.Errorf("Failed to add directory: %s", err.Error())
@@ -138,6 +138,10 @@ func TestDiff(t *testing.T) {
 
 	all := append(files["added"], append(files["changed"], files["included"]...)...)
 	for _, file := range all {
+		if strings.HasSuffix(file, "/") {
+			continue
+		}
+
 		f, ok := tarredFiles[file]
 		assert.True(t, ok, "Expected to find %s in tar archive", file)
 
@@ -269,7 +273,8 @@ func TestDiffFilterSpec(t *testing.T) {
 
 	filter := make(map[string]FilterType)
 	for _, path := range files["excluded"] {
-		filter[path] = Exclude
+		p := strings.TrimSuffix(path, "/")
+		filter[p] = Exclude
 	}
 	for _, path := range files["included"] {
 		filter[path] = Include
@@ -313,7 +318,7 @@ func TestDiffFilterSpec(t *testing.T) {
 
 		// don't try to check the contents if its a directory
 		if _, ok := directories[file]; !ok {
-			assert.Equal(t, b, f, "Expected file contents \"%s\", but found \"%s\"", b, f)
+			assert.Equal(t, b, f, "Expected file contents \"%s\" for %s, but found \"%s\"", b, file, f)
 		}
 	}
 	for _, file := range files["removed"] {
@@ -333,7 +338,8 @@ func TestDiffFilterSpecNoAncestor(t *testing.T) {
 
 	filter := make(map[string]FilterType)
 	for _, path := range files["excluded"] {
-		filter[path] = Exclude
+		p := strings.TrimSuffix(path, "/")
+		filter[p] = Exclude
 	}
 	for _, path := range files["included"] {
 		filter[path] = Include
@@ -403,7 +409,7 @@ func TestDiffFilterSpecRebase(t *testing.T) {
 	for _, path := range files["included"] {
 		filter[path] = Include
 	}
-	rebasePath := "/path/to/prefix"
+	rebasePath := "path/to/prefix"
 	filter[rebasePath] = Rebase
 
 	spec, err := CreateFilterSpec(op, filter)
@@ -432,7 +438,7 @@ func TestDiffFilterSpecRebase(t *testing.T) {
 		if _, err := io.Copy(buf, tr); !assert.NoError(t, err) {
 			return
 		}
-		tarredFiles[hdr.Name] = buf.Bytes()
+		tarredFiles[strings.TrimSuffix(hdr.Name, "/")] = buf.Bytes()
 	}
 
 	all := append(files["added"], files["included"]...)
@@ -474,7 +480,7 @@ func TestDiffFilterSpecRebaseNoData(t *testing.T) {
 	for _, path := range files["included"] {
 		filter[path] = Include
 	}
-	rebasePath := "/path/to/prefix"
+	rebasePath := "path/to/prefix"
 	filter[rebasePath] = Rebase
 
 	spec, err := CreateFilterSpec(op, filter)
@@ -505,7 +511,7 @@ func TestDiffFilterSpecRebaseNoData(t *testing.T) {
 			return
 		}
 		assert.EqualValues(t, 0, n, "Expected 0 bytes copied, got %d instead", n)
-		tarredFiles[hdr.Name] = struct{}{}
+		tarredFiles[strings.TrimSuffix(hdr.Name, "/")] = struct{}{}
 		changeTypes[hdr.Name] = hdr.Xattrs[ChangeTypeKey]
 	}
 
