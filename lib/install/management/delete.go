@@ -17,6 +17,7 @@ package management
 import (
 	"context"
 	"strings"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -191,6 +192,9 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 	defer trace.End(trace.Begin(conf.Name))
 
 	log.Infof("Removing VMs")
+
+	// serializes access to errs
+	var mu sync.Mutex
 	var errs []string
 
 	var err error
@@ -208,6 +212,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 		return err
 	}
 
+	var wg sync.WaitGroup
 	for _, child := range children {
 		//Leave VCH appliance there until everything else is removed, cause it has VCH configuration. Then user could retry delete in case of any failure.
 		ok, err := d.isVCH(child)
@@ -224,10 +229,17 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 			continue
 		}
 
-		if err = d.deleteVM(child, d.force); err != nil {
-			errs = append(errs, err.Error())
-		}
+		wg.Add(1)
+		go func(child *vm.VirtualMachine) {
+			defer wg.Done()
+			if err = d.deleteVM(child, d.force); err != nil {
+				mu.Lock()
+				errs = append(errs, err.Error())
+				mu.Unlock()
+			}
+		}(child)
 	}
+	wg.Wait()
 
 	if len(errs) > 0 {
 		log.Debugf("Error deleting container VMs %s", errs)
