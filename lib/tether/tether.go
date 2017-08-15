@@ -337,6 +337,12 @@ func (t *tether) initializeSessions() error {
 
 				session.wait = &sync.WaitGroup{}
 				session.extraconfigKey = name
+				err := t.loggingLocked(session)
+				if err != nil {
+					log.Errorf("initializing logging for session failed with %s", err)
+					session.Unlock()
+					return err
+				}
 			}
 			session.Unlock()
 		}
@@ -731,10 +737,13 @@ func (t *tether) launch(session *SessionConfig) error {
 		session.Cmd.SysProcAttr = user
 	}
 
-	err = t.loggingLocked(session)
-	if err != nil {
-		log.Errorf("initializing logging for session failed with %s", err)
-		return err
+	if session.Diagnostics.ResurrectionCount > 0 {
+		// override session logging only while it's restarted to avoid break exec #6004
+		err = t.loggingLocked(session)
+		if err != nil {
+			log.Errorf("initializing logging for session failed with %s", err)
+			return err
+		}
 	}
 
 	session.Cmd.Env = t.ops.ProcessEnv(session.Cmd.Env)
