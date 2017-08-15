@@ -133,6 +133,7 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 	}
 	defer vmdisk.Unmount(op)
 
+	// #nosec
 	err = os.Mkdir(filepath.Join(path, VolumeDataDir), 0755)
 	if err != nil {
 		return nil, err

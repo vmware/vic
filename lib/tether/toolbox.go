@@ -25,7 +25,6 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
-	"path"
 	"strconv"
 	"sync"
 	"syscall"
@@ -61,6 +60,7 @@ type Toolbox struct {
 
 var (
 	defaultArchiveHandler = hgfs.NewArchiveHandler().(*hgfs.ArchiveHandler)
+	baseOp                = &BaseOperations{}
 )
 
 // NewToolbox returns a tether.Extension that wraps the vsphere/toolbox service
@@ -278,7 +278,8 @@ func toolboxOverrideArchiveRead(u *url.URL, tr *tar.Reader) error {
 			op.Errorf(err.Error())
 			return err
 		}
-		diskPath, err := mountDiskLabel(diskLabel)
+
+		diskPath, err := mountDiskLabel(op, diskLabel)
 		if err != nil {
 			op.Errorf(err.Error())
 			return err
@@ -319,7 +320,7 @@ func toolboxOverrideArchiveWrite(u *url.URL, tw *tar.Writer) error {
 		}
 
 		// get the container fs mount
-		diskPath, err := mountDiskLabel(diskLabel)
+		diskPath, err := mountDiskLabel(op, diskLabel)
 		if err != nil {
 			op.Errorf(err.Error())
 			return err
@@ -377,24 +378,24 @@ func toolboxOverrideArchiveWrite(u *url.URL, tw *tar.Writer) error {
 	return defaultArchiveHandler.Write(u, tw)
 }
 
-func mountDiskLabel(label string) (string, error) {
+func mountDiskLabel(op trace.Operation, label string) (string, error) {
 	// We know the vmdk will always be attached at '/'
 	if label == "containerfs" {
 		return "/", nil
 	}
 
 	// otherwise, label represents a volume that needs to be mounted
-	path := path.Join("/dev/disk/by-label/", label)
-	_, err := os.Lstat(path)
-	// label does not exist
+	tmpDir, err := ioutil.TempDir("", fmt.Sprintf("toolbox-%s", label))
 	if err != nil {
-		return "", err
+		op.Errorf("failed to create mountpoint %s: %s", tmpDir, err)
+		return "", fmt.Errorf("failed to create mountpoint %s: %s", tmpDir, err)
 	}
 
-	// label exists, mount the device to a tmp directory
-	tmpDir, err := ioutil.TempDir("", fmt.Sprintf("toolbox-%s", label))
-	if err := Sys.Syscall.Mount(path, tmpDir, ext4FileSystemType, syscall.MS_NOATIME, ""); err != nil {
-		return "", fmt.Errorf("failed to mount %s to %s: %s", path, tmpDir, err)
+	err = baseOp.MountLabel(op, label, tmpDir)
+	if err != nil {
+		os.Remove(tmpDir)
+		op.Errorf("failed to mount label %s at %s: %s", label, tmpDir, err)
+		return "", fmt.Errorf("failed to mount label %s at %s: %s", label, tmpDir, err)
 	}
 
 	return tmpDir, nil
@@ -410,6 +411,7 @@ func unmount(op trace.Operation, unmountPath string) {
 	if err := Sys.Syscall.Unmount(unmountPath, syscall.MNT_DETACH); err != nil {
 		op.Errorf("failed to unmount %s: %s", unmountPath, err.Error())
 	}
+
 	// finally, remove the temporary directory
 	os.Remove(unmountPath)
 }

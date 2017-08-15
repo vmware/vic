@@ -735,36 +735,28 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 			return fmt.Errorf("unable to create mount point %s: %s", target, err)
 		}
 	}
-	// #nosec
-	if err := os.MkdirAll(bindTarget, 0744); err != nil {
-		return fmt.Errorf("unable to create mount point %s: %s", bindTarget, err)
-	}
 
 	// convert the label to a filesystem path
 	label = "/dev/disk/by-label/" + label
 
-	// do..while ! timedout
-	var timeout bool
-	for timeout = false; !timeout; {
-		_, err := os.Stat(label)
-		if err == nil || !os.IsNotExist(err) {
-			break
+	var e1, e2 error
+	_, e1 = os.Stat(bindTarget)
+	if e1 == nil {
+		// bindTarget exists, check whether or not bindTarget is a mount point
+		e2 = os.Remove(bindTarget)
+	}
+
+	if (e1 == nil && e2 == nil) || os.IsNotExist(e1) {
+		// #nosec
+		if err := os.MkdirAll(bindTarget, 0744); err != nil {
+			return fmt.Errorf("unable to create mount point %s: %s", bindTarget, err)
 		}
-
-		deadline, ok := ctx.Deadline()
-		timeout = ok && time.Now().After(deadline)
+		if err := mountDeviceLabel(ctx, label, bindTarget); err != nil {
+			return err
+		}
 	}
 
-	if timeout {
-		detail := fmt.Sprintf("timed out waiting for %s to appear", label)
-		return errors.New(detail)
-	}
-
-	if err := Sys.Syscall.Mount(label, bindTarget, ext4FileSystemType, syscall.MS_NOATIME, ""); err != nil {
-		// consistent with MountFileSystem
-		detail := fmt.Sprintf("mounting %s on %s failed: %s", label, target, err)
-		return errors.New(detail)
-	}
+	// at this point bindTarget should be mounted successfully
 
 	mntsrc := path.Join(bindTarget, volumeDataDir)
 	mnttype := "bind"
@@ -803,6 +795,34 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 			return fmt.Errorf("unable to change the owner of the mount point %s: %s", target, err)
 		}
 	}
+	return nil
+}
+
+// mountDeviceLabel mounts
+func mountDeviceLabel(ctx context.Context, label string, target string) error {
+	// do..while ! timedout
+	var timeout bool
+	for timeout = false; !timeout; {
+		_, err := os.Stat(label)
+		if err == nil || !os.IsNotExist(err) {
+			break
+		}
+
+		deadline, ok := ctx.Deadline()
+		timeout = ok && time.Now().After(deadline)
+	}
+
+	if timeout {
+		detail := fmt.Sprintf("timed out waiting for %s to appear", label)
+		return errors.New(detail)
+	}
+
+	if err := Sys.Syscall.Mount(label, target, ext4FileSystemType, syscall.MS_NOATIME, ""); err != nil {
+		// consistent with MountFileSystem
+		detail := fmt.Sprintf("Actual mount: mounting %s on %s failed: %s", label, target, err)
+		return errors.New(detail)
+	}
+
 	return nil
 }
 

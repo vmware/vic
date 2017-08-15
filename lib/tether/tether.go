@@ -37,8 +37,8 @@ import (
 
 	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/lib/config/executor"
-	"github.com/vmware/vic/lib/tether/shared"
 	"github.com/vmware/vic/lib/system"
+	"github.com/vmware/vic/lib/tether/shared"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/serial"

@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	VixEToolsNotRunning  = "(3016, 0)"
+	VixEToolsNotRunning = "(3016, 0)"
 )
 
 var (
