@@ -94,7 +94,7 @@ func (d *Dispatcher) createVApp(conf *config.VirtualContainerHostConfigSpec, set
 		},
 	}
 
-	app, err := d.session.Pool.CreateVApp(d.ctx, conf.Name, resSpec, configSpec, d.session.Folders(d.ctx).VmFolder)
+	app, err := d.session.Pool.CreateVApp(d.ctx, conf.Name, resSpec, configSpec, d.session.VMFolder)
 	if err != nil {
 		log.Debugf("Failed to create virtual app %q: %s", conf.Name, err)
 		return nil, err

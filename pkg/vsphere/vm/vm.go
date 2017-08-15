@@ -410,16 +410,11 @@ func (vm *VirtualMachine) LeaveFixingState() {
 // FixInvalidState fix vm invalid state issue through unregister & register
 func (vm *VirtualMachine) fixVM(ctx context.Context) error {
 	log.Debugf("Fix invalid state VM: %s", vm.Reference())
-	folders, err := vm.Session.Datacenter.Folders(ctx)
-	if err != nil {
-		log.Errorf("Unable to get vm folder: %s", err)
-		return err
-	}
 
 	properties := []string{"summary.config", "summary.runtime.host", "resourcePool", "parentVApp"}
 	log.Debugf("Get vm properties %s", properties)
 	var mvm mo.VirtualMachine
-	if err = vm.VirtualMachine.Properties(ctx, vm.Reference(), properties, &mvm); err != nil {
+	if err := vm.VirtualMachine.Properties(ctx, vm.Reference(), properties, &mvm); err != nil {
 		log.Errorf("Unable to get vm properties: %s", err)
 		return err
 	}
@@ -435,7 +430,7 @@ func (vm *VirtualMachine) fixVM(ctx context.Context) error {
 		return err
 	}
 
-	task, err := vm.registerVM(ctx, mvm.Summary.Config.VmPathName, name, mvm.ParentVApp, mvm.ResourcePool, mvm.Summary.Runtime.Host, folders.VmFolder)
+	task, err := vm.registerVM(ctx, mvm.Summary.Config.VmPathName, name, mvm.ParentVApp, mvm.ResourcePool, mvm.Summary.Runtime.Host, vm.Session.VMFolder)
 	if err != nil {
 		log.Errorf("Unable to register VM %q back: %s", name, err)
 		return err

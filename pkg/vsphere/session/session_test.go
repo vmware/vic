@@ -128,8 +128,7 @@ func TestFolder(t *testing.T) {
 	if session != nil {
 		defer session.Logout(ctx)
 
-		folders := session.Folders(ctx)
-		if folders == nil || folders.VmFolder == nil {
+		if session.VMFolder == nil {
 			t.Errorf("Get empty folder")
 		}
 	}

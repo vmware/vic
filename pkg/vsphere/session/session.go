@@ -81,9 +81,9 @@ type Session struct {
 	Host       *object.HostSystem
 	Pool       *object.ResourcePool
 
-	Finder *find.Finder
+	VMFolder *object.Folder
 
-	folders *object.DatacenterFolders
+	Finder *find.Finder
 }
 
 // NewSession creates a new Session struct. If config is nil,
@@ -284,6 +284,16 @@ func (s *Session) Populate(ctx context.Context) (*Session, error) {
 		log.Debugf("Cached pool: %s", s.PoolPath)
 	}
 
+	if s.Datacenter != nil {
+		folders, err := s.Datacenter.Folders(ctx)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("Failure finding folders (%s): %s", s.DatacenterPath, err.Error()))
+		} else {
+			log.Debugf("Cached folders: %s", s.DatacenterPath)
+		}
+		s.VMFolder = folders.VmFolder
+	}
+
 	if len(errs) > 0 {
 		log.Debugf("Error count populating vSphere cache: (%d)", len(errs))
 		return nil, errors.New(strings.Join(errs, "\n"))
@@ -306,20 +316,6 @@ func (s *Session) logEnvironmentInfo() {
 		"UUID":        a.InstanceUuid,
 	}).Debug("Session Environment Info: ")
 	return
-}
-
-func (s *Session) Folders(ctx context.Context) *object.DatacenterFolders {
-	var err error
-
-	if s.folders != nil {
-		return s.folders
-	}
-
-	if s.folders, err = s.Datacenter.Folders(ctx); err != nil {
-		return nil
-	}
-
-	return s.folders
 }
 
 func isNotAuthenticated(err error) bool {
