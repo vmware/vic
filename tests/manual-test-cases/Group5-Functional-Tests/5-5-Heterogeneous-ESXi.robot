@@ -40,7 +40,14 @@ Test
     ${output}=  Wait For Process  ${pid-vc}  timeout=40 minutes  on_timeout=terminate
     Log  ${output.stdout}
     Log  ${output.stderr}
-    Should Contain  ${output.stdout}  Overall Status: Succeeded
+    ${status}=  Run Keyword And Return Status  Should Contain  ${output.stdout}  Overall Status: Succeeded
+
+    # Try again, if the VC failed quickly we might have enough time to try again
+    ${pid-vc}=  Run Keyword Unless  ${status}  Deploy Nimbus vCenter Server Async  ${vc}
+    ${output}=  Run Keyword Unless  ${status}  Wait For Process  ${pid-vc}  timeout=40 minutes  on_timeout=terminate
+    Run Keyword Unless  ${status}  Log  ${output.stdout}
+    Run Keyword Unless  ${status}  Log  ${output.stderr}
+    Run Keyword Unless  ${status}  Should Contain  ${output.stdout}  Overall Status: Succeeded
 
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
