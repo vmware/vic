@@ -207,8 +207,9 @@ func createTestData(ctx context.Context, sess *session.Session, prefix string) e
 		kind = vappNode
 	}
 	for _, dc := range dcs {
-		sess.Finder.SetDatacenter(dc)
-		sess.Datacenter = dc
+		sess.Config.DatacenterPath = dc.InventoryPath
+		sess.Populate(ctx)
+
 		resources := &Node{
 			Kind: rpNode,
 			Name: prefix + "Root",
@@ -333,9 +334,8 @@ func createNodes(ctx context.Context, sess *session.Session, pool *object.Resour
 				VmPathName: fmt.Sprintf("[LocalDS_0] %s", node.Name),
 			},
 		}
-		folder := sess.Folders(ctx).VmFolder
 		if _, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-			return folder.CreateVM(ctx, config, pool, nil)
+			return sess.VMFolder.CreateVM(ctx, config, pool, nil)
 		}); err != nil {
 			return err
 		}

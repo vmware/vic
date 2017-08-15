@@ -172,7 +172,7 @@ func (vm *VirtualMachine) WaitForExtraConfig(ctx context.Context, waitFunc func(
 
 	// Wait on config.extraConfig
 	// https://www.vmware.com/support/developer/vc-sdk/visdk2xpubs/ReferenceGuide/vim.vm.ConfigInfo.html
-	err := property.Wait(ctx, p, vm.Reference(), []string{object.PropRuntimePowerState, "config.extraConfig"}, waitFunc)
+	err := property.Wait(ctx, p, vm.Reference(), []string{"config.extraConfig", object.PropRuntimePowerState}, waitFunc)
 	if err != nil {
 		log.Errorf("Property collector error: %s", err)
 		return err
@@ -203,8 +203,8 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 					}
 				}
 			case types.VirtualMachinePowerState:
+				// Give up if the vm has powered off
 				if v != types.VirtualMachinePowerStatePoweredOn {
-					// Give up if the vm has powered off
 					msg := "powered off"
 					if v == types.VirtualMachinePowerStateSuspended {
 						// Unlikely, but possible if the VM was suspended out-of-band
@@ -214,7 +214,6 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 					return true
 				}
 			}
-
 		}
 		return false
 	}
@@ -410,16 +409,11 @@ func (vm *VirtualMachine) LeaveFixingState() {
 // FixInvalidState fix vm invalid state issue through unregister & register
 func (vm *VirtualMachine) fixVM(ctx context.Context) error {
 	log.Debugf("Fix invalid state VM: %s", vm.Reference())
-	folders, err := vm.Session.Datacenter.Folders(ctx)
-	if err != nil {
-		log.Errorf("Unable to get vm folder: %s", err)
-		return err
-	}
 
 	properties := []string{"summary.config", "summary.runtime.host", "resourcePool", "parentVApp"}
 	log.Debugf("Get vm properties %s", properties)
 	var mvm mo.VirtualMachine
-	if err = vm.VirtualMachine.Properties(ctx, vm.Reference(), properties, &mvm); err != nil {
+	if err := vm.VirtualMachine.Properties(ctx, vm.Reference(), properties, &mvm); err != nil {
 		log.Errorf("Unable to get vm properties: %s", err)
 		return err
 	}
@@ -435,7 +429,7 @@ func (vm *VirtualMachine) fixVM(ctx context.Context) error {
 		return err
 	}
 
-	task, err := vm.registerVM(ctx, mvm.Summary.Config.VmPathName, name, mvm.ParentVApp, mvm.ResourcePool, mvm.Summary.Runtime.Host, folders.VmFolder)
+	task, err := vm.registerVM(ctx, mvm.Summary.Config.VmPathName, name, mvm.ParentVApp, mvm.ResourcePool, mvm.Summary.Runtime.Host, vm.Session.VMFolder)
 	if err != nil {
 		log.Errorf("Unable to register VM %q back: %s", name, err)
 		return err

@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/trace"
@@ -64,18 +63,9 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 				return Config.VirtualApp.CreateChildVM(ctx, *h.Spec.Spec(), nil)
 			})
 		} else {
-			// Find the Virtual Machine folder that we use
-			var folders *object.DatacenterFolders
-			folders, err = sess.Datacenter.Folders(ctx)
-			if err != nil {
-				log.Errorf("Could not get folders")
-				return err
-			}
-			parent := folders.VmFolder
-
 			// Create the vm
 			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-				return parent.CreateVM(ctx, *h.Spec.Spec(), Config.ResourcePool, nil)
+				return sess.VMFolder.CreateVM(ctx, *h.Spec.Spec(), Config.ResourcePool, nil)
 			})
 		}
 
