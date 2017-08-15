@@ -16,6 +16,7 @@
 Documentation  Test 5-4 - High Availability
 Resource  ../../resources/Util.robot
 Suite Teardown  Nimbus Cleanup  ${list}
+Test Teardown  Run Keyword If Test Failed  Gather Logs From Test Server
 
 *** Variables ***
 ${esx_number}=  3
