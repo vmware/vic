@@ -121,7 +121,6 @@ func isRetryError(op trace.Operation, err error) bool {
 		default:
 			logSoapFault(op, f)
 			return false
-
 		}
 	}
 
@@ -154,20 +153,18 @@ func isRetryError(op trace.Operation, err error) bool {
 			return true
 		default:
 			logFault(op, err.Fault())
+			return false
 		}
 	default:
-		if f, ok := err.(types.HasFault); ok {
-			logFault(op, f.Fault())
-		} else {
-			// retry the temporary errors
-			t, ok := err.(temporary)
-			if ok && t.Temporary() {
-				return true
-			}
-			logError(op, err)
+		// retry the temporary errors
+		t, ok := err.(temporary)
+		if ok && t.Temporary() {
+			logExpectedError(op, err)
+			return true
 		}
+		logError(op, err)
+		return false
 	}
-	return false
 }
 
 // Helper Functions
@@ -185,4 +182,8 @@ func logError(op trace.Operation, err error) {
 
 func logExpectedFault(op trace.Operation, kind string, fault interface{}) {
 	op.Debugf("task retry on expected %s fault: %#v", kind, fault)
+}
+
+func logExpectedError(op trace.Operation, err error) {
+	op.Debugf("task retry on expected error %s", err)
 }
