@@ -17,6 +17,9 @@ package restapi
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
+	errs "errors"
+	"io"
 	"net/http"
 	"time"
 
@@ -26,6 +29,7 @@ import (
 	"github.com/go-openapi/swag"
 	"github.com/tylerb/graceful"
 
+	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/handlers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
@@ -112,11 +116,11 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 	// configure the api here
 	api.ServeError = errors.ServeError
 
-	api.BinConsumer = runtime.ByteStreamConsumer()
+	api.BinConsumer = ByteStreamConsumer()
 	api.JSONConsumer = runtime.JSONConsumer()
 	api.TarConsumer = runtime.ByteStreamConsumer()
 
-	api.BinProducer = runtime.ByteStreamProducer()
+	api.BinProducer = ByteStreamProducer()
 	api.JSONProducer = runtime.JSONProducer()
 	api.TarProducer = runtime.ByteStreamProducer()
 	api.TxtProducer = runtime.TextProducer()
@@ -162,4 +166,39 @@ func setupMiddlewares(handler http.Handler) http.Handler {
 // So this is a good place to plug in a panic handling middleware, logging and metrics
 func setupGlobalMiddleware(handler http.Handler) http.Handler {
 	return handler
+}
+
+func ByteStreamConsumer() runtime.Consumer {
+	wrapped := runtime.ByteStreamConsumer()
+	return runtime.ConsumerFunc(func(reader io.Reader, data interface{}) error {
+		if reader == nil {
+			return errs.New("ByteStreamConsumer requires a reader") // early exit
+		}
+
+		if er, ok := data.(*models.Error); ok {
+			dec := json.NewDecoder(reader)
+			return dec.Decode(er)
+		}
+
+		return wrapped.Consume(reader, data)
+	})
+}
+
+// ByteStreamProducer creates a producer for byte streams,
+// takes a Reader/BinaryMarshaler interface or binary slice,
+// and writes to a writer (essentially a pipe)
+func ByteStreamProducer() runtime.Producer {
+	wrapped := runtime.ByteStreamProducer()
+	return runtime.ProducerFunc(func(writer io.Writer, data interface{}) error {
+		if writer == nil {
+			return errs.New("ByteStreamProducer requires a writer") // early exit
+		}
+
+		if er, ok := data.(*models.Error); ok {
+			enc := json.NewEncoder(writer)
+			return enc.Encode(er)
+		}
+
+		return wrapped.Produce(writer, data)
+	})
 }
