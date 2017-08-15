@@ -480,9 +480,8 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		})
 	} else {
 		// if vapp is not created, fall back to create VM under default resource pool
-		folder := d.session.Folders(d.ctx).VmFolder
 		info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-			return folder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
+			return d.session.VMFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
 		})
 	}
 
