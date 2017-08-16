@@ -29,6 +29,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/property"
+	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
@@ -262,10 +263,21 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*object.Task, 
 	}
 
 	disks := devices.SelectByType(&types.VirtualDisk{})
-
 	err = vm.RemoveDevice(ctx, true, disks...)
 	if err != nil {
-		return nil, err
+		switch f := err.(type) {
+		case task.Error:
+			switch f.Fault().(type) {
+			case *types.ConcurrentAccess:
+				log.Errorf("RemoveDevice failed for %s with ConcurrentAccess error. Ignoring it", vm)
+			default:
+				log.Errorf("RemoveDevice failed for %s", vm)
+				return nil, err
+			}
+		default:
+			log.Errorf("RemoveDevice failed for %s", vm)
+			return nil, err
+		}
 	}
 
 	return vm.Destroy(ctx)

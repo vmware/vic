@@ -596,6 +596,8 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 				log.Errorf("Error while attempting to unregister container VM: %s", err)
 				return err
 			}
+		case *types.ConcurrentAccess:
+			log.Warnf("DeleteExceptDisks failed with ConcurrentAccess error. Ignoring it.")
 		default:
 			log.Debugf("Fault while attempting to destroy vm: %#v", f.Fault())
 			c.updateState(existingState)

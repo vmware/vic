@@ -61,7 +61,6 @@ func Wait(ctx context.Context, f func(context.Context) (Task, error)) error {
 //    })
 func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (*types.TaskInfo, error) {
 	var err error
-	var info *types.TaskInfo
 	var backoffFactor int64 = 1
 
 	op, err := trace.FromContext(ctx)
@@ -71,10 +70,11 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 
 	for {
 		var t Task
+		var info *types.TaskInfo
+
 		if t, err = f(op); err == nil {
-			info, err = t.WaitForResult(op, nil)
-			if err == nil {
-				return info, err
+			if info, err = t.WaitForResult(op, nil); err == nil {
+				return info, nil
 			}
 		}
 
