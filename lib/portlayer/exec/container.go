@@ -546,7 +546,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 
 	// check state first
 	if c.state == StateRunning {
-		return RemovePowerError{fmt.Errorf("Container is powered on")}
+		return RemovePowerError{fmt.Errorf("Container %s is already powered on", c.ExecConfig.ID)}
 	}
 
 	// get existing state and set to removing
@@ -579,8 +579,11 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	// enable Destroy
 	c.vm.EnableDestroy(ctx)
 
-	//removes the vm from vsphere, but detaches the disks first
+	// if DeleteExceptDisks succeeds on VC, it leaves the VM orphan so we need to call Unregister
+	// if DeleteExceptDisks succeeds on ESXi, no further action needed
+	// if DeleteExceptDisks fails, we should call Unregister and only return an error if that fails too
 	_, err = c.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+		//removes the vm from vsphere, but detaches the disks first
 		return c.vm.DeleteExceptDisks(ctx)
 	})
 	if err != nil {
@@ -591,7 +594,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 		}
 		switch f.Fault().(type) {
 		case *types.InvalidState:
-			log.Warnf("container VM is in invalid state, unregistering")
+			log.Warnf("Container %s is in invalid state, unregistering", c.ExecConfig.ID)
 			if err := c.vm.Unregister(ctx); err != nil {
 				log.Errorf("Error while attempting to unregister container VM: %s", err)
 				return err
@@ -600,6 +603,20 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 			log.Debugf("Fault while attempting to destroy vm: %#v", f.Fault())
 			c.updateState(existingState)
 			return err
+		}
+	}
+	if err == nil && c.vm.IsVC() {
+		// FIXME (caglar10ur): Unregister can throw ConcurrentAccess fault, still debugging but we may end up ignoring it
+		if err := c.vm.Unregister(ctx); err != nil {
+			ok := false
+			if soap.IsSoapFault(err) {
+				// because internal
+				ok = soap.ToSoapFault(err).String == "vim.fault.ConcurrentAccess"
+			}
+			if !ok {
+				return fmt.Errorf("Failed to unregister VM %q: %s", c.ExecConfig.ID, err)
+			}
+			log.Debugf("Ignoring ConcurrentAccess error for %s", c.ExecConfig.ID)
 		}
 	}
 
