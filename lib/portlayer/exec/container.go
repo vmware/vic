@@ -597,6 +597,8 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 				return err
 			}
 		case *types.ConcurrentAccess:
+			// We are getting ConcurrentAccess errors from DeleteExceptDisks - even though we don't set ChangeVersion in that path
+			// We are ignoring the error because in reality the operation finishes successfully.
 			log.Warnf("DeleteExceptDisks failed with ConcurrentAccess error. Ignoring it.")
 		default:
 			log.Debugf("Fault while attempting to destroy vm: %#v", f.Fault())

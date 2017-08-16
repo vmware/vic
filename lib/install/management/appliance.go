@@ -195,23 +195,24 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	_, err = vm.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return vm.DeleteExceptDisks(ctx)
 	})
+	// We are getting ConcurrentAccess errors from DeleteExceptDisks - even though we don't set ChangeVersion in that path
+	// We are ignoring the error because in reality the operation finishes successfully.
+	ignore := false
 	if err != nil {
-		f, ok := err.(types.HasFault)
-		if !ok {
-			return err
-		}
-		switch f.Fault().(type) {
-		case *types.InvalidState:
-			log.Warnf("Container VM is in invalid state, unregistering")
-			if err := vm.Unregister(d.ctx); err != nil {
-				log.Errorf("Error while attempting to unregister container VM: %s", err)
-				return err
+		if f, ok := err.(types.HasFault); ok {
+			switch f.Fault().(type) {
+			case *types.ConcurrentAccess:
+				log.Warnf("DeleteExceptDisks failed with ConcurrentAccess error. Ignoring it.")
+				ignore = true
 			}
-		case *types.ConcurrentAccess:
-			log.Warnf("DeleteExceptDisks failed with ConcurrentAccess error. Ignoring it.")
-		default:
-			log.Debugf("Fault while attempting to destroy vm: %#v", f.Fault())
-			return err
+		}
+		if !ignore {
+			err = errors.Errorf("Failed to destroy VM %q: %s", vm.Reference(), err)
+			err2 := vm.Unregister(d.ctx)
+			if err2 != nil {
+				return errors.Errorf("%s then failed to unregister VM: %s", err, err2)
+			}
+			log.Infof("Unregistered VM to cleanup after failed destroy: %q", vm.Reference())
 		}
 	}
 
