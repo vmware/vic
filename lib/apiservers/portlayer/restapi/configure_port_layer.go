@@ -18,7 +18,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	errs "errors"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -116,13 +116,15 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 	// configure the api here
 	api.ServeError = errors.ServeError
 
+	// FIXME: after updated go-openapi/runtime vendor code, revert ByteStreamConsumer() back to runtime.ByteStreamConsumer()
 	api.BinConsumer = ByteStreamConsumer()
 	api.JSONConsumer = runtime.JSONConsumer()
-	api.TarConsumer = runtime.ByteStreamConsumer()
+	api.TarConsumer = ByteStreamConsumer()
 
+	// FIXME: after updated go-openapi/runtime vendor code, revert ByteStreamProducer() back to runtime.ByteStreamProducer()
 	api.BinProducer = ByteStreamProducer()
 	api.JSONProducer = runtime.JSONProducer()
-	api.TarProducer = runtime.ByteStreamProducer()
+	api.TarProducer = ByteStreamProducer()
 	api.TxtProducer = runtime.TextProducer()
 
 	handlerCtx := &handlers.HandlerContext{
@@ -168,11 +170,13 @@ func setupGlobalMiddleware(handler http.Handler) http.Handler {
 	return handler
 }
 
+// FIXME: to avoid update go-openapi/runtime vendor code at this time, write our own
+// ByteStreamConsumer to read back encoded json format error message
 func ByteStreamConsumer() runtime.Consumer {
 	wrapped := runtime.ByteStreamConsumer()
 	return runtime.ConsumerFunc(func(reader io.Reader, data interface{}) error {
 		if reader == nil {
-			return errs.New("ByteStreamConsumer requires a reader") // early exit
+			return fmt.Errorf("ByteStreamConsumer requires a reader") // early exit
 		}
 
 		if er, ok := data.(*models.Error); ok {
@@ -184,14 +188,13 @@ func ByteStreamConsumer() runtime.Consumer {
 	})
 }
 
-// ByteStreamProducer creates a producer for byte streams,
-// takes a Reader/BinaryMarshaler interface or binary slice,
-// and writes to a writer (essentially a pipe)
+// FIXME: to avoid update go-openapi/runtime vendor code at this time, write our own
+// ByteStreamProducer to encode error to json string
 func ByteStreamProducer() runtime.Producer {
 	wrapped := runtime.ByteStreamProducer()
 	return runtime.ProducerFunc(func(writer io.Writer, data interface{}) error {
 		if writer == nil {
-			return errs.New("ByteStreamProducer requires a writer") // early exit
+			return fmt.Errorf("ByteStreamProducer requires a writer") // early exit
 		}
 
 		if er, ok := data.(*models.Error); ok {
