@@ -757,7 +757,6 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 	}
 
 	// at this point bindTarget should be mounted successfully
-
 	mntsrc := path.Join(bindTarget, volumeDataDir)
 	mnttype := "bind"
 	mntflags := uintptr(syscall.MS_BIND)
@@ -798,23 +797,23 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 	return nil
 }
 
-// mountDeviceLabel mounts
+// mountDeviceLabel mounts the device to target
 func mountDeviceLabel(ctx context.Context, label string, target string) error {
-	// do..while ! timedout
-	var timeout bool
-	for timeout = false; !timeout; {
-		_, err := os.Stat(label)
-		if err == nil || !os.IsNotExist(err) {
-			break
+	// wait for device label to show up until the ctx deadline exceeds.
+WaitForDevice:
+	for {
+		select {
+		case <-ctx.Done():
+			detail := fmt.Sprintf("timed out waiting for %s to appear", label)
+			return errors.New(detail)
+		default:
+			_, err := os.Stat(label)
+			if err == nil || !os.IsNotExist(err) {
+				break WaitForDevice
+			}
+			// sleep for 1 ms to reduce pressure on cpu
+			time.Sleep(time.Millisecond)
 		}
-
-		deadline, ok := ctx.Deadline()
-		timeout = ok && time.Now().After(deadline)
-	}
-
-	if timeout {
-		detail := fmt.Sprintf("timed out waiting for %s to appear", label)
-		return errors.New(detail)
 	}
 
 	if err := Sys.Syscall.Mount(label, target, ext4FileSystemType, syscall.MS_NOATIME, ""); err != nil {
