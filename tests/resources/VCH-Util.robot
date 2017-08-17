@@ -70,6 +70,8 @@ Set Test Environment Variables
     Run Keyword If  $domain != ''  Set Suite Variable  ${vicmachinetls}  --tls-cname=*.${domain}
 
     Set Test VCH Name
+    # cleanup any potential old certs directories
+    Remove Directory  %{VCH-NAME}  recursive=${true}
     # Set a unique bridge network for each VCH that has a random VLAN ID
     ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitchLAN %{VCH-NAME}-bridge
