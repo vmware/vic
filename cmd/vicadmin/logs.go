@@ -20,11 +20,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 	"path"
-	"strings"
 	"sync"
 	"time"
 
@@ -104,28 +102,12 @@ func (r dlogReader) open() (entry, error) {
 // cross process synchronization.
 func logFiles() []string {
 	defer trace.End(trace.Begin(""))
-	files, err := ioutil.ReadDir(logFileDir)
-	if err != nil {
-		log.Errorf("Failed to get a list of log files: %s", err)
-		return nil
-	}
 
 	names := []string{}
-	for _, fileInfo := range files {
-		if fileInfo.IsDir() {
-			continue
-		}
-		fname := fileInfo.Name()
-		log.Debugf("Found potential file for export: %s", fname)
-
-		for _, f := range logFileListPrefixes {
-			if strings.HasPrefix(fname, f) {
-				fp := filepath.Join(logFileDir, fname)
-				log.Debugf("Adding file for export: %s", fp)
-				names = append(names, fp)
-				break
-			}
-		}
+	for _, f := range logFileList {
+		fp := filepath.Join(logFileDir, f)
+		log.Debugf("Adding file for export: %s", fp)
+		names = append(names, fp)
 	}
 
 	return names

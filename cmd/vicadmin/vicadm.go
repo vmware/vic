@@ -70,8 +70,8 @@ type vicAdminConfig struct {
 }
 
 var (
-	logFileDir          = "/var/log/vic"
-	logFileListPrefixes = []string{
+	logFileDir  = "/var/log/vic"
+	logFileList = []string{
 		"docker-personality.log",
 		"port-layer.log",
 		"vicadmin.log",
