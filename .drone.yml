@@ -91,6 +91,8 @@ pipeline:
       - make mark
       - tests/integration-test.sh
       - make sincemark
+    volumes:
+      - /tmp
     when:
       status:  success
 
