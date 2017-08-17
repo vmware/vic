@@ -30,7 +30,7 @@ Simple docker volume create
     Should Not Contain  ${output}  Error response from daemon
     ${rc}  ${disk-size}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${ContainerName} | grep by-label | awk '{print $2}'
     Should Be Equal As Integers  ${rc}  0
-    Should Be Equal As Strings  ${disk-size}  975.9M
+    Should Contain  ${disk-size}  975.9M
 
 Simple volume mounted over managed files
     ${status}=  Get State Of Github Issue  5731
@@ -54,7 +54,7 @@ Docker volume create named volume
     Should Not Contain  ${output}  Error response from daemon
     ${rc}  ${disk-size}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${ContainerName} | grep by-label | awk '{print $2}'
     Should Be Equal As Integers  ${rc}  0
-    Should Be Equal As Strings  ${disk-size}  975.9M
+    Should Contain  ${disk-size}  975.9M
 
 Docker volume create image volume
     Set Suite Variable  ${ContainerName}  imageVolContainer
@@ -110,7 +110,7 @@ Docker volume create with mis-capitalized valid driver option
     Should Not Contain  ${output}  Error response from daemon
     ${rc}  ${disk-size}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${ContainerName} | grep by-label | awk '{print $2}'
     Should Be Equal As Integers  ${rc}  0
-    Should Be Equal As Strings  ${disk-size}  9.5G
+    Should Contain  ${disk-size}  9.5G
 
 Docker volume create with specific capacity no units
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=test5 --opt Capacity=100000
@@ -124,7 +124,7 @@ Docker volume create with specific capacity no units
     Should Not Contain  ${output}  Error response from daemon
     ${rc}  ${disk-size}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${ContainerName} | grep by-label | awk '{print $2}'
     Should Be Equal As Integers  ${rc}  0
-    Should Be Equal As Strings  ${disk-size}  96.0G
+    Should Contain  ${disk-size}  96.0G
 
 Docker volume create large volume specifying units
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=unitVol1 --opt Capacity=10G
@@ -137,7 +137,7 @@ Docker volume create large volume specifying units
     Should Be Equal As Integers  ${ContainerRC}  0
     Should Not Contain  ${output}  Error response from daemon
     ${disk-size}=  Run  docker %{VCH-PARAMS} logs ${ContainerName} | grep by-label | awk '{print $2}'
-    Should Be Equal As Strings  ${disk-size}  9.5G
+    Should Contain  ${disk-size}  9.5G
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=unitVol2 --opt Capacity=10000
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${output}  unitVol2
@@ -148,7 +148,7 @@ Docker volume create large volume specifying units
     Should Be Equal As Integers  ${ContainerRC}  0
     Should Not Contain  ${output}  Error response from daemon
     ${disk-size}=  Run  docker %{VCH-PARAMS} logs ${ContainerName} | grep by-label | awk '{print $2}'
-    Should Be Equal As Strings  ${disk-size}  9.5G
+    Should Contain  ${disk-size}  9.5G
 
 Docker volume create with zero capacity
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=test5 --opt Capacity=0
