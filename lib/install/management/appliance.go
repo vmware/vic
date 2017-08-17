@@ -191,17 +191,31 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		}
 	}
 
+	//removes the vm from vsphere, but detaches the disks first
 	_, err = vm.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return vm.DeleteExceptDisks(ctx)
 	})
+	// We are getting ConcurrentAccess errors from DeleteExceptDisks - even though we don't set ChangeVersion in that path
+	// We are ignoring the error because in reality the operation finishes successfully.
+	ignore := false
 	if err != nil {
-		err = errors.Errorf("Failed to destroy VM %q: %s", vm.Reference(), err)
-		err2 := vm.Unregister(d.ctx)
-		if err2 != nil {
-			return errors.Errorf("%s then failed to unregister VM: %s", err, err2)
+		if f, ok := err.(types.HasFault); ok {
+			switch f.Fault().(type) {
+			case *types.ConcurrentAccess:
+				log.Warnf("DeleteExceptDisks failed with ConcurrentAccess error. Ignoring it.")
+				ignore = true
+			}
 		}
-		log.Infof("Unregistered VM to cleanup after failed destroy: %q", vm.Reference())
+		if !ignore {
+			err = errors.Errorf("Failed to destroy VM %q: %s", vm.Reference(), err)
+			err2 := vm.Unregister(d.ctx)
+			if err2 != nil {
+				return errors.Errorf("%s then failed to unregister VM: %s", err, err2)
+			}
+			log.Infof("Unregistered VM to cleanup after failed destroy: %q", vm.Reference())
+		}
 	}
+
 	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
 		log.Warnf("Failed to remove datastore files for VM path %q: %s", folder, err)
 	}
