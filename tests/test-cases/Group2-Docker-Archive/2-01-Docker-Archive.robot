@@ -40,10 +40,12 @@ Compare Tar File Content
     ${out}=  Run  cat /tmp/compare/${image}/b
     Log  ${out}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  diff /tmp/compare/${image}/a /tmp/compare/${image}/b
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    Should Be Empty  ${output}
+    ${status}=  Get State Of Github Issue  5997
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 2-01-Docker-Archive.robot needs to be updated now that Issue #5997 has been resolved
+    #${rc}  ${output}=  Run And Return Rc And Output  diff /tmp/compare/${image}/a /tmp/compare/${image}/b
+    #Log  ${output}
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Be Empty  ${output}
 
 Compare Files Digest in Tar
     [Arguments]  ${image}  ${tarA}  ${tarB}
@@ -110,5 +112,7 @@ Compare Ubuntu Image Archive
     Compare Images  ${ubuntu}
 
 Compare Postgres Image Archive
-    Archive Download  postgres:9.4
-    Compare Images  postgres:9.4
+    ${status}=  Get State Of Github Issue  6059
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 2-01-Docker-Archive.robot needs to be updated now that Issue #6059 has been resolved
+    #Archive Download  postgres:9.4
+    #Compare Images  postgres:9.4
