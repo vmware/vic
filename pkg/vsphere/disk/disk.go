@@ -45,7 +45,7 @@ const (
 	diskBindBase = "/.filesystem-by-label/"
 
 	// used to isolate applications from the lost+found in the root of ext4
-	volumeDataDir = "/.vic.vol.data"
+	VolumeDataDir = "/.vic.vol.data"
 )
 
 // Filesystem defines the interface for handling an attached virtual disk
@@ -283,7 +283,7 @@ func (d *VirtualDisk) Mount(op trace.Operation, options []string) (string, error
 		}
 
 		// then mount it at the correct source
-		if strings.HasSuffix(mntsrc, volumeDataDir) {
+		if strings.HasSuffix(mntsrc, VolumeDataDir) {
 			// append bind mount options if we are masking lost+found
 			options = append(options, "bind")
 		}
@@ -345,14 +345,14 @@ func (d *VirtualDisk) getMountSource(op trace.Operation, options []string) (stri
 		}
 	}
 
-	mntsrc := path.Join(bindTarget, volumeDataDir)
+	mntsrc := path.Join(bindTarget, VolumeDataDir)
 	// if the volume contains a volumeDataDir directory then mount that instead of the root of the filesystem
 	// if we cannot read it we go with the root of the filesystem
 	_, err := os.Stat(mntsrc)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// if there's no such directory then revert to using the device directly
-			op.Infof("No " + volumeDataDir + " data directory in volume, mounting filesystem directly")
+			op.Infof("No " + VolumeDataDir + " data directory in volume, mounting filesystem directly")
 			mntsrc = d.DevicePath
 		} else {
 			return "", fmt.Errorf("unable to determine whether lost+found masking is required: %s", err)
