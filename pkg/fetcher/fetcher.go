@@ -249,6 +249,7 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 	u.StatusCode = res.StatusCode
 
 	if u.IsNonretryableClientError() {
+
 		if u.options.Token == nil && u.IsStatusUnauthorized() {
 			hdr := res.Header.Get("www-authenticate")
 			if hdr == "" {
@@ -280,13 +281,30 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 			}
 		}
 
-		err = fmt.Errorf("Nonretryable error '%s (%d)': URL %s.", http.StatusText(u.StatusCode), u.StatusCode, url)
+		// for all other non-retryable client error, grab the error message if there is one (#5951)
+		err, msg := u.extractMsgBody(res.Body)
+		if err != nil {
+			err = fmt.Errorf("Nonretryable error '%s (%d)': URL %s", http.StatusText(u.StatusCode), u.StatusCode, url)
+		} else {
+			err = fmt.Errorf("Nonretryable error '%s (%d)': URL %s, Message: %s", http.StatusText(u.StatusCode),
+				u.StatusCode, url, msg)
+		}
+
 		return nil, nil, DoNotRetry{Err: err}
 	}
 
 	// FIXME: handle StatusTemporaryRedirect and StatusFound
+	// for all other unexpected http code, grab the message out if there is one (#5951)
 	if !u.IsStatusOK() {
-		return nil, nil, fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
+
+		err, msg := u.extractMsgBody(res.Body)
+		if err != nil {
+			err = fmt.Errorf("Unexpected http code: %d, URL %s", u.StatusCode, url)
+		} else {
+			err = fmt.Errorf("Unexpected http code: %d, URL %s, Message: %s", u.StatusCode, url, msg)
+		}
+
+		return nil, nil, err
 	}
 
 	log.Debugf("URLFetcher.fetch() - %#v, %#v", res.Body, res.Header)
@@ -412,6 +430,16 @@ func (u *URLFetcher) IsNonretryableClientError() bool {
 	s := u.StatusCode
 	return 400 <= s && s < 500 &&
 		s != http.StatusLocked && s != http.StatusTooManyRequests
+}
+
+func (u *URLFetcher) extractMsgBody(rdr io.ReadCloser) (error, string) {
+	out := bytes.NewBuffer(nil)
+	_, err := io.Copy(out, rdr)
+	if err != nil {
+		return err, ""
+	}
+	return nil, string(out.Bytes())
+
 }
 
 func (u *URLFetcher) setUserAgent(req *http.Request) {
