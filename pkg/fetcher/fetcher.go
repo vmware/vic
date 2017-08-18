@@ -252,7 +252,7 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 		if u.options.Token == nil && u.IsStatusUnauthorized() {
 			hdr := res.Header.Get("www-authenticate")
 			if hdr == "" {
-				return nil, nil, fmt.Errorf("www-authenticate header is missing")
+				return nil, nil, DoNotRetry{fmt.Errorf("www-authenticate header is missing")}
 			}
 			u.OAuthEndpoint, err = u.ExtractOAuthURL(hdr, url)
 			if err != nil {
