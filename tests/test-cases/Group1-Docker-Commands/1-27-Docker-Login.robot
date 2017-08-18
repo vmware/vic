@@ -34,5 +34,5 @@ Docker login and pull from docker.io
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logout
     Should Be Equal As Integers  ${rc}  0
-
-
+	
+	
