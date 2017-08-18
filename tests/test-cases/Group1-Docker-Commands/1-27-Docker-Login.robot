@@ -18,15 +18,8 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server  certs=${false}
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
-*** Keywords ***
-Cleanup Harbor and VIC Appliance
-    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
-    Run Keyword And Continue On Failure  Run  govc vm.destroy 19-4-harbor
-    
-
 *** Test Cases ***
 Docker login and pull from docker.io
-	[Teardown]  Cleanup Harbor and VIC Appliance	
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull victest/busybox
     Should Be Equal As Integers  ${rc}  1
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull victest/public-hello-world
@@ -41,12 +34,3 @@ Docker login and pull from docker.io
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logout
     Should Be Equal As Integers  ${rc}  0
-
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=%{TEST_USERNAME} --password=%{TEST_PASSWORD} harbor.ci.drone.local
-    Should Contain  ${output}  Login Succeeded
-    Should Be Equal As Integers  ${rc}  0
-
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=%{TEST_USERNAME} --password=%{TEST_PASSWORD}1 harbor.ci.drone.local
-    Should Contain  ${output}  incorrect username or password
-    Should Be Equal As Integers  ${rc}  1
-
