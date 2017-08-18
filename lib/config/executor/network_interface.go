@@ -44,6 +44,9 @@ type NetworkEndpoint struct {
 
 	// The list of exposed ports on the container
 	Ports []string `vic:"0.1" scope:"read-only" key:"ports"`
+
+	// whether or not this represents an internal network
+	Internal bool `vic:"0.1" scope:"read-only" key:"internal"`
 }
 
 // ContainerNetwork is the data needed on a per container basis both for vSphere to ensure it's attached
