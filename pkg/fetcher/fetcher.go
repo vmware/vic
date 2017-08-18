@@ -282,7 +282,7 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 		}
 
 		// for all other non-retryable client error, grab the error message if there is one (#5951)
-		err, msg := u.extractMsgBody(res.Body)
+		msg, err := u.extractMsgBody(res.Body)
 		if err != nil {
 			err = fmt.Errorf("Nonretryable error '%s (%d)': URL %s", http.StatusText(u.StatusCode), u.StatusCode, url)
 		} else {
@@ -297,7 +297,7 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 	// for all other unexpected http code, grab the message out if there is one (#5951)
 	if !u.IsStatusOK() {
 
-		err, msg := u.extractMsgBody(res.Body)
+		msg, err := u.extractMsgBody(res.Body)
 		if err != nil {
 			err = fmt.Errorf("Unexpected http code: %d, URL %s", u.StatusCode, url)
 		} else {
@@ -432,13 +432,13 @@ func (u *URLFetcher) IsNonretryableClientError() bool {
 		s != http.StatusLocked && s != http.StatusTooManyRequests
 }
 
-func (u *URLFetcher) extractMsgBody(rdr io.ReadCloser) (error, string) {
+func (u *URLFetcher) extractMsgBody(rdr io.ReadCloser) (string, error) {
 	out := bytes.NewBuffer(nil)
 	_, err := io.Copy(out, rdr)
 	if err != nil {
-		return err, ""
+		return "", err
 	}
-	return nil, string(out.Bytes())
+	return string(out.Bytes()), nil
 
 }
 
