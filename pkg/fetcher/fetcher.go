@@ -248,7 +248,6 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 
 	u.StatusCode = res.StatusCode
 
-<<<<<<< 05564ed254eba5e22544f37ec6038a71c0a1467d
 	if u.IsNonretryableClientError() {
 		if u.options.Token == nil && u.IsStatusUnauthorized() {
 			hdr := res.Header.Get("www-authenticate")
