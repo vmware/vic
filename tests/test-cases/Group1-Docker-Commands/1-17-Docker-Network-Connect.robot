@@ -144,3 +144,22 @@ Connect containers to an internal network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net internal-net ${busybox} ping -c2 ${ip}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  2 packets transmitted, 2 packets received
+
+Check Name Resolution Between Containers On Internal Network
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name foo --net internal-network ubuntu:latest sleep 2000
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --name bar --net public-net -p 80 ubuntu:latest /bin/bash -c 'cat /etc/resolv.conf && ping -c3 foo'
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect internal-network bar
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -ai bar
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  PING foo
+    Should Contain  ${output}  3 packets transmitted, 3 packets received

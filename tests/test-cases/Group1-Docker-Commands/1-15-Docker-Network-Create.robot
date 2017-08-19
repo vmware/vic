@@ -39,7 +39,7 @@ Network create with label
 Create already created network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create test-network
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  already exists 
+    Should Contain  ${output}  already exists
 
 Create overlay network
     ${status}=  Get State Of Github Issue  1222
@@ -55,20 +55,3 @@ Create internal network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network inspect -f '{{.Internal}}' internal-network
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${output}  true
-
-
-Check Connectivity Between Containers On Internal Network
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name foo --net internal-network ubuntu:latest sleep 2000
-    Log  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --name bar --net %{PUBLIC_NETWORK} -p 80 ubuntu:latest ping -c3 foo
-    Log  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect internal-network bar
-    Log  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -ai bar
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  PING foo
-    Should Contain  ${output}  64 bytes from
-    Should Contain  ${output}  icmp_seq=1
-    Should Contain  ${output}  icmp_seq=2
-    Should Contain  ${output}  icmp_seq=3
