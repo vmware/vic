@@ -146,7 +146,7 @@ Connect containers to an internal network
     Should Contain  ${output}  2 packets transmitted, 2 packets received
 
 Check Name Resolution Between Containers On Internal Network
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name foo --net internal-network ubuntu:latest sleep 2000
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name foo --net internal-net ubuntu:latest sleep 2000
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
@@ -154,7 +154,7 @@ Check Name Resolution Between Containers On Internal Network
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect internal-network bar
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect internal-net bar
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
