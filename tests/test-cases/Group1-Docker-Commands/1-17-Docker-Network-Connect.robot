@@ -146,20 +146,21 @@ Connect containers to an internal network
     Should Contain  ${output}  2 packets transmitted, 2 packets received
 
 Check Name Resolution Between Containers On Internal Network
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name foo --net internal-net alpine:latest sleep 2000
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name foo --net internal-net alpine:latest sleep 5000
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --name bar --net public-net -p 80 alpine:latest /bin/ping -c3 foo
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --name baz --net public-net -p 80 alpine:latest ping -c3 foo
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect internal-net bar
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect internal-net baz
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -ai bar
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -ai baz
     Log  ${output}
+
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  PING foo
     Should Contain  ${output}  3 packets transmitted, 3 packets received
