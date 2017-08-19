@@ -65,6 +65,7 @@ Check Connectivity Between Containers On Internal Network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect internal-network bar
     Log  ${output}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -ai bar
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  PING foo
     Should Contain  ${output}  64 bytes from
