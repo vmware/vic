@@ -60,7 +60,7 @@ Create internal network
 Check Connectivity Between Containers On Internal Network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name foo --net internal-network ubuntu:latest sleep 2000
     Log  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --name bar --net %{BRIDGE_NETWORK} -p 80 ubuntu:latest ping -c3 foo
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --name bar --net %{PUBLIC_NETWORK} -p 80 ubuntu:latest ping -c3 foo
     Log  ${output}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect internal-network bar
     Log  ${output}
