@@ -255,7 +255,9 @@ func (t *tether) setNetworks() error {
 	// prioritize internal networks
 	for _, v := range t.config.Networks {
 		if v.Internal {
-			t.ops.Apply(v)
+			if err := t.ops.Apply(v); err != nil {
+				return fmt.Errorf("failed to apply network endpoint config: %s", err)
+			}
 		} else {
 			networks = append(networks, v)
 		}
