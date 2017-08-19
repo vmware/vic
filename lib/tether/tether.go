@@ -252,6 +252,7 @@ func (t *tether) setHostname() error {
 
 func (t *tether) setNetworks() error {
 
+	// internal networks must be applied first
 	for _, network := range t.config.Networks {
 		if !network.Internal {
 			continue
