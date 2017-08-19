@@ -150,7 +150,7 @@ Check Name Resolution Between Containers On Internal Network
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --name bar --net public-net -p 80 alpine:latest ping -c3 foo
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --name bar --net public-net -p 80 alpine:latest /bin/ping -c3 foo
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
