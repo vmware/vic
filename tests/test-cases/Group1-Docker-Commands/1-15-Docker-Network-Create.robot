@@ -55,3 +55,16 @@ Create internal network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network inspect -f '{{.Internal}}' internal-network
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${output}  true
+
+
+Check Connectivity Between Containers On Internal Network
+    Run  docker %{VCH-PARAMS} run -d --name foo --net internal-network bensdoings/ifconfig sleep 1000
+    Run  docker %{VCH-PARAMS} create -it --name bar --net bridge -p 80 bensdoings/ifconfig ping -c3 foo
+    Run  docker %{VCH-PARAMS} network connect internal-network bar
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -ai bar
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  PING foo
+    Should Contain  ${output}  64 bytes from
+    Should Contain  ${output}  icmp_seq=1
+    Should Contain  ${output}  icmp_seq=2
+    Should Contain  ${output}  icmp_seq=3
