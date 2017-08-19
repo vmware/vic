@@ -146,11 +146,11 @@ Connect containers to an internal network
     Should Contain  ${output}  2 packets transmitted, 2 packets received
 
 Check Name Resolution Between Containers On Internal Network
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name foo --net internal-net ubuntu:latest sleep 2000
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name foo --net internal-net alpine:latest sleep 2000
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --name bar --net public-net -p 80 ubuntu:latest /bin/bash -c 'cat /etc/resolv.conf && ping -c3 foo'
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --name bar --net public-net -p 80 alpine:latest ping -c3 foo
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
