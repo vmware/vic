@@ -164,3 +164,4 @@ Check Name Resolution Between Containers On Internal Network
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  PING foo
     Should Contain  ${output}  3 packets transmitted, 3 packets received
+
