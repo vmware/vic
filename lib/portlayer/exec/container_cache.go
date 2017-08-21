@@ -19,8 +19,6 @@ import (
 
 	"context"
 
-	"github.com/davecgh/go-spew/spew"
-
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -122,8 +120,6 @@ func (conCache *containerCache) sync(ctx context.Context, sess *session.Session)
 	for _, c := range cons {
 		conCache.put(c)
 	}
-
-	spew.Dump(conCache.cache)
 
 	return nil
 }
