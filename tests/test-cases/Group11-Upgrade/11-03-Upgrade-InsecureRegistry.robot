@@ -83,7 +83,8 @@ Test VCH And Registry
 Cleanup Test Environment
     [Arguments]  ${docker}=DOCKER_API_VERSION=1.23 docker
     Clean up VIC Appliance And Local Binary
-    Cleanup Harbor  ${harbor_name}
+    ${out}=  Cleanup Harbor  ${harbor_name}
+    Log  ${out}
     ${rc}=  Run And Return Rc  ${docker} -H ${default_local_docker_endpoint} rmi ${harbor_ip}/test/busybox
     Should Be Equal As Integers  ${rc}  0
     Kill Local Docker Daemon  ${handle}  ${docker_daemon_pid}
@@ -91,8 +92,10 @@ Cleanup Test Environment
 *** Test Cases ***
 Upgrade VCH with Harbor On HTTP
     Set Test Environment Variables
-    Cleanup Harbor  ${http_harbor_name}
-    Cleanup Harbor  ${https_harbor_name}
+    ${out}=  Cleanup Harbor  ${http_harbor_name}
+    Log  ${out}
+    ${out}=  Cleanup Harbor  ${https_harbor_name}
+    Log  ${out}
     Set Test Variable  ${harbor_name}  ${http_harbor_name}
     ${ip}=  Install Harbor To Test Server  ${harbor_name}
     Set Test Variable  ${harbor_ip}  ${ip}
@@ -110,8 +113,10 @@ Upgrade VCH with Harbor On HTTP
     Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
 
 Upgrade VCH with Harbor On HTTPS
-    Cleanup Harbor  ${http_harbor_name}
-    Cleanup Harbor  ${https_harbor_name}
+    ${out}=  Cleanup Harbor  ${http_harbor_name}
+    Log  ${out}
+    ${out}=  Cleanup Harbor  ${https_harbor_name}
+    Log  ${out}
     Set Test Variable  ${harbor_name}  ${https_harbor_name}
     ${ip}=  Install Harbor To Test Server  ${harbor_name}  https
     Set Test Variable  ${harbor_ip}  ${ip}
