@@ -143,7 +143,7 @@ type AttachConfig struct {
 
 const (
 	attachConnectTimeout  time.Duration = 15 * time.Second //timeout for the connection
-	attachAttemptTimeout  time.Duration = 40 * time.Second //timeout before we ditch an attach attempt
+	attachAttemptTimeout  time.Duration = 60 * time.Second //timeout before we ditch an attach attempt
 	attachPLAttemptDiff   time.Duration = 10 * time.Second
 	attachStdinInitString               = "v1c#>"
 	swaggerSubstringEOF                 = "EOF"
