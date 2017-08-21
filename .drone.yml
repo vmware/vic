@@ -143,9 +143,8 @@ pipeline:
       repo: vmware/vic
       event: [ push, tag ]
       branch: [ master, releases/*, refs/tags/* ]
-      status: success
 
-  notify-slack:
+  notify-slack-on-fail:
     image: plugins/slack
     webhook: ${SLACK_URL}
     username: drone
@@ -154,9 +153,20 @@ pipeline:
     when:
       repo: vmware/vic
       branch: [ master, releases/*, refs/tags/* ]
-      status: [ failure, success ]
+      status: failure
 
-  publish-gcs-builds:
+  notify-slack-on-pass:
+    image: plugins/slack
+    webhook: ${SLACK_URL}
+    username: drone
+    template: >
+      build https://ci.vcna.io/vmware/vic/{{ build.number }} finished with a {{ build.status }} status, find the build here: https://storage.googleapis.com/vic-engine-builds/vic_{{ build.number }}.tar.gz
+    when:
+      repo: vmware/vic
+      branch: [ master, releases/*, refs/tags/* ]
+      status: success
+
+  publish-gcs-builds-on-pass:
     image: maplain/drone-gcs:latest
     pull: true
     source: bundle
@@ -169,6 +179,20 @@ pipeline:
       event: [ push ]
       branch: [ master, releases/* ]
       status: success
+
+  publish-gcs-builds-on-fail:
+    image: maplain/drone-gcs:latest
+    pull: true
+    source: bundle
+    target: vic-engine-failed-builds
+    acl:
+      - allUsers:READER
+    cache_control: public,max-age=3600
+    when:
+      repo: vmware/vic
+      event: [ push ]
+      branch: [ master, releases/* ]
+      status: failure
 
   publish-gcs-releases:
     image: maplain/drone-gcs:latest

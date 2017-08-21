@@ -162,6 +162,9 @@ type NetworkEndpoint struct {
 
 	Ports []string `vic:"0.1" scope:"read-only" key:"ports"`
 
+	// is this endpoint connected to an internal network?
+	Internal bool `vic:"0.1" scope:"read-only" key:"internal"`
+
 	// whether the network config was successfully applied
 	configured bool `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 }

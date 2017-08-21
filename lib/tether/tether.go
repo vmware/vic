@@ -251,11 +251,25 @@ func (t *tether) setHostname() error {
 }
 
 func (t *tether) setNetworks() error {
-	for _, v := range t.config.Networks {
-		if err := t.ops.Apply(v); err != nil {
+
+	// internal networks must be applied first
+	for _, network := range t.config.Networks {
+		if !network.Internal {
+			continue
+		}
+		if err := t.ops.Apply(network); err != nil {
 			return fmt.Errorf("failed to apply network endpoint config: %s", err)
 		}
 	}
+	for _, network := range t.config.Networks {
+		if network.Internal {
+			continue
+		}
+		if err := t.ops.Apply(network); err != nil {
+			return fmt.Errorf("failed to apply network endpoint config: %s", err)
+		}
+	}
+
 	return nil
 }
 

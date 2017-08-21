@@ -726,6 +726,7 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		}
 		ne.Network.Gateway = net.IPNet{IP: e.Gateway(), Mask: e.Subnet().Mask}
 		ne.Network.Nameservers = make([]net.IP, len(s.dns))
+		ne.Internal = s.Internal()
 		copy(ne.Network.Nameservers, s.dns)
 
 		// mark the external network as default

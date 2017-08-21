@@ -37,6 +37,27 @@ const (
 	pathTimeout = 60 * time.Second
 )
 
+// scsiScan tells the kernel to rescan the scsi bus.
+func scsiScan() error {
+	root := "/sys/class/scsi_host"
+
+	dirs, err := ioutil.ReadDir(root)
+	if err != nil {
+		return err
+	}
+
+	for _, dir := range dirs {
+		file := path.Join(root, dir.Name(), "scan")
+		// Channel, SCSI target ID, and LUN: "-" == rescan all
+		err = ioutil.WriteFile(file, []byte("- - -"), 0)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Waits for a device to appear in the given directory and returns the
 // resultant dev path (e.g /dev/sda). For instance, if sysPath is
 // /sys/bus/pci/devices/0000:03:00.0/host0/subsystem/devices/0:0:0:0/block, the
@@ -99,6 +120,11 @@ func waitForDevice(op trace.Operation, sysPath string) (string, error) {
 
 				// happy path
 				return
+			}
+
+			// run a manual scan of the scsi bus
+			if serr := scsiScan(); serr != nil {
+				op.Warnf("scsi scan: %s", serr)
 			}
 		}
 	}()
