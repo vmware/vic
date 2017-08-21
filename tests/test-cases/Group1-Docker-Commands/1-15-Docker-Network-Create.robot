@@ -39,7 +39,7 @@ Network create with label
 Create already created network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create test-network
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  already exists 
+    Should Contain  ${output}  already exists
 
 Create overlay network
     ${status}=  Get State Of Github Issue  1222

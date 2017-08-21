@@ -44,6 +44,14 @@ type FirewallStatus struct {
 	Correct                       []string
 }
 
+type FirewallConfigUnavailableError struct {
+	Host string
+}
+
+func (e *FirewallConfigUnavailableError) Error() string {
+	return fmt.Sprintf("Firewall configuration unavailable on %q", e.Host)
+}
+
 type FirewallMisconfiguredError struct {
 	Host string
 	Rule types.HostFirewallRule
@@ -154,6 +162,16 @@ func (v *Validator) CheckFirewallForTether(ctx context.Context, mgmtIP net.IPNet
 				} else {
 					log.Debugf("fw misconfigured allowed IP with fw disabled %q", host.InventoryPath)
 					status.MisconfiguredDisabled = append(status.MisconfiguredDisabled, host.InventoryPath)
+					log.Warn(err)
+				}
+			case *FirewallConfigUnavailableError:
+				if firewallEnabled {
+					log.Debugf("fw configuration unavailable %q", host.InventoryPath)
+					status.UnknownEnabled = append(status.UnknownEnabled, host.InventoryPath)
+					log.Error(err)
+				} else {
+					log.Debugf("fw configuration unavailable %q", host.InventoryPath)
+					status.UnknownDisabled = append(status.UnknownDisabled, host.InventoryPath)
 					log.Warn(err)
 				}
 			default:
@@ -306,6 +324,11 @@ func (v *Validator) ManagementNetAllowed(ctx context.Context, mgmtIP net.IPNet,
 	info, err := fs.Info(ctx)
 	if err != nil {
 		return false, err
+	}
+
+	// we've seen cases where the firewall config isn't available
+	if info == nil {
+		return false, &FirewallConfigUnavailableError{Host: host.InventoryPath}
 	}
 
 	rs := object.HostFirewallRulesetList(info.Ruleset)
