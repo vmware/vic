@@ -552,6 +552,8 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 		}
 	}
 
+	info.ContainerConfig.Cmd = make([]string, 0)
+
 	// in heavily loaded environments we were seeing a panic due to a missing
 	// session id in execConfig -- this has only manifested itself in short lived containers
 	// that were initilized via run
@@ -561,6 +563,12 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 		info.ContainerConfig.AttachStdout = &session.Attach
 		info.ContainerConfig.AttachStderr = &session.Attach
 		info.ContainerConfig.OpenStdin = &session.OpenStdin
+
+		info.ContainerConfig.Cmd = append(info.ContainerConfig.Cmd, session.Cmd.Path)
+
+		for _, v := range session.Cmd.Args {
+			info.ContainerConfig.Cmd = append(info.ContainerConfig.Cmd, v)
+		}
 
 		// started is a string in the vmx that is not to be confused
 		// with started the datetime in the models.ContainerInfo
