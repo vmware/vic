@@ -100,6 +100,21 @@ type URLFetcher struct {
 	options Options
 }
 
+// ErrorResponseBody struct
+type ErrorResponseBody struct {
+	Errors []struct {
+		Code string
+		Message string
+
+		Detail []struct {
+			Type string
+			Class string
+			Name string
+			Action string
+		}
+	}
+}
+
 // NewURLFetcher creates a new URLFetcher
 func NewURLFetcher(options Options) Fetcher {
 	/* #nosec */
@@ -282,8 +297,9 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 		}
 
 		// for all other non-retryable client error, grab the error message if there is one (#5951)
-		msg, err := u.extractMsgBody(res.Body)
+		msg, err := u.extractErrResponseMessage(res.Body)
 		if err != nil {
+			log.Debugf("Nonretryable client error in unconventional format: %s", err)
 			err = fmt.Errorf("Nonretryable error '%s (%d)': URL %s", http.StatusText(u.StatusCode), u.StatusCode, url)
 		} else {
 			err = fmt.Errorf("Nonretryable error '%s (%d)': URL %s, Message: %s", http.StatusText(u.StatusCode),
@@ -297,8 +313,9 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 	// for all other unexpected http code, grab the message out if there is one (#5951)
 	if !u.IsStatusOK() {
 
-		msg, err := u.extractMsgBody(res.Body)
+		msg, err := u.extractErrResponseMessage(res.Body)
 		if err != nil {
+			log.Debugf("Unexpected http code error in unconventional format: %s", err)
 			err = fmt.Errorf("Unexpected http code: %d, URL %s", u.StatusCode, url)
 		} else {
 			err = fmt.Errorf("Unexpected http code: %d, URL %s, Message: %s", u.StatusCode, url, msg)
@@ -432,13 +449,41 @@ func (u *URLFetcher) IsNonretryableClientError() bool {
 		s != http.StatusLocked && s != http.StatusTooManyRequests
 }
 
-func (u *URLFetcher) extractMsgBody(rdr io.ReadCloser) (string, error) {
+// Extract message from error response body (#5951)
+// The JSON format follows the convention of Docker
+func (u *URLFetcher) extractErrResponseMessage(rdr io.ReadCloser) (string, error) {
 	out := bytes.NewBuffer(nil)
 	_, err := io.Copy(out, rdr)
 	if err != nil {
+		log.Debugf("Error when copying from error response body stream: %s", err)
 		return "", err
 	}
-	return string(out.Bytes()), nil
+
+	res := []byte(out.Bytes())
+	log.Debugf("Error message json string: %s", string(res))
+
+	var errResponse ErrorResponseBody
+	err = json.Unmarshal(res, &errResponse)
+	if err != nil {
+		log.Debugf("Error when unmarshalling error response body: %s", err)
+		return "", err
+	}
+
+	if errResponse.Errors == nil || len(errResponse.Errors) == 0 {
+		log.Debugf("Error response wrong format. Response body: %s", string(res))
+		return "", fmt.Errorf("Error response wrong format")
+	}
+
+	// grab out every error message
+	var errString string
+	for i := 0; i < len(errResponse.Errors); i++ {
+		errString += errResponse.Errors[i].Message
+		if i != len(errResponse.Errors) - 1 {
+			errString += ", "
+		}
+	}
+
+	return errString, nil
 
 }
 
