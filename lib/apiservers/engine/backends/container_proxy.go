@@ -1273,6 +1273,11 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, vc *
 		convert.SetContainerAnnotation(config, convert.AnnotationKeyAutoRemove, cc.HostConfig.AutoRemove)
 	}
 
+	// hostname
+	config.Hostname = cc.Config.Hostname
+	// domainname - https://github.com/moby/moby/issues/27067
+	config.Domainname = cc.Config.Domainname
+
 	log.Debugf("dockerContainerCreateParamsToPortlayer = %+v", config)
 
 	return containers.NewCreateParamsWithContext(ctx).WithCreateConfig(config)

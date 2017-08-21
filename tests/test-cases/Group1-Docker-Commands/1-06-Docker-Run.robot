@@ -147,3 +147,14 @@ Docker run and auto remove
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  ${count}
+
+Docker run --hostname to set hostname and domainname
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --hostname vic.test hostname
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  vic.test
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --hostname vic.test hostname -d
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  test
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --hostname vic.test cat /etc/hosts
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  vic.test
