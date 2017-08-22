@@ -3048,6 +3048,14 @@
 					"additionalProperties": {
 						"type": "string"
 					}
+				},
+				"hostname": {
+					"type": "string",
+					"x-nullable": false
+				},
+				"domainname": {
+					"type": "string",
+					"x-nullable": false
 				}
 			}
 		},

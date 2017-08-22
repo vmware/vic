@@ -175,3 +175,15 @@ Docker run postgres container
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Verify container is running and remove it  test-postgres
+
+Docker run --hostname to set hostname and domainname
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --hostname vic.test ${busybox} hostname
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  vic.test
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --hostname vic.test ${busybox} hostname -d
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  test
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --hostname vic.test ${busybox} cat /etc/hosts
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  vic.test
+

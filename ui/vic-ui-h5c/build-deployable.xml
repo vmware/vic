@@ -72,7 +72,6 @@
    <!-- taking out compile-flex-project -->
    <target name="make-deployable" depends="check-sdks,compile-angular-app,compile-html-project">
       <copy file="${VSPHERE_SDK_HOME}/libs/vim25.jar" tofile="${H5_PROJECT_UI_HOME}/target/vic/plugins/vim25.jar"/>
-      <copy file="${VSPHERE_H5C_SDK_HOME}/vsphere-ui/server/repository/usr/vlsiCore.jar" tofile="${H5_PROJECT_UI_HOME}/target/vic/plugins/vlsiCore.jar"/>
       <delete dir="${basedir}/../installer/plugin-packages"/>
       <zip basedir="${H5_PROJECT_UI_HOME}/target/vic" destfile="${PACKAGE_NAME}"/>
       <copy todir="${PACKAGE_HOME}/${pluginPackage(id)}-v${pluginPackage(version)}">

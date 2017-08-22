@@ -207,6 +207,10 @@ type ExecutorConfig struct {
 
 	// AsymmetricRouting is set to true if the VCH needs to be setup for asymmetric routing
 	AsymmetricRouting bool `vic:"0.1" scope:"read-only" key:"asymrouting"`
+
+	// Hostname and domainname provided by personality
+	Hostname   string `vic:"0.1" scope:"read-only" key:"hostname"`
+	Domainname string `vic:"0.1" scope:"read-only" key:"domainname"`
 }
 
 // Cmd is here because the encoding packages seem to have issues with the full exec.Cmd struct
