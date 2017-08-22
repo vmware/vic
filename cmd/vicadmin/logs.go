@@ -18,12 +18,15 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"bytes"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
+	"net/http"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -129,6 +132,78 @@ func logFiles() []string {
 	}
 
 	return names
+}
+
+// logFile writes the contents of file f and any of it's rotated files to the http writer.
+// includeF is used for tailing, in which case we want to write rotated files but not f itself
+func writeLogFiles(w http.ResponseWriter, r *http.Request, f string, includeF bool) {
+	defer trace.End(trace.Begin(""))
+	files, err := ioutil.ReadDir(logFileDir)
+	if err != nil {
+		log.Errorf("Failed to get a list of log files: %s", err)
+		return
+	}
+
+	// find all rotated files, but not f itself
+	names := []string{}
+	for _, fileInfo := range files {
+		fname := fileInfo.Name()
+		if fileInfo.IsDir() || (fname == f) {
+			continue
+		}
+		log.Debugf("Found potential file for export: %s", fname)
+
+		if strings.HasPrefix(fname, f) {
+			fp := filepath.Join(logFileDir, fname)
+			names = append(names, fp)
+		}
+	}
+	// sort file names to preserve time rotation order
+	sort.Strings(names)
+
+	// find f last and append it to names
+	for _, fileInfo := range files {
+		fname := fileInfo.Name()
+		if fileInfo.IsDir() {
+			continue
+		}
+		if fname == f {
+			log.Debugf("Found potential file for export: %s", fname)
+			fp := filepath.Join(logFileDir, fname)
+			names = append(names, fp)
+		}
+	}
+
+	if len(names) == 0 {
+		http.NotFound(w, r)
+	}
+
+	// write file contents to w
+	for _, fileName := range names {
+		file, err := os.Open(fileName)
+		log.Debugf("Writing contents of: %s", fileName)
+		if err != nil {
+			log.Errorf("error opening file %s: %s", fileName, err.Error())
+			continue
+		}
+		// using interface type here so we can reassign r as a gzip reader for rotated logs
+		var r io.ReadCloser = file
+		if strings.HasSuffix(fileName, "gz") {
+			r, err = gzip.NewReader(file)
+			if err != nil {
+				log.Errorf("error opening gzipped file %s: %s", fileName, err.Error())
+				continue
+			}
+		}
+		_, err = io.Copy(w, r)
+		if err != nil {
+			log.Errorf("error writing contents of %s: %s", fileName, err.Error())
+			continue
+		}
+		r.Close()
+		file.Close()
+	}
+
 }
 
 func configureReaders() map[string]entryReader {

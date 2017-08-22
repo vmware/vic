@@ -159,6 +159,7 @@ func (s *server) AuthenticatedHandle(link string, h http.Handler) {
 }
 
 func (s *server) Handle(link string, h http.Handler) {
+	log.Debugf("%s --- %s", time.Now().String(), link)
 	s.mux.Handle(link, gorillacontext.ClearHandler(h))
 }
 
@@ -262,7 +263,7 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 		log.Infof("User with a valid auth cookie at %s is authenticated.", connectingAddr[0])
 		handler(w, r)
 	}
-	s.mux.Handle(link, gorillacontext.ClearHandler(http.HandlerFunc(authHandler)))
+	s.Handle(link, http.HandlerFunc(authHandler))
 }
 
 // renders the page for login and handles authorization requests
@@ -383,9 +384,15 @@ func (s *server) serve() error {
 
 	s.mux = http.NewServeMux()
 
-	// s.mux.HandleFunc bypasses authentication
-	s.mux.HandleFunc(loginPagePath, s.loginPage)
+	// unauthenticated routes
+	// these assets bypass authentication & are world-readable
+	s.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("css/"))))
+	s.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir("images/"))))
+	s.Handle("/fonts/", http.StripPrefix("/fonts/", http.FileServer(http.Dir("fonts/"))))
 
+	s.Handle(loginPagePath, http.HandlerFunc(s.loginPage))
+
+	// authenticated routes
 	// tar of appliance system logs
 	s.Authenticated("/logs.tar.gz", s.tarDefaultLogs)
 	s.Authenticated("/logs.zip", s.zipDefaultLogs)
@@ -394,25 +401,20 @@ func (s *server) serve() error {
 	s.Authenticated("/container-logs.tar.gz", s.tarContainerLogs)
 	s.Authenticated("/container-logs.zip", s.zipContainerLogs)
 
-	// these assets bypass authentication & are world-readable
-	s.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("css/"))))
-	s.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir("images/"))))
-	s.Handle("/fonts/", http.StripPrefix("/fonts/", http.FileServer(http.Dir("fonts/"))))
+	// get single log file (no tail)
+	s.Authenticated("/logs/", func(w http.ResponseWriter, r *http.Request) {
+		file := strings.TrimPrefix(r.URL.Path, "/logs/")
+		log.Debugf("writing contents for %s", file)
+		writeLogFiles(w, r, file, true)
+	})
 
-	for _, path := range logFiles() {
-		name := filepath.Base(path)
-		p := path
-
-		// get single log file (no tail)
-		s.Authenticated("/logs/"+name, func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, p)
-		})
-
-		// get single log file (with tail)
-		s.Authenticated("/logs/tail/"+name, func(w http.ResponseWriter, r *http.Request) {
-			s.tailFiles(w, r, []string{p})
-		})
-	}
+	// get single log file (with tail)
+	s.Authenticated("/logs/tail/", func(w http.ResponseWriter, r *http.Request) {
+		file := strings.TrimPrefix(r.URL.Path, "/logs/tail/")
+		log.Debugf("writing contents for %s", file)
+		writeLogFiles(w, r, file, false)
+		s.tailFiles(w, r, []string{filepath.Join(logFileDir, file)})
+	})
 
 	s.Authenticated("/logout", s.logoutHandler)
 	s.Authenticated("/", s.index)

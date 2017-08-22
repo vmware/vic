@@ -27,7 +27,6 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/migration"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
@@ -212,15 +211,8 @@ func (c *containerBase) start(ctx context.Context) error {
 	_, err := c.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return c.vm.PowerOn(ctx)
 	})
-	if err != nil {
-		return err
-	}
 
-	// wait task to set started field to something
-	ctx, cancel := context.WithTimeout(ctx, constants.PropertyCollectorTimeout)
-	defer cancel()
-
-	return c.waitForSession(ctx, c.ExecConfig.ID)
+	return err
 }
 
 func (c *containerBase) stop(ctx context.Context, waitTime *int32) error {
