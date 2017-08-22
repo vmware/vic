@@ -303,11 +303,15 @@ func (t *tether) setMounts() error {
 		switch mountTarget.Source.Scheme {
 		case "label":
 			// this could block indefinitely while waiting for a volume to present
-			t.ops.MountLabel(context.Background(), mountTarget.Source.Path, mountTarget.Path)
-
+			// return error if mount volume failed, to fail container start
+			if err := t.ops.MountLabel(context.Background(), mountTarget.Source.Path, mountTarget.Path); err != nil {
+				return err
+			}
 		case "nfs":
-			t.ops.MountTarget(context.Background(), mountTarget.Source, mountTarget.Path, mountTarget.Mode)
-
+			// return error if mount nfs volume failed, to fail container start, so user knows there is something wrong
+			if err := t.ops.MountTarget(context.Background(), mountTarget.Source, mountTarget.Path, mountTarget.Mode); err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("unsupported volume mount type for %s: %s", targetRef, mountTarget.Source.Scheme)
 		}
