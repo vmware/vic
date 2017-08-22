@@ -132,15 +132,21 @@ Create VCH attach disk and reboot
     ${rc}=  Run And Return Rc  govc device.ls -vm=%{VCH-NAME} | grep disk
     Should Be Equal As Integers  ${rc}  1
 
-Docker inspect mount data after reboot
+Docker inspect mount and cmd data after reboot
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=named-volume
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=mount-data-test -v /mnt/test -v named-volume:/mnt/named busybox
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=mount-data-test -v /mnt/test -v named-volume:/mnt/named busybox /bin/ls -la /
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' mount-data-test
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${out}  /mnt/test
     Should Contain  ${out}  /mnt/named
+
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Config.Cmd}}' mount-data-test
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain X Times  ${out}  /bin/ls  1
+    Should Contain X Times  ${out}  -la  1
+    Should Contain X Times  ${out}  ${SPACE}/  1
 
     Reboot VM  %{VCH-NAME}
 
@@ -150,3 +156,9 @@ Docker inspect mount data after reboot
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${out}  /mnt/test
     Should Contain  ${out}  /mnt/named
+
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Config.Cmd}}' mount-data-test
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain X Times  ${out}  /bin/ls  1
+    Should Contain X Times  ${out}  -la  1
+    Should Contain X Times  ${out}  ${SPACE}/  1
