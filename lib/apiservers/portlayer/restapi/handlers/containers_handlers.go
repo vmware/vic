@@ -562,9 +562,7 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 		info.ContainerConfig.AttachStderr = &session.Attach
 		info.ContainerConfig.OpenStdin = &session.OpenStdin
 
-		for _, v := range session.Cmd.Args {
-			info.ContainerConfig.Cmd = append(info.ContainerConfig.Cmd, v)
-		}
+		info.ContainerConfig.Cmd = append(info.ContainerConfig.Cmd, session.Cmd.Args...)
 
 		// started is a string in the vmx that is not to be confused
 		// with started the datetime in the models.ContainerInfo

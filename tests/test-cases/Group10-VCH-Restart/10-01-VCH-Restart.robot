@@ -144,9 +144,9 @@ Docker inspect mount and cmd data after reboot
 
     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Config.Cmd}}' mount-data-test
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${out}  /bin/ls
-    Should Contain  ${out}  -la
-    Should Contain  ${out}  /
+    Should Contain X Times  ${out}  /bin/ls  1
+    Should Contain X Times  ${out}  -la  1
+    Should Contain X Times  ${out}  /  1
 
     Reboot VM  %{VCH-NAME}
 
@@ -159,7 +159,7 @@ Docker inspect mount and cmd data after reboot
 
     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Config.Cmd}}' mount-data-test
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${out}  /bin/ls
-    Should Contain  ${out}  -la
-    Should Contain  ${out}  /
+    Should Contain X Times  ${out}  /bin/ls  1
+    Should Contain X Times  ${out}  -la  1
+    Should Contain X Times  ${out}  /  1
 
