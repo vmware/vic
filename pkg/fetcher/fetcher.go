@@ -433,7 +433,7 @@ func (u *URLFetcher) IsNonretryableClientError() bool {
 func (u *URLFetcher) buildRegistryErrMsg(url *url.URL, respBody io.ReadCloser) string {
 	errMsg := fmt.Sprintf("Unexpected http code: %d (%s), URL: %s", u.StatusCode, http.StatusText(u.StatusCode), url)
 
-	errDetail, err := u.extractErrResponseMessage(respBody)
+	errDetail, err := extractErrResponseMessage(respBody)
 	if err != nil {
 		return errMsg
 	}
@@ -442,8 +442,8 @@ func (u *URLFetcher) buildRegistryErrMsg(url *url.URL, respBody io.ReadCloser) s
 	return errMsg
 }
 
-// extractErrResponseMessage extracts `message` field from error response body json (#5951).
-func (u *URLFetcher) extractErrResponseMessage(rdr io.ReadCloser) (string, error) {
+// extractErrResponseMessage extracts `message` field from error response body stream.
+func extractErrResponseMessage(rdr io.ReadCloser) (string, error) {
 	out := bytes.NewBuffer(nil)
 	_, err := io.Copy(out, rdr)
 	if err != nil {
