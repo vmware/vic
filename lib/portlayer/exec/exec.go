@@ -130,7 +130,6 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			log.Infof("Error encountered during container cache sync during init process: %s", err)
 			return
 		}
-
 	})
 
 	return initializer.err

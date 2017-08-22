@@ -161,5 +161,5 @@ Docker inspect mount and cmd data after reboot
     Should Be Equal As Integers  ${rc}  0
     Should Contain X Times  ${out}  /bin/ls  1
     Should Contain X Times  ${out}  -la  1
-    Should Contain X Times  ${out}  /  1
+    Should Contain X Times  ${out}  /  3
 
