@@ -100,18 +100,14 @@ type URLFetcher struct {
 	options Options
 }
 
-// ErrorResponseBody struct
-type ErrorResponseBody struct {
+// RegistryErrorRespBody struct
+// struct for unmarshalling json error response body by containers registry
+// error response json is assumed to follow Docker API convention (field `details` is dropped)
+// see: https://docs.docker.com/registry/spec/api/#errors
+type RegistryErrorRespBody struct {
 	Errors []struct {
-		Code string
+		Code    string
 		Message string
-
-		Detail []struct {
-			Type string
-			Class string
-			Name string
-			Action string
-		}
 	}
 }
 
@@ -264,7 +260,6 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 	u.StatusCode = res.StatusCode
 
 	if u.IsNonretryableClientError() {
-
 		if u.options.Token == nil && u.IsStatusUnauthorized() {
 			hdr := res.Header.Get("www-authenticate")
 			if hdr == "" {
@@ -296,15 +291,8 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 			}
 		}
 
-		// for all other non-retryable client error, grab the error message if there is one (#5951)
-		msg, err := u.extractErrResponseMessage(res.Body)
-		if err != nil {
-			log.Debugf("Nonretryable client error in unconventional format: %s", err)
-			err = fmt.Errorf("Nonretryable error '%s (%d)': URL %s", http.StatusText(u.StatusCode), u.StatusCode, url)
-		} else {
-			err = fmt.Errorf("Nonretryable error '%s (%d)': URL %s, Message: %s", http.StatusText(u.StatusCode),
-				u.StatusCode, url, msg)
-		}
+		// for all other non-retryable client errors, grab the error message if there is one (#5951)
+		err := fmt.Errorf(u.buildRegistryErrMsg(u.StatusCode, url, res.Body))
 
 		return nil, nil, DoNotRetry{Err: err}
 	}
@@ -312,15 +300,7 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 	// FIXME: handle StatusTemporaryRedirect and StatusFound
 	// for all other unexpected http code, grab the message out if there is one (#5951)
 	if !u.IsStatusOK() {
-
-		msg, err := u.extractErrResponseMessage(res.Body)
-		if err != nil {
-			log.Debugf("Unexpected http code error in unconventional format: %s", err)
-			err = fmt.Errorf("Unexpected http code: %d, URL %s", u.StatusCode, url)
-		} else {
-			err = fmt.Errorf("Unexpected http code: %d, URL %s, Message: %s", u.StatusCode, url, msg)
-		}
-
+		err := fmt.Errorf(u.buildRegistryErrMsg(u.StatusCode, url, res.Body))
 		return nil, nil, err
 	}
 
@@ -449,8 +429,21 @@ func (u *URLFetcher) IsNonretryableClientError() bool {
 		s != http.StatusLocked && s != http.StatusTooManyRequests
 }
 
+// Build error message for unexpected http code (nonretryable client errors and all other errors)
+// extract message details from response body stream if there is one
+func (u *URLFetcher) buildRegistryErrMsg(httpStatusCode int, url *url.URL, respBody io.ReadCloser) string {
+	errMsg := fmt.Sprintf("Unexpected http code: %d (%s), URL: %s", httpStatusCode, http.StatusText(httpStatusCode), url)
+
+	errDetail, err := u.extractErrResponseMessage(respBody)
+	if err != nil {
+		return errMsg
+	}
+
+	return fmt.Sprintf(errMsg + ", Message: %s", errDetail)
+}
+
 // Extract message from error response body (#5951)
-// The JSON format follows the convention of Docker
+// The error response body is assumed to follow the convention of Docker
 func (u *URLFetcher) extractErrResponseMessage(rdr io.ReadCloser) (string, error) {
 	out := bytes.NewBuffer(nil)
 	_, err := io.Copy(out, rdr)
@@ -462,29 +455,28 @@ func (u *URLFetcher) extractErrResponseMessage(rdr io.ReadCloser) (string, error
 	res := []byte(out.Bytes())
 	log.Debugf("Error message json string: %s", string(res))
 
-	var errResponse ErrorResponseBody
+	var errResponse RegistryErrorRespBody
 	err = json.Unmarshal(res, &errResponse)
 	if err != nil {
 		log.Debugf("Error when unmarshalling error response body: %s", err)
 		return "", err
 	}
 
-	if errResponse.Errors == nil || len(errResponse.Errors) == 0 {
+	if len(errResponse.Errors) == 0 {
 		log.Debugf("Error response wrong format. Response body: %s", string(res))
 		return "", fmt.Errorf("Error response wrong format")
 	}
 
 	// grab out every error message
 	var errString string
-	for i := 0; i < len(errResponse.Errors); i++ {
-		errString += errResponse.Errors[i].Message
-		if i != len(errResponse.Errors) - 1 {
+	for i, error := range errResponse.Errors {
+		if i > 0 {
 			errString += ", "
 		}
+		errString += error.Message
 	}
 
 	return errString, nil
-
 }
 
 func (u *URLFetcher) setUserAgent(req *http.Request) {
