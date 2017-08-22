@@ -62,6 +62,9 @@ var (
 	// that are mounted over the system ones.
 	BindSys = system.NewWithRoot("/.tether")
 	once    sync.Once
+
+	// used for running vm initialization logic once in the reload loop
+	initialize sync.Once
 )
 
 type tether struct {
@@ -516,6 +519,8 @@ func (t *tether) Start() error {
 	// initial entry, so seed this
 	t.reload <- struct{}{}
 	for range t.reload {
+		var err error
+
 		select {
 		case <-t.ctx.Done():
 			log.Warnf("Someone called shutdown, returning from start")
@@ -531,44 +536,50 @@ func (t *tether) Start() error {
 
 		t.setLogLevel()
 
-		if err := t.setHostname(); err != nil {
+		// TODO: this ensures that we run vm related setup code once
+		// This is temporary as none of those functions are idempotent at this point
+		// https://github.com/vmware/vic/issues/5833
+		initialize.Do(func() {
+			if err = t.setHostname(); err != nil {
+				return
+			}
+
+			// process the networks then publish any dynamic data
+			if err = t.setNetworks(); err != nil {
+				return
+			}
+			extraconfig.Encode(t.sink, t.config)
+
+			// setup the firewall
+			if err = retryOnError(func() error { return t.ops.SetupFirewall(t.ctx, t.config) }, 5); err != nil {
+				err = fmt.Errorf("Couldn't set up container-network firewall: %v", err)
+				return
+			}
+
+			//process the filesystem mounts - this is performed after networks to allow for network mounts
+			if err = t.setMounts(); err != nil {
+				return
+			}
+		})
+
+		if err != nil {
 			log.Error(err)
 			return err
 		}
 
-		// process the networks then publish any dynamic data
-		if err := t.setNetworks(); err != nil {
-			log.Error(err)
-			return err
-		}
-		extraconfig.Encode(t.sink, t.config)
-
-		// setup the firewall
-		if err := retryOnError(func() error { return t.ops.SetupFirewall(t.ctx, t.config) }, 5); err != nil {
-			err = fmt.Errorf("Couldn't set up container-network firewall: %v", err)
-			log.Error(err)
-			return err
-		}
-
-		//process the filesystem mounts - this is performed after networks to allow for network mounts
-		if err := t.setMounts(); err != nil {
-			log.Error(err)
-			return err
-		}
-
-		if err := t.initializeSessions(); err != nil {
+		if err = t.initializeSessions(); err != nil {
 			log.Error(err)
 			return err
 		}
 
 		// Danger, Will Robinson! There is a strict ordering here.
 		// We need to start attach server first so that it can unblock the session
-		if err := t.reloadExtensions(); err != nil {
+		if err = t.reloadExtensions(); err != nil {
 			log.Error(err)
 			return err
 		}
 
-		if err := t.processSessions(); err != nil {
+		if err = t.processSessions(); err != nil {
 			log.Error(err)
 			return err
 		}
