@@ -39,7 +39,6 @@ import (
 
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
-	"github.com/smartystreets/goconvey/web/server/messaging"
 )
 
 const (
