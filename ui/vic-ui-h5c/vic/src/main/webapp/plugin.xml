@@ -157,41 +157,10 @@
             </propertyConditions>
         </metadata>
     </extension>
-    <!-- Extension Point for VCH view -->
-    <extensionPoint id="com.vmware.vic.extpoint-vch">
-        <objectType class="com.vmware.vise.mvc.model.ViewSpec"/>
-    </extensionPoint>
-    <!-- Extension Point for Container view -->
-    <extensionPoint id="com.vmware.vic.extpoint-container">
-        <objectType class="com.vmware.vise.mvc.model.ViewSpec"/>
-    </extensionPoint>
     <!-- Tab specs definition for VCH view -->
     <extension id="com.vmware.vic.customtab-vch">
         <extendedPoint>com.vmware.vic.objectView.views</extendedPoint>
-        <hostedPoint>com.vmware.vic.extpoint-vch</hostedPoint>
         <precedingExtension>com.vmware.vic.vchSummaryView</precedingExtension>
-        <object>
-            <name>#{vic_workspace.vch.tab.label}</name>
-            <contentSpec>
-                <url>resources/ui/views/tabs/TabContent.html</url>
-            </contentSpec>
-        </object>
-    </extension>
-    <!-- Tab specs definition for Container view -->
-    <extension id="com.vmware.vic.customtab-container">
-        <extendedPoint>com.vmware.vic.objectView.views</extendedPoint>
-        <hostedPoint>com.vmware.vic.extpoint-container</hostedPoint>
-        <precedingExtension>com.vmware.vic.customVchView</precedingExtension>
-        <object>
-            <name>#{vic_workspace.container.tab.label}</name>
-            <contentSpec>
-                <url>resources/ui/views/tabs/TabContent.html</url>
-            </contentSpec>
-        </object>
-    </extension>
-    <!-- Tab instance for VCH view -->
-    <extension id="com.vmware.vic.customVchView">
-        <extendedPoint>com.vmware.vic.extpoint-vch</extendedPoint>
         <object>
             <name>#{vic_workspace.vch.tab.label}</name>
             <componentClass className="com.vmware.vsphere.client.htmlbridge.HtmlView">
@@ -203,9 +172,10 @@
             </componentClass>
         </object>
     </extension>
-    <!-- Tab instance for Container view -->
-    <extension id="com.vmware.vic.customContainerView">
-        <extendedPoint>com.vmware.vic.extpoint-container</extendedPoint>
+    <!-- Tab specs definition for Container view -->
+    <extension id="com.vmware.vic.customtab-container">
+        <extendedPoint>com.vmware.vic.objectView.views</extendedPoint>
+        <precedingExtension>com.vmware.vic.customVchView</precedingExtension>
         <object>
             <name>#{vic_workspace.container.tab.label}</name>
             <componentClass className="com.vmware.vsphere.client.htmlbridge.HtmlView">

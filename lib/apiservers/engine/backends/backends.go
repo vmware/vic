@@ -204,6 +204,11 @@ func hydrateCaches() error {
 	if len(errs) > 0 {
 		e = fmt.Errorf(strings.Join(errs, ", "))
 	}
+
+	if e != nil {
+		log.Errorf("Errors occurred during cache hydration at VCH start: %s", e)
+	}
+
 	return e
 }
 
@@ -290,6 +295,7 @@ func syncContainerCache() error {
 			errs = append(errs, err.Error())
 		}
 	}
+
 	if len(errs) > 0 {
 		return errors.Errorf("Failed to set port mapping: %s", strings.Join(errs, "\n"))
 	}
