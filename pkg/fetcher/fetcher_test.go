@@ -16,9 +16,9 @@ package fetcher
 
 import (
 	"bytes"
+	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"testing"
-	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -80,24 +80,24 @@ func TestExtractErrResponseMessage(t *testing.T) {
 	// Test 4: malformed json string
 	msg, err = extractErrResponseMessage(malformedJSONTestStream)
 	assert.Equal(t, "", msg, "test: (malformed json string) no message should be extracted")
-	assert.Equal(t, malformedJsonErrFormat, err,
-		"test: (malformed json string) error: %s; expected error: %s", err, )
+	assert.Equal(t, errJsonFormat, err,
+		"test: (malformed json string) error: %s; expected error: %s", err)
 
 	// Test 5: malformed json with empty `errors` field
 	msg, err = extractErrResponseMessage(emptyErrorsJSONTestStream)
 	assert.Equal(t, "", msg, "test: (malformed json string, empty errors field) no message should be extracted")
-	assert.Equal(t, malformedJsonErrFormat, err,
-		"test: (malformed json string, empty errors field) error: %s; expected error: %s", err, malformedJsonErrFormat)
+	assert.Equal(t, errJsonFormat, err,
+		"test: (malformed json string, empty errors field) error: %s; expected error: %s", err, errJsonFormat)
 
 	// Test 6: malformed json with no `message` field
 	msg, err = extractErrResponseMessage(noMessageJSONTestStream)
 	assert.Equal(t, "", msg, "test: (malformed json string, no message field) no message should be extracted")
-	assert.Equal(t, malformedJsonErrFormat, err,
-		"test: (malformed json string, no message field) error: %s; expected error: %s", err, malformedJsonErrFormat)
+	assert.Equal(t, errJsonFormat, err,
+		"test: (malformed json string, no message field) error: %s; expected error: %s", err, errJsonFormat)
 
 	// Test 7: malformed json with empty string in `message` field
 	msg, err = extractErrResponseMessage(emptyMessageJSONTestStream)
 	assert.Equal(t, "", msg, "test: (malformed json string, empty message field) no message should be extracted")
-	assert.Equal(t, malformedJsonErrFormat, err,
-		"test: (malformed json string, empty message field) error: %s; expected error: %s", err, malformedJsonErrFormat)
+	assert.Equal(t, errJsonFormat, err,
+		"test: (malformed json string, empty message field) error: %s; expected error: %s", err, errJsonFormat)
 }
