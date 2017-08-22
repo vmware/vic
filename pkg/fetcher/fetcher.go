@@ -463,7 +463,7 @@ func (u *URLFetcher) extractErrResponseMessage(rdr io.ReadCloser) (string, error
 
 	if len(errResponse.Errors) == 0 {
 		log.Debugf("Error response wrong format. Response body: %s", string(res))
-		return "", fmt.Errorf("Error response wrong format")
+		return "", fmt.Errorf("error response json has unconventional format")
 	}
 
 	// grab out every error message
