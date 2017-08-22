@@ -100,10 +100,9 @@ type URLFetcher struct {
 	options Options
 }
 
-// RegistryErrorRespBody struct
-// struct for unmarshalling json error response body by containers registry
-// error response json is assumed to follow Docker API convention (field `details` is dropped)
-// see: https://docs.docker.com/registry/spec/api/#errors
+// RegistryErrorRespBody is used for unmarshaling json error response body from image registries.
+// Error response json is assumed to follow Docker API convention (field `details` is dropped).
+// See: https://docs.docker.com/registry/spec/api/#errors
 type RegistryErrorRespBody struct {
 	Errors []struct {
 		Code    string
@@ -298,7 +297,7 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 	}
 
 	// FIXME: handle StatusTemporaryRedirect and StatusFound
-	// for all other unexpected http code, grab the message out if there is one (#5951)
+	// for all other unexpected http codes, grab the message out if there is one (#5951)
 	if !u.IsStatusOK() {
 		err := fmt.Errorf(u.buildRegistryErrMsg(u.StatusCode, url, res.Body))
 		return nil, nil, err
@@ -429,8 +428,8 @@ func (u *URLFetcher) IsNonretryableClientError() bool {
 		s != http.StatusLocked && s != http.StatusTooManyRequests
 }
 
-// Build error message for unexpected http code (nonretryable client errors and all other errors)
-// extract message details from response body stream if there is one
+// buildRegistryErrMsg builds error message for unexpected http code (nonretryable client errors and all other errors)
+// and extracts message details from response body stream if there is one (#5951).
 func (u *URLFetcher) buildRegistryErrMsg(httpStatusCode int, url *url.URL, respBody io.ReadCloser) string {
 	errMsg := fmt.Sprintf("Unexpected http code: %d (%s), URL: %s", httpStatusCode, http.StatusText(httpStatusCode), url)
 
@@ -440,12 +439,10 @@ func (u *URLFetcher) buildRegistryErrMsg(httpStatusCode int, url *url.URL, respB
 	}
 
 	errMsg += fmt.Sprintf(", Message: %s", errDetail)
-
 	return errMsg
 }
 
-// Extract message from error response body (#5951)
-// The error response body is assumed to follow the convention of Docker
+// extractErrResponseMessage extracts `message` field from error response body json (#5951).
 func (u *URLFetcher) extractErrResponseMessage(rdr io.ReadCloser) (string, error) {
 	out := bytes.NewBuffer(nil)
 	_, err := io.Copy(out, rdr)
