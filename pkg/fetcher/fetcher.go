@@ -291,7 +291,7 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 		}
 
 		// for all other non-retryable client errors, grab the error message if there is one (#5951)
-		err := fmt.Errorf(u.buildRegistryErrMsg(u.StatusCode, url, res.Body))
+		err := fmt.Errorf(u.buildRegistryErrMsg(url, res.Body))
 
 		return nil, nil, DoNotRetry{Err: err}
 	}
@@ -299,7 +299,7 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 	// FIXME: handle StatusTemporaryRedirect and StatusFound
 	// for all other unexpected http codes, grab the message out if there is one (#5951)
 	if !u.IsStatusOK() {
-		err := fmt.Errorf(u.buildRegistryErrMsg(u.StatusCode, url, res.Body))
+		err := fmt.Errorf(u.buildRegistryErrMsg(url, res.Body))
 		return nil, nil, err
 	}
 
@@ -430,8 +430,8 @@ func (u *URLFetcher) IsNonretryableClientError() bool {
 
 // buildRegistryErrMsg builds error message for unexpected http code (nonretryable client errors and all other errors)
 // and extracts message details from response body stream if there is one (#5951).
-func (u *URLFetcher) buildRegistryErrMsg(httpStatusCode int, url *url.URL, respBody io.ReadCloser) string {
-	errMsg := fmt.Sprintf("Unexpected http code: %d (%s), URL: %s", httpStatusCode, http.StatusText(httpStatusCode), url)
+func (u *URLFetcher) buildRegistryErrMsg(url *url.URL, respBody io.ReadCloser) string {
+	errMsg := fmt.Sprintf("Unexpected http code: %d (%s), URL: %s", u.StatusCode, http.StatusText(u.StatusCode), url)
 
 	errDetail, err := u.extractErrResponseMessage(respBody)
 	if err != nil {
@@ -468,11 +468,11 @@ func (u *URLFetcher) extractErrResponseMessage(rdr io.ReadCloser) (string, error
 
 	// grab out every error message
 	var errString string
-	for i, error := range errResponse.Errors {
+	for i := range errResponse.Errors {
 		if i > 0 {
 			errString += ", "
 		}
-		errString += error.Message
+		errString += errResponse.Errors[i].Message
 	}
 
 	return errString, nil
