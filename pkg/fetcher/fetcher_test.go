@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	errJsonStr401 = `{
+	errJSONStr401 = `{
 	"errors":
 		[{"code":"UNAUTHORIZED",
 		  "message":"authentication required",
@@ -31,7 +31,7 @@ const (
 		}]
 	}
 	`
-	multipleErrJsonStr = `{
+	multipleErrJSONStr = `{
 	"errors":
 		[{"code":"UNAUTHORIZED",
 		  "message":"authentication required",
@@ -44,22 +44,22 @@ const (
 	}
 	`
 	unexpectedStr                = `random`
-	unexpectedJsonStr            = `{"nope":"nope"}`
-	errJsonWithEmptyErrorsField  = `{"errors":[]}`
-	errJsonWithNoMessageField    = `{"errors":[{"code":"nope","detail":"nope"}]}`
-	errJsonWithEmptyMessageField = `{"errors":[{"code":"nope","message":""},{"message":""}]}`
+	unexpectedJSONStr            = `{"nope":"nope"}`
+	errJSONWithEmptyErrorsField  = `{"errors":[]}`
+	errJSONWithNoMessageField    = `{"errors":[{"code":"nope","detail":"nope"}]}`
+	errJSONWithEmptyMessageField = `{"errors":[{"code":"nope","message":""},{"message":""}]}`
 )
 
 func TestExtractErrResponseMessage(t *testing.T) {
 	// Test set up: create the io streams for testing purposes
 	// multiple streams needed: these streams only have read ends
-	singleErrTestStream := ioutil.NopCloser(bytes.NewReader([]byte(errJsonStr401)))
-	multipleErrTestStream := ioutil.NopCloser(bytes.NewReader([]byte(multipleErrJsonStr)))
+	singleErrTestStream := ioutil.NopCloser(bytes.NewReader([]byte(errJSONStr401)))
+	multipleErrTestStream := ioutil.NopCloser(bytes.NewReader([]byte(multipleErrJSONStr)))
 	unexpectedStrTestStream := ioutil.NopCloser(bytes.NewReader([]byte(unexpectedStr)))
-	malformedJSONTestStream := ioutil.NopCloser(bytes.NewReader([]byte(unexpectedJsonStr)))
-	emptyErrorsJSONTestStream := ioutil.NopCloser(bytes.NewReader([]byte(errJsonWithEmptyErrorsField)))
-	noMessageJSONTestStream := ioutil.NopCloser(bytes.NewReader([]byte(errJsonWithNoMessageField)))
-	emptyMessageJSONTestStream := ioutil.NopCloser(bytes.NewReader([]byte(errJsonWithEmptyMessageField)))
+	malformedJSONTestStream := ioutil.NopCloser(bytes.NewReader([]byte(unexpectedJSONStr)))
+	emptyErrorsJSONTestStream := ioutil.NopCloser(bytes.NewReader([]byte(errJSONWithEmptyErrorsField)))
+	noMessageJSONTestStream := ioutil.NopCloser(bytes.NewReader([]byte(errJSONWithNoMessageField)))
+	emptyMessageJSONTestStream := ioutil.NopCloser(bytes.NewReader([]byte(errJSONWithEmptyMessageField)))
 
 	// Test 1: single error message extraction
 	msg, err := extractErrResponseMessage(singleErrTestStream)
@@ -81,24 +81,24 @@ func TestExtractErrResponseMessage(t *testing.T) {
 	// Test 4: malformed json string
 	msg, err = extractErrResponseMessage(malformedJSONTestStream)
 	assert.Equal(t, "", msg, "test: (malformed json string) no message should be extracted")
-	assert.Equal(t, errJsonFormat, err,
+	assert.Equal(t, errJSONFormat, err,
 		"test: (malformed json string) error: %s; expected error: %s", err)
 
 	// Test 5: malformed json with empty `errors` field
 	msg, err = extractErrResponseMessage(emptyErrorsJSONTestStream)
 	assert.Equal(t, "", msg, "test: (malformed json string, empty errors field) no message should be extracted")
-	assert.Equal(t, errJsonFormat, err,
-		"test: (malformed json string, empty errors field) error: %s; expected error: %s", err, errJsonFormat)
+	assert.Equal(t, errJSONFormat, err,
+		"test: (malformerrJsonFormated json string, empty errors field) error: %s; expected error: %s", err, errJSONFormat)
 
 	// Test 6: malformed json with no `message` field
 	msg, err = extractErrResponseMessage(noMessageJSONTestStream)
 	assert.Equal(t, "", msg, "test: (malformed json string, no message field) no message should be extracted")
-	assert.Equal(t, errJsonFormat, err,
-		"test: (malformed json string, no message field) error: %s; expected error: %s", err, errJsonFormat)
+	assert.Equal(t, errJSONFormat, err,
+		"test: (malformed json string, no message field) error: %s; expected error: %s", err, errJSONFormat)
 
 	// Test 7: malformed json with empty string in `message` field
 	msg, err = extractErrResponseMessage(emptyMessageJSONTestStream)
 	assert.Equal(t, "", msg, "test: (malformed json string, empty message field) no message should be extracted")
-	assert.Equal(t, errJsonFormat, err,
-		"test: (malformed json string, empty message field) error: %s; expected error: %s", err, errJsonFormat)
+	assert.Equal(t, errJSONFormat, err,
+		"test: (malformed json string, empty message field) error: %s; expected error: %s", err, errJSONFormat)
 }
