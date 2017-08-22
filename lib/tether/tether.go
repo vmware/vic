@@ -62,9 +62,6 @@ var (
 	// that are mounted over the system ones.
 	BindSys = system.NewWithRoot("/.tether")
 	once    sync.Once
-
-	// used for running vm initialization logic once in the reload loop
-	initialize sync.Once
 )
 
 type tether struct {
@@ -91,6 +88,9 @@ type tether struct {
 
 	// syslog writer shared by all sessions
 	writer syslog.Writer
+
+	// used for running vm initialization logic once in the reload loop
+	initialize sync.Once
 }
 
 func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) Tether {
@@ -539,7 +539,7 @@ func (t *tether) Start() error {
 		// TODO: this ensures that we run vm related setup code once
 		// This is temporary as none of those functions are idempotent at this point
 		// https://github.com/vmware/vic/issues/5833
-		initialize.Do(func() {
+		t.initialize.Do(func() {
 			if err = t.setHostname(); err != nil {
 				return
 			}

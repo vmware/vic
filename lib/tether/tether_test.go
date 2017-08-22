@@ -289,14 +289,14 @@ func testSetup(t *testing.T) (string, *Mocker) {
 	log.Infof("Started test setup for %s", name)
 
 	// use the mock ops - fresh one each time as tests might apply different mocked calls
-	mocker := Mocker{
+	mocker := &Mocker{
 		Started:    make(chan bool, 0),
 		Cleaned:    make(chan bool, 0),
 		Reloaded:   make(chan bool, 100),
 		Interfaces: make(map[string]netlink.Link, 0),
 	}
 
-	return name, &mocker
+	return name, mocker
 }
 
 func testTeardown(t *testing.T, mocker *Mocker) {
