@@ -56,10 +56,10 @@ func TestExtractErrResponseMessage(t *testing.T) {
 	singleErrTestStream := ioutil.NopCloser(bytes.NewReader([]byte(ErrJsonStr401)))
 	multipleErrTestStream := ioutil.NopCloser(bytes.NewReader([]byte(MultipleErrJsonStr)))
 	randomStrTestStream := ioutil.NopCloser(bytes.NewReader([]byte(RandomStr)))
-	malformedJsonTestStream := ioutil.NopCloser(bytes.NewReader([]byte(RandomJsonStr)))
-	emptyErrorsJsonTestStream := ioutil.NopCloser(bytes.NewReader([]byte(ErrJsonWithEmptyErrorsField)))
-	noMessageJsonTestStream := ioutil.NopCloser(bytes.NewReader([]byte(ErrJsonWithNoMessageField)))
-	emptyMessageJsonTestStream := ioutil.NopCloser(bytes.NewReader([]byte(ErrJsonWithEmptyMessageField)))
+	malformedJSONTestStream := ioutil.NopCloser(bytes.NewReader([]byte(RandomJsonStr)))
+	emptyErrorsJSONTestStream := ioutil.NopCloser(bytes.NewReader([]byte(ErrJsonWithEmptyErrorsField)))
+	noMessageJSONTestStream := ioutil.NopCloser(bytes.NewReader([]byte(ErrJsonWithNoMessageField)))
+	emptyMessageJSONTestStream := ioutil.NopCloser(bytes.NewReader([]byte(ErrJsonWithEmptyMessageField)))
 
 	// Test 1: single error message extraction
 	msg, err := extractErrResponseMessage(singleErrTestStream)
@@ -81,28 +81,28 @@ func TestExtractErrResponseMessage(t *testing.T) {
 	assert.NotNil(t, err, "test: (non-json string) extraction should fail")
 
 	// Test 4: malformed json string
-	msg, err = extractErrResponseMessage(malformedJsonTestStream)
+	msg, err = extractErrResponseMessage(malformedJSONTestStream)
 	assert.Equal(t, "", msg, "test: (malformed json string) no message should be extracted")
 	assert.NotNil(t, err, "test: (malformed json string) extraction should fail")
 	assert.Equal(t, "error response json has unconventional format", err.Error(),
 		"test: (malformed json string) error: error response json has unconventional format; expected error: %s", err.Error())
 
 	// Test 5: malformed json with empty `errors` field
-	msg, err = extractErrResponseMessage(emptyErrorsJsonTestStream)
+	msg, err = extractErrResponseMessage(emptyErrorsJSONTestStream)
 	assert.Equal(t, "", msg, "test: (malformed json string, empty errors field) no message should be extracted")
 	assert.NotNil(t, err, "test: (malformed json string, empty errors field) extraction should fail")
 	assert.Equal(t, "error response json has unconventional format", err.Error(),
 		"test: (malformed json string, empty errors field) error: %s; expected error: error response json has unconventional format", err.Error())
 
 	// Test 6: malformed json with no `message` field
-	msg, err = extractErrResponseMessage(noMessageJsonTestStream)
+	msg, err = extractErrResponseMessage(noMessageJSONTestStream)
 	assert.Equal(t, "", msg, "test: (malformed json string, no message field) no message should be extracted")
 	assert.NotNil(t, err, "test: (malformed json string, no message field) extraction should fail")
 	assert.Equal(t, "error response json has unconventional format", err.Error(),
 		"test: (malformed json string, no message field) error: %s; expected error: error response json has unconventional format", err.Error())
 
 	// Test 7: malformed json with empty string in `message` field
-	msg, err = extractErrResponseMessage(emptyMessageJsonTestStream)
+	msg, err = extractErrResponseMessage(emptyMessageJSONTestStream)
 	assert.Equal(t, "", msg, "test: (malformed json string, empty message field) no message should be extracted")
 	assert.NotNil(t, err, "test: (malformed json string, empty message field) extraction should fail")
 	assert.Equal(t, "error response json has unconventional format", err.Error(),
