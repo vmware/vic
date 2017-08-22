@@ -28,17 +28,14 @@ import (
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/tether/shared"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 const (
-	DiskLabelQueryName   = "disk-label"
-	FilterSpecQueryName  = "filter-spec"
-	SkipRecurseQueryName = "skip-recurse"
-	SkipDataQueryName    = "skip-data"
-	VixEToolsNotRunning  = "(3016, 0)"
+	VixEToolsNotRunning = "(3016, 0)"
 )
 
 var (
@@ -70,10 +67,10 @@ func BuildArchiveURL(op trace.Operation, disklabel, target string, fs *archive.F
 
 	// note that the query parameters a SkipX for recurse and data so values are inverted
 	target += "?" + (url.Values{
-		DiskLabelQueryName:   []string{disklabel},
-		FilterSpecQueryName:  []string{*encodedSpec},
-		SkipRecurseQueryName: []string{strconv.FormatBool(!recurse)},
-		SkipDataQueryName:    []string{strconv.FormatBool(!data)},
+		shared.DiskLabelQueryName:   []string{disklabel},
+		shared.FilterSpecQueryName:  []string{*encodedSpec},
+		shared.SkipRecurseQueryName: []string{strconv.FormatBool(!recurse)},
+		shared.SkipDataQueryName:    []string{strconv.FormatBool(!data)},
 	}).Encode()
 
 	op.Debugf("OnlineData* Url: %s", target)

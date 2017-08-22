@@ -46,7 +46,7 @@ Create with anonymous volume
 
 Create with named volume
     ${disk-size}=  Run  docker %{VCH-PARAMS} logs $(docker %{VCH-PARAMS} start $(docker %{VCH-PARAMS} create -v test-named-vol:/testdir ${busybox} /bin/df -Ph) && sleep 10) | grep by-label | awk '{print $2}'
-    Should Be Equal As Strings  ${disk-size}  975.9M
+    Should Contain  ${disk-size}  975.9M
 
 Create with a directory as a volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v /dir:/dir ${busybox}
