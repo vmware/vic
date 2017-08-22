@@ -1819,7 +1819,7 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 		log.Debugf("add volume mount %s to config.volumes and hostconfig.binds", mount)
 	}
 
-	vc.Config.Cmd = info.ContainerConfig.Cmd
+	vc.Config.Cmd = info.ProcessConfig.ExecArgs
 
 	return vc
 }

@@ -204,6 +204,11 @@ func hydrateCaches() error {
 	if len(errs) > 0 {
 		e = fmt.Errorf(strings.Join(errs, ", "))
 	}
+
+	if e != nil {
+		log.Errorf("Errors occurred during cache hydration at VCH start: %s", e)
+	}
+
 	return e
 }
 
