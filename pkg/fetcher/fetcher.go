@@ -442,8 +442,13 @@ func (u *URLFetcher) buildRegistryErrMsg(url *url.URL, respBody io.ReadCloser) s
 	return errMsg
 }
 
+// malformedJsonErrFormat is the error format for malformed json response body
+// used in function extractErrResponseMessage
+var malformedJsonErrFormat = fmt.Errorf("error response json has unconventional format")
+
 // extractErrResponseMessage extracts `message` field from error response body stream.
 func extractErrResponseMessage(rdr io.ReadCloser) (string, error) {
+	// close the stream after done
 	defer rdr.Close()
 
 	out := bytes.NewBuffer(nil)
@@ -465,7 +470,7 @@ func extractErrResponseMessage(rdr io.ReadCloser) (string, error) {
 
 	if len(errResponse.Errors) == 0 {
 		log.Debugf("Error response wrong format. Response body: %s", string(res))
-		return "", fmt.Errorf("error response json has unconventional format")
+		return "", malformedJsonErrFormat
 	}
 
 	// grab out every error message
@@ -483,7 +488,7 @@ func extractErrResponseMessage(rdr io.ReadCloser) (string, error) {
 
 	// if no message available, treat it as a malformed json error
 	if len(errString) == 0 {
-		return "", fmt.Errorf("error response json has unconventional format")
+		return "", malformedJsonErrFormat
 	}
 
 	return errString, nil

@@ -18,8 +18,6 @@ import (
 	"bytes"
 	"io/ioutil"
 	"testing"
-
-	"fmt"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -62,9 +60,6 @@ func TestExtractErrResponseMessage(t *testing.T) {
 	noMessageJSONTestStream := ioutil.NopCloser(bytes.NewReader([]byte(errJsonWithNoMessageField)))
 	emptyMessageJSONTestStream := ioutil.NopCloser(bytes.NewReader([]byte(errJsonWithEmptyMessageField)))
 
-	// expected error message upon malformed json to check against
-	malformedJsonErrFormat := fmt.Errorf("error response json has unconventional format")
-
 	// Test 1: single error message extraction
 	msg, err := extractErrResponseMessage(singleErrTestStream)
 	assert.Nil(t, err, "test: (single error message) extraction should success for well-formatted error json")
@@ -86,7 +81,7 @@ func TestExtractErrResponseMessage(t *testing.T) {
 	msg, err = extractErrResponseMessage(malformedJSONTestStream)
 	assert.Equal(t, "", msg, "test: (malformed json string) no message should be extracted")
 	assert.Equal(t, malformedJsonErrFormat, err,
-		"test: (malformed json string) error: %s; expected error: %s", err, malformedJsonErrFormat)
+		"test: (malformed json string) error: %s; expected error: %s", err, )
 
 	// Test 5: malformed json with empty `errors` field
 	msg, err = extractErrResponseMessage(emptyErrorsJSONTestStream)
