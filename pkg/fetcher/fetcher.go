@@ -439,7 +439,9 @@ func (u *URLFetcher) buildRegistryErrMsg(httpStatusCode int, url *url.URL, respB
 		return errMsg
 	}
 
-	return fmt.Sprintf(errMsg + ", Message: %s", errDetail)
+	errMsg += fmt.Sprintf(", Message: %s", errDetail)
+
+	return errMsg
 }
 
 // Extract message from error response body (#5951)
