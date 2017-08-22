@@ -39,6 +39,7 @@ import (
 
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
+	"github.com/smartystreets/goconvey/web/server/messaging"
 )
 
 const (
@@ -459,7 +460,7 @@ func extractErrResponseMessage(rdr io.ReadCloser) (string, error) {
 	var errResponse RegistryErrorRespBody
 	err = json.Unmarshal(res, &errResponse)
 	if err != nil {
-		log.Debugf("Error when unmarshalling error response body: %s", err)
+		log.Debugf("Error when unmarshaling error response body: %s", err)
 		return "", err
 	}
 
@@ -471,10 +472,19 @@ func extractErrResponseMessage(rdr io.ReadCloser) (string, error) {
 	// grab out every error message
 	var errString string
 	for i := range errResponse.Errors {
-		if i > 0 {
-			errString += ", "
+		message := errResponse.Errors[i].Message
+		// only append the message when there is content in the field
+		if len(message) > 0 {
+			if i > 0 {
+				errString += ", "
+			}
+			errString += message
 		}
-		errString += errResponse.Errors[i].Message
+	}
+
+	// if no message available, treat it as a malformed json error
+	if len(errString) == 0 {
+		return "", fmt.Errorf("error response json has unconventional format")
 	}
 
 	return errString, nil
