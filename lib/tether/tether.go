@@ -242,7 +242,17 @@ func (t *tether) setHostname() error {
 		short = short[:shortLen]
 	}
 
-	if err := t.ops.SetHostname(short, t.config.Name); err != nil {
+	full := t.config.Hostname
+	if t.config.Hostname != "" && t.config.Domainname != "" {
+		full = fmt.Sprintf("%s.%s", t.config.Hostname, t.config.Domainname)
+	}
+
+	hostname := short
+	if full != "" {
+		hostname = full
+	}
+
+	if err := t.ops.SetHostname(hostname, t.config.Name); err != nil {
 		// we don't attempt to recover from this - it's a fundamental misconfiguration
 		// so just exit
 		return fmt.Errorf("failed to set hostname: %s", err)
