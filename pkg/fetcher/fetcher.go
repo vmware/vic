@@ -444,6 +444,8 @@ func (u *URLFetcher) buildRegistryErrMsg(url *url.URL, respBody io.ReadCloser) s
 
 // extractErrResponseMessage extracts `message` field from error response body stream.
 func extractErrResponseMessage(rdr io.ReadCloser) (string, error) {
+	defer rdr.Close()
+
 	out := bytes.NewBuffer(nil)
 	_, err := io.Copy(out, rdr)
 	if err != nil {
