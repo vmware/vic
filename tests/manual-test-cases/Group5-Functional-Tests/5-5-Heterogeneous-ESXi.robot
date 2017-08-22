@@ -21,89 +21,87 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 Test
     Log To Console  \nStarting test...
     Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${esx1}  ${esx1-info}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${ESX_VERSION}  true  true
-    ${esx1-ip}=  Evaluate  @{esx1-info}[0]
-    ${pod_id}=  Evaluate  @{esx1-info}[1]
+    ${esx1}  ${esx1-info}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${ESX_VERSION}  True  True
+    ${esx1-ip}=  Set Variable  @{esx1-info}[0]
+    ${pod_id}=  Set Variable  @{esx1-info}[1]
     Append To List  ${list}  ${esx1}
 
-#    ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
-#    ${pid-vc}=  Deploy Nimbus vCenter Server Async  ${vc}  ${VC_VERSION}  --nimbus ${pod_id}
-#    Set Global Variable  @{list}  %{NIMBUS_USER}-${vc}
+    ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
+    ${pid-vc}=  Deploy Nimbus vCenter Server Async  ${vc}  ${VC_VERSION}  --nimbus ${pod_id}
+    Set Global Variable  @{list}  %{NIMBUS_USER}-${vc}
 
     Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${esx2}  ${esx2-info}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  3029944  true  false  --nimbus ${pod_id}
-    ${esx2-ip}=  Evaluate  @{esx2-info}[0]
+    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  3029944  True  False  --nimbus ${pod_id}
     Append To List  ${list}  ${esx2}
 
-#    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-#    ${esx3}  ${esx3-info}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  4240417  true  false  --nimbus ${pod_id}
-#    ${esx3-ip}=  Evaluate  @{esx3-info}[0]
-#    Append To List  ${list}  ${esx3}
-#
-#    # Finish vCenter deploy
-#    ${output}=  Wait For Process  ${pid-vc}  timeout=40 minutes  on_timeout=terminate
-#    Log  ${output.stdout}
-#    Log  ${output.stderr}
-#    ${status}=  Run Keyword And Return Status  Should Contain  ${output.stdout}  Overall Status: Succeeded
-#
-#    # Try again, if the VC failed quickly we might have enough time to try again
-#    ${pid-vc}=  Run Keyword Unless  ${status}  Deploy Nimbus vCenter Server Async  ${vc}
-#    ${output}=  Run Keyword Unless  ${status}  Wait For Process  ${pid-vc}  timeout=40 minutes  on_timeout=terminate
-#    Run Keyword Unless  ${status}  Log  ${output.stdout}
-#    Run Keyword Unless  ${status}  Log  ${output.stderr}
-#    Run Keyword Unless  ${status}  Should Contain  ${output.stdout}  Overall Status: Succeeded
-#
-#    Open Connection  %{NIMBUS_GW}
-#    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-#    ${vc-ip}=  Get IP  ${vc}
-#    Close Connection
-#
-#    Set Environment Variable  GOVC_INSECURE  1
-#    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
-#    Set Environment Variable  GOVC_PASSWORD  Admin!23
-#    Set Environment Variable  GOVC_URL  ${vc-ip}
-#
-#    Log To Console  Create a datacenter on the VC
-#    ${out}=  Run  govc datacenter.create ha-datacenter
-#    Should Be Empty  ${out}
-#
-#    Log To Console  Create a cluster on the VC
-#    ${out}=  Run  govc cluster.create cls
-#    Should Be Empty  ${out}
-#
-#    Log To Console  Add ESX host to the VC
-#    Add Host To VCenter  ${esx1-ip}  root  ha-datacenter  e2eFunctionalTest
-#    Add Host To VCenter  ${esx2-ip}  root  ha-datacenter  e2eFunctionalTest
-#    ${vc-ver}=  Run  govc about | grep Version:
-#    ${vc-ver}=  Fetch From Right  ${vc-ver}  ${SPACE}
-#    Run Keyword If  '${vc-ver}' == '6.5.0'  Add Host To VCenter  ${esx3-ip}  root  ha-datacenter  e2eFunctionalTest
-#
-#    Create A Distributed Switch  ha-datacenter
-#
-#    Create Three Distributed Port Groups  ha-datacenter
-#
-#    Add Host To Distributed Switch  /ha-datacenter/host/cls
-#
-#    Log To Console  Enable DRS on the cluster
-#    ${out}=  Run  govc cluster.change -drs-enabled /ha-datacenter/host/cls
-#    Should Be Empty  ${out}
-#
-#    Log To Console  Deploy VIC to the VC cluster
-#    Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
-#    Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
-#    Set Environment Variable  TEST_PASSWORD  Admin\!23
-#    Set Environment Variable  BRIDGE_NETWORK  bridge
-#    Set Environment Variable  PUBLIC_NETWORK  vm-network
-#    Set Environment Variable  TEST_RESOURCE  cls
-#    Set Environment Variable  TEST_TIMEOUT  30m
-#
-#    ${name}  ${ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --nimbus ${pod_id}
-#
-#    ${out}=  Run  govc datastore.create -mode readWrite -type nfs -name nfsDatastore -remote-host ${ip} -remote-path /store /ha-datacenter/host/cls
-#    Should Be Empty  ${out}
-#
-#    Set Environment Variable  TEST_DATASTORE  nfsDatastore
-#
-#    Install VIC Appliance To Test Server  certs=${false}  vol=default
-#
-#    Run Regression Tests
+    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  4240417  True  False  --nimbus ${pod_id}
+    Append To List  ${list}  ${esx3}
+
+    # Finish vCenter deploy
+    ${output}=  Wait For Process  ${pid-vc}  timeout=40 minutes  on_timeout=terminate
+    Log  ${output.stdout}
+    Log  ${output.stderr}
+    ${status}=  Run Keyword And Return Status  Should Contain  ${output.stdout}  Overall Status: Succeeded
+
+    # Try again, if the VC failed quickly we might have enough time to try again
+    ${pid-vc}=  Run Keyword Unless  ${status}  Deploy Nimbus vCenter Server Async  ${vc}
+    ${output}=  Run Keyword Unless  ${status}  Wait For Process  ${pid-vc}  timeout=40 minutes  on_timeout=terminate
+    Run Keyword Unless  ${status}  Log  ${output.stdout}
+    Run Keyword Unless  ${status}  Log  ${output.stderr}
+    Run Keyword Unless  ${status}  Should Contain  ${output.stdout}  Overall Status: Succeeded
+
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc-ip}=  Get IP  ${vc}
+    Close Connection
+
+    Set Environment Variable  GOVC_INSECURE  1
+    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  GOVC_PASSWORD  Admin!23
+    Set Environment Variable  GOVC_URL  ${vc-ip}
+
+    Log To Console  Create a datacenter on the VC
+    ${out}=  Run  govc datacenter.create ha-datacenter
+    Should Be Empty  ${out}
+
+    Log To Console  Create a cluster on the VC
+    ${out}=  Run  govc cluster.create cls
+    Should Be Empty  ${out}
+
+    Log To Console  Add ESX host to the VC
+    Add Host To VCenter  ${esx1-ip}  root  ha-datacenter  e2eFunctionalTest
+    Add Host To VCenter  ${esx2-ip}  root  ha-datacenter  e2eFunctionalTest
+    ${vc-ver}=  Run  govc about | grep Version:
+    ${vc-ver}=  Fetch From Right  ${vc-ver}  ${SPACE}
+    Run Keyword If  '${vc-ver}' == '6.5.0'  Add Host To VCenter  ${esx3-ip}  root  ha-datacenter  e2eFunctionalTest
+
+    Create A Distributed Switch  ha-datacenter
+
+    Create Three Distributed Port Groups  ha-datacenter
+
+    Add Host To Distributed Switch  /ha-datacenter/host/cls
+
+    Log To Console  Enable DRS on the cluster
+    ${out}=  Run  govc cluster.change -drs-enabled /ha-datacenter/host/cls
+    Should Be Empty  ${out}
+
+    Log To Console  Deploy VIC to the VC cluster
+    Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
+    Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  TEST_PASSWORD  Admin\!23
+    Set Environment Variable  BRIDGE_NETWORK  bridge
+    Set Environment Variable  PUBLIC_NETWORK  vm-network
+    Set Environment Variable  TEST_RESOURCE  cls
+    Set Environment Variable  TEST_TIMEOUT  30m
+
+    ${name}  ${ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --nimbus ${pod_id}
+
+    ${out}=  Run  govc datastore.create -mode readWrite -type nfs -name nfsDatastore -remote-host ${ip} -remote-path /store /ha-datacenter/host/cls
+    Should Be Empty  ${out}
+
+    Set Environment Variable  TEST_DATASTORE  nfsDatastore
+
+    Install VIC Appliance To Test Server  certs=${false}  vol=default
+
+    Run Regression Tests

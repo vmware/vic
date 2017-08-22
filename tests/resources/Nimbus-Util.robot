@@ -36,7 +36,7 @@ Get IP
     [Return]  ${ip}
 
 Deploy Nimbus ESXi Server
-    [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}  ${tls_disabled}=True  ${return_pod_id}=false  ${additional-args}=
+    [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}  ${tls_disabled}=True  ${return_pod_id}=False  ${additional-args}=
     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
     Open Connection  %{NIMBUS_GW}
@@ -64,11 +64,10 @@ Deploy Nimbus ESXi Server
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  Chose nimbus pod
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
     @{gotPodID}=  Split String  ${line}  ${SPACE}
-    ${pod_id}=  Evaluate  @{gotPodID}[6]
 
     @{info}=  Create List
     Append To List  ${info}  ${ip}
-    Run Keword If  ${return_pod_id}  Append To List  ${info}  ${pod_id}
+    Run Keyword If  ${return_pod_id}  Append To List  ${info}  @{gotPodID}[6]
 
     # Let's set a password so govc doesn't complain
     Remove Environment Variable  GOVC_PASSWORD
