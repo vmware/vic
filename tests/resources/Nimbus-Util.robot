@@ -67,7 +67,8 @@ Deploy Nimbus ESXi Server
     @{gotIP}=  Split String  ${line}  ${SPACE}
     ${ip}=  Remove String  @{gotIP}[5]  ,
 
-    Run Keyword If  %{NIMBUS_POD} == ${EMPTY}  Set Environment Variable  NIMBUS_POD  Get Nimbus POD ID  @{out}
+    ${pod_id}=  Get Nimbus POD ID  @{out}
+    Run Keyword If  '%{NIMBUS_POD}' == '${EMPTY}'  Set Environment Variable  NIMBUS_POD  ${pod_id}
 
     # Let's set a password so govc doesn't complain
     Remove Environment Variable  GOVC_PASSWORD
