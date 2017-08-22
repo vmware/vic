@@ -20,15 +20,16 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
+    ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
+    Set Global Variable  @{list}  %{NIMBUS_USER}-${vc}
+
     Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     ${esx1}  ${esx1-info}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${ESX_VERSION}  True  True
     ${esx1-ip}=  Set Variable  @{esx1-info}[0]
     ${pod_id}=  Set Variable  @{esx1-info}[1]
     Append To List  ${list}  ${esx1}
 
-    ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     ${pid-vc}=  Deploy Nimbus vCenter Server Async  ${vc}  ${VC_VERSION}  --nimbus ${pod_id}
-    Set Global Variable  @{list}  %{NIMBUS_USER}-${vc}
 
     Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  3029944  True  False  --nimbus ${pod_id}
