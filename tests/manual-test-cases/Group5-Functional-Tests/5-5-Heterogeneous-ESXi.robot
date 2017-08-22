@@ -24,19 +24,17 @@ Test
     Set Global Variable  @{list}  %{NIMBUS_USER}-${vc}
 
     Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${esx1}  ${esx1-info}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${ESX_VERSION}  True  True
-    ${esx1-ip}=  Set Variable  @{esx1-info}[0]
-    ${pod_id}=  Set Variable  @{esx1-info}[1]
+    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Append To List  ${list}  ${esx1}
 
-    ${pid-vc}=  Deploy Nimbus vCenter Server Async  ${vc}  ${VC_VERSION}  --nimbus ${pod_id}
+    ${pid-vc}=  Deploy Nimbus vCenter Server Async  ${vc}  ${VC_VERSION}  --nimbus %{NIMBUS_POD}
 
     Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  3029944  True  False  --nimbus ${pod_id}
+    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  3029944  True  --nimbus %{NIMBUS_POD}
     Append To List  ${list}  ${esx2}
 
     Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  4240417  True  False  --nimbus ${pod_id}
+    ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  4240417  True  --nimbus %{NIMBUS_POD}
     Append To List  ${list}  ${esx3}
 
     # Finish vCenter deploy
@@ -96,7 +94,7 @@ Test
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
 
-    ${name}  ${ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --nimbus ${pod_id}
+    ${name}  ${ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --nimbus %{NIMBUS_POD}
 
     ${out}=  Run  govc datastore.create -mode readWrite -type nfs -name nfsDatastore -remote-host ${ip} -remote-path /store /ha-datacenter/host/cls
     Should Be Empty  ${out}
