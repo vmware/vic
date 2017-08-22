@@ -23,16 +23,16 @@ import (
 )
 
 const (
-	ErrJsonStr401 = `
-	{"errors":
+	ErrJsonStr401 = `{
+	"errors":
 		[{"code":"UNAUTHORIZED",
 		  "message":"authentication required",
 		  "detail":[{"Type":"repository","Class":"","Name":"library/jiowengew","Action":"pull"}]
 		}]
-	}`
-
-	MultipleErrJsonStr = `
-	{"errors":
+	}
+	`
+	MultipleErrJsonStr = `{
+	"errors":
 		[{"code":"UNAUTHORIZED",
 		  "message":"authentication required",
 		  "detail":[{"Type":"repository","Class":"","Name":"library/jiowengew","Action":"pull"}]
@@ -43,20 +43,14 @@ const (
 		}]
 	}
 	`
-
-	RandomStr = `random`
-
-	RandomJsonStr = `{"nope":"nope"}`
-
-	ErrJsonWithEmptyErrorsField = `{"errors":[]}`
-
-	ErrJsonWithNoMessageField = `{"errors":[{"code":"nope","detail":"nope"}]}`
-
+	RandomStr                    = `random`
+	RandomJsonStr                = `{"nope":"nope"}`
+	ErrJsonWithEmptyErrorsField  = `{"errors":[]}`
+	ErrJsonWithNoMessageField    = `{"errors":[{"code":"nope","detail":"nope"}]}`
 	ErrJsonWithEmptyMessageField = `{"errors":[{"code":"nope","message":""},{"message":""}]}`
 )
 
 func TestExtractErrResponseMessage(t *testing.T) {
-
 	// Test set up: create the io streams for testing purposes
 	// multiple streams needed: these streams only have read ends
 	singleErrTestStream := ioutil.NopCloser(bytes.NewReader([]byte(ErrJsonStr401)))
