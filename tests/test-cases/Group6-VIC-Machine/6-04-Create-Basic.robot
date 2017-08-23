@@ -127,6 +127,9 @@ Create VCH - defaults
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
+    ${output}=  Run  bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT}
+    Should Contain  ${output}  --debug=1
+
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
