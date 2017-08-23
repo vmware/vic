@@ -35,15 +35,24 @@ Get IP
     ${ip}=  Fetch From Right  ${out}  ${SPACE}
     [Return]  ${ip}
 
+Get Nimbus POD ID
+    [Arguments]  ${nimbus_output}
+    @{info}=  Split To Lines  ${nimbus_output}
+    :FOR  ${item}  IN  @{info}
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  Chose nimbus pod
+    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
+    @{gotPodID}=  Split String  ${line}  ${SPACE}
+    [Return]  @{gotPodID}[6]
+
 Deploy Nimbus ESXi Server
-    [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}  ${tls_disabled}=True
+    [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}  ${tls_disabled}=True  ${additional-args}=${EMPTY}
     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
-    \   ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --lease=1 --nics 2 ${version}
+    \   ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --lease=1 --nics 2 ${additional-args} ${version}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  To manage this VM use
     \   Exit For Loop If  ${status}
@@ -52,12 +61,15 @@ Deploy Nimbus ESXi Server
     \   Sleep  5 minutes
 
     # Now grab the IP address and return the name and ip for later use
-    @{out}=  Split To Lines  ${out}
-    :FOR  ${item}  IN  @{out}
+    @{info}=  Split To Lines  ${out}
+    :FOR  ${item}  IN  @{info}
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  IP is
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
     @{gotIP}=  Split String  ${line}  ${SPACE}
     ${ip}=  Remove String  @{gotIP}[5]  ,
+
+    ${pod_id}=  Get Nimbus POD ID  ${out}
+    Run Keyword If  '%{NIMBUS_POD}' == '${EMPTY}'  Set Environment Variable  NIMBUS_POD  ${pod_id}
 
     # Let's set a password so govc doesn't complain
     Remove Environment Variable  GOVC_PASSWORD
@@ -165,10 +177,10 @@ Run Secret SSHPASS command
 
 Deploy Nimbus vCenter Server Async
     [Tags]  secret
-    [Arguments]  ${name}  ${version}=${VC_VERSION}
+    [Arguments]  ${name}  ${version}=${VC_VERSION}  ${additional-args}=${EMPTY}
     Log To Console  \nDeploying Nimbus VC server: ${name}
 
-    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-vcvadeploy --lease=1 --vcvaBuild ${version} ${name}'
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-vcvadeploy --lease=1 --vcvaBuild ${version} ${additional-args} ${name}'
     [Return]  ${out}
 
 Deploy Nimbus Testbed
@@ -377,7 +389,7 @@ Get Vsphere Version
     \   Run Keyword And Return If  ${status}  Fetch From Right  ${line}  ${SPACE}
 
 Deploy Nimbus NFS Datastore
-    [Arguments]  ${user}  ${password}  ${additional-args}=
+    [Arguments]  ${user}  ${password}  ${additional-args}=${EMPTY}
     ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     Log To Console  \nDeploying Nimbus NFS server: ${name}
     Open Connection  %{NIMBUS_GW}
