@@ -37,5 +37,6 @@ build:
       GS_CLIENT_EMAIL: $$GS_CLIENT_EMAIL
       GS_PRIVATE_KEY: $$GS_PRIVATE_KEY
       VC_LICENSE: $$VC_LICENSE
+      NIMBUS_POD:
     commands:
         - $$test
