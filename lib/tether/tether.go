@@ -88,6 +88,9 @@ type tether struct {
 
 	// syslog writer shared by all sessions
 	writer syslog.Writer
+
+	// used for running vm initialization logic once in the reload loop
+	initialize sync.Once
 }
 
 func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) Tether {
@@ -300,11 +303,15 @@ func (t *tether) setMounts() error {
 		switch mountTarget.Source.Scheme {
 		case "label":
 			// this could block indefinitely while waiting for a volume to present
-			t.ops.MountLabel(context.Background(), mountTarget.Source.Path, mountTarget.Path)
-
+			// return error if mount volume failed, to fail container start
+			if err := t.ops.MountLabel(context.Background(), mountTarget.Source.Path, mountTarget.Path); err != nil {
+				return err
+			}
 		case "nfs":
-			t.ops.MountTarget(context.Background(), mountTarget.Source, mountTarget.Path, mountTarget.Mode)
-
+			// return error if mount nfs volume failed, to fail container start, so user knows there is something wrong
+			if err := t.ops.MountTarget(context.Background(), mountTarget.Source, mountTarget.Path, mountTarget.Mode); err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("unsupported volume mount type for %s: %s", targetRef, mountTarget.Source.Scheme)
 		}
@@ -516,6 +523,8 @@ func (t *tether) Start() error {
 	// initial entry, so seed this
 	t.reload <- struct{}{}
 	for range t.reload {
+		var err error
+
 		select {
 		case <-t.ctx.Done():
 			log.Warnf("Someone called shutdown, returning from start")
@@ -531,44 +540,50 @@ func (t *tether) Start() error {
 
 		t.setLogLevel()
 
-		if err := t.setHostname(); err != nil {
+		// TODO: this ensures that we run vm related setup code once
+		// This is temporary as none of those functions are idempotent at this point
+		// https://github.com/vmware/vic/issues/5833
+		t.initialize.Do(func() {
+			if err = t.setHostname(); err != nil {
+				return
+			}
+
+			// process the networks then publish any dynamic data
+			if err = t.setNetworks(); err != nil {
+				return
+			}
+			extraconfig.Encode(t.sink, t.config)
+
+			// setup the firewall
+			if err = retryOnError(func() error { return t.ops.SetupFirewall(t.ctx, t.config) }, 5); err != nil {
+				err = fmt.Errorf("Couldn't set up container-network firewall: %v", err)
+				return
+			}
+
+			//process the filesystem mounts - this is performed after networks to allow for network mounts
+			if err = t.setMounts(); err != nil {
+				return
+			}
+		})
+
+		if err != nil {
 			log.Error(err)
 			return err
 		}
 
-		// process the networks then publish any dynamic data
-		if err := t.setNetworks(); err != nil {
-			log.Error(err)
-			return err
-		}
-		extraconfig.Encode(t.sink, t.config)
-
-		// setup the firewall
-		if err := retryOnError(func() error { return t.ops.SetupFirewall(t.ctx, t.config) }, 5); err != nil {
-			err = fmt.Errorf("Couldn't set up container-network firewall: %v", err)
-			log.Error(err)
-			return err
-		}
-
-		//process the filesystem mounts - this is performed after networks to allow for network mounts
-		if err := t.setMounts(); err != nil {
-			log.Error(err)
-			return err
-		}
-
-		if err := t.initializeSessions(); err != nil {
+		if err = t.initializeSessions(); err != nil {
 			log.Error(err)
 			return err
 		}
 
 		// Danger, Will Robinson! There is a strict ordering here.
 		// We need to start attach server first so that it can unblock the session
-		if err := t.reloadExtensions(); err != nil {
+		if err = t.reloadExtensions(); err != nil {
 			log.Error(err)
 			return err
 		}
 
-		if err := t.processSessions(); err != nil {
+		if err = t.processSessions(); err != nil {
 			log.Error(err)
 			return err
 		}

@@ -319,7 +319,19 @@ func (c *Container) Refresh(ctx context.Context) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 
-	return c.refresh(ctx)
+	if err := c.refresh(ctx); err != nil {
+		return err
+	}
+
+	// sync power state (see issue 4872)
+	switch c.containerBase.Runtime.PowerState {
+	case types.VirtualMachinePowerStatePoweredOn:
+		c.state = StateRunning
+	case types.VirtualMachinePowerStatePoweredOff:
+		c.state = StateStopped
+	}
+
+	return nil
 }
 
 func (c *Container) refresh(ctx context.Context) error {
