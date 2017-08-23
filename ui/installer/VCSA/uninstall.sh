@@ -117,7 +117,7 @@ check_prerequisite () {
     fi
 
     #retrieve VC thumbprint
-    VC_THUMBPRINT=$($PLUGIN_MANAGER_BIN info $COMMONFLAGS --key com.vmware.vic.noop 2>&1 | grep -o "(thumbprint.*)" | awk -F= '{print $2}' | sed 's/.$//')
+    VC_THUMBPRINT=$($PLUGIN_MANAGER_BIN info $COMMONFLAGS --key com.vmware.vic.noop 2>&1 | grep -o "(thumbprint.*)" | cut -c13-71)
 
     # verify the thumbprint of VC
     echo ""
