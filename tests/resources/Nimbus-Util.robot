@@ -36,7 +36,8 @@ Get IP
     [Return]  ${ip}
 
 Get Nimbus POD ID
-    [Arguments]  ${info}
+    [Arguments]  ${nimbus_output}
+    @{info}=  Split To Lines  ${nimbus_output}
     :FOR  ${item}  IN  @{info}
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  Chose nimbus pod
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
@@ -60,14 +61,14 @@ Deploy Nimbus ESXi Server
     \   Sleep  5 minutes
 
     # Now grab the IP address and return the name and ip for later use
-    @{out}=  Split To Lines  ${out}
-    :FOR  ${item}  IN  @{out}
+    @{info}=  Split To Lines  ${out}
+    :FOR  ${item}  IN  @{info}
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  IP is
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
     @{gotIP}=  Split String  ${line}  ${SPACE}
     ${ip}=  Remove String  @{gotIP}[5]  ,
 
-    ${pod_id}=  Get Nimbus POD ID  @{out}
+    ${pod_id}=  Get Nimbus POD ID  ${out}
     Run Keyword If  '%{NIMBUS_POD}' == '${EMPTY}'  Set Environment Variable  NIMBUS_POD  ${pod_id}
 
     # Let's set a password so govc doesn't complain
