@@ -331,14 +331,14 @@ func (c *containerBase) poweroff(ctx context.Context) error {
 	})
 
 	if err != nil {
-
 		// It is possible the VM has finally shutdown in between, ignore the error in that case
 		if terr, ok := err.(task.Error); ok {
+			waitForStableOff := false
 			switch terr := terr.Fault().(type) {
 			case *types.InvalidPowerState:
 				if terr.ExistingState == types.VirtualMachinePowerStatePoweredOff {
 					log.Warnf("power off %s task skipped (state was already %s)", c.ExecConfig.ID, terr.ExistingState)
-					return nil
+					waitForStableOff = true
 				}
 				log.Warnf("invalid power state during power off: %s", terr.ExistingState)
 
@@ -349,13 +349,32 @@ func (c *containerBase) poweroff(ctx context.Context) error {
 					k := terr.FaultMessage[0].Key
 					if k == vmNotSuspendedKey || k == vmPoweringOffKey {
 						log.Infof("power off %s task skipped due to guest shutdown", c.ExecConfig.ID)
-						return nil
+						waitForStableOff = true
 					}
 				}
 				log.Warnf("generic vm config fault during power off: %#v", terr)
 
 			default:
 				log.Warnf("hard power off failed due to: %#v", terr)
+			}
+
+			// If we're already powered off or in the process of powering off, wait till property says we are powered
+			// off.  We've seen cases where we send a poweroff to a VM that is already poweredoff.  vShere appears to
+			// try to correct itself when it sees the invalid transtion.  Retrieving the VM properties during this time
+			// often returns unstable power state (usually says VM is powered on).  This next code will attempt to wait
+			// till properties stabilizes before we leave.  The time to wait for stabilization may still not be long
+			// enough.  Ideally, we would like vSphere to tell us the power state is stable and ok to retrieve properties.
+			// May help alleviate https://github.com/vmware/vic/issues/5628
+			if waitForStableOff {
+				wait := 10 * time.Second // default
+				timeout, cancel := context.WithTimeout(ctx, wait)
+				defer cancel()
+
+				err = c.vm.WaitForPowerState(timeout, types.VirtualMachinePowerStatePoweredOff)
+				if err != nil {
+					log.Warnf("attempt to wait for stable power off properties failed: %s", err.Error())
+				}
+				return nil
 			}
 		}
 
