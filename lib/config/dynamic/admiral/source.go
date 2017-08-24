@@ -422,7 +422,12 @@ func (o *productDiscovery) Discover(ctx context.Context, sess *session.Session) 
 
 	var vms []*vm.VirtualMachine
 	for _, o := range objs {
-		if o.Type != nil && *o.Type != "VirtualMachine" {
+		if o.Type == nil || o.ID == nil {
+			log.Warnf("skipping invalid object reference %+v", o)
+			continue
+		}
+
+		if *o.Type != "VirtualMachine" {
 			// not a virtual machine
 			continue
 		}
