@@ -18,7 +18,7 @@ pipeline:
     recursive: false
 
   wait-for-build:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.33
+    image: harbor.ci.drone.local/library/vic-integration-test:1.35
     pull: true
     environment:
       BIN: bin
@@ -31,7 +31,7 @@ pipeline:
       - tests/wait_until_previous_builds_complete.sh
 
   vic-engine:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.33
+    image: harbor.ci.drone.local/library/vic-integration-test:1.35
     pull: true
     environment:
       BIN: bin
@@ -58,7 +58,7 @@ pipeline:
       status:  success
 
   vic-integration-test-on-pr:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.33
+    image: harbor.ci.drone.local/library/vic-integration-test:1.35
     pull: true
     privileged: true
     environment:
@@ -97,7 +97,7 @@ pipeline:
       status:  success
 
   vic-ui:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.33
+    image: harbor.ci.drone.local/library/vic-integration-test:1.35
     pull: true
     environment:
       BUILD_NUMBER: ${DRONE_BUILD_NUMBER}
