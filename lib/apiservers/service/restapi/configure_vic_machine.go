@@ -51,9 +51,7 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 	api.TxtProducer = runtime.TextProducer()
 
 	// Applies when the Authorization header is set with the Basic scheme
-	api.BasicAuth = func(user string, pass string) (interface{}, error) {
-		return nil, errors.NotImplemented("basic auth  (basic) has not yet been implemented")
-	}
+	api.BasicAuth = handlers.BasicAuth
 
 	// GET /container
 	api.GetHandler = operations.GetHandlerFunc(func(params operations.GetParams) middleware.Responder {
@@ -71,9 +69,7 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 	})
 
 	// GET /container/target/{target}/vch
-	api.GetTargetTargetVchHandler = operations.GetTargetTargetVchHandlerFunc(func(params operations.GetTargetTargetVchParams, principal interface{}) middleware.Responder {
-		return middleware.NotImplemented("operation .GetTargetTargetVch has not yet been implemented")
-	})
+	api.GetTargetTargetVchHandler = &handlers.VCHListGet{}
 
 	// POST /container/target/{target}/vch
 	api.PostTargetTargetVchHandler = operations.PostTargetTargetVchHandlerFunc(func(params operations.PostTargetTargetVchParams, principal interface{}) middleware.Responder {
@@ -111,9 +107,7 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 	})
 
 	// GET /container/target/{target}/datacenter/{datacenter}/vch
-	api.GetTargetTargetDatacenterDatacenterVchHandler = operations.GetTargetTargetDatacenterDatacenterVchHandler(func(params operations.GetTargetTargetDatacenterDatacenterVchHandler, principal interface{}) middleware.Responder {
-		return middleware.NotImplemented("operation .GetTargetTargetDatacenterDatacenterVchHandler has not yet been implemented")
-	})
+	api.GetTargetTargetDatacenterDatacenterVchHandler = &handlers.VCHDatacenterListGet{}
 
 	// POST /container/target/{target}/datacenter/{datacenter}/vch
 	api.PostTargetTargetDatacenterDatacenterVchHandler = operations.PostTargetTargetDatacenterDatacenterVchHandlerFunc(func(params operations.PostTargetTargetDatacenterDatacenterVchParams, principal interface{}) middleware.Responder {
