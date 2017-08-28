@@ -30,7 +30,7 @@ git pull
 echo "Removing VIC directory if present"
 echo "Cleanup logs from previous run"
 
-rm -rf *.zip *.log
-rm -rf bin 60 65
+sudo rm -rf *.zip *.log
+sudo rm -rf bin 60 65
 
-sudo -E ./tests/nightly/nightly-kickoff.sh > ./nightly_console.log 2>&1
+sudo -E ./tests/nightly/nightly-kickoff.sh > ./nightly_console.txt 2>&1

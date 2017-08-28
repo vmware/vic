@@ -69,3 +69,17 @@ Remove network with running container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network ls
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  test-network
+
+Add and remove network multiple times
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network ls
+    Should Be Equal As Integers  ${rc}  0
+
+    : FOR  ${INDEX}  IN RANGE  1  30
+    \     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} network create foo
+    \     Should Be Equal As Integers  ${rc}  0
+    \     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} network rm foo
+    \     Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal  ${output}  ${output2}

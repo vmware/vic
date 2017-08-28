@@ -18,11 +18,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math"
+	"math/rand"
 	"net"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -1378,4 +1381,84 @@ func TestKVStoreSetFails(t *testing.T) {
 	assert.Error(t, err)
 	assert.IsType(t, ResourceNotFoundError{}, err)
 	assert.Len(t, scs, 0)
+}
+
+func TestDeleteScopeFreeAddressSpace(t *testing.T) {
+	ctx, err := NewContext(testConfig(), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, ctx)
+
+	maskOnes, _ := ctx.defaultBridgeMask.Size()
+	poolOnes, _ := ctx.defaultBridgePool.Network.Mask.Size()
+	maxNets := int(math.Pow(2, float64(maskOnes-poolOnes)))
+
+	// maxNets-1 since there is a default network
+	// called "bridge" already
+	scopes := make([]*Scope, maxNets-1)
+	// create the maximum number of networks allowed
+	for i := range scopes {
+		s, err := ctx.NewScope(context.TODO(), &ScopeData{
+			ScopeType: constants.BridgeScopeType,
+			Name:      fmt.Sprintf("foo%d", i),
+		})
+		assert.NoError(t, err)
+		assert.NotNil(t, s)
+		scopes[i] = s
+	}
+
+	// pick a random scope to delete
+	rand.Seed(time.Now().Unix())
+	t.Log(scopes)
+	s := scopes[rand.Intn(len(scopes))]
+	subnet := s.Subnet()
+	t.Log(subnet)
+
+	err = ctx.DeleteScope(context.TODO(), s.Name())
+	assert.NoError(t, err)
+
+	// create a new scope and check if we got
+	// the subnet for the scope we just
+	// deleted
+	s, err = ctx.NewScope(context.TODO(), &ScopeData{
+		ScopeType: constants.BridgeScopeType,
+		Name:      "bar",
+	})
+	assert.NotNil(t, s)
+	assert.NoError(t, err)
+	assert.Equal(t, subnet.String(), s.Subnet().String())
+}
+
+func TestDeleteScopeLimits(t *testing.T) {
+	ctx, err := NewContext(testConfig(), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, ctx)
+
+	// repeatedly create and delete a scope
+	// to make sure we are free'ing address
+	// space for the scope
+	const numTries = 100
+	scopes, err := ctx.Scopes(context.TODO(), nil)
+	assert.NoError(t, err)
+	numScopes := len(scopes)
+	for i := 0; i < numTries; i++ {
+		s, err := ctx.NewScope(context.TODO(), &ScopeData{
+			ScopeType: constants.BridgeScopeType,
+			Name:      "foo",
+		})
+		assert.NotNil(t, s)
+		assert.NoError(t, err)
+		if err != nil {
+			t.FailNow()
+		}
+
+		err = ctx.DeleteScope(context.TODO(), s.Name())
+		assert.NoError(t, err)
+		if err != nil {
+			t.FailNow()
+		}
+	}
+
+	scopes, err = ctx.Scopes(context.TODO(), nil)
+	assert.NoError(t, err)
+	assert.Equal(t, numScopes, len(scopes))
 }
