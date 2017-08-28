@@ -461,15 +461,20 @@ func extractErrResponseMessage(rdr io.ReadCloser) (string, error) {
 	res := []byte(out.Bytes())
 	log.Debugf("Error message json string: %s", string(res))
 
-	var errResponse RegistryErrorRespBody
-	err = json.Unmarshal(res, &errResponse)
-	if err != nil {
-		log.Debugf("Error when unmarshaling error response body: %s", err)
-		return "", err
+	// extract directly if the response has a `message` field
+	var errMsg struct {
+		Message string `json:"message"`
+	}
+	err = json.Unmarshal(res, &errMsg)
+	if err == nil && errMsg.Message != "" {
+		return errMsg.Message, nil
 	}
 
-	if len(errResponse.Errors) == 0 {
-		log.Debugf("Error response wrong format. Response body: %s", string(res))
+	// otherwise, treat the response according to Docker format
+	var errResponse RegistryErrorRespBody
+	err = json.Unmarshal(res, &errResponse)
+	if err != nil || len(errResponse.Errors) == 0 {
+		log.Debugf("Error response has irregular format. Response body: %s", string(res))
 		return "", errJSONFormat
 	}
 
