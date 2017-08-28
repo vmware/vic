@@ -1,4 +1,13 @@
 <!--
+Issues in this repository are for VIC Engine only
+
+Issues related to other components should be submitted to their respective projects:
+VIC Appliance (OVA): https://github.com/vmware/vic-product/issues
+Container Management Portal (Admiral): https://github.com/vmware/admiral/issues
+Container Registry (Harbor): https://github.com/vmware/harbor/issues
+
+If you are unsure which component your issue relates to, submit it to https://github.com/vmware/vic-product/issues and we will triage it
+
 Thank you for contributing to VIC Engine! Please review this checklist before submitting your issue.
 
 [ ] Search for duplicates before logging new issues
