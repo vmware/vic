@@ -27,11 +27,6 @@ Set Test Environment Variables
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_DATACENTER
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_DATACENTER  ${SPACE}
 
-    @{URLs}=  Split String  %{TEST_URL_ARRAY}
-    ${len}=  Get Length  ${URLs}
-    ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
-
-    Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
     Set Environment Variable  GOVC_URL  %{TEST_URL}
     Set Environment Variable  GOVC_USERNAME  %{TEST_USERNAME}
     Set Environment Variable  GOVC_PASSWORD  %{TEST_PASSWORD}
@@ -41,6 +36,7 @@ Set Test Environment Variables
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  TEST_THUMBPRINT  ${thumbprint}
     Log To Console  \nTEST_URL=%{TEST_URL}
+    Log To Console  \nDRONE_MACHINE=%{DRONE_MACHINE}
     ${worker_date}=  Run  date
     Log To Console  \nWorker_Date=${worker_date}
     ${server_date}=  Run  govc host.date.info

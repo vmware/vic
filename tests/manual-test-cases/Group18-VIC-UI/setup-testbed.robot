@@ -37,7 +37,7 @@ Check If Nimbus VMs Exist
     Close connection
 
     Run Keyword If  ${out_len} == 0  Setup Testbed  ELSE  Load Testbed  ${out}
-    Create File  testbed-information  TEST_VSPHERE_VER=%{TEST_VSPHERE_VER}\nSELENIUM_SERVER_IP=%{SELENIUM_SERVER_IP}\nTEST_ESX_NAME=%{TEST_ESX_NAME}\nESX_HOST_IP=%{ESX_HOST_IP}\nESX_HOST_PASSWORD=%{ESX_HOST_PASSWORD}\nTEST_VC_NAME=%{TEST_VC_NAME}\nTEST_VC_IP=%{TEST_VC_IP}\nTEST_URL_ARRAY=%{TEST_URL_ARRAY}\nTEST_USERNAME=%{TEST_USERNAME}\nTEST_PASSWORD=%{TEST_PASSWORD}\nTEST_DATASTORE=datastore1\nEXTERNAL_NETWORK=%{EXTERNAL_NETWORK}\nTEST_TIMEOUT=%{TEST_TIMEOUT}\nGOVC_INSECURE=%{GOVC_INSECURE}\nGOVC_USERNAME=%{GOVC_USERNAME}\nGOVC_PASSWORD=%{GOVC_PASSWORD}\nGOVC_URL=%{GOVC_URL}\n
+    Create File  testbed-information  TEST_VSPHERE_VER=%{TEST_VSPHERE_VER}\nSELENIUM_SERVER_IP=%{SELENIUM_SERVER_IP}\nTEST_ESX_NAME=%{TEST_ESX_NAME}\nESX_HOST_IP=%{ESX_HOST_IP}\nESX_HOST_PASSWORD=%{ESX_HOST_PASSWORD}\nTEST_VC_NAME=%{TEST_VC_NAME}\nTEST_VC_IP=%{TEST_VC_IP}\nTEST_URL_ARRAY=%{TEST_URL}\nTEST_USERNAME=%{TEST_USERNAME}\nTEST_PASSWORD=%{TEST_PASSWORD}\nTEST_DATASTORE=datastore1\nEXTERNAL_NETWORK=%{EXTERNAL_NETWORK}\nTEST_TIMEOUT=%{TEST_TIMEOUT}\nGOVC_INSECURE=%{GOVC_INSECURE}\nGOVC_USERNAME=%{GOVC_USERNAME}\nGOVC_PASSWORD=%{GOVC_PASSWORD}\nGOVC_URL=%{GOVC_URL}\n
 
 Destroy Testbed
     [Arguments]  ${name}
@@ -100,7 +100,7 @@ Extract Vcsa Info
     ${vm_ip}=  Evaluate  '@{out}[2]'.strip()
     Set Environment Variable  TEST_VC_NAME  ${vm_name}
     Set Environment Variable  TEST_VC_IP  ${vm_ip}
-    Set Environment Variable  TEST_URL_ARRAY  ${vm_ip}
+    Set Environment Variable  TEST_URL  ${vm_ip}
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  EXTERNAL_NETWORK  vm-network
@@ -197,7 +197,7 @@ Deploy Vcsa
 
     Set Environment Variable  TEST_VC_NAME  %{NIMBUS_USER}-${name}
     Set Environment Variable  TEST_VC_IP  ${vc-ip}
-    Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
+    Set Environment Variable  TEST_URL  ${vc-ip}
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  EXTERNAL_NETWORK  vm-network

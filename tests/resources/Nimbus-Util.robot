@@ -254,7 +254,6 @@ Create a VSAN Cluster
     Should Be Empty  ${out}
 
     Log To Console  Deploy VIC to the VC cluster
-    Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
@@ -308,7 +307,6 @@ Create a Simple VC Cluster
     ${out}=  Run  govc cluster.change -drs-enabled /${datacenter}/host/${cluster}
     Should Be Empty  ${out}
 
-    Set Environment Variable  TEST_URL_ARRAY  ${vc_ip}
     Set Environment Variable  TEST_URL  ${vc_ip}
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23

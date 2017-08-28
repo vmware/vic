@@ -25,7 +25,6 @@ Setup Harbor
     ${esx}  ${esx-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Global Variable  @{list}  ${esx}
 
-    Set Environment Variable  TEST_URL_ARRAY  ${esx-ip}
     Set Environment Variable  TEST_URL  ${esx-ip}
     Set Environment Variable  TEST_USERNAME  root
     Set Environment Variable  TEST_PASSWORD  ${NIMBUS_ESX_PASSWORD}

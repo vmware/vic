@@ -66,7 +66,7 @@ Test
 
 
     Log To Console  Deploy VIC to the VC cluster
-    Set Environment Variable  TEST_URL_ARRAY  ${vc_ip}
+    Set Environment Variable  TEST_URL  ${vc_ip}
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge

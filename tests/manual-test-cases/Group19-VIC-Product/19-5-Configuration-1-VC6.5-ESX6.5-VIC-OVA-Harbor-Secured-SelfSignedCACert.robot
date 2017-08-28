@@ -43,7 +43,7 @@ ${developer2}  test-user-developer2
     Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
 
     Log To Console  Deploy VIC to the VC cluster
-    Set Environment Variable  TEST_URL_ARRAY  ${vc}
+    Set Environment Variable  TEST_URL  ${vc}
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge

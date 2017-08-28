@@ -13,16 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-unit_test_array=($TEST_URL_ARRAY)
-numServers=${#unit_test_array[@]}
+# get active build number
+active_build_number=${ACTIVE_BUILD_NUMBER}
+
+# set current build number
 DRONE_BUILD_NUMBER=${DRONE_BUILD_NUMBER:=0}
-prevBuildStatus=`drone build info --format='{{.Status}}' vmware/vic $(( $DRONE_BUILD_NUMBER-$numServers ))`
+sed -i "s/^\(ACTIVE_BUILD_NUMBER=\).*/\1$DRONE_BUILD_NUMBER/" /ci/test_env
+
+prevBuildStatus=`drone build info --format='{{.Status}}' vmware/vic $(( $active_build_number ))`
 echo prevBuildStatus $prevBuildStatus
 
 while [[ $prevBuildStatus == *"running"* ]]; do
-    echo "Waiting 5 minutes for previous build to complete";
-    sleep 300;
-    prevBuildStatus=`drone build info --format='{{.Status}}' vmware/vic $(( $DRONE_BUILD_NUMBER-$numServers ))`
+    echo "Waiting 2 minutes for previous build to complete";
+    sleep 120;
+    prevBuildStatus=`drone build info --format='{{.Status}}' vmware/vic $(( $active_build_number ))`
 	echo prevBuildStatus $prevBuildStatus
 done
 set +x;

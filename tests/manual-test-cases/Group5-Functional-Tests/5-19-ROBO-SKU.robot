@@ -60,7 +60,7 @@ Test
     Assign Vsphere License  %{ROBO_LICENSE}  ${esx3-ip}
 
     Log To Console  Deploy VIC to the VC cluster
-    Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
+    Set Environment Variable  TEST_URL  ${vc-ip}
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge

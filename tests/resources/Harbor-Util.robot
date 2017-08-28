@@ -28,18 +28,15 @@ ${ova_harbor_admin_password}  harbor-admin-passwd
 *** Keywords ***
 Install Harbor To Test Server
     [Tags]  secret
-    [Arguments]  ${name}=harbor  ${protocol}=http  ${verify}=off  ${db_password}=%{TEST_PASSWORD}  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}  ${host}=%{TEST_URL_ARRAY}  ${datastore}=%{TEST_DATASTORE}  ${network}=VM Network
+    [Arguments]  ${name}=harbor  ${protocol}=http  ${verify}=off  ${db_password}=%{TEST_PASSWORD}  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}  ${host}=%{TEST_URL}  ${datastore}=%{TEST_DATASTORE}  ${network}=VM Network
     Log To Console  \nFetching harbor ova...
     ${status}  ${message}=  Run Keyword And Ignore Error  OperatingSystem.File Should Exist  ${HARBOR_VERSION}.ova
     ${out}=  Run Keyword If  '${status}' == 'FAIL'  Run  wget https://github.com/vmware/harbor/releases/download/${HARBOR_SHORT_VERSION}/${HARBOR_VERSION}.ova
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_BUILD_NUMBER
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_BUILD_NUMBER  0
-    @{URLs}=  Split String  %{TEST_URL_ARRAY}
-    ${len}=  Get Length  ${URLs}
-    ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
 
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Suite Variable  ${host}  @{URLs}[${IDX}]
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Suite Variable  ${host}  @{URLs}[${IDX}]%{TEST_DATACENTER}/host/%{TEST_RESOURCE}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Suite Variable  ${host}  %{TEST_URL}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Suite Variable  ${host}  %{TEST_URL}%{TEST_DATACENTER}/host/%{TEST_RESOURCE}
 
     Log To Console  \nDeploying ova...
     ${out}=  Run  ovftool --noSSLVerify --acceptAllEulas --datastore=${datastore} --name=${name} --net:"Network 1"='${network}' --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --prop:root_pwd=${password} --prop:harbor_admin_password=${password} --prop:db_password=${db_password} --prop:auth_mode=db_auth --prop:verify_remote_cert=${verify} --prop:protocol=${protocol} ${HARBOR_VERSION}.ova 'vi://${user}:${password}@${host}'
