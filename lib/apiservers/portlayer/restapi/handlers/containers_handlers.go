@@ -109,6 +109,8 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		LayerID:    params.CreateConfig.Layer,
 		ImageID:    params.CreateConfig.Image,
 		RepoName:   params.CreateConfig.RepoName,
+		Hostname:   params.CreateConfig.Hostname,
+		Domainname: params.CreateConfig.Domainname,
 	}
 
 	if params.CreateConfig.Annotations != nil && len(params.CreateConfig.Annotations) > 0 {

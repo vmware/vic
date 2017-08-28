@@ -27,6 +27,16 @@ Make sure container starts
     \   Sleep  1
     Fail  Container failed to start
 
+Verify container is running and remove it
+    [Arguments]  ${containerName}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Should Contain  ${output}  ${containerName}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${containerName}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
 *** Test Cases ***
 Simple docker run
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run ${busybox} /bin/ash -c "dmesg;echo END_OF_THE_TEST"
@@ -147,3 +157,33 @@ Docker run and auto remove
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  ${count}
+
+Docker run mysql container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v vol:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=pw --name test-mysql mysql
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Verify container is running and remove it  test-mysql
+
+Docker run mariadb container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -e MYSQL_ROOT_PASSWORD=pw --name test-mariadb mariadb
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Verify container is running and remove it  test-mariadb
+
+Docker run postgres container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name test-postgres postgres
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Verify container is running and remove it  test-postgres
+
+Docker run --hostname to set hostname and domainname
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --hostname vic.test ${busybox} hostname
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  vic.test
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --hostname vic.test ${busybox} hostname -d
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  test
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --hostname vic.test ${busybox} cat /etc/hosts
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  vic.test
+

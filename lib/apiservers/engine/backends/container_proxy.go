@@ -143,7 +143,7 @@ type AttachConfig struct {
 
 const (
 	attachConnectTimeout  time.Duration = 15 * time.Second //timeout for the connection
-	attachAttemptTimeout  time.Duration = 40 * time.Second //timeout before we ditch an attach attempt
+	attachAttemptTimeout  time.Duration = 60 * time.Second //timeout before we ditch an attach attempt
 	attachPLAttemptDiff   time.Duration = 10 * time.Second
 	attachStdinInitString               = "v1c#>"
 	swaggerSubstringEOF                 = "EOF"
@@ -1273,6 +1273,11 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, vc *
 		convert.SetContainerAnnotation(config, convert.AnnotationKeyAutoRemove, cc.HostConfig.AutoRemove)
 	}
 
+	// hostname
+	config.Hostname = cc.Config.Hostname
+	// domainname - https://github.com/moby/moby/issues/27067
+	config.Domainname = cc.Config.Domainname
+
 	log.Debugf("dockerContainerCreateParamsToPortlayer = %+v", config)
 
 	return containers.NewCreateParamsWithContext(ctx).WithCreateConfig(config)
@@ -1794,6 +1799,7 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 	if info.ContainerConfig.LayerID != "" {
 		vc.LayerID = info.ContainerConfig.LayerID
 	}
+
 	if info.ContainerConfig.ImageID != "" {
 		vc.ImageID = info.ContainerConfig.ImageID
 	}
@@ -1817,6 +1823,9 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 		vc.HostConfig.Binds = append(vc.HostConfig.Binds, mount)
 		log.Debugf("add volume mount %s to config.volumes and hostconfig.binds", mount)
 	}
+
+	vc.Config.Cmd = info.ProcessConfig.ExecArgs
+
 	return vc
 }
 

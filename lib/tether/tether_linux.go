@@ -33,7 +33,6 @@ import (
 const (
 	//https://github.com/golang/go/blob/master/src/syscall/zerrors_linux_arm64.go#L919
 	SetChildSubreaper = 0x24
-	pidFilePath       = ".tether/run"
 
 	// in sync with lib/apiservers/portlayer/handlers/interaction_handler.go
 	// 115200 bps is 14.4 KB/s so use that

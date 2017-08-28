@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -38,6 +39,13 @@ const (
 
 	// Ntfs represents the NTFS file system
 	Ntfs
+
+	// directory in which to perform the direct mount of disk for bind mount
+	// to actual target
+	diskBindBase = "/.filesystem-by-label/"
+
+	// used to isolate applications from the lost+found in the root of ext4
+	VolumeDataDir = "/.vic.vol.data"
 )
 
 // Filesystem defines the interface for handling an attached virtual disk
@@ -260,19 +268,32 @@ func (d *VirtualDisk) Mount(op trace.Operation, options []string) (string, error
 
 	opts := strings.Join(options, ";")
 	if !d.mounted() {
-		path, err := ioutil.TempDir("", "mnt")
+		mntpath, err := ioutil.TempDir("", "mnt")
 		if err != nil {
 			err := fmt.Errorf("unable to create mountpint: %s", err)
 			op.Error(err)
 			return "", err
 		}
 
-		if err = d.Filesystem.Mount(op, d.DevicePath, path, options); err != nil {
+		// get mount source, disk is already mounted if this func returns without error
+		mntsrc, err := d.getMountSource(op, options)
+		if err != nil {
+			op.Error(err)
+			return "", err
+		}
+
+		// then mount it at the correct source
+		if strings.HasSuffix(mntsrc, VolumeDataDir) {
+			// append bind mount options if we are masking lost+found
+			options = append(options, "bind")
+		}
+
+		if err = d.Filesystem.Mount(op, mntsrc, mntpath, options); err != nil {
 			op.Errorf("Failed to mount disk: %s", err)
 			return "", err
 		}
 
-		d.mountPath = path
+		d.mountPath = mntpath
 		d.mountOpts = opts
 	} else {
 		// basic santiy check for matching options - we don't want to share a r/o mount
@@ -289,6 +310,55 @@ func (d *VirtualDisk) Mount(op trace.Operation, options []string) (string, error
 	op.Debugf("incremented mount count for %s: %d", d.mountPath, count)
 
 	return d.mountPath, nil
+}
+
+// getMountSource mounts the disk rootfs, checks if it has volumeDataDir, if so it returns volumeDataDir
+// as the mount source to mask the lost+found folder, otherwise it returns the device path
+// NOTE: this mount should not be counted in the ref counts, bindTarget will be unmounted when disk detaches.
+// TODO: if we support different mount opts, we can't use the same bindTarget anymore.
+// need to assign each opt a different name, we can add a field in VirtualDisk that tracks bindTarget
+func (d *VirtualDisk) getMountSource(op trace.Operation, options []string) (string, error) {
+	// need to first mount the disk under the diskBindBase
+	bindTarget := path.Join(diskBindBase, d.DevicePath)
+
+	// sanity check to make sure previous bindTarget is cleaned up properly
+	var e1, e2 error
+	_, e1 = os.Stat(bindTarget)
+	if e1 == nil {
+		// bindTarget exists, check whether or not bindTarget is a mount point
+		e2 = os.Remove(bindTarget)
+	}
+
+	// we don't want to remount under the same mountpoint, so we only mounts under the following cases
+	// first case: bindTarget exists but not a mountpoint
+	// second case: bindTarget doesn't exist
+	if (e1 == nil && e2 == nil) || os.IsNotExist(e1) {
+		// #nosec
+		if err := os.MkdirAll(bindTarget, 0744); err != nil {
+			err = fmt.Errorf("unable to create mount point %s: %s", bindTarget, err)
+			op.Error(err)
+			return "", err
+		}
+		if err := d.Filesystem.Mount(op, d.DevicePath, bindTarget, options); err != nil {
+			op.Errorf("Failed to mount disk: %s", err)
+			return "", err
+		}
+	}
+
+	mntsrc := path.Join(bindTarget, VolumeDataDir)
+	// if the volume contains a volumeDataDir directory then mount that instead of the root of the filesystem
+	// if we cannot read it we go with the root of the filesystem
+	_, err := os.Stat(mntsrc)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// if there's no such directory then revert to using the device directly
+			op.Infof("No " + VolumeDataDir + " data directory in volume, mounting filesystem directly")
+			mntsrc = d.DevicePath
+		} else {
+			return "", fmt.Errorf("unable to determine whether lost+found masking is required: %s", err)
+		}
+	}
+	return mntsrc, nil
 }
 
 // Unmount attempts to unmount a virtual disk
@@ -323,6 +393,19 @@ func (d *VirtualDisk) Unmount(op trace.Operation) error {
 	}
 
 	d.mountPath = ""
+
+	// mountpath is cleaned, we need to clean up the bindTarget as well
+	bindTarget := path.Join(diskBindBase, d.DevicePath)
+	if err := d.Filesystem.Unmount(op, bindTarget); err != nil {
+		return fmt.Errorf("failed to clean up actual mount point on device: %s", err)
+	}
+
+	// only remove the mount directory - if we've succeeded in the unmount there won't be anything in it
+	// if we somehow get here and there is content we do NOT want to delete it
+	if err := os.Remove(bindTarget); err != nil {
+		err := fmt.Errorf("failed to clean up actual mount point: %s", err)
+		return err
+	}
 
 	return nil
 }

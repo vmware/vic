@@ -144,3 +144,23 @@ Connect containers to an internal network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net internal-net ${busybox} ping -c2 ${ip}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  2 packets transmitted, 2 packets received
+
+Check Name Resolution Between Containers On Internal Network
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create --internal mynet
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create pubnet
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name foo --net mynet alpine:latest sleep 10000
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name baz --net pubnet -p 80 alpine:latest ping -c3 foo
+    Log  ${output}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect mynet baz
+    Log  ${output}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -i baz
+    Log  ${output}
+
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  PING foo
+    Should Contain  ${output}  3 packets transmitted, 3 packets received

@@ -243,7 +243,7 @@ func (c *Context) addScope(s *Scope) error {
 
 	var err error
 	var defaultPool bool
-	var allzeros, allones net.IP
+	var allZeros, allOnes net.IP
 	var space *AddressSpace
 	spaces := s.spaces
 	subnet := s.subnet
@@ -267,11 +267,11 @@ func (c *Context) addScope(s *Scope) error {
 			}
 
 			// release all-ones and all-zeros addresses
-			if !ip.IsUnspecifiedIP(allzeros) {
-				p.ReleaseIP4(allzeros)
+			if !ip.IsUnspecifiedIP(allZeros) {
+				p.ReleaseIP4(allZeros)
 			}
-			if !ip.IsUnspecifiedIP(allones) {
-				p.ReleaseIP4(allones)
+			if !ip.IsUnspecifiedIP(allOnes) {
+				p.ReleaseIP4(allOnes)
 			}
 		}
 
@@ -295,11 +295,11 @@ func (c *Context) addScope(s *Scope) error {
 
 		// reserve all-ones and all-zeros addresses, which are not routable and so
 		// should not be handed out
-		allones = ip.AllOnesAddr(subnet)
-		allzeros = ip.AllZerosAddr(subnet)
+		allOnes = ip.AllOnesAddr(subnet)
+		allZeros = ip.AllZerosAddr(subnet)
 		for _, p := range spaces {
-			p.ReserveIP4(allones)
-			p.ReserveIP4(allzeros)
+			p.ReserveIP4(allOnes)
+			p.ReserveIP4(allZeros)
 
 			// reserve DNS IPs
 			for _, d := range s.dns {
@@ -726,6 +726,7 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		}
 		ne.Network.Gateway = net.IPNet{IP: e.Gateway(), Mask: e.Subnet().Mask}
 		ne.Network.Nameservers = make([]net.IP, len(s.dns))
+		ne.Internal = s.Internal()
 		copy(ne.Network.Nameservers, s.dns)
 
 		// mark the external network as default
@@ -1255,6 +1256,35 @@ func (c *Context) DeleteScope(ctx context.Context, name string) error {
 
 	if len(s.Endpoints()) != 0 {
 		return fmt.Errorf("%s has active endpoints", s.Name())
+	}
+
+	var allZeros, allOnes net.IP
+	if !ip.IsUnspecifiedSubnet(s.subnet) {
+		allZeros = ip.AllZerosAddr(s.subnet)
+		allOnes = ip.AllOnesAddr(s.subnet)
+	}
+
+	for _, p := range s.spaces {
+		for _, i := range append(s.dns, s.gateway, allZeros, allOnes) {
+			if !ip.IsUnspecifiedIP(i) {
+				p.ReleaseIP4(i)
+			}
+		}
+
+		if p.Parent != nil {
+			p.Parent.ReleaseIP4Range(p)
+		}
+	}
+
+	var parentSpace *AddressSpace
+	if len(s.spaces) == 1 {
+		parentSpace = s.spaces[0]
+	} else if len(s.spaces) > 1 {
+		parentSpace = s.spaces[0].Parent
+	}
+
+	if parentSpace != nil {
+		c.defaultBridgePool.ReleaseIP4Range(parentSpace)
 	}
 
 	if c.kv != nil {

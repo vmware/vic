@@ -38,6 +38,7 @@ import (
 	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/system"
+	"github.com/vmware/vic/lib/tether/shared"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/serial"
@@ -51,15 +52,12 @@ const (
 
 	// the length of a truncated ID for use as hostname
 	shortLen = 12
-
-	// temp directory to copy existing data to mounts
-	bindDir = "/.tether/.bind"
 )
 
 // Sys is used to configure where the target system files are
 var (
 	// Used to access the acutal system paths and files
-	Sys = system.New()
+	Sys = shared.Sys
 	// Used to access and manipulate the tether modified bind sources
 	// that are mounted over the system ones.
 	BindSys = system.NewWithRoot("/.tether")
@@ -90,6 +88,9 @@ type tether struct {
 
 	// syslog writer shared by all sessions
 	writer syslog.Writer
+
+	// used for running vm initialization logic once in the reload loop
+	initialize sync.Once
 }
 
 func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) Tether {
@@ -164,14 +165,16 @@ func (t *tether) setup() error {
 		}
 	}
 
+	pidDir := shared.PIDFileDir()
+
 	// #nosec: Expect directory permissions to be 0700 or less
-	if err = os.MkdirAll(PIDFileDir(), 0755); err != nil {
-		log.Errorf("could not create pid file directory %s: %s", PIDFileDir(), err)
+	if err = os.MkdirAll(pidDir, 0755); err != nil {
+		log.Errorf("could not create pid file directory %s: %s", pidDir, err)
 	}
 
 	// Create PID file for tether
 	tname := path.Base(os.Args[0])
-	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(PIDFileDir(), tname)),
+	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(pidDir, tname)),
 		[]byte(fmt.Sprintf("%d", os.Getpid())),
 		0644)
 	if err != nil {
@@ -242,7 +245,17 @@ func (t *tether) setHostname() error {
 		short = short[:shortLen]
 	}
 
-	if err := t.ops.SetHostname(short, t.config.Name); err != nil {
+	full := t.config.Hostname
+	if t.config.Hostname != "" && t.config.Domainname != "" {
+		full = fmt.Sprintf("%s.%s", t.config.Hostname, t.config.Domainname)
+	}
+
+	hostname := short
+	if full != "" {
+		hostname = full
+	}
+
+	if err := t.ops.SetHostname(hostname, t.config.Name); err != nil {
 		// we don't attempt to recover from this - it's a fundamental misconfiguration
 		// so just exit
 		return fmt.Errorf("failed to set hostname: %s", err)
@@ -251,11 +264,25 @@ func (t *tether) setHostname() error {
 }
 
 func (t *tether) setNetworks() error {
-	for _, v := range t.config.Networks {
-		if err := t.ops.Apply(v); err != nil {
+
+	// internal networks must be applied first
+	for _, network := range t.config.Networks {
+		if !network.Internal {
+			continue
+		}
+		if err := t.ops.Apply(network); err != nil {
 			return fmt.Errorf("failed to apply network endpoint config: %s", err)
 		}
 	}
+	for _, network := range t.config.Networks {
+		if network.Internal {
+			continue
+		}
+		if err := t.ops.Apply(network); err != nil {
+			return fmt.Errorf("failed to apply network endpoint config: %s", err)
+		}
+	}
+
 	return nil
 }
 
@@ -276,11 +303,15 @@ func (t *tether) setMounts() error {
 		switch mountTarget.Source.Scheme {
 		case "label":
 			// this could block indefinitely while waiting for a volume to present
-			t.ops.MountLabel(context.Background(), mountTarget.Source.Path, mountTarget.Path)
-
+			// return error if mount volume failed, to fail container start
+			if err := t.ops.MountLabel(context.Background(), mountTarget.Source.Path, mountTarget.Path); err != nil {
+				return err
+			}
 		case "nfs":
-			t.ops.MountTarget(context.Background(), mountTarget.Source, mountTarget.Path, mountTarget.Mode)
-
+			// return error if mount nfs volume failed, to fail container start, so user knows there is something wrong
+			if err := t.ops.MountTarget(context.Background(), mountTarget.Source, mountTarget.Path, mountTarget.Mode); err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("unsupported volume mount type for %s: %s", targetRef, mountTarget.Source.Scheme)
 		}
@@ -492,6 +523,8 @@ func (t *tether) Start() error {
 	// initial entry, so seed this
 	t.reload <- struct{}{}
 	for range t.reload {
+		var err error
+
 		select {
 		case <-t.ctx.Done():
 			log.Warnf("Someone called shutdown, returning from start")
@@ -507,44 +540,50 @@ func (t *tether) Start() error {
 
 		t.setLogLevel()
 
-		if err := t.setHostname(); err != nil {
+		// TODO: this ensures that we run vm related setup code once
+		// This is temporary as none of those functions are idempotent at this point
+		// https://github.com/vmware/vic/issues/5833
+		t.initialize.Do(func() {
+			if err = t.setHostname(); err != nil {
+				return
+			}
+
+			// process the networks then publish any dynamic data
+			if err = t.setNetworks(); err != nil {
+				return
+			}
+			extraconfig.Encode(t.sink, t.config)
+
+			// setup the firewall
+			if err = retryOnError(func() error { return t.ops.SetupFirewall(t.ctx, t.config) }, 5); err != nil {
+				err = fmt.Errorf("Couldn't set up container-network firewall: %v", err)
+				return
+			}
+
+			//process the filesystem mounts - this is performed after networks to allow for network mounts
+			if err = t.setMounts(); err != nil {
+				return
+			}
+		})
+
+		if err != nil {
 			log.Error(err)
 			return err
 		}
 
-		// process the networks then publish any dynamic data
-		if err := t.setNetworks(); err != nil {
-			log.Error(err)
-			return err
-		}
-		extraconfig.Encode(t.sink, t.config)
-
-		// setup the firewall
-		if err := retryOnError(func() error { return t.ops.SetupFirewall(t.ctx, t.config) }, 5); err != nil {
-			err = fmt.Errorf("Couldn't set up container-network firewall: %v", err)
-			log.Error(err)
-			return err
-		}
-
-		//process the filesystem mounts - this is performed after networks to allow for network mounts
-		if err := t.setMounts(); err != nil {
-			log.Error(err)
-			return err
-		}
-
-		if err := t.initializeSessions(); err != nil {
+		if err = t.initializeSessions(); err != nil {
 			log.Error(err)
 			return err
 		}
 
 		// Danger, Will Robinson! There is a strict ordering here.
 		// We need to start attach server first so that it can unblock the session
-		if err := t.reloadExtensions(); err != nil {
+		if err = t.reloadExtensions(); err != nil {
 			log.Error(err)
 			return err
 		}
 
-		if err := t.processSessions(); err != nil {
+		if err = t.processSessions(); err != nil {
 			log.Error(err)
 			return err
 		}
@@ -655,8 +694,8 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 
 	// Remove associated PID file
 	cmdname := path.Base(session.Cmd.Path)
-	// #nosec: Errors unhandled.
-	_ = os.Remove(fmt.Sprintf("%s.pid", path.Join(PIDFileDir(), cmdname)))
+
+	_ = os.Remove(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(), cmdname)))
 
 	// set the stop time
 	session.StopTime = time.Now().UTC().Unix()
@@ -817,7 +856,7 @@ func (t *tether) launch(session *SessionConfig) error {
 
 	// Write the PID to the associated PID file
 	cmdname := path.Base(session.Cmd.Path)
-	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(PIDFileDir(), cmdname)),
+	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(), cmdname)),
 		[]byte(fmt.Sprintf("%d", pid)),
 		0644)
 	if err != nil {
@@ -934,10 +973,6 @@ func (t *tether) Flush() error {
 
 	extraconfig.Encode(t.sink, t.config)
 	return nil
-}
-
-func PIDFileDir() string {
-	return path.Join(Sys.Root, pidFilePath)
 }
 
 // killHelper was pulled from toolbox, and that variant should be directed at this
