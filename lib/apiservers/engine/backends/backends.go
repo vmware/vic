@@ -321,7 +321,7 @@ func setPortMapping(info *models.ContainerInfo, backend *Container, container *c
 		return err
 	}
 	for _, e := range endpointsOK.Payload {
-		if len(e.Ports) > 0 {
+		if len(e.Ports) > 0 && e.Scope == "bridge" {
 			if err = MapPorts(container.HostConfig, e, container.ContainerID); err != nil {
 				log.Errorf(err.Error())
 				return err
