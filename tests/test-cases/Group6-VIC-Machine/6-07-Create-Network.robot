@@ -427,7 +427,7 @@ Container Firewalls
     ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN peers-net-1
     ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN peers-net-2
 
-    ${createcommand}=  catenate  SEPARATOR=\ \
+    ${createcommand}=  catenate  SEPARATOR=\ \ 
     ...  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME}
     ...  --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT}
     ...  --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD}
