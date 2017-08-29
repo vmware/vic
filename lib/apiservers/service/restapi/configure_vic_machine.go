@@ -23,6 +23,7 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/tylerb/graceful"
 
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 )
 
@@ -61,9 +62,7 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 	})
 
 	// GET /container/version
-	api.GetVersionHandler = operations.GetVersionHandlerFunc(func(params operations.GetVersionParams) middleware.Responder {
-		return middleware.NotImplemented("operation .GetVersion has not yet been implemented")
-	})
+	api.GetVersionHandler = &handlers.VersionGet{}
 
 	// POST /container/target/{target}
 	api.PostTargetTargetHandler = operations.PostTargetTargetHandlerFunc(func(params operations.PostTargetTargetParams, principal interface{}) middleware.Responder {
