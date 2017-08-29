@@ -582,10 +582,7 @@ Reset VCH doesn't cause unintentionally exposed ports from container network
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN 'vm-network'
-    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN bridge
-
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network vm-network:vmnet ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network "vm-network":vmnet ${vicmachinetls}
     Log  ${output}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
@@ -605,16 +602,18 @@ Reset VCH doesn't cause unintentionally exposed ports from container network
     Log To Console  ${output}
     Should Be Equal As Integers  0  ${rc}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  while ! (docker %{VCH-PARAMS} info 2>/dev/null); do sleep 1; done
-    Log  ${output}
-    Should Be Equal As Integers  0  ${rc}
+    Reboot VM  %{VCH-NAME}
+
+    Log To Console  Getting VCH IP ...
+    ${new-vch-ip}=  Get VM IP  %{VCH-NAME}
+    Log To Console  New VCH IP is ${new-vch-ip}
+    Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new-vch-ip}
+
+    # wait for docker info to succeed
+    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
     Should Not Contain  ${output}  ->80/tcp
-
-    # Clean up port groups
-    ${out}=  Run  govc host.portgroup.remove 'vm-network'
-    ${out}=  Run  govc host.portgroup.remove 'bridge'
 
     # Delete the portgroup added by env vars keyword
     Cleanup VCH Bridge Network  %{VCH-NAME}
