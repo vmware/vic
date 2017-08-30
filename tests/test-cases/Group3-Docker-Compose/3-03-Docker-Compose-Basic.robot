@@ -40,7 +40,7 @@ Cleanup Orphan Containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network inspect vic_default
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f $(docker %{VCH-PARAMS} -a -q)
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f $(docker %{VCH-PARAMS} ps -a -q)
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
 
