@@ -474,7 +474,7 @@ func extractErrResponseMessage(rdr io.ReadCloser) (string, error) {
 	var errResponse RegistryErrorRespBody
 	err = json.Unmarshal(res, &errResponse)
 	if err != nil || len(errResponse.Errors) == 0 {
-		log.Debugf("Error response has irregular format. Response body: %s", string(res))
+		log.Infof("Error response has irregular format. Response body: %s", string(res))
 		return "", errJSONFormat
 	}
 
