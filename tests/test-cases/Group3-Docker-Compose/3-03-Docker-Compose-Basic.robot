@@ -17,6 +17,7 @@ Documentation  Test 3-03 - Docker Compose Basic
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server  certs=${true}
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Teardown  Cleanup Orphan Containers
 
 *** Variables ***
 ${yml}  version: "2"\nservices:\n${SPACE}web:\n${SPACE}${SPACE}image: python:2.7\n${SPACE}${SPACE}ports:\n${SPACE}${SPACE}- "5000:5000"\n${SPACE}${SPACE}depends_on:\n${SPACE}${SPACE}- redis\n${SPACE}redis:\n${SPACE}${SPACE}image: redis\n${SPACE}${SPACE}ports:\n${SPACE}${SPACE}- "5001:5001"
@@ -31,6 +32,17 @@ Check Compose Logs
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  PING aaa
     Should Not Contain  ${output}  bad address 'aaa'
+
+Cleanup Orphan Containers
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    Should Be Equal As Integers  ${rc}  0
+    Log  ${output}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network inspect vic_default
+    Should Be Equal As Integers  ${rc}  0
+    Log  ${output}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f $(docker %{VCH-PARAMS} -a -q)
+    Should Be Equal As Integers  ${rc}  0
+    Log  ${output}
 
 *** Test Cases ***
 Compose basic
@@ -49,6 +61,9 @@ Compose basic
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml stop
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml ps
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
