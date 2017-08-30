@@ -161,32 +161,39 @@ func NewContext(config *Configuration, kv kvstore.KeyValueStore) (*Context, erro
 		values, err := kv.List(`context\.scopes\..+`)
 		if err != nil && err != kvstore.ErrKeyNotFound {
 			log.Warnf("error listing scopes from key value store: %s", err)
-		} else {
-			for k, v := range values {
-				s := newScope(uid.NilUID, "", nil, &ScopeData{})
-				if err := s.UnmarshalJSON(v); err != nil {
-					log.Warnf("error loading scope data from key %s, skipping: %s", k, err)
-					continue
-				}
+		}
 
-				var nn string
-				switch s.Type() {
-				case constants.BridgeScopeType:
-					nn = "bridge"
-				case constants.ExternalScopeType:
-					nn = s.name
-				}
+		for k, v := range values {
+			s := newScope(uid.NilUID, "", nil, &ScopeData{})
+			if err := s.UnmarshalJSON(v); err != nil {
+				log.Warnf("error loading scope data from key %s, skipping: %s", k, err)
+				continue
+			}
 
-				pg := config.PortGroups[nn]
-				if pg == nil {
-					log.Warnf("skipping adding scope %s: port group %s not found", s.name, nn)
-					continue
-				}
+			var nn string
+			switch s.Type() {
+			case constants.BridgeScopeType:
+				nn = "bridge"
+			case constants.ExternalScopeType:
+				nn = s.name
+			}
 
-				s.network = pg
+			pg := config.PortGroups[nn]
+			if pg == nil {
+				log.Warnf("skipping adding scope %s: port group %s not found", s.name, nn)
+				continue
+			}
 
-				if err := ctx.addScope(s); err != nil {
-					log.Warnf("skipping adding scope %s: %s", s.name, err)
+			s.network = pg
+
+			if err := ctx.addScope(s); err != nil {
+				log.Warnf("skipping adding scope %s: %s", s.name, err)
+				continue
+			}
+
+			if s.Type() == constants.BridgeScopeType {
+				if err = ctx.addGatewayAddr(s); err != nil {
+					log.Warnf("could not add gateway addr to bridge interface for scope %s", s.Name())
 				}
 			}
 		}
@@ -350,6 +357,16 @@ func (c *Context) newScopeCommon(id uid.UID, scopeType string, network object.Ne
 	return newScope, nil
 }
 
+func (c *Context) addGatewayAddr(s *Scope) error {
+	if err := c.config.BridgeLink.AddrAdd(net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}); err != nil {
+		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (c *Context) newBridgeScope(id uid.UID, scopeData *ScopeData) (newScope *Scope, err error) {
 	defer trace.End(trace.Begin(""))
 	bnPG, ok := c.config.PortGroups[c.config.BridgeNetwork]
@@ -372,10 +389,8 @@ func (c *Context) newBridgeScope(id uid.UID, scopeData *ScopeData) (newScope *Sc
 	}
 
 	// add the gateway address to the bridge interface
-	if err = c.config.BridgeLink.AddrAdd(net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}); err != nil {
-		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
-			log.Warnf("failed to add gateway address %s to bridge interface: %s", s.Gateway(), err)
-		}
+	if err = c.addGatewayAddr(s); err != nil {
+		log.Warnf("failed to add gateway address %s to bridge interface: %s", s.Gateway(), err)
 	}
 
 	return s, nil
