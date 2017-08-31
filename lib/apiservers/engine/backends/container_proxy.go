@@ -991,6 +991,14 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 		if err = UnmapPorts(vc.HostConfig); err != nil {
 			return err
 		}
+
+		err = c.CommitContainerHandle(handle, vc.ContainerID, -1)
+		if err != nil {
+			if IsNotFoundError(err) {
+				cache.ContainerCache().DeleteContainer(vc.ContainerID)
+			}
+			return err
+		}
 	}
 
 	return nil
