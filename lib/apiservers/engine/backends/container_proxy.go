@@ -983,20 +983,18 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 
 		unbindParams := scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle)
 		if _, err = c.client.Scopes.UnbindContainer(unbindParams); err != nil {
-			if err != nil {
-				switch err := err.(type) {
-				case *scopes.UnbindContainerNotFound:
-					// ignore error
-					log.Warnf("Container %s not found by network unbind", vc.ContainerID)
-				case *scopes.UnbindContainerInternalServerError:
-					return InternalServerError(err.Payload.Message)
-				default:
-					return InternalServerError(err.Error())
-				}
+			switch err := err.(type) {
+			case *scopes.UnbindContainerNotFound:
+				// ignore error
+				log.Warnf("Container %s not found by network unbind", vc.ContainerID)
+			case *scopes.UnbindContainerInternalServerError:
+				return InternalServerError(err.Payload.Message)
+			default:
+				return InternalServerError(err.Error())
 			}
 		}
 	}
-	
+
 	return nil
 }
 
