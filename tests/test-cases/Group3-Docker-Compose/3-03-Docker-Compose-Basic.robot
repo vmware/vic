@@ -32,6 +32,13 @@ Check Compose Logs
     Should Contain  ${output}  PING aaa
     Should Not Contain  ${output}  bad address 'aaa'
 
+Check Container Removed From Network
+    [Arguments]  ${name}  ${network}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network inspect ${network} | jq '.[] | .Containers | .[] | .Name'
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  ${name}
+
 *** Test Cases ***
 Compose basic
     Set Environment Variable  COMPOSE_HTTP_TIMEOUT  300
@@ -51,6 +58,9 @@ Compose basic
     ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml stop
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml ps
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
 
 Compose kill
     ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f basic-compose.yml up -d
@@ -60,6 +70,12 @@ Compose kill
     ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f basic-compose.yml kill redis
     Log  ${out}
     Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    Log  ${out}
+    Should Be Equal As Integers  ${rc}  0
+
+    Wait Until Keyword Succeeds  3 min  5 sec  Check Container Removed From Network  vic_redis_1  vic_default
 
     ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f basic-compose.yml down
     Log  ${out}
@@ -109,14 +125,14 @@ Compose up -d --force-recreate
 
 Compose up -d with a new image
     Run  echo '${rename-yml-2}' > compose-rename.yml
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml up -d   
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml up -d
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml down
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-Compose up in foreground (attach path)   
+Compose up in foreground (attach path)
     Run  echo '${hello-yml}' > hello-compose.yml
     ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f hello-compose.yml pull
     Should Be Equal As Integers  ${rc}  0
