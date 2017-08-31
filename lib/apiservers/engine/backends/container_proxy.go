@@ -974,6 +974,27 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 		}
 	}
 
+	if sig == uint64(syscall.SIGKILL) {
+		// unbind container from network
+		handle, err := c.Handle(vc.ContainerID, vc.Name)
+		if err != nil {
+			return err
+		}
+
+		unbindParams := scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle)
+		if _, err = c.client.Scopes.UnbindContainer(unbindParams); err != nil {
+			switch err := err.(type) {
+			case *scopes.UnbindContainerNotFound:
+				// ignore error
+				log.Warnf("Container %s not found by network unbind", vc.ContainerID)
+			case *scopes.UnbindContainerInternalServerError:
+				return InternalServerError(err.Payload.Message)
+			default:
+				return InternalServerError(err.Error())
+			} 
+		}
+	}
+
 	return nil
 }
 
