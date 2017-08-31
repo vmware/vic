@@ -991,7 +991,7 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 				return InternalServerError(err.Payload.Message)
 			default:
 				return InternalServerError(err.Error())
-			}
+			} 
 		}
 	}
 
