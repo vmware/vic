@@ -71,7 +71,7 @@ Compose kill
     Log  ${out}
     Should Be Equal As Integers  ${rc}  0
 
-    Wait Until Keyword Succeeds  10 sec  1 sec  Check Container Removed From Network  vic_redis_1  vic_default
+    Wait Until Keyword Succeeds  1 min  5 sec  Check Container Removed From Network  vic_redis_1  vic_default
 
     ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f basic-compose.yml down
     Log  ${out}
