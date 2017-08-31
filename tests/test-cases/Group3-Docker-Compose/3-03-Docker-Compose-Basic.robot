@@ -17,7 +17,6 @@ Documentation  Test 3-03 - Docker Compose Basic
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server  certs=${true}
 Suite Teardown  Cleanup VIC Appliance On Test Server
-Test Teardown  Cleanup Orphan Containers
 
 *** Variables ***
 ${yml}  version: "2"\nservices:\n${SPACE}web:\n${SPACE}${SPACE}image: python:2.7\n${SPACE}${SPACE}ports:\n${SPACE}${SPACE}- "5000:5000"\n${SPACE}${SPACE}depends_on:\n${SPACE}${SPACE}- redis\n${SPACE}redis:\n${SPACE}${SPACE}image: redis\n${SPACE}${SPACE}ports:\n${SPACE}${SPACE}- "5001:5001"
@@ -33,16 +32,12 @@ Check Compose Logs
     Should Contain  ${output}  PING aaa
     Should Not Contain  ${output}  bad address 'aaa'
 
-Cleanup Orphan Containers
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+Check Container Removed From Network
+    [Arguments]  ${name}  ${network}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network inspect ${network} | jq '.[] | .Containers | .[] | .Name'
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network inspect vic_default
-    Should Be Equal As Integers  ${rc}  0
-    Log  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f $(docker %{VCH-PARAMS} ps -a -q)
-    Should Be Equal As Integers  ${rc}  0
-    Log  ${output}
+    Should Not Contain  ${output}  ${name}
 
 *** Test Cases ***
 Compose basic
@@ -75,6 +70,8 @@ Compose kill
     ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f basic-compose.yml kill redis
     Log  ${out}
     Should Be Equal As Integers  ${rc}  0
+
+    Wait Until Keyword Succeeds  10 sec  1 sec  Check Container Removed From Network  vic_redis_1  vic_default
 
     ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f basic-compose.yml down
     Log  ${out}
@@ -124,14 +121,14 @@ Compose up -d --force-recreate
 
 Compose up -d with a new image
     Run  echo '${rename-yml-2}' > compose-rename.yml
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml up -d   
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml up -d
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml down
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-Compose up in foreground (attach path)   
+Compose up in foreground (attach path)
     Run  echo '${hello-yml}' > hello-compose.yml
     ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f hello-compose.yml pull
     Should Be Equal As Integers  ${rc}  0
