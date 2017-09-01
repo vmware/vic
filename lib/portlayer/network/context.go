@@ -1270,16 +1270,19 @@ func (c *Context) DeleteScope(ctx context.Context, name string) error {
 	}
 
 	// remove dangling endpoints
-	for _, eps := range s.Endpoints() {
-		if exec.Containers.Container(eps.ID().String()) == nil {
-			log.Debugf("Remove dangling endpoint (%s)", eps.ID().String())
-			if err = s.RemoveContainer(eps.Container()); err != nil {
-				return fmt.Errorf("failed to remove dangling endpoint (%s): %s", eps.ID().String(), err.Error())
+	if exec.Containers != nil {
+		for _, eps := range s.Endpoints() {
+			if exec.Containers.Container(eps.ID().String()) == nil {
+				log.Debugf("Remove dangling endpoint (%s)", eps.ID().String())
+				if err = s.RemoveContainer(eps.Container()); err != nil {
+					return fmt.Errorf("failed to remove dangling endpoint (%s): %s", eps.ID().String(), err.Error())
+				}
 			}
-		} else {
-			log.Errorf("%s has active endpoint (%s)", s.Name(), eps.ID().String())
-			return fmt.Errorf("%s has active endpoints", s.Name())
 		}
+	}
+
+	if len(s.Endpoints()) != 0 {
+		return fmt.Errorf("%s has active endpoints", s.Name())
 	}
 
 	var allZeros, allOnes net.IP
