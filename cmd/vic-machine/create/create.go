@@ -40,8 +40,6 @@ const (
 	MaxVirtualMachineNameLen = 80
 	// Max permitted length of Virtual Switch name
 	MaxDisplayNameLen = 31
-	// Default debug level in create
-	DefaultDebug = 1
 )
 
 var EntireOptionHelpTemplate = `NAME:
@@ -426,9 +424,17 @@ func (c *Create) processParams() error {
 
 func (c *Create) processCertificates() error {
 
+	// debuglevel is a pointer now so we have to do this song and dance
+	var debug int
+	if c.Debug.Debug == nil {
+		debug = 0
+	} else {
+		debug = *c.Debug.Debug
+	}
+
 	c.certs.Networks = c.Networks
 
-	if err := c.certs.ProcessCertificates(c.DisplayName, c.Force, *c.Debug.Debug); err != nil {
+	if err := c.certs.ProcessCertificates(c.DisplayName, c.Force, debug); err != nil {
 		return err
 	}
 
@@ -676,12 +682,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 
 	log.Infof("### Installing VCH ####")
 
-	if c.Debug.Debug == nil {
-		// set default value to 1, to avoid additional step to collect logs
-		debug := DefaultDebug
-		c.Debug.Debug = &debug
-	}
-	if *c.Debug.Debug > 0 {
+	if c.Debug.Debug != nil && *c.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}
