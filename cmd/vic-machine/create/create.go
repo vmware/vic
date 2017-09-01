@@ -40,8 +40,6 @@ const (
 	MaxVirtualMachineNameLen = 80
 	// Max permitted length of Virtual Switch name
 	MaxDisplayNameLen = 31
-	// Default debug level in create
-	DefaultDebug = 1
 )
 
 var EntireOptionHelpTemplate = `NAME:
@@ -677,8 +675,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	log.Infof("### Installing VCH ####")
 
 	if c.Debug.Debug == nil {
-		// set default value to 1, to avoid additional step to collect logs
-		debug := DefaultDebug
+		debug := validate.DefaultDebug
 		c.Debug.Debug = &debug
 	}
 	if *c.Debug.Debug > 0 {
