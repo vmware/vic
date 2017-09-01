@@ -101,7 +101,6 @@ vic-machine create --name=<VCH_NAME> --target=<TEST_URL> \
 
 ### Expected Outcome
 * Deployment succeed
-* VCH is deployed with debug enabled
 * Regression test pass
 
 

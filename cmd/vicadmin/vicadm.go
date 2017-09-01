@@ -120,9 +120,14 @@ func Init() {
 
 	logcfg := viclog.NewLoggingConfig()
 	if vchConfig.Diagnostics.DebugLevel > 0 {
-		logcfg.Level = log.DebugLevel
 		trace.Logger.Level = log.DebugLevel
 		syslog.Logger.Level = log.DebugLevel
+	}
+
+	if vchConfig.Diagnostics.DebugLevel == 0 {
+		logcfg.Level = log.InfoLevel
+	} else {
+		logcfg.Level = log.DebugLevel
 	}
 
 	if vchConfig.Diagnostics.SysLogConfig != nil {
@@ -591,7 +596,9 @@ func main() {
 	rootConfig.Thumbprint = vchConfig.TargetThumbprint
 	rootConfig.DatastorePath = vchConfig.Storage.ImageStores[0].Host
 
-	if vchConfig.Diagnostics.DebugLevel > 0 {
+	if vchConfig.Diagnostics.DebugLevel == 0 {
+		log.SetLevel(log.InfoLevel)
+	} else {
 		log.SetLevel(log.DebugLevel)
 		log.Info("Setting debug logging")
 	}

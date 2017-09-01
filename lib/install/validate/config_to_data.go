@@ -36,6 +36,9 @@ import (
 const (
 	httpProxy  = "HTTP_PROXY"
 	httpsProxy = "HTTPS_PROXY"
+
+	// Value of debug flag during create if --debug not set
+	DefaultDebug = -1
 )
 
 // Finder is defined for easy to test
@@ -214,7 +217,13 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 		return
 	}
 
-	d.Debug.Debug = &conf.Diagnostics.DebugLevel
+	if conf.Diagnostics.DebugLevel == DefaultDebug {
+		// Hide the output from inspect if debug level is -1
+		debug := 0
+		d.Debug.Debug = &debug
+	} else {
+		d.Debug.Debug = &conf.Diagnostics.DebugLevel
+	}
 	if conf.ExecutorConfig.Networks[config.PublicNetworkName] != nil {
 		d.DNS = conf.ExecutorConfig.Networks[config.PublicNetworkName].Network.Nameservers
 	}
