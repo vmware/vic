@@ -41,8 +41,8 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
@@ -264,7 +264,7 @@ func (d *Dispatcher) addNetworkDevices(conf *config.VirtualContainerHostConfigSp
 		}
 
 		slot := cspec.AssignSlotNumber(nic, slots)
-		if slot == spec.NilSlot {
+		if slot == constants.NilSlot {
 			err = errors.Errorf("Failed to assign stable PCI slot for %q network card", name)
 		}
 
