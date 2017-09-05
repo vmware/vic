@@ -43,6 +43,7 @@ import (
 	"github.com/vmware/vic/lib/config/dynamic"
 	"github.com/vmware/vic/lib/config/dynamic/admiral"
 	"github.com/vmware/vic/lib/imagec"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/registry"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -321,7 +322,7 @@ func setPortMapping(info *models.ContainerInfo, backend *Container, container *c
 		return err
 	}
 	for _, e := range endpointsOK.Payload {
-		if len(e.Ports) > 0 {
+		if len(e.Ports) > 0 && e.Scope == constants.BridgeScopeType {
 			if err = MapPorts(container.HostConfig, e, container.ContainerID); err != nil {
 				log.Errorf(err.Error())
 				return err
