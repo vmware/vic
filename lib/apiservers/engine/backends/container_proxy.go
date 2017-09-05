@@ -785,6 +785,11 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 		if err != nil {
 			return err
 		}
+
+		// unmap ports
+		if err = UnmapPorts(vc.HostConfig); err != nil {
+			return err
+		}
 	}
 
 	// change the state of the container
@@ -840,10 +845,6 @@ func (c *ContainerProxy) UnbindContainerFromNetwork(vc *viccontainer.VicContaine
 		handle = ub.Payload.Handle
 	}
 
-	// unmap ports
-	if err = UnmapPorts(vc.HostConfig); err != nil {
-		return "", err
-	}
 	return handle, nil
 }
 
