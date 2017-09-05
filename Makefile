@@ -311,7 +311,7 @@ $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
 	@$(TIME) $(GO) build $(RACE)  $(ldflags) -o ./$@ ./$(dir $<)
 
-$(docker-engine-api): $$(call godeps,cmd/docker/*.go) $(portlayerapi-client) $(admiralapi-client)
+$(docker-engine-api): $(portlayerapi-client) $(admiralapi-client) $$(call godeps,cmd/docker/*.go)
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
 	@$(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o $@ ./cmd/docker
@@ -347,7 +347,7 @@ $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 	@$(SWAGGER) generate server --exclude-main -A PortLayer --target lib/apiservers/portlayer -f lib/apiservers/portlayer/swagger.json 2>>swagger-gen.log
 	@echo done regenerating swagger models and operations for Portlayer API server...
 
-$(portlayerapi): $$(call godeps,cmd/port-layer-server/*.go) $(portlayerapi-server) $(portlayerapi-client)
+$(portlayerapi): $(portlayerapi-server) $(portlayerapi-client) $$(call godeps,cmd/port-layer-server/*.go)
 	@echo building Portlayer API server...
 	@$(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o $@ ./cmd/port-layer-server
 
