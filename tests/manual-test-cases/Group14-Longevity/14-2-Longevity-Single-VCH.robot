@@ -20,7 +20,7 @@ Test Teardown  Run Keyword If Test Failed  Run  govc logs.download
 *** Test Cases ***
 Longevity - Single - VCH
     # Just install with certs, as it is our most common expected install path
-    Install VIC Appliance To Test Server  certs=${true}  vol=default %{STATIC_VCH_OPTIONS}
+    Install VIC Appliance To Test Server  debug=0  certs=${true}  additional-args=%{STATIC_VCH_OPTIONS}
     # Each regression test takes about 1-2 minutes, so round down and call it a minute
     # 2880 is the number of minutes in 2 days
     :FOR  ${idx}  IN RANGE  0  2880
@@ -29,6 +29,6 @@ Longevity - Single - VCH
     
     Cleanup VIC Appliance On Test Server
     
-    Install VIC Appliance To Test Server  certs=${true}  vol=default %{STATIC_VCH_OPTIONS}
+    Install VIC Appliance To Test Server  debug=0  certs=${true}  additional-args=%{STATIC_VCH_OPTIONS}
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
