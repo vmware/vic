@@ -828,7 +828,7 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 
 // UnbindContainerFromNetwork unbinds a container from the networks that it connects to
 func (c *ContainerProxy) UnbindContainerFromNetwork(vc *viccontainer.VicContainer, handle string) (string, error) {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(vc.ContainerID))
 
 	unbindParams := scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle)
 	ub, err := c.client.Scopes.UnbindContainer(unbindParams)
