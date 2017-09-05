@@ -377,7 +377,7 @@ Container network - space in network name valid
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    Log To Console  Create a portgroup with a space in it's name
+    Log To Console  Create a portgroup with a space in its name
     ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN 'VM Network With Spaces'
 
     Log To Console  Create a bridge portgroup.
@@ -475,7 +475,7 @@ Container Firewalls
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=bridge ${busybox} nc ${ip} 1234
     Should Not Be Equal As Integers  ${rc}  0
-    
+
     # Create a container on a bridge and closed network listening on port 1234.
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net=bridge --name closedbridge ${busybox} nc -l -p 1234
     Should Be Equal As Integers  ${rc}  0
@@ -520,7 +520,7 @@ Container Firewalls
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net=bridge --name out2 ${busybox} nc out1 1234
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect outbound-net out2 
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect outbound-net out2
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start out2
 
@@ -576,8 +576,48 @@ Container network invalid 1
 Container network invalid 2
     Pass execution  Test not implemented
 
-Container network 1
-    Pass execution  Test not implemented
+Reset VCH doesn't cause unintentionally exposed ports from container network
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network "VM Network":vmnet ${vicmachinetls}
+    Log  ${output}
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: %{VCH-NAME}
+
+    ${output}=  Run  docker %{VCH-PARAMS} network ls
+    Should Contain  ${output}  vmnet
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vmnet -p 80 nginx
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
+    Should Not Contain  ${output}  ->80/tcp
+
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -reset=true %{VCH-NAME}
+    Log To Console  ${output}
+    Should Be Equal As Integers  0  ${rc}
+
+    Reboot VM  %{VCH-NAME}
+
+    Log To Console  Getting VCH IP ...
+    ${new-vch-ip}=  Get VM IP  %{VCH-NAME}
+    Log To Console  New VCH IP is ${new-vch-ip}
+    Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new-vch-ip}
+
+    # wait for docker info to succeed
+    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
+    Should Not Contain  ${output}  ->80/tcp
+
+    # Delete the portgroup added by env vars keyword
+    Cleanup VIC Appliance On Test Server
+
 
 Container network 2
     Pass execution  Test not implemented
