@@ -33,3 +33,5 @@ Resource  OVA-Util.robot
 Resource  Cert-Util.robot
 
 Variables  dynamic-vars.py
+
+Test Timeout    25 minutes
