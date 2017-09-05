@@ -91,10 +91,13 @@ Test
     \   Log To Console  Changing password for ${ip}
     \   Set Environment Variable  GOVC_URL  root:@${ip}
     \   Wait Until Keyword Succeeds  10x  3 minutes  Change ESXi Server Password  e2eFunctionalTest
+    \   ${license}=  Run  govc license.ls
 
     Set Environment Variable  GOVC_URL  ${vc1-ip}
     Set Environment Variable  GOVC_USERNAME  administrator@vsphere.local
     Set Environment Variable  GOVC_PASSWORD  Admin!23
+    
+    ${license}=  Run  govc license.ls
 
     # First VC cluster
     Log To Console  Create a datacenter on the VC
