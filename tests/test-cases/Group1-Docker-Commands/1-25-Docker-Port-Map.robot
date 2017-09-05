@@ -192,3 +192,25 @@ Container to container traffic via VCH public interface
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs abgt250
     Log  ${output}
     Should Contain  ${output}  e3eb0a1df437f3f97a64aca5952c8ea0
+
+Remap mapped port after stop container, and then remove stopped container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f $(docker %{VCH-PARAMS} ps -aq)
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd -p 6001:80 --name remap1 ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  6001
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop remap1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd -p 6001:80 --name remap2 ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  6001
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm remap1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  6001
