@@ -616,7 +616,6 @@ Reset VCH doesn't cause unintentionally exposed ports from container network
     Should Not Contain  ${output}  ->80/tcp
 
     # Delete the portgroup added by env vars keyword
-    Cleanup VCH Bridge Network  %{VCH-NAME}
     Cleanup VIC Appliance On Test Server
 
 
