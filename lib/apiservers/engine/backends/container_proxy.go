@@ -826,6 +826,7 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 	return nil
 }
 
+// UnbindContainerFromNetwork unbinds a container from the networks that it connects to
 func (c *ContainerProxy) UnbindContainerFromNetwork(vc *viccontainer.VicContainer, handle string) (string, error) {
 	defer trace.End(trace.Begin(""))
 
@@ -841,11 +842,9 @@ func (c *ContainerProxy) UnbindContainerFromNetwork(vc *viccontainer.VicContaine
 		default:
 			return "", InternalServerError(err.Error())
 		}
-	} else {
-		handle = ub.Payload.Handle
 	}
 
-	return handle, nil
+	return ub.Payload.Handle, nil
 }
 
 // State returns container state
