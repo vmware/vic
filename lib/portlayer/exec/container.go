@@ -452,7 +452,11 @@ func (c *Container) Signal(ctx context.Context, num int64) error {
 	}
 
 	if num == int64(syscall.SIGKILL) {
-		return c.containerBase.kill(ctx)
+		err := c.containerBase.kill(ctx)
+		if err == nil {
+			publishContainerEvent(c.ExecConfig.ID, time.Now(), events.ContainerPoweredOff)
+		}
+		return err
 	}
 
 	return c.startGuestProgram(ctx, "kill", fmt.Sprintf("%d", num))
