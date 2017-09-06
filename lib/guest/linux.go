@@ -21,7 +21,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"

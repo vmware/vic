@@ -25,6 +25,7 @@ import (
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 )
@@ -139,27 +140,27 @@ func TestCollectSlotNumbers(t *testing.T) {
 
 func TestFindSlotNumber(t *testing.T) {
 	allSlots := make(map[int32]bool)
-	for s := pciSlotNumberBegin; s != pciSlotNumberEnd; s += pciSlotNumberInc {
+	for s := constants.PCISlotNumberBegin; s != constants.PCISlotNumberEnd; s += constants.PCISlotNumberInc {
 		allSlots[s] = true
 	}
 
 	// missing first slot
 	missingFirstSlot := make(map[int32]bool)
-	for s := pciSlotNumberBegin + pciSlotNumberInc; s != pciSlotNumberEnd; s += pciSlotNumberInc {
+	for s := constants.PCISlotNumberBegin + constants.PCISlotNumberInc; s != constants.PCISlotNumberEnd; s += constants.PCISlotNumberInc {
 		missingFirstSlot[s] = true
 	}
 
 	// missing last slot
 	missingLastSlot := make(map[int32]bool)
-	for s := pciSlotNumberBegin; s != pciSlotNumberEnd-pciSlotNumberInc; s += pciSlotNumberInc {
+	for s := constants.PCISlotNumberBegin; s != constants.PCISlotNumberEnd-constants.PCISlotNumberInc; s += constants.PCISlotNumberInc {
 		missingLastSlot[s] = true
 	}
 
 	// missing a slot in the middle
 	var missingSlot int32
 	missingMiddleSlot := make(map[int32]bool)
-	for s := pciSlotNumberBegin; s != pciSlotNumberEnd-pciSlotNumberInc; s += pciSlotNumberInc {
-		if pciSlotNumberBegin+(2*pciSlotNumberInc) == s {
+	for s := constants.PCISlotNumberBegin; s != constants.PCISlotNumberEnd-constants.PCISlotNumberInc; s += constants.PCISlotNumberInc {
+		if constants.PCISlotNumberBegin+(2*constants.PCISlotNumberInc) == s {
 			missingSlot = s
 			continue
 		}
@@ -170,10 +171,10 @@ func TestFindSlotNumber(t *testing.T) {
 		slots map[int32]bool
 		out   int32
 	}{
-		{make(map[int32]bool), pciSlotNumberBegin},
-		{allSlots, NilSlot},
-		{missingFirstSlot, pciSlotNumberBegin},
-		{missingLastSlot, pciSlotNumberEnd - pciSlotNumberInc},
+		{make(map[int32]bool), constants.PCISlotNumberBegin},
+		{allSlots, constants.NilSlot},
+		{missingFirstSlot, constants.PCISlotNumberBegin},
+		{missingLastSlot, constants.PCISlotNumberEnd - constants.PCISlotNumberInc},
 		{missingMiddleSlot, missingSlot},
 	}
 

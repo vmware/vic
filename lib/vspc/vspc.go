@@ -24,7 +24,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/config"
-	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/pkg/telnet"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
