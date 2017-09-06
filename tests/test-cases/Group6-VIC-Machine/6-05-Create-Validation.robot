@@ -16,6 +16,7 @@
 Documentation  Test 6-05 - Verify vic-machine create validation function
 Resource  ../../resources/Util.robot
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Suggest resources - Invalid datacenter

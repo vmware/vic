@@ -16,6 +16,7 @@
 Documentation  Test 6-14 - Verify vic-machine update firewall function
 Resource  ../../resources/Util.robot
 Test Teardown  Run Keyword  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Enable and disable VIC firewall rule
