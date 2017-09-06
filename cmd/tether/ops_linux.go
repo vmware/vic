@@ -31,8 +31,8 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/iolog"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/lib/tether/netfilter"
 	"github.com/vmware/vic/pkg/dio"

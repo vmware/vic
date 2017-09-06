@@ -52,6 +52,14 @@ const (
 
 	// volume mode flag
 	Mode = "Mode"
+
+	// PCI Slot Number logic
+	PCISlotNumberBegin int32 = 0x4A0
+	PCISlotNumberEnd   int32 = 1 << 11
+	PCISlotNumberInc   int32 = 1 << 5
+
+	// NilSlot is an invalid PCI slot number
+	NilSlot int32 = 0
 )
 
 func DefaultAltVCHGuestName() string {

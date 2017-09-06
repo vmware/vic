@@ -35,7 +35,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
-	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/ip"
@@ -677,7 +677,7 @@ func TestContextAddContainer(t *testing.T) {
 			t.Fatalf("case %d: ctx.AddContainer(%v, %s, %s) more than one NIC added for scope %s", i, te.h, te.scope, te.ip, s.Network())
 		}
 		dev = dcs[0].GetVirtualDeviceConfigSpec().Device
-		if spec.VirtualDeviceSlotNumber(dev) == spec.NilSlot {
+		if spec.VirtualDeviceSlotNumber(dev) == constants.NilSlot {
 			t.Fatalf("case %d: ctx.AddContainer(%v, %s, %s) NIC added has nil pci slot", i, te.h, te.scope, te.ip)
 		}
 
