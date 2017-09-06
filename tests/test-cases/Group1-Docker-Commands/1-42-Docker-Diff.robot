@@ -17,6 +17,7 @@ Documentation  Test 1-42 - Docker Diff
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Make changes to busybox image

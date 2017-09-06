@@ -31,5 +31,6 @@ Resource  Docker-Util.robot
 Resource  Admiral-Util.robot
 Resource  OVA-Util.robot
 Resource  Cert-Util.robot
+Resource  Slack-Util.robot
 
 Variables  dynamic-vars.py

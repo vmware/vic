@@ -366,6 +366,10 @@ func (t *tether) initializeSessions() error {
 					session.ClearToLaunch = make(chan struct{})
 				}
 
+				// this will need altering if tether should be capable of being restarted itself
+				session.Started = ""
+				session.StopTime = 0
+
 				session.wait = &sync.WaitGroup{}
 				session.extraconfigKey = name
 				err := t.loggingLocked(session)
@@ -420,37 +424,39 @@ func (t *tether) processSessions() error {
 
 		// process the sessions and launch if needed
 		for id, session := range m.sessions {
-			session.Lock()
+			func() {
+				session.Lock()
+				defer session.Unlock()
 
-			log.Debugf("Processing config for session %s", id)
-			var proc = session.Cmd.Process
+				log.Debugf("Processing config for session: %s", id)
+				var proc = session.Cmd.Process
 
-			// check if session is alive and well
-			if proc != nil && proc.Signal(syscall.Signal(0)) == nil {
-				log.Debugf("Process for session %s is running (pid: %d)", id, proc.Pid)
-				if !session.Active {
-					// stop process - for now this doesn't do any staged levels of aggression
-					log.Infof("Running session %s has been deactivated (pid: %d)", id, proc.Pid)
+				// check if session is alive and well
+				if proc != nil && proc.Signal(syscall.Signal(0)) == nil {
+					log.Debugf("Process for session %s is running (pid: %d)", id, proc.Pid)
+					if !session.Active {
+						// stop process - for now this doesn't do any staged levels of aggression
+						log.Infof("Running session %s has been deactivated (pid: %d)", id, proc.Pid)
 
-					killHelper(session)
+						killHelper(session)
+					}
+
+					return
 				}
 
-				session.Unlock()
-				continue
-			}
+				// if we're not activating this session and it's not running, then skip
+				if !session.Active {
+					log.Debugf("Skipping inactive session: %s", id)
+					return
+				}
 
-			// if we're not activating this session and it's not running, then skip
-			if !session.Active {
-				log.Debugf("Skipping inactive session %s", id)
-				session.Unlock()
-				continue
-			}
+				priorLaunch := proc != nil || session.Started != ""
+				if priorLaunch && !session.Restart {
+					log.Debugf("Skipping non-restartable exited or failed session: %s", id)
+					return
+				}
 
-			// check if session has never been started or is configured for restart
-			// if proc is nil, but Started is set then it could be a launch failure
-			if (proc == nil && session.Started == "") || session.Restart {
-				// if we've never been started
-				if proc == nil && session.Started == "" {
+				if !priorLaunch {
 					log.Infof("Launching process for session %s", id)
 					log.Debugf("Launch failures are fatal: %t", m.fatal)
 				} else {
@@ -473,9 +479,7 @@ func (t *tether) processSessions() error {
 						fatal: m.fatal,
 					}
 				}(session)
-
-			}
-			session.Unlock()
+			}()
 		}
 	}
 
