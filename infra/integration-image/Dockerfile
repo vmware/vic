@@ -83,7 +83,7 @@ RUN curl -fsSLO https://releases.hashicorp.com/packer/0.12.2/packer_0.12.2_linux
 RUN curl http://downloads.drone.io/release/linux/amd64/drone.tar.gz | tar zx && \
     install -t /usr/local/bin drone
 
-RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.14.0/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc && \
+RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.15.0/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc && \
     chmod +x /usr/local/bin/govc
 
 RUN  wget http://mirrors.kernel.org/ubuntu/pool/main/w/wget/wget_1.18-2ubuntu1_amd64.deb && \

@@ -159,7 +159,7 @@ func (t *BaseOperations) RuleList(family int) ([]netlink.Rule, error) {
 }
 
 func (t *BaseOperations) LinkBySlot(slot int32) (netlink.Link, error) {
-	pciPath, err := slotToPCIPath(slot)
+	pciPath, err := slotToPCIPath(slot, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -224,23 +224,25 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	return nil
 }
 
-func slotToPCIPath(pciSlot int32) (string, error) {
+func slotToPCIPath(pciSlot int32, fun int32) (string, error) {
 	// see https://kb.vmware.com/kb/2047927
-	dev := pciSlot & 0x1f
-	bus := (pciSlot >> 5) & 0x1f
-	fun := (pciSlot >> 10) & 0x7
+	dev := pciSlot & 0x1f        // DDDDD
+	bus := (pciSlot >> 5) & 0x1f // BBBBB
+	if fun == 0 {
+		fun = (pciSlot >> 10) & 0x7 // FFF
+	}
 	if bus == 0 {
 		return path.Join(pciDevPath, fmt.Sprintf("0000:%02x:%02x.%d", bus, dev, fun)), nil
 	}
 
-	// device on secondary bus, prepend pci bridge address
+	// device on secondary bus, prepend pci bridge address, pciBridge0.pciSlotNumber is "17" aka "0x11"
 	bridgeSlot := 0x11 + (bus - 1)
-	bridgeAddr, err := slotToPCIPath(bridgeSlot)
+	bridgeAddr, err := slotToPCIPath(bridgeSlot, fun)
 	if err != nil {
 		return "", err
 	}
 
-	return path.Join(bridgeAddr, fmt.Sprintf("0000:*:%02x.%d", dev, fun)), nil
+	return path.Join(bridgeAddr, fmt.Sprintf("0000:*:%02x.0", dev)), nil
 }
 
 func pciToLinkName(pciPath string) (string, error) {

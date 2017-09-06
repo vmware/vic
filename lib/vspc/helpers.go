@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/pkg/telnet"
 )
 
