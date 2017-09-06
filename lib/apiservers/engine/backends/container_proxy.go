@@ -843,7 +843,7 @@ func (c *ContainerProxy) UnbindContainerFromNetwork(vc *viccontainer.VicContaine
 			return "", InternalServerError(err.Error())
 		}
 	}
- 
+
 	return ub.Payload.Handle, nil
 }
 
