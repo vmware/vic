@@ -826,7 +826,7 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 			}
 
 			log.Debugf("Unmapping ports for powered off / removed container %q", mappedCtr)
-			err = UnmapPorts(cc.HostConfig)
+			err = UnmapPorts(cc.ContainerID, cc.HostConfig)
 			if err != nil {
 				return fmt.Errorf("Failed to unmap host port %s for container %q: %s",
 					hPort, mappedCtr, err)
@@ -943,7 +943,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 
 			defer func() {
 				if err != nil {
-					UnmapPorts(hostConfig)
+					UnmapPorts(id, hostConfig)
 				}
 			}()
 		}
@@ -1068,8 +1068,8 @@ func MapPorts(hostconfig *containertypes.HostConfig, endpoint *models.EndpointCo
 	return nil
 }
 
-// UnmapPorts unmaps ports defined in hostconfig
-func UnmapPorts(hostconfig *containertypes.HostConfig) error {
+// UnmapPorts unmaps ports defined in hostconfig if it's mapped for this container
+func UnmapPorts(id string, hostconfig *containertypes.HostConfig) error {
 	log.Debugf("UnmapPorts: %v", hostconfig.PortBindings)
 
 	if len(hostconfig.PortBindings) == 0 {
@@ -1085,9 +1085,13 @@ func UnmapPorts(hostconfig *containertypes.HostConfig) error {
 	defer cbpLock.Unlock()
 	for _, p := range portMap {
 		// check if we should actually unmap based on current mappings
-		_, mapped := containerByPort[p.strHostPort]
+		mappedID, mapped := containerByPort[p.strHostPort]
 		if !mapped {
 			log.Debugf("skipping already unmapped %s", p.strHostPort)
+			continue
+		}
+		if mappedID != id {
+			log.Debugf("port is mapped for container %s, not %s, skipping", mappedID, id)
 			continue
 		}
 
