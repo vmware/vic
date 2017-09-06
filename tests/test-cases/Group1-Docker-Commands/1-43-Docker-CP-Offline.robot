@@ -17,6 +17,7 @@ Documentation  Test 1-43 - Docker CP Offline
 Resource  ../../resources/Util.robot
 Suite Setup  Set up test files and install VIC appliance to test server
 Suite Teardown  Clean up test files and VIC appliance to test server
+Test Timeout  20 minutes
 
 *** Keywords ***
 Set up test files and install VIC appliance to test server

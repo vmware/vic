@@ -15,7 +15,12 @@
 *** Settings ***
 Documentation  Test 14-1 - Longevity
 Resource  ../../resources/Util.robot
-Test Teardown  Run Keyword If Test Failed  Run  govc logs.download
+Test Teardown  Run Keyword If Test Failed  Longevity cleanup
+
+*** Keywords ***
+Longevity cleanup
+    Run Keyword And Continue On Failure  Post Message To Slack Channel  mwilliamson-staff  Longevity has failed on %{GOVC_URL}
+    Run Keyword And Continue On Failure  Run  govc logs.download
 
 *** Test Cases ***
 Longevity

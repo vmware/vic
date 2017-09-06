@@ -17,6 +17,7 @@ Documentation  Test 1-23 - Docker Inspect
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server  certs=${false}
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Simple docker inspect of image
