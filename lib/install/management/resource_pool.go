@@ -54,16 +54,11 @@ func (d *Dispatcher) createResourcePool(conf *config.VirtualContainerHostConfigS
 	log.Infof("Creating Resource Pool %q", conf.Name)
 	// TODO: expose the limits and reservation here via options
 	resSpec := types.ResourceConfigSpec{
-		CpuAllocation: &types.ResourceAllocationInfo{
-			ExpandableReservation: types.NewBool(true),
-		},
-		MemoryAllocation: &types.ResourceAllocationInfo{
-			ExpandableReservation: types.NewBool(true),
-		},
+		CpuAllocation:    &types.ResourceAllocationInfo{},
+		MemoryAllocation: &types.ResourceAllocationInfo{},
 	}
 	setResources(resSpec.CpuAllocation.GetResourceAllocationInfo(), settings.VCHSize.CPU)
 	setResources(resSpec.MemoryAllocation.GetResourceAllocationInfo(), settings.VCHSize.Memory)
-
 	rp, err = d.session.Pool.Create(d.ctx, conf.Name, resSpec)
 	if err != nil {
 		log.Debugf("Failed to create resource pool %q: %s", d.vchPoolPath, err)
@@ -87,6 +82,9 @@ func setResources(spec *types.ResourceAllocationInfo, resource types.ResourceAll
 		spec.Shares = &types.SharesInfo{
 			Level: types.SharesLevelNormal,
 		}
+	}
+	if spec.ExpandableReservation == nil {
+		spec.ExpandableReservation = types.NewBool(true)
 	}
 }
 
