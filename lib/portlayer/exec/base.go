@@ -36,7 +36,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-const defaultWaitTime = 10 * time.Second
+const defaultPowerStateWaitTime = 10 * time.Second
 
 // NotYetExistError is returned when a call that requires a VM exist is made
 type NotYetExistError struct {
@@ -234,8 +234,12 @@ func (c *containerBase) stop(ctx context.Context, waitTime *int32) error {
 	log.Warnf("stopping %s via hard power off due to: %s", c.ExecConfig.ID, err)
 
 	err = c.poweroff(ctx)
+
+	// In case of InvalidPowerState and GenericVmConfigFault during hard poweroff, nil would be returned.
+	// At the time the VM must've been already powered off. But we may need to wait for extra time
+	// such that we can obtain the latest powerstate from the VC.
 	if err == nil {
-		timeout, cancel := context.WithTimeout(ctx, defaultWaitTime)
+		timeout, cancel := context.WithTimeout(ctx, defaultPowerStateWaitTime)
 		defer cancel()
 
 		operation := func() error {
@@ -250,7 +254,12 @@ func (c *containerBase) stop(ctx context.Context, waitTime *int32) error {
 		config.MaxElapsedTime = 2 * time.Minute
 
 		if err = retry.DoWithConfig(operation, isTimeoutErr, config); err != nil {
-			return err
+			log.Errorf(err.Error())
+			return InconsistentPowerStateError{
+				id:       c.ExecConfig.ID,
+				existing: c.Runtime.PowerState,
+				expected: types.VirtualMachinePowerStatePoweredOff,
+			}
 		}
 	}
 

@@ -127,6 +127,17 @@ func (e DevicesInUseError) Error() string {
 	return fmt.Sprintf("device %s in use", strings.Join(e.Devices, ","))
 }
 
+// InconsistentPowerStateError is returned when the existing VM power state is different from the expected power state
+type InconsistentPowerStateError struct {
+	id       string
+	existing types.VirtualMachinePowerState
+	expected types.VirtualMachinePowerState
+}
+
+func (e InconsistentPowerStateError) Error() string {
+	return fmt.Sprintf("operation failed due to inconsistent powerstate for VM %s - existing: %s, expected: %s. Retrying the operation may resolve the issue.", e.id, e.existing, e.expected)
+}
+
 // Container is used to return data about a container during inspection calls
 // It is a copy rather than a live reflection and does not require locking
 type ContainerInfo struct {
