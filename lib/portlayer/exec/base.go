@@ -34,7 +34,10 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/pkg/retry"
 )
+
+const defaultWaitTime = 10 * time.Second
 
 // NotYetExistError is returned when a call that requires a VM exist is made
 type NotYetExistError struct {
@@ -231,7 +234,28 @@ func (c *containerBase) stop(ctx context.Context, waitTime *int32) error {
 
 	log.Warnf("stopping %s via hard power off due to: %s", c.ExecConfig.ID, err)
 
-	return c.poweroff(ctx)
+	err = c.poweroff(ctx)
+	if err == nil {
+		timeout, cancel := context.WithTimeout(ctx, defaultWaitTime)
+		defer cancel()
+
+		operation := func() error {
+			return c.vm.WaitForPowerState(timeout, types.VirtualMachinePowerStatePoweredOff)
+		}
+
+		isTimeoutErr := func(err error) bool {
+			return timeout.Err() != nil
+		}
+				
+		config := retry.NewBackoffConfig()
+		config.MaxElapsedTime = 2 * time.Minute
+
+		if err = retry.DoWithConfig(operation, isTimeoutErr, config); err != nil {
+			return err
+		}
+	}
+
+	return err
 }
 
 func (c *containerBase) kill(ctx context.Context) error {
