@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/govmomi/guest"
@@ -27,14 +28,12 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/migration"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/pkg/retry"
 )
 
 const defaultWaitTime = 10 * time.Second
@@ -246,7 +245,7 @@ func (c *containerBase) stop(ctx context.Context, waitTime *int32) error {
 		isTimeoutErr := func(err error) bool {
 			return timeout.Err() != nil
 		}
-				
+
 		config := retry.NewBackoffConfig()
 		config.MaxElapsedTime = 2 * time.Minute
 
