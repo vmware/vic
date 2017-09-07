@@ -761,6 +761,16 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		if state.Status == "Starting" {
 			return derr.NewRequestConflictError(fmt.Errorf("The container is starting.  To remove use -f"))
 		}
+
+		handle, err := c.Handle(id, name)
+		if err != nil {
+			return err
+		}
+
+		_, err = c.containerProxy.UnbindContainerFromNetwork(vc, handle)
+		if err != nil {
+			return err
+		}
 	}
 
 	//call the remove directly on the name. No need for using a handle.

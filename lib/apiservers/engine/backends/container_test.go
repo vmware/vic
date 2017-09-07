@@ -367,6 +367,10 @@ func (m *MockContainerProxy) GetContainerChanges(op trace.Operation, vc *viccont
 	return nil, nil
 }
 
+func (m *MockContainerProxy) UnbindContainerFromNetwork(vc *viccontainer.VicContainer, handle string) (string, error) {
+	return "", nil
+}
+
 func (m *MockContainerProxy) exitCode(vc *viccontainer.VicContainer) (string, error) {
 	return "", nil
 }
