@@ -20,18 +20,11 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
-)
-
-// NilSlot is an invalid PCI slot number
-const (
-	NilSlot            int32 = 0
-	pciSlotNumberBegin int32 = 0xc0
-	pciSlotNumberEnd   int32 = 1 << 10
-	pciSlotNumberInc   int32 = 1 << 5
 )
 
 // VirtualMachineConfigSpecConfig holds the config values
@@ -252,26 +245,26 @@ func (s *VirtualMachineConfigSpec) Spec() *types.VirtualMachineConfigSpec {
 func VirtualDeviceSlotNumber(d types.BaseVirtualDevice) int32 {
 	s := d.GetVirtualDevice().SlotInfo
 	if s == nil {
-		return NilSlot
+		return constants.NilSlot
 	}
 
 	if i, ok := s.(*types.VirtualDevicePciBusSlotInfo); ok {
 		return i.PciSlotNumber
 	}
 
-	return NilSlot
+	return constants.NilSlot
 }
 
 func findSlotNumber(slots map[int32]bool) int32 {
 	// see https://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=2047927
-	slot := pciSlotNumberBegin
-	for _, ok := slots[slot]; ok && slot != pciSlotNumberEnd; {
-		slot += pciSlotNumberInc
+	slot := constants.PCISlotNumberBegin
+	for _, ok := slots[slot]; ok && slot != constants.PCISlotNumberEnd; {
+		slot += constants.PCISlotNumberInc
 		_, ok = slots[slot]
 	}
 
-	if slot == pciSlotNumberEnd {
-		return NilSlot
+	if slot == constants.PCISlotNumberEnd {
+		return constants.NilSlot
 	}
 
 	return slot
@@ -281,14 +274,14 @@ func findSlotNumber(slots map[int32]bool) int32 {
 // the slot is valid and not in use by anything else in the spec
 func (s *VirtualMachineConfigSpec) AssignSlotNumber(dev types.BaseVirtualDevice, known map[int32]bool) int32 {
 	slot := VirtualDeviceSlotNumber(dev)
-	if slot != NilSlot {
+	if slot != constants.NilSlot {
 		return slot
 	}
 
 	// build the slots in use from the spec
 	slots := s.CollectSlotNumbers(known)
 	slot = findSlotNumber(slots)
-	if slot != NilSlot {
+	if slot != constants.NilSlot {
 		dev.GetVirtualDevice().SlotInfo = &types.VirtualDevicePciBusSlotInfo{PciSlotNumber: slot}
 	}
 
@@ -303,7 +296,7 @@ func (s *VirtualMachineConfigSpec) CollectSlotNumbers(known map[int32]bool) map[
 	}
 	// collect all the already assigned slot numbers
 	for _, c := range s.DeviceChange {
-		if s := VirtualDeviceSlotNumber(c.GetVirtualDeviceConfigSpec().Device); s != NilSlot {
+		if s := VirtualDeviceSlotNumber(c.GetVirtualDeviceConfigSpec().Device); s != constants.NilSlot {
 			known[s] = true
 		}
 	}

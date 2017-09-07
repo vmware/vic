@@ -22,7 +22,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/config/executor"
-	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/uid"
 )

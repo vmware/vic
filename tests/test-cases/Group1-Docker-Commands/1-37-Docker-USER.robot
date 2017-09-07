@@ -17,6 +17,7 @@ Documentation   Test 1-37 - Docker Run As USER
 Resource        ../../resources/Util.robot
 Suite Setup     Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Run Image Specifying NewUser in NewGroup

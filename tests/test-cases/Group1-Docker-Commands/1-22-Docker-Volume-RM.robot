@@ -17,6 +17,7 @@ Documentation  Test 1-22 - Docker Volume RM
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Simple volume rm

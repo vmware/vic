@@ -244,6 +244,9 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 			log.Infof("Sending die event for container %s - code: %s", vc.ContainerID, code)
 			actor := CreateContainerEventActorWithAttributes(vc, attrs)
 			EventService().Log(containerDieEvent, eventtypes.ContainerEventType, actor)
+			if err := UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
+				log.Warn(err)
+			}
 
 			// auto-remove if required
 			if vc.HostConfig.AutoRemove {
@@ -264,7 +267,7 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 		//pop the destroy event...
 		actor := CreateContainerEventActorWithAttributes(vc, attrs)
 		EventService().Log(containerDestroyEvent, eventtypes.ContainerEventType, actor)
-		if err := UnmapPorts(vc.HostConfig); err != nil {
+		if err := UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
 			log.Warn(err)
 		}
 		// remove from the container cache...

@@ -106,3 +106,14 @@ This test requires that a vSphere server is running and available
 
 ### Expected Outcome:
 * All steps should return without error
+
+## Remap mapped port after stop container, and then remove stopped container
+1. Issue `docker run -itd -p 6001:80 --name remap1 nginx`
+2. Hit Nginx Endpoint at VCH-IP:6001
+3. Issue `docker stop remap1`
+4. Issue `docker run -itd -p 6001:80 --name remap2 nginx`
+5. Issue `docker rm remap1`
+6. Hit Nginx Endpoint at VCH-IP:6001
+
+### Expected Outcome:
+* All steps should return without error

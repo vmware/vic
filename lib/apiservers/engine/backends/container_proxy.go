@@ -72,8 +72,8 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/metadata"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
@@ -787,7 +787,7 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 		}
 
 		// unmap ports
-		if err = UnmapPorts(vc.HostConfig); err != nil {
+		if err = UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
 			return err
 		}
 	}
@@ -981,7 +981,7 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 
 	if state, err := c.State(vc); !state.Running && err == nil {
 		// unmap ports
-		if err = UnmapPorts(vc.HostConfig); err != nil {
+		if err = UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
 			return err
 		}
 	}
