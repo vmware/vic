@@ -17,6 +17,7 @@ package exec
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -34,7 +35,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	log "github.com/Sirupsen/logrus"
-	"strings"
 )
 
 // The full string should be "The attempted operation cannot be performed in the current state (Powered off)"
