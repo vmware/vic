@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/govmomi/guest"
@@ -27,14 +28,15 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/migration"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	log "github.com/Sirupsen/logrus"
 )
+
+const defaultPowerStateWaitTime = 10 * time.Second
 
 // NotYetExistError is returned when a call that requires a VM exist is made
 type NotYetExistError struct {
@@ -231,7 +233,37 @@ func (c *containerBase) stop(ctx context.Context, waitTime *int32) error {
 
 	log.Warnf("stopping %s via hard power off due to: %s", c.ExecConfig.ID, err)
 
-	return c.poweroff(ctx)
+	err = c.poweroff(ctx)
+
+	// In case of InvalidPowerState and GenericVmConfigFault during hard poweroff, nil would be returned.
+	// At the time the VM must've been already powered off. But we may need to wait for extra time
+	// such that we can obtain the latest powerstate from the VC.
+	if err == nil {
+		timeout, cancel := context.WithTimeout(ctx, defaultPowerStateWaitTime)
+		defer cancel()
+
+		operation := func() error {
+			return c.vm.WaitForPowerState(timeout, types.VirtualMachinePowerStatePoweredOff)
+		}
+
+		isTimeoutErr := func(err error) bool {
+			return timeout.Err() != nil
+		}
+
+		config := retry.NewBackoffConfig()
+		config.MaxElapsedTime = 2 * time.Minute
+
+		if err = retry.DoWithConfig(operation, isTimeoutErr, config); err != nil {
+			log.Errorf(err.Error())
+			return InconsistentPowerStateError{
+				id:       c.ExecConfig.ID,
+				existing: c.Runtime.PowerState,
+				expected: types.VirtualMachinePowerStatePoweredOff,
+			}
+		}
+	}
+
+	return err
 }
 
 func (c *containerBase) kill(ctx context.Context) error {

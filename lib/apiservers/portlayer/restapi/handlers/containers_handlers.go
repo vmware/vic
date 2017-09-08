@@ -229,6 +229,8 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 			return containers.NewCommitConflict().WithPayload(&models.Error{Message: err.Error()})
 		case exec.DevicesInUseError:
 			return containers.NewCommitConflict().WithPayload(&models.Error{Message: err.Error()})
+		case exec.InconsistentPowerStateError:
+			return containers.NewCommitConflict().WithPayload(&models.Error{Message: err.Error()})
 		default:
 			return containers.NewCommitDefault(http.StatusServiceUnavailable).WithPayload(&models.Error{Message: err.Error()})
 		}
