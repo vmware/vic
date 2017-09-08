@@ -118,7 +118,7 @@ func (a *source) Get(ctx context.Context) (*vchcfg.VirtualContainerHostConfigSpe
 
 	c, projs, err := a.discover(ctx)
 	if err != nil {
-		log.Warnf("error locating Admiral, returning last known config: %s", err)
+		log.Warnf("could not locate management portal, returning last known config: %s, err")
 		return lastCfg, nil
 	}
 
@@ -128,7 +128,7 @@ func (a *source) Get(ctx context.Context) (*vchcfg.VirtualContainerHostConfigSpe
 
 	wl, err := a.whitelist(ctx, c, projs)
 	if err != nil {
-		log.Warnf("error getting whitelist form Admiral, returning last known config: %s")
+		log.Warnf("could not get whitelist from management portal, returning last known config: %s")
 		return lastCfg, nil
 	}
 
@@ -196,7 +196,7 @@ func (a *source) discover(ctx context.Context) (*client.Admiral, []string, error
 	if c != nil {
 		projs, err := a.projects(ctx, c)
 		if err != nil {
-			log.Debugf("error getting projects: %s", err)
+			log.Debugf("could not get projects: %s", err)
 			vms = append(vms, v)
 			removed = false
 		} else if len(projs) > 0 {

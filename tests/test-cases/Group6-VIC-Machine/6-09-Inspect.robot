@@ -16,6 +16,7 @@
 Documentation  Test 6-09 - Verify vic-machine inspect functions
 Resource  ../../resources/Util.robot
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Keywords ***
 Cleanup Container Network Test 
