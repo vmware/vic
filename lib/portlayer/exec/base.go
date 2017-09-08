@@ -310,7 +310,7 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 			// Just warn and proceed to waiting for power state per issue https://github.com/vmware/vic/issues/5803
 			// Description above in function kill()
 			log.Warnf("%s: %s", msg, err)
-			
+
 			// If the error tells us "The attempted operation cannot be performed in the current state (Powered off)", we can safely
 			// return nil and avoid hard poweroff (issues #6236 and #6252)
 			if strings.Contains(err.Error(), opNotPerformedPoweredOff) {

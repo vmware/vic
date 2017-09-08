@@ -109,6 +109,7 @@ const (
 	// Default timeout to stop a container if not specified in container config
 	DefaultStopTimeout = 10
 
+	// maximum elapsed time for retry
 	maxElapsedTime = 2 * time.Minute
 )
 
@@ -1252,7 +1253,7 @@ func (c *Container) ContainerStop(name string, seconds *int) error {
 	config := retry.NewBackoffConfig()
 	config.MaxElapsedTime = maxElapsedTime
 	if err := retry.DoWithConfig(operation, IsConflictError, config); err != nil {
-		return ConflictError(err.Error()+" --- Retrying the operation may resolve the issue.")
+		return ConflictError(err.Error() + " --- Retrying the operation may resolve the issue.")
 	}
 
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
