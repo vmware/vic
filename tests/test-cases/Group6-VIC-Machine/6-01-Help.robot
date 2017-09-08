@@ -15,6 +15,7 @@
 *** Settings ***
 Documentation  Test 6-01 - Verify Help
 Resource  ../../resources/Util.robot
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Delete help basic

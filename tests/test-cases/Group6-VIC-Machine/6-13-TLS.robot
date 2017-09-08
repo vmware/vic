@@ -16,6 +16,7 @@
 Documentation  Test 6-13 - Verify vic-machine create with TLS
 Resource  ../../resources/Util.robot
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Create VCH - defaults with --no-tls
