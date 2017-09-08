@@ -108,6 +108,8 @@ const (
 	DefaultCPUs = 2
 	// Default timeout to stop a container if not specified in container config
 	DefaultStopTimeout = 10
+
+	maxElapsedTime = 2 * time.Minute
 )
 
 var (
@@ -1246,8 +1248,11 @@ func (c *Container) ContainerStop(name string, seconds *int) error {
 	operation := func() error {
 		return c.containerProxy.Stop(vc, name, seconds, true)
 	}
-	if err := retry.Do(operation, IsConflictError); err != nil {
-		return err
+
+	config := retry.NewBackoffConfig()
+	config.MaxElapsedTime = maxElapsedTime
+	if err := retry.DoWithConfig(operation, IsConflictError, config); err != nil {
+		return ConflictError(err.Error()+" --- Retrying the operation may resolve the issue.")
 	}
 
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})

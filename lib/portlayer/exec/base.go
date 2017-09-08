@@ -34,7 +34,11 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	log "github.com/Sirupsen/logrus"
+	"strings"
 )
+
+// The full string should be "The attempted operation cannot be performed in the current state (Powered off)"
+const opNotPerformedPoweredOff = "current state (Powered off)"
 
 // NotYetExistError is returned when a call that requires a VM exist is made
 type NotYetExistError struct {
@@ -253,6 +257,10 @@ func (c *containerBase) kill(ctx context.Context) error {
 	}
 	if err != nil {
 		log.Warnf("killing %s attempt resulted in: %s", c.ExecConfig.ID, err)
+
+		if strings.Contains(err.Error(), opNotPerformedPoweredOff) {
+			return nil
+		}
 	}
 
 	// Even if startGuestProgram failed above, it may actually have executed.  If the container came up and then
@@ -302,6 +310,12 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 			// Just warn and proceed to waiting for power state per issue https://github.com/vmware/vic/issues/5803
 			// Description above in function kill()
 			log.Warnf("%s: %s", msg, err)
+			
+			// If the error tells us "The attempted operation cannot be performed in the current state (Powered off)", we can safely
+			// return nil and avoid hard poweroff (issues #6236 and #6252)
+			if strings.Contains(err.Error(), opNotPerformedPoweredOff) {
+				return nil
+			}
 		}
 
 		log.Infof("waiting %s for %s to power off", wait, c.ExecConfig.ID)
