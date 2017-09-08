@@ -72,8 +72,8 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/metadata"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
@@ -106,6 +106,8 @@ type VicContainerProxy interface {
 	Rename(vc *viccontainer.VicContainer, newName string) error
 
 	GetContainerChanges(op trace.Operation, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error)
+
+	UnbindContainerFromNetwork(vc *viccontainer.VicContainer, handle string) (string, error)
 
 	Handle(id, name string) (string, error)
 	Client() *client.PortLayer
@@ -779,24 +781,13 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 	}
 
 	if unbound {
-		unbindParams := scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle)
-		ub, err := c.client.Scopes.UnbindContainer(unbindParams)
+		handle, err = c.UnbindContainerFromNetwork(vc, handle)
 		if err != nil {
-			switch err := err.(type) {
-			case *scopes.UnbindContainerNotFound:
-				// ignore error
-				log.Warnf("Container %s not found by network unbind", vc.ContainerID)
-			case *scopes.UnbindContainerInternalServerError:
-				return InternalServerError(err.Payload.Message)
-			default:
-				return InternalServerError(err.Error())
-			}
-		} else {
-			handle = ub.Payload.Handle
+			return err
 		}
 
 		// unmap ports
-		if err = UnmapPorts(vc.HostConfig); err != nil {
+		if err = UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
 			return err
 		}
 	}
@@ -833,6 +824,27 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 	}
 
 	return nil
+}
+
+// UnbindContainerFromNetwork unbinds a container from the networks that it connects to
+func (c *ContainerProxy) UnbindContainerFromNetwork(vc *viccontainer.VicContainer, handle string) (string, error) {
+	defer trace.End(trace.Begin(vc.ContainerID))
+
+	unbindParams := scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle)
+	ub, err := c.client.Scopes.UnbindContainer(unbindParams)
+	if err != nil {
+		switch err := err.(type) {
+		case *scopes.UnbindContainerNotFound:
+			// ignore error
+			log.Warnf("Container %s not found by network unbind", vc.ContainerID)
+		case *scopes.UnbindContainerInternalServerError:
+			return "", InternalServerError(err.Payload.Message)
+		default:
+			return "", InternalServerError(err.Error())
+		}
+	}
+
+	return ub.Payload.Handle, nil
 }
 
 // State returns container state
@@ -969,7 +981,7 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 
 	if state, err := c.State(vc); !state.Running && err == nil {
 		// unmap ports
-		if err = UnmapPorts(vc.HostConfig); err != nil {
+		if err = UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
 			return err
 		}
 	}

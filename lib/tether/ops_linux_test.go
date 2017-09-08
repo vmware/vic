@@ -177,10 +177,14 @@ func TestSlotToPciPath(t *testing.T) {
 		{32, path.Join(pciDevPath, "0000:00:11.0", "0000:*:00.0"), nil},
 		{33, path.Join(pciDevPath, "0000:00:11.0", "0000:*:01.0"), nil},
 		{192, path.Join(pciDevPath, "0000:00:16.0", "0000:*:00.0"), nil},
+		{1184, path.Join(pciDevPath, "0000:00:15.1", "0000:*:00.0"), nil},
+		{1216, path.Join(pciDevPath, "0000:00:16.1", "0000:*:00.0"), nil},
+		{1248, path.Join(pciDevPath, "0000:00:17.1", "0000:*:00.0"), nil},
+		{1280, path.Join(pciDevPath, "0000:00:18.1", "0000:*:00.0"), nil},
 	}
 
 	for _, te := range tests {
-		p, err := slotToPCIPath(te.slot)
+		p, err := slotToPCIPath(te.slot, 0)
 		if te.err != nil {
 			if err == nil {
 				t.Fatalf("slotToPCIPath(%d) => (%#v, %#v), want (%s, nil)", te.slot, p, err, te.p)
