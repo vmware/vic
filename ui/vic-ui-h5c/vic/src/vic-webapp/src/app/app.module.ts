@@ -16,8 +16,8 @@
 
 import { NgModule, ErrorHandler } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HttpModule } from '@angular/http';
-
 import { ClarityModule } from 'clarity-angular';
 
 import {
@@ -30,18 +30,15 @@ import {
     AppAlertService
 } from './shared/index';
 import { ActionDevService } from './services/action-dev.service';
-import { DataPropertyService } from './services/data-property.service';
-import { VicVmViewService } from './services/vm-view.service';
 import { AppErrorHandler } from './shared/appErrorHandler';
 
 import { AppRoutingModule, routedComponents } from './app-routing.module';
-import { VchPortletComponent } from './summary-portlet/vch-portlet/vch-portlet.component';
-import { ContainerPortletComponent } from './summary-portlet/container-portlet/container-portlet.component';
 import { AppComponent } from './app.component';
 
 @NgModule({
     imports: [
         BrowserModule,
+        BrowserAnimationsModule,
         AppRoutingModule,
         HttpModule,
         ClarityModule.forRoot()
@@ -49,9 +46,7 @@ import { AppComponent } from './app.component';
     declarations: [
         AppComponent,
         AppAlertComponent,
-        routedComponents,
-        VchPortletComponent,
-        ContainerPortletComponent
+        routedComponents
     ],
     providers: [
         ActionDevService,
@@ -62,8 +57,6 @@ import { AppComponent } from './app.component';
         I18nService,
         Vic18nService,
         RefreshService,
-        DataPropertyService,
-        VicVmViewService,
         { provide: ErrorHandler, useClass: AppErrorHandler }
     ],
     bootstrap: [AppComponent]

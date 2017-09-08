@@ -19,21 +19,14 @@ import { RouterModule, Routes } from '@angular/router';
 
 import { APP_CONFIG } from './shared/index';
 import { AppRoutingComponent } from './app-routing.component';
-import { VicSummaryPortletComponent } from './summary-portlet/summary-portlet.component';
-import { VicSummaryViewComponent } from './summary-view/summary-view.component';
-import { VicVchViewComponent } from './vch-view/vch-view.component';
-import { VicContainerViewComponent } from './container-view/container-view.component';
 
 const appRoutes: Routes = [
     { path: 'index.html', component: AppRoutingComponent },
-    { path: 'portlet', component: VicSummaryPortletComponent },
-    { path: 'portlet/:id', component: VicSummaryPortletComponent },
-    { path: 'summary-view', component: VicSummaryViewComponent },
-    { path: 'summary-view/:id', component: VicSummaryViewComponent },
-    { path: 'vch-view', component: VicVchViewComponent },
-    { path: 'vch-view/:id', component: VicVchViewComponent },
-    { path: 'container-view', component: VicContainerViewComponent },
-    { path: 'container-view/:id', component: VicContainerViewComponent }
+    { path: 'portlet', loadChildren: './summary-portlet/summary-portlet.module#VicSummaryPortletModule' },
+    { path: 'summary-view', loadChildren: './summary-view/summary-view.module#VicSummaryViewModule' },
+    { path: 'vch-view', loadChildren: './vch-view/vch-view.module#VicVchViewModule' },
+    { path: 'container-view', loadChildren: './container-view/container-view.module#VicContainerViewModule' },
+    { path: 'create-vch', loadChildren: './create-vch-wizard/create-vch-wizard.module#CreateVchWizardModule' }
 ];
 
 export const extensionToRoutes = {};
@@ -42,13 +35,7 @@ extensionToRoutes[APP_CONFIG.packageName + '.objectView.monitorView'] = '/object
 extensionToRoutes[APP_CONFIG.packageName + '.objectView.vchView'] = '/objectViewVch';
 extensionToRoutes[APP_CONFIG.packageName + '.objectView.containerView'] = '/objectViewContainer';
 
-export const routedComponents = [
-    AppRoutingComponent,
-    VicSummaryPortletComponent,
-    VicSummaryViewComponent,
-    VicVchViewComponent,
-    VicContainerViewComponent
-];
+export const routedComponents = [AppRoutingComponent];
 
 @NgModule({
     imports: [

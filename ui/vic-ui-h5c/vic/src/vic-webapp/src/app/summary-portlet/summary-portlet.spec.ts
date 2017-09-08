@@ -23,7 +23,6 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Observable, Subject } from 'rxjs/Rx';
 
 import {
-    AppAlertComponent,
     AppAlertService,
     Globals,
     GlobalsService,

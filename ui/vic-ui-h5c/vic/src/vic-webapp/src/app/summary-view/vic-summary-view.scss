@@ -13,32 +13,30 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 */
+
 div.summary-container {
-    padding-top: 10px;
-    font-size: 13px;
-    display: flex;
-    flex-direction: row;
-
-    img.vic-summary-view-logo {
-        padding-right: 2em;
-        vertical-align: top;
-    }
-
+  padding-top: 10px;
+  font-size: 13px;
+  display: flex;
+  flex-direction: row;
+  img.vic-summary-view-logo {
+    padding-right: 2em;
+    vertical-align: top;
+  }
 }
 
 ul.summary-items-list {
-    display: inline-block;
-
-    li {
-        display: table-row-group;
-        span.summary-label {
-            display: table-cell;
-            width: auto;
-        }
-        span.summary-value {
-            display: table-cell;
-            width: auto;
-            padding-left: 10px;
-        }
+  display: inline-block;
+  li {
+    display: table-row-group;
+    span.summary-label {
+      display: table-cell;
+      width: auto;
     }
+    span.summary-value {
+      display: table-cell;
+      width: auto;
+      padding-left: 10px;
+    }
+  }
 }

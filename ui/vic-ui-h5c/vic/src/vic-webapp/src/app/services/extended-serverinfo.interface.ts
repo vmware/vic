@@ -13,8 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 */
-
-export * from './resources.path';
-export * from './portlets.text';
-export * from './vicvms';
-export * from './create-vch-wizard';
+export interface IExtendedServerInfo {
+    name: string;
+    serverGuid: string;
+    sessionCookie: string;
+    thumbprint: string;
+    version: string;
+}

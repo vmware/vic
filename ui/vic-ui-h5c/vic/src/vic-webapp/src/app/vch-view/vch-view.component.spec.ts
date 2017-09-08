@@ -30,6 +30,7 @@ import {
     GlobalsService,
 } from '../shared';
 import { VicVmViewService } from '../services/vm-view.service';
+import { ExtendedUserSessionService } from '../services/extended-usersession.service';
 import { VicVchViewComponent } from './vch-view.component';
 import { VirtualContainerHost } from './vch.model';
 import { ClarityModule } from 'clarity-angular';
@@ -38,6 +39,7 @@ import {
     getMalformedVchResponseStub
 } from '../services/mocks/vch.response';
 import { WS_VCH } from '../shared/constants';
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 
 let responseProperlyFormatted = true;
 
@@ -77,8 +79,10 @@ describe('VicVchViewComponent', () => {
 
     beforeEach(async(() => {
         TestBed.configureTestingModule({
+            schemas: [NO_ERRORS_SCHEMA],
             providers: [
                 { provide: VicVmViewService, useClass: VicVmViewServiceStub },
+                ExtendedUserSessionService,
                 GlobalsService,
                 Globals,
                 RefreshService,
@@ -166,5 +170,27 @@ describe('VicVchViewComponent', () => {
             WS_VCH.DG.COLUMNS.defaults[
             WS_VCH.DG.COLUMNS.keys.VCH_ADMIN_PORTAL
             ]);
+    }));
+
+    it('should render the new VCH button for an admin user', async(() => {
+        fixture.componentInstance.ngOnInit();
+        fixture.componentInstance.reloadVchs();
+        fixture.detectChanges();
+        fixture.componentInstance.isVsphereAdmin = true;
+        fixture.detectChanges();
+        const actionBarEl = fixture.debugElement.query(
+            By.css('clr-dg-action-bar'));
+        expect(actionBarEl).toBeTruthy();
+    }));
+
+    it('should not render the new VCH button for a non-admin user', async(() => {
+        fixture.componentInstance.ngOnInit();
+        fixture.componentInstance.reloadVchs();
+        fixture.detectChanges();
+        fixture.componentInstance.isVsphereAdmin = false;
+        fixture.detectChanges();
+        const actionBarEl = fixture.debugElement.query(
+            By.css('clr-dg-action-bar'));
+        expect(actionBarEl).toBeNull();
     }));
 });

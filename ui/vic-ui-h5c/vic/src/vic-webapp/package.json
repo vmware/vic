@@ -2,8 +2,7 @@
   "name": "vic-webapp",
   "version": "1.1.1",
   "license": "Apache-2.0",
-  "contributors": [
-    {
+  "contributors": [{
       "name": "Josh Kim",
       "email": "kjosh@vmware.com"
     },
@@ -63,7 +62,6 @@
     "karma-coverage-istanbul-reporter": "^1.2.1",
     "karma-jasmine": "~1.1.0",
     "karma-jasmine-html-reporter": "^0.2.2",
-    "karma-phantomjs-launcher2": "^1.0.3",
     "protractor": "~5.1.2",
     "rimraf": "^2.6.1",
     "ts-node": "~3.0.4",

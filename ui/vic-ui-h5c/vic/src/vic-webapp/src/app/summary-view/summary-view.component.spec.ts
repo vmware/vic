@@ -21,7 +21,6 @@ import { HttpModule } from '@angular/http';
 import { Observable, Subject } from 'rxjs/Rx';
 
 import {
-    AppAlertComponent,
     AppAlertService,
     Globals,
     GlobalsService,

@@ -35,7 +35,7 @@ function generateRandomVchs(length: number) {
             overallStatus: 'GREEN',
             overallCpuUsage: Math.round(Math.random() * 100),
             guestMemoryUsage: Math.round(Math.random() * 2048),
-            commitedStorage: 123456789,
+            committedStorage: 123456789,
             id: `85421094-c58e-40f9-a42c-b624160d05f5/vm-${200 + i}`,
             type: 'vic:VirtualContainerHostVm',
             resourcePool: {
@@ -79,7 +79,7 @@ export const getVchResponseStub = () => {
             'overallStatus': 'GREEN',
             'overallCpuUsage': 19,
             'guestMemoryUsage': 61,
-            'commitedStorage': 2263086006,
+            'committedStorage': 2263086006,
             'id': '85421094-c58e-40f9-a42c-b624160d05f5/vm-27',
             'type': 'vic:VirtualContainerHostVm',
             'resourcePool': {
