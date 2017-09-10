@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -60,16 +61,31 @@ func ServiceURL(serviceName string) *url.URL {
 }
 
 // Update the VM display name on vSphere UI
-func DisplayName(config *spec.VirtualMachineConfigSpecConfig) string {
-
+func DisplayName(config *spec.VirtualMachineConfigSpecConfig, namingConvention string) string {
+	var name string
 	shortID := config.ID[:constants.ShortIDLen]
 	nameMaxLen := constants.MaxVMNameLength - len(shortID)
 	prettyName := config.Name
-	if len(prettyName) > nameMaxLen-1 {
-		prettyName = prettyName[:nameMaxLen-1]
-	}
 
-	return fmt.Sprintf("%s-%s", prettyName, shortID)
+	if namingConvention != "" {
+		//TODO: need to respect max length -- potentially enforce '-' separator
+		if strings.Contains(namingConvention, "{id}") {
+			name = strings.Replace(namingConvention, "{id}", shortID, -1)
+		} else {
+			//assume name
+			name = strings.Replace(namingConvention, "{name}", prettyName, -1)
+		}
+		log.Infof("Applied naming convention: %s resulting %s", namingConvention, name)
+	} else {
+		// no naming convention specified during VCH creation / reconfigure so apply
+		// standard VM display name convention
+		if len(prettyName) > nameMaxLen-1 {
+			name = fmt.Sprintf("%s-%s", prettyName[:nameMaxLen-1], shortID)
+		} else {
+			name = fmt.Sprintf("%s-%s", prettyName, shortID)
+		}
+	}
+	return name
 }
 
 func ClientIP() (net.IP, error) {

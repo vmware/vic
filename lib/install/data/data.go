@@ -38,6 +38,7 @@ type Data struct {
 	common.Debug
 	common.Compute
 	common.VCHID
+	common.ContainerConfig
 
 	OpsCredentials common.OpsCredentials
 
@@ -354,6 +355,8 @@ func (d *Data) CopyNonEmpty(src *Data) error {
 	d.DNS = src.DNS
 
 	d.RegistryCAs = src.RegistryCAs
+
+	d.ContainerConfig.ContainerNameConvention = src.ContainerConfig.ContainerNameConvention
 
 	return nil
 }
