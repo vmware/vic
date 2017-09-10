@@ -1716,7 +1716,11 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 		return derr.NewRequestConflictError(err)
 	}
 
-	if err := c.containerProxy.Rename(vc, newName); err != nil {
+	renameOp := func() error {
+		return c.containerProxy.Rename(vc, newName)
+	}
+
+	if err := retry.Do(renameOp, IsConflictError); err != nil {
 		log.Errorf("Rename error: %s", err)
 		cache.ContainerCache().ReleaseName(newName)
 		return err
@@ -1960,10 +1964,16 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	}
 
 	// Was a name provided - if not create a friendly name
+	generatedName := namesgenerator.GetRandomName(0)
 	if config.Name == "" {
 		//TODO: Assume we could have a name collison here : need to
 		// provide validation / retry CDG June 9th 2016
-		config.Name = namesgenerator.GetRandomName(0)
+		config.Name = generatedName
+	}
+
+	if vchConfig.Cfg.ContainerNameConvention != "" {
+		// apply the naming convention
+		config.Name = strings.Replace(vchConfig.Cfg.ContainerNameConvention, "{name}", config.Name, -1)
 	}
 
 	return nil
