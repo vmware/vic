@@ -23,12 +23,13 @@ To verify VIC 1.2 upgrade from 1.1.0 or 1.1.1 works and provides access to all o
 7. Attach old data disk to new OVA VM
 8. Power on the new appliance to complete the upgrade
 9. Run the upgrade script to migrate harbor and admiral
-10. Verify that the data from your previous vSphere Integrated Containers installation has migrated successfully
-11. Verify that VCH and containers from previous VIC appliance exists after upgrade and run docker commands.
-12. Deploy a variety of containers through command line and admiral on new VIC appliance.
-13. Remove each of the containers created
-14. Delete VCH
-15. Delete new and old OVA VM
+10. Run the vic-machine upgrade command to upgrade your existing VCH to the latest version
+11. Verify that the data from your previous vSphere Integrated Containers installation has migrated successfully
+12. Verify that VCH and containers from previous VIC appliance exists after upgrade and run docker commands.
+13. Deploy a variety of containers through command line and admiral on new VIC appliance.
+14. Remove each of the containers created
+15. Delete VCH
+16. Delete new and old OVA VM
 
 
 # Expected Outcome:
