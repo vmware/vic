@@ -295,6 +295,8 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 		stop[0] = string(ssh.SIGTERM)
 	}
 
+	var killed bool
+
 	for _, sig := range stop {
 		msg := fmt.Sprintf("sending kill -%s %s", sig, c.ExecConfig.ID)
 		log.Info(msg)
@@ -311,7 +313,7 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 			// If the error tells us "The attempted operation cannot be performed in the current state (Powered off)" (InvalidPowerState),
 			// we can safely return nil and avoid hard poweroff (issues #6236 and #6252)
 			if isInvalidPowerStateError(err) {
-				return nil
+				killed = true
 			}
 		}
 
@@ -326,6 +328,10 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 		}
 
 		log.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c.ExecConfig.ID, sig)
+
+		if killed {
+			return nil
+		}
 	}
 
 	return fmt.Errorf("failed to shutdown %s via kill signals %s", c.ExecConfig.ID, stop)
