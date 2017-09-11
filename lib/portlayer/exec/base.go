@@ -37,8 +37,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-// The full string should be "The attempted operation cannot be performed in the current state (Powered off)"
-const opNotPerformedPoweredOff = "current state (Powered off)"
+// vSphere error msg when sending the kill signal to a containerVM that is already powered off
+const opNotPerformedPoweredOff = "The attempted operation cannot be performed in the current state (Powered off)"
 
 // NotYetExistError is returned when a call that requires a VM exist is made
 type NotYetExistError struct {
@@ -258,7 +258,7 @@ func (c *containerBase) kill(ctx context.Context) error {
 	if err != nil {
 		log.Warnf("killing %s attempt resulted in: %s", c.ExecConfig.ID, err)
 
-		if strings.Contains(err.Error(), opNotPerformedPoweredOff) {
+		if isOpNotPerformedPoweredOffError(err) {
 			return nil
 		}
 	}
@@ -313,7 +313,7 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 
 			// If the error tells us "The attempted operation cannot be performed in the current state (Powered off)", we can safely
 			// return nil and avoid hard poweroff (issues #6236 and #6252)
-			if strings.Contains(err.Error(), opNotPerformedPoweredOff) {
+			if isOpNotPerformedPoweredOffError(err) {
 				return nil
 			}
 		}
@@ -420,4 +420,9 @@ func (c *containerBase) waitFor(ctx context.Context, key string) error {
 	}
 
 	return nil
+}
+
+// isOpNotPerformedPoweredOffError verifies the type of the error by checking if the error msg contains the expected string
+func isOpNotPerformedPoweredOffError(err error) bool {
+	return strings.Contains(err.Error(), opNotPerformedPoweredOff)
 }

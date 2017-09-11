@@ -1253,7 +1253,7 @@ func (c *Container) ContainerStop(name string, seconds *int) error {
 	config := retry.NewBackoffConfig()
 	config.MaxElapsedTime = maxElapsedTime
 	if err := retry.DoWithConfig(operation, IsConflictError, config); err != nil {
-		return ConflictError(err.Error() + " --- Retrying the operation may resolve the issue.")
+		return err
 	}
 
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
