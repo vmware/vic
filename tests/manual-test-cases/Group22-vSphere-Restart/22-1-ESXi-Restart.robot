@@ -27,11 +27,25 @@ Test
 
     ${esx}  ${esx-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Global Variable  @{list}  ${esx}
+    Set Environment Variable  GOVC_URL  root:${NIMBUS_ESX_PASSWORD}@${esx-ip}
+    Set Environment Variable  TEST_URL_ARRAY  ${esx-ip}
+    Set Environment Variable  TEST_URL  ${esx-ip}
+    Set Environment Variable  TEST_USERNAME  root
+    Set Environment Variable  TEST_PASSWORD  ${NIMBUS_ESX_PASSWORD}
+    Set Environment Variable  TEST_DATASTORE  datastore1
+    Set Environment Variable  TEST_TIMEOUT  30m
+    Set Environment Variable  HOST_TYPE  ESXi
+    Remove Environment Variable  TEST_DATACENTER
+    Remove Environment Variable  TEST_RESOURCE
+    Remove Environment Variable  BRIDGE_NETWORK
+    Remove Environment Variable  PUBLIC_NETWORK
 
     Install VIC Appliance To Test Server
     Run Regression Tests
 
     Reset Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${esx}
+    Log To Console  Sleeping 5 minutes to allow for the server to reboot in Nimbus...
+    Sleep  5 minutes
     Wait Until vSphere Is Powered On
 
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -on %{VCH-NAME}
