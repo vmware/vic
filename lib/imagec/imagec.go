@@ -15,7 +15,6 @@
 package imagec
 
 import (
-	"context"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/json"
@@ -28,6 +27,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"golang.org/x/net/context"
 
 	"github.com/docker/distribution/manifest/schema2"
 	docker "github.com/docker/docker/image"
@@ -41,6 +41,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/portlayer/storage"
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/sys"
@@ -56,6 +57,7 @@ type ImageC struct {
 
 	// ImageLayers are sourced from the manifest file
 	ImageLayers []*ImageWithMeta
+
 	// ImageID is the docker ImageID calculated during download
 	ImageID string
 }
@@ -109,6 +111,9 @@ type Options struct {
 
 	// If true, do not bother portlayer or persona
 	Standalone bool
+
+	// image store name or url
+	ImageStore string
 }
 
 // ImageWithMeta wraps the models.Image with some additional metadata
@@ -133,7 +138,7 @@ var (
 
 const (
 	// DefaultDockerURL holds the URL of Docker registry
-	DefaultDockerURL = "registry-1.docker.io"
+	DefaultDockerURL = "registry.hub.docker.com"
 
 	// DefaultDestination specifies the default directory to use
 	DefaultDestination = "images"
@@ -152,7 +157,6 @@ const (
 
 	// attribute update actions
 	Add = iota + 1
-	Remove
 )
 
 func init() {
@@ -169,9 +173,9 @@ func (ic *ImageC) ParseReference() {
 		}
 	}
 
-	ic.Registry = DefaultDockerURL
-	if ic.Reference.Hostname() != reference.DefaultHostname {
-		ic.Registry = ic.Reference.Hostname()
+	ic.Registry = ic.Reference.Hostname()
+	if ic.Registry == reference.DefaultHostname {
+		ic.Registry = DefaultDockerURL
 	}
 
 	ic.Image = ic.Reference.RemoteName()
@@ -179,6 +183,7 @@ func (ic *ImageC) ParseReference() {
 
 // DestinationDirectory returns the path of the output directory
 func DestinationDirectory(options Options) string {
+	// #nosec: Errors unhandled.
 	u, _ := url.Parse(options.Registry)
 
 	// Use a hierarchy like following so that we can support multiple schemes, registries and versions
@@ -463,10 +468,77 @@ func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConf
 
 // PullImage pulls an image from docker hub
 func (ic *ImageC) PullImage() error {
-
-	// ctx
 	ctx, cancel := context.WithTimeout(ctx, ic.Options.Timeout)
 	defer cancel()
+
+	// Authenticate, get URL, get token
+	if err := ic.prepareTransfer(ctx); err != nil {
+		return err
+	}
+
+	// Output message
+	tagOrDigest := tagOrDigest(ic.Reference, ic.Tag)
+	progress.Message(ic.progressOutput, "", tagOrDigest+": Pulling from "+ic.Image)
+
+	// Pull the image manifest
+	if err := ic.pullManifest(ctx); err != nil {
+		return err
+	}
+	log.Infof("Manifest for image = %#v", ic.ImageManifestSchema1)
+
+	// Get layers to download from manifest
+	layers, err := ic.LayersToDownload()
+	if err != nil {
+		return err
+	}
+	ic.ImageLayers = layers
+
+	// Download all the layers
+	if err := ldm.DownloadLayers(ctx, ic); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ListLayer prints out the layers for an image to progress.  This is used by imagec standalone binary
+// for debug/validation.
+func (ic *ImageC) ListLayers() error {
+	defer trace.End(trace.Begin(""))
+
+	ctx, cancel := context.WithTimeout(ctx, ic.Options.Timeout)
+	defer cancel()
+
+	// Authenticate, get URL, get token
+	if err := ic.prepareTransfer(ctx); err != nil {
+		return err
+	}
+
+	// Output message
+	tagOrDigest := tagOrDigest(ic.Reference, ic.Tag)
+	progress.Message(ic.progressOutput, "", tagOrDigest+": Fetching layers from "+ic.Image)
+
+	// Pull the image manifest
+	if err := ic.pullManifest(ctx); err != nil {
+		return err
+	}
+
+	// Get layers to download from manifest
+	layers, err := ic.LayersToDownload()
+	if err != nil {
+		return err
+	}
+
+	progress.Message(ic.progressOutput, "", storage.Scratch.ID)
+	for i := len(layers) - 1; i >= 0; i-- {
+		progress.Message(ic.progressOutput, "", layers[i].ID)
+	}
+
+	return nil
+}
+
+// prepareTransfer Looks up URLs and fetch auth token
+func (ic *ImageC) prepareTransfer(ctx context.Context) error {
 
 	// Parse the -reference parameter
 	ic.ParseReference()
@@ -530,9 +602,11 @@ func (ic *ImageC) PullImage() error {
 		ic.Token = token
 	}
 
-	tagOrDigest := tagOrDigest(ic.Reference, ic.Tag)
-	progress.Message(ic.progressOutput, "", tagOrDigest+": Pulling from "+ic.Image)
+	return nil
+}
 
+// pullManifest attempts to pull manifest for an image.  Attempts to get schema 2 but will fall back to schema 1.
+func (ic *ImageC) pullManifest(ctx context.Context) error {
 	// Get the schema1 manifest
 	manifest, digest, err := FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
 	if err != nil {
@@ -555,9 +629,13 @@ func (ic *ImageC) PullImage() error {
 	ic.ImageManifestSchema1 = schema1
 	ic.ManifestDigest = digest
 
+	// Attempt to get schema2 manifest
 	manifest, digest, err = FetchImageManifest(ctx, ic.Options, 2, ic.progressOutput)
 	if err == nil {
 		if schema2, ok := manifest.(*schema2.DeserializedManifest); ok {
+			if schema2 != nil {
+				log.Infof("pullManifest - schema 2: %#v", schema2)
+			}
 			ic.ImageManifestSchema2 = schema2
 
 			// Override the manifest digest as Docker uses schema 2, unless the image
@@ -567,17 +645,6 @@ func (ic *ImageC) PullImage() error {
 				ic.ManifestDigest = digest
 			}
 		}
-	}
-
-	layers, err := ic.LayersToDownload()
-	if err != nil {
-		return err
-	}
-	ic.ImageLayers = layers
-
-	err = ldm.DownloadLayers(ctx, ic)
-	if err != nil {
-		return err
 	}
 
 	return nil

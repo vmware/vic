@@ -69,6 +69,7 @@ func (s *SecretKey) String() string {
 // Source wraps the given DataSource, decrypting any secret values
 func (s *SecretKey) Source(ds DataSource) DataSource {
 	// If GuestInfoSecretKey has a value, it should be our secret key.
+	// #nosec: Errors unhandled.
 	if val, _ := ds(GuestInfoSecretKey); val != "" {
 		if err := s.FromString(val); err != nil {
 			log.Errorf("failed to decode %s: %s", GuestInfoSecretKey, err)

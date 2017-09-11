@@ -196,6 +196,7 @@ func (ic *ICache) getImageByDigest(digest digest.Digest) *metadata.ImageConfig {
 func (ic *ICache) getImageByNamed(named reference.Named) *metadata.ImageConfig {
 	defer trace.End(trace.Begin(""))
 	// get the imageID from the repoCache
+	// #nosec: Errors unhandled.
 	id, _ := RepositoryCache().Get(named)
 	return copyImageConfig(ic.cacheByID[prefixImageID(id)])
 }

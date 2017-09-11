@@ -46,6 +46,7 @@ type defaultNetDialer struct {
 }
 
 func (d *defaultNetDialer) dial() (net.Conn, error) {
+	Logger.Infof("trying to connect to %s://%s", d.network, d.address)
 	return net.DialTimeout(d.network, d.address, defaultDialTimeout)
 }
 

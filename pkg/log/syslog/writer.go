@@ -81,10 +81,12 @@ func (w *writer) connect() (err error) {
 		w.conn = nil
 	}
 
+	Logger.Infof("trying to connect to syslog server")
 	w.conn, err = w.dialer.dial()
 	if err == nil {
 		Logger.Info("successfully connected to syslog server")
 		if w.hostname == "" {
+			// #nosec: Errors unhandled.
 			w.hostname, _, _ = net.SplitHostPort(w.conn.LocalAddr().String())
 		}
 	}
@@ -108,7 +110,6 @@ func (w *writer) Close() error {
 		select {
 		case <-w.running:
 			<-w.done
-		default:
 		}
 	})
 	return nil
@@ -184,9 +185,12 @@ func (w *writer) writeAndRetry(p Priority, tag, s string) (int, error) {
 	pr := (w.priority & facilityMask) | (p & severityMask)
 
 	if w.conn != nil {
-		if n, err := w.write(pr, tag, s); err == nil {
+		n, err := w.write(pr, tag, s)
+		if err == nil {
 			return n, err
 		}
+
+		Logger.Errorf("syslog write failed: %s", err)
 	}
 	if err := w.connect(); err != nil {
 		return 0, err
@@ -234,6 +238,7 @@ func (w *writer) WithPriority(priority Priority) Writer {
 }
 
 func (w *writer) run() {
+	Logger.Infof("run()")
 	defer func() {
 		Logger.Infof("exiting syslog writer loop")
 		if w.conn != nil {
@@ -248,6 +253,8 @@ func (w *writer) run() {
 			Logger.Errorf("could not connect to syslog server (will not try again): %s", err)
 			return
 		}
+
+		Logger.Errorf("error connecting to syslog server: %s", err)
 	}
 
 	close(w.running)
@@ -255,7 +262,7 @@ func (w *writer) run() {
 	for m := range w.msgs {
 		for _, s := range strings.SplitAfter(m.msg, "\n") {
 			if _, err := w.writeAndRetry(m.p, m.tag, s); err != nil {
-				Logger.Debugf("could not write syslog message: %s", err)
+				Logger.Errorf("could not write syslog message: %s", err)
 			}
 		}
 	}

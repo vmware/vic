@@ -16,12 +16,19 @@
 Documentation  Test 6-09 - Verify vic-machine inspect functions
 Resource  ../../resources/Util.robot
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
+
+*** Keywords ***
+Cleanup Container Network Test 
+    Cleanup VIC Appliance On Test Server
+    ${out}=  Run  govc host.portgroup.remove published-net
+    ${out}=  Run  govc host.portgroup.remove peers-net
 
 *** Test Cases ***
 Inspect VCH Configuration
     Install VIC Appliance To Test Server
 
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} config
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect config --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME}
     Should Contain  ${output}  --debug=1
     Should Contain  ${output}  --name=%{VCH-NAME}
     Should Contain  ${output}  --target=https://%{TEST_URL}
@@ -38,7 +45,7 @@ Inspect VCH Configuration
     Should Not Contain  ${output}  --bridge-network-range
     Should Be Equal As Integers  0  ${rc}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} config --format raw
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect config --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} --format raw
     Should Contain  ${output}  --debug=1
     Should Contain  ${output}  --name=%{VCH-NAME}
     Should Contain  ${output}  --target=https://%{TEST_URL}
@@ -62,7 +69,7 @@ Inspect VCH Configuration
 Inspect VCH Configuration with Resource Limitation
     Install VIC Appliance To Test Server  additional-args=--memory 8000 --memory-reservation 512 --memory-shares 6000 --cpu 10000 --cpu-reservation 512 --cpu-shares high --endpoint-cpu 2 --endpoint-memory 4096
 
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} config
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect config --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME}
     Should Contain  ${output}  --debug=1
     Should Contain  ${output}  --name=%{VCH-NAME}
     Should Contain  ${output}  --target=https://%{TEST_URL}
@@ -81,7 +88,7 @@ Inspect VCH Configuration with Resource Limitation
     Should Contain  ${output}  --endpoint-cpu=2
     Should Be Equal As Integers  0  ${rc}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} config --format raw
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect config --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} --format raw
 
     Should Contain  ${output}  --debug=1
     Should Contain  ${output}  --name=%{VCH-NAME}
@@ -104,6 +111,28 @@ Inspect VCH Configuration with Resource Limitation
     Should Be Equal As Integers  0  ${rc}
 
     Cleanup VIC Appliance On Test Server
+
+Inspect VCH Configuration with Container Networks
+    # Set the only teardown for this test to cleanup both portgroups and VCH, regardless of test outcome.
+    [Teardown]  Cleanup Container Network Test
+
+    ${out}=  Run  govc host.portgroup.remove published-net
+    ${out}=  Run  govc host.portgroup.remove peers-net
+
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN published-net
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN peers-net 
+
+    Install VIC Appliance To Test Server  additional-args=-cn published-net -cn peers-net -cnf peers-net:peers --container-network-ip-range peers-net:10.10.10.0/24 -cng peers-net:10.10.10.1/24
+
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect config --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} --format raw
+
+    Should Contain  ${output}  --container-network=published-net:published-net
+    Should Not Contain  ${output}  --container-network-firewall=published-net:published
+    Should Contain  ${output}  --container-network=peers-net:peers-net
+    Should Contain  ${output}  --container-network-gateway=peers-net:10.10.10.1/24
+    Should Contain  ${output}  --container-network-ip-range=peers-net:10.10.10.0/24
+    Should Contain  ${output}  --container-network-firewall=peers-net:peers
+    Should Be Equal As Integers  0  ${rc}
 
 Verify inspect output for a full tls VCH
     Install VIC Appliance To Test Server

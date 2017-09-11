@@ -15,12 +15,13 @@
 package vsphere
 
 import (
-	"errors"
+	"bytes"
 	"io"
 
-	"github.com/vmware/govmomi/guest"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -39,30 +40,50 @@ func (t *ToolboxDataSink) Sink() interface{} {
 
 // Import writes `data` to the data sink associated with this DataSink
 func (t *ToolboxDataSink) Import(op trace.Operation, spec *archive.FilterSpec, data io.ReadCloser) error {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin("toolbox import"))
 
-	// set up file manager
-	client := t.VM.Session.Client.Client
-	filemgr, err := guest.NewOperationsManager(client, t.VM.Reference()).FileManager(op)
+	client, err := GetToolboxClient(op, t.VM, t.ID)
 	if err != nil {
+		op.Debugf("Cannot get toolbox client: %s", err.Error())
 		return err
 	}
 
-	// authenticate client and parse container host/port
-	auth := types.NamePasswordAuthentication{
-		Username: t.ID,
+	target, err := BuildArchiveURL(op, t.ID, spec.RebasePath, spec, true, true)
+	if err != nil {
+		op.Debugf("Cannot build archive url: %s", err.Error())
+		return err
 	}
 
-	_ = filemgr
-	_ = auth
+	// buffer the data - needed to allow retry or the Upload drains the reader before the failure
+	// and we lose the data
+	// TODO: should look into chunking so that we can support copy of very large files.
+	// NOW: need a check that size doesn't exceed available memory - and error recommending offline
+	// copy as alternative
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, data)
+	if err != nil {
+		op.Errorf("Unable to buffer archive data for upload")
+		return err
+	}
 
-	return errors.New("toolbox import is not yet implemented")
+	// upload the gzip archive.
+	p := soap.DefaultUpload
+
+	retryFunc := func() error {
+		return client.Upload(op, buf, target, p, &types.GuestPosixFileAttributes{}, true)
+	}
+
+	err = retry.DoWithConfig(retryFunc, isInvalidStateError, toolboxRetryConf)
+
+	if err != nil {
+		op.Debugf("Upload error: %s", err.Error())
+	}
+
+	return err
 }
 
 func (t *ToolboxDataSink) Close() error {
-	if t.Clean != nil {
-		t.Clean()
-	}
+	t.Clean()
 
 	return nil
 }

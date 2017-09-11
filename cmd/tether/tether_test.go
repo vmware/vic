@@ -23,9 +23,12 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path"
+	"sync"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vishvananda/netlink"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/vic/lib/config/executor"
@@ -57,6 +60,11 @@ type Mocker struct {
 	// session output gets logged here
 	SessionLogBuffer bytes.Buffer
 
+	// track the number of interfaces for a run
+	maxSlot int
+	// the interfaces in the system indexed by name
+	Interfaces map[string]netlink.Link
+
 	// the hostname of the system
 	Hostname string
 	// the ip configuration for name index networks
@@ -67,6 +75,8 @@ type Mocker struct {
 	WindowCol uint32
 	WindowRow uint32
 	Signal    ssh.Signal
+
+	once sync.Once
 }
 
 // Start implements the extension method
@@ -81,18 +91,22 @@ func (t *Mocker) Stop() error {
 
 // Reload implements the extension method
 func (t *Mocker) Reload(config *tether.ExecutorConfig) error {
-	// the tether has definitely finished it's startup by the time we hit this
-	close(t.Started)
+	t.once.Do(func() {
+		// the tether has definitely finished it's startup by the time we hit this
+		close(t.Started)
+	})
 	return nil
 }
 
-func (t *Mocker) Setup(_ tether.Config) error {
-	return nil
+func (t *Mocker) Setup(config tether.Config) error {
+	return t.Base.Setup(config)
 }
 
 func (t *Mocker) Cleanup() error {
+	err := t.Base.Cleanup()
 	close(t.Cleaned)
-	return nil
+
+	return err
 }
 
 func (t *Mocker) Log() (io.Writer, error) {
@@ -126,16 +140,20 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 	return nil
 }
 
-func (t *Mocker) SetupFirewall(*tether.ExecutorConfig) error {
+func (t *Mocker) SetupFirewall(ctx context.Context, config *tether.ExecutorConfig) error {
+	err := setupFirewall(ctx, &t.Base, config)
+	// NOTE: we squash errors from here for now because it's almost certain to fail
+	// in absence of a mock for the iptables update
+	if err != nil {
+		log.Error(err)
+	}
+
 	return nil
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
 func (t *Mocker) Apply(endpoint *tether.NetworkEndpoint) error {
-	defer trace.End(trace.Begin("mocking endpoint configuration for " + endpoint.Network.Name))
-	t.IPs[endpoint.Network.Name] = endpoint.Assigned.IP
-
-	return nil
+	return tether.ApplyEndpoint(t, &t.Base, endpoint)
 }
 
 // MountLabel performs a mount with the source treated as a disk label
@@ -175,22 +193,44 @@ func (t *Mocker) Fork() error {
 	return errors.New("Fork test not implemented")
 }
 
+// LaunchUtility uses the underlying implementation for launching and tracking utility processes
+func (t *Mocker) LaunchUtility(fn tether.UtilityFn) (<-chan int, error) {
+	return t.Base.LaunchUtility(fn)
+}
+
+func (t *Mocker) HandleUtilityExit(pid, exitCode int) bool {
+	return t.Base.HandleUtilityExit(pid, exitCode)
+}
+
 // TestMain simply so we have control of debugging level and somewhere to call package wide test setup
 func TestMain(m *testing.M) {
 	log.SetLevel(log.DebugLevel)
-
-	// replace the Sys variable with a mock
-	tether.Sys = system.System{
-		Hosts:      &tether.MockHosts{},
-		ResolvConf: &tether.MockResolvConf{},
-		Syscall:    &tether.MockSyscall{},
-		Root:       os.TempDir(),
-	}
 
 	retCode := m.Run()
 
 	// call with result of m.Run()
 	os.Exit(retCode)
+}
+
+func StartTether(t *testing.T, cfg *executor.ExecutorConfig, mocker *Mocker) (tether.Tether, extraconfig.DataSource, extraconfig.DataSink) {
+	store := extraconfig.New()
+	sink := store.Put
+	src := store.Get
+	extraconfig.Encode(sink, cfg)
+	log.Debugf("Test configuration: %#v", sink)
+
+	tthr = tether.New(src, sink, mocker)
+	tthr.Register("mocker", mocker)
+
+	// run the tether to service the attach
+	go func() {
+		erR := tthr.Start()
+		if erR != nil {
+			t.Error(erR)
+		}
+	}()
+
+	return tthr, src, sink
 }
 
 func StartAttachTether(t *testing.T, cfg *executor.ExecutorConfig, mocker *Mocker) (tether.Tether, extraconfig.DataSource, net.Conn) {
@@ -228,9 +268,23 @@ func tetherTestSetup(t *testing.T) *Mocker {
 
 	// use the mock ops - fresh one each time as tests might apply different mocked calls
 	mocker := Mocker{
-		Started: make(chan bool),
-		Cleaned: make(chan bool),
+		Started:    make(chan bool),
+		Cleaned:    make(chan bool),
+		Interfaces: make(map[string]netlink.Link, 0),
 	}
+
+	// replace the Sys variable with a mock
+	tether.Sys = system.NewWithRoot(pathPrefix)
+	tether.Sys.Syscall = &tether.MockSyscall{}
+
+	tether.BindSys = system.NewWithRoot(path.Join(pathPrefix, "/.tether"))
+	tether.BindSys.Syscall = &tether.MockSyscall{}
+
+	// ensure that the sys and bindsys root exists
+	// #nosec
+	os.MkdirAll(tether.Sys.Root, 0700)
+	// #nosec
+	os.MkdirAll(tether.BindSys.Root, 0700)
 
 	return &mocker
 }

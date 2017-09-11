@@ -21,8 +21,9 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/spec"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
@@ -111,4 +112,13 @@ func GetSelf(ctx context.Context, s *session.Session) (*object.VirtualMachine, e
 
 	vm := object.NewVirtualMachine(s.Client.Client, ref.Reference())
 	return vm, nil
+}
+
+func IsSelf(op trace.Operation, uuid string) (bool, error) {
+	self, err := sys.UUID()
+	if err != nil {
+		return false, err
+	}
+
+	return self == uuid, nil
 }

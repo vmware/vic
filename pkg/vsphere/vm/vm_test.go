@@ -50,15 +50,8 @@ func CreateVM(ctx context.Context, session *session.Session, host *object.HostSy
 		return nil, err
 	}
 
-	// Find the Virtual Machine folder that we use
-	folders, err := session.Datacenter.Folders(ctx)
-	if err != nil {
-		return nil, err
-	}
-	parent := folders.VmFolder
-
 	// Create the vm
-	task, err := parent.CreateVM(ctx, *linux.Spec().Spec(), session.Pool, host)
+	task, err := session.VMFolder.CreateVM(ctx, *linux.Spec().Spec(), session.Pool, host)
 	if err != nil {
 		return nil, err
 	}
@@ -339,7 +332,6 @@ func TestWaitForKeyInExtraConfig(t *testing.T) {
 
 	opt := &types.OptionValue{Key: "foo", Value: "bar"}
 	obj := simulator.Map.Get(vm.Reference()).(*simulator.VirtualMachine)
-	obj.Config.ExtraConfig = append(obj.Config.ExtraConfig, opt)
 
 	val, err := vm.WaitForKeyInExtraConfig(ctx, opt.Key)
 
@@ -347,6 +339,7 @@ func TestWaitForKeyInExtraConfig(t *testing.T) {
 		t.Error("expected error")
 	}
 
+	obj.Config.ExtraConfig = append(obj.Config.ExtraConfig, opt)
 	obj.Summary.Runtime.PowerState = types.VirtualMachinePowerStatePoweredOn
 
 	val, err = vm.WaitForKeyInExtraConfig(ctx, opt.Key)

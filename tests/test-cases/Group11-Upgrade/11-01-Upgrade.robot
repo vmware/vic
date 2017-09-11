@@ -19,6 +19,12 @@ Suite Setup  Install VIC with version to Test Server  7315
 Suite Teardown  Clean up VIC Appliance And Local Binary
 Default Tags
 
+*** Variables ***
+${namedVolume}=  named-volume
+${mntDataTestContainer}=  mount-data-test
+${mntTest}=  /mnt/test
+${mntNamed}=  /mnt/named
+
 *** Keywords ***
 Run Docker Checks
     # wait for docker info to succeed
@@ -136,6 +142,17 @@ Create Docker Containers
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
 
+Create Container with Named Volume
+    Log To Console  \nCreate a named volume and mount it to a container\n
+    ${rc}  ${container}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} volume create --name=${namedVolume}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${container}  ${namedVolume}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} create --name=${mntDataTestContainer} -v ${mntTest} -v ${namedVolume}:${mntNamed} busybox
+    Should Be Equal As Integers  ${rc}  0
+    Set Suite Variable  ${TestContainerVolume}  ${output}
+
+
 *** Test Cases ***
 Upgrade Present in vic-machine
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux
@@ -157,14 +174,23 @@ Upgrade VCH with unreasonably short timeout and automatic rollback after failure
 Upgrade VCH
     Create Docker Containers
 
+    Create Container with Named Volume
+
+    # Create check list for Volume Inspect
+    @{checkList}=  Create List  ${mntTest}  ${mntNamed}  ${namedVolume}
+
     Upgrade
     Check Upgraded Version
+
+    Verify Volume Inspect Info  After Upgrade and Before Rollback  ${TestContainerVolume}  ${checkList}
 
     Rollback
     Check Original Version
 
     Upgrade with ID
     Check Upgraded Version
+
+    Verify Volume Inspect Info  After Upgrade with ID  ${TestContainerVolume}  ${checkList}
 
     Run Docker Checks
 

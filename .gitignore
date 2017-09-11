@@ -31,6 +31,9 @@ lib/apiservers/portlayer/models
 lib/apiservers/portlayer/restapi/*.go
 lib/apiservers/portlayer/restapi/operations
 !lib/apiservers/portlayer/restapi/configure_port_layer.go
+lib/config/dynamic/admiral/client
+lib/config/dynamic/admiral/models
+lib/config/dynamic/admiral/operations
 
 tests/.project
 # go test binaries

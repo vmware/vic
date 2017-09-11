@@ -96,7 +96,7 @@ func NewVolume(store *url.URL, ID string, info map[string][]byte, device Disk, c
 
 	vol := &Volume{
 		ID:       ID,
-		Label:    label(ID),
+		Label:    Label(ID),
 		Store:    store,
 		SelfLink: selflink,
 		Device:   device,
@@ -107,7 +107,7 @@ func NewVolume(store *url.URL, ID string, info map[string][]byte, device Disk, c
 }
 
 // given an ID, compute the volume's label
-func label(ID string) string {
+func Label(ID string) string {
 
 	// e2label's manpage says the label size is 16 chars
 	// #nosec: Use of weak cryptographic primitive

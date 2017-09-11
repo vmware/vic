@@ -37,6 +37,27 @@ const (
 	pathTimeout = 60 * time.Second
 )
 
+// scsiScan tells the kernel to rescan the scsi bus.
+func scsiScan() error {
+	root := "/sys/class/scsi_host"
+
+	dirs, err := ioutil.ReadDir(root)
+	if err != nil {
+		return err
+	}
+
+	for _, dir := range dirs {
+		file := path.Join(root, dir.Name(), "scan")
+		// Channel, SCSI target ID, and LUN: "-" == rescan all
+		err = ioutil.WriteFile(file, []byte("- - -"), 0)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Waits for a device to appear in the given directory and returns the
 // resultant dev path (e.g /dev/sda). For instance, if sysPath is
 // /sys/bus/pci/devices/0000:03:00.0/host0/subsystem/devices/0:0:0:0/block, the
@@ -99,6 +120,11 @@ func waitForDevice(op trace.Operation, sysPath string) (string, error) {
 
 				// happy path
 				return
+			}
+
+			// run a manual scan of the scsi bus
+			if serr := scsiScan(); serr != nil {
+				op.Warnf("scsi scan: %s", serr)
 			}
 		}
 	}()
@@ -220,7 +246,7 @@ func verifyParavirtualScsiController(op trace.Operation, vm *vm.VirtualMachine) 
 	return controller, formatString, nil
 }
 
-func findDisk(op trace.Operation, vm *vm.VirtualMachine, filter func(diskName string) bool) ([]*types.VirtualDisk, error) {
+func findDisk(op trace.Operation, vm *vm.VirtualMachine, filter func(diskName string, mode string) bool) ([]*types.VirtualDisk, error) {
 	defer trace.End(trace.Begin(vm.String()))
 
 	devices, err := vm.Device(op)
@@ -240,9 +266,10 @@ func findDisk(op trace.Operation, vm *vm.VirtualMachine, filter func(diskName st
 		}
 
 		backingFileName := backing.VirtualDeviceFileBackingInfo.FileName
-		op.Debugf("backing file name %s", backingFileName)
+		mode := backing.DiskMode
+		op.Debugf("backing file name %s, mode: %s", backingFileName, mode)
 
-		return filter(backingFileName)
+		return filter(backingFileName, mode)
 	})
 
 	if len(candidates) == 0 {
@@ -258,12 +285,16 @@ func findDisk(op trace.Operation, vm *vm.VirtualMachine, filter func(diskName st
 }
 
 // Find the disk by name attached to the given vm.
-func findDiskByFilename(op trace.Operation, vm *vm.VirtualMachine, name string) (*types.VirtualDisk, error) {
+func findDiskByFilename(op trace.Operation, vm *vm.VirtualMachine, name string, persistent bool) (*types.VirtualDisk, error) {
 	defer trace.End(trace.Begin(vm.String()))
 
 	op.Debugf("Looking for attached disk matching filename %s", name)
 
-	candidates, err := findDisk(op, vm, func(diskName string) bool {
+	candidates, err := findDisk(op, vm, func(diskName string, mode string) bool {
+		if persistent != (mode == string(types.VirtualDiskModePersistent) || mode == string(types.VirtualDiskModeIndependent_persistent)) {
+			return false
+		}
+
 		match := strings.HasSuffix(diskName, name)
 		if match {
 			op.Debugf("Found candidate disk for %s at %s", name, diskName)
@@ -277,7 +308,7 @@ func findDiskByFilename(op trace.Operation, vm *vm.VirtualMachine, name string) 
 	}
 
 	if len(candidates) == 0 {
-		op.Infof("No disks match name: %s", name)
+		op.Infof("No disks match name and persistence: %s, %t", name, persistent)
 		return nil, os.ErrNotExist
 	}
 
@@ -295,7 +326,7 @@ func findAllDisks(op trace.Operation, vm *vm.VirtualMachine) ([]*types.VirtualDi
 
 	op.Debugf("Looking for all attached disks")
 
-	disks, err := findDisk(op, vm, func(diskName string) bool {
+	disks, err := findDisk(op, vm, func(diskName string, mode string) bool {
 		return true
 	})
 

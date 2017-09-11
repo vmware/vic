@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,6 +44,9 @@ type NetworkEndpoint struct {
 
 	// The list of exposed ports on the container
 	Ports []string `vic:"0.1" scope:"read-only" key:"ports"`
+
+	// whether or not this represents an internal network
+	Internal bool `vic:"0.1" scope:"read-only" key:"internal"`
 }
 
 // ContainerNetwork is the data needed on a per container basis both for vSphere to ensure it's attached
@@ -73,6 +76,9 @@ type ContainerNetwork struct {
 
 	// set of network wide links and aliases for this container on this network
 	Aliases []string `vic:"0.1" scope:"hidden" key:"aliases"`
+
+	// Level of trust configured for this network
+	TrustLevel
 
 	Assigned struct {
 		Gateway     net.IPNet `vic:"0.1" scope:"read-write" key:"gateway"`

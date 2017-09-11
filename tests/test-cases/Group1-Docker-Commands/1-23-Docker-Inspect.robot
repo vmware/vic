@@ -17,6 +17,7 @@ Documentation  Test 1-23 - Docker Inspect
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server  certs=${false}
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Simple docker inspect of image
@@ -100,6 +101,14 @@ Docker inspect non-nil volume
     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Config.Volumes}}' test-with-volume
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${out}  /var/lib/test
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect test-with-volume | jq '.[]|.["Config"]|.["Volumes"]|keys[0]'
+    Should Be Equal As Integers  ${rc}  0
+    ${mount}=  Split String  ${out}  :
+	${volID}=  Get Substring  @{mount}[0]  1
+    Log To Console  Find volume ${volID} in container inspect
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${out}  ${volID}
 
 Inspect RepoDigest is valid
     ${rc}  Run And Return Rc  docker %{VCH-PARAMS} rmi ${busybox}

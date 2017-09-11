@@ -26,6 +26,11 @@ const (
 	SerialOverLANPort  = 2377
 	AttachServerPort   = 2379
 	ManagementHostName = "management.localhost"
+	ClientHostName     = "client.localhost"
+
+	// DebugPortLayerPort defines the portlayer port while debug level is greater than 2
+	DebugPortLayerPort = 2380
+
 	// BridgeScopeType denotes a scope that is of type bridge
 	BridgeScopeType = "bridge"
 	// ExternalScopeType denotes a scope that is of type external
@@ -44,6 +49,17 @@ const (
 	// Temporary names until they're altered to actual URLs.
 	ContainerStoreName = "container"
 	VolumeStoreName    = "volume"
+
+	// volume mode flag
+	Mode = "Mode"
+
+	// PCI Slot Number logic
+	PCISlotNumberBegin int32 = 0x4A0
+	PCISlotNumberEnd   int32 = 1 << 11
+	PCISlotNumberInc   int32 = 1 << 5
+
+	// NilSlot is an invalid PCI slot number
+	NilSlot int32 = 0
 )
 
 func DefaultAltVCHGuestName() string {

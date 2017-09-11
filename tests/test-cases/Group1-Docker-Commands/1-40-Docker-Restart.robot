@@ -17,6 +17,7 @@ Documentation   Test 1-40 - Docker Restart
 Resource        ../../resources/Util.robot
 Suite Setup     Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Keywords ***
 
@@ -84,3 +85,17 @@ Restart Stopped Container
     ${rc}  ${restartIP}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' %{RUNNER}
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${originalIP}  ${restartIP}
+
+Restart with start-stop stress
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit ${busybox}
+    ${restart-pid}=  Start Process  while true; do docker %{VCH-PARAMS} restart ${container}; done  shell=${true}
+    ${restart-pid2}=  Start Process  while true; do docker %{VCH-PARAMS} restart ${container}; done  shell=${true}
+    ${loopOutput}=  Create List
+    :FOR  ${idx}  IN RANGE  0  150
+    \   ${out}=  Run  (docker %{VCH-PARAMS} start ${container} && docker %{VCH-PARAMS} stop -t1 ${container})
+    \   Append To List  ${loopOutput}  ${out}
+    Terminate Process  ${restart-pid}
+    Terminate Process  ${restart-pid2}
+    Log  ${loopOutput}
+    Should Not Contain Match  ${loopOutput}  *EOF*

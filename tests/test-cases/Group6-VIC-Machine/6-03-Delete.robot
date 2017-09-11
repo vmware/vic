@@ -17,6 +17,7 @@ Documentation  Test 6-03 - Verify delete clean up all resources
 Resource  ../../resources/Util.robot
 Test Setup  Install VIC Appliance To Test Server
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Keywords ***
 Initial load
@@ -65,4 +66,34 @@ Delete VCH and verify
 
     # Check resource pool is removed
     ${ret}=  Run  govc pool.info -json=true host/*/Resources/%{VCH-NAME}
-	Should Contain  ${ret}  {"ResourcePools":null}
+    Should Contain  ${ret}  {"ResourcePools":null}
+
+Attach Disks and Delete VCH
+    # VCH should delete normally during commit/pull/cp/push operations
+    ${output}=  Install VIC Appliance To Test Server
+    Should Contain    ${output}    Installer completed successfully
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${ubuntu}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls %{VCH-NAME}/VIC/
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # iterate through found images and attach them to the appliance VM
+    ${vm-ip}=  Run  govc vm.ip %{VCH-NAME}
+    ${imagedir}=  Run  govc datastore.ls %{VCH-NAME}/VIC/
+    ${images}=  Run  govc datastore.ls %{VCH-NAME}/VIC/${imagedir}/images/ | tr '${\n}' ' '
+    ${rc}  ${output}=  Run And Return Rc And Output  (set -e; for x in ${images}; do echo $x; govc vm.disk.attach -disk=%{VCH-NAME}/VIC/${imagedir}/images/$x/$x.vmdk -vm.ip=${vm-ip}; done)
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME}
+    Log  ${output}
+
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Completed successfully
+
+    ${rc}=  Run And Return Rc  govc datastore.ls -dc=%{TEST_DATACENTER} %{VCH-NAME}/VIC/
+    Should Be Equal As Integers  ${rc}  1

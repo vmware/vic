@@ -132,6 +132,7 @@ func templateWithServer(template *x509.Certificate, domain string) *x509.Certifi
 	ip := net.ParseIP(domain)
 	if ip == nil {
 		// see if CIDR works
+		// #nosec: Errors unhandled.
 		ip, _, _ = net.ParseCIDR(domain)
 	}
 

@@ -35,7 +35,7 @@ func TestArgs(t *testing.T) {
 				Interface: "external",
 				Target:    Accept,
 			},
-			"-A INPUT -m state --state ESTABLISHED -i external -j ACCEPT",
+			"-A VIC -m state --state ESTABLISHED -i external -j ACCEPT",
 		},
 		{
 			&Rule{
@@ -45,7 +45,7 @@ func TestArgs(t *testing.T) {
 				Interface: "external",
 				Target:    Accept,
 			},
-			"-A INPUT -p tcp --dport 7 -i external -j ACCEPT",
+			"-A VIC -p tcp --dport 7 -i external -j ACCEPT",
 		},
 		{
 			&Rule{
@@ -53,7 +53,7 @@ func TestArgs(t *testing.T) {
 				Interface: "external",
 				Target:    Reject,
 			},
-			"-A INPUT -i external -j REJECT",
+			"-A VIC -i external -j REJECT",
 		},
 		{
 			&Rule{
@@ -70,10 +70,7 @@ func TestArgs(t *testing.T) {
 	}
 
 	for _, rule := range input {
-		args, err := rule.r.args()
-		if !assert.NoError(t, err) {
-			return
-		}
+		args := rule.r.args()
 
 		if !assert.Equal(t, strings.Join(args, " "), rule.expected) {
 			return

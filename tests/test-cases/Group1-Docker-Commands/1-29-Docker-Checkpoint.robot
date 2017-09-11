@@ -17,6 +17,7 @@ Documentation  Test 1-29 - Docker Checkpoint
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server  certs=${false}
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Docker checkpoint create

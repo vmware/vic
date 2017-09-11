@@ -20,6 +20,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
@@ -76,7 +77,7 @@ func createDeviceConfigSpec(diskDevice *types.VirtualDisk) *types.VirtualDeviceC
 }
 
 func createMountSpec(volume *storage.Volume, mountPath string, diskOpts map[string]string) executor.MountSpec {
-	deviceMode := diskOpts["Mode"]
+	deviceMode := diskOpts[constants.Mode]
 	newMountSpec := executor.MountSpec{
 		Source: url.URL{
 			Scheme: "label",

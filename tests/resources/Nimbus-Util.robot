@@ -16,8 +16,8 @@
 Documentation  This resource contains any keywords related to using the Nimbus cluster
 
 *** Variables ***
-${ESX_VERSION}  ob-4564106  #6.5 RTM
-${VC_VERSION}  ob-4602587   #6.5 RTM
+${ESX_VERSION}  ob-5969303  #6.5 RTM vsphere65u1
+${VC_VERSION}  ob-5973321   #6.5 RTM vsphere65u1
 ${NIMBUS_ESX_PASSWORD}  e2eFunctionalTest
 
 *** Keywords ***
@@ -219,7 +219,7 @@ Gather Host IPs
 
 Create a VSAN Cluster
     Log To Console  \nStarting basic VSAN cluster deploy...
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --lease=1 --noStatsDump --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName vic-vmotion
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --lease 1 --noStatsDump --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName vic-vmotion
     Should Contain  ${out}  .vcva-${VC_VERSION}' is up. IP:
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
@@ -261,7 +261,7 @@ Create a VSAN Cluster
     Set Environment Variable  PUBLIC_NETWORK  vm-network
     Set Environment Variable  TEST_DATASTORE  vsanDatastore
     Set Environment Variable  TEST_RESOURCE  cls
-    Set Environment Variable  TEST_TIMEOUT  30m
+    Set Environment Variable  TEST_TIMEOUT  15m
 
     Gather Host IPs
 
@@ -402,3 +402,4 @@ Change ESXi Server Password
     [Arguments]  ${password}
     ${out}=  Run  govc host.account.update -id root -password ${password}
     Should Be Empty  ${out}
+

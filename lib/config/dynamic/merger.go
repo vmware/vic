@@ -31,6 +31,22 @@ func NewMerger() Merger {
 // Merge merges two config objects together. For now only
 // whitelist registries are merged.
 func (m *merger) Merge(orig, other *config.VirtualContainerHostConfigSpec) (*config.VirtualContainerHostConfigSpec, error) {
+	// merge strategy:
+	//
+	// origWl empty, otherWl empty => empty
+	//
+	// origWl empty, otherWl not empty => otherWl
+	//
+	// origWl not empty, otherWl empty => origWl
+	//
+	// origWl not empty, otherWl not empty => merge result
+	// in this case, each entry in the resulting
+	// whitelist must be a more restrictive
+	// version of at least one entry in origWl
+	//
+	// The whitelist that is used is always otherWl
+	// in this case given that the above rule is not
+	// violated.
 	otherWl, err := ParseRegistries(other.RegistryWhitelist)
 	if err != nil {
 		return nil, err
@@ -42,15 +58,36 @@ func (m *merger) Merge(orig, other *config.VirtualContainerHostConfigSpec) (*con
 	}
 
 	var wl registry.Set
-	if len(otherWl) > 0 {
-		if wl, err = origWl.Merge(otherWl, &whitelistMerger{}); err != nil {
-			return nil, err
+	if wl, err = origWl.Merge(otherWl, &whitelistMerger{}); err != nil {
+		return nil, err
+	}
+
+	if len(origWl) > 0 {
+		// check if every entry in wl is a subset of an
+		// entry in origWl
+		for _, e := range wl {
+			found := false
+			for _, o := range origWl {
+				if o.Contains(e) {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				return nil, fmt.Errorf("whitelist merge allows entries that are not in the original whitelist")
+			}
 		}
 	}
 
-	// whitelist should not grow
-	if len(wl) > len(origWl) {
-		return nil, fmt.Errorf("whitelist cannot grow")
+	// only use otherWl if its non-empty
+	//
+	// if otherWl is empty and origWl is
+	// not empty, we use origWl, which
+	// should be the same as wl after the
+	// merge
+	if len(otherWl) > 0 {
+		wl = otherWl
 	}
 
 	res := *orig

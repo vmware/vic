@@ -17,6 +17,9 @@ package restapi
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -26,6 +29,7 @@ import (
 	"github.com/go-openapi/swag"
 	"github.com/tylerb/graceful"
 
+	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/handlers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
@@ -112,13 +116,15 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 	// configure the api here
 	api.ServeError = errors.ServeError
 
-	api.BinConsumer = runtime.ByteStreamConsumer()
+	// FIXME: after updated go-openapi/runtime vendor code, revert ByteStreamConsumer() back to runtime.ByteStreamConsumer()
+	api.BinConsumer = ByteStreamConsumer()
 	api.JSONConsumer = runtime.JSONConsumer()
-	api.TarConsumer = runtime.ByteStreamConsumer()
+	api.TarConsumer = ByteStreamConsumer()
 
-	api.BinProducer = runtime.ByteStreamProducer()
+	// FIXME: after updated go-openapi/runtime vendor code, revert ByteStreamProducer() back to runtime.ByteStreamProducer()
+	api.BinProducer = ByteStreamProducer()
 	api.JSONProducer = runtime.JSONProducer()
-	api.TarProducer = runtime.ByteStreamProducer()
+	api.TarProducer = ByteStreamProducer()
 	api.TxtProducer = runtime.TextProducer()
 
 	handlerCtx := &handlers.HandlerContext{
@@ -162,4 +168,40 @@ func setupMiddlewares(handler http.Handler) http.Handler {
 // So this is a good place to plug in a panic handling middleware, logging and metrics
 func setupGlobalMiddleware(handler http.Handler) http.Handler {
 	return handler
+}
+
+// FIXME: to avoid update go-openapi/runtime vendor code at this time, write our own
+// ByteStreamConsumer to read back encoded json format error message
+func ByteStreamConsumer() runtime.Consumer {
+	wrapped := runtime.ByteStreamConsumer()
+	return runtime.ConsumerFunc(func(reader io.Reader, data interface{}) error {
+		if reader == nil {
+			return fmt.Errorf("ByteStreamConsumer requires a reader") // early exit
+		}
+
+		if er, ok := data.(*models.Error); ok {
+			dec := json.NewDecoder(reader)
+			return dec.Decode(er)
+		}
+
+		return wrapped.Consume(reader, data)
+	})
+}
+
+// FIXME: to avoid update go-openapi/runtime vendor code at this time, write our own
+// ByteStreamProducer to encode error to json string
+func ByteStreamProducer() runtime.Producer {
+	wrapped := runtime.ByteStreamProducer()
+	return runtime.ProducerFunc(func(writer io.Writer, data interface{}) error {
+		if writer == nil {
+			return fmt.Errorf("ByteStreamProducer requires a writer") // early exit
+		}
+
+		if er, ok := data.(*models.Error); ok {
+			enc := json.NewEncoder(writer)
+			return enc.Encode(er)
+		}
+
+		return wrapped.Produce(writer, data)
+	})
 }

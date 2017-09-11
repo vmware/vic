@@ -56,7 +56,7 @@ import (
 // The image can optionally be tagged into a repository.
 func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imageID string, err error) {
 	defer trace.End(trace.Begin(name))
-
+	op := trace.NewOperation(context.Background(), "Commit")
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
@@ -91,7 +91,7 @@ func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imag
 		return "", err
 	}
 
-	rc, err := containerEngine.containerProxy.GetContainerChanges(context.Background(), vc, true)
+	rc, err := containerEngine.containerProxy.GetContainerChanges(op, vc, true)
 	if err != nil {
 		return "", fmt.Errorf("Unable to initialize export stream reader for container %s", name)
 	}

@@ -104,6 +104,7 @@ type logfile struct {
 }
 
 func Init() {
+	// #nosec: Errors unhandled.
 	_ = pprof.StartPprof("vicadmin", pprof.VicadminPort)
 
 	defer trace.End(trace.Begin(""))
@@ -247,6 +248,7 @@ func (path fileReader) open() (entry, error) {
 	// Files in /proc always have struct stat.st_size==0, so just read it into memory.
 	if s.Size() == 0 && strings.HasPrefix(f.Name(), "/proc/") {
 		b, err := ioutil.ReadAll(f)
+		// #nosec: Errors unhandled.
 		_ = f.Close()
 		if err != nil {
 			return nil, err
@@ -280,6 +282,7 @@ func httpEntry(name string, res *http.Response) (entry, error) {
 
 	// If we don't have Content-Length, read into memory for the tar.Header.Size
 	body, err := ioutil.ReadAll(res.Body)
+	// #nosec: Errors unhandled.
 	_ = res.Body.Close()
 	if err != nil {
 		return nil, err
@@ -334,7 +337,7 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 
 	logfiles := []logfile{}
 	for _, child := range children {
-		path, err := child.DSPath(ctx)
+		path, err := child.VMPathNameAsURL(ctx)
 
 		if err != nil {
 			log.Errorf("Unable to get datastore path for child VM %s: %s", child.Reference(), err)
@@ -391,7 +394,7 @@ func addApplianceLogs(ctx context.Context, s *session.Session, readers map[strin
 	}
 
 	self2 := vm.NewVirtualMachineFromVM(ctx, s, self)
-	path, err := self2.DSPath(ctx)
+	path, err := self2.VMPathNameAsURL(ctx)
 	if err != nil {
 		return err
 	}

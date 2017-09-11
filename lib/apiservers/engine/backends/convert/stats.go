@@ -19,6 +19,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,7 +28,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 
-	"github.com/vmware/vic/lib/portlayer/metrics"
+	"github.com/vmware/vic/pkg/vsphere/performance"
 )
 
 // ContainerStats encapsulates the conversion of VMMetrics to
@@ -40,7 +42,12 @@ type ContainerStats struct {
 
 	preDockerStat *types.StatsJSON
 	curDockerStat *types.StatsJSON
-	currentMetric *metrics.VMMetrics
+	currentMetric *performance.VMMetrics
+
+	// disk & net stats are accumulated during the life of the
+	// subscription. These maps will assist in that accumulation.
+	diskStats map[string]performance.VirtualDisk
+	netStats  map[string]performance.Network
 
 	mu        sync.Mutex
 	reader    *io.PipeReader
@@ -75,6 +82,8 @@ func NewContainerStats(config *ContainerStatsConfig) *ContainerStats {
 		curDockerStat: &types.StatsJSON{},
 		totalVCHMhz:   uint64(config.VchMhz),
 		dblVCHMhz:     uint64(config.VchMhz * 2),
+		diskStats:     make(map[string]performance.VirtualDisk),
+		netStats:      make(map[string]performance.Network),
 	}
 }
 
@@ -91,7 +100,9 @@ func (cs *ContainerStats) Stop() {
 	defer cs.mu.Unlock()
 
 	if cs.listening {
+		// #nosec: Errors unhandled.
 		cs.reader.Close()
+		// #nosec: Errors unhandled.
 		cs.writer.Close()
 		cs.listening = false
 	}
@@ -108,9 +119,8 @@ func (cs *ContainerStats) newPipe() {
 	cs.listening = true
 }
 
-// Listen will listen for new metrics from the portLayer, convert to docker format
-// and encode to the configured Writer.  The returned PipeWriter is the source of
-// the vic metrics that will be transformed to docker stats
+// Listen for new metrics from the portLayer, convert to docker format
+// and encode to the configured Writer.
 func (cs *ContainerStats) Listen() *io.PipeWriter {
 	// Are we already listening?
 	if cs.IsListening() {
@@ -124,7 +134,7 @@ func (cs *ContainerStats) Listen() *io.PipeWriter {
 	doc := json.NewEncoder(cs.config.Out)
 
 	// channel to transfer metric from decoder to encoder
-	metric := make(chan metrics.VMMetrics)
+	metric := make(chan performance.VMMetrics)
 
 	// if we aren't streaming and the container is not running, then create an empty
 	// docker stat to return
@@ -148,14 +158,16 @@ func (cs *ContainerStats) Listen() *io.PipeWriter {
 				return
 			default:
 				for dec.More() {
-					var vmm metrics.VMMetrics
+					var vmm performance.VMMetrics
 					err := dec.Decode(&vmm)
 					if err != nil {
 						log.Errorf("container metric decoding error for container(%s): %s", cs.config.ContainerID, err)
 						cs.config.Cancel()
 					}
 					// send the decoded metric for transform and encoding
-					metric <- vmm
+					if cs.IsListening() {
+						metric <- vmm
+					}
 				}
 			}
 		}
@@ -183,6 +195,7 @@ func (cs *ContainerStats) Listen() *io.PipeWriter {
 				}
 			default:
 				if cs.IsListening() && cs.preDockerStat != nil {
+					// send docker stat to client
 					err := doc.Encode(cs.preDockerStat)
 					if err != nil {
 						log.Warnf("container metric encoding error for container(%s): %s", cs.config.ContainerID, err)
@@ -202,13 +215,11 @@ func (cs *ContainerStats) Listen() *io.PipeWriter {
 
 // ToContainerStats will convert the vic VMMetrics to a docker stats struct -- a complete docker stats
 // struct requires two samples.  Func will return nil until a complete stat is available
-func (cs *ContainerStats) ToContainerStats(current *metrics.VMMetrics) (*types.StatsJSON, error) {
+func (cs *ContainerStats) ToContainerStats(current *performance.VMMetrics) (*types.StatsJSON, error) {
 	// if we have a current metric then validate and transform
 	if cs.currentMetric != nil {
-		// do we have the same metric as before?
-		if cs.currentMetric.SampleTime.Equal(current.SampleTime) {
-			// we've already got this as current, so skip and wait for the
-			// next sample
+		// do we have the same metric or has the metric not been initialized?
+		if cs.currentMetric.SampleTime.Equal(current.SampleTime) || current.SampleTime.IsZero() {
 			return nil, nil
 		}
 		// we have new current stats so need to move the previous CPU
@@ -225,6 +236,12 @@ func (cs *ContainerStats) ToContainerStats(current *metrics.VMMetrics) (*types.S
 	// create memory stats
 	cs.memory()
 
+	// create network stats
+	cs.network()
+
+	// create storage stats
+	cs.disk()
+
 	// set sample time
 	cs.curDockerStat.Read = cs.currentMetric.SampleTime
 
@@ -235,6 +252,95 @@ func (cs *ContainerStats) ToContainerStats(current *metrics.VMMetrics) (*types.S
 	return cs.curDockerStat, nil
 }
 
+// network will calculate stats by network device.  The stats presented will be the
+// network stats accumulated during the stats subscription.  This differs from vanilla
+// docker as it provides the network stats for the lifetime of the container.
+//
+// TODO: Errors from either Tx or Rx are not currently supported (July 9th 2017)
+func (cs *ContainerStats) network() {
+	cs.curDockerStat.Networks = make(map[string]types.NetworkStats)
+	for _, net := range cs.currentMetric.Networks {
+
+		// get the previous network stats
+		if preNet, exists := cs.netStats[net.Name]; exists {
+			net.Rx.Bytes += preNet.Rx.Bytes
+			net.Rx.Packets += preNet.Rx.Packets
+			net.Rx.Dropped += preNet.Rx.Dropped
+			net.Tx.Bytes += preNet.Tx.Bytes
+			net.Tx.Packets += preNet.Tx.Packets
+			net.Tx.Dropped += preNet.Tx.Dropped
+			cs.netStats[net.Name] = net
+		} else {
+			// initial iteration
+			cs.netStats[net.Name] = net
+		}
+
+		cs.curDockerStat.Networks[net.Name] = types.NetworkStats{
+			RxBytes:   net.Rx.Bytes,
+			RxPackets: uint64(net.Rx.Packets),
+			RxDropped: uint64(net.Rx.Dropped),
+			TxBytes:   net.Tx.Bytes,
+			TxPackets: uint64(net.Tx.Packets),
+			TxDropped: uint64(net.Tx.Dropped),
+		}
+
+	}
+}
+
+// disk will calculate supported stats by disk device.  The stats presented will be the
+// disk stats accumulated during the stats subscription.  This differs from vanilla
+// docker as it provides the disk stats for the lifetime of the container.
+//
+// Supported stats are io_service_bytes_recursive and io_serviced_recursive, so bytes and iops
+// during the stats subscription
+//
+// TODO: Currently disk assumes a single scsi controller.  Multiple scsi controllers will need
+// to be supported in a future release (July 9th 2017)
+func (cs *ContainerStats) disk() {
+	// docker storage stats to populate
+	storage := types.BlkioStats{
+		IoServiceBytesRecursive: []types.BlkioStatEntry{},
+		IoServicedRecursive:     []types.BlkioStatEntry{},
+	}
+
+	for _, disk := range cs.currentMetric.Disks {
+		// disk stats accumulate for the life of subscription, so
+		// either add previous stats or store initial stats
+		if preDisk, exists := cs.diskStats[disk.Name]; exists {
+			// add previous values to current value
+			disk.Read.Bytes += preDisk.Read.Bytes
+			disk.Read.Op += preDisk.Read.Op
+			disk.Write.Bytes += preDisk.Write.Bytes
+			disk.Write.Op += preDisk.Write.Op
+			cs.diskStats[disk.Name] = disk
+		} else {
+			// initial iteration
+			cs.diskStats[disk.Name] = disk
+		}
+
+		// get the minor number for the disk device
+		deviceMinor := diskMinor(cs.config.ContainerID, disk.Name)
+
+		// need to update read, write & total for supported stats (bytes & iops)
+		storage.IoServiceBytesRecursive = append(storage.IoServiceBytesRecursive,
+			createBlkioStatsEntry(deviceMinor, "Read", cs.diskStats[disk.Name].Read.Bytes))
+		storage.IoServiceBytesRecursive = append(storage.IoServiceBytesRecursive,
+			createBlkioStatsEntry(deviceMinor, "Write", cs.diskStats[disk.Name].Write.Bytes))
+		storage.IoServiceBytesRecursive = append(storage.IoServiceBytesRecursive,
+			createBlkioStatsEntry(deviceMinor, "Total", cs.diskStats[disk.Name].Read.Bytes+cs.diskStats[disk.Name].Write.Bytes))
+		// Ops
+		storage.IoServicedRecursive = append(storage.IoServicedRecursive,
+			createBlkioStatsEntry(deviceMinor, "Read", cs.diskStats[disk.Name].Read.Op))
+		storage.IoServicedRecursive = append(storage.IoServicedRecursive,
+			createBlkioStatsEntry(deviceMinor, "Write", cs.diskStats[disk.Name].Write.Op))
+		storage.IoServicedRecursive = append(storage.IoServicedRecursive,
+			createBlkioStatsEntry(deviceMinor, "Total", cs.diskStats[disk.Name].Read.Op+cs.diskStats[disk.Name].Write.Op))
+
+	}
+	// add the block stats to the docker stat
+	cs.curDockerStat.BlkioStats = storage
+}
+
 func (cs *ContainerStats) memory() {
 	// given MB (i.e. 2048) convert to GB
 	cs.curDockerStat.MemoryStats.Limit = uint64(cs.config.Memory * 1024 * 1024)
@@ -243,7 +349,7 @@ func (cs *ContainerStats) memory() {
 }
 
 // previousCPU will move the current stats to the previous CPU location
-func (cs *ContainerStats) previousCPU(current *metrics.VMMetrics) error {
+func (cs *ContainerStats) previousCPU(current *performance.VMMetrics) error {
 	// validate that the sampling is in the correct order
 	if current.SampleTime.Before(cs.curDockerStat.Read) {
 		err := InvalidOrderError{
@@ -315,4 +421,33 @@ func (cs *ContainerStats) currentCPU() {
 	// This will require the addition of the previous total usage
 	dockerCPU.CPUUsage.TotalUsage += cs.preTotalMhz
 	cs.curDockerStat.CPUStats = dockerCPU
+}
+
+// diskMinor will parse the disk name and return the minor id of
+// the disk device.  The func assumes that minor identifiers are multiples
+// of 16 (0,16,32,48,etc).
+func diskMinor(containerID string, name string) uint64 {
+	// disks are named scsi0:0, scsi0:1
+	// i.e. controller+controller number:device number
+	device := strings.Split(name, ":")
+	// convert to an int
+	minor, err := strconv.Atoi(device[len(device)-1])
+	if err != nil {
+		// log error, but continue and return a minor number of zero
+		// unlikely this would happen, but if it does and there is more than one disk on the vm
+		// then it could go undetected
+		log.Errorf("stats error generating container(%s) disk(%s) minor: %s", containerID, name, err)
+	}
+	// minor identifiers are multiples of 16
+	minor *= 16
+	return uint64(minor)
+}
+
+func createBlkioStatsEntry(minor uint64, op string, value uint64) types.BlkioStatEntry {
+	return types.BlkioStatEntry{
+		Major: 8,
+		Minor: minor,
+		Op:    op,
+		Value: value,
+	}
 }

@@ -143,6 +143,7 @@ func NewRepositoryCache(client *client.PortLayer) error {
 		// hydrate refByIDCache
 		for _, repository := range rCache.Repositories {
 			for refStr, refID := range repository {
+				// #nosec: Errors unhandled.
 				ref, _ := reference.ParseNamed(refStr)
 				if rCache.referencesByIDCache[refID] == nil {
 					rCache.referencesByIDCache[refID] = make(map[string]reference.Named)

@@ -16,6 +16,18 @@
 Documentation  Test 6-07 - Verify vic-machine create network function
 Resource  ../../resources/Util.robot
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
+
+*** Keywords ***
+Cleanup Container Firewalls Test
+    Cleanup VIC Appliance On Test Server
+    Run  govc host.portgroup.remove bridge
+    Run  govc host.portgroup.remove open-net
+    Run  govc host.portgroup.remove closed-net
+    Run  govc host.portgroup.remove published-net
+    Run  govc host.portgroup.remove outbound-net
+    Run  govc host.portgroup.remove peers-net-1
+    Run  govc host.portgroup.remove peers-net-2
 
 *** Test Cases ***
 Public network - default
@@ -126,7 +138,7 @@ Connectivity Bridge to Public
     Log To Console  Create a bridge portgroup.
     ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN bridge
 
-    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --public-network=vm-network --compute-resource=%{TEST_RESOURCE} --container-network vm-network --no-tlsverify --insecure-registry harbor.ci.drone.local
+    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --public-network=vm-network --compute-resource=%{TEST_RESOURCE} --container-network vm-network --container-network-firewall vm-network:published --no-tlsverify --insecure-registry harbor.ci.drone.local
 
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
@@ -366,7 +378,7 @@ Container network - space in network name valid
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    Log To Console  Create a portgroup with a space in it's name
+    Log To Console  Create a portgroup with a space in its name
     ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN 'VM Network With Spaces'
 
     Log To Console  Create a bridge portgroup.
@@ -390,14 +402,223 @@ Container network - space in network name valid
     Cleanup VCH Bridge Network  %{VCH-NAME}
     Cleanup VIC Appliance On Test Server
 
+Container Firewalls
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    # Set the only teardown for this test to cleanup both portgroups and VCH, regardless of test outcome.
+    [Teardown]  Cleanup Container Firewalls Test
+
+    ${out}=  Run  govc host.portgroup.remove bridge
+    ${out}=  Run  govc host.portgroup.remove open-net
+    ${out}=  Run  govc host.portgroup.remove closed-net
+    ${out}=  Run  govc host.portgroup.remove published-net
+    ${out}=  Run  govc host.portgroup.remove outbound-net
+    ${out}=  Run  govc host.portgroup.remove peers-net-1
+    ${out}=  Run  govc host.portgroup.remove peers-net-2
+
+    Log To Console  Create port groups
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN bridge
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN open-net
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN closed-net
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN published-net
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN outbound-net
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN peers-net-1
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN peers-net-2
+
+    ${createcommand}=  catenate  SEPARATOR=\ \ 
+    ...  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME}
+    ...  --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT}
+    ...  --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD}
+    ...  --force=true --bridge-network=bridge --compute-resource=%{TEST_RESOURCE} --no-tlsverify
+    ...  --insecure-registry harbor.ci.drone.local
+    ...  --container-network open-net --container-network-firewall open-net:open
+    ...  --container-network closed-net --container-network-firewall closed-net:closed
+    ...  --container-network outbound-net --container-network-firewall outbound-net:outbound
+    ...  --container-network published-net --container-network-firewall published-net:published
+    ...  --container-network peers-net-1 --container-network-firewall peers-net-1:peers
+    ...  --container-network-ip-range peers-net-1:10.10.10.0/24 --container-network-gateway peers-net-1:10.10.10.1/24
+    ...  --container-network peers-net-2 --container-network-firewall peers-net-2:peers
+    ...  --container-network-ip-range peers-net-2:192.168.0.0/16 --container-network-gateway peers-net-2:192.168.0.1/16
+
+    ${output}=  Run  ${createcommand}
+
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: %{VCH-NAME}
+
+    ### OPEN FIREWALL ###
+    Log To Console  Checking Open Firewall
+    # Create an open container listening on port 1234
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=open-net --name p1 ${busybox} nc -l -p 1234
+    Should Be Equal As Integers  ${rc}  0
+
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p1
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net bridge ${busybox} nc ${ip} 1234
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
+
+    ### CLOSED FIREWALL ###
+    Log To Console  Checking Closed Firewall
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=closed-net --name shouldfail -p 123 ${busybox} nc -l -p 1234
+    Should Contain  ${output}  Ports cannot be published via
+    Should Not Be Equal As Integers  ${rc}  0
+
+    # Create a closed container listening on port 1234.
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=closed-net --name p2 ${busybox} nc -l -p 1234
+    Should Be Equal As Integers  ${rc}  0
+
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p2
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=bridge ${busybox} nc ${ip} 1234
+    Should Not Be Equal As Integers  ${rc}  0
+
+    # Create a container on a bridge and closed network listening on port 1234.
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net=bridge --name closedbridge ${busybox} nc -l -p 1234
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect closed-net closedbridge
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start closedbridge
+    Should Be Equal As Integers  ${rc}  0
+
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{.NetworkSettings.Networks.bridge.IPAddress}}' closedbridge
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=bridge ${busybox} nc ${ip} 1234
+    Should Be Equal As Integers  ${rc}  0
+
+    ### OUTBOUND FIREWALL ###
+    Log To Console  Checking Outbound Firewall
+    # Create an outbound-only container listening on port 1234.
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=outbound-net --name p3 ${busybox} nc -l -p 1234
+    Should Be Equal As Integers  ${rc}  0
+
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p3
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=outbound ${busybox} nc ${ip} 1234
+    Should Not Be Equal As Integers  ${rc}  0
+    # The connection should not be established. However, an outbound network should be able to connect to an open network.
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=open-net --name p4 ${busybox} nc -l -p 1234
+    Should Be Equal As Integers  ${rc}  0
+
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p4
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=outbound-net ${busybox} nc ${ip} 1234
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net=bridge --name out1 ${busybox} nc -l -p 1234
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect outbound-net out1
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start out1
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net=bridge --name out2 ${busybox} nc out1 1234
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect outbound-net out2
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start out2
+
+    ### PUBLISHED FIREWALL ###
+    Log To Console  Checking Published Firewall
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=published-net -p 1337 --name p5 ${busybox} nc -l -p 1337
+    Should Be Equal As Integers  ${rc}  0
+
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p5
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=outbound-net ${busybox} nc ${ip} 1337
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
+    # Connection should be established on the open port. Let's try a closed one now...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=published-net -p 1337 --name p6 ${busybox} nc -l -p 1337
+    Should Be Equal As Integers  ${rc}  0
+
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p6
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=outbound-net ${busybox} nc ${ip} 404
+    Should Not Be Equal As Integers  ${rc}  0
+
+    ### PEERS FIREWALL ###
+    Log To Console  Checking Peers Firewall
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=peers-net-1 --name p7 ${busybox} nc -l -p 1234
+    Should Be Equal As Integers  ${rc}  0
+
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p7
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=peers-net-1 ${busybox} nc ${ip} 1234
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
+    # Connection should be established on the peer network. Let's try a non-peer now...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=peers-net-1 --name p8 ${busybox} nc -l -p 1234
+    Should Be Equal As Integers  ${rc}  0
+
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p8
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=peers-net-2 ${busybox} nc ${ip} 1234
+    Should Not Be Equal As Integers  ${rc}  0
+
+    ### Ping localhost ###
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name localping --network=closed-net ${busybox} ping -c1 localhost
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow localping
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  1 packets transmitted, 1 packets received
+
 Container network invalid 1
     Pass execution  Test not implemented
 
 Container network invalid 2
     Pass execution  Test not implemented
 
-Container network 1
-    Pass execution  Test not implemented
+Reset VCH doesn't cause unintentionally exposed ports from container network
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network "VM Network":vmnet ${vicmachinetls}
+    Log  ${output}
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: %{VCH-NAME}
+
+    ${output}=  Run  docker %{VCH-PARAMS} network ls
+    Should Contain  ${output}  vmnet
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vmnet -p 80 nginx
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
+    Should Not Contain  ${output}  ->80/tcp
+
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -reset=true %{VCH-NAME}
+    Log To Console  ${output}
+    Should Be Equal As Integers  0  ${rc}
+
+    Reboot VM  %{VCH-NAME}
+
+    Log To Console  Getting VCH IP ...
+    ${new-vch-ip}=  Get VM IP  %{VCH-NAME}
+    Log To Console  New VCH IP is ${new-vch-ip}
+    Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new-vch-ip}
+
+    # wait for docker info to succeed
+    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
+    Should Not Contain  ${output}  ->80/tcp
+
+    # Delete the portgroup added by env vars keyword
+    Cleanup VIC Appliance On Test Server
+
 
 Container network 2
     Pass execution  Test not implemented

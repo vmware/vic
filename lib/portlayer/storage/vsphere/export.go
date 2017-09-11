@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/disk"
@@ -56,6 +57,11 @@ func (v *VolumeStore) NewDataSource(op trace.Operation, id string) (storage.Data
 		return nil, err
 	}
 
+	offlineAttempt := 0
+offline:
+	offlineAttempt++
+
+	// offline disk attempt
 	source, err := v.newDataSource(op, uri)
 	if err == nil {
 		return source, err
@@ -68,6 +74,7 @@ func (v *VolumeStore) NewDataSource(op trace.Operation, id string) (storage.Data
 	}
 
 	// online - Owners() should filter out the appliance VM
+	// #nosec: Errors unhandled.
 	owners, _ := v.Owners(op, uri, disk.LockedVMDKFilter)
 	if len(owners) == 0 {
 		op.Infof("No online owners were found for %s", id)
@@ -75,6 +82,19 @@ func (v *VolumeStore) NewDataSource(op trace.Operation, id string) (storage.Data
 	}
 
 	for _, o := range owners {
+		// sanity check to see if we are the owner - this should catch transitions
+		// from container running to diff or commit for example between the offline attempt and here
+		uuid, err := o.UUID(op)
+		if err == nil {
+			// check if the vm is appliance VM if we can successfully get its UUID
+			// #nosec: Errors unhandled.
+			self, _ := guest.IsSelf(op, uuid)
+			if self && offlineAttempt < 2 {
+				op.Infof("Appliance is owner of online vmdk - retrying offline source path")
+				goto offline
+			}
+		}
+
 		online, err := v.newOnlineDataSource(op, o, id)
 		if online != nil {
 			return online, err
@@ -87,7 +107,8 @@ func (v *VolumeStore) NewDataSource(op trace.Operation, id string) (storage.Data
 }
 
 func (v *VolumeStore) newDataSource(op trace.Operation, url *url.URL) (storage.DataSource, error) {
-	mountPath, cleanFunc, err := v.Mount(op, url, false)
+	// This is persistent to avoid issues with concurrent Stat/Import calls
+	mountPath, cleanFunc, err := v.Mount(op, url, true)
 	if err != nil {
 		return nil, err
 	}
@@ -103,10 +124,12 @@ func (v *VolumeStore) newDataSource(op trace.Operation, url *url.URL) (storage.D
 }
 
 func (v *VolumeStore) newOnlineDataSource(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSource, error) {
+	op.Debugf("Constructing toolbox data source: %s.%s", owner.Reference(), id)
+
 	return &ToolboxDataSource{
-		VM: owner,
-		// TODO: there's some mangling that happens from volume id to disk label so this isn't currently correct
-		ID: id,
+		VM:    owner,
+		ID:    storage.Label(id),
+		Clean: func() { return },
 	}, nil
 }
 
@@ -127,7 +150,7 @@ func (i *ImageStore) Export(op trace.Operation, id, ancestor string, spec *archi
 		return l.Export(op, spec, data)
 	}
 
-	// for now we assume ancetor instead of entirely generic left/right
+	// for now we assume ancestor instead of entirely generic left/right
 	// this allows us to assume it's an image
 	r, err := i.NewDataSource(op, ancestor)
 	if err != nil {
@@ -157,7 +180,8 @@ func (i *ImageStore) Export(op trace.Operation, id, ancestor string, spec *archi
 		return nil, fmt.Errorf("mismatched datasource types: %T, %T", ls, rs)
 	}
 
-	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data)
+	// if we want data, exclude the xattrs, otherwise assume diff
+	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data, !data)
 	if err != nil {
 		go closers()
 		return nil, err

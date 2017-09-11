@@ -100,6 +100,16 @@ type URLFetcher struct {
 	options Options
 }
 
+// RegistryErrorRespBody is used for unmarshaling json error response body from image registries.
+// Error response json is assumed to follow Docker API convention (field `details` is dropped).
+// See: https://docs.docker.com/registry/spec/api/#errors
+type RegistryErrorRespBody struct {
+	Errors []struct {
+		Code    string
+		Message string
+	}
+}
+
 // NewURLFetcher creates a new URLFetcher
 func NewURLFetcher(options Options) Fetcher {
 	/* #nosec */
@@ -248,40 +258,49 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 
 	u.StatusCode = res.StatusCode
 
-	if u.options.Token == nil && u.IsStatusUnauthorized() {
-		hdr := res.Header.Get("www-authenticate")
-		if hdr == "" {
-			return nil, nil, fmt.Errorf("www-authenticate header is missing")
+	if u.IsNonretryableClientError() {
+		if u.options.Token == nil && u.IsStatusUnauthorized() {
+			hdr := res.Header.Get("www-authenticate")
+			if hdr == "" {
+				return nil, nil, DoNotRetry{fmt.Errorf("www-authenticate header is missing")}
+			}
+			u.OAuthEndpoint, err = u.ExtractOAuthURL(hdr, url)
+			if err != nil {
+				return nil, nil, err
+			}
+			return nil, nil, DoNotRetry{Err: fmt.Errorf("Authentication required")}
 		}
-		u.OAuthEndpoint, err = u.ExtractOAuthURL(hdr, url)
-		if err != nil {
-			return nil, nil, err
+
+		if u.IsStatusNotFound() {
+			err = fmt.Errorf("Not found: %d, URL: %s", u.StatusCode, url)
+			return nil, nil, TagNotFoundError{Err: err}
 		}
-		return nil, nil, DoNotRetry{Err: fmt.Errorf("Authentication required")}
-	}
 
-	if u.IsStatusNotFound() {
-		err = fmt.Errorf("Not found: %d, URL: %s", u.StatusCode, url)
-		return nil, nil, TagNotFoundError{Err: err}
-	}
+		if u.IsStatusUnauthorized() {
+			hdr := res.Header.Get("www-authenticate")
 
-	if u.IsStatusUnauthorized() {
-		hdr := res.Header.Get("www-authenticate")
-
-		// check if image is non-existent (#757)
-		if strings.Contains(hdr, "error=\"insufficient_scope\"") {
-			err = fmt.Errorf("image not found")
-			return nil, nil, ImageNotFoundError{Err: err}
-		} else if strings.Contains(hdr, "error=\"invalid_token\"") {
-			return nil, nil, fmt.Errorf("not authorized")
-		} else {
-			return nil, nil, fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
+			// check if image is non-existent (#757)
+			if strings.Contains(hdr, "error=\"insufficient_scope\"") {
+				err = fmt.Errorf("image not found")
+				return nil, nil, ImageNotFoundError{Err: err}
+			} else if strings.Contains(hdr, "error=\"invalid_token\"") {
+				return nil, nil, fmt.Errorf("not authorized")
+			} else {
+				return nil, nil, fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
+			}
 		}
+
+		// for all other non-retryable client errors, grab the error message if there is one (#5951)
+		err := fmt.Errorf(u.buildRegistryErrMsg(url, res.Body))
+
+		return nil, nil, DoNotRetry{Err: err}
 	}
 
 	// FIXME: handle StatusTemporaryRedirect and StatusFound
+	// for all other unexpected http codes, grab the message out if there is one (#5951)
 	if !u.IsStatusOK() {
-		return nil, nil, fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
+		err := fmt.Errorf(u.buildRegistryErrMsg(url, res.Body))
+		return nil, nil, err
 	}
 
 	log.Debugf("URLFetcher.fetch() - %#v, %#v", res.Body, res.Header)
@@ -399,6 +418,80 @@ func (u *URLFetcher) IsStatusOK() bool {
 // IsStatusNotFound returns true if status code is StatusNotFound
 func (u *URLFetcher) IsStatusNotFound() bool {
 	return u.StatusCode == http.StatusNotFound
+}
+
+// IsNonretryableClientError returns true if status code is a nonretryable 4XX error. This includes
+// all 4XX errors except 'locked', and 'too many requests'.
+func (u *URLFetcher) IsNonretryableClientError() bool {
+	s := u.StatusCode
+	return 400 <= s && s < 500 &&
+		s != http.StatusLocked && s != http.StatusTooManyRequests
+}
+
+// buildRegistryErrMsg builds error message for unexpected http code (nonretryable client errors and all other errors)
+// and extracts message details from response body stream if there is one (#5951).
+func (u *URLFetcher) buildRegistryErrMsg(url *url.URL, respBody io.ReadCloser) string {
+	errMsg := fmt.Sprintf("Unexpected http code: %d (%s), URL: %s", u.StatusCode, http.StatusText(u.StatusCode), url)
+
+	errDetail, err := extractErrResponseMessage(respBody)
+	if err != nil {
+		return errMsg
+	}
+
+	errMsg += fmt.Sprintf(", Message: %s", errDetail)
+	return errMsg
+}
+
+// malformedJsonErrFormat is the error format for malformed json response body
+// used in function extractErrResponseMessage
+var errJSONFormat = fmt.Errorf("error response json has unconventional format")
+
+// extractErrResponseMessage extracts `message` field from error response body stream.
+func extractErrResponseMessage(rdr io.ReadCloser) (string, error) {
+	// close the stream after done
+	defer rdr.Close()
+
+	out := bytes.NewBuffer(nil)
+	_, err := io.Copy(out, rdr)
+	if err != nil {
+		log.Debugf("Error when copying from error response body stream: %s", err)
+		return "", err
+	}
+
+	res := []byte(out.Bytes())
+	log.Debugf("Error message json string: %s", string(res))
+
+	var errResponse RegistryErrorRespBody
+	err = json.Unmarshal(res, &errResponse)
+	if err != nil {
+		log.Debugf("Error when unmarshaling error response body: %s", err)
+		return "", err
+	}
+
+	if len(errResponse.Errors) == 0 {
+		log.Debugf("Error response wrong format. Response body: %s", string(res))
+		return "", errJSONFormat
+	}
+
+	// grab out every error message
+	var errString string
+	for i := range errResponse.Errors {
+		message := errResponse.Errors[i].Message
+		// only append the message when there is content in the field
+		if len(message) > 0 {
+			if i > 0 {
+				errString += ", "
+			}
+			errString += message
+		}
+	}
+
+	// if no message available, treat it as a malformed json error
+	if len(errString) == 0 {
+		return "", errJSONFormat
+	}
+
+	return errString, nil
 }
 
 func (u *URLFetcher) setUserAgent(req *http.Request) {

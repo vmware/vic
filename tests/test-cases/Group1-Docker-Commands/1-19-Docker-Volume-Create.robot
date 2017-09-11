@@ -17,6 +17,7 @@ Documentation  Test 1-19 - Docker Volume Create
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Simple docker volume create
@@ -30,7 +31,7 @@ Simple docker volume create
     Should Not Contain  ${output}  Error response from daemon
     ${rc}  ${disk-size}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${ContainerName} | grep by-label | awk '{print $2}'
     Should Be Equal As Integers  ${rc}  0
-    Should Be Equal As Strings  ${disk-size}  975.9M
+    Should Contain  ${disk-size}  975.9M
 
 Simple volume mounted over managed files
     ${status}=  Get State Of Github Issue  5731
@@ -54,7 +55,7 @@ Docker volume create named volume
     Should Not Contain  ${output}  Error response from daemon
     ${rc}  ${disk-size}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${ContainerName} | grep by-label | awk '{print $2}'
     Should Be Equal As Integers  ${rc}  0
-    Should Be Equal As Strings  ${disk-size}  975.9M
+    Should Contain  ${disk-size}  975.9M
 
 Docker volume create image volume
     Set Suite Variable  ${ContainerName}  imageVolContainer
@@ -110,7 +111,7 @@ Docker volume create with mis-capitalized valid driver option
     Should Not Contain  ${output}  Error response from daemon
     ${rc}  ${disk-size}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${ContainerName} | grep by-label | awk '{print $2}'
     Should Be Equal As Integers  ${rc}  0
-    Should Be Equal As Strings  ${disk-size}  9.5G
+    Should Contain  ${disk-size}  9.5G
 
 Docker volume create with specific capacity no units
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=test5 --opt Capacity=100000
@@ -124,7 +125,7 @@ Docker volume create with specific capacity no units
     Should Not Contain  ${output}  Error response from daemon
     ${rc}  ${disk-size}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${ContainerName} | grep by-label | awk '{print $2}'
     Should Be Equal As Integers  ${rc}  0
-    Should Be Equal As Strings  ${disk-size}  96.0G
+    Should Contain  ${disk-size}  96.0G
 
 Docker volume create large volume specifying units
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=unitVol1 --opt Capacity=10G
@@ -137,7 +138,7 @@ Docker volume create large volume specifying units
     Should Be Equal As Integers  ${ContainerRC}  0
     Should Not Contain  ${output}  Error response from daemon
     ${disk-size}=  Run  docker %{VCH-PARAMS} logs ${ContainerName} | grep by-label | awk '{print $2}'
-    Should Be Equal As Strings  ${disk-size}  9.5G
+    Should Contain  ${disk-size}  9.5G
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=unitVol2 --opt Capacity=10000
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${output}  unitVol2
@@ -148,7 +149,7 @@ Docker volume create large volume specifying units
     Should Be Equal As Integers  ${ContainerRC}  0
     Should Not Contain  ${output}  Error response from daemon
     ${disk-size}=  Run  docker %{VCH-PARAMS} logs ${ContainerName} | grep by-label | awk '{print $2}'
-    Should Be Equal As Strings  ${disk-size}  9.5G
+    Should Contain  ${disk-size}  9.5G
 
 Docker volume create with zero capacity
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=test5 --opt Capacity=0
@@ -176,22 +177,22 @@ Docker volume create with possibly invalid name
     Should Be Equal As Strings  ${output}  Error response from daemon: volume name "test???" includes invalid characters, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed
 
 Docker volume verify anonymous volume contains base image files
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run jakedsouza/group-1-19-docker-verify-volume-files:1.0 ls /etc/example
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name verify-anon-1 jakedsouza/group-1-19-docker-verify-volume-files:1.0 ls /etc/example
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  thisshouldexist
     Should Contain  ${output}  testfile.txt
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run jakedsouza/group-1-19-docker-verify-volume-files:1.0 cat /etc/example/testfile.txt
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name verify-anon-2 jakedsouza/group-1-19-docker-verify-volume-files:1.0 cat /etc/example/testfile.txt
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  TestFile
 
 Docker volume verify named volume contains base image files
-	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v test15:/etc/example jakedsouza/group-1-19-docker-verify-volume-files:1.0 cat /etc/example/testfile.txt
+	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name verify-named-1 -v test15:/etc/example jakedsouza/group-1-19-docker-verify-volume-files:1.0 cat /etc/example/testfile.txt
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  TestFile
 
 	# Verify file is copied to volumeA
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v test15:/mnt/test15 jakedsouza/group-1-19-docker-verify-volume-files:1.0 cat /mnt/test15/testfile.txt
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name verify-named-2 -v test15:/mnt/test15 jakedsouza/group-1-19-docker-verify-volume-files:1.0 cat /mnt/test15/testfile.txt
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  TestFile
 

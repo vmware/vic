@@ -19,7 +19,6 @@ import (
 	"crypto/x509"
 	"flag"
 	"fmt"
-	"net"
 	"os"
 
 	log "github.com/Sirupsen/logrus"
@@ -43,12 +42,15 @@ import (
 	vicbackends "github.com/vmware/vic/lib/apiservers/engine/backends"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/executor"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/constants"
+	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/lib/pprof"
 	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+	"github.com/vmware/vic/pkg/vsphere/tags"
 )
 
 type CliOptions struct {
@@ -61,8 +63,7 @@ type CliOptions struct {
 }
 
 const (
-	productName    = "vSphere Integrated Containers"
-	clientHostName = "client.localhost"
+	productName = "vSphere Integrated Containers"
 )
 
 var (
@@ -71,6 +72,7 @@ var (
 )
 
 func init() {
+	// #nosec: Errors unhandled.
 	pprof.StartPprof("docker personality", pprof.DockerPort)
 
 	flag.Usage = Usage
@@ -84,8 +86,10 @@ func init() {
 }
 
 func Usage() {
+	// #nosec: Errors unhandled.
 	fmt.Fprintf(os.Stderr, "\nvSphere Integrated Container Daemon Usage:\n")
 	flag.PrintDefaults()
+	// #nosec: Errors unhandled.
 	fmt.Fprintf(os.Stderr, "\n")
 }
 
@@ -101,11 +105,12 @@ func main() {
 		log.Fatalf("failed to initialize logging: %s", err)
 	}
 
-	if err := vicbackends.Init(*cli.portLayerAddr, productName, &vchConfig); err != nil {
+	if err := vicbackends.Init(*cli.portLayerAddr, productName, *cli.serverPort, &vchConfig); err != nil {
 		log.Fatalf("failed to initialize backend: %s", err)
 	}
 
 	plEventMonitor := vicbackends.NewPortlayerEventMonitor(vicbackends.PlEventProxy{}, vicbackends.DockerEventPublisher{})
+	// #nosec: Errors unhandled.
 	plEventMonitor.Start()
 	// Start API server wit options from command line args
 	api := startServer()
@@ -133,6 +138,15 @@ func handleFlags() bool {
 	}
 	extraconfig.Decode(src, &vchConfig)
 
+	if vchConfig.Diagnostics.DebugLevel > 2 {
+		// use debug port layer mode
+		*cli.portLayerPort = constants.DebugPortLayerPort
+		clientIP, err := util.ClientIP()
+		if err != nil {
+			log.Fatalf("Unable to look up %s for portlayer API: %s", constants.ClientHostName, err)
+		}
+		*cli.portLayerAddr = clientIP.String()
+	}
 	*cli.portLayerAddr = fmt.Sprintf("%s:%d", *cli.portLayerAddr, *cli.portLayerPort)
 	cli.proto = "tcp"
 
@@ -154,6 +168,8 @@ func initLogging() error {
 			Priority: syslog.Info | syslog.Daemon,
 		}
 	}
+
+	tags.Logger = log.StandardLogger()
 
 	return viclog.Init(logcfg)
 }
@@ -232,22 +248,14 @@ func startServer() *apiserver.Server {
 	if vchConfig.Diagnostics.DebugLevel <= 2 {
 
 		// determine the address to listen on
-		ips, err := net.LookupIP(clientHostName)
+		clientIP, err := util.ClientIP()
 		if err != nil {
 			// TODO: don't want to directly enter this into vchConfig.Sessions[].Started but no
 			// structure currently to report back contents otherwise
-			log.Fatalf("Unable to look up %s to serve docker API: %s", clientHostName, err)
+			log.Fatalf("Unable to look up %s to serve docker API: %s", constants.ClientHostName, err)
 		}
 
-		if len(ips) == 0 {
-			log.Fatalf("No IP found for %s during launch of docker API server", clientHostName)
-		}
-
-		if len(ips) > 1 {
-			log.Fatalf("Multiple IPs found for %s during launch of docker API server: %v", clientHostName, ips)
-		}
-
-		addr = ips[0].String()
+		addr = clientIP.String()
 	}
 
 	api := apiserver.New(serverConfig)

@@ -25,6 +25,8 @@ import (
 	"os/exec"
 	"os/signal"
 	"path"
+	"runtime/debug"
+	"sort"
 	"sync"
 	"syscall"
 	"time"
@@ -36,6 +38,7 @@ import (
 	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/system"
+	"github.com/vmware/vic/lib/tether/shared"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/serial"
@@ -49,13 +52,17 @@ const (
 
 	// the length of a truncated ID for use as hostname
 	shortLen = 12
-
-	// temp directory to copy existing data to mounts
-	bindDir = "/.tether/.bind"
 )
 
-var Sys = system.New()
-var once sync.Once
+// Sys is used to configure where the target system files are
+var (
+	// Used to access the acutal system paths and files
+	Sys = shared.Sys
+	// Used to access and manipulate the tether modified bind sources
+	// that are mounted over the system ones.
+	BindSys = system.NewWithRoot("/.tether")
+	once    sync.Once
+)
 
 type tether struct {
 	// the implementation to use for tailored operations
@@ -81,6 +88,9 @@ type tether struct {
 
 	// syslog writer shared by all sessions
 	writer syslog.Writer
+
+	// used for running vm initialization logic once in the reload loop
+	initialize sync.Once
 }
 
 func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) Tether {
@@ -155,14 +165,16 @@ func (t *tether) setup() error {
 		}
 	}
 
+	pidDir := shared.PIDFileDir()
+
 	// #nosec: Expect directory permissions to be 0700 or less
-	if err = os.MkdirAll(PIDFileDir(), 0755); err != nil {
-		log.Errorf("could not create pid file directory %s: %s", PIDFileDir(), err)
+	if err = os.MkdirAll(pidDir, 0755); err != nil {
+		log.Errorf("could not create pid file directory %s: %s", pidDir, err)
 	}
 
 	// Create PID file for tether
 	tname := path.Base(os.Args[0])
-	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(PIDFileDir(), tname)),
+	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(pidDir, tname)),
 		[]byte(fmt.Sprintf("%d", os.Getpid())),
 		0644)
 	if err != nil {
@@ -233,7 +245,17 @@ func (t *tether) setHostname() error {
 		short = short[:shortLen]
 	}
 
-	if err := t.ops.SetHostname(short, t.config.Name); err != nil {
+	full := t.config.Hostname
+	if t.config.Hostname != "" && t.config.Domainname != "" {
+		full = fmt.Sprintf("%s.%s", t.config.Hostname, t.config.Domainname)
+	}
+
+	hostname := short
+	if full != "" {
+		hostname = full
+	}
+
+	if err := t.ops.SetHostname(hostname, t.config.Name); err != nil {
 		// we don't attempt to recover from this - it's a fundamental misconfiguration
 		// so just exit
 		return fmt.Errorf("failed to set hostname: %s", err)
@@ -242,28 +264,60 @@ func (t *tether) setHostname() error {
 }
 
 func (t *tether) setNetworks() error {
-	for _, v := range t.config.Networks {
-		if err := t.ops.Apply(v); err != nil {
+
+	// internal networks must be applied first
+	for _, network := range t.config.Networks {
+		if !network.Internal {
+			continue
+		}
+		if err := t.ops.Apply(network); err != nil {
 			return fmt.Errorf("failed to apply network endpoint config: %s", err)
 		}
 	}
+	for _, network := range t.config.Networks {
+		if network.Internal {
+			continue
+		}
+		if err := t.ops.Apply(network); err != nil {
+			return fmt.Errorf("failed to apply network endpoint config: %s", err)
+		}
+	}
+
 	return nil
 }
 
 func (t *tether) setMounts() error {
+	// provides a lookup from path to volume reference.
+	pathIndex := make(map[string]string, 0)
+	mounts := make([]string, 0, len(t.config.Mounts))
 	for k, v := range t.config.Mounts {
-		switch v.Source.Scheme {
+		mounts = append(mounts, v.Path)
+		pathIndex[v.Path] = k
+	}
+	// Order the mount paths so that we are doing them in shortest order first.
+	sort.Strings(mounts)
+
+	for _, v := range mounts {
+		targetRef := pathIndex[v]
+		mountTarget := t.config.Mounts[targetRef]
+		switch mountTarget.Source.Scheme {
 		case "label":
 			// this could block indefinitely while waiting for a volume to present
-			t.ops.MountLabel(context.Background(), v.Source.Path, v.Path)
-
+			// return error if mount volume failed, to fail container start
+			if err := t.ops.MountLabel(context.Background(), mountTarget.Source.Path, mountTarget.Path); err != nil {
+				return err
+			}
 		case "nfs":
-			t.ops.MountTarget(context.Background(), v.Source, v.Path, v.Mode)
-
+			// return error if mount nfs volume failed, to fail container start, so user knows there is something wrong
+			if err := t.ops.MountTarget(context.Background(), mountTarget.Source, mountTarget.Path, mountTarget.Mode); err != nil {
+				return err
+			}
 		default:
-			return fmt.Errorf("unsupported volume mount type for %s: %s", k, v.Source.Scheme)
+			return fmt.Errorf("unsupported volume mount type for %s: %s", targetRef, mountTarget.Source.Scheme)
 		}
 	}
+
+	// FIXME: populateVolumes() does not handle the nested volume case properly.
 	return t.populateVolumes()
 }
 
@@ -312,8 +366,18 @@ func (t *tether) initializeSessions() error {
 					session.ClearToLaunch = make(chan struct{})
 				}
 
+				// this will need altering if tether should be capable of being restarted itself
+				session.Started = ""
+				session.StopTime = 0
+
 				session.wait = &sync.WaitGroup{}
 				session.extraconfigKey = name
+				err := t.loggingLocked(session)
+				if err != nil {
+					log.Errorf("initializing logging for session failed with %s", err)
+					session.Unlock()
+					return err
+				}
 			}
 			session.Unlock()
 		}
@@ -360,37 +424,39 @@ func (t *tether) processSessions() error {
 
 		// process the sessions and launch if needed
 		for id, session := range m.sessions {
-			session.Lock()
+			func() {
+				session.Lock()
+				defer session.Unlock()
 
-			log.Debugf("Processing config for session %s", id)
-			var proc = session.Cmd.Process
+				log.Debugf("Processing config for session: %s", id)
+				var proc = session.Cmd.Process
 
-			// check if session is alive and well
-			if proc != nil && proc.Signal(syscall.Signal(0)) == nil {
-				log.Debugf("Process for session %s is running (pid: %d)", id, proc.Pid)
-				if !session.Active {
-					// stop process - for now this doesn't do any staged levels of aggression
-					log.Infof("Running session %s has been deactivated (pid: %d)", id, proc.Pid)
+				// check if session is alive and well
+				if proc != nil && proc.Signal(syscall.Signal(0)) == nil {
+					log.Debugf("Process for session %s is running (pid: %d)", id, proc.Pid)
+					if !session.Active {
+						// stop process - for now this doesn't do any staged levels of aggression
+						log.Infof("Running session %s has been deactivated (pid: %d)", id, proc.Pid)
 
-					killHelper(session)
+						killHelper(session)
+					}
+
+					return
 				}
 
-				session.Unlock()
-				continue
-			}
+				// if we're not activating this session and it's not running, then skip
+				if !session.Active {
+					log.Debugf("Skipping inactive session: %s", id)
+					return
+				}
 
-			// if we're not activating this session and it's not running, then skip
-			if !session.Active {
-				log.Debugf("Skipping inactive session %s", id)
-				session.Unlock()
-				continue
-			}
+				priorLaunch := proc != nil || session.Started != ""
+				if priorLaunch && !session.Restart {
+					log.Debugf("Skipping non-restartable exited or failed session: %s", id)
+					return
+				}
 
-			// check if session has never been started or is configured for restart
-			// if proc is nil, but Started is set then it could be a launch failure
-			if (proc == nil && session.Started == "") || session.Restart {
-				// if we've never been started
-				if proc == nil && session.Started == "" {
+				if !priorLaunch {
 					log.Infof("Launching process for session %s", id)
 					log.Debugf("Launch failures are fatal: %t", m.fatal)
 				} else {
@@ -413,9 +479,7 @@ func (t *tether) processSessions() error {
 						fatal: m.fatal,
 					}
 				}(session)
-
-			}
-			session.Unlock()
+			}()
 		}
 	}
 
@@ -439,8 +503,19 @@ func (t *tether) processSessions() error {
 	return nil
 }
 
+type TetherKey struct{}
+
 func (t *tether) Start() error {
 	defer trace.End(trace.Begin("main tether loop"))
+
+	defer func() {
+		e := recover()
+		if e != nil {
+			log.Errorf("Panic in main tether loop: %s: %s", e, debug.Stack())
+			// continue panicing now it's logged
+			panic(e)
+		}
+	}()
 
 	// do the initial setup and start the extensions
 	if err := t.setup(); err != nil {
@@ -452,6 +527,8 @@ func (t *tether) Start() error {
 	// initial entry, so seed this
 	t.reload <- struct{}{}
 	for range t.reload {
+		var err error
+
 		select {
 		case <-t.ctx.Done():
 			log.Warnf("Someone called shutdown, returning from start")
@@ -467,42 +544,50 @@ func (t *tether) Start() error {
 
 		t.setLogLevel()
 
-		if err := t.setHostname(); err != nil {
+		// TODO: this ensures that we run vm related setup code once
+		// This is temporary as none of those functions are idempotent at this point
+		// https://github.com/vmware/vic/issues/5833
+		t.initialize.Do(func() {
+			if err = t.setHostname(); err != nil {
+				return
+			}
+
+			// process the networks then publish any dynamic data
+			if err = t.setNetworks(); err != nil {
+				return
+			}
+			extraconfig.Encode(t.sink, t.config)
+
+			// setup the firewall
+			if err = retryOnError(func() error { return t.ops.SetupFirewall(t.ctx, t.config) }, 5); err != nil {
+				err = fmt.Errorf("Couldn't set up container-network firewall: %v", err)
+				return
+			}
+
+			//process the filesystem mounts - this is performed after networks to allow for network mounts
+			if err = t.setMounts(); err != nil {
+				return
+			}
+		})
+
+		if err != nil {
 			log.Error(err)
 			return err
 		}
 
-		// process the networks then publish any dynamic data
-		if err := t.setNetworks(); err != nil {
-			log.Error(err)
-			return err
-		}
-		extraconfig.Encode(t.sink, t.config)
-
-		// setup the firewall
-		if err := t.ops.SetupFirewall(t.config); err != nil {
-			log.Warnf("Failed to setup firewall: %s", err)
-		}
-
-		//process the filesystem mounts - this is performed after networks to allow for network mounts
-		if err := t.setMounts(); err != nil {
-			log.Error(err)
-			return err
-		}
-
-		if err := t.initializeSessions(); err != nil {
+		if err = t.initializeSessions(); err != nil {
 			log.Error(err)
 			return err
 		}
 
 		// Danger, Will Robinson! There is a strict ordering here.
 		// We need to start attach server first so that it can unblock the session
-		if err := t.reloadExtensions(); err != nil {
+		if err = t.reloadExtensions(); err != nil {
 			log.Error(err)
 			return err
 		}
 
-		if err := t.processSessions(); err != nil {
+		if err = t.processSessions(); err != nil {
 			log.Error(err)
 			return err
 		}
@@ -541,6 +626,17 @@ func (t *tether) Register(name string, extension Extension) {
 	log.Infof("Registering tether extension " + name)
 
 	t.extensions[name] = extension
+}
+
+func retryOnError(cmd func() error, maximumAttempts int) error {
+	for i := 0; i < maximumAttempts-1; i++ {
+		if err := cmd(); err != nil {
+			log.Warningf("Failed with error \"%v\". Retrying (Attempt %v).", err, i+1)
+		} else {
+			return nil
+		}
+	}
+	return cmd()
 }
 
 // cleanupSession performs some common cleanup work between handling a session exit and
@@ -594,14 +690,16 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 
 	log.Debugf("Calling wait on cmd")
 	if err := session.Cmd.Wait(); err != nil {
-		log.Warnf("Wait returned %s", err)
+		// we expect this to get an error because the child reaper will have gathered it
+		log.Debugf("Wait returned %s", err)
 	}
 
 	t.cleanupSession(session)
 
 	// Remove associated PID file
 	cmdname := path.Base(session.Cmd.Path)
-	_ = os.Remove(fmt.Sprintf("%s.pid", path.Join(PIDFileDir(), cmdname)))
+
+	_ = os.Remove(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(), cmdname)))
 
 	// set the stop time
 	session.StopTime = time.Now().UTC().Unix()
@@ -682,10 +780,13 @@ func (t *tether) launch(session *SessionConfig) error {
 		session.Cmd.SysProcAttr = user
 	}
 
-	err = t.loggingLocked(session)
-	if err != nil {
-		log.Errorf("initializing logging for session failed with %s", err)
-		return err
+	if session.Diagnostics.ResurrectionCount > 0 {
+		// override session logging only while it's restarted to avoid break exec #6004
+		err = t.loggingLocked(session)
+		if err != nil {
+			log.Errorf("initializing logging for session failed with %s", err)
+			return err
+		}
 	}
 
 	session.Cmd.Env = t.ops.ProcessEnv(session.Cmd.Env)
@@ -759,7 +860,7 @@ func (t *tether) launch(session *SessionConfig) error {
 
 	// Write the PID to the associated PID file
 	cmdname := path.Base(session.Cmd.Path)
-	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(PIDFileDir(), cmdname)),
+	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(), cmdname)),
 		[]byte(fmt.Sprintf("%d", pid)),
 		0644)
 	if err != nil {
@@ -876,10 +977,6 @@ func (t *tether) Flush() error {
 
 	extraconfig.Encode(t.sink, t.config)
 	return nil
-}
-
-func PIDFileDir() string {
-	return path.Join(Sys.Root, pidFilePath)
 }
 
 // killHelper was pulled from toolbox, and that variant should be directed at this

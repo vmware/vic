@@ -23,9 +23,9 @@ import (
 
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -90,10 +90,7 @@ func (c *ContainerStore) Owners(op trace.Operation, url *url.URL, filter func(vm
 		return nil, errors.New("vmdk path must be a datastore url with \"ds\" scheme")
 	}
 
-	dsPath, _ := datastore.PathFromString(url.Path)
-	config := disk.NewPersistentDisk(dsPath)
-
-	return c.InUse(op, config, disk.LockedVMDKFilter)
+	return c.Vmdk.Owners(op, url, filter)
 }
 
 // NewDataSource creates and returns an DataSource associated with container storage
@@ -103,7 +100,12 @@ func (c *ContainerStore) NewDataSource(op trace.Operation, id string) (storage.D
 		return nil, err
 	}
 
-	source, err := c.newDataSource(op, uri)
+	offlineAttempt := 0
+offline:
+	offlineAttempt++
+
+	// This is persistent to avoid issues with concurrent Stat/Import calls
+	source, err := c.newDataSource(op, uri, true)
 	if err == nil {
 		return source, err
 	}
@@ -115,6 +117,7 @@ func (c *ContainerStore) NewDataSource(op trace.Operation, id string) (storage.D
 	}
 
 	// online - Owners() should filter out the appliance VM
+	// #nosec: Errors unhandled.
 	owners, _ := c.Owners(op, uri, disk.LockedVMDKFilter)
 	if len(owners) == 0 {
 		op.Infof("No online owners were found for %s", id)
@@ -122,6 +125,19 @@ func (c *ContainerStore) NewDataSource(op trace.Operation, id string) (storage.D
 	}
 
 	for _, o := range owners {
+		// sanity check to see if we are the owner - this should catch transitions
+		// from container running to diff or commit for example between the offline attempt and here
+		uuid, err := o.UUID(op)
+		if err == nil {
+			// check if the vm is appliance VM if we can successfully get its UUID
+			// #nosec: Errors unhandled.
+			self, _ := guest.IsSelf(op, uuid)
+			if self && offlineAttempt < 2 {
+				op.Infof("Appliance is owner of online vmdk - retrying offline source path")
+				goto offline
+			}
+		}
+
 		online, err := c.newOnlineDataSource(op, o, id)
 		if online != nil {
 			return online, err
@@ -133,8 +149,8 @@ func (c *ContainerStore) NewDataSource(op trace.Operation, id string) (storage.D
 	return nil, errors.New("unable to create online or offline data source")
 }
 
-func (c *ContainerStore) newDataSource(op trace.Operation, url *url.URL) (storage.DataSource, error) {
-	mountPath, cleanFunc, err := c.Mount(op, url, false)
+func (c *ContainerStore) newDataSource(op trace.Operation, url *url.URL, persistent bool) (storage.DataSource, error) {
+	mountPath, cleanFunc, err := c.Mount(op, url, persistent)
 	if err != nil {
 		return nil, err
 	}
@@ -150,11 +166,12 @@ func (c *ContainerStore) newDataSource(op trace.Operation, url *url.URL) (storag
 }
 
 func (c *ContainerStore) newOnlineDataSource(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSource, error) {
-	op.Debugf("Constructing toolbox data sink: %s.%s", owner.Reference(), id)
+	op.Debugf("Constructing toolbox data source: %s.%s", owner.Reference(), id)
 
 	return &ToolboxDataSource{
-		VM: owner,
-		ID: id,
+		VM:    owner,
+		ID:    id,
+		Clean: func() { return },
 	}, nil
 }
 
@@ -164,6 +181,10 @@ func (c *ContainerStore) NewDataSink(op trace.Operation, id string) (storage.Dat
 	if err != nil {
 		return nil, err
 	}
+
+	offlineAttempt := 0
+offline:
+	offlineAttempt++
 
 	sink, err := c.newDataSink(op, uri)
 	if err == nil {
@@ -177,6 +198,7 @@ func (c *ContainerStore) NewDataSink(op trace.Operation, id string) (storage.Dat
 	}
 
 	// online - Owners() should filter out the appliance VM
+	// #nosec: Errors unhandled.
 	owners, _ := c.Owners(op, uri, disk.LockedVMDKFilter)
 	if len(owners) == 0 {
 		op.Infof("No online owners were found for %s", id)
@@ -184,6 +206,19 @@ func (c *ContainerStore) NewDataSink(op trace.Operation, id string) (storage.Dat
 	}
 
 	for _, o := range owners {
+		// sanity check to see if we are the owner - this should catch transitions
+		// from container running to diff or commit for example between the offline attempt and here
+		uuid, err := o.UUID(op)
+		if err == nil {
+			// check if the vm is appliance VM if we can successfully get its UUID
+			// #nosec: Errors unhandled.
+			self, _ := guest.IsSelf(op, uuid)
+			if self && offlineAttempt < 2 {
+				op.Infof("Appliance is owner of online vmdk - retrying offline source path")
+				goto offline
+			}
+		}
+
 		online, err := c.newOnlineDataSink(op, o, id)
 		if online != nil {
 			return online, err
@@ -215,8 +250,9 @@ func (c *ContainerStore) newOnlineDataSink(op trace.Operation, owner *vm.Virtual
 	op.Debugf("Constructing toolbox data sink: %s.%s", owner.Reference(), id)
 
 	return &ToolboxDataSink{
-		VM: owner,
-		ID: id,
+		VM:    owner,
+		ID:    id,
+		Clean: func() { return },
 	}, nil
 }
 
@@ -251,7 +287,7 @@ func (c *ContainerStore) Export(op trace.Operation, id, ancestor string, spec *a
 	}
 	op.Debugf("Mapped ancestor %s to %s", ancestor, img.String())
 
-	r, err := c.newDataSource(op, img)
+	r, err := c.newDataSource(op, img, false)
 	if err != nil {
 		op.Debugf("Unable to get datasource for ancestor: %s", err)
 
@@ -279,7 +315,10 @@ func (c *ContainerStore) Export(op trace.Operation, id, ancestor string, spec *a
 		return nil, errors.New("mismatched datasource types")
 	}
 
-	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data)
+	// if we want data, exclude the xattrs, otherwise assume diff
+	xattrs := !data
+
+	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data, xattrs)
 	if err != nil {
 		go closers()
 		return nil, err

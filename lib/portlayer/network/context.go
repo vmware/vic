@@ -29,7 +29,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
-	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/ip"
@@ -39,10 +39,6 @@ import (
 )
 
 const (
-	pciSlotNumberBegin int32 = 0xc0
-	pciSlotNumberEnd   int32 = 1 << 10
-	pciSlotNumberInc   int32 = 1 << 5
-
 	DefaultBridgeName = "bridge"
 )
 
@@ -139,12 +135,13 @@ func NewContext(config *Configuration, kv kvstore.KeyValueStore) (*Context, erro
 		subnet := net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}
 
 		scopeData = &ScopeData{
-			ScopeType: n.Type,
-			Name:      nn,
-			Subnet:    &subnet,
-			Gateway:   n.Gateway.IP,
-			DNS:       n.Nameservers,
-			Pools:     pools,
+			ScopeType:  n.Type,
+			Name:       nn,
+			Subnet:     &subnet,
+			Gateway:    n.Gateway.IP,
+			DNS:        n.Nameservers,
+			TrustLevel: n.TrustLevel,
+			Pools:      pools,
 		}
 
 		s, err := ctx.newScope(scopeData)
@@ -160,32 +157,39 @@ func NewContext(config *Configuration, kv kvstore.KeyValueStore) (*Context, erro
 		values, err := kv.List(`context\.scopes\..+`)
 		if err != nil && err != kvstore.ErrKeyNotFound {
 			log.Warnf("error listing scopes from key value store: %s", err)
-		} else {
-			for k, v := range values {
-				s := newScope(uid.NilUID, "", nil, &ScopeData{})
-				if err := s.UnmarshalJSON(v); err != nil {
-					log.Warnf("error loading scope data from key %s, skipping: %s", k, err)
-					continue
-				}
+		}
 
-				var nn string
-				switch s.Type() {
-				case constants.BridgeScopeType:
-					nn = "bridge"
-				case constants.ExternalScopeType:
-					nn = s.name
-				}
+		for k, v := range values {
+			s := newScope(uid.NilUID, "", nil, &ScopeData{})
+			if err := s.UnmarshalJSON(v); err != nil {
+				log.Warnf("error loading scope data from key %s, skipping: %s", k, err)
+				continue
+			}
 
-				pg := config.PortGroups[nn]
-				if pg == nil {
-					log.Warnf("skipping adding scope %s: port group %s not found", s.name, nn)
-					continue
-				}
+			var nn string
+			switch s.Type() {
+			case constants.BridgeScopeType:
+				nn = "bridge"
+			case constants.ExternalScopeType:
+				nn = s.name
+			}
 
-				s.network = pg
+			pg := config.PortGroups[nn]
+			if pg == nil {
+				log.Warnf("skipping adding scope %s: port group %s not found", s.name, nn)
+				continue
+			}
 
-				if err := ctx.addScope(s); err != nil {
-					log.Warnf("skipping adding scope %s: %s", s.name, err)
+			s.network = pg
+
+			if err := ctx.addScope(s); err != nil {
+				log.Warnf("skipping adding scope %s: %s", s.name, err)
+				continue
+			}
+
+			if s.Type() == constants.BridgeScopeType {
+				if err = ctx.addGatewayAddr(s); err != nil {
+					log.Warnf("could not add gateway addr to bridge interface for scope %s", s.Name())
 				}
 			}
 		}
@@ -242,7 +246,7 @@ func (c *Context) addScope(s *Scope) error {
 
 	var err error
 	var defaultPool bool
-	var allzeros, allones net.IP
+	var allZeros, allOnes net.IP
 	var space *AddressSpace
 	spaces := s.spaces
 	subnet := s.subnet
@@ -266,11 +270,11 @@ func (c *Context) addScope(s *Scope) error {
 			}
 
 			// release all-ones and all-zeros addresses
-			if !ip.IsUnspecifiedIP(allzeros) {
-				p.ReleaseIP4(allzeros)
+			if !ip.IsUnspecifiedIP(allZeros) {
+				p.ReleaseIP4(allZeros)
 			}
-			if !ip.IsUnspecifiedIP(allones) {
-				p.ReleaseIP4(allones)
+			if !ip.IsUnspecifiedIP(allOnes) {
+				p.ReleaseIP4(allOnes)
 			}
 		}
 
@@ -294,11 +298,11 @@ func (c *Context) addScope(s *Scope) error {
 
 		// reserve all-ones and all-zeros addresses, which are not routable and so
 		// should not be handed out
-		allones = ip.AllOnesAddr(subnet)
-		allzeros = ip.AllZerosAddr(subnet)
+		allOnes = ip.AllOnesAddr(subnet)
+		allZeros = ip.AllZerosAddr(subnet)
 		for _, p := range spaces {
-			p.ReserveIP4(allones)
-			p.ReserveIP4(allzeros)
+			p.ReserveIP4(allOnes)
+			p.ReserveIP4(allZeros)
 
 			// reserve DNS IPs
 			for _, d := range s.dns {
@@ -349,6 +353,16 @@ func (c *Context) newScopeCommon(id uid.UID, scopeType string, network object.Ne
 	return newScope, nil
 }
 
+func (c *Context) addGatewayAddr(s *Scope) error {
+	if err := c.config.BridgeLink.AddrAdd(net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}); err != nil {
+		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (c *Context) newBridgeScope(id uid.UID, scopeData *ScopeData) (newScope *Scope, err error) {
 	defer trace.End(trace.Begin(""))
 	bnPG, ok := c.config.PortGroups[c.config.BridgeNetwork]
@@ -371,10 +385,8 @@ func (c *Context) newBridgeScope(id uid.UID, scopeData *ScopeData) (newScope *Sc
 	}
 
 	// add the gateway address to the bridge interface
-	if err = c.config.BridgeLink.AddrAdd(net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}); err != nil {
-		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
-			log.Warnf("failed to add gateway address %s to bridge interface: %s", s.Gateway(), err)
-		}
+	if err = c.addGatewayAddr(s); err != nil {
+		log.Warnf("failed to add gateway address %s to bridge interface: %s", s.Gateway(), err)
 	}
 
 	return s, nil
@@ -496,6 +508,7 @@ type ScopeData struct {
 	Subnet      *net.IPNet
 	Gateway     net.IP
 	DNS         []net.IP
+	TrustLevel  executor.TrustLevel
 	Pools       []string
 	Annotations map[string]string
 	Internal    bool
@@ -724,6 +737,7 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		}
 		ne.Network.Gateway = net.IPNet{IP: e.Gateway(), Mask: e.Subnet().Mask}
 		ne.Network.Nameservers = make([]net.IP, len(s.dns))
+		ne.Internal = s.Internal()
 		copy(ne.Network.Nameservers, s.dns)
 
 		// mark the external network as default
@@ -963,7 +977,7 @@ var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, e
 		}
 	}
 
-	if spec.VirtualDeviceSlotNumber(d) == spec.NilSlot {
+	if spec.VirtualDeviceSlotNumber(d) == constants.NilSlot {
 		slots := make(map[int32]bool)
 		for _, e := range h.ExecConfig.Networks {
 			if e.Common.ID != "" {
@@ -1026,6 +1040,7 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 		// only one "external" scope per container is allowed
 		if s.Type() == constants.ExternalScopeType {
 			for name := range h.ExecConfig.Networks {
+				// #nosec: Errors unhandled.
 				sc, _ := c.resolveScope(name)
 				if sc.Type() == constants.ExternalScopeType {
 					return fmt.Errorf("container can only be added to at most one mapped network")
@@ -1044,6 +1059,12 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 				log.Errorln(err)
 				return err
 			}
+		}
+		// Check that ports are only opened on published network firewall configuration.
+		if len(options.Ports) > 0 && s.TrustLevel() == executor.Closed {
+			err = fmt.Errorf("Ports cannot be published via the \"closed\" container network firewall.")
+			log.Errorln(err)
+			return err
 		}
 	}
 
@@ -1094,8 +1115,9 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 			Common: executor.Common{
 				Name: s.Name(),
 			},
-			Aliases: options.Aliases,
-			Type:    s.Type(),
+			Aliases:    options.Aliases,
+			Type:       s.Type(),
+			TrustLevel: s.TrustLevel(),
 		},
 		Ports: options.Ports,
 	}
@@ -1127,6 +1149,7 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 		return fmt.Errorf("handle is required")
 	}
 
+	// #nosec: Errors unhandled.
 	if con, _ := c.container(h); con != nil {
 		return fmt.Errorf("container is bound")
 	}
@@ -1246,6 +1269,35 @@ func (c *Context) DeleteScope(ctx context.Context, name string) error {
 		return fmt.Errorf("%s has active endpoints", s.Name())
 	}
 
+	var allZeros, allOnes net.IP
+	if !ip.IsUnspecifiedSubnet(s.subnet) {
+		allZeros = ip.AllZerosAddr(s.subnet)
+		allOnes = ip.AllOnesAddr(s.subnet)
+	}
+
+	for _, p := range s.spaces {
+		for _, i := range append(s.dns, s.gateway, allZeros, allOnes) {
+			if !ip.IsUnspecifiedIP(i) {
+				p.ReleaseIP4(i)
+			}
+		}
+
+		if p.Parent != nil {
+			p.Parent.ReleaseIP4Range(p)
+		}
+	}
+
+	var parentSpace *AddressSpace
+	if len(s.spaces) == 1 {
+		parentSpace = s.spaces[0]
+	} else if len(s.spaces) > 1 {
+		parentSpace = s.spaces[0].Parent
+	}
+
+	if parentSpace != nil {
+		c.defaultBridgePool.ReleaseIP4Range(parentSpace)
+	}
+
 	if c.kv != nil {
 		if err = c.kv.Delete(ctx, scopeKey(s.Name())); err != nil && err != kvstore.ErrKeyNotFound {
 			return err
@@ -1271,6 +1323,7 @@ func (c *Context) deleteScope(s *Scope) {
 }
 
 func atoiOrZero(a string) int32 {
+	// #nosec: Errors unhandled.
 	i, _ := strconv.Atoi(a)
 	return int32(i)
 }

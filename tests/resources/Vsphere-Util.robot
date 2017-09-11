@@ -36,6 +36,8 @@ Power Off VM OOB
 
 Destroy VM OOB
     [Arguments]  ${vm}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc object.method -name Destroy_Task -enable %{TEST_DATACENTER}/vm/%{VCH-NAME}/${vm}
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}/"${vm}"
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "${vm}"
@@ -197,6 +199,12 @@ Assign Vsphere License
     ${out}=  Run  govc license.assign -host ${host} ${license}
     Should Contain  ${out}  Key:
 
+Assign vCenter License
+    [Tags]  secret
+    [Arguments]  ${license}
+    ${out}=  Run  govc license.assign ${license}
+    Should Contain  ${out}  Key:
+
 Add Host To VCenter
     [Arguments]  ${host}  ${user}  ${dc}  ${pw}
     :FOR  ${idx}  IN RANGE  1  4
@@ -228,5 +236,3 @@ Check VM Guestinfo
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e ${vm} | grep ${str}
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${output}
-
-    

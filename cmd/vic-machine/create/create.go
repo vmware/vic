@@ -715,6 +715,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 		log.Error("Create cannot continue: failed to create validator")
 		return err
 	}
+	defer validator.Session.Logout(ctx)
 
 	vchConfig, err := validator.Validate(ctx, c.Data)
 	if err != nil {

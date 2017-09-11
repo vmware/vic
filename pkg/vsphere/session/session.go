@@ -26,7 +26,10 @@ package session
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -45,6 +48,10 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+)
+
+const (
+	defaultMaxInFlight = 16
 )
 
 // Config contains the configuration used to create a Session.
@@ -81,15 +88,42 @@ type Session struct {
 	Host       *object.HostSystem
 	Pool       *object.ResourcePool
 
-	Finder *find.Finder
+	VMFolder *object.Folder
 
-	folders *object.DatacenterFolders
+	Finder *find.Finder
+}
+
+// RoundTripFunc alias
+type RoundTripFunc func(*http.Request) (*http.Response, error)
+
+// RoundTrip method
+func (rt RoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return rt(r)
+}
+
+// LimitConcurrency limits how many requests can be processed at once
+func LimitConcurrency(rt http.RoundTripper, limit int) http.RoundTripper {
+	limiter := make(chan struct{}, limit)
+
+	return RoundTripFunc(func(r *http.Request) (*http.Response, error) {
+		// reserve a slot
+		limiter <- struct{}{}
+
+		// free the slot
+		defer func() {
+			<-limiter
+		}()
+
+		// use the given round tripper
+		return rt.RoundTrip(r)
+	})
 }
 
 // NewSession creates a new Session struct. If config is nil,
 // it creates a Flags object from the command line arguments or
 // environment, and uses that instead to create a Session.
 func NewSession(config *Config) *Session {
+	log.Debugf("Creating VMOMI session with thumbprint %s", config.Thumbprint)
 	return &Session{Config: config}
 }
 
@@ -105,6 +139,7 @@ func (s *Session) IsVC() bool {
 
 // IsVSAN returns whether the datastore used in the session is backed by VSAN
 func (s *Session) IsVSAN(ctx context.Context) bool {
+	// #nosec: Errors unhandled.
 	dsType, _ := s.Datastore.Type(ctx)
 
 	return dsType == types.HostFileSystemVolumeFileSystemTypeVsan
@@ -134,6 +169,7 @@ func (s *Session) Create(ctx context.Context) (*Session, error) {
 	// we're treating this as an atomic behaviour, so log out if we failed
 	defer func() {
 		if err != nil {
+			// #nosec: Errors unhandled.
 			s.Client.Logout(ctx)
 		}
 	}()
@@ -177,8 +213,19 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 
 	soapClient.SetThumbprint(soapURL.Host, s.Thumbprint)
 
-	// TODO: option to set http.Client.Transport.TLSClientConfig.RootCAs
+	maxInFlight := defaultMaxInFlight
+	if e := os.Getenv("VIC_MAX_IN_FLIGHT"); e != "" {
+		if i, err := strconv.Atoi(e); err == nil {
+			maxInFlight = i
+		}
+	}
+	// Limit the concurrenty of SOAP requests
+	if t, ok := soapClient.Transport.(*http.Transport); ok {
+		t.MaxIdleConnsPerHost = maxInFlight
+	}
+	soapClient.Transport = LimitConcurrency(soapClient.Transport, maxInFlight)
 
+	// TODO: option to set http.Client.Transport.TLSClientConfig.RootCAs
 	vimClient, err := vim25.NewClient(ctx, soapClient)
 	if err != nil {
 		return nil, SoapClientError{
@@ -281,6 +328,16 @@ func (s *Session) Populate(ctx context.Context) (*Session, error) {
 		log.Debugf("Cached pool: %s", s.PoolPath)
 	}
 
+	if s.Datacenter != nil {
+		folders, err := s.Datacenter.Folders(ctx)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("Failure finding folders (%s): %s", s.DatacenterPath, err.Error()))
+		} else {
+			log.Debugf("Cached folders: %s", s.DatacenterPath)
+		}
+		s.VMFolder = folders.VmFolder
+	}
+
 	if len(errs) > 0 {
 		log.Debugf("Error count populating vSphere cache: (%d)", len(errs))
 		return nil, errors.New(strings.Join(errs, "\n"))
@@ -303,20 +360,6 @@ func (s *Session) logEnvironmentInfo() {
 		"UUID":        a.InstanceUuid,
 	}).Debug("Session Environment Info: ")
 	return
-}
-
-func (s *Session) Folders(ctx context.Context) *object.DatacenterFolders {
-	var err error
-
-	if s.folders != nil {
-		return s.folders
-	}
-
-	if s.folders, err = s.Datacenter.Folders(ctx); err != nil {
-		return nil
-	}
-
-	return s.folders
 }
 
 func isNotAuthenticated(err error) bool {

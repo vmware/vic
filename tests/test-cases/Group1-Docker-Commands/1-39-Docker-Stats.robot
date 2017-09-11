@@ -17,6 +17,7 @@ Documentation   Test 1-39 - Docker Stats
 Resource        ../../resources/Util.robot
 Suite Setup     Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Keywords ***
 Get Average Active Memory
@@ -99,12 +100,11 @@ Stats API Memory Validation
     Should Be True  ${diff} < 1000
 
 Stats API CPU Validation
-    ${rc}  ${apiCPU}=  Run And Return Rc And Output  curl -sk --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem -H "Accept: application/json" -H "Content-Type: application/json" -X GET https://%{VCH-IP}:%{VCH-PORT}/containers/%{STRESSED}/stats?stream=false | jq -r .cpu_stats.cpu_usage.percpu_usage[0]
+    ${rc}  ${apiCPU}=  Run And Return Rc And Output  curl -sk --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem -H "Accept: application/json" -H "Content-Type: application/json" -X GET https://%{VCH-IP}:%{VCH-PORT}/containers/%{STRESSED}/stats?stream=false
     Should Be Equal As Integers  ${rc}  0
-    ${stress}=  Get Container ShortID  %{STRESSED}
-    ${rc}  ${vmomiCPU}=  Run And Return Rc And Output  govc metric.sample -json %{VM-PATH} cpu.usagemhz.average | jq -r .Sample[].Value[0].Value[]
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${vmomiCPU}  ${apiCPU}
+    Should Contain  ${apiCPU}  cpu_stats
+    Should Contain  ${apiCPU}  cpu_usage
+    Should Contain  ${apiCPU}  total_usage
 
 Stats No Stream Non-Existent Container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stats --no-stream fake
@@ -116,3 +116,13 @@ Stats No Stream Specific Stopped Container
     Should Be Equal As Integers  ${rc}  0
     ${stop}=  Get Container ShortID  %{STOPPER}
     Should Contain  ${output}  ${stop}
+
+Stats API Disk and Network Validation
+    ${rc}  ${api}=  Run And Return Rc And Output  curl -sk --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem -H "Accept: application/json" -H "Content-Type: application/json" -X GET https://%{VCH-IP}:%{VCH-PORT}/containers/%{STRESSED}/stats?stream=false
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${api}  ethernet
+    Should Contain  ${api}  Read
+    Should Contain  ${api}  Write
+    Should Contain  ${api}  op
+    Should Contain  ${api}  major
+    Should Contain  ${api}  minor

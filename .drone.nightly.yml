@@ -4,7 +4,7 @@ clone:
 
 build:
   integration-test:
-    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.33}
+    image: gcr.io/eminent-nation-87317/vic-integration-test:1.35
     pull: true
     environment:
       BIN: vic
@@ -36,5 +36,6 @@ build:
       GS_PROJECT_ID: $$GS_PROJECT_ID
       GS_CLIENT_EMAIL: $$GS_CLIENT_EMAIL
       GS_PRIVATE_KEY: $$GS_PRIVATE_KEY
+      VC_LICENSE: $$VC_LICENSE
     commands:
         - $$test

@@ -16,7 +16,7 @@ package syslog
 
 import "time"
 
-const defaultDialTimeout = 10 * time.Second
+const defaultDialTimeout = 1 * time.Minute
 
 type dialer interface {
 	dial() (Writer, error)

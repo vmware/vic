@@ -79,8 +79,7 @@ func TestGuestInfoSecret(t *testing.T) {
 			},
 		}
 
-		folder := s.Folders(ctx).VmFolder
-		task, err := folder.CreateVM(ctx, spec, s.Pool, nil)
+		task, err := s.VMFolder.CreateVM(ctx, spec, s.Pool, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

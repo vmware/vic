@@ -101,6 +101,7 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 	snapshotName = strings.TrimSpace(snapshotName)
 
 	// check for old snapshot
+	// #nosec: Errors unhandled.
 	oldSnapshot, _ := d.appliance.GetCurrentSnapshotTree(d.ctx)
 
 	newSnapshotRef, err := d.tryCreateSnapshot(snapshotName, "configure snapshot")

@@ -19,6 +19,7 @@ import (
 	"io"
 	"net/url"
 	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -38,6 +39,19 @@ var (
 	importers map[string]Importer
 	exporters map[string]Exporter
 )
+
+type FileStat struct {
+	LinkTarget string
+	Mode       uint32
+	Name       string
+	Size       int64
+	ModTime    time.Time
+}
+
+func init() {
+	importers = make(map[string]Importer)
+	exporters = make(map[string]Exporter)
+}
 
 func create(ctx context.Context, session *session.Session, pool *object.ResourcePool) error {
 	var err error
@@ -64,9 +78,6 @@ func Init(ctx context.Context, session *session.Session, pool *object.ResourcePo
 		log.Debugf("Decoded VCH config for storage: %#v", Config)
 
 		err = create(ctx, session, pool)
-
-		importers = make(map[string]Importer)
-		exporters = make(map[string]Exporter)
 	})
 	return err
 }
@@ -148,6 +159,9 @@ type DataSource interface {
 	//     nfs volume:  		 XDR-client
 	//     via guesttools:  	 toolbox client
 	Source() interface{}
+
+	// Stat stats the filesystem target indicated by the last entry in the given Filterspecs inclusion map
+	Stat(op trace.Operation, spec *archive.FilterSpec) (*FileStat, error)
 }
 
 // DataSink defines the methods for importing data to a specific storage element from a tar stream

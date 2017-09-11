@@ -21,6 +21,7 @@ import (
 	"os"
 
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/disk"
@@ -43,6 +44,10 @@ func (v *VolumeStore) NewDataSink(op trace.Operation, id string) (storage.DataSi
 		return nil, err
 	}
 
+	offlineAttempt := 0
+offline:
+	offlineAttempt++
+
 	source, err := v.newDataSink(op, uri)
 	if err == nil {
 		return source, err
@@ -55,13 +60,28 @@ func (v *VolumeStore) NewDataSink(op trace.Operation, id string) (storage.DataSi
 	}
 
 	// online - Owners() should filter out the appliance VM
+	// #nosec: Errors unhandled.
 	owners, _ := v.Owners(op, uri, disk.LockedVMDKFilter)
 	if len(owners) == 0 {
+		op.Infof("No online owners were found for %s", id)
 		return nil, errors.New("unable to create offline data sink and no online owners found")
 	}
 
 	for _, o := range owners {
-		online, err := v.newOnlineDataSink(op, o)
+		// sanity check to see if we are the owner - this should catch transitions
+		// from container running to diff or commit for example between the offline attempt and here
+		uuid, err := o.UUID(op)
+		if err == nil {
+			// check if the vm is appliance VM if we can successfully get its UUID
+			// #nosec: Errors unhandled.
+			self, _ := guest.IsSelf(op, uuid)
+			if self && offlineAttempt < 2 {
+				op.Infof("Appliance is owner of online vmdk - retrying offline source path")
+				goto offline
+			}
+		}
+
+		online, err := v.newOnlineDataSink(op, o, id)
 		if online != nil {
 			return online, err
 		}
@@ -88,8 +108,14 @@ func (v *VolumeStore) newDataSink(op trace.Operation, url *url.URL) (storage.Dat
 	return storage.NewMountDataSink(op, f, cleanFunc), nil
 }
 
-func (v *VolumeStore) newOnlineDataSink(op trace.Operation, owner *vm.VirtualMachine) (storage.DataSink, error) {
-	return nil, errors.New("online sink not yet supported - expecting this to be a common toolbox implementation")
+func (v *VolumeStore) newOnlineDataSink(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSink, error) {
+	op.Debugf("Constructing toolbox data sink: %s.%s", owner.Reference(), id)
+
+	return &ToolboxDataSink{
+		VM:    owner,
+		ID:    storage.Label(id),
+		Clean: func() { return },
+	}, nil
 }
 
 func (i *ImageStore) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {

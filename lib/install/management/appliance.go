@@ -41,8 +41,8 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
@@ -191,17 +191,31 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		}
 	}
 
+	//removes the vm from vsphere, but detaches the disks first
 	_, err = vm.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return vm.DeleteExceptDisks(ctx)
 	})
+	// We are getting ConcurrentAccess errors from DeleteExceptDisks - even though we don't set ChangeVersion in that path
+	// We are ignoring the error because in reality the operation finishes successfully.
+	ignore := false
 	if err != nil {
-		err = errors.Errorf("Failed to destroy VM %q: %s", vm.Reference(), err)
-		err2 := vm.Unregister(d.ctx)
-		if err2 != nil {
-			return errors.Errorf("%s then failed to unregister VM: %s", err, err2)
+		if f, ok := err.(types.HasFault); ok {
+			switch f.Fault().(type) {
+			case *types.ConcurrentAccess:
+				log.Warnf("DeleteExceptDisks failed with ConcurrentAccess error. Ignoring it.")
+				ignore = true
+			}
 		}
-		log.Infof("Unregistered VM to cleanup after failed destroy: %q", vm.Reference())
+		if !ignore {
+			err = errors.Errorf("Failed to destroy VM %q: %s", vm.Reference(), err)
+			err2 := vm.Unregister(d.ctx)
+			if err2 != nil {
+				return errors.Errorf("%s then failed to unregister VM: %s", err, err2)
+			}
+			log.Infof("Unregistered VM to cleanup after failed destroy: %q", vm.Reference())
+		}
 	}
+
 	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
 		log.Warnf("Failed to remove datastore files for VM path %q: %s", folder, err)
 	}
@@ -250,7 +264,7 @@ func (d *Dispatcher) addNetworkDevices(conf *config.VirtualContainerHostConfigSp
 		}
 
 		slot := cspec.AssignSlotNumber(nic, slots)
-		if slot == spec.NilSlot {
+		if slot == constants.NilSlot {
 			err = errors.Errorf("Failed to assign stable PCI slot for %q network card", name)
 		}
 
@@ -480,9 +494,8 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		})
 	} else {
 		// if vapp is not created, fall back to create VM under default resource pool
-		folder := d.session.Folders(d.ctx).VmFolder
 		info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-			return folder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
+			return d.session.VMFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
 		})
 	}
 
@@ -883,6 +896,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 				addr, err := addrToUse([]net.IP{cip}, cert, conf.CertificateAuthorities)
 				if err != nil {
 					log.Debugf("Unable to determine address to use with remote certificate, checking SANs")
+					// #nosec: Errors unhandled.
 					addr, _ = viableHostAddress([]net.IP{cip}, cert, conf.CertificateAuthorities)
 					log.Debugf("Using host address: %s", addr)
 				}

@@ -16,13 +16,16 @@ package netfilter
 
 import (
 	"context"
-	"errors"
+	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+
+	"github.com/vmware/vic/lib/tether"
 )
 
 //
@@ -55,6 +58,7 @@ type State string
 type Protocol string
 type Target string
 type Table string
+type ICMPType string
 
 const (
 	Prerouting = Chain("PREROUTING")
@@ -68,8 +72,9 @@ const (
 	Related     = State("RELATED")
 	Untracked   = State("UNTRACKED")
 
-	TCP = Protocol("tcp")
-	UDP = Protocol("udp")
+	TCP  = Protocol("tcp")
+	UDP  = Protocol("udp")
+	ICMP = Protocol("icmp")
 
 	Drop     = Target("DROP")
 	Accept   = Target("ACCEPT")
@@ -77,40 +82,52 @@ const (
 	Redirect = Target("REDIRECT")
 
 	NAT = Table("nat")
+
+	EchoRequest = ICMPType("echo-request")
+	EchoReply   = ICMPType("echo-reply")
 )
 
 type Rule struct {
 	Table
 	Chain
 	States []State
+	ICMPType
 
 	Protocol
 	Target
 
 	Interface        string
+	SourceAddresses  []string
 	FromPort, ToPort int
 }
 
-func (r *Rule) Commit(ctx context.Context) error {
-	args, err := r.args()
-	if err != nil {
-		return err
-	}
-
-	return iptables(ctx, args)
+func (r *Rule) Commit(ctx context.Context) tether.UtilityFn {
+	return iptables(ctx, r.args())
 }
 
-func (r *Rule) args() ([]string, error) {
+func (r *Rule) args() []string {
 	var args []string
 
 	if r.Table != "" {
 		args = append(args, "-t", string(r.Table))
 	}
 
-	args = append(args, "-A", string(r.Chain))
+	if r.Chain == Input || r.Chain == Output {
+		args = append(args, "-A", "VIC")
+	} else {
+		args = append(args, "-A", string(r.Chain))
+	}
 
 	if r.Protocol != "" {
 		args = append(args, "-p", string(r.Protocol))
+	}
+
+	if r.ICMPType != "" {
+		args = append(args, "--icmp-type", string(r.ICMPType))
+	}
+
+	if len(r.SourceAddresses) > 0 {
+		args = append(args, "-s", strings.Join(r.SourceAddresses, ","))
 	}
 
 	if r.FromPort != 0 {
@@ -118,28 +135,27 @@ func (r *Rule) args() ([]string, error) {
 	}
 
 	if len(r.States) > 0 {
-		for _, state := range r.States {
-			args = append(args, "-m", "state", "--state", string(state))
-		}
+		args = append(args, "-m", "state", "--state", joinStates(r.States))
 	}
 
 	if r.Interface != "" {
-		args = append(args, "-i", r.Interface)
+		if r.Chain == Output {
+			args = append(args, "-o", r.Interface)
+		} else {
+			args = append(args, "-i", r.Interface)
+		}
 	}
 
-	if r.Target == "" {
-		return nil, errors.New("target cannot be empty")
-	}
 	args = append(args, "-j", string(r.Target))
 
 	if r.ToPort != 0 {
 		args = append(args, "--to-port", strconv.Itoa(r.ToPort))
 	}
 
-	return args, nil
+	return args
 }
 
-func iptables(ctx context.Context, args []string) error {
+func iptables(ctx context.Context, args []string) tether.UtilityFn {
 	logrus.Infof("Execing iptables %q", args)
 
 	// #nosec: Subprocess launching with variable
@@ -151,28 +167,36 @@ func iptables(ctx context.Context, args []string) error {
 			Chroot: "/.tether",
 		},
 	}
-	b, err := cmd.CombinedOutput()
-	if err != nil {
-		logrus.Errorf("iptables error: %s", err.Error())
 
-		exitErr, ok := err.(*exec.ExitError)
-		if ok && len(exitErr.Stderr) > 0 {
-			logrus.Errorf("iptables error: %s", string(exitErr.Stderr))
-		}
+	return func() (*os.Process, error) {
+		return os.StartProcess(cmd.Path, cmd.Args, &os.ProcAttr{
+			Dir: cmd.Dir,
+			Sys: cmd.SysProcAttr,
+		})
 	}
-
-	if len(b) > 0 {
-		logrus.Infof("iptables: %s", string(b))
-	}
-
-	return err
 }
 
-func Flush(ctx context.Context, table string) error {
+func Flush(ctx context.Context, chain string) tether.UtilityFn {
 	args := []string{"-F"}
-	if table != "" {
-		args = append(args, "-t", table)
+	if chain != "" {
+		args = append(args, chain)
 	}
 
 	return iptables(ctx, args)
+}
+
+func Return(ctx context.Context, chain string) tether.UtilityFn {
+	return iptables(ctx, []string{"-A", chain, "-j", "RETURN"})
+}
+
+func Policy(ctx context.Context, chain Chain, target Target) tether.UtilityFn {
+	return iptables(ctx, []string{"-P", string(chain), string(target)})
+}
+
+func joinStates(states []State) string {
+	tmp := make([]string, len(states))
+	for i, v := range states {
+		tmp[i] = string(v)
+	}
+	return strings.Join(tmp, ",")
 }

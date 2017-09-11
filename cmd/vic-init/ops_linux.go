@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 
@@ -29,7 +30,7 @@ const (
 	publicIfaceName = "public"
 )
 
-func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
+func (t *operations) SetupFirewall(ctx context.Context, config *tether.ExecutorConfig) error {
 	// get the public interface name
 	l, err := netlink.LinkByName(publicIfaceName)
 	if l == nil {

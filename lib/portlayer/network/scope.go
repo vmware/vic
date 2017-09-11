@@ -21,7 +21,8 @@ import (
 	"sync"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/uid"
 )
@@ -35,6 +36,7 @@ type Scope struct {
 	subnet      *net.IPNet
 	gateway     net.IP
 	dns         []net.IP
+	trustLevel  executor.TrustLevel
 	containers  map[uid.UID]*Container
 	endpoints   []*Endpoint
 	spaces      []*AddressSpace
@@ -52,6 +54,7 @@ func newScope(id uid.UID, scopeType string, network object.NetworkReference, sco
 		subnet:      scopeData.Subnet,
 		gateway:     scopeData.Gateway,
 		dns:         scopeData.DNS,
+		trustLevel:  scopeData.TrustLevel,
 		network:     network,
 		containers:  make(map[uid.UID]*Container),
 		annotations: make(map[string]string),
@@ -110,6 +113,13 @@ func (s *Scope) Pools() []*ip.Range {
 	defer s.RUnlock()
 
 	return s.pools()
+}
+
+func (s *Scope) TrustLevel() executor.TrustLevel {
+	s.RLock()
+	defer s.RUnlock()
+
+	return s.trustLevel
 }
 
 func (s *Scope) pools() []*ip.Range {

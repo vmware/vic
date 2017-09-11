@@ -25,6 +25,7 @@ Run Docker Info
 
 Pull image
     [Arguments]  ${image}
+    [Timeout]  10 minutes
     Log To Console  \nRunning docker pull ${image}...
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${image}
     Log  ${output}
@@ -34,11 +35,11 @@ Pull image
     Should Not Contain  ${output}  No such image:
 
 Wait Until Container Stops
-    [Arguments]  ${container}
+    [Arguments]  ${container}  ${sleep-time}=1
     :FOR  ${idx}  IN RANGE  0  60
     \   ${out}=  Run  docker %{VCH-PARAMS} inspect -f '{{.State.Running}}' ${container}
     \   Return From Keyword If  '${out}' == 'false'
-    \   Sleep  1
+    \   Sleep  ${sleep-time}
     Fail  Container did not stop within 60 seconds
 
 Hit Nginx Endpoint
@@ -177,3 +178,22 @@ Launch Container
     ${id}=  Get Line  ${output}  -1
     ${ip}=  Get Container IP  %{VCH-PARAMS}  ${id}  ${network}  ${dockercmd}
     [Return]  ${id}  ${ip}
+
+Start Container and Exec Command
+    [Arguments]  ${containerName}  ${cmd}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerName}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${containerName} ${cmd}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    [Return]  ${output}
+
+Verify Volume Inspect Info
+    [Arguments]  ${inspectedWhen}  ${volTestContainer}  ${checkList}
+    Log To Console  \nContainer Mount Inspected ${inspectedWhen}
+    ${rc}  ${mountInfo}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' ${volTestContainer}
+    Should Be Equal As Integers  ${rc}  0
+
+    :FOR  ${item}  IN  @{checkList}
+    \   Should Contain  ${mountInfo}  ${item}

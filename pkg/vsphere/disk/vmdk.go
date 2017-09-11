@@ -62,12 +62,22 @@ func (v *Vmdk) Mount(op trace.Operation, uri *url.URL, persistent bool) (string,
 }
 
 func LockedVMDKFilter(vm *mo.VirtualMachine) bool {
+	if vm == nil {
+		return false
+	}
+
 	return vm.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn
 }
 
+// IsLockedError will determine if the error received is:
+// a. related to a vmdk
+// b. due to the vmdk being locked
+// It will return false in absence of confirmation, meaning incomplete vim errors
+// will return false
 func IsLockedError(err error) bool {
-	// TODO: add check here for actual error
-	return true
+	disks := LockedDisks(err)
+	//if device is locked, disks will not be nil
+	return len(disks) > 0
 }
 
 // LockedDisks returns locked devices path in the error if it's device lock error

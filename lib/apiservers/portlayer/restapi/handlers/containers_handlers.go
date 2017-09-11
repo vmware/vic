@@ -35,6 +35,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/containers"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/iolog"
 	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/portlayer/exec"
@@ -108,6 +109,8 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		LayerID:    params.CreateConfig.Layer,
 		ImageID:    params.CreateConfig.Image,
 		RepoName:   params.CreateConfig.RepoName,
+		Hostname:   params.CreateConfig.Hostname,
+		Domainname: params.CreateConfig.Domainname,
 	}
 
 	if params.CreateConfig.Annotations != nil && len(params.CreateConfig.Annotations) > 0 {
@@ -339,21 +342,23 @@ func (handler *ContainersHandlersImpl) GetContainerStatsHandler(params container
 	enc := json.NewEncoder(w)
 	flusher := NewFlushingReader(r)
 
-	// subscribe to metrics
+	// operation that will log the stats subscription for this client
+	statsOp := trace.NewOperation(context.Background(), "container(%s) stats subscription", params.ID)
+
 	// currently all stats requests will be a subscription and it will
 	// be the responsibility of the caller to close the connection
 	// and there by release the subscription
-	ch, err := metrics.Supervisor.VMCollector().Subscribe(c)
+	ch, err := metrics.Supervisor.Subscribe(statsOp, c)
 	if err != nil {
-		log.Errorf("unable to subscribe container(%s) to stats stream: %s", params.ID, err)
+		statsOp.Errorf("unable to subscribe container(%s) to stats stream: %s", params.ID, err)
 		return containers.NewGetContainerStatsInternalServerError()
 	}
-	log.Debugf("container(%s) stats stream subscribed @ %d", params.ID, &ch)
+	statsOp.Debugf("container(%s) stats stream subscribed", params.ID)
 
 	// closer will be run when the http transport is closed
 	cleaner := func() {
-		log.Debugf("unsubscribing %s from stats %d", params.ID, &ch)
-		metrics.Supervisor.VMCollector().Unsubscribe(c, ch)
+		statsOp.Debugf("unsubscribing %s from stats", params.ID)
+		metrics.Supervisor.Unsubscribe(statsOp, c, ch)
 		closePipe(r, w)
 	}
 
@@ -364,12 +369,12 @@ func (handler *ContainersHandlersImpl) GetContainerStatsHandler(params container
 			select {
 			case metric, ok := <-ch:
 				if !ok {
-					log.Debugf("container stats complete for %s @ %d", params.ID, &ch)
+					statsOp.Debugf("container stats complete for %s", params.ID)
 					return
 				}
 				err := enc.Encode(metric)
 				if err != nil {
-					log.Errorf("encoding error [%s] for container(%s) stats @ %d - stream(%t)", err, params.ID, &ch, params.Stream)
+					statsOp.Errorf("encoding error [%s] for container(%s) stats - stream(%t)", err, params.ID, params.Stream)
 					return
 				}
 			}
@@ -510,10 +515,14 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 	}
 
 	// Populate volume information
-	for volName := range container.ExecConfig.Mounts {
+	for volName, mountSpec := range container.ExecConfig.Mounts {
 		vol := &models.VolumeConfig{
-			Name: volName,
+			Name:       volName,
+			MountPoint: mountSpec.Path,
+			ReadWrite:  strings.Contains(strings.ToLower(mountSpec.Mode), "rw"),
+			Flags:      make(map[string]string),
 		}
+		vol.Flags[constants.Mode] = mountSpec.Mode
 		info.VolumeConfig = append(info.VolumeConfig, vol)
 	}
 

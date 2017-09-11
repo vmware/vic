@@ -98,14 +98,15 @@ func (i *Inspect) Flags() []cli.Flag {
 }
 
 func (i *Inspect) ConfigFlags() []cli.Flag {
-	output := cli.StringFlag{
+	config := cli.StringFlag{
 		Name:        "format",
 		Value:       "verbose",
 		Usage:       "Determine the format of configuration output. Supported formats: raw, verbose",
 		Destination: &i.Format,
 	}
-
-	return []cli.Flag{output}
+	flags := []cli.Flag{config}
+	flags = append(flags, i.Flags()...)
+	return flags
 }
 
 func (i *Inspect) processParams() error {
@@ -128,7 +129,6 @@ func (i *Inspect) run(clic *cli.Context, cmd command) (err error) {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}
-
 	if err = i.processParams(); err != nil {
 		return err
 	}
@@ -144,10 +144,13 @@ func (i *Inspect) run(clic *cli.Context, cmd command) (err error) {
 	defer cancel()
 
 	validator, err := validate.NewValidator(ctx, i.Data)
+
 	if err != nil {
 		log.Errorf("Inspect cannot continue - failed to create validator: %s", err)
 		return errors.New("inspect failed")
 	}
+	defer validator.Session.Logout(ctx)
+
 	_, err = validator.ValidateTarget(ctx, i.Data)
 	if err != nil {
 		log.Errorf("Inspect cannot continue - target validation failed: %s", err)

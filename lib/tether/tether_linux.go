@@ -33,7 +33,6 @@ import (
 const (
 	//https://github.com/golang/go/blob/master/src/syscall/zerrors_linux_arm64.go#L919
 	SetChildSubreaper = 0x24
-	pidFilePath       = ".tether/run"
 
 	// in sync with lib/apiservers/portlayer/handlers/interaction_handler.go
 	// 115200 bps is 14.4 KB/s so use that
@@ -130,20 +129,27 @@ func (t *tether) childReaper() error {
 						continue
 					}
 
-					log.Debugf("Reaped process %d, return code: %d", pid, status.ExitStatus())
+					exitCode := status.ExitStatus()
+					log.Debugf("Reaped process %d, return code: %d", pid, exitCode)
 
 					session, ok := t.removeChildPid(pid)
-					log.Debugf("Remove child pid: %d ok: %t", pid, ok)
 					if ok {
+						log.Debugf("Removed child pid: %d", pid)
 						session.Lock()
-						session.ExitStatus = status.ExitStatus()
+						session.ExitStatus = exitCode
 
 						t.handleSessionExit(session)
 						session.Unlock()
-					} else {
-						// This is an adopted zombie. The Wait4 call already clean it up from the kernel
-						log.Warnf("Reaped zombie process PID %d", pid)
+						continue
 					}
+
+					ok = t.ops.HandleUtilityExit(pid, exitCode)
+					if ok {
+						log.Debugf("Remove utility pid: %d", pid)
+						continue
+					}
+
+					log.Infof("Reaped zombie process PID %d", pid)
 				}
 			}()
 		}
@@ -196,7 +202,7 @@ func lookPath(file string, env []string, dir string) (string, error) {
 		file = fmt.Sprintf("%s%c%s", dir, os.PathSeparator, file)
 		err := findExecutable(file)
 		if err == nil {
-			return file, nil
+			return filepath.Clean(file), nil
 		}
 		return "", err
 	}
@@ -205,7 +211,7 @@ func lookPath(file string, env []string, dir string) (string, error) {
 	if strings.Contains(file, "/") {
 		err := findExecutable(file)
 		if err == nil {
-			return file, nil
+			return filepath.Clean(file), nil
 		}
 		return "", err
 	}
@@ -229,7 +235,7 @@ func lookPath(file string, env []string, dir string) (string, error) {
 		}
 		path := dir + "/" + file
 		if err := findExecutable(path); err == nil {
-			return path, nil
+			return filepath.Clean(path), nil
 		}
 	}
 

@@ -4,6 +4,8 @@ VIC Integration Test Suite
 
 [Group 1 - Docker Commands](Group1-Docker-Commands/TestCases.md)
 -
+[Group 2 - Docker Archive](Group2-Docker-Archive/TestCases.md)
+-
 [Group 3 - Docker Compose](Group3-Docker-Compose/TestCases.md)
 -
 [Group 4 - Docker Integration](Group4-Docker-Integration/TestCases.md)

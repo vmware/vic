@@ -18,7 +18,7 @@ Library  String
 Library  Collections
 Library  requests
 Library  Process
-Library  SSHLibrary  3 minute
+Library  SSHLibrary  5 minute
 Library  DateTime
 Library  Selenium2Library  3  3
 Resource  Nimbus-Util.robot
@@ -31,5 +31,6 @@ Resource  Docker-Util.robot
 Resource  Admiral-Util.robot
 Resource  OVA-Util.robot
 Resource  Cert-Util.robot
+Resource  Slack-Util.robot
 
 Variables  dynamic-vars.py

@@ -181,7 +181,26 @@ This test requires that a vSphere server is running and available
 8. Docker container created with network attached with net1, got ip address inside of network range
 9. Docker create another container, and link to previous one, can talk to the the first container successfully
 
-
+## Container Firewalls
+1. Create an open container and verify another open container can connect to it on arbitrary ports.
+2. a. Try to publish a port on a closed firewall and verify an error is received.
+   b. Create a closed container and verify an open container cannot connect to it on an arbitrary port.
+   c. Create a container connected to a bridge and a closed network. Verify that another container connected
+      to the same bridge can connect to the closed container.
+3. a. Create an outbound container. Verify that an outbound container on the same external network cannot 
+      connect to the first outbound container.
+   b. Verify that the outbound container can initiate a connection with an open network on an arbitrary port.
+   c. Verify that two outbound containers on the same external network and on the same bridge network can
+      talk to one another via hte bridge.
+4. a. Create a published container that publishes port 1337. Verify that an outbound container can connect to port
+      1337 on the published container.
+   b. Verify that an outbound container cannot connect to any other arbitrary port on the published container.
+5. a. Create a peer network `A` with ip range `10.10.10.0/24` and gateway `10.10.10.1/24`.
+   b. Create a peer network `B` with ip range `192.168.0.0/16` and gateway `192.168.0.1/16`.
+   c. Verify that a container on network `B` cannot connect to network `A` through an arbitrary port.
+   d. Verify that a new container on network `A` (a peer) can connect to another container on network `A`
+      on an arbitrary port.
+6. Verify that a closed container can ping localhost
 
 # VCH static IP
 
