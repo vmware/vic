@@ -311,7 +311,8 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 			log.Warnf("%s: %s", msg, err)
 
 			// If the error tells us "The attempted operation cannot be performed in the current state (Powered off)" (InvalidPowerState),
-			// we can safely return nil and avoid hard poweroff (issues #6236 and #6252)
+			// we can avoid hard poweroff (issues #6236 and #6252). Here we wait for the power state changes instead of return
+			// immediately to avoid excess vSphere queries
 			if isInvalidPowerStateError(err) {
 				killed = true
 			}
