@@ -17,7 +17,6 @@ package exec
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -25,6 +24,7 @@ import (
 	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/migration"
@@ -36,9 +36,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 )
-
-// vSphere error msg when sending the kill signal to a containerVM that is already powered off
-const opNotPerformedPoweredOff = "The attempted operation cannot be performed in the current state (Powered off)"
 
 // NotYetExistError is returned when a call that requires a VM exist is made
 type NotYetExistError struct {
@@ -258,7 +255,7 @@ func (c *containerBase) kill(ctx context.Context) error {
 	if err != nil {
 		log.Warnf("killing %s attempt resulted in: %s", c.ExecConfig.ID, err)
 
-		if isOpNotPerformedPoweredOffError(err) {
+		if isInvalidPowerStateError(err) {
 			return nil
 		}
 	}
@@ -311,9 +308,9 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 			// Description above in function kill()
 			log.Warnf("%s: %s", msg, err)
 
-			// If the error tells us "The attempted operation cannot be performed in the current state (Powered off)", we can safely
-			// return nil and avoid hard poweroff (issues #6236 and #6252)
-			if isOpNotPerformedPoweredOffError(err) {
+			// If the error tells us "The attempted operation cannot be performed in the current state (Powered off)" (InvalidPowerState),
+			// we can safely return nil and avoid hard poweroff (issues #6236 and #6252)
+			if isInvalidPowerStateError(err) {
 				return nil
 			}
 		}
@@ -422,7 +419,12 @@ func (c *containerBase) waitFor(ctx context.Context, key string) error {
 	return nil
 }
 
-// isOpNotPerformedPoweredOffError verifies the type of the error by checking if the error msg contains the expected string
-func isOpNotPerformedPoweredOffError(err error) bool {
-	return strings.Contains(err.Error(), opNotPerformedPoweredOff)
+// isInvalidPowerStateError verifies if an error is the InvalidPowerStateError
+func isInvalidPowerStateError(err error) bool {
+	if soap.IsSoapFault(err) {
+		_, ok := soap.ToSoapFault(err).VimFault().(types.InvalidPowerState)
+		return ok
+	}
+
+	return false
 }
