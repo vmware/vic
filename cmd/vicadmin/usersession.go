@@ -25,6 +25,7 @@ import (
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -34,6 +35,22 @@ type UserSession struct {
 	created time.Time
 	config  *session.Config
 	vsphere *session.Session
+}
+
+// Refreshes an expired vSphere session
+func (u *UserSession) Refresh() (*session.Session, error) {
+	defer trace.End(trace.Begin(""))
+	v, err := vSphereSessionGet(u.config)
+
+	if err != nil {
+		return nil, fmt.Errorf("couldn't refresh vSphere session; got error: %s", err)
+	}
+
+	if v == nil {
+		return nil, fmt.Errorf("couldn't refresh vSphere session; no error from vSphere, but no session either")
+	}
+
+	return v, nil
 }
 
 // UserSessionStore holds and manages user sessions
@@ -58,7 +75,6 @@ func (u *UserSessionStore) Add(id string, config *session.Config, vs *session.Se
 	sess := &UserSession{
 		id:      id,
 		created: time.Now(),
-		// TODO strip out config cause it's not needed anymore, but shows up in a number of places
 		config:  config,
 		vsphere: vs,
 	}
@@ -93,10 +109,10 @@ func (u *UserSessionStore) VSphere(ctx context.Context, id string) (*session.Ses
 	if err != nil || vsphus == nil {
 		if err != nil {
 			log.Warnf("Failed to validate user %s session: %v", id, err)
-			return nil, nil
+			return nil, err
 		}
 		log.Warnf("User %s session has expired", id)
-		return nil, nil
+		return us.Refresh()
 	}
 	log.Infof("Found vSphere session for vicadmin usersession %s", id)
 	return us.vsphere, nil
@@ -105,7 +121,6 @@ func (u *UserSessionStore) VSphere(ctx context.Context, id string) (*session.Ses
 // reaper takes abandoned sessions to a farm upstate so they don't build up forever
 func (u *UserSessionStore) reaper() {
 	for range u.ticker.C {
-		log.Infof("Reaping old sessions..")
 		for id, session := range u.sessions {
 			if time.Since(session.created) > sessionExpiration {
 				u.Delete(id)
