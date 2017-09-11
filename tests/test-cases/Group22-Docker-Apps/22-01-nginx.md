@@ -18,8 +18,6 @@ This test requires that a vSphere server is running and available
 `docker run --name nginx2 -d -p 8080:80 nginx`
 4. Run an nginx container in the background with a mapped content folder from a volume:  
 `docker run --name nginx3 -v /some/content:/usr/share/nginx/html:ro -d nginx`
-5. Run an nginx container with a mapped volume and read only config file:  
-`docker run --name nginx4 -v /host/path/nginx.conf:/etc/nginx/nginx.conf:ro -d nginx`
 
 # Expected Outcome:
 * Each step should succeed, nginx should be running without error in each case

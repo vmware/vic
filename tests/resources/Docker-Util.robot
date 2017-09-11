@@ -52,6 +52,11 @@ Get Container IP
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${ip}
 
+Get IP Address of Container
+    [Arguments]  ${container}
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect ${container} | jq -r ".[].NetworkSettings.Networks.bridge.IPAddress"
+    [Return]  ${ip}
+
 # The local dind version is embedded in Dockerfile
 # docker:1.13-dind
 # If you are running this keyword in a container, make sure it is run with --privileged turned on
