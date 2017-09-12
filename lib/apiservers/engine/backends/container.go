@@ -108,6 +108,9 @@ const (
 	DefaultCPUs = 2
 	// Default timeout to stop a container if not specified in container config
 	DefaultStopTimeout = 10
+
+	// maximum elapsed time for retry
+	maxElapsedTime = 2 * time.Minute
 )
 
 var (
@@ -1232,7 +1235,10 @@ func (c *Container) ContainerStop(name string, seconds *int) error {
 	operation := func() error {
 		return c.containerProxy.Stop(vc, name, seconds, true)
 	}
-	if err := retry.Do(operation, IsConflictError); err != nil {
+
+	config := retry.NewBackoffConfig()
+	config.MaxElapsedTime = maxElapsedTime
+	if err := retry.DoWithConfig(operation, IsConflictError, config); err != nil {
 		return err
 	}
 
