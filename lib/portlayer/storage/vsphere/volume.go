@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/config/executor"
@@ -118,6 +119,20 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 
 	// Make the filesystem and set its label
 	if err = vmdisk.Mkfs(op, vol.Label); err != nil {
+		return nil, err
+	}
+
+	// mask lost+found from containerVM
+	opts := []string{"noatime"}
+	path, err := vmdisk.Mount(op, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer vmdisk.Unmount(op)
+
+	// #nosec
+	err = os.Mkdir(filepath.Join(path, disk.VolumeDataDir), 0755)
+	if err != nil {
 		return nil, err
 	}
 

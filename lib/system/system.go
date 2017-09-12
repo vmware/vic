@@ -22,6 +22,8 @@
 package system
 
 import (
+	"path"
+
 	"github.com/vmware/vic/lib/etcconf"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
@@ -37,12 +39,27 @@ type System struct {
 }
 
 func New() System {
+	// #nosec: Errors unhandled.
 	id, _ := sys.UUID()
 	return System{
 		Hosts:      etcconf.NewHosts(""),      // default hosts files, e.g. /etc/hosts on linux
 		ResolvConf: etcconf.NewResolvConf(""), // default resolv.conf file, e.g. /etc/resolv.conf on linux
 		Syscall:    &syscallImpl{},            // the syscall interface
 		Root:       "/",                       // the system root path
+		UUID:       id,
+	}
+}
+
+// NewWithRoot takes a path at which to set the "root" of the system.
+// This will cause the hosts and resolv.conf files to be in their default paths, but
+// relative to that root
+func NewWithRoot(root string) System {
+	id, _ := sys.UUID()
+	return System{
+		Hosts:      etcconf.NewHosts(path.Join(root, etcconf.HostsPath)),           // default hosts files, e.g. /etc/hosts on linux
+		ResolvConf: etcconf.NewResolvConf(path.Join(root, etcconf.ResolvConfPath)), // default resolv.conf file, e.g. /etc/resolv.conf on linux
+		Syscall:    &syscallImpl{},                                                 // the syscall interface
+		Root:       root,                                                           // the system root path
 		UUID:       id,
 	}
 }

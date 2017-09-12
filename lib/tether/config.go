@@ -66,6 +66,10 @@ type ExecutorConfig struct {
 
 	// AsymmetricRouting is set to true if the VCH needs to be setup for asymmetric routing
 	AsymmetricRouting bool `vic:"0.1" scope:"read-only" key:"asymrouting"`
+
+	// Hostname and domainname provided by personality
+	Hostname   string `vic:"0.1" scope:"read-only" key:"hostname"`
+	Domainname string `vic:"0.1" scope:"read-only" key:"domainname"`
 }
 
 // SessionConfig defines the content of a session - this maps to the root of a process tree
@@ -161,6 +165,9 @@ type NetworkEndpoint struct {
 	DHCP *DHCPInfo `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
 	Ports []string `vic:"0.1" scope:"read-only" key:"ports"`
+
+	// is this endpoint connected to an internal network?
+	Internal bool `vic:"0.1" scope:"read-only" key:"internal"`
 
 	// whether the network config was successfully applied
 	configured bool `vic:"0.1" scope:"read-only" recurse:"depth=0"`

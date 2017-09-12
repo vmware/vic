@@ -66,7 +66,7 @@ Basic Whitelisting
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Registry Whitelist Mode: enabled
     Should Contain  ${output}  Whitelisted Registries:
-    Should Contain  ${output}  Registry: registry-1.docker.io
+    Should Contain  ${output}  Registry: registry.hub.docker.com
 
     # Try to login and pull from the HTTPS whitelisted registry (should succeed)
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u admin -p %{TEST_PASSWORD} %{HTTPS_HARBOR_IP}
@@ -94,7 +94,7 @@ Basic Whitelisting
 
 Check Login to Insecure Registry (http)
     # Install VCH w/o specifying insecure registry
-    ${output}=  Install VIC Appliance To Test Server  --registry-ca=./ca.crt
+    ${output}=  Install VIC Appliance To Test Server  additional-args=--registry-ca=./ca.crt
     Should Not Contain  ${output}  Insecure registry %{HTTP_HARBOR_IP} confirmed
     Get Docker Params  ${output}  true
 
@@ -107,7 +107,7 @@ Check Login to Insecure Registry (http)
 
     Cleanup VIC Appliance On Test Server
 
-    ${output}=  Install VIC Appliance To Test Server  --insecure-registry=%{HTTP_HARBOR_IP} --registry-ca=./ca.crt
+    ${output}=  Install VIC Appliance To Test Server  additional-args=--insecure-registry=%{HTTP_HARBOR_IP} --registry-ca=./ca.crt
     Should Contain  ${output}  Insecure registry %{HTTP_HARBOR_IP} confirmed
     Get Docker Params  ${output}  true
 

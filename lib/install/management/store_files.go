@@ -115,6 +115,7 @@ func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, for
 
 	// refuse to delete everything on the datstore, ignore force
 	if path == "" {
+		// #nosec: Errors unhandled.
 		dsn, _ := ds.ObjectName(d.ctx)
 		msg := fmt.Sprintf("refusing to remove datastore files for path \"\" on datastore %q", dsn)
 		return false, errors.New(msg)
@@ -146,6 +147,7 @@ func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, for
 }
 
 func (d *Dispatcher) isVSAN(ds *object.Datastore) bool {
+	// #nosec: Errors unhandled.
 	dsType, _ := ds.Type(d.ctx)
 
 	return dsType == types.HostFileSystemVolumeFileSystemTypeVsan
@@ -176,6 +178,13 @@ func (d *Dispatcher) deleteFilesIteratively(m *object.DatastoreFileManager, ds *
 
 func (d *Dispatcher) deleteVMFSFiles(m *object.DatastoreFileManager, ds *object.Datastore, dsPath string) error {
 	defer trace.End(trace.Begin(dsPath))
+
+	for _, ext := range []string{"-delta.vmdk", "-flat.vmdk"} {
+		if strings.HasSuffix(dsPath, ext) {
+			// Skip backing files as Delete() will do so via DeleteVirtualDisk
+			return nil
+		}
+	}
 
 	if err := m.Delete(d.ctx, dsPath); err != nil {
 		log.Debugf("Failed to delete %q: %s", dsPath, err)

@@ -325,6 +325,8 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		log.Errorf("Configuring cannot continue - failed to create validator: %s", err)
 		return errors.New("configure failed")
 	}
+	defer validator.Session.Logout(ctx)
+
 	_, err = validator.ValidateTarget(ctx, c.Data)
 	if err != nil {
 		log.Errorf("Configuring cannot continue - target validation failed: %s", err)

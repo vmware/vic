@@ -32,7 +32,9 @@ Set Test Environment Variables
     ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
 
     Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
-    Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
+    Set Environment Variable  GOVC_URL  %{TEST_URL}
+    Set Environment Variable  GOVC_USERNAME  %{TEST_USERNAME}
+    Set Environment Variable  GOVC_PASSWORD  %{TEST_PASSWORD}
     # TODO: need an integration/vic-test image update to include the about.cert command
     #${rc}  ${thumbprint}=  Run And Return Rc And Output  govc about.cert -k | jq -r .ThumbprintSHA1
     ${rc}  ${thumbprint}=  Run And Return Rc And Output  openssl s_client -connect $(govc env -x GOVC_URL_HOST):443 </dev/null 2>/dev/null | openssl x509 -fingerprint -noout | cut -d= -f2
@@ -49,6 +51,7 @@ Set Test Environment Variables
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_RESOURCE  ${host}/Resources
     Set Environment Variable  GOVC_RESOURCE_POOL  %{TEST_RESOURCE}
     ${noQuotes}=  Strip String  %{TEST_DATASTORE}  characters="
+    #"
     Set Environment Variable  GOVC_DATASTORE  ${noQuotes}
 
     ${about}=  Run  govc about
@@ -67,6 +70,8 @@ Set Test Environment Variables
     Run Keyword If  $domain != ''  Set Suite Variable  ${vicmachinetls}  --tls-cname=*.${domain}
 
     Set Test VCH Name
+    # cleanup any potential old certs directories
+    Remove Directory  %{VCH-NAME}  recursive=${true}
     # Set a unique bridge network for each VCH that has a random VLAN ID
     ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitchLAN %{VCH-NAME}-bridge
@@ -156,7 +161,7 @@ Get Docker Params
     Run Keyword If  ${tls_enabled} == ${true}  Set Environment Variable  COMPOSE-PARAMS  -H ${dockerHost}
 
 Install VIC Appliance To Test Server
-    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${additional-args}=  
+    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${additional-args}=${EMPTY}
     Set Test Environment Variables
     # disable firewall
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
@@ -170,21 +175,23 @@ Install VIC Appliance To Test Server
 
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${additional-args}
+    ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${debug}  ${additional-args}
     Log  ${output}
     Should Contain  ${output}  Installer completed successfully
+
     Get Docker Params  ${output}  ${certs}
     Log To Console  Installer completed successfully: %{VCH-NAME}...
+
     [Return]  ${output}
 
 Run VIC Machine Command
     [Tags]  secret
-    [Arguments]  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${additional-args}
-    ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry harbor.ci.drone.local --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:${vol} ${vicmachinetls} ${additional-args}
+    [Arguments]  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${debug}  ${additional-args}
+    ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug ${debug} --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry harbor.ci.drone.local --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:${vol} ${vicmachinetls} ${additional-args}
     Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
 
-    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry harbor.ci.drone.local --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:${vol} --no-tlsverify ${additional-args}
+    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug ${debug} --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry harbor.ci.drone.local --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:${vol} --no-tlsverify ${additional-args}
     Run Keyword Unless  ${certs}  Should Contain  ${output}  Installer completed successfully
     [Return]  ${output}
 
@@ -198,6 +205,7 @@ Run Secret VIC Machine Inspect Command
     [Tags]  secret
     [Arguments]  ${name}
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --thumbprint=%{TEST_THUMBPRINT}
+
     [Return]  ${rc}  ${output}
 
 Run VIC Machine Delete Command
@@ -412,6 +420,7 @@ Install VIC with version to Test Server
     ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
     Set Environment Variable  TEST_TIMEOUT  20m0s
     Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}  vol=default ${insecureregistry}
+
     Set Environment Variable  VIC-ADMIN  %{VCH-IP}:2378
     Set Environment Variable  INITIAL-VERSION  ${version}
     Run  rm -rf vic.tar.gz vic

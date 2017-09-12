@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -146,6 +146,7 @@ func (v *Validator) checkPortGroups(input *data.Data, ips map[string][]data.Netw
 		}
 
 		// check if same subnet assigned to multiple portgroups - this can cause routing problems
+		// #nosec: Errors unhandled.
 		_, net, _ := net.ParseCIDR(config[0].IP.String())
 		netAddr := net.String()
 		if networks[netAddr] != "" {
@@ -353,6 +354,8 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 		gw := input.MappedNetworksGateways[name]
 		pools := input.MappedNetworksIPRanges[name]
 		dns := input.MappedNetworksDNS[name]
+		trust := input.MappedNetworksFirewalls[name]
+
 		if len(pools) != 0 && ip.IsUnspecifiedSubnet(&gw) {
 			v.NoteIssue(fmt.Errorf("IP range specified without gateway for container network %q", name))
 			continue
@@ -407,6 +410,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 			Gateway:     gw,
 			Nameservers: dns,
 			Pools:       pools,
+			TrustLevel:  trust,
 		}
 		if input.BridgeNetworkName == net {
 			v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - %q also mapped as container network %q", input.BridgeNetworkName, name))
@@ -419,22 +423,8 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 
 		conf.AddContainerNetwork(mappedNet)
 	}
-	v.nicNumbers(conf)
 
 	conf.AsymmetricRouting = input.AsymmetricRouting
-}
-
-// nicNumbers will check vch appliance nic numbers. currently we don't support more than three nics for issue #1674.
-// FIXME: this limitation should be removed after #1674 is fixed
-func (v *Validator) nicNumbers(conf *config.VirtualContainerHostConfigSpec) {
-	defer trace.End(trace.Begin(""))
-	nics := make(map[string]bool)
-	for _, net := range conf.ExecutorConfig.Networks {
-		nics[net.Network.ID] = true
-	}
-	if len(nics) > 3 {
-		v.NoteIssue(fmt.Errorf("Four different networks including bridge network are not allowed at this time. At least two network roles of client network, management network and public network should share same network"))
-	}
 }
 
 // generateBridgeName returns a name that can be used to create a switch/pg pair on ESX

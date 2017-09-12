@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,9 @@
 package executor
 
 import (
+	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/vmware/vic/pkg/version"
@@ -38,6 +40,18 @@ const (
 
 	// CopyNew Copy data to the volume when it is first mounted
 	CopyNew
+)
+
+// Container network firewall trust configuration value
+type TrustLevel int
+
+const (
+	Unspecified TrustLevel = iota
+	Published
+	Open
+	Closed
+	Outbound
+	Peers
 )
 
 // Common data between managed entities, across execution environments
@@ -193,6 +207,10 @@ type ExecutorConfig struct {
 
 	// AsymmetricRouting is set to true if the VCH needs to be setup for asymmetric routing
 	AsymmetricRouting bool `vic:"0.1" scope:"read-only" key:"asymrouting"`
+
+	// Hostname and domainname provided by personality
+	Hostname   string `vic:"0.1" scope:"read-only" key:"hostname"`
+	Domainname string `vic:"0.1" scope:"read-only" key:"domainname"`
 }
 
 // Cmd is here because the encoding packages seem to have issues with the full exec.Cmd struct
@@ -268,4 +286,42 @@ type Detail struct {
 	CreateTime int64 `vic:"0.1" scope:"read-write" key:"createtime"`
 	StartTime  int64 `vic:"0.1" scope:"read-write" key:"starttime"`
 	StopTime   int64 `vic:"0.1" scope:"read-write" key:"stoptime"`
+}
+
+func (t TrustLevel) String() string {
+	switch t {
+	case Unspecified:
+		return ""
+	case Open:
+		return "open"
+	case Closed:
+		return "closed"
+	case Published:
+		return "published"
+	case Outbound:
+		return "outbound"
+	case Peers:
+		return "peers"
+	}
+	// Default setting, if unknown is published.
+	return "published"
+}
+
+func ParseTrustLevel(value string) (TrustLevel, error) {
+	var trust TrustLevel
+	switch strings.ToLower(value) {
+	case "open":
+		trust = Open
+	case "closed":
+		trust = Closed
+	case "published":
+		trust = Published
+	case "outbound":
+		trust = Outbound
+	case "peers":
+		trust = Peers
+	default:
+		return Unspecified, fmt.Errorf("Unrecognized container trust level %s.", value)
+	}
+	return trust, nil
 }

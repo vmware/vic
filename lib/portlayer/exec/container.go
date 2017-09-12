@@ -28,8 +28,8 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/iolog"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
@@ -319,7 +319,19 @@ func (c *Container) Refresh(ctx context.Context) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 
-	return c.refresh(ctx)
+	if err := c.refresh(ctx); err != nil {
+		return err
+	}
+
+	// sync power state (see issue 4872)
+	switch c.containerBase.Runtime.PowerState {
+	case types.VirtualMachinePowerStatePoweredOn:
+		c.state = StateRunning
+	case types.VirtualMachinePowerStatePoweredOff:
+		c.state = StateStopped
+	}
+
+	return nil
 }
 
 func (c *Container) refresh(ctx context.Context) error {
@@ -452,6 +464,7 @@ func (c *Container) onStop() {
 
 	log.Debugf("Container(%s) closing %d log followers", c.ExecConfig.ID, len(lf))
 	for _, l := range lf {
+		// #nosec: Errors unhandled.
 		_ = l.Close()
 	}
 }
@@ -465,7 +478,7 @@ func (c *Container) LogReader(ctx context.Context, tail int, follow bool, since 
 		return nil, fmt.Errorf("vm not set")
 	}
 
-	url, err := c.vm.DSPath(ctx)
+	url, err := c.vm.VMPathNameAsURL(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -475,9 +488,11 @@ func (c *Container) LogReader(ctx context.Context, tail int, follow bool, since 
 	var via string
 
 	if c.state == StateRunning && c.vm.IsVC() {
+		// #nosec: Errors unhandled.
 		hosts, _ := c.vm.Datastore.AttachedHosts(ctx)
 		if len(hosts) > 1 {
 			// In this case, we need download from the VM host as it owns the file lock
+			// #nosec: Errors unhandled.
 			h, _ := c.vm.HostSystem(ctx)
 			if h != nil {
 				ctx = c.vm.Datastore.HostContext(ctx, h)
@@ -551,7 +566,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	existingState := c.updateState(StateRemoving)
 
 	// get the folder the VM is in
-	url, err := c.vm.DSPath(ctx)
+	url, err := c.vm.VMPathNameAsURL(ctx)
 	if err != nil {
 
 		// handle the out-of-band removal case
@@ -593,6 +608,10 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 				log.Errorf("Error while attempting to unregister container VM: %s", err)
 				return err
 			}
+		case *types.ConcurrentAccess:
+			// We are getting ConcurrentAccess errors from DeleteExceptDisks - even though we don't set ChangeVersion in that path
+			// We are ignoring the error because in reality the operation finishes successfully.
+			log.Warnf("DeleteExceptDisks failed with ConcurrentAccess error. Ignoring it.")
 		default:
 			log.Debugf("Fault while attempting to destroy vm: %#v", f.Fault())
 			c.updateState(existingState)

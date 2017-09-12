@@ -108,7 +108,8 @@ func TestLazyDetach(t *testing.T) {
 
 	oddity := "Ground control to Major Tom"
 	operation := func(path *object.DatastorePath, read bool) error {
-		devicePath, err := vdm.devicePathByURI(op, path)
+		// this is fundamentally checking persistent disks
+		devicePath, err := vdm.devicePathByURI(op, path, true)
 		if err != nil {
 			return err
 		}
@@ -171,7 +172,7 @@ func TestLazyDetach(t *testing.T) {
 	t.Logf("scratch created and attached")
 
 	// ref to scratch (needed for detach as initial spec's Key and UnitNumber was unset)
-	disk, err := findDiskByFilename(op, vdm.vm, scratch.Path)
+	disk, err := findDiskByFilename(op, vdm.vm, scratch.Path, true)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -216,7 +217,7 @@ func TestLazyDetach(t *testing.T) {
 	}
 
 	// ref to child (needed for detach as initial spec's Key and UnitNumber was unset)
-	disk, err = findDiskByFilename(op, vdm.vm, child.Path)
+	disk, err = findDiskByFilename(op, vdm.vm, child.Path, true)
 	if !assert.NoError(t, err) {
 		return
 	}

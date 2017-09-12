@@ -79,6 +79,7 @@ COMMIT
 -A INPUT -p tcp -m tcp --dport 2376 -j ACCEPT
 -A INPUT -p tcp -m tcp --dport 2377 -j ACCEPT
 -A INPUT -p tcp -m tcp --dport 2378 -j ACCEPT
+-A INPUT -p tcp -m tcp --dport 2380 -j ACCEPT
 
 -A INPUT -p tcp -m tcp --dport 6062 -j ACCEPT
 -A INPUT -p tcp -m tcp --dport 6063 -j ACCEPT

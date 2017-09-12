@@ -15,6 +15,21 @@
 *** Settings ***
 Documentation  Test 6-02 - Verify default parameters
 Resource  ../../resources/Util.robot
+Suite Teardown  Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
+
+*** Keywords ***
+Should Not Have VMOMI Session
+    [Arguments]  ${thumbprint}
+    ${output}=  Run  govc session.ls | grep vic-machine | grep ${thumbprint} | wc -l
+    Should Be Equal As Integers  ${output}  0
+
+Get Thumbprint From Log
+    [Arguments]  ${output}
+    ${logline}=  Get Lines Containing String  ${output}  Creating VMOMI session with thumbprint
+    Should Not Be Equal As Strings  ${logline}  ${EMPTY}
+    ${thumbprint}=  Evaluate  "${logline}".split()[-1]
+    [Return]  ${thumbprint}
 
 *** Test Cases ***
 Delete with defaults
@@ -23,3 +38,62 @@ Delete with defaults
     ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD}
     Should Contain  ${ret}  vic-machine-linux delete failed:  resource pool
     Should Contain  ${ret}  /Resources/virtual-container-host' not found
+
+Wrong Password No Panic
+    Set Test Environment Variables
+    ${ret}=  Run  bin/vic-machine-linux create --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
+    Should Contain  ${ret}  vic-machine-linux create failed
+    Should Not Contain  ${ret}  panic:
+
+    ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
+    Should Contain  ${ret}  vic-machine-linux delete failed
+    Should Not Contain  ${ret}  panic:
+
+    ${ret}=  Run  bin/vic-machine-linux inspect --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
+    Should Contain  ${ret}  vic-machine-linux inspect  failed
+    Should Not Contain  ${ret}  panic:
+
+    ${ret}=  Run  bin/vic-machine-linux ls --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
+    Should Contain  ${ret}  vic-machine-linux ls failed
+    Should Not Contain  ${ret}  panic:
+
+    ${ret}=  Run  bin/vic-machine-linux upgrade --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
+    Should Contain  ${ret}  vic-machine-linux upgrade failed
+    Should Not Contain  ${ret}  panic:
+
+    ${ret}=  Run  bin/vic-machine-linux configure --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=INCORRECT
+    Should Contain  ${ret}  vic-machine-linux configure failed
+    Should Not Contain  ${ret}  panic:
+
+Check That VMOMI Sessions Don't Leak From VIC Machine
+    Set Test Environment Variables
+    ${output}=  Run  bin/vic-machine-linux ls --target %{TEST_URL} --debug=1 --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD}
+    Log  ${output}
+    ${thumbprint}=  Get Thumbprint From Log  ${output}
+    Should Not Have VMOMI Session  ${thumbprint}
+
+    ${output}=  Install VIC Appliance To Test Server
+    Log  ${output}
+    ${thumbprint}=  Get Thumbprint From Log  ${output}
+    Should Not Have VMOMI Session  ${thumbprint}
+
+    ${output}=  Run  bin/vic-machine-linux inspect --target %{TEST_URL} --debug=1 --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME}
+    Log  ${output}
+    ${thumbprint}=  Get Thumbprint From Log  ${output}
+    Should Not Have VMOMI Session  ${thumbprint}
+
+    ${output}=  Run  bin/vic-machine-linux upgrade --target %{TEST_URL} --debug=1 --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD}
+    # upgrade fails since but that's ok for this test -- it still creates a session before failing
+    Log  ${output}
+    ${thumbprint}=  Get Thumbprint From Log  ${output}
+    Should Not Have VMOMI Session  ${thumbprint}
+
+    ${output}=  Run  bin/vic-machine-linux configure --target %{TEST_URL} --debug=1 --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME}
+    Log  ${output}
+    ${thumbprint}=  Get Thumbprint From Log  ${output}
+    Should Not Have VMOMI Session  ${thumbprint}
+
+    ${output}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --debug=1 --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME}
+    Log  ${output}
+    ${thumbprint}=  Get Thumbprint From Log  ${output}
+    Should Not Have VMOMI Session  ${thumbprint}

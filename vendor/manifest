@@ -52,7 +52,7 @@
 			"importpath": "github.com/GoASTScanner/gas",
 			"repository": "https://github.com/GoASTScanner/gas",
 			"vcs": "git",
-			"revision": "1c8e7ff6861b2ee1c4d48a279b5eee07448baa5f",
+			"revision": "1beec25f7754273c9672a3368ea7048d4e73138e",
 			"branch": "master",
 			"notests": true
 		},
@@ -765,7 +765,7 @@
 			"importpath": "github.com/mitchellh/mapstructure",
 			"repository": "https://github.com/mitchellh/mapstructure",
 			"vcs": "git",
-			"revision": "5a0325d7fafaac12dda6e7fb8bd222ec1b69875e",
+			"revision": "d0303fe809921458f417bcf828397a65db30a7e4",
 			"branch": "master",
 			"notests": true
 		},
@@ -814,6 +814,14 @@
 			"vcs": "",
 			"revision": "5fa9ff0392746aeae1c4b37fcc42c65afa7a9587",
 			"branch": "master"
+		},
+		{
+			"importpath": "github.com/pkg/errors",
+			"repository": "https://github.com/pkg/errors",
+			"vcs": "git",
+			"revision": "c605e284fe17294bda444b34710735b29d1a9d90",
+			"branch": "master",
+			"notests": true
 		},
 		{
 			"importpath": "github.com/pkg/profile",
@@ -1062,7 +1070,7 @@
 			"importpath": "github.com/vmware/govmomi",
 			"repository": "https://github.com/vmware/govmomi",
 			"vcs": "git",
-			"revision": "8ab1a62d9c0873b8a25404c52928be2358b78963",
+			"revision": "17b8c9ccb7f8c7b015d44c4ea39305c970a7bf31",
 			"branch": "master",
 			"notests": true
 		},
@@ -1241,7 +1249,7 @@
 			"importpath": "golang.org/x/sys/unix",
 			"repository": "https://go.googlesource.com/sys",
 			"vcs": "git",
-			"revision": "99f16d856c9836c42d24e7ab64ea72916925fa97",
+			"revision": "d8f5ea21b9295e315e612b4bcf4bedea93454d4d",
 			"branch": "master",
 			"path": "/unix",
 			"notests": true

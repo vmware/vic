@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dynamic
+package proxy
 
-import (
-	"context"
-
-	"github.com/vmware/vic/lib/config"
+const (
+	swaggerSubstringEOF = "EOF"
 )
-
-type AdmiralSource struct {
-}
-
-// Get returns the dynamic config portion from an Admiral instance. For now,
-// this is empty pending details from the Admiral team.
-func (a *AdmiralSource) Get(context.Context) (*config.VirtualContainerHostConfigSpec, error) {
-	return nil, ErrSourceUnavailable
-}

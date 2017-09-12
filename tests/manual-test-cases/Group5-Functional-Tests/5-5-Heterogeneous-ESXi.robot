@@ -25,20 +25,29 @@ Test
     Set Global Variable  @{list}  %{NIMBUS_USER}-${vc}
 
     Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  3029944
     Append To List  ${list}  ${esx1}
     
     Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  3029944
+    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  5572656
     Append To List  ${list}  ${esx2}
 
     Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  4240417
+    ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Append To List  ${list}  ${esx3}
 
     # Finish vCenter deploy
-    ${output}=  Wait For Process  ${pid-vc}
-    Should Contain  ${output.stdout}  Overall Status: Succeeded
+    ${output}=  Wait For Process  ${pid-vc}  timeout=40 minutes  on_timeout=terminate
+    Log  ${output.stdout}
+    Log  ${output.stderr}
+    ${status}=  Run Keyword And Return Status  Should Contain  ${output.stdout}  Overall Status: Succeeded
+
+    # Try again, if the VC failed quickly we might have enough time to try again
+    ${pid-vc}=  Run Keyword Unless  ${status}  Deploy Nimbus vCenter Server Async  ${vc}
+    ${output}=  Run Keyword Unless  ${status}  Wait For Process  ${pid-vc}  timeout=40 minutes  on_timeout=terminate
+    Run Keyword Unless  ${status}  Log  ${output.stdout}
+    Run Keyword Unless  ${status}  Log  ${output.stderr}
+    Run Keyword Unless  ${status}  Should Contain  ${output.stdout}  Overall Status: Succeeded
 
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
@@ -81,9 +90,15 @@ Test
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
-    Set Environment Variable  TEST_DATASTORE  datastore1
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
+
+    ${name}  ${ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+
+    ${out}=  Run  govc datastore.create -mode readWrite -type nfs -name nfsDatastore -remote-host ${ip} -remote-path /store /ha-datacenter/host/cls
+    Should Be Empty  ${out}
+
+    Set Environment Variable  TEST_DATASTORE  nfsDatastore
 
     Install VIC Appliance To Test Server  certs=${false}  vol=default
 

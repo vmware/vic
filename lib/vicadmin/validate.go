@@ -39,7 +39,7 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/install/validate"
-	"github.com/vmware/vic/lib/tether"
+	"github.com/vmware/vic/lib/tether/shared"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -96,9 +96,11 @@ func GetMgmtIP() net.IPNet {
 
 func LinkByOneOfNameOrAlias(name ...string) netlink.Link {
 	for _, n := range name {
+		// #nosec: Errors unhandled.
 		if l, _ := netlink.LinkByName(n); l != nil {
 			return l
 		}
+		// #nosec: Errors unhandled.
 		if l, _ := netlink.LinkByAlias(n); l != nil {
 			return l
 		}
@@ -110,6 +112,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	defer trace.End(trace.Begin(""))
 	log.Infof("Creating new validator")
 	v := &Validator{}
+
 	if version.Version != "" {
 		v.Version = version.Version
 	}
@@ -132,6 +135,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	} else {
 		v.VCHReachable = true
 		// Firewall status check
+		// #nosec: Errors unhandled.
 		v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
 		mgmtIP := GetMgmtIP()
 		log.Infof("Using management IP %s for firewall check", mgmtIP)
@@ -231,6 +235,11 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		log.Errorf("Had a problem querying the datastores: %s", err.Error())
 	}
 	v.QueryVCHStatus(vch, sess)
+	defer func() {
+		if sess != nil && len(nwErrors) > 0 {
+			sess.Logout(ctx)
+		}
+	}()
 	return v
 }
 
@@ -359,7 +368,7 @@ func (v *Validator) QueryVCHStatus(vch *config.VirtualContainerHostConfigSpec, s
 
 	for service, proc := range procs {
 		log.Infof("Checking status of %s", proc)
-		pid, err := ioutil.ReadFile(fmt.Sprintf("%s.pid", path.Join(tether.PIDFileDir(), proc)))
+		pid, err := ioutil.ReadFile(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(), proc)))
 		if err != nil {
 			// #nosec: this method will not auto-escape HTML. Verify data is well formed.
 			v.VCHIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s service is not running</span>\n",

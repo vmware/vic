@@ -112,6 +112,10 @@ func (o Operation) Err() error {
 	return nil
 }
 
+func (o *Operation) ID() string {
+	return o.id
+}
+
 func (o *Operation) Infof(format string, args ...interface{}) {
 	Logger.Infof("%s: %s", o.header(), fmt.Sprintf(format, args...))
 }
@@ -155,7 +159,7 @@ func NewOperation(ctx context.Context, format string, args ...interface{}) Opera
 	return o
 }
 
-// WithTimeout
+// WithTimeout creates a new operation from parent with context.WithTimeout
 func WithTimeout(parent *Operation, timeout time.Duration, format string, args ...interface{}) (Operation, context.CancelFunc) {
 	ctx, cancelFunc := context.WithTimeout(parent.Context, timeout)
 	op := parent.newChild(ctx, fmt.Sprintf(format, args...))
@@ -163,12 +167,28 @@ func WithTimeout(parent *Operation, timeout time.Duration, format string, args .
 	return op, cancelFunc
 }
 
-// WithDeadline
+// WithDeadline creates a new operation from parent with context.WithDeadline
 func WithDeadline(parent *Operation, expiration time.Time, format string, args ...interface{}) (Operation, context.CancelFunc) {
 	ctx, cancelFunc := context.WithDeadline(parent.Context, expiration)
 	op := parent.newChild(ctx, fmt.Sprintf(format, args...))
 
 	return op, cancelFunc
+}
+
+// WithCancel creates a new operation from parent with context.WithCancel
+func WithCancel(parent *Operation, format string, args ...interface{}) (Operation, context.CancelFunc) {
+	ctx, cancelFunc := context.WithCancel(parent.Context)
+	op := parent.newChild(ctx, fmt.Sprintf(format, args...))
+
+	return op, cancelFunc
+}
+
+// WithValue creates a new operation from parent with context.WithValue
+func WithValue(parent *Operation, key, val interface{}, format string, args ...interface{}) Operation {
+	ctx := context.WithValue(parent.Context, key, val)
+	op := parent.newChild(ctx, fmt.Sprintf(format, args...))
+
+	return op
 }
 
 // FromOperation creates a child operation from the one supplied

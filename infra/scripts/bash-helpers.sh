@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2016 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,8 +34,8 @@ vic-path () {
 vic-create () {
     base=$(pwd)
     (
-        cd $(vic-path)/bin
-        $(vic-path)/bin/vic-machine-"$OS" create --target="$GOVC_URL" "${OPS_CREDS[@]}" --image-store="$IMAGE_STORE" --compute-resource="$COMPUTE" "${TLS[@]}" ${TLS_OPTS} --name=${VIC_NAME:-${USER}test} "${MAPPED_NETWORKS[@]}" "${VOLUME_STORES[@]}" "${NETWORKS[@]}" ${IPADDR} ${TIMEOUT} --thumbprint=$THUMBPRINT $*
+        cd "$(vic-path)"/bin || return
+        "$(vic-path)"/bin/vic-machine-"$OS" create --target="$GOVC_URL" "${OPS_CREDS[@]}" --image-store="$IMAGE_STORE" --compute-resource="$COMPUTE" "${TLS[@]}" ${TLS_OPTS} --name="${VIC_NAME:-${USER}test}" "${MAPPED_NETWORKS[@]}" "${VOLUME_STORES[@]}" "${NETWORKS[@]}" ${IPADDR} ${TIMEOUT} --thumbprint="$THUMBPRINT" "$@"
     )
 
     unset DOCKER_CERT_PATH DOCKER_TLS_VERIFY
@@ -44,61 +44,80 @@ vic-create () {
     envfile=$(vic-path)/bin/${VIC_NAME:-${USER}test}/${VIC_NAME:-${USER}test}.env
     if [ -f "$envfile" ]; then
         set -a
-        source $envfile
+        source "$envfile"
         set +a
     fi
 
     # Something of a hack, but works for --no-tls so long as that's enabled via TLS_OPTS
-    if [ -z "${DOCKER_TLS_VERIFY+x}" -a -z "${TLS_OPTS+x}" ]; then
+    if [ -z "${DOCKER_TLS_VERIFY+x}" ] && [ -z "${TLS_OPTS+x}" ]; then
         alias docker='docker --tls'
     fi
 
-    cd $base
+    cd "$base" || exit
 }
 
 vic-delete () {
-    $(vic-path)/bin/vic-machine-"$OS" delete --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --thumbprint=$THUMBPRINT --force $*
+    "$(vic-path)"/bin/vic-machine-"$OS" delete --target="$GOVC_URL" --compute-resource="$COMPUTE" --name="${VIC_NAME:-${USER}test}" --thumbprint="$THUMBPRINT" --force "$@"
 }
 
 vic-inspect () {
-    $(vic-path)/bin/vic-machine-"$OS" inspect --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --thumbprint=$THUMBPRINT $*
+    "$(vic-path)"/bin/vic-machine-"$OS" inspect --target="$GOVC_URL" --compute-resource="$COMPUTE" --name="${VIC_NAME:-${USER}test}" --thumbprint="$THUMBPRINT" "$@"
 }
 
 vic-upgrade () {
-    $(vic-path)/bin/vic-machine-"$OS" upgrade --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --thumbprint=$THUMBPRINT $*
+    "$(vic-path)"/bin/vic-machine-"$OS" upgrade --target="$GOVC_URL" --compute-resource="$COMPUTE" --name="${VIC_NAME:-${USER}test}" --thumbprint="$THUMBPRINT" "$@"
 }
 
 vic-ls () {
-
-    $(vic-path)/bin/vic-machine-"$OS" ls --target="$GOVC_URL" --thumbprint=$THUMBPRINT $*
+    "$(vic-path)"/bin/vic-machine-"$OS" ls --target="$GOVC_URL" --thumbprint="$THUMBPRINT" "$@"
 }
 
 vic-ssh () {
     unset keyarg
-    if [ -e $HOME/.ssh/authorized_keys ]; then
+    if [ -e "$HOME"/.ssh/authorized_keys ]; then
         keyarg="--authorized-key=$HOME/.ssh/authorized_keys"
     fi
 
-    out=$($(vic-path)/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh "$keyarg" --rootpw=password --thumbprint=$THUMBPRINT $*)
-    host=$(echo $out | grep DOCKER_HOST | sed -n 's/.*DOCKER_HOST=\([^:\s]*\).*/\1/p')
+    out=$("$(vic-path)"/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name="${VIC_NAME:-${USER}test}" --enable-ssh "$keyarg" --rootpw=password --thumbprint="$THUMBPRINT" "$@")
+    host=$(echo "$out" | grep DOCKER_HOST | awk -F"DOCKER_HOST=" '{print $2}' | cut -d ":" -f1 | cut -d "=" -f2)
 
     echo "SSH to ${host}"
-    sshpass -ppassword ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@${host}
+    sshpass -ppassword ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@"${host}"
 }
 
 vic-admin () {
-    out=$($(vic-path)/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh $keyarg --rootpw=password --thumbprint=$THUMBPRINT $*)
-    host=$(echo $out | grep DOCKER_HOST | sed -n 's/.*DOCKER_HOST=\([^:\s*\).*/\1/p')
+    out=$("$(vic-path)"/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name="${VIC_NAME:-${USER}test}" --enable-ssh "$keyarg" --rootpw=password --thumbprint="$THUMBPRINT" "$@")
+    host=$(echo "$out" | grep DOCKER_HOST | sed -n 's/.*DOCKER_HOST=\([^:\s*\).*/\1/p')
 
-   open http://${host}:2378
+    open http://"${host}":2378
 }
 
 addr-from-dockerhost () {
-    echo $DOCKER_HOST | sed -e 's/:[0-9]*$//'
+    echo "$DOCKER_HOST" | sed -e 's/:[0-9]*$//'
 }
 
-vic-tail() {
-    $(vic-path)/infra/scripts/vic-logs.sh -f $(echo $DOCKER_HOST | cut -d\: -f1) $*
+vic-tail-portlayer() {
+    unset keyarg
+    if [ -e "$HOME"/.ssh/authorized_keys ]; then
+        keyarg="--authorized-key=$HOME/.ssh/authorized_keys"
+    fi
+
+    out=$("$(vic-path)"/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name="${VIC_NAME:-${USER}test}" --enable-ssh "$keyarg" --rootpw=password --thumbprint="$THUMBPRINT" "$@")
+    host=$(echo "$out" | grep DOCKER_HOST | awk -F"DOCKER_HOST=" '{print $2}' | cut -d ":" -f1 | cut -d "=" -f2)
+
+    sshpass -ppassword ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@"${host}" tail -f /var/log/vic/port-layer.log
+}
+
+vic-tail-docker() {
+    unset keyarg
+    if [ -e "$HOME"/.ssh/authorized_keys ]; then
+        keyarg="--authorized-key=$HOME/.ssh/authorized_keys"
+    fi
+
+    out=$("$(vic-path)"/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name="${VIC_NAME:-${USER}test}" --enable-ssh "$keyarg" --rootpw=password --thumbprint="$THUMBPRINT" "$@")
+    host=$(echo "$out" | grep DOCKER_HOST | awk -F"DOCKER_HOST=" '{print $2}' | cut -d ":" -f1 | cut -d "=" -f2)
+
+    sshpass -ppassword ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@"${host}" tail -f /var/log/vic/docker-personality.log
 }
 
 # import the custom sites

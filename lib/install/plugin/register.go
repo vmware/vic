@@ -117,6 +117,7 @@ func (p *Pluginator) connect() error {
 		return fmt.Errorf("failed to connect: %s", err)
 	}
 
+	// #nosec: Errors unhandled.
 	p.Session.Populate(p.Context)
 
 	em, err := object.GetExtensionManager(p.Session.Client.Client)

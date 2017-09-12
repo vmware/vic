@@ -65,8 +65,10 @@ func (conCache *containerCache) Containers(state *State) []*Container {
 		if !isContainerID(id) {
 			continue
 		}
-
-		if state == nil || *state == con.CurrentState() {
+		// filter by container state
+		// DO NOT use container.CurrentState as that can
+		// cause cache deadlocks
+		if state == nil || *state == con.State() {
 			containers = append(containers, con)
 		}
 	}

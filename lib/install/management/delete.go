@@ -17,6 +17,7 @@ package management
 import (
 	"context"
 	"strings"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -149,10 +150,51 @@ func (d *Dispatcher) getImageDatastore(vmm *vm.VirtualMachine, conf *config.Virt
 	return ds, nil
 }
 
+// detach all VMDKs attached to vm
+func (d *Dispatcher) detachAttachedDisks(v *vm.VirtualMachine) error {
+	devices, err := v.Device(d.ctx)
+	if err != nil {
+		log.Debugf("Couldn't find any devices to detach: %s", err.Error())
+		return nil
+	}
+
+	disks := devices.SelectByType(&types.VirtualDisk{})
+	if disks == nil {
+		// nothing attached
+		log.Debugf("No disks found attached to VM")
+		return nil
+	}
+
+	config := []types.BaseVirtualDeviceConfigSpec{}
+	for _, disk := range disks {
+		config = append(config,
+			&types.VirtualDeviceConfigSpec{
+				Device:    disk,
+				Operation: types.VirtualDeviceConfigSpecOperationRemove,
+			})
+	}
+
+	op := trace.NewOperation(d.ctx, "detach disks before delete")
+	_, err = v.WaitForResult(op,
+		func(ctx context.Context) (tasks.Task, error) {
+			t, er := v.Reconfigure(ctx,
+				types.VirtualMachineConfigSpec{DeviceChange: config})
+			if t != nil {
+				op.Debugf("Detach reconfigure task=%s", t.Reference())
+			}
+			return t, er
+		})
+
+	return err
+}
+
 func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(conf.Name))
 
 	log.Infof("Removing VMs")
+
+	// serializes access to errs
+	var mu sync.Mutex
 	var errs []string
 
 	var err error
@@ -170,6 +212,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 		return err
 	}
 
+	var wg sync.WaitGroup
 	for _, child := range children {
 		//Leave VCH appliance there until everything else is removed, cause it has VCH configuration. Then user could retry delete in case of any failure.
 		ok, err := d.isVCH(child)
@@ -177,14 +220,26 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 			errs = append(errs, err.Error())
 			continue
 		}
+
 		if ok {
+			// child is vch; detach all attached disks so later removal of images is successful
+			if err = d.detachAttachedDisks(child); err != nil {
+				errs = append(errs, err.Error())
+			}
 			continue
 		}
 
-		if err = d.deleteVM(child, d.force); err != nil {
-			errs = append(errs, err.Error())
-		}
+		wg.Add(1)
+		go func(child *vm.VirtualMachine) {
+			defer wg.Done()
+			if err = d.deleteVM(child, d.force); err != nil {
+				mu.Lock()
+				errs = append(errs, err.Error())
+				mu.Unlock()
+			}
+		}(child)
 	}
+	wg.Wait()
 
 	if len(errs) > 0 {
 		log.Debugf("Error deleting container VMs %s", errs)

@@ -118,6 +118,7 @@ func (d *defaultDialer) dial() (Writer, error) {
 	}
 
 	tag := MakeTag("", d.tag)
+	// #nosec: Errors unhandled.
 	hostname, _ := os.Hostname()
 
 	w := newWriter(d.priority, tag, hostname, newNetDialer(d.network, d.raddr), newFormatter(d.network, RFC3164))

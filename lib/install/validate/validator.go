@@ -660,6 +660,7 @@ func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, p
 	if len(input.WhitelistRegistries) > 0 {
 		// ignoring error since default merge policy is union, so should never return
 		// an error
+		// #nosec: Errors unhandled.
 		m, _ := secureRegistriesSet.Merge(insecureRegistriesSet, nil)
 		whitelistRegistries = m.Strings()
 	}

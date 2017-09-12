@@ -120,11 +120,13 @@ func (l *List) prettyPrint(ctx context.Context, cli *cli.Context, vchs []*vm.Vir
 			items{vch.Reference().Value, parentPath, name, version, upgradeStatus})
 	}
 	t := template.New("vic-machine ls")
+	// #nosec: Errors unhandled.
 	t, _ = t.Parse(templ)
 	w := tabwriter.NewWriter(cli.App.Writer, 8, 8, 8, ' ', 0)
 	if err := t.Execute(w, data); err != nil {
 		log.Fatal(err)
 	}
+	// #nosec: Errors unhandled.
 	w.Flush()
 }
 
@@ -164,6 +166,8 @@ func (l *List) Run(clic *cli.Context) (err error) {
 		log.Errorf("List cannot continue - failed to create validator: %s", err)
 		return errors.New("list failed")
 	}
+	defer validator.Session.Logout(ctx)
+
 	// If dc is not set, and multiple datacenter is available, vic-machine ls will list VCHs under all datacenters.
 	validator.AllowEmptyDC()
 

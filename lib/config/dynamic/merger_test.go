@@ -146,7 +146,7 @@ func TestMergerMergeWhitelist(t *testing.T) {
 		orig, other, res *config.VirtualContainerHostConfigSpec
 		err              error
 	}{
-		{ // unset whitelist
+		{
 			orig: &config.VirtualContainerHostConfigSpec{
 				Registry: config.Registry{
 					RegistryWhitelist: []string{"docker.io"},
@@ -159,11 +159,14 @@ func TestMergerMergeWhitelist(t *testing.T) {
 			},
 			res: &config.VirtualContainerHostConfigSpec{
 				Registry: config.Registry{
-					RegistryWhitelist: nil,
+					RegistryWhitelist: []string{"docker.io"},
 				},
 			},
 		},
-		{ // expand whitelist
+		// disallow the merge if the other whitelist
+		// has an entry that is not allowed on the
+		// original whitelist
+		{
 			orig: &config.VirtualContainerHostConfigSpec{
 				Registry: config.Registry{
 					RegistryWhitelist: []string{"docker.io"},
@@ -171,24 +174,116 @@ func TestMergerMergeWhitelist(t *testing.T) {
 			},
 			other: &config.VirtualContainerHostConfigSpec{
 				Registry: config.Registry{
-					RegistryWhitelist: []string{"docker.io", "malicious.io"},
+					RegistryWhitelist: []string{"foo.docker.io", "malicious.io"},
 				},
 			},
-			res: nil,
 			err: assert.AnError,
+		},
+		{
+			orig: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"*.docker.io"},
+				},
+			},
+			other: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"bar.docker.io", "foo.docker.io"},
+				},
+			},
+			res: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"bar.docker.io", "foo.docker.io"},
+				},
+			},
+		},
+		// result of a merge is always the other if
+		// its a subset of the original
+		{
+			orig: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"docker.io", "harbor.ci.local"},
+				},
+			},
+			other: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"docker.io"},
+				},
+			},
+			res: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"docker.io"},
+				},
+			},
+		},
+		// empty original whitelist and non-empty other
+		// whitelist results in other whitelist
+		{
+			orig: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: nil,
+				},
+			},
+			other: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"docker.io"},
+				},
+			},
+			res: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"docker.io"},
+				},
+			},
+		},
+		// more permissive other whitelist results in error
+		{
+			orig: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"foo.docker.io"},
+				},
+			},
+			other: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"*.docker.io"},
+				},
+			},
+			err: assert.AnError,
+		},
+		// less permissive other whitelist results in other whitelist
+		{
+			orig: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"*.docker.io"},
+				},
+			},
+			other: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"foo.docker.io"},
+				},
+			},
+			res: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"foo.docker.io"},
+				},
+			},
 		},
 	}
 
 	m := NewMerger()
 	for _, te := range tests {
+		t.Logf("orig: %+v, other: %+v, err: %+v", te.orig.RegistryWhitelist, te.other.RegistryWhitelist, te.err)
+		if te.res != nil {
+			t.Logf("res: %+v", te.res.RegistryWhitelist)
+		}
 		res, err := m.Merge(te.orig, te.other)
 		if te.err != nil {
-			assert.NotNil(t, err)
+			assert.NotNil(t, err, "expected error, got nil")
 			assert.Nil(t, res)
 			continue
 		}
 
-		assert.Len(t, res.RegistryWhitelist, len(te.res.RegistryWhitelist))
+		assert.Nil(t, err, "expected no error, got \"%+v\"", err)
+		assert.NotNil(t, res)
+		assert.Len(t, res.RegistryWhitelist, len(te.res.RegistryWhitelist), "expected %v, got %v", te.res.RegistryWhitelist, res.RegistryWhitelist)
 		for i := range res.RegistryWhitelist {
 			found := false
 			for j := range te.res.RegistryWhitelist {

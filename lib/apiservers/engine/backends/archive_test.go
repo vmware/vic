@@ -15,12 +15,14 @@
 package backends
 
 import (
+	"context"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/docker/docker/api/types"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 type MockCopyToData struct {
@@ -31,6 +33,7 @@ type MockCopyToData struct {
 
 type ReaderFilters struct {
 	rebase  string
+	strip   string
 	exclude []string
 	include string
 }
@@ -80,7 +83,8 @@ func TestFindArchiveWriter(t *testing.T) {
 	}
 
 	for _, data := range mockData {
-		writerMap := NewArchiveStreamWriterMap(mounts, data.containerDestPath)
+		op := trace.NewOperation(context.Background(), "")
+		writerMap := NewArchiveStreamWriterMap(op, mounts, data.containerDestPath)
 		aw, err := writerMap.FindArchiveWriter(data.containerDestPath, data.tarAssetName)
 		assert.Nil(t, err, "Expected success from finding archive writer for container dest %s and tar asset path %s", data.containerDestPath, data.tarAssetName)
 		assert.NotNil(t, aw, "Expected non-nil archive writer")
@@ -107,22 +111,26 @@ func TestFindArchiveReaders(t *testing.T) {
 			expectedPrefices:    []string{"/", "/mnt/A", "/mnt/B", "/mnt/A/AB"},
 			expectedFilterSpecs: map[string]ReaderFilters{
 				"/": {
-					rebase:  "/",
-					exclude: []string{"/mnt/A", "/mnt/B", "/mnt/A/AB"},
+					rebase:  "",
+					strip:   "",
+					exclude: []string{"mnt/A/", "mnt/B/", "mnt/A/AB/"},
 					include: "",
 				},
 				"/mnt/A": {
-					rebase:  "/mnt/A",
-					exclude: []string{"/mnt/A/AB"},
+					rebase:  "mnt/A",
+					strip:   "",
+					exclude: []string{"AB/"},
 					include: "",
 				},
 				"/mnt/B": {
-					rebase:  "/mnt/B",
+					rebase:  "mnt/B",
+					strip:   "",
 					exclude: []string{},
 					include: "",
 				},
 				"/mnt/A/AB": {
-					rebase:  "/mnt/A/AB",
+					rebase:  "mnt/A/AB",
+					strip:   "",
 					exclude: []string{},
 					include: "",
 				},
@@ -133,22 +141,26 @@ func TestFindArchiveReaders(t *testing.T) {
 			expectedPrefices:    []string{"/", "/mnt/A", "/mnt/B", "/mnt/A/AB"},
 			expectedFilterSpecs: map[string]ReaderFilters{
 				"/": {
-					rebase:  "/",
-					exclude: []string{"/mnt/A", "/mnt/B", "/mnt/A/AB"},
+					rebase:  "mnt",
+					strip:   "mnt",
+					exclude: []string{"mnt/A/", "mnt/B/", "mnt/A/AB/"},
 					include: "",
 				},
 				"/mnt/A": {
-					rebase:  "/mnt/A",
-					exclude: []string{"/mnt/A/AB"},
+					rebase:  "mnt/A",
+					strip:   "",
+					exclude: []string{"AB/"},
 					include: "",
 				},
 				"/mnt/B": {
-					rebase:  "/mnt/B",
+					rebase:  "mnt/B",
+					strip:   "",
 					exclude: []string{},
 					include: "",
 				},
 				"/mnt/A/AB": {
-					rebase:  "/mnt/A/AB",
+					rebase:  "mnt/A/AB",
+					strip:   "",
 					exclude: []string{},
 					include: "",
 				},
@@ -159,22 +171,26 @@ func TestFindArchiveReaders(t *testing.T) {
 			expectedPrefices:    []string{"/", "/mnt/A", "/mnt/B", "/mnt/A/AB"},
 			expectedFilterSpecs: map[string]ReaderFilters{
 				"/": {
-					rebase:  "/",
-					exclude: []string{"/mnt/A", "/mnt/B", "/mnt/A/AB"},
+					rebase:  "mnt",
+					strip:   "mnt",
+					exclude: []string{"mnt/A/", "mnt/B/", "mnt/A/AB/"},
 					include: "",
 				},
 				"/mnt/A": {
-					rebase:  "/mnt/A",
-					exclude: []string{"/mnt/A/AB"},
+					rebase:  "mnt/A",
+					strip:   "",
+					exclude: []string{"AB/"},
 					include: "",
 				},
 				"/mnt/B": {
-					rebase:  "/mnt/B",
+					rebase:  "mnt/B",
+					strip:   "",
 					exclude: []string{},
 					include: "",
 				},
 				"/mnt/A/AB": {
-					rebase:  "/mnt/A/AB",
+					rebase:  "mnt/A/AB",
+					strip:   "",
 					exclude: []string{},
 					include: "",
 				},
@@ -183,14 +199,21 @@ func TestFindArchiveReaders(t *testing.T) {
 		// case 2: Do not include /mnt/B
 		{
 			containerSourcePath: "/mnt/A",
-			expectedPrefices:    []string{"/mnt/A", "/mnt/A/AB"},
+			expectedPrefices:    []string{"/", "/mnt/A", "/mnt/A/AB"},
 			expectedFilterSpecs: map[string]ReaderFilters{
+				"/": {
+					rebase:  "A",
+					strip:   "mnt/A",
+					exclude: []string{"mnt/A/", "mnt/A/AB/"},
+					include: "/mnt/A",
+				},
 				"/mnt/A": {
-					rebase:  "/mnt/A",
-					exclude: []string{"/mnt/A/AB"},
+					rebase:  "A",
+					strip:   "",
+					exclude: []string{"AB/"},
 				},
 				"/mnt/A/AB": {
-					rebase:  "/mnt/A/AB",
+					rebase:  "A/AB",
 					exclude: []string{},
 					include: "",
 				},
@@ -202,8 +225,9 @@ func TestFindArchiveReaders(t *testing.T) {
 			expectedPrefices:    []string{"/"},
 			expectedFilterSpecs: map[string]ReaderFilters{
 				"/": {
-					rebase:  "/",
-					exclude: []string{"/mnt/A", "/mnt/B", "/mnt/A/AB"},
+					rebase:  "not-a-mount",
+					strip:   "mnt/not-a-mount",
+					exclude: []string{""},
 					include: "mnt/not-a-mount",
 				},
 			},
@@ -213,9 +237,10 @@ func TestFindArchiveReaders(t *testing.T) {
 			expectedPrefices:    []string{"/"},
 			expectedFilterSpecs: map[string]ReaderFilters{
 				"/": {
-					rebase:  "/",
-					exclude: []string{"/mnt/A", "/mnt/B", "/mnt/A/AB"},
-					include: "etc/",
+					rebase:  "etc",
+					strip:   "etc",
+					exclude: []string{""},
+					include: "etc",
 				},
 			},
 		},
@@ -225,8 +250,9 @@ func TestFindArchiveReaders(t *testing.T) {
 			expectedPrefices:    []string{"/mnt/A"},
 			expectedFilterSpecs: map[string]ReaderFilters{
 				"/mnt/A": {
-					rebase:  "/mnt/A",
-					exclude: []string{"/mnt/A/AB"},
+					rebase:  "file.txt",
+					strip:   "a/file.txt",
+					exclude: []string{""},
 					include: "a/file.txt",
 				},
 			},
@@ -234,7 +260,8 @@ func TestFindArchiveReaders(t *testing.T) {
 	}
 
 	for i, data := range mockData {
-		readerMap := NewArchiveStreamReaderMap(mounts, data.containerSourcePath)
+		op := trace.NewOperation(context.Background(), "")
+		readerMap := NewArchiveStreamReaderMap(op, mounts, data.containerSourcePath)
 		archiveReaders, err := readerMap.FindArchiveReaders(data.containerSourcePath)
 		assert.Nil(t, err, "Expected success from finding archive readers for container source %s", data.containerSourcePath)
 		assert.NotNil(t, archiveReaders, "Expected an array of archive readers but got nil for container source path %s", data.containerSourcePath)
@@ -249,6 +276,7 @@ func TestFindArchiveReaders(t *testing.T) {
 		for _, ar := range archiveReaders {
 			currPath := ar.mountPoint.Destination
 			assert.Equal(t, data.expectedFilterSpecs[currPath].rebase, ar.filterSpec.RebasePath, "rebase filterspec not correct")
+			assert.Equal(t, data.expectedFilterSpecs[currPath].strip, ar.filterSpec.StripPath, "strip filterspec not correct")
 			for _, ex := range data.expectedFilterSpecs[currPath].exclude {
 				_, ok := ar.filterSpec.Exclusions[ex]
 				assert.True(t, ok, "Did not find %s in exclusion map for reader %s in mock #%d", ex, currPath, i)

@@ -72,6 +72,14 @@ func NotFoundError(msg string) error {
 	return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", msg))
 }
 
+func ImageNotFoundError(image, tag string) error {
+	return derr.NewRequestNotFoundError(fmt.Errorf("An image does not exist locally with the tag: %s", image))
+}
+
+func TagNotFoundError(image, tag string) error {
+	return derr.NewRequestNotFoundError(fmt.Errorf("tag does not exist: %s:%s", image, tag))
+}
+
 // ResourceLockedError returns a 423 http status
 func ResourceLockedError(msg string) error {
 	return derr.NewErrorWithStatusCode(fmt.Errorf("Resource locked: %s", msg), http.StatusLocked)

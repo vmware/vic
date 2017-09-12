@@ -103,6 +103,7 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string, label stri
 		stripRawTarget = strings.Replace(path, common.DsScheme+"://", "", -1)
 	}
 
+	// #nosec: Errors unhandled.
 	stripRawTarget, _ = url.PathUnescape(stripRawTarget)
 	dsURL, dsErr := url.Parse(stripRawTarget)
 	if dsErr != nil {
