@@ -186,7 +186,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	nwErrors := []error{}
 
 	// create a http client with a custom transport using the proxy from env vars
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: 5 * time.Second}
 	// priority given to https proxies
 	proxy := os.Getenv("VICADMIN_HTTPS_PROXY")
 	if proxy == "" {
