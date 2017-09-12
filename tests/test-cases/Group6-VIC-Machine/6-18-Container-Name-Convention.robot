@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 6-18 - Container Name Convention
 Resource  ../../resources/Util.robot
-Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
+Test Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
 *** Test Cases ***
