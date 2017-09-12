@@ -26,6 +26,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -186,7 +187,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	nwErrors := []error{}
 
 	// create a http client with a custom transport using the proxy from env vars
-	client := &http.Client{Timeout: 5 * time.Second}
+	client := &http.Client{Timeout: 10 * time.Second}
 	// priority given to https proxies
 	proxy := os.Getenv("VICADMIN_HTTPS_PROXY")
 	if proxy == "" {
@@ -202,12 +203,26 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	}
 
 	// perform the wan check
+	var wg sync.WaitGroup
+	wg.Add(len(hosts))
+	errs := make(chan error, len(hosts))
 	for _, host := range hosts {
-		_, err := client.Get(host)
-		if err != nil {
-			nwErrors = append(nwErrors, err)
-		}
+		go func(host string) {
+			defer wg.Done()
+			log.Infof("Getting %s", host)
+			_, err := client.Get(host)
+			if err != nil {
+				errs <- err
+			}
+		}(host)
 	}
+
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		nwErrors = append(nwErrors, err)
+	}
+
 	if len(nwErrors) > 0 {
 		v.NetworkStatus = BadStatus
 		for _, err := range nwErrors {
