@@ -23,8 +23,9 @@ Container name convention with id
     Install VIC Appliance To Test Server  additional-args=--container-name-convention 192.168.1.1-{id}
     Run  docker %{VCH-PARAMS} pull busybox
     ${containerID}=  Run  docker %{VCH-PARAMS} run -d ${busybox}
+    ${shortId}=  Get container shortID  ${containerID}
     ${output}=  Run  govc ls vm
-    Should Contain  ${output}  192.168.1.1-${containerID}
+    Should Contain  ${output}  192.168.1.1-${shortID}
     Run Regression Tests
     
 Container name convention with name
