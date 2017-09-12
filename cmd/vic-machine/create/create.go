@@ -316,6 +316,7 @@ func (c *Create) Flags() []cli.Flag {
 	target := c.TargetFlags()
 	ops := c.OpsCredentials.Flags(true)
 	compute := c.ComputeFlags()
+	container := c.ContainerFlags()
 	volume := c.volumeStores.Flags()
 	iso := c.ImageFlags(true)
 	cNetwork := c.containerNetworks.CNetworkFlags(true)
@@ -325,7 +326,7 @@ func (c *Create) Flags() []cli.Flag {
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, compute, ops, create, volume, dns, networks, cNetwork, memory, cpu, tls, registries, proxies, syslog, iso, util, debug, help} {
+	for _, f := range [][]cli.Flag{target, compute, ops, create, container, volume, dns, networks, cNetwork, memory, cpu, tls, registries, proxies, syslog, iso, util, debug, help} {
 		flags = append(flags, f...)
 	}
 
