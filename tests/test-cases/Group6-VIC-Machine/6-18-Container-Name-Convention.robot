@@ -22,7 +22,7 @@ Test Timeout  20 minutes
 Container name convention with id
     Install VIC Appliance To Test Server  additional-args=--container-name-convention 192.168.1.1-{id}
     Run  docker %{VCH-PARAMS} pull busybox
-    ${containerID}=  Run  docker %{VCH-PARAMS} run -d {busybox}
+    ${containerID}=  Run  docker %{VCH-PARAMS} run -d ${busybox}
     ${output}=  Run  govc ls vm
     Should Contain  ${output}  192.168.1.1-${containerID}
     Run Regression Tests
@@ -30,7 +30,7 @@ Container name convention with id
 Container name convention with name
     Install VIC Appliance To Test Server  additional-args=--container-name-convention 192.168.1.1-{name}
     Run  docker %{VCH-PARAMS} pull busybox
-    ${containerID}=  Run  docker %{VCH-PARAMS} run -d {busybox}
+    ${containerID}=  Run  docker %{VCH-PARAMS} run -d ${busybox}
     ${name}=  Get container name  ${containerID}
     ${output}=  Run  govc ls vm
     Should Contain  ${output}  192.168.1.1-${name}
