@@ -36,9 +36,10 @@ const (
 	// VM is the VM name - i.e. [ds] {vm}/{vm}.vmx
 	VM PatternToken = "{vm}"
 	// ID is the container ID for the VM
-	ID = "{id}"
+	ID PatternToken = "{id}"
 	// Name is the container name of the VM
-	Name = "{name}"
+	Name PatternToken = "{name}"
+
 	// ID represents the VCH in creating status, which helps to identify VCH VM which still does not have a valid VM moref set
 	CreatingVCH = "CreatingVCH"
 

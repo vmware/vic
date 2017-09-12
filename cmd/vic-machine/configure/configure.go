@@ -101,6 +101,7 @@ func (c *Configure) Flags() []cli.Flag {
 	id := c.IDFlags()
 	volume := c.volStores.Flags()
 	compute := c.ComputeFlags()
+	container := c.ContainerFlags()
 	debug := c.DebugFlags(false)
 	cNetwork := c.cNetworks.CNetworkFlags(false)
 	proxies := c.proxies.ProxyFlags(false)
@@ -111,7 +112,7 @@ func (c *Configure) Flags() []cli.Flag {
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, ops, id, compute, volume, dns, cNetwork, memory, cpu, certificates, registries, proxies, util, debug} {
+	for _, f := range [][]cli.Flag{target, ops, id, compute, container, volume, dns, cNetwork, memory, cpu, certificates, registries, proxies, util, debug} {
 		flags = append(flags, f...)
 	}
 
@@ -190,6 +191,10 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 
 	if c.cNetworks.IsSet {
 		o.ContainerNetworks = n.ContainerNetworks
+	}
+
+	if c.Data.ContainerNameConvention != "" {
+		o.ContainerNameConvention = c.Data.ContainerNameConvention
 	}
 
 	// Copy the new volume store configuration directly since it has the merged
