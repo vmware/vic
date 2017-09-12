@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/migration"
@@ -253,6 +254,10 @@ func (c *containerBase) kill(ctx context.Context) error {
 	}
 	if err != nil {
 		log.Warnf("killing %s attempt resulted in: %s", c.ExecConfig.ID, err)
+
+		if isInvalidPowerStateError(err) {
+			return nil
+		}
 	}
 
 	// Even if startGuestProgram failed above, it may actually have executed.  If the container came up and then
@@ -290,6 +295,8 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 		stop[0] = string(ssh.SIGTERM)
 	}
 
+	var killed bool
+
 	for _, sig := range stop {
 		msg := fmt.Sprintf("sending kill -%s %s", sig, c.ExecConfig.ID)
 		log.Info(msg)
@@ -302,6 +309,13 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 			// Just warn and proceed to waiting for power state per issue https://github.com/vmware/vic/issues/5803
 			// Description above in function kill()
 			log.Warnf("%s: %s", msg, err)
+
+			// If the error tells us "The attempted operation cannot be performed in the current state (Powered off)" (InvalidPowerState),
+			// we can avoid hard poweroff (issues #6236 and #6252). Here we wait for the power state changes instead of return
+			// immediately to avoid excess vSphere queries
+			if isInvalidPowerStateError(err) {
+				killed = true
+			}
 		}
 
 		log.Infof("waiting %s for %s to power off", wait, c.ExecConfig.ID)
@@ -315,6 +329,10 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 		}
 
 		log.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c.ExecConfig.ID, sig)
+
+		if killed {
+			return nil
+		}
 	}
 
 	return fmt.Errorf("failed to shutdown %s via kill signals %s", c.ExecConfig.ID, stop)
@@ -406,4 +424,14 @@ func (c *containerBase) waitFor(ctx context.Context, key string) error {
 	}
 
 	return nil
+}
+
+// isInvalidPowerStateError verifies if an error is the InvalidPowerStateError
+func isInvalidPowerStateError(err error) bool {
+	if soap.IsSoapFault(err) {
+		_, ok := soap.ToSoapFault(err).VimFault().(types.InvalidPowerState)
+		return ok
+	}
+
+	return false
 }
