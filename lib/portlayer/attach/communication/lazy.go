@@ -50,3 +50,11 @@ func (l *LazySessionInteractor) Initialize() (SessionInteractor, error) {
 	}
 	return l.si, nil
 }
+
+// Cleanup returns either an initialized connection, or nil if it was never initialized
+func (l *LazySessionInteractor) Cleanup() (SessionInteractor, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	return l.si, nil
+}
