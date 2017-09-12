@@ -24,7 +24,7 @@ Simple background mysql
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${ip}=  Get IP Address of Container  mysql1
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it --rm mysql sh -c 'exec mysql -h${ip} -P3306 -uroot -ppassword1 -e "show databases;"'
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it --rm mysql sh -c 'mysql -h${ip} -P3306 -uroot -ppassword1 -e "show databases;"'
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  information_schema
