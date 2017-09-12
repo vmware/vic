@@ -16,3 +16,11 @@ VIC Integration Test Suite
 -
 [Group 10 - VCH Restart](Group10-VCH-Restart/TestCases.md)
 -
+[Group 11 - Upgrade](Group11-Upgrade/TestCases.md)
+-
+[Group 12 - VCH-BC](Group12-VCH-BC/TestCases.md)
+-
+[Group 13 - VAC](Group13-VAC/TestCases.md)
+-
+[Group 22 - Docker-Apps](Group22-Docker-Apps/TestCases.md)
+-
