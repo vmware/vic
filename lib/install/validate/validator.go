@@ -355,6 +355,18 @@ func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.V
 		log.Debugf("Setting scratch image size to %d KB in VCHConfig", conf.ScratchSize)
 	}
 
+	if input.ContainerNameConvention != "" {
+		// ensure token is present
+		if !strings.Contains(input.ContainerNameConvention, string(config.ID)) && !strings.Contains(input.ContainerNameConvention, string(config.Name)) {
+			v.NoteIssue(errors.Errorf("Container name convention must include %s or %s token", config.ID, config.Name))
+		}
+		// guard against both -- possibly we want to allow, but for now only allow one
+		if strings.Contains(input.ContainerNameConvention, string(config.ID)) && strings.Contains(input.ContainerNameConvention, string(config.Name)) {
+			v.NoteIssue(errors.Errorf("Container name convention only allows one token, either %s or %s", config.ID, config.Name))
+		}
+	}
+
+	conf.ContainerNameConvention = input.ContainerNameConvention
 }
 
 func (v *Validator) checkSessionSet() []string {
