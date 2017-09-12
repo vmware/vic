@@ -61,8 +61,8 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/metadata"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
@@ -108,6 +108,9 @@ const (
 	DefaultCPUs = 2
 	// Default timeout to stop a container if not specified in container config
 	DefaultStopTimeout = 10
+
+	// maximum elapsed time for retry
+	maxElapsedTime = 2 * time.Minute
 )
 
 var (
@@ -761,6 +764,16 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		if state.Status == "Starting" {
 			return derr.NewRequestConflictError(fmt.Errorf("The container is starting.  To remove use -f"))
 		}
+
+		handle, err := c.Handle(id, name)
+		if err != nil {
+			return err
+		}
+
+		_, err = c.containerProxy.UnbindContainerFromNetwork(vc, handle)
+		if err != nil {
+			return err
+		}
 	}
 
 	//call the remove directly on the name. No need for using a handle.
@@ -826,7 +839,7 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 			}
 
 			log.Debugf("Unmapping ports for powered off / removed container %q", mappedCtr)
-			err = UnmapPorts(cc.HostConfig)
+			err = UnmapPorts(cc.ContainerID, cc.HostConfig)
 			if err != nil {
 				return fmt.Errorf("Failed to unmap host port %s for container %q: %s",
 					hPort, mappedCtr, err)
@@ -943,7 +956,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 
 			defer func() {
 				if err != nil {
-					UnmapPorts(hostConfig)
+					UnmapPorts(id, hostConfig)
 				}
 			}()
 		}
@@ -1068,8 +1081,8 @@ func MapPorts(hostconfig *containertypes.HostConfig, endpoint *models.EndpointCo
 	return nil
 }
 
-// UnmapPorts unmaps ports defined in hostconfig
-func UnmapPorts(hostconfig *containertypes.HostConfig) error {
+// UnmapPorts unmaps ports defined in hostconfig if it's mapped for this container
+func UnmapPorts(id string, hostconfig *containertypes.HostConfig) error {
 	log.Debugf("UnmapPorts: %v", hostconfig.PortBindings)
 
 	if len(hostconfig.PortBindings) == 0 {
@@ -1085,9 +1098,13 @@ func UnmapPorts(hostconfig *containertypes.HostConfig) error {
 	defer cbpLock.Unlock()
 	for _, p := range portMap {
 		// check if we should actually unmap based on current mappings
-		_, mapped := containerByPort[p.strHostPort]
+		mappedID, mapped := containerByPort[p.strHostPort]
 		if !mapped {
 			log.Debugf("skipping already unmapped %s", p.strHostPort)
+			continue
+		}
+		if mappedID != id {
+			log.Debugf("port is mapped for container %s, not %s, skipping", mappedID, id)
 			continue
 		}
 
@@ -1232,7 +1249,10 @@ func (c *Container) ContainerStop(name string, seconds *int) error {
 	operation := func() error {
 		return c.containerProxy.Stop(vc, name, seconds, true)
 	}
-	if err := retry.Do(operation, IsConflictError); err != nil {
+
+	config := retry.NewBackoffConfig()
+	config.MaxElapsedTime = maxElapsedTime
+	if err := retry.DoWithConfig(operation, IsConflictError, config); err != nil {
 		return err
 	}
 
@@ -1716,7 +1736,11 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 		return derr.NewRequestConflictError(err)
 	}
 
-	if err := c.containerProxy.Rename(vc, newName); err != nil {
+	renameOp := func() error {
+		return c.containerProxy.Rename(vc, newName)
+	}
+
+	if err := retry.Do(renameOp, IsConflictError); err != nil {
 		log.Errorf("Rename error: %s", err)
 		cache.ContainerCache().ReleaseName(newName)
 		return err
@@ -1960,10 +1984,11 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	}
 
 	// Was a name provided - if not create a friendly name
+	generatedName := namesgenerator.GetRandomName(0)
 	if config.Name == "" {
 		//TODO: Assume we could have a name collison here : need to
 		// provide validation / retry CDG June 9th 2016
-		config.Name = namesgenerator.GetRandomName(0)
+		config.Name = generatedName
 	}
 
 	return nil

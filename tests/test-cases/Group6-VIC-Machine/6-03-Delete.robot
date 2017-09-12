@@ -17,6 +17,7 @@ Documentation  Test 6-03 - Verify delete clean up all resources
 Resource  ../../resources/Util.robot
 Test Setup  Install VIC Appliance To Test Server
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Keywords ***
 Initial load

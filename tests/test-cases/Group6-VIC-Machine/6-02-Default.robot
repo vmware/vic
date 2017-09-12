@@ -16,6 +16,7 @@
 Documentation  Test 6-02 - Verify default parameters
 Resource  ../../resources/Util.robot
 Suite Teardown  Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Keywords ***
 Should Not Have VMOMI Session

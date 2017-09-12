@@ -42,7 +42,7 @@ import (
 	vicbackends "github.com/vmware/vic/lib/apiservers/engine/backends"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/executor"
 	"github.com/vmware/vic/lib/config"
-	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/lib/pprof"
 	viclog "github.com/vmware/vic/pkg/log"

@@ -423,22 +423,8 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 
 		conf.AddContainerNetwork(mappedNet)
 	}
-	v.nicNumbers(conf)
 
 	conf.AsymmetricRouting = input.AsymmetricRouting
-}
-
-// nicNumbers will check vch appliance nic numbers. currently we don't support more than three nics for issue #1674.
-// FIXME: this limitation should be removed after #1674 is fixed
-func (v *Validator) nicNumbers(conf *config.VirtualContainerHostConfigSpec) {
-	defer trace.End(trace.Begin(""))
-	nics := make(map[string]bool)
-	for _, net := range conf.ExecutorConfig.Networks {
-		nics[net.Network.ID] = true
-	}
-	if len(nics) > 3 {
-		v.NoteIssue(fmt.Errorf("Four different networks including bridge network are not allowed at this time. At least two network roles of client network, management network and public network should share same network"))
-	}
 }
 
 // generateBridgeName returns a name that can be used to create a switch/pg pair on ESX

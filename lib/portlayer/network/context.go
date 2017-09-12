@@ -29,7 +29,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
-	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/ip"
@@ -39,10 +39,6 @@ import (
 )
 
 const (
-	pciSlotNumberBegin int32 = 0xc0
-	pciSlotNumberEnd   int32 = 1 << 10
-	pciSlotNumberInc   int32 = 1 << 5
-
 	DefaultBridgeName = "bridge"
 )
 
@@ -981,7 +977,7 @@ var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, e
 		}
 	}
 
-	if spec.VirtualDeviceSlotNumber(d) == spec.NilSlot {
+	if spec.VirtualDeviceSlotNumber(d) == constants.NilSlot {
 		slots := make(map[int32]bool)
 		for _, e := range h.ExecConfig.Networks {
 			if e.Common.ID != "" {
