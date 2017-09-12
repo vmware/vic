@@ -29,7 +29,7 @@ func (c *ContainerConfig) ContainerFlags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "container-name-convention, cnc",
 			Value:       "",
-			Usage:       "Provide a naming convention. Allows the following token '{name}', that will be replaced.",
+			Usage:       "Provide a naming convention. Allows a token of '{name}' or '{id}', that will be replaced.",
 			Destination: &c.ContainerNameConvention,
 			Hidden:      true,
 		},

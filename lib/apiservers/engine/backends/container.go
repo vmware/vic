@@ -1971,11 +1971,6 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 		config.Name = generatedName
 	}
 
-	if vchConfig.Cfg.ContainerNameConvention != "" {
-		// apply the naming convention
-		config.Name = strings.Replace(vchConfig.Cfg.ContainerNameConvention, "{name}", config.Name, -1)
-	}
-
 	return nil
 }
 
