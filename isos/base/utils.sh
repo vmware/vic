@@ -246,7 +246,7 @@ generate_iso() {
             return 5
         }
 
-        echo "Embedding build version ${VERSION} (use BUILD_VERSION to override)"
+        echo "Embedding build version ${VERSION} (use BUILD_NUMBER environment variable to override)"
         sed -i -e "s/\${VERSION}/${VERSION}/" xorriso-options.cfg
 
         # deleting the file first seems to be necessary in some cases
