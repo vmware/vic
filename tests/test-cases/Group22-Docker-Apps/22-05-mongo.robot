@@ -24,7 +24,7 @@ Simple background mongo
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${ip}=  Get IP Address of Container  mongo1
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it --rm mongo sh -c 'mongo "${ip}/27017" --quiet --eval "db.adminCommand( { listDatabases: 1 } )"'
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --rm mongo sh -c 'mongo "${ip}/27017" --quiet --eval "db.adminCommand( { listDatabases: 1 } )"'
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  "name" : "admin"
