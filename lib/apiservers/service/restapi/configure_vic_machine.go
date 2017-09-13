@@ -71,9 +71,7 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 	api.GetTargetTargetVchHandler = &handlers.VCHListGet{}
 
 	// POST /container/target/{target}/vch
-	api.PostTargetTargetVchHandler = operations.PostTargetTargetVchHandlerFunc(func(params operations.PostTargetTargetVchParams, principal interface{}) middleware.Responder {
-		return middleware.NotImplemented("operation .PostTargetTargetVch has not yet been implemented")
-	})
+	api.PostTargetTargetVchHandler = &handlers.VCHCreate{}
 
 	// GET /container/target/{target}/vch/{vch-id}
 	api.GetTargetTargetVchVchIDHandler = &handlers.VCHGet{}
@@ -107,9 +105,7 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 	api.GetTargetTargetDatacenterDatacenterVchHandler = &handlers.VCHDatacenterListGet{}
 
 	// POST /container/target/{target}/datacenter/{datacenter}/vch
-	api.PostTargetTargetDatacenterDatacenterVchHandler = operations.PostTargetTargetDatacenterDatacenterVchHandlerFunc(func(params operations.PostTargetTargetDatacenterDatacenterVchParams, principal interface{}) middleware.Responder {
-		return middleware.NotImplemented("operation .PostTargetTargetDatacenterDatacenterVch has not yet been implemented")
-	})
+	api.PostTargetTargetDatacenterDatacenterVchHandler = &handlers.VCHDatacenterCreate{}
 
 	// GET /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}
 	api.GetTargetTargetDatacenterDatacenterVchVchIDHandler = &handlers.VCHDatacenterGet{}
