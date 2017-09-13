@@ -63,7 +63,7 @@ OPTIONS:
 type Create struct {
 	common.Networks
 	*data.Data
-	certs             common.CertFactory
+	Certs             common.CertFactory
 	containerNetworks common.CNetworks
 	registries        common.Registries
 
@@ -77,7 +77,7 @@ type Create struct {
 	advancedOptions bool
 	BridgeIPRange   string
 
-	proxies common.Proxies
+	Proxies common.Proxies
 
 	syslogAddr string
 
@@ -243,12 +243,12 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.NumCPUs,
 		})
 
-	tls := c.certs.CertFlags()
+	tls := c.Certs.CertFlags()
 
 	tls = append(tls, cli.BoolFlag{
 		Name:        "no-tls, k",
 		Usage:       "Disable TLS support completely",
-		Destination: &c.certs.NoTLS,
+		Destination: &c.Certs.NoTLS,
 		Hidden:      true,
 	})
 
@@ -314,7 +314,7 @@ func (c *Create) Flags() []cli.Flag {
 	iso := c.ImageFlags(true)
 	cNetwork := c.containerNetworks.CNetworkFlags(true)
 	dns := c.dns.DNSFlags(true)
-	proxies := c.proxies.ProxyFlags(true)
+	proxies := c.Proxies.ProxyFlags(true)
 	debug := c.DebugFlags(true)
 
 	// flag arrays are declared, now combined
@@ -402,7 +402,7 @@ func (c *Create) processParams() error {
 	c.WhitelistRegistries = c.registries.WhitelistRegistries
 	c.RegistryCAs = c.registries.RegistryCAs
 
-	hproxy, sproxy, err := c.proxies.ProcessProxies()
+	hproxy, sproxy, err := c.Proxies.ProcessProxies()
 	if err != nil {
 		return err
 	}
@@ -426,16 +426,16 @@ func (c *Create) processCertificates() error {
 		debug = *c.Debug.Debug
 	}
 
-	c.certs.Networks = c.Networks
+	c.Certs.Networks = c.Networks
 
-	if err := c.certs.ProcessCertificates(c.DisplayName, c.Force, debug); err != nil {
+	if err := c.Certs.ProcessCertificates(c.DisplayName, c.Force, debug); err != nil {
 		return err
 	}
 
 	// copy a few things out of seed because ProcessCertificates has side effects
-	c.KeyPEM = c.certs.KeyPEM
-	c.CertPEM = c.certs.CertPEM
-	c.ClientCAs = c.certs.ClientCAs
+	c.KeyPEM = c.Certs.KeyPEM
+	c.CertPEM = c.Certs.CertPEM
+	c.ClientCAs = c.Certs.ClientCAs
 
 	return nil
 }
@@ -750,9 +750,9 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 		}
 	}()
 
-	if err = executor.CheckServiceReady(ctx, vchConfig, c.certs.ClientCert); err != nil {
+	if err = executor.CheckServiceReady(ctx, vchConfig, c.Certs.ClientCert); err != nil {
 		executor.CollectDiagnosticLogs()
-		cmd, _ := executor.GetDockerAPICommand(vchConfig, c.certs.Ckey, c.certs.Ccert, c.certs.Cacert, c.certs.CertPath)
+		cmd, _ := executor.GetDockerAPICommand(vchConfig, c.Certs.Ckey, c.Certs.Ccert, c.Certs.Cacert, c.Certs.CertPath)
 		log.Info("\tAPI may be slow to start - try to connect to API after a few minutes:")
 		if cmd != "" {
 			log.Infof("\t\tRun command: %s", cmd)
@@ -767,7 +767,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 
 	// We must check for the volume stores that are present after the portlayer presents.
 
-	executor.ShowVCH(vchConfig, c.certs.Ckey, c.certs.Ccert, c.certs.Cacert, c.certs.EnvFile, c.certs.CertPath)
+	executor.ShowVCH(vchConfig, c.Certs.Ckey, c.Certs.Ccert, c.Certs.Cacert, c.Certs.EnvFile, c.Certs.CertPath)
 	log.Infof("Installer completed successfully")
 
 	return nil
