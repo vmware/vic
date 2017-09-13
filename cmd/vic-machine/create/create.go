@@ -357,21 +357,21 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if err := c.processBridgeNetwork(); err != nil {
+	if err := c.ProcessBridgeNetwork(); err != nil {
 		return err
 	}
 
-	if err := c.processNetwork(&c.Data.ClientNetwork, "client", c.ClientNetworkName,
+	if err := c.ProcessNetwork(&c.Data.ClientNetwork, "client", c.ClientNetworkName,
 		c.ClientNetworkIP, c.ClientNetworkGateway); err != nil {
 		return err
 	}
 
-	if err := c.processNetwork(&c.Data.PublicNetwork, "public", c.PublicNetworkName,
+	if err := c.ProcessNetwork(&c.Data.PublicNetwork, "public", c.PublicNetworkName,
 		c.PublicNetworkIP, c.PublicNetworkGateway); err != nil {
 		return err
 	}
 
-	if err := c.processNetwork(&c.Data.ManagementNetwork, "management", c.ManagementNetworkName,
+	if err := c.ProcessNetwork(&c.Data.ManagementNetwork, "management", c.ManagementNetworkName,
 		c.ManagementNetworkIP, c.ManagementNetworkGateway); err != nil {
 		return err
 	}
@@ -440,7 +440,7 @@ func (c *Create) processCertificates() error {
 	return nil
 }
 
-func (c *Create) processBridgeNetwork() error {
+func (c *Create) ProcessBridgeNetwork() error {
 	// bridge network params
 	var err error
 
@@ -488,8 +488,8 @@ func parseGatewaySpec(gw string) (cidrs []net.IPNet, gwIP net.IPNet, err error) 
 	return
 }
 
-// processNetwork parses network args if present
-func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, staticIP, gateway string) error {
+// ProcessNetwork parses network args if present
+func (c *Create) ProcessNetwork(network *data.NetworkConfig, netName, pgName, staticIP, gateway string) error {
 	var err error
 
 	network.Name = pgName
