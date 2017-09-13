@@ -18,14 +18,19 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
+*** Keywords ***
+Check mongo container
+    [Arguments]  ${ip}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --rm mongo sh -c 'mongo "${ip}/27017" --quiet --eval "db.adminCommand( { listDatabases: 1 } )"'
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  "name" : "admin"
+    Should Contain  ${output}  "name" : "local"
+
 *** Test Cases ***
 Simple background mongo
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name mongo1 -d mongo
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${ip}=  Get IP Address of Container  mongo1
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --rm mongo sh -c 'mongo "${ip}/27017" --quiet --eval "db.adminCommand( { listDatabases: 1 } )"'
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  "name" : "admin"
-    Should Contain  ${output}  "name" : "local"
+    Wait Until Keyword Succeeds  5x  6s  Check mongo container  ${ip}
