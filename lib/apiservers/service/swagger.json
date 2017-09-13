@@ -580,7 +580,11 @@
             "volume_stores": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "object",
+                "properties": {
+                  "datastore": {"type": "string"},
+                  "label": {"type": "string"}
+                }
               }
             },
             "base_image_size": { "$ref": "#/definitions/Value_Bytes" }
