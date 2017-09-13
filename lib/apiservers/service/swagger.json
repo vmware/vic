@@ -527,6 +527,9 @@
         "name": {
           "type": "string"
         },
+        "debug": {
+          "type": "integer"
+        },
         "compute": {
           "type": "object",
           "properties": {
