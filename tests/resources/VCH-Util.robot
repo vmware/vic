@@ -260,9 +260,10 @@ Check For The Proper Log Files
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b /tmp/cookies-%{VCH-NAME} | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
-    Should Contain  ${output}  ${container}/output.log
-    Should Contain  ${output}  ${container}/vmware.log
-    Should Contain  ${output}  ${container}/tether.debug
+    @{words}=  Split String  ${container}  -
+    Should Contain Any  ${output}  @{words}[0]/output.log  @{words}[1]/output.log
+    Should Contain Any  ${output}  @{words}[0]/vmware.log  @{words}[1]/vmware.log
+    Should Contain Any  ${output}  @{words}[0]/tether.debug  @{words}[1]/tether.debug
 
 Scrape Logs For the Password
     [Tags]  secret

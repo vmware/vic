@@ -26,6 +26,7 @@ Container name convention with id
     ${shortId}=  Get container shortID  ${containerID}
     ${output}=  Run  govc ls vm
     Should Contain  ${output}  192.168.1.1-${shortID}
+    Run  docker %{VCH-PARAMS} rm -f ${containerID}
     Run Regression Tests
     
 Container name convention with name
@@ -35,4 +36,10 @@ Container name convention with name
     ${name}=  Get container name  ${containerID}
     ${output}=  Run  govc ls vm
     Should Contain  ${output}  192.168.1.1-${name}
+    Run  docker %{VCH-PARAMS} rm -f ${containerID}
     Run Regression Tests
+
+Container name convention with invalid argument
+    ${rc}  ${output}=  Run Keyword And Ignore Error  Install VIC Appliance To Test Server  additional-args=--container-name-convention 192.168.1.1-mycontainer
+    Should Contain  ${output}  Container name convention must include {id} or {name} token
+    [Teardown]  Log To Console  Test passed no need to run cleanup
