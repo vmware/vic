@@ -76,9 +76,7 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 	})
 
 	// GET /container/target/{target}/vch/{vch-id}
-	api.GetTargetTargetVchVchIDHandler = operations.GetTargetTargetVchVchIDHandlerFunc(func(params operations.GetTargetTargetVchVchIDParams, principal interface{}) middleware.Responder {
-		return middleware.NotImplemented("operation .GetTargetTargetVchVchID has not yet been implemented")
-	})
+	api.GetTargetTargetVchVchIDHandler = &handlers.VCHGet{}
 
 	// PUT /container/target/{target}/vch/{vch-id}
 	api.PutTargetTargetVchVchIDHandler = operations.PutTargetTargetVchVchIDHandlerFunc(func(params operations.PutTargetTargetVchVchIDParams, principal interface{}) middleware.Responder {
@@ -114,9 +112,7 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 	})
 
 	// GET /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}
-	api.GetTargetTargetDatacenterDatacenterVchVchIDHandler = operations.GetTargetTargetDatacenterDatacenterVchVchIDHandlerFunc(func(params operations.GetTargetTargetDatacenterDatacenterVchVchIDParams, principal interface{}) middleware.Responder {
-		return middleware.NotImplemented("operation .GetTargetTargetDatacenterDatacenterVchVchID has not yet been implemented")
-	})
+	api.GetTargetTargetDatacenterDatacenterVchVchIDHandler = &handlers.VCHDatacenterGet{}
 
 	// PUT /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}
 	api.PutTargetTargetDatacenterDatacenterVchVchIDHandler = operations.PutTargetTargetDatacenterDatacenterVchVchIDHandlerFunc(func(params operations.PutTargetTargetDatacenterDatacenterVchVchIDParams, principal interface{}) middleware.Responder {
