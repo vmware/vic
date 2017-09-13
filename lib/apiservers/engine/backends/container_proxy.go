@@ -107,6 +107,8 @@ type VicContainerProxy interface {
 
 	GetContainerChanges(op trace.Operation, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error)
 
+	UnbindContainerFromNetwork(vc *viccontainer.VicContainer, handle string) (string, error)
+
 	Handle(id, name string) (string, error)
 	Client() *client.PortLayer
 	exitCode(vc *viccontainer.VicContainer) (string, error)
@@ -779,20 +781,9 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 	}
 
 	if unbound {
-		unbindParams := scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle)
-		ub, err := c.client.Scopes.UnbindContainer(unbindParams)
+		handle, err = c.UnbindContainerFromNetwork(vc, handle)
 		if err != nil {
-			switch err := err.(type) {
-			case *scopes.UnbindContainerNotFound:
-				// ignore error
-				log.Warnf("Container %s not found by network unbind", vc.ContainerID)
-			case *scopes.UnbindContainerInternalServerError:
-				return InternalServerError(err.Payload.Message)
-			default:
-				return InternalServerError(err.Error())
-			}
-		} else {
-			handle = ub.Payload.Handle
+			return err
 		}
 
 		// unmap ports
@@ -833,6 +824,27 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 	}
 
 	return nil
+}
+
+// UnbindContainerFromNetwork unbinds a container from the networks that it connects to
+func (c *ContainerProxy) UnbindContainerFromNetwork(vc *viccontainer.VicContainer, handle string) (string, error) {
+	defer trace.End(trace.Begin(vc.ContainerID))
+
+	unbindParams := scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle)
+	ub, err := c.client.Scopes.UnbindContainer(unbindParams)
+	if err != nil {
+		switch err := err.(type) {
+		case *scopes.UnbindContainerNotFound:
+			// ignore error
+			log.Warnf("Container %s not found by network unbind", vc.ContainerID)
+		case *scopes.UnbindContainerInternalServerError:
+			return "", InternalServerError(err.Payload.Message)
+		default:
+			return "", InternalServerError(err.Error())
+		}
+	}
+
+	return ub.Payload.Handle, nil
 }
 
 // State returns container state
