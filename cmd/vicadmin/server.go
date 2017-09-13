@@ -168,10 +168,11 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 	defer trace.End(trace.Begin(""))
 
 	authHandler := func(w http.ResponseWriter, r *http.Request) {
-		// #nosec: Errors unhandled.
-		websession, _ := s.uss.cookies.Get(r, sessionCookieKey) // ignore error because it is okay if it doesn't exist
+		// #nosec: Errors unhandled because it is okay if the cookie doesn't exist.
+		websession, _ := s.uss.cookies.Get(r, sessionCookieKey)
 
-		if len(r.TLS.PeerCertificates) > 0 { // the user is authenticated by certificate at connection time
+		if len(r.TLS.PeerCertificates) > 0 {
+			// the user is authenticated by certificate at connection time
 			log.Infof("Authenticated connection via client certificate with serial %s from %s", r.TLS.PeerCertificates[0].SerialNumber, r.RemoteAddr)
 			key := uuid.New().String()
 
