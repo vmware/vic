@@ -796,7 +796,7 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 		}
 
 		// unmap ports
-		if err = UnmapPorts(vc.HostConfig); err != nil {
+		if err = UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
 			return err
 		}
 	}
@@ -969,7 +969,7 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 
 	if state, err := c.State(vc); !state.Running && err == nil {
 		// unmap ports
-		if err = UnmapPorts(vc.HostConfig); err != nil {
+		if err = UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
 			return err
 		}
 	}
