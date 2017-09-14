@@ -192,20 +192,21 @@ func (c *Connector) interaction(ctx context.Context, id string) (SessionInteract
 func (c *Connector) RemoveInteraction(id string) error {
 	defer trace.End(trace.Begin(id))
 
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
 	var err error
-	if v, ok := c.interactions[id]; ok {
+
+	c.mutex.Lock()
+	v, ok := c.interactions[id]
+	if ok {
 		log.Debugf("attach connector: Removing %s from the connection map", id)
-		conn, err := v.Initialize()
-		if err == nil {
-			err = conn.Close()
-		}
 		delete(c.interactions, id)
 		c.fg.Forget(id)
 	}
+	c.mutex.Unlock()
 
+	conn, err := v.Cleanup()
+	if conn != nil {
+		err = conn.Close()
+	}
 	return err
 }
 
