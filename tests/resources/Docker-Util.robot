@@ -95,11 +95,16 @@ Get container shortID
     ${shortID}=  Get Substring  ${id}  0  12
     [Return]  ${shortID}
 
-Get VM display name
+Get container name
     [Arguments]  ${id}
     ${rc}  ${name}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --format='{{.Name}}' ${id}
     Should Be Equal As Integers  ${rc}  0
     ${name}=  Get Substring  ${name}  1
+    [Return]  ${name}
+
+Get VM display name
+    [Arguments]  ${id}
+    ${name}=  Get container name  ${id}
     ${shortID}=  Get container shortID  ${id}
     [Return]  ${name}-${shortID}
 
