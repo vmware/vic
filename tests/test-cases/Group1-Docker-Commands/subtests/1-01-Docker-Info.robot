@@ -14,10 +14,6 @@
 
 *** Settings ***
 Documentation  Test 1-01 - Docker Info
-Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
-Suite Teardown  Cleanup VIC Appliance On Test Server
-Test Timeout  20 minutes
 
 *** Keywords ***
 Get resource pool CPU and mem limits
@@ -62,8 +58,7 @@ Set resource pool CPU and mem limits
     ${rc}  ${output}=  Run And Return Rc And Output  govc pool.change -mem.limit=${memval} %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
 
-*** Test Cases ***
-Basic Info
+Docker Info - Basic Info
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
@@ -71,7 +66,7 @@ Basic Info
     ${volpluginline}=  Get Lines Containing String  ${output}  Volume:
     Should Contain  ${volpluginline}  vsphere
 
-Debug Info
+Docker Info - Debug Info
     ${status}=  Get State Of Github Issue  780
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-1-Docker-Info.robot needs to be updated now that Issue #780 has been resolved
     #Log To Console  \nRunning docker -D info command...
@@ -79,7 +74,7 @@ Debug Info
     #Log  ${output}
     #Should Contain  ${output}  Debug mode
 
-Correct container count
+Docker Info - Correct container count
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
@@ -103,7 +98,7 @@ Correct container count
     Should Contain  ${output}  Containers: 1
     Should Contain  ${output}  Running: 1
 
-Check modified resource pool CPU and memory limits
+Docker Info - Check modified resource pool CPU and memory limits
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
     Should Be Equal As Integers  ${rc}  0
 
@@ -122,7 +117,7 @@ Check modified resource pool CPU and memory limits
 
     Set resource pool CPU and mem limits  ${oldcpuval}  ${oldmemval}
 
-Check updated resource pool CPU and memory usages
+Docker Info - Check updated resource pool CPU and memory usages
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
     Should Be Equal As Integers  ${rc}  0
 

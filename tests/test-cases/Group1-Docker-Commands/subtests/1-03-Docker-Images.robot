@@ -14,12 +14,8 @@
 
 *** Settings ***
 Documentation  Test 1-03 - Docker Images
-Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
-Suite Teardown  Cleanup VIC Appliance On Test Server
-Test Timeout  20 minutes
 
-*** Test Cases ***
+*** Keywords ***
 Simple images
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull alpine
     Should Be Equal As Integers  ${rc}  0

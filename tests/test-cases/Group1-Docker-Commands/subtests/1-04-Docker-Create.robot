@@ -14,12 +14,8 @@
 
 *** Settings ***
 Documentation  Test 1-04 - Docker Create
-Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
-Suite Teardown  Cleanup VIC Appliance On Test Server
-Test Timeout  20 minutes
 
-*** Test Cases ***
+*** Keyword ***
 Simple creates
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
