@@ -22,6 +22,7 @@ This test requires that a vSphere server is running and available
 9. Create a new container, start the container using govc/UI, attempt to stop the container using docker stop
 10. Start a new container, stop it, then attempt to restart it again
 11. Start a new container, stop it with Docker 1.13 CLI
+12. Run a new container with `sleep infinity`, then stop it
 
 # Expected Outcome:
 * Steps 2-8 should each complete without error, and the response should be the containerID
@@ -34,6 +35,7 @@ Failed to stop container (fakeContainer): Error response from daemon: No such co
 * Step 9 should result in the container stopping successfully
 * Step 10 should result in the container starting without error the second time
 * Step 11 should result in the container stopping successfully
+* Step 12 should result in the container stopping successfully
 
 # Possible Problems:
 None

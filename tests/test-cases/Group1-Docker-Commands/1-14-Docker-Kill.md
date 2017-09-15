@@ -22,6 +22,8 @@ This test requires that a vSphere server is running and available
 9. Issue docker create nginx to the VIC appliance
 10. Issue docker start <containerID to the VIC appliance
 11. Issue docker kill <containerID> to the VIC appliance
+12. Issue docker run with `sleep infinity` to the VIC appliance
+13. Issue docker kill <containerID> to the VIC appliance
 
 # Expected Outcome:
 * Steps 2-7 should all return without error and provide the container ID in the response
@@ -33,6 +35,7 @@ This test requires that a vSphere server is running and available
 Failed to kill container (fakeContainer): Error response from daemon: Cannot kill container fakeContainer: No such container: fakeContainer
 ```
 * Step 11 should result in the container stopped
+* Step 13 should result in the container stopped
 
 # Possible Problems:
 None
