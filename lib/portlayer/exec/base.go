@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/migration"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
@@ -36,6 +37,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 )
+
+const maxPowerOffElapsedTime = 2 * time.Minute
 
 // NotYetExistError is returned when a call that requires a VM exist is made
 type NotYetExistError struct {
@@ -344,43 +347,49 @@ func (c *containerBase) poweroff(ctx context.Context) error {
 		return NotYetExistError{c.ExecConfig.ID}
 	}
 
-	_, err := c.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-		return c.vm.PowerOff(ctx)
-	})
+	operation := func() error {
 
-	if err != nil {
+		_, err := c.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+			return c.vm.PowerOff(ctx)
+		})
 
-		// It is possible the VM has finally shutdown in between, ignore the error in that case
-		if terr, ok := err.(task.Error); ok {
-			switch terr := terr.Fault().(type) {
-			case *types.InvalidPowerState:
-				if terr.ExistingState == types.VirtualMachinePowerStatePoweredOff {
-					log.Warnf("power off %s task skipped (state was already %s)", c.ExecConfig.ID, terr.ExistingState)
-					return nil
-				}
-				log.Warnf("invalid power state during power off: %s", terr.ExistingState)
+		if err != nil {
 
-			case *types.GenericVmConfigFault:
-
-				// Check if the poweroff task was canceled due to a concurrent guest shutdown
-				if len(terr.FaultMessage) > 0 {
-					k := terr.FaultMessage[0].Key
-					if k == vmNotSuspendedKey || k == vmPoweringOffKey {
-						log.Infof("power off %s task skipped due to guest shutdown", c.ExecConfig.ID)
+			// It is possible the VM has finally shutdown in between, ignore the error in that case
+			if terr, ok := err.(task.Error); ok {
+				switch terr := terr.Fault().(type) {
+				case *types.InvalidPowerState:
+					if terr.ExistingState == types.VirtualMachinePowerStatePoweredOff {
+						log.Warnf("power off %s task skipped (state was already %s)", c.ExecConfig.ID, terr.ExistingState)
 						return nil
 					}
-				}
-				log.Warnf("generic vm config fault during power off: %#v", terr)
+					log.Warnf("invalid power state during power off: %s", terr.ExistingState)
 
-			default:
-				log.Warnf("hard power off failed due to: %#v", terr)
+				case *types.GenericVmConfigFault:
+
+					// Check if the poweroff task was canceled due to a concurrent guest shutdown
+					if len(terr.FaultMessage) > 0 {
+						k := terr.FaultMessage[0].Key
+						if k == vmNotSuspendedKey || k == vmPoweringOffKey {
+							log.Infof("power off %s task skipped due to guest shutdown", c.ExecConfig.ID)
+							return nil
+						}
+					}
+					log.Warnf("generic vm config fault during power off: %#v", terr)
+
+				default:
+					log.Warnf("hard power off failed due to: %#v", terr)
+				}
 			}
 		}
 
 		return err
 	}
 
-	return nil
+	config := retry.NewBackoffConfig()
+	config.MaxElapsedTime = maxPowerOffElapsedTime
+
+	return retry.DoWithConfig(operation, isRetryablePowerOffError, config)
 }
 
 func (c *containerBase) waitForPowerState(ctx context.Context, max time.Duration, state types.VirtualMachinePowerState) (bool, error) {
@@ -433,5 +442,17 @@ func isInvalidPowerStateError(err error) bool {
 		return ok
 	}
 
+	return false
+}
+
+func isRetryablePowerOffError(err error) bool {
+	if terr, ok := err.(task.Error); ok {
+		switch terr := terr.Fault().(type) {
+		case *types.InvalidPowerState:
+			if terr.ExistingState == types.VirtualMachinePowerStatePoweredOn {
+				return true
+			}
+		}
+	}
 	return false
 }
