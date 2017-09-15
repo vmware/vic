@@ -167,8 +167,8 @@ Stop a container with Docker 1.13 CLI
 
 Stop a sleeping container
     # https://github.com/vmware/vic/issues/6199
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d debian /bin/bash -c "echo sleep infinity > run.sh; chmod u+x run.sh; /run.sh"
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} run -d --name stop-sleeping debian /bin/bash -c "echo sleep infinity > run.sh; chmod u+x run.sh; /run.sh"
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${container}
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop stop-sleeping
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
