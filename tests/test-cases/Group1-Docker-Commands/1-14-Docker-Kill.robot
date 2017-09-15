@@ -96,6 +96,6 @@ Kill a sleeping container
     # https://github.com/vmware/vic/issues/6199
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} run -d --name kill-sleeping debian /bin/bash -c "echo sleep infinity > run.sh; chmod u+x run.sh; /run.sh"
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill kill-sleeping
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill kill-sleeping
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
