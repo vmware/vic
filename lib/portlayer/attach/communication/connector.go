@@ -203,6 +203,11 @@ func (c *Connector) RemoveInteraction(id string) error {
 	}
 	c.mutex.Unlock()
 
+	// the !ok case, but let's check the actual condition that impacts us
+	if v == nil {
+		return nil
+	}
+
 	conn, err := v.Cleanup()
 	if conn != nil {
 		err = conn.Close()
