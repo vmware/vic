@@ -84,6 +84,10 @@ type dynConfig struct {
 
 	Whitelist, Blacklist, Insecure registry.Set
 	remoteWl                       bool
+
+	updateCh      chan bool
+	updateWaiters chan chan *dynConfig
+	lastCfg       *dynConfig
 }
 
 func Init(portLayerAddr, product string, port uint, config *config.VirtualContainerHostConfigSpec) error {
@@ -359,7 +363,48 @@ func EventService() *events.Events {
 // RegistryCheck checkes the given url against the registry whitelist, blacklist, and insecure
 // registries lists. It returns true for each list where u matches that list.
 func (d *dynConfig) RegistryCheck(ctx context.Context, u *url.URL) (wl bool, bl bool, insecure bool) {
-	m := d.update(ctx)
+	var m *dynConfig
+	ch := make(chan *dynConfig, 1)
+
+	select {
+	case d.updateWaiters <- ch:
+		select {
+		case d.updateCh <- true:
+			go func() {
+				ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+				defer cancel()
+				m := d.update(ctx)
+				done := false
+				for !done {
+					select {
+					case ch := <-d.updateWaiters:
+						ch <- m
+					case <-time.After(5 * time.Second):
+						done = true
+					}
+				}
+
+				<-d.updateCh
+			}()
+		default:
+		}
+
+		select {
+		case m = <-ch:
+		case <-time.After(5 * time.Second):
+		}
+	default:
+	}
+
+	if m == nil {
+		d.Lock()
+		m = d.lastCfg
+		if m == nil {
+			m = d
+		}
+		d.Unlock()
+	}
+
 	us := u.String()
 	wl = len(m.Whitelist) == 0 || m.Whitelist.Match(us)
 	bl = len(m.Blacklist) == 0 || !m.Blacklist.Match(us)
@@ -401,6 +446,7 @@ func (d *dynConfig) update(ctx context.Context) *dynConfig {
 		}
 	}
 
+	d.lastCfg = m
 	return m
 }
 
@@ -415,7 +461,11 @@ func (d *dynConfig) resetSrc() error {
 }
 
 func newDynConfig(ctx context.Context, c *config.VirtualContainerHostConfigSpec) (*dynConfig, error) {
-	d := &dynConfig{Cfg: c}
+	d := &dynConfig{
+		Cfg:           c,
+		updateCh:      make(chan bool, 1),
+		updateWaiters: make(chan chan *dynConfig, 100),
+	}
 	var err error
 	if d.Insecure, err = dynamic.ParseRegistries(c.InsecureRegistries); err != nil {
 		return nil, err
