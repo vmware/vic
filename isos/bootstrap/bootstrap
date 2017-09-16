@@ -5,8 +5,11 @@ set -x
 echo 1 > /proc/sys/net/ipv4/conf/all/arp_notify
 echo 1 > /proc/sys/net/ipv4/conf/default/arp_notify
 
+# depending on kernel, some may already be loaded or built in
 echo "Loading drivers"
-drivers=("vmxnet3" \
+drivers=( \
+    "vmw_pvscsi" \
+    "vmxnet3" \
 	"nfnetlink" \
 	"iptable_filter" \
 	"xt_conntrack" \
@@ -19,15 +22,20 @@ drivers=("vmxnet3" \
 	"nf_defrag_ipv4" \
 	"ipt_REJECT"\
 	"nf_reject_ipv4"\
-	"nfsv3")
+	"nfsv3" \
+)
 
 
 for i in ${drivers[@]}; do
-    /usr/sbin/modprobe $i
+    modprobe $i
 done
 
-MOUNTPOINT="/mnt/containerfs"
+# allow udev (whether systemd-udevd or raw udevd) to handle newly available devices
+udevadm trigger
+udevadm settle
 
+
+MOUNTPOINT="/mnt/containerfs"
 mkdir -p /mnt/containerfs
 
 echo "Waiting for rootfs"
@@ -70,36 +78,26 @@ if timeout --signal=KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNT
 
     cp /bin/tether ${MOUNTPOINT}/.tether/tether
     cp /bin/unpack ${MOUNTPOINT}/.tether/unpack
+    ln -s tether ${MOUNTPOINT}/.tether/tether-debug
 
     echo 'tether tmpfs size before copying libraries: '
     df -k ${MOUNTPOINT}/.tether
 
-    # ldd of xtables-multi yields the following list of libraries we need to
-    # copy into our initrd.  We need these binaries in order to call iptables
-    #
-    # before the switch-root.  linux-vdso.so.1 (0x00007ffc94d0d000)
-    # libip4tc.so.0 => /baz/lib/libip4tc.so.0 (0x00007f97fc721000)
-    # libip6tc.so.0 => /baz/lib/libip6tc.so.0 (0x00007f97fc519000)
-    # libxtables.so.11 => /baz/lib/libxtables.so.11 (0x00007f97fc30c000)
-    # libm.so.6 => /lib64/libm.so.6 (0x00007f97fc00e000)
-    # libgcc_s.so.1 => /lib64/libgcc_s.so.1 (0x00007f97fbdf7000)
-    # libc.so.6 => /baz/lib/libc.so.6 (0x00007f97fba53000)
-    # libdl.so.2 => /baz/lib/libdl.so.2 (0x00007f97fb84f000)
-    # /lib64/ld-linux-x86-64.so.2 (0x00007f97fc929000)
+    install-iptables ${MOUNTPOINT}/.tether
+    install-entropy ${MOUNTPOINT}/.tether
 
-    cp -a /sbin/*tables* ${MOUNTPOINT}/.tether/
-    cp -a /lib/libm.* /lib/libm-* /lib/libgcc_s* /lib/libip*tc* /lib/libxtables* /lib/libdl* /lib/libc.so* /lib/libc-* ${MOUNTPOINT}/.tether/lib
-    cp -a /lib64/ld-* ${MOUNTPOINT}/.tether/lib64
-    cp -r /usr/lib/iptables ${MOUNTPOINT}/.tether/usr/lib/
-    cp /lib/libhavege.so.1  ${MOUNTPOINT}/.tether/lib
-    cp /usr/sbin/haveged ${MOUNTPOINT}/.tether/
+    echo 'tether tmpfs size after copying libraries: '
+    df -k ${MOUNTPOINT}/.tether
 
     # Create VIC chain
     iptables -N VIC
     # Set the default policy on all chains to drop traffic
-    iptables -P INPUT DROP
-    iptables -P OUTPUT DROP
-    iptables -P FORWARD DROP
+#    iptables -P INPUT DROP
+#    iptables -P OUTPUT DROP
+#    iptables -P FORWARD DROP
+    iptables -P INPUT ACCEPT
+    iptables -P OUTPUT ACCEPT
+    iptables -P FORWARD ACCEPT
     # Direct any incoming/outgoing traffic immediately to VIC chain
     iptables -A INPUT -j VIC
     iptables -A OUTPUT -j VIC
@@ -108,14 +106,18 @@ if timeout --signal=KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNT
     iptables -A OUTPUT -o lo -j ACCEPT
     iptables -A FORWARD -i lo -o lo -j ACCEPT
 
-    echo 'tether tmpfs size after copying libraries: '
-    df -k ${MOUNTPOINT}/.tether
-
-    until [[ $(ls -1 /dev/disk/by-label | wc -l) -eq $(ls -1 /sys/block | wc -l) ]]; do sleep 0.1;done
+    # block until all disks have presented in by-label - if we switch root before then udevd may be killed before it
+    # processes them all
+    until [[ $(ls -1 /dev/disk/by-label | wc -l) -eq $(ls -1 /sys/block | grep -v ram | grep -v loop | wc -l) ]]; do sleep 0.1;done
 
     echo "switching to the new mount"
-    systemctl switch-root ${MOUNTPOINT} /.tether/tether 2>&1
-    echo "switched to the new mount"
+    if which systemctl > /dev/null; then
+        systemctl switch-root ${MOUNTPOINT} /.tether/tether 2>&1
+    else
+        exec switch_root ${MOUNTPOINT} /.tether/tether 2>&1 
+        # if successful then nothing after this point executes
+        echo "Failed to switch to the new mount"
+    fi
 else
     # TODO: what do we do here? we really need to somehow report an error
     # fail hard
@@ -128,4 +130,8 @@ else
 fi
 
 # Shut the system down
-systemctl poweroff
+if which systemctl; then
+    systemctl poweroff
+else
+    halt
+fi

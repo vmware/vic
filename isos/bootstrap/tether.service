@@ -4,7 +4,7 @@ After=basic.target
 
 [Service]
 Type=idle
-ExecStart=/bin/sh -c '/bin/bootstrap >/dev/ttyS1 2>&1'
+ExecStart=/bin/sh -c '/bin/init >/dev/ttyS1 2>&1'
 
 [Install]
 WantedBy=vic.target

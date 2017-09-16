@@ -34,13 +34,13 @@ type Haveged struct {
 func NewHaveged() *Haveged {
 	return &Haveged{
 		exec: func() (*os.Process, error) {
-			args := []string{"/.tether/lib/ld-linux-x86-64.so.2", "--library-path", "/.tether/lib", "/.tether/haveged", "-w", "1024", "-v", "1", "-F"}
+			//args := []string{"/.tether/lib/ld-linux-x86-64.so.2", "--library-path", "/.tether/lib", "/.tether/haveged", "-w", "1024", "-v", "1", "-F"}
 			// #nosec: Subprocess launching with variable
-			cmd := exec.Command(args[0], args[1:]...)
+			cmd := exec.Command("/.tether/bin/entropy")
 
-			log.Infof("Starting haveged with args: %q", args)
+			log.Infof("Starting entropy daemon")
 			if err := cmd.Start(); err != nil {
-				log.Errorf("Starting haveged failed with %q", err.Error())
+				log.Errorf("Starting entropy failed with %q", err.Error())
 				return nil, err
 			}
 			return cmd.Process, nil
@@ -50,7 +50,7 @@ func NewHaveged() *Haveged {
 
 // Start implementation of the tether.Extension interface
 func (h *Haveged) Start(system tether.System) error {
-	log.Infof("Starting haveged")
+	log.Infof("Starting entropy")
 
 	var err error
 	h.p, err = h.exec()
@@ -59,12 +59,12 @@ func (h *Haveged) Start(system tether.System) error {
 
 // Stop implementation of the tether.Extension interface
 func (h *Haveged) Stop() error {
-	log.Infof("Stopping haveged")
+	log.Infof("Stopping entropy")
 
 	if h.p != nil {
 		return h.p.Kill()
 	}
-	return fmt.Errorf("haveged process is missing")
+	return fmt.Errorf("entropy process is missing")
 }
 
 // Reload implementation of the tether.Extension interface

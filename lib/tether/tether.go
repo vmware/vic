@@ -560,7 +560,7 @@ func (t *tether) Start() error {
 			// setup the firewall
 			if err = retryOnError(func() error { return t.ops.SetupFirewall(t.ctx, t.config) }, 5); err != nil {
 				err = fmt.Errorf("Couldn't set up container-network firewall: %v", err)
-				return
+				//				return
 			}
 
 			//process the filesystem mounts - this is performed after networks to allow for network mounts

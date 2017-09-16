@@ -84,28 +84,35 @@ unpack $PACKAGE $PKGDIR
 #   tndf      # so we can deploy other packages into the appliance live - MUST BE REMOVED FOR SHIPPING
 #   vim       # basic editing function
 #   lsof      # for debugging issues unmounting disks for the copy/diff paths
-yum_cached -c $cache -u -p $PKGDIR install \
-    haveged \
-    systemd \
-    openssh \
-    iptables \
-    e2fsprogs \
-    procps-ng \
-    iputils \
-    iproute2 \
-    iptables \
-    net-tools \
-    sudo \
-    tdnf \
-    vim \
-    gzip \
-    lsof \
-    logrotate \
-    photon-release \
-    -y --nogpgcheck
+# yum_cached -c $cache -u -p $PKGDIR install \
+#     haveged \
+#     systemd \
+#     openssh \
+#     iptables \
+#     e2fsprogs \
+#     procps-ng \
+#     iputils \
+#     iproute2 \
+#     iptables \
+#     net-tools \
+#     sudo \
+#     tdnf \
+#     vim \
+#     gzip \
+#     lsof \
+#     logrotate \
+# 	photon-release \
+#    -y --nogpgcheck
 
-# https://www.freedesktop.org/wiki/Software/systemd/InitrdInterface/
-touch $(rootfs_dir $PKGDIR)/etc/initrd-release
+yum_cached -c $cache -u -p $PKGDIR install \
+    haveged systemd iptables iputils iproute2 tdnf vim gzip lsof logrotate photon-release \
+-y --nogpgcheck
+
+#yum_cached -c $cache -u -p $PKGDIR install shadow -y --nogpgcheck || echo expected error
+
+# hack around toybox issues
+#rm $(rootfs_dir $PKGDIR)/bin/{passwd,login,su}
+#chroot $(rootfs_dir $PKGDIR) rpm -i --replacefiles /var/cache/yum/photon-2.0/packages/shadow-4.2.1-13.ph2.x86_64.rpm
 
 # Give a permission to vicadmin to run iptables.
 echo "vicadmin ALL=NOPASSWD: /sbin/iptables --list" >> $(rootfs_dir $PKGDIR)/etc/sudoers
@@ -117,15 +124,14 @@ yum_cached -p $PKGDIR clean all
 # configure us for autologin of root
 #COPY override.conf $ROOTFS/etc/systemd/system/getty@.service.d/
 # HACK until the issues with override.conf above are dealt with
-pwhash=$(openssl passwd -1 -salt vic password)
-sed -i -e "s/^root:[^:]*:/root:${pwhash}:/" $(rootfs_dir $PKGDIR)/etc/shadow
+#pwhash=$(openssl passwd -1 -salt vic password)
+#sed -i -e "s/^root:[^:]*:/root:${pwhash}:/" $(rootfs_dir $PKGDIR)/etc/shadow
 
 # Disable SSH by default - this can be enabled via guest operations
-rm $(rootfs_dir $PKGDIR)/usr/lib/systemd/system/sshd@.service
-rm $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/sshd.service
-
+#rm $(rootfs_dir $PKGDIR)/usr/lib/systemd/system/sshd@.service                          # TEMP - openssh wont install with photon2
+#rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/sshd.service
 # Allow root login via ssh
-sed -i -e "s/\#*PermitRootLogin\s.*/PermitRootLogin yes/" $(rootfs_dir $PKGDIR)/etc/ssh/sshd_config
+#sed -i -e "s/\#*PermitRootLogin\s.*/PermitRootLogin yes/" $(rootfs_dir $PKGDIR)/etc/ssh/sshd_config
 
 # Disable root login
 sed -i -e 's@:/bin/bash$@:/bin/false@' $(rootfs_dir $PKGDIR)/etc/passwd

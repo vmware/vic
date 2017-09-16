@@ -1,5 +1,5 @@
-[photon-updates]
-name=VMware Photon Linux 1.0(x86_64)
+[photon-updates-1.0]
+name=VMware Photon Linux 1.0(x86_64) updates
 baseurl=https://dl.bintray.com/vmware/photon_updates_1.0_x86_64
 gpgkey=file:///etc/pki/rpm-gpg/VMWARE-RPM-GPG-KEY
 gpgcheck=0
