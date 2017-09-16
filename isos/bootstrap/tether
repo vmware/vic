@@ -1,0 +1,33 @@
+#!/bin/bash
+#
+# tether        Script to run tether on a cVM
+#
+# chkconfig: 12345 26 75
+# description: Executes the bootstrap init with a serial terminal redirect
+#
+### BEGIN INIT INFO
+# Default-Start: 12345
+# Default-Stop:  0 6
+# Short-Description: Executes the bootstrap init with a serial terminal redirect
+# Description: Executes the bootstrap init with a serial terminal redirect
+### END INIT INFO
+
+. /etc/rc.d/init.d/functions
+
+start() {
+    STRING=$"Starting bootstrap init"
+	echo -n $STRING
+    /bin/sh -c '/bin/init >/dev/ttyS1 2>&1' 2>&1 &
+    success "$STRING"
+	echo
+}
+
+case "$1" in 
+    start)
+       start
+       ;;
+    *)
+       echo "Usage: $0 {start}"
+       exit 0
+esac
+exit 0

@@ -1,0 +1,38 @@
+# docker build -t vic-build-image-yum -f infra/build-image/Dockerfile.yum .
+# docker tag vic-build-image-yum gcr.io/eminent-nation-87317/vic-build-image:yum
+# gcloud auth login
+# gcloud docker -- push gcr.io/eminent-nation-87317/vic-build-image:yum
+
+FROM centos:7
+
+ENV GOROOT /usr/local/go
+ENV GOPATH /go
+ENV PATH $PATH:${GOPATH}/bin:/${GOROOT}/bin
+ENV SRCDIR ${GOPATH}/src/github.com/vmware/vic
+WORKDIR ${SRCDIR}
+
+RUN set -ex; \
+    yum install -y \
+    jq cpio git tar gzip make rpm kmod sed gcc \
+    binutils glibc-devel wget;
+
+RUN set -ex; \
+    yum install -y epel-release;
+
+RUN set -ex; \
+    yum install -y xorriso;
+
+RUN set -ex; \
+    wget https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64; \
+    mv jq-linux64 jq; \
+    install -t /usr/local/bin jq;
+
+ADD https://dl.google.com/go/go1.8.7.linux-amd64.tar.gz /tmp/go.tgz
+RUN cd /usr/local && tar -zxf /tmp/go.tgz 
+
+RUN mkdir -p ${SRCDIR}
+
+COPY infra/build-image/setup-repo.sh /usr/local/bin
+RUN chmod a+x /usr/local/bin/setup-repo.sh
+
+# ENTRYPOINT [ "/usr/local/bin/setup-repo.sh" ]
