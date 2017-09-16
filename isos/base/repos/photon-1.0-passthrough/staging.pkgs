@@ -1,0 +1,5 @@
+# haveged for entropy
+# iptables firewall config (injected into /.tether)
+# util-linux-ng for /bin/mount (since photon-2.0)
+#   not needed if toybox functions
+haveged iptables util-linux-ng grep which linux-tools
