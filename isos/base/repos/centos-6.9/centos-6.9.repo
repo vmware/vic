@@ -1,0 +1,7 @@
+[centos-6.9]
+name=CentOS-6.9 - Base
+#mirrorlist=http://mirrorlist.centos.org/?release=$releasever&arch=$basearch&repo=os&infra=$infra
+baseurl=http://mirror.centos.org/centos/6.9/os/x86_64/
+gpgcheck=0
+enabled=1
+#gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6

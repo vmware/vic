@@ -1,0 +1,5 @@
+# rng-tools for entropy
+# iptables firewall config (injected into /.tether)
+# util-linux-ng for /bin/mount
+# udev for /dev population and /dev/null
+udev rng-tools iptables util-linux-ng
