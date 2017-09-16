@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 
@@ -35,6 +36,7 @@ const (
 )
 
 type RestClient struct {
+	mu       sync.Mutex
 	host     string
 	scheme   string
 	endpoint *url.URL
@@ -110,9 +112,11 @@ func (c *RestClient) clientRequest(ctx context.Context, method, path string, in 
 	}
 
 	req = req.WithContext(ctx)
+	c.mu.Lock()
 	if c.cookies != nil {
 		req.AddCookie(c.cookies[0])
 	}
+	c.mu.Unlock()
 
 	if headers != nil {
 		for k, v := range headers {
@@ -158,6 +162,9 @@ func (c *RestClient) handleResponse(resp *http.Response, err error) (io.ReadClos
 }
 
 func (c *RestClient) Login(ctx context.Context) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	Logger.Debugf("Login to %s through rest API.", c.host)
 
 	request, err := c.newRequest("POST", loginURL, nil)

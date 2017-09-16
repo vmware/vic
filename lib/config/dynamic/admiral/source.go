@@ -225,7 +225,7 @@ func (a *source) discover(ctx context.Context) (*client.Admiral, []string, error
 	for _, v := range vms {
 		u, token, err := admiralEndpoint(ctx, v)
 		if err != nil {
-			log.Warnf("ignoring potential product VM: %s", err)
+			log.Warnf("ignoring potential product VM %s: %s", v, err)
 			continue
 		}
 
@@ -387,25 +387,14 @@ func (o *productDiscovery) Discover(ctx context.Context, sess *session.Session) 
 	}
 
 	service.User = sess.User
-	t, err := func() (*tags.RestClient, error) {
-		o.mu.Lock()
-		defer o.mu.Unlock()
 
-		t := o.clients[service.String()]
-		if t == nil {
-			t = tags.NewClient(service, sess.Insecure, sess.Thumbprint)
-			if err = t.Login(ctx); err != nil {
-				return nil, err
-			}
-			o.clients[service.String()] = t
-		}
-
-		return t, nil
-	}()
-
-	if err != nil {
-		return nil, err
+	o.mu.Lock()
+	t := o.clients[service.String()]
+	if t == nil {
+		t = tags.NewClient(service, sess.Insecure, sess.Thumbprint)
+		o.clients[service.String()] = t
 	}
+	o.mu.Unlock()
 
 	var tag string
 	tag, err = findOVATag(ctx, t)
