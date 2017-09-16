@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# This entry point gets invoked invoked for systemd based
+# bootstraps.
+# It will load any custom prep for the repo in question, as
+# defined in repos/name/init.sh then continue with the common
+# bootstrap script
+
+# path consistency
+export PATH=$PATH:/sbin
+
+# load the customizations
+echo Loading repo customizations
+. /bin/repoinit
+
+# launch the main entry point
+. /bin/bootstrap

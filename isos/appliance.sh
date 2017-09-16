@@ -99,6 +99,23 @@ rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
 # Set up component users
 #
 
+# HACK: work around missing user utils with toybox
+echo "#!/bin/true" > $(rootfs_dir $PKGDIR)/bin/no-op
+chmod a+x $(rootfs_dir $PKGDIR)/bin/no-op
+ln -s /bin/no-op $(rootfs_dir $PKGDIR)/bin/groupadd
+ln -s /bin/no-op $(rootfs_dir $PKGDIR)/bin/useradd
+ln -s /bin/no-op $(rootfs_dir $PKGDIR)/bin/usermod
+mkdir -p $(rootfs_dir $PKGDIR)/home/vicadmin
+echo "vicadmin:x:1000:" >> $(rootfs_dir $PKGDIR)/etc/group 
+echo "vic:x:1001:vicadmin" >> $(rootfs_dir $PKGDIR)/etc/group
+echo "vicadmin::1000:1000::/home/vicadmin:/bin/false" >> $(rootfs_dir $PKGDIR)/etc/passwd
+# END HACK
+
+# HACK: address missing resolv.con
+# unclear why this isn't created by createBindSrcTarget
+chroot $(rootfs_dir $PKGDIR) touch /etc/resolv.conf
+# END HACK
+
 chroot $(rootfs_dir $PKGDIR) groupadd -g 1000 vicadmin
 chroot $(rootfs_dir $PKGDIR) useradd -u 1000 -g 1000 -G systemd-journal -m -d /home/vicadmin -s /bin/false vicadmin
 
