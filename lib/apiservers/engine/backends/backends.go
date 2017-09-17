@@ -363,28 +363,7 @@ func EventService() *events.Events {
 // RegistryCheck checkes the given url against the registry whitelist, blacklist, and insecure
 // registries lists. It returns true for each list where u matches that list.
 func (d *dynConfig) RegistryCheck(ctx context.Context, u *url.URL) (wl bool, bl bool, insecure bool) {
-	var m *dynConfig
-	const key = "RegistryCheck"
-
-	resCh := d.group.DoChan(key, func() (interface{}, error) {
-		ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-		defer cancel()
-
-		return d.update(ctx), nil
-	})
-
-	select {
-	case res := <-resCh:
-		m = res.Val.(*dynConfig)
-	case <-time.After(5 * time.Second):
-		// use last config
-		d.Lock()
-		m = d.lastCfg
-		if m == nil {
-			m = d
-		}
-		d.Unlock()
-	}
+	m := d.update(ctx)
 
 	us := u.String()
 	wl = len(m.Whitelist) == 0 || m.Whitelist.Match(us)
@@ -394,41 +373,63 @@ func (d *dynConfig) RegistryCheck(ctx context.Context, u *url.URL) (wl bool, bl 
 }
 
 func (d *dynConfig) update(ctx context.Context) *dynConfig {
-	d.Lock()
-	src := d.src
-	d.Unlock()
+	const key = "RegistryCheck"
+	resCh := d.group.DoChan(key, func() (interface{}, error) {
+		d.Lock()
+		src := d.src
+		d.Unlock()
 
-	c, err := src.Get(ctx)
-	if err != nil {
-		log.Warnf("error getting config from source: %s", err)
-	}
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
 
-	d.Lock()
-	defer d.Unlock()
+		c, err := src.Get(ctx)
+		if err != nil {
+			log.Warnf("error getting config from source: %s", err)
+		}
 
-	m := d
-	if c != nil {
-		// update config
-		if m, err = d.merged(c); err != nil {
-			log.Errorf("error updating config: %s", err)
-			m = d
-		} else {
-			if len(c.RegistryWhitelist) > 0 {
-				m.remoteWl = true
+		d.Lock()
+		defer d.Unlock()
+
+		m := d
+		if c != nil {
+			// update config
+			if m, err = d.merged(c); err != nil {
+				log.Errorf("error updating config: %s", err)
+				m = d
+			} else {
+				if len(c.RegistryWhitelist) > 0 {
+					m.remoteWl = true
+				}
+			}
+		} else if err == nil && src == d.src {
+			// err == nil and c == nil, which
+			// indicates no remote sources
+			// were found, try resetting the
+			// source for next time
+			if err := d.resetSrc(); err != nil {
+				log.Warnf("could not reset config source: %s", err)
 			}
 		}
-	} else if err == nil && src == d.src {
-		// err == nil and c == nil, which
-		// indicates no remote sources
-		// were found, try resetting the
-		// source for next time
-		if err := d.resetSrc(); err != nil {
-			log.Warnf("could not reset config source: %s", err)
-		}
-	}
 
-	d.lastCfg = m
-	return m
+		d.lastCfg = m
+		return m, nil
+	})
+
+	select {
+	case res := <-resCh:
+		return res.Val.(*dynConfig)
+	case <-ctx.Done():
+		return func() *dynConfig {
+			d.Lock()
+			defer d.Unlock()
+
+			if d.lastCfg == nil {
+				return d
+			}
+
+			return d.lastCfg
+		}()
+	}
 }
 
 func (d *dynConfig) resetSrc() error {
