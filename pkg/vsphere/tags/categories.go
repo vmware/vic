@@ -33,7 +33,18 @@ type CategoryCreateSpec struct {
 	CreateSpec CategoryCreate `json:"create_spec"`
 }
 
+type CategoryUpdateSpec struct {
+	UpdateSpec CategoryUpdate `json:"update_spec"`
+}
+
 type CategoryCreate struct {
+	AssociableTypes []string `json:"associable_types"`
+	Cardinality     string   `json:"cardinality"`
+	Description     string   `json:"description"`
+	Name            string   `json:"name"`
+}
+
+type CategoryUpdate struct {
 	AssociableTypes []string `json:"associable_types"`
 	Cardinality     string   `json:"cardinality"`
 	Description     string   `json:"description"`
@@ -130,6 +141,19 @@ func (c *RestClient) GetCategory(ctx context.Context, id string) (*Category, err
 		return nil, errors.Wrapf(err, "get category %s failed", id)
 	}
 	return &(pCategory.Value), nil
+}
+
+func (c *RestClient) UpdateCategory(ctx context.Context, id string, spec *CategoryUpdateSpec) error {
+	Logger.Debugf("Update category %v", spec)
+	_, _, status, err := c.call(ctx, "PATCH", fmt.Sprintf("%s/id:%s", CategoryURL, id), spec, nil)
+
+	Logger.Debugf("Get status code: %d", status)
+	if status != http.StatusOK || err != nil {
+		Logger.Debugf("Update category failed with status code: %d, error message: %s", status, errors.WithStack(err))
+		return errors.Wrapf(err, "Status code: %d", status)
+	}
+
+	return nil
 }
 
 func (c *RestClient) DeleteCategory(ctx context.Context, id string) error {
