@@ -29,6 +29,7 @@ import (
 	"github.com/go-openapi/runtime"
 	rc "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/swag"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
@@ -85,9 +86,8 @@ type dynConfig struct {
 	Whitelist, Blacklist, Insecure registry.Set
 	remoteWl                       bool
 
-	updateCh      chan bool
-	updateWaiters chan chan *dynConfig
-	lastCfg       *dynConfig
+	group   singleflight.Group
+	lastCfg *dynConfig
 }
 
 func Init(portLayerAddr, product string, port uint, config *config.VirtualContainerHostConfigSpec) error {
@@ -364,39 +364,20 @@ func EventService() *events.Events {
 // registries lists. It returns true for each list where u matches that list.
 func (d *dynConfig) RegistryCheck(ctx context.Context, u *url.URL) (wl bool, bl bool, insecure bool) {
 	var m *dynConfig
-	ch := make(chan *dynConfig, 1)
+	const key = "RegistryCheck"
+
+	resCh := d.group.DoChan(key, func() (interface{}, error) {
+		ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+		defer cancel()
+
+		return d.update(ctx), nil
+	})
 
 	select {
-	case d.updateWaiters <- ch:
-		select {
-		case d.updateCh <- true:
-			go func() {
-				ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-				defer cancel()
-				m := d.update(ctx)
-				done := false
-				for !done {
-					select {
-					case ch := <-d.updateWaiters:
-						ch <- m
-					case <-time.After(5 * time.Second):
-						done = true
-					}
-				}
-
-				<-d.updateCh
-			}()
-		default:
-		}
-
-		select {
-		case m = <-ch:
-		case <-time.After(5 * time.Second):
-		}
-	default:
-	}
-
-	if m == nil {
+	case res := <-resCh:
+		m = res.Val.(*dynConfig)
+	case <-time.After(5 * time.Second):
+		// use last config
 		d.Lock()
 		m = d.lastCfg
 		if m == nil {
@@ -462,9 +443,7 @@ func (d *dynConfig) resetSrc() error {
 
 func newDynConfig(ctx context.Context, c *config.VirtualContainerHostConfigSpec) (*dynConfig, error) {
 	d := &dynConfig{
-		Cfg:           c,
-		updateCh:      make(chan bool, 1),
-		updateWaiters: make(chan chan *dynConfig, 100),
+		Cfg: c,
 	}
 	var err error
 	if d.Insecure, err = dynamic.ParseRegistries(c.InsecureRegistries); err != nil {
