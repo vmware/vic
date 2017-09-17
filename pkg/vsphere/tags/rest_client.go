@@ -46,22 +46,24 @@ type RestClient struct {
 }
 
 func NewClient(u *url.URL, insecure bool, thumbprint string) *RestClient {
+	endpoint := &url.URL{}
+	*endpoint = *u
 	Logger.Debugf("Create rest client")
-	u.Path = RestPrefix
+	endpoint.Path = RestPrefix
 
-	sc := soap.NewClient(u, insecure)
+	sc := soap.NewClient(endpoint, insecure)
 	if thumbprint != "" {
-		sc.SetThumbprint(u.Host, thumbprint)
+		sc.SetThumbprint(endpoint.Host, thumbprint)
 	}
 
-	user := u.User
-	u.User = nil
+	user := endpoint.User
+	endpoint.User = nil
 
 	return &RestClient{
-		endpoint: u,
+		endpoint: endpoint,
 		user:     user,
-		host:     u.Host,
-		scheme:   u.Scheme,
+		host:     endpoint.Host,
+		scheme:   endpoint.Scheme,
 		HTTP:     &sc.Client,
 	}
 }

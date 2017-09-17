@@ -118,7 +118,7 @@ func (a *source) Get(ctx context.Context) (*vchcfg.VirtualContainerHostConfigSpe
 
 	c, projs, err := a.discover(ctx)
 	if err != nil {
-		log.Warnf("could not locate management portal, returning last known config: %s, err")
+		log.Warnf("could not locate management portal, returning last known config: %s", err)
 		return lastCfg, nil
 	}
 
