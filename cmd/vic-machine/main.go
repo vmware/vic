@@ -142,11 +142,10 @@ func main() {
 		logs = append(logs, f)
 	}
 
-	// create new pipe
-	pipe := vchlog.NewBufferedPipe()
-	logs = append(logs, pipe)
-	// pass pipe to create
-	create.AddPipe(pipe)
+	// create new vchlogger
+	vchlog.Init()
+	logs = append(logs, vchlog.GetPipe())
+	go vchlog.Run()
 
 	// Initiliaze logger with default TextFormatter
 	log.SetFormatter(viclog.NewTextFormatter())

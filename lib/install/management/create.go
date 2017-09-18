@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	//"os"
+	"github.com/vmware/vic/lib/install/vchlog"
 )
 
 const (
@@ -61,8 +62,15 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 		return errors.Errorf("Creating the appliance failed with %s. Exiting...", err)
 	}
 
-	go d.session.Datastore.Upload(d.ctx, d.pipe, path.Join(d.vmPathName, "vic-machine.log"), nil)
+	sig := vchlog.VCHCreatedSignal{
+		Datastore: d.session.Datastore,
+		LogFileName: "vic-machine.log",
+		Contex: d.ctx,
+		VMPathName: d.vmPathName,
+	}
+	vchlog.Signal(sig)
 
+	// go d.session.Datastore.Upload(d.ctx, d.pipe, path.Join(d.vmPathName, "vic-machine.log"), nil)
 	//f, err := os.OpenFile("tmp.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	//go func() {
 	//	for {

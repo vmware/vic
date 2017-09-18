@@ -37,7 +37,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/lib/install/vchlog"
 )
 
 type Dispatcher struct {
@@ -63,8 +62,6 @@ type Dispatcher struct {
 
 	sshEnabled         bool
 	parentResourcepool *compute.ResourcePool
-
-	pipe *vchlog.BufferedPipe
 }
 
 type diagnosticLog struct {
@@ -435,8 +432,4 @@ func viableHostAddress(candidateIPs []net.IP, cert *x509.Certificate, cas []byte
 	candidateIPs = append(candidateIPs, cert.IPAddresses...)
 
 	return addrToUse(candidateIPs, cert, cas)
-}
-
-func (d *Dispatcher) AddPipe(pipe *vchlog.BufferedPipe) {
-	d.pipe = pipe
 }
