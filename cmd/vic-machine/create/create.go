@@ -33,6 +33,7 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/lib/install/vchlog"
 )
 
 const (
@@ -82,6 +83,8 @@ type Create struct {
 	syslogAddr string
 
 	executor *management.Dispatcher
+
+	pipe *vchlog.BufferedPipe
 }
 
 func NewCreate() *Create {
@@ -741,6 +744,10 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	log.Info("")
 
 	executor := management.NewDispatcher(ctx, validator.Session, vchConfig, c.Force)
+
+	// add pipe to executor
+	executor.AddPipe(c.pipe)
+
 	if err = executor.CreateVCH(vchConfig, vConfig); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Error(err)
@@ -777,5 +784,10 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	executor.ShowVCH(vchConfig, c.certs.Ckey, c.certs.Ccert, c.certs.Cacert, c.certs.EnvFile, c.certs.CertPath)
 	log.Infof("Installer completed successfully")
 
+
 	return nil
+}
+
+func (c *Create) AddPipe(pipe *vchlog.BufferedPipe) {
+	c.pipe = pipe
 }

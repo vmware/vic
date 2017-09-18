@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
+	//"os"
 )
 
 const (
@@ -60,11 +61,27 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 		return errors.Errorf("Creating the appliance failed with %s. Exiting...", err)
 	}
 
+	go d.session.Datastore.Upload(d.ctx, d.pipe, path.Join(d.vmPathName, "vic-machine.log"), nil)
+
+	//f, err := os.OpenFile("tmp.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	//go func() {
+	//	for {
+	//		data := make([]byte, 50)
+	//		_, err := d.pipe.Read(data)
+	//		if err != nil {
+	//			log.Infof("read from pipe failed with error: %s", err)
+	//		}
+	//		f.Write(data)
+	//	}
+	//}()
+
 	if err = d.uploadImages(settings.ImageFiles); err != nil {
 		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
 	}
 
-	return d.startAppliance(conf)
+	err = d.startAppliance(conf)
+
+	return err
 }
 
 func (d *Dispatcher) createPool(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {

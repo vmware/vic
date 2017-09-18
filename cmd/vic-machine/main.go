@@ -34,6 +34,8 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/upgrade"
 	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/version"
+
+	"github.com/vmware/vic/lib/install/vchlog"
 )
 
 const (
@@ -46,6 +48,7 @@ func main() {
 	app.Name = filepath.Base(os.Args[0])
 	app.Usage = "Create and manage Virtual Container Hosts"
 	app.EnableBashCompletion = true
+
 
 	create := create.NewCreate()
 	uninstall := uninstall.NewUninstall()
@@ -138,6 +141,12 @@ func main() {
 		defer f.Close()
 		logs = append(logs, f)
 	}
+
+	// create new pipe
+	pipe := vchlog.NewBufferedPipe()
+	logs = append(logs, pipe)
+	// pass pipe to create
+	create.AddPipe(pipe)
 
 	// Initiliaze logger with default TextFormatter
 	log.SetFormatter(viclog.NewTextFormatter())
