@@ -277,6 +277,9 @@ Docker Inspect Mount Data after Reboot
 
     Verify Volume Inspect Info  Before VM Reboot  ${mntDataTestContainer}  ${checkList}
 
+    # Gather logs before rebooting
+    Run Keyword And Continue On Failure  Gather Logs From Test Server  -before-reboot
+
     Reboot VM and Verify Basic VCH Info
 
     Verify Volume Inspect Info  After VM Reboot  ${mntDataTestContainer}  ${checkList}
