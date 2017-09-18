@@ -51,3 +51,24 @@ Simple background node application
     Wait Until Keyword Succeeds  10x  12s  Check node container  ${ip}
     
     [Teardown]  Remove Directory  app  recursive=${true}
+
+Simple background node application on alpine
+    Create Directory  app
+    Run  echo ${package} > app/package.json
+    Run  echo ${server} > app/server.js
+    
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=vol2
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name copier2 -v vol2:/mydata ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp app copier2:/mydata
+    Should Be Equal As Integers  ${rc}  0
+    
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name node2 -v vol2:/usr/src -d node:alpine sh -c "cd /usr/src/app && npm install && npm start"
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    ${ip}=  Get IP Address of Container  node2
+    
+    Wait Until Keyword Succeeds  10x  12s  Check node container  ${ip}
+    
+    [Teardown]  Remove Directory  app  recursive=${true}
