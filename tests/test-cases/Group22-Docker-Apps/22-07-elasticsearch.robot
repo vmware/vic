@@ -15,8 +15,8 @@
 *** Settings ***
 Documentation  Test 22-07 - elasticsearch
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
-Suite Teardown  Cleanup VIC Appliance On Test Server
+#Suite Setup  Install VIC Appliance To Test Server
+#Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Simple background elasticsearch
