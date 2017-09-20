@@ -26,19 +26,13 @@ Simple images
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull alpine:3.1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    Should Contain X Times  ${output}  alpine  3
-
-All images
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images alpine
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain X Times  ${output}  alpine  3
 
 Quiet images
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -q
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -q alpine
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Not Contain  ${output}  alpine
@@ -47,7 +41,7 @@ Quiet images
     Length Should Be  @{lines}[1]  12
 
 No-trunc images
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images --no-trunc
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images --no-trunc alpine
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain X Times  ${output}  alpine  3
@@ -56,7 +50,7 @@ No-trunc images
     Length Should Be  @{line}[2]  64
 
 Filter images before
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f before=alpine
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f before=alpine alpine
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     @{lines}=  Split To Lines  ${output}
@@ -64,7 +58,7 @@ Filter images before
     Should Contain  ${output}  3.1
 
 Filter images since
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f since=alpine:3.1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f since=alpine:3.1 alpine
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     @{lines}=  Split To Lines  ${output}

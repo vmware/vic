@@ -283,6 +283,9 @@ Scrape Logs For the Password
 Cleanup VIC Appliance On Test Server
     Log To Console  Gathering logs from the test server %{VCH-NAME}
     Gather Logs From Test Server
+    #Log To Console  Stopping VCH with govc
+    #Run  govc vm.power -off=true -force=true %{VCH-NAME}
+    #Run  govc datastore.rm -ds %{TEST_DATASTORE} -f %{VCH-NAME}*
     Log To Console  Deleting the VCH appliance %{VCH-NAME}
     ${output}=  Run VIC Machine Delete Command
     Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
