@@ -68,7 +68,7 @@ const (
 	systemProductName        = " VMware Product"
 	volumeStoresID           = "VolumeStores"
 	loginTimeout             = 20 * time.Second
-	infoTimeout              = 20 * time.Second
+	infoTimeout              = 5 * time.Second
 	vchWhitelistMode         = " Registry Whitelist Mode"
 	whitelistRegistriesLabel = " Whitelisted Registries"
 	insecureRegistriesLabel  = " Insecure Registries"
@@ -341,7 +341,9 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 	}
 
 	// Check if registry is contained within whitelisted or insecure registries
-	whitelistOk, _, insecureOk := vchConfig.RegistryCheck(ctx, loginURL)
+	regctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	whitelistOk, _, insecureOk := vchConfig.RegistryCheck(regctx, loginURL)
 	if !whitelistOk {
 		msg := fmt.Sprintf("Access denied to unauthorized registry (%s) while VCH is in whitelist mode", loginURL.Host)
 		return msg, "", fmt.Errorf(msg)
