@@ -741,6 +741,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	log.Info("")
 
 	executor := management.NewDispatcher(ctx, validator.Session, vchConfig, c.Force)
+
 	if err = executor.CreateVCH(vchConfig, vConfig); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Error(err)
@@ -776,6 +777,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 
 	executor.ShowVCH(vchConfig, c.certs.Ckey, c.certs.Ccert, c.certs.Cacert, c.certs.EnvFile, c.certs.CertPath)
 	log.Infof("Installer completed successfully")
+
 
 	return nil
 }

@@ -87,6 +87,8 @@ portlayerapi := $(BIN)/port-layer-server
 portlayerapi-test := $(BIN)/port-layer-server-test
 portlayerapi-client := lib/apiservers/portlayer/client/port_layer_client.go
 portlayerapi-server := lib/apiservers/portlayer/restapi/server.go
+serviceapi := $(BIN)/vic-machine-server
+serviceapi-server := lib/apiservers/service/restapi/server.go
 
 imagec := $(BIN)/imagec
 vicadmin := $(BIN)/vicadmin
@@ -123,6 +125,8 @@ portlayerapi: $(portlayerapi)
 portlayerapi-test: $(portlayerapi-test)
 portlayerapi-client: $(portlayerapi-client)
 portlayerapi-server: $(portlayerapi-server)
+serviceapi: $(serviceapi)
+serviceapi-server: $(serviceapi-server)
 admiralapi-client: $(admiralapi-client)
 
 imagec: $(imagec)
@@ -156,12 +160,12 @@ misspell: $(MISSPELL)
 all: components tethers isos vic-machine imagec vic-ui
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) $(MISSPELL) goversion
 check: goversion goimports gofmt misspell govet golint copyright whitespace gas
-apiservers: $(portlayerapi) $(docker-engine-api)
+apiservers: $(portlayerapi) $(docker-engine-api) $(serviceapi)
 components: check apiservers $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
 tethers: $(tether-linux)
 
-most: $(portlayerapi) $(docker-engine-api) $(vicadmin) $(tether-linux) $(appliance) $(bootstrap) $(vic-machine-linux)
+most: $(portlayerapi) $(docker-engine-api) $(vicadmin) $(tether-linux) $(appliance) $(bootstrap) $(vic-machine-linux) $(serviceapi-server)
 
 # utility targets
 goversion:
@@ -355,6 +359,24 @@ $(portlayerapi-test): $$(call godeps,cmd/port-layer-server/*.go) $(portlayerapi-
 	@echo building Portlayer API server for test...
 	@$(TIME) $(GO) test -c -coverpkg github.com/vmware/vic/lib/...,github.com/vmware/vic/pkg/... -coverprofile port-layer-server.cov -outputdir /tmp -o $@ ./cmd/port-layer-server
 
+# Common service dependencies between client and server
+SERVICE_DEPS ?= lib/apiservers/service/swagger.json #\
+#				  lib/apiservers/service/restapi/configure_service.go \
+#				  lib/apiservers/service/restapi/options/*.go \
+#				  lib/apiservers/service/restapi/handlers/*.go
+
+
+
+$(serviceapi-server): $(SERVICE_DEPS) $(SWAGGER)
+	@echo regenerating swagger models and operations for vic-machine-as-a-service API server...
+	@$(SWAGGER) generate server --exclude-main --target lib/apiservers/service -f lib/apiservers/service/swagger.json 2>>service-swagger-gen.log
+	@echo done regenerating swagger models and operations for vic-machine-as-a-service API server...
+
+$(serviceapi): $$(call godeps,cmd/vic-machine-server/*.go) $(serviceapi-server)
+	@echo building vic-machine-as-a-service API server...
+	@$(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o $@ ./cmd/vic-machine-server
+
+
 $(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo building iso-base docker image
 	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $@
@@ -365,7 +387,7 @@ $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $(iso-base) -o $@
 
 # main appliance target - depends on all top level component targets
-$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
+$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(portlayerapi) $(serviceapi-server) $(docker-engine-api) $(appliance-staging)
 	@echo building VCH appliance ISO
 	@$(TIME) $< -p $(appliance-staging) -b $(BIN)
 
@@ -484,6 +506,11 @@ clean:
 	@rm -rf ./lib/config/dynamic/admiral/client
 	@rm -rf ./lib/config/dynamic/admiral/models
 	@rm -rf ./lib/config/dynamic/admiral/operations
+
+	@rm -f ./lib/apiservers/service/restapi/doc.go
+	@rm -f ./lib/apiservers/service/restapi/embedded_spec.go
+	@rm -f ./lib/apiservers/service/restapi/server.go
+	@rm -rf ./lib/apiservers/service/restapi/operations/
 
 	@rm -f *.log
 	@rm -f *.pem
