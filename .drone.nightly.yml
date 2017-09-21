@@ -4,7 +4,7 @@ clone:
 
 build:
   integration-test:
-    image: gcr.io/eminent-nation-87317/vic-integration-test:1.35
+    image: gcr.io/eminent-nation-87317/vic-integration-test:1.36
     pull: true
     environment:
       BIN: vic
