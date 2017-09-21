@@ -38,6 +38,7 @@ RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
     iptables \
     xfsprogs \
     dnsutils \
+    netcat \
     # Add headless chrome support
     google-chrome-stable \
     # Speed up ISO builds with already installed reqs
