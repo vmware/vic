@@ -45,4 +45,4 @@ Wordpress container with published ports
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    Check wordpress container  %{VCH-IP}:8080
+    Wait Until Keyword Succeeds  10x  6s  Check wordpress container  %{VCH-IP}:8080
