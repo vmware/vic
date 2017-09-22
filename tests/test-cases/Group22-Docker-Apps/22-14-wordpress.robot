@@ -21,7 +21,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Keywords ***
 Check wordpress container
     [Arguments]  ${url}
-    ${output}=  Run  curl ${url}
+    ${output}=  Run  wget ${url} && cat index.html
     Should Contain  ${output}  <title>WordPress &rsaquo; Setup Configuration File</title>
 
 *** Test Cases ***
