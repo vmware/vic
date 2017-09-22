@@ -21,7 +21,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Keywords ***
 Check memcache status
     [Arguments]  ${port}
-    ${result}=  Run Process  echo 'stats' | nc %{VCH-IP} ${port}  shell=True
+    ${result}=  Run Process  echo 'stats' | nc -q 3 %{VCH-IP} ${port}  shell=True
     Should Be Equal As Integers  ${result.rc}  0
     Should Contain  ${result.stdout}  STAT pid
     Should Contain  ${result.stdout}  STAT time_in_listen_disabled_us 0
