@@ -15,14 +15,14 @@
 *** Settings ***
 Documentation  Test OVA-installer
 Resource  ../../resources/Util.robot
-Library  SSHLibrary
-#Suite Setup  Setup Suite Environment
-#Suite Teardown  Cleanup Suite Environment
+Suite Setup  Setup Suite Environment
+Suite Teardown  Cleanup Suite Environment
 
 *** Variables ***
 ${dhcp}  True
 ${ova_options}  --acceptAllEulas --name=vic-unified-ova-integration-test --X:injectOvfEnv --X:enableHiddenProperties -st=OVA --powerOn --X:waitForIp --noSSLVerify=true -ds=datastore1 -dm=thin  --prop:appliance.root_pwd="password"   --prop:appliance.permit_root_login=True   --prop:management_portal.port=8282   --prop:registry.port=443
 ${esx_number}  1
+${not_collect_log}  False
 
 *** Keywords ***
 Setup Suite Environment
@@ -36,7 +36,7 @@ Setup Suite Environment
     GOVC Use VC Environment
 
 Cleanup Suite Environment
-        Nimbus Cleanup  ${vm-names}
+        Nimbus Cleanup  ${vm-names}  ${not_collect_log}
 
 GOVC Use VC Environment
         Set Environment Variable  GOVC_URL  ${vc-ip}
