@@ -20,8 +20,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/event/events"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -169,11 +171,9 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 			log.Infof("Reconfigure: committed update to %s with change version: %s", h.ExecConfig.ID, s.ChangeVersion)
 
 			// trigger a configuration reload in the container if needed
-			if h.reload && h.Runtime != nil && h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
-				err = c.ReloadConfig(ctx)
-				if err != nil {
-					// NOTE: not sure how to handle this error - the change is already applied, it's just not picked up in the container
-				}
+			err = reloadConfig(ctx, h, c)
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -209,4 +209,59 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 	}
 
 	return nil
+}
+
+func reloadConfig(ctx context.Context, h *Handle, c *Container) error {
+
+	log.Infof("Attempting to perform an config reload guest operation on (%s)", h.ExecConfig.ID)
+	retryFunc := func() error {
+		if h.reload && h.Runtime != nil && h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
+
+			//we need to refresh the change version.
+			c.Refresh(ctx)
+			h.refresh(ctx)
+
+			// not 100% that this is needed here... but if we do collide with a concurrent access then we should always grab the new change version just in case.
+			err := c.ReloadConfig(ctx)
+
+			if err != nil {
+				if h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff {
+					// We hit a concurrent edge case where the vm was shutdown after the check but during the config reload.
+					// TODO: probably should make this error a specific type such as PowerOffDuringExecError( or a better name ofcourse)
+					return fmt.Errorf("container(%s) exited during the operation", h.ExecConfig.ID)
+				}
+			}
+			return err
+		}
+
+		// nothing to be done.
+		return nil
+	}
+
+	err := retry.Do(retryFunc, isConcurrentAccessError)
+	if err != nil {
+		log.Debugf("Failed an exec operation with err: %s", err)
+		return err
+	}
+	return nil
+}
+
+// IsConcurrentError will return true when receiving a concurrent access error
+func isConcurrentAccessError(err error) bool {
+	if soap.IsSoapFault(err) {
+		switch soap.ToSoapFault(err).VimFault().(type) {
+		case types.ConcurrentAccess:
+			// here a concurrent access error has been located. We should make sure that we grab the new "ChangeVersion" after the config becomes available for the VM again.
+			return true
+		}
+	}
+
+	if soap.IsVimFault(err) {
+		switch soap.ToVimFault(err).(type) {
+		case *types.ConcurrentAccess:
+			return true
+		}
+	}
+
+	return false
 }
