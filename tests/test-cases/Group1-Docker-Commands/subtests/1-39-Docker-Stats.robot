@@ -28,7 +28,7 @@ Get Average Active Memory
 
     [Return]  ${vmomiMemory}
 
-Create test containers
+Create test containers for Stats
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name stresser ${busybox} /bin/top
@@ -65,7 +65,7 @@ Check Memory From Stats
 
 ### Actual tests
 Stats No Stream
-    Create test containers
+    Create test containers for Stats
     ${vicMemory}=  Wait Until Keyword Succeeds  5x  20s  Check Memory From Stats
 
     # get the latest memory value for the "stresser" vm

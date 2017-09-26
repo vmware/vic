@@ -16,7 +16,7 @@
 Documentation   Test 1-40 - Docker Restart
 
 *** Keywords ***
-Create test containers
+Create test containers for Restart
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
@@ -27,7 +27,7 @@ Create test containers
     Set Environment Variable  CREATOR  ${output}
 
 Restart Running Container
-    Create test containers
+    Create test containers for Restart
     # grab the containerVM ip address - will compare after restart to ensure it remains the same
     ${rc}  ${originalIP}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' %{RUNNER}
     Should Be Equal As Integers  ${rc}  0
