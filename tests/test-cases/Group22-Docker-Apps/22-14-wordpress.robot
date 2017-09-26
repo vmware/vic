@@ -21,6 +21,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Keywords ***
 Check wordpress container
     [Arguments]  ${url}
+    Remove File  index.html*
     ${output}=  Run  wget ${url} && cat index.html
     Should Contain  ${output}  <title>WordPress &rsaquo; Setup Configuration File</title>
 
@@ -35,6 +36,7 @@ Simple wordpress container
     Should Be Equal As Integers  ${rc}  0
 
     ${ip}=  Get IP Address of Container  wordpress1
+    Remove File  index.html*
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run ${busybox} sh -c "wget ${ip} && cat index.html"
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
