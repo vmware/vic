@@ -94,6 +94,7 @@ Custom image datastore
     Cleanup VIC Appliance On Test Server
 
 Trailing slash works as expected
+    Set Test Environment Variables
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --insecure-registry harbor.ci.drone.local
     Should Contain  ${output}  Installer completed successfully

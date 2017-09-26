@@ -264,6 +264,7 @@ Basic timeout
     Should Contain  ${ret}  Completed successfully
     ${out}=  Run  govc ls vm
     Should Not Contain  ${out}  %{VCH-NAME}
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
 
 Basic VCH resource config
     Pass execution  Test not implemented
