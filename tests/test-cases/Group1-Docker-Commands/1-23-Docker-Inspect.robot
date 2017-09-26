@@ -19,6 +19,13 @@ Suite Setup  Install VIC Appliance To Test Server  certs=${false}
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
+*** Keywords ***
+Get container inspect status
+    [Arguments]  ${container}
+    ${rc}  ${status}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${container} -f '{{.State.Status}}'
+    Should Be Equal As Integers  ${rc}  0
+    [Return]  ${status}
+
 *** Test Cases ***
 Simple docker inspect of image
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
@@ -129,3 +136,22 @@ Docker inspect mount data
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${out}  /mnt/test
     Should Contain  ${out}  /mnt/named
+
+Docker inspect container status
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} /bin/sh -c 'a=0; while [ $a -lt 90 ]; do echo "line $a"; a=`expr $a + 1`; sleep 2; done;'
+    Should Be Equal As Integers  ${rc}  0
+    # keyword at top of file
+    ${created}=  Get container inspect status  ${container}
+    Should Contain  ${created}  created
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
+    Should Be Equal As Integers  ${rc}  0
+    # keyword at top of file
+    ${running}=  Get container inspect status  ${container}
+    Should Contain  ${running}  running
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${container}
+    Should Be Equal As Integers  ${rc}  0
+    # keyword at top of file
+    ${stopped}=  Get container inspect status  ${container}
+    Should Contain  ${stopped}  exited

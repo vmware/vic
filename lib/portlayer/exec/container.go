@@ -337,12 +337,25 @@ func (c *Container) Refresh(ctx context.Context) error {
 		return err
 	}
 
-	// sync power state (see issue 4872)
+	var started bool
+	// determine if the containerVM has started
+	if session, exists := c.ExecConfig.Sessions[c.ExecConfig.ID]; exists {
+		if session.Started == "true" {
+			started = true
+		}
+	}
+
+	// conditionally sync state (see issue 4872, 6372)
 	switch c.containerBase.Runtime.PowerState {
 	case types.VirtualMachinePowerStatePoweredOn:
-		c.state = StateRunning
+		// only set to running if the container process has started
+		if started {
+			c.state = StateRunning
+		}
 	case types.VirtualMachinePowerStatePoweredOff:
-		c.state = StateStopped
+		if c.state != StateCreated {
+			c.state = StateStopped
+		}
 	}
 
 	return nil
