@@ -360,12 +360,9 @@ $(portlayerapi-test): $$(call godeps,cmd/port-layer-server/*.go) $(portlayerapi-
 	@$(TIME) $(GO) test -c -coverpkg github.com/vmware/vic/lib/...,github.com/vmware/vic/pkg/... -coverprofile port-layer-server.cov -outputdir /tmp -o $@ ./cmd/port-layer-server
 
 # Common service dependencies between client and server
-SERVICE_DEPS ?= lib/apiservers/service/swagger.json #\
-#				  lib/apiservers/service/restapi/configure_service.go \
-#				  lib/apiservers/service/restapi/options/*.go \
-#				  lib/apiservers/service/restapi/handlers/*.go
-
-
+SERVICE_DEPS ?= lib/apiservers/service/swagger.json \
+				  lib/apiservers/service/restapi/configure_vic_machine.go \
+				  lib/apiservers/service/restapi/handlers/*.go
 
 $(serviceapi-server): $(SERVICE_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for vic-machine-as-a-service API server...
