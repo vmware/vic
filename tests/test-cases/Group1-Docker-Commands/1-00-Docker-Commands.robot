@@ -51,6 +51,7 @@ Resource  subtests/1-41-Docker-Commit.robot
 Resource  subtests/1-42-Docker-Diff.robot
 Resource  subtests/1-43-Docker-CP-Offline.robot
 Resource  subtests/1-44-Docker-CP-Online.robot
+Resource  Docker-Command-Utils.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  30 minutes
@@ -178,6 +179,7 @@ Docker Attach Tests
     Attach with short output with tty
 
 Docker PS Tests
+    Remove All Containers
     Empty docker ps command
     Docker ps only running containers
     Docker ps all containers
@@ -220,12 +222,6 @@ Docker Kill Tests
     Signal a non-existent container
     Signal a tough to kill container - nginx
 
-Docker Restart Tests
-    Restart Running Container
-    Restart Created Container
-    Restart Stopped Container
-    Restart with start-stop stress
-
 Docker Version Tests
     Simple Docker Version
     Docker Version Format Client Version
@@ -252,7 +248,7 @@ Docker Inspect Tests
     Simple docker inspect of container
     Docker inspect container specifying type
     Docker inspect container check cmd and image name
-    ocker inspect container specifying incorrect type
+    Docker inspect container specifying incorrect type
     Docker inspect container with multiple networks
     Docker inspect invalid object
     Docker inspect non-nil volume
@@ -284,6 +280,7 @@ Docker Login Tests
     Docker login and pull from docker.io
 
 Docker Rename Tests
+    Remove All Containers
     Rename a non-existent container
     Rename a created container
     Rename a running container
@@ -323,7 +320,6 @@ Docker Stats Tests
     Stats API Disk and Network Validation
 
 Docker Restart Tests
-    Create test containers
     Restart Running Container
     Restart Created Container
     Restart Stopped Container
