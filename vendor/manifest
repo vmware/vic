@@ -999,8 +999,9 @@
 			"importpath": "github.com/tylerb/graceful",
 			"repository": "https://github.com/tylerb/graceful",
 			"vcs": "git",
-			"revision": "d7d7a205e779a4738d38eda0671fff8bfc965f14",
-			"branch": "master"
+			"revision": "4654dfbb6ad53cb5e27f37d99b02e16c1872fbbb",
+			"branch": "HEAD",
+			"notests": true
 		},
 		{
 			"importpath": "github.com/ugorji/go/codec",
@@ -1009,6 +1010,14 @@
 			"revision": "708a42d246822952f38190a8d8c4e6b16a0e600c",
 			"branch": "master",
 			"path": "/codec",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/urfave/negroni",
+			"repository": "https://github.com/urfave/negroni",
+			"vcs": "git",
+			"revision": "ccc4a14984828dcb944e6f17fa4a967b18624f2b",
+			"branch": "master",
 			"notests": true
 		},
 		{
@@ -1415,6 +1424,14 @@
 			"vcs": "",
 			"revision": "dd632973f1e7218eb1089048e0798ec9ae7dceb8",
 			"branch": "v1"
+		},
+		{
+			"importpath": "gopkg.in/tylerb/graceful.v1",
+			"repository": "https://gopkg.in/tylerb/graceful.v1",
+			"vcs": "git",
+			"revision": "4654dfbb6ad53cb5e27f37d99b02e16c1872fbbb",
+			"branch": "master",
+			"notests": true
 		},
 		{
 			"importpath": "gopkg.in/urfave/cli.v1",
