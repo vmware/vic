@@ -222,25 +222,6 @@ Docker Kill Tests
     Signal a non-existent container
     Signal a tough to kill container - nginx
 
-Docker Version Tests
-    Simple Docker Version
-    Docker Version Format Client Version
-    Docker1.11 Version Format Client API Version
-    Docker1.13 Version Format Client API Version
-    Docker Version Format Client Go Version
-    Docker Version Format Server Version
-    Docker1.11 Version Format Server API Version
-    Docker1.13 Version Format Server API Version
-    Docker1.13 Version Format Server Minimum API Version
-    Docker Version Format Server Go Version
-    Docker Version Format Bad Field
-
-Docker Kill Tests
-    Signal a container with default kill signal
-    Signal a container with SIGHUP
-    Signal a non-existent container
-    Signal a tough to kill container - nginx
-
 Docker Inspect Tests
     Simple docker inspect of image
     Docker inspect image specifying type
