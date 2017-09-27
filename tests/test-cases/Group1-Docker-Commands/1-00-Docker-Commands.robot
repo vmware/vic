@@ -57,6 +57,19 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  30 minutes
 
 *** Test Cases ***
+Docker First Tests
+    Stop an already stopped container
+    Basic docker container stop
+    Basic docker stop w/ unclean exit from running process
+    Stop a container with SIGKILL using default grace period
+    Stop a container with SIGKILL using specific stop signal
+    Stop a container with SIGKILL using specific grace period
+    Stop a non-existent container
+    Attempt to stop a container that has been started out of band
+    Restart a stopped container
+    Stop a container with Docker 1.13 CLI
+
+
 Docker Info Tests
     Docker Info - Basic Info
     Docker Info - Debug Info
