@@ -223,7 +223,7 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 	}
 
 	if err := h.Commit(context.Background(), handler.handlerCtx.Session, params.WaitTime); err != nil {
-		log.Errorf("CommitHandler error on handle(%s) for %s: %#v", h.String(), h.ExecConfig.ID, err)
+		log.Errorf("CommitHandler error on handle(%s) for %s: %s", h.String(), h.ExecConfig.ID, err)
 		switch err := err.(type) {
 		case exec.ConcurrentAccessError:
 			return containers.NewCommitConflict().WithPayload(&models.Error{Message: err.Error()})
