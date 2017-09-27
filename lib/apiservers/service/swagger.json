@@ -11,7 +11,8 @@
   },
   "basePath": "/container",
   "schemes": [
-    "http"
+    "http",
+    "https"
   ],
   "consumes": [
     "application/json"
