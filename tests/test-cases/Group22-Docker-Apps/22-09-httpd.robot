@@ -13,44 +13,29 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 22-01 - nginx
+Documentation  Test 22-09 - httpd
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Keywords ***
-Curl nginx endpoint
+Curl httpd endpoint
     [Arguments]  ${endpoint}
     ${rc}  ${output}=  Run And Return Rc And Output  curl ${endpoint}
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${output}
 
 *** Test Cases ***
-Simple background nginx
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name nginx1 -d ${nginx}
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    ${ip}=  Get IP Address of Container  nginx1
-    Remove File  index.html*
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run ${busybox} sh -c "wget ${ip} && cat index.html"
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  Welcome to nginx!
-
-Nginx with port mapping
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name nginx2 -d -p 8080:80 ${nginx}
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl nginx endpoint  %{VCH-IP}:8080
-    Should Contain  ${output}  Welcome to nginx!
-
-Nginx with a mapped volume folder
+Httpd with a mapped volume folder
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=vol1
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v vol1:/mydata ${busybox} sh -c "echo '<p>HelloWorld</p>' > /mydata/test.html"
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name nginx3 -v vol1:/usr/share/nginx/html:ro -d -p 8081:80 ${nginx}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --name httpd1 -v vol1:/usr/local/apache2/htdocs/ -p 8080:80 httpd:2.4
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl nginx endpoint  %{VCH-IP}:8081/test.html
+
+    ${ip}=  Get IP Address of Container  httpd1
+
+    ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl httpd endpoint  %{VCH-IP}:8080/test.html
     Should Contain  ${output}  HelloWorld

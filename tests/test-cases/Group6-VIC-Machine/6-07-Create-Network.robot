@@ -57,9 +57,10 @@ Public network - invalid
     Run  govc host.portgroup.remove 'AAAAAAAAAA'
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --public-network=AAAAAAAAAA ${vicmachinetls}
-
     Should Contain  ${output}  --public-network: network 'AAAAAAAAAA' not found
     Should Contain  ${output}  vic-machine-linux create failed
+
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
 
 Public network - invalid vCenter
     Pass execution  Test not implemented
@@ -99,9 +100,10 @@ Management network - invalid
     Run  govc host.portgroup.remove 'AAAAAAAAAA'
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --management-network=AAAAAAAAAA ${vicmachinetls}
-
     Should Contain  ${output}  --management-network: network 'AAAAAAAAAA' not found
     Should Contain  ${output}  vic-machine-linux create failed
+
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
 
 Management network - invalid vCenter
     Pass execution  Test not implemented

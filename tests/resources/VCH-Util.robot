@@ -242,15 +242,17 @@ Portlayer Log Should Match Regexp
 
 Gather Logs From Test Server
     [Tags]  secret
+    [Arguments]  ${name-suffix}=${EMPTY}
+
     Run Keyword And Continue On Failure  Run  zip %{VCH-NAME}-certs -r %{VCH-NAME}
     ${out}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
     Log  ${out}
-    ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs.zip
+    ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs${name-suffix}.zip
     Log  ${out}
     Remove File  vic-admin-cookies
-    ${out}=  Run  govc datastore.download %{VCH-NAME}/vmware.log %{VCH-NAME}-vmware.log
+    ${out}=  Run  govc datastore.download %{VCH-NAME}/vmware.log %{VCH-NAME}-vmware${name-suffix}.log
     Should Contain  ${out}  OK
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc logs -log=vmkernel -n=10000 > vmkernel.log
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc logs -log=vmkernel -n=10000 > vmkernel${name-suffix}.log
 
 Check For The Proper Log Files
     [Arguments]  ${container}
