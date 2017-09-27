@@ -20,11 +20,8 @@ Trap Signal Command
 
 Remove All Containers
     Stop All Containers
-    ${rc}  Run And Return Rc  sh -C "docker ps -a | grep Exit | cut -d ' ' -f 1 | xargs docker rm"
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  Run And Return Rc  sh -C "docker ps -a | grep Stopped | cut -d ' ' -f 1 | xargs docker rm"
-    Should Be Equal As Integers  ${rc}  0
+    Run  docker ps -a | grep Exit | cut -d ' ' -f 1 | xargs docker rm
+    Run  docker ps -a | grep Stopped | cut -d ' ' -f 1 | xargs docker rm
 
 Stop All Containers
-    ${rc}  Run And Return Rc  sh -C "docker ps | grep Exit | cut -d ' ' -f 1 | xargs docker stop"
-    Should Be Equal As Integers  ${rc}  0
+    Run  docker ps | grep 'Up ' | cut -d ' ' -f 1 | xargs docker stop

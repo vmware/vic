@@ -57,19 +57,6 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  30 minutes
 
 *** Test Cases ***
-Docker First Tests
-    Stop an already stopped container
-    Basic docker container stop
-    Basic docker stop w/ unclean exit from running process
-    Stop a container with SIGKILL using default grace period
-    Stop a container with SIGKILL using specific stop signal
-    Stop a container with SIGKILL using specific grace period
-    Stop a non-existent container
-    Attempt to stop a container that has been started out of band
-    Restart a stopped container
-    Stop a container with Docker 1.13 CLI
-
-
 Docker Info Tests
     Docker Info - Basic Info
     Docker Info - Debug Info
@@ -349,6 +336,7 @@ Docker CP Offfline Tests
     Clean up test files for CP Offline tests
 
 Docker CP Online Tests
+    Set up test files for CP Online Tests
     Copy a directory from online container to host, dst path doesn't exist
     Copy the content of a directory from online container to host
     Copy a file from online container to host, overwrite dst file
@@ -367,6 +355,7 @@ Docker CP Online Tests
     Sub volumes: copy from online container to host, src includes several volumes
     Sub volumes: copy from host to an offline container, dst includes a shared vol with an online container
     Sub volumes: copy from an offline container to host, src includes a shared vol with an online container
+    Clean up test files for CP Online Tests
 
 Docker RMI Tests
     Remove All Containers
