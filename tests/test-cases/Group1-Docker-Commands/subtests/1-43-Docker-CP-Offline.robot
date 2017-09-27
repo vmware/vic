@@ -16,8 +16,7 @@
 Documentation  Test 1-43 - Docker CP Offline
 
 *** Keywords ***
-Set up test files and install VIC appliance to test server
-    Install VIC Appliance To Test Server
+Set up test files for CP Offline tests
     Create File  ${CURDIR}/foo.txt   hello world
     Create File  ${CURDIR}/content   fake file content for testing only
     Create Directory  ${CURDIR}/bar
@@ -43,7 +42,7 @@ Set up test files and install VIC appliance to test server
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-Clean up test files and VIC appliance to test server
+Clean up test files for CP Offline tests
     Run Keyword and Continue on Failure  Remove File  ${CURDIR}/foo.txt
     Run Keyword and Continue on Failure  Remove File  ${CURDIR}/content
     Run Keyword and Continue on Failure  Remove File  ${CURDIR}/largefile.txt

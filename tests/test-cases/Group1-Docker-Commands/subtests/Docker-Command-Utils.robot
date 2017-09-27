@@ -19,6 +19,9 @@ Trap Signal Command
     [Return]  ${busybox} sh -c "trap 'echo KillSignal${sig}' ${sig}; echo READY; while true; do date && sleep 1; done"
 
 Remove All Containers
-    sh -C "docker ps | grep Exit | cut -d ' ' -f 1 | xargs docker stop"
+    Stop All Containers
     sh -C "docker ps -a | grep Exit | cut -d ' ' -f 1 | xargs docker rm"
     sh -C "docker ps -a | grep Stopped | cut -d ' ' -f 1 | xargs docker rm"
+
+Stop All Containers
+    sh -C "docker ps | grep Exit | cut -d ' ' -f 1 | xargs docker stop"

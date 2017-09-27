@@ -14,8 +14,6 @@
 
 *** Settings ***
 Documentation  Test 1-10 - Docker PS
-Resource  Docker-Command-Utils.robot
-Suite Setup  Remove All Containers
 
 *** Keywords ***
 Assert VM Power State

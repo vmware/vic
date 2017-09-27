@@ -51,7 +51,7 @@ Resource  subtests/1-41-Docker-Commit.robot
 Resource  subtests/1-42-Docker-Diff.robot
 Resource  subtests/1-43-Docker-CP-Offline.robot
 Resource  subtests/1-44-Docker-CP-Online.robot
-Resource  Docker-Command-Utils.robot
+Resource  subtests/Docker-Command-Utils.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  30 minutes
@@ -336,6 +336,7 @@ Docker Diff Tests
     Make changes to busybox image
 
 Docker CP Offfline Tests
+    Set up test files for CP Offline tests
     Copy a file from host to offline container root dir
     Copy a directory from offline container to host cwd
     Copy a directory from host to offline container, dst path doesn't exist
@@ -351,6 +352,7 @@ Docker CP Offfline Tests
     Concurrent copy: repeat copy a large file from offline container to host several times
     Sub volumes: copy from host to offline container
     Sub volumes: copy from offline container to host
+    Clean up test files for CP Offline tests
 
 Docker CP Online Tests
     Copy a directory from online container to host, dst path doesn't exist
@@ -373,6 +375,7 @@ Docker CP Online Tests
     Sub volumes: copy from an offline container to host, src includes a shared vol with an online container
 
 Docker RMI Tests
+    Remove All Containers
     Basic docker pull, restart, and remove image
     Remove image with a removed container
     Remove image with a container
