@@ -172,11 +172,7 @@ func (vm *VirtualMachine) WaitForExtraConfig(ctx context.Context, waitFunc func(
 
 	// Wait on config.extraConfig
 	// https://www.vmware.com/support/developer/vc-sdk/visdk2xpubs/ReferenceGuide/vim.vm.ConfigInfo.html
-	err := property.Wait(ctx, p, vm.Reference(), []string{"config.extraConfig", object.PropRuntimePowerState}, waitFunc)
-	if err != nil {
-		return err
-	}
-	return nil
+	return property.Wait(ctx, p, vm.Reference(), []string{"config.extraConfig", object.PropRuntimePowerState}, waitFunc)
 }
 
 func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key string) (string, error) {
