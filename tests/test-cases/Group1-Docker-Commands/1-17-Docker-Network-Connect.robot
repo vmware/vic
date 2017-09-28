@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 1-17 - Docker Network Connect
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server  certs=${false}
+Suite Setup  Run Keywords  Conditional Install VIC Appliance To Test Server  Remove All Container Networks
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 

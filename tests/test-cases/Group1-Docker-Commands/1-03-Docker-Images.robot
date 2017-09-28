@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 1-03 - Docker Images
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Conditional Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
@@ -30,16 +30,18 @@ Simple images
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox:1.27.0
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images | cut -d ' ' -f 1 | grep busybox
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Should Contain X Times  ${output}  busybox  3
+    ${count}=  Get Count  ${output}  busybox
+    Should Be True  ${count} >= 3
 
 All images
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -a | cut -d ' ' -f 1 | grep busybox
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Should Contain X Times  ${output}  busybox  3
+    ${count}=  Get Count  ${output}  busybox
+    Should Be True  ${count} >= 3
 
 Quiet images
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -q
@@ -47,14 +49,16 @@ Quiet images
     Should Not Contain  ${output}  Error
     Should Not Contain  ${output}  busybox
     @{lines}=  Split To Lines  ${output}
-    Length Should Be  ${lines}  3
+    ${count}=  Get Length  ${lines}
+    Should Be True  ${count} >= 3
     Length Should Be  @{lines}[1]  12
 
 No-trunc images
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images --no-trunc
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Should Contain X Times  ${output}  busybox  3
+    ${count}=  Get Count  ${output}  busybox
+    Should Be True  ${count} >= 3
     @{lines}=  Split To Lines  ${output}
     @{line}=  Split String  @{lines}[2]
     Length Should Be  @{line}[2]  64
@@ -64,16 +68,18 @@ Filter images before
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     @{lines}=  Split To Lines  ${output}
-    Length Should Be  ${lines}  3
     Should Contain  ${output}  1.27.0
+    ${count}=  Get Length  ${lines}
+    Should Be True  ${count} >= 3
 
 Filter images since
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f since=busybox:1.27.0
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     @{lines}=  Split To Lines  ${output}
-    Length Should Be  ${lines}  3
-    Should Contain  ${output}  latest
+    ${count}=  Get Length  ${lines}
+    Should Be True  ${count} > 0
+    Should Contain  ${output}  1.27.1
 
 Tag images
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} tag busybox busybox:cdg
