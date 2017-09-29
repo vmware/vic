@@ -37,9 +37,10 @@ Get Path
 
 
 Get Path Under Target
-    [Arguments]    ${path}
+    [Arguments]    ${path}    @{query}
+    ${fullQuery}=    Catenate    SEPARATOR=&    thumbprint=%{TEST_THUMBPRINT}    @{query}
     ${auth}=    Evaluate    base64.b64encode("%{TEST_USERNAME}:%{TEST_PASSWORD}")    modules=base64
-    ${RC}  ${OUTPUT}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X GET "http://127.0.0.1:${HTTP_PORT}/container/target/%{TEST_URL}/${PATH}?thumbprint=%{TEST_THUMBPRINT}" -H "Accept: application/json" -H "Authorization: Basic ${auth}"
+    ${RC}  ${OUTPUT}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X GET "http://127.0.0.1:${HTTP_PORT}/container/target/%{TEST_URL}/${PATH}?${fullQuery}" -H "Accept: application/json" -H "Authorization: Basic ${auth}"
     ${OUTPUT}    ${STATUS}=    Split String From Right    ${OUTPUT}    \n    1
     Set Test Variable    ${RC}
     Set Test Variable    ${OUTPUT}
