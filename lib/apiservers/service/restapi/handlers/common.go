@@ -55,7 +55,7 @@ func buildData(ctx context.Context, url url.URL, user string, pass string, thumb
 
 		datacenterObject, err := validator.Session.Finder.ObjectReference(ctx, datacenterManagedObjectReference)
 		if err != nil {
-			return nil, util.WrapError(500, err)
+			return nil, util.WrapError(404, err)
 		}
 
 		d.Target.URL.Path = datacenterObject.(*object.Datacenter).InventoryPath
