@@ -15,6 +15,7 @@
 *** Settings ***
 Documentation  Test 5-10 - Multiple Datacenters
 Resource  ../../resources/Util.robot
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Multiple Datacenter Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***
@@ -27,9 +28,7 @@ Combine Dictionaries
     \    Set To Dictionary  ${dict1}  ${key}  ${elem}
     [Return]  ${dict1}
 
-*** Test Cases ***
-Test
-    Log To Console  \nStarting test...
+Multiple Datacenter Setup
     &{esxes}=  Create Dictionary
     ${num_of_esxes}=  Evaluate  2
     :FOR  ${i}  IN RANGE  3
@@ -70,6 +69,9 @@ Test
 
     Set Environment Variable  TEST_DATACENTER  /datacenter1
     Set Environment Variable  GOVC_DATACENTER  /datacenter1
-    Install VIC Appliance To Test Server  certs=${false}  vol=default
 
+*** Test Cases ***
+Test
+    Log To Console  \nStarting test...
+    Install VIC Appliance To Test Server  certs=${false}  vol=default
     Run Regression Tests

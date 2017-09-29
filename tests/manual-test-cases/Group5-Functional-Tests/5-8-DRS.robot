@@ -15,11 +15,11 @@
 *** Settings ***
 Documentation  Test 5-8 - DRS
 Resource  ../../resources/Util.robot
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  DRS Setup
 Suite Teardown  Nimbus Cleanup  ${list}
 
-*** Test Cases ***
-Test
-    Log To Console  \nStarting test...
+*** Keywords ***
+DRS Setup
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${ESX1}  ${esx1}
     ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
@@ -73,6 +73,9 @@ Test
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
 
+*** Test Cases ***
+Test
+    Log To Console  \nStarting test...
     ${status}  ${message}=  Run Keyword And Ignore Error  Install VIC Appliance To Test Server  certs=${false}  vol=default
     Should Contain  ${message}  DRS must be enabled to use VIC
     Should Be Equal As Strings  ${status}  FAIL

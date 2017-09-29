@@ -15,10 +15,11 @@
 *** Settings ***
 Documentation  Test 5-13 - Invalid ESXi Install
 Resource  ../../resources/Util.robot
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Invalid ESXi Install Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
-*** Test Cases ***
-Test
+*** Keywords ***
+Invalid ESXi Install Setup
     Set Suite Variable  ${datacenter}  datacenter1
     Set Suite Variable  ${cluster}  cls
 
@@ -66,5 +67,7 @@ Test
     ${out}=  Run  govc cluster.change -drs-enabled /${datacenter}/host/${cluster}
     Should Be Empty  ${out}
 
+*** Test Cases ***
+Test
     ${out}=  Run  bin/vic-machine-linux create --target ${esx1-ip} --user root --password e2eFunctionalTest --no-tls --name VCH-invalid-test --force --timeout 30m
     Should Contain  ${out}  Target is managed by vCenter server "${vc-ip}", please change --target to vCenter server address or select a standalone ESXi

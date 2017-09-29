@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-22 - NFS Volume
 Resource  ../../resources/Util.robot
-Suite Setup  Setup ESX And NFS Suite
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Setup ESX And NFS Suite
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 

@@ -15,13 +15,16 @@
 *** Settings ***
 Documentation  Test 5-14 - Remove Container OOB
 Resource  ../../resources/Util.robot
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Remove Container OOB Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
-*** Test Cases ***
-Docker run an image from a container that was removed OOB
+*** Keywords ***
+Remove Container OOB Setup
     ${esx1}  ${esx2}  ${esx3}  ${vc}  ${esx1-ip}  ${esx2-ip}  ${esx3-ip}  ${vc-ip}=  Create a Simple VC Cluster
     Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
 
+*** Test Cases ***
+Docker run an image from a container that was removed OOB
     Install VIC Appliance To Test Server
 
     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox

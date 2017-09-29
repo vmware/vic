@@ -15,6 +15,7 @@
 *** Settings ***
 Documentation  Test 5-4 - High Availability
 Resource  ../../resources/Util.robot
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  High Availability Setup
 Suite Teardown  Nimbus Cleanup  ${list}
 Test Teardown  Run Keyword If Test Failed  Gather Logs From Test Server
 
@@ -88,8 +89,7 @@ Run Regression Test With More Log Information
 
     Scrape Logs For The Password
 
-*** Test Cases ***
-Test
+High Availability Setup
     ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     ${pid}=  Deploy Nimbus vCenter Server Async  ${vc}
     Set Suite Variable  ${VC}  ${vc}
@@ -157,8 +157,9 @@ Test
     Set Environment Variable  TEST_DATASTORE  nfsDatastore
     Set Environment Variable  TEST_TIMEOUT  30m
 
+*** Test Cases ***
+Test
     Install VIC Appliance To Test Server  certs=${false}  vol=default
-
     Run Regression Tests
 
     # have a few containers running and stopped for when we

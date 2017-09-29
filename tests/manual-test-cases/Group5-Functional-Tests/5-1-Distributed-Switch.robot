@@ -15,22 +15,20 @@
 *** Settings ***
 Documentation  Test 5-1 - Distributed Switch
 Resource  ../../resources/Util.robot
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Distributed Switch Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Variables ***
 ${esx_number}=  3
 ${datacenter}=  ha-datacenter
 
-*** Test Cases ***
-Test
-    Log To Console  \nStarting test...
-
+*** Keywords ***
+Distributed Switch Setup
     ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     ${pid}=  Deploy Nimbus vCenter Server Async  ${vc}
     Set Suite Variable  ${VC}  ${vc}
 
-    # Let's make 5 because it is free and in parallel, but only use 3 of them
-    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  5  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  3  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     @{esx_names}=  Get Dictionary Keys  ${esxes}
     @{esx_ips}=  Get Dictionary Values  ${esxes}
 
@@ -64,7 +62,6 @@ Test
     \   Should Contain  ${out}  OK
     \   Wait Until Keyword Succeeds  5x  15 seconds  Add Host To Distributed Switch  @{esx_ips}[${IDX}]
 
-
     Log To Console  Deploy VIC to the VC cluster
     Set Environment Variable  TEST_URL_ARRAY  ${vc_ip}
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
@@ -74,6 +71,8 @@ Test
     Set Environment Variable  TEST_RESOURCE  /ha-datacenter/host/@{esx_ips}[0]/Resources
     Set Environment Variable  TEST_TIMEOUT  30m
 
+*** Test Cases ***
+Test
+    Log To Console  \nStarting test...
     Install VIC Appliance To Test Server
-
     Run Regression Tests
