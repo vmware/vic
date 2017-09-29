@@ -205,7 +205,7 @@ Image files
 * Command failed for no iso files found
 
 
-Log files
+Creation log file
 ======
 
 ## Creation log file uploaded to datastore
