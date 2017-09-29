@@ -216,12 +216,13 @@ vic-machine create --name=<VCH_NAME> --target=<TEST_URL> \
     --bridge-network=<NETWORK> --compute-resource=<TEST_RESOURCE>
 ```
 2. Verified that the creation log file prefixed by `vic-machine-create` is uploaded to datastore folder
-3. Verified that
+3. Verified that the creation log file is complete
 
 ## Expected Outcome
 * Deployment succeeds
 * The creation log file is uploaded to datastore folder
 * The creation log file is complete
+
 
 
 Timeout
