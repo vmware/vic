@@ -20,6 +20,7 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***
 VSAN Complex Setup
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${name}=  Evaluate  'vic-vsan-complex-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${user}  %{NIMBUS_USER}
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --vcfvtBuildPath /dbc/pa-dbc1111/mhagen/ --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-vsan-complex-pxeBoot-vcva --runName ${name}
@@ -31,7 +32,7 @@ VSAN Complex Setup
     \   Run Keyword If  ${status}  Set Suite Variable  ${vc-ip}  ${ip}
     \   Exit For Loop If  ${status}
 
-    Set Global Variable  @{list}  ${user}-${name}.vcva-${VC_VERSION}  ${user}-${name}.esx.0  ${user}-${name}.esx.1  ${user}-${name}.esx.2  ${user}-${name}.esx.3  ${user}-${name}.esx.4  ${user}-${name}.esx.5  ${user}-${name}.esx.6  ${user}-${name}.esx.7  ${user}-${name}.nfs.0  ${user}-${name}.iscsi.0
+    Set Suite Variable  @{list}  ${user}-${name}.vcva-${VC_VERSION}  ${user}-${name}.esx.0  ${user}-${name}.esx.1  ${user}-${name}.esx.2  ${user}-${name}.esx.3  ${user}-${name}.esx.4  ${user}-${name}.esx.5  ${user}-${name}.esx.6  ${user}-${name}.esx.7  ${user}-${name}.nfs.0  ${user}-${name}.iscsi.0
 
     Log To Console  Set environment variables up for GOVC
     Set Environment Variable  GOVC_URL  ${vc-ip}

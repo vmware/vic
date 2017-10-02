@@ -29,6 +29,7 @@ Combine Dictionaries
     [Return]  ${dict1}
 
 Enhanced Link Mode Setup
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${name}=  Evaluate  'els-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${user}  %{NIMBUS_USER}
     Log To Console  \nDeploying Nimbus Testbed: ${name}
@@ -82,7 +83,7 @@ Enhanced Link Mode Setup
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
     \   Run Keyword If  ${status}  Set Suite Variable  ${esx3-ip}  ${ip}
 
-    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${user}-${name}.vc.0  ${user}-${name}.vc.1  ${user}-${name}.vc.2  ${user}-${name}.vc.3  ${user}-${name}.nfs.0  ${user}-${name}.esx.0  ${user}-${name}.esx.1  ${user}-${name}.esx.2
+    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${user}-${name}.vc.0  ${user}-${name}.vc.1  ${user}-${name}.vc.2  ${user}-${name}.vc.3  ${user}-${name}.nfs.0  ${user}-${name}.esx.0  ${user}-${name}.esx.1  ${user}-${name}.esx.2
 
     Remove Environment Variable  GOVC_PASSWORD
     Remove Environment Variable  GOVC_USERNAME

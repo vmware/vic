@@ -34,6 +34,7 @@ ${mntNamed}=  /mnt/named
 
 *** Keywords ***
 Setup ESX And NFS Suite
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     Log To Console  \nStarting test...
 
     ${esx1}  ${esx1_ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
@@ -42,12 +43,12 @@ Setup ESX And NFS Suite
 
     ${nfs_readonly}  ${nfs_readonly_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--disk 5000000 --disk 5000000 --mountOpt ro --nfsOpt ro --mountPoint=storage1 --mountPoint=storage2
 
-    Set Global Variable  @{list}  ${esx1}  ${nfs}
-    Set Global Variable  ${ESX1}  ${esx1}
-    Set Global Variable  ${ESX1_IP}  ${esx1_ip}
-    Set Global Variable  ${NFS_IP}  ${nfs_ip}
-    Set Global Variable  ${NFS}  ${nfs}
-    Set Global Variable  ${NFS_READONLY_IP}  ${nfs_readonly_ip}
+    Set Suite Variable  @{list}  ${esx1}  ${nfs}
+    Set Suite Variable  ${ESX1}  ${esx1}
+    Set Suite Variable  ${ESX1_IP}  ${esx1_ip}
+    Set Suite Variable  ${NFS_IP}  ${nfs_ip}
+    Set Suite Variable  ${NFS}  ${nfs}
+    Set Suite Variable  ${NFS_READONLY_IP}  ${nfs_readonly_ip}
 
 Setup ENV Variables for VIC Appliance Install
     Log To Console  \nSetup Environment Variables for VIC Appliance To ESX\n

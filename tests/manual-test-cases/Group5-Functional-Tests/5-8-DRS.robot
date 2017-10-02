@@ -20,6 +20,7 @@ Suite Teardown  Nimbus Cleanup  ${list}
 
 *** Keywords ***
 DRS Setup
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${ESX1}  ${esx1}
     ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
@@ -30,7 +31,7 @@ DRS Setup
     ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${VC}  ${vc}
 
-    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
+    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
 
     Log To Console  Create a datacenter on the VC
     ${out}=  Run  govc datacenter.create ha-datacenter

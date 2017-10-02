@@ -20,18 +20,22 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***
 Invalid ESXi Install Setup
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     Set Suite Variable  ${datacenter}  datacenter1
     Set Suite Variable  ${cluster}  cls
 
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${ESX1}  ${esx1}
+    Set Suite Variable  ${esx1-ip}  ${esx1-ip}
     ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${ESX2}  ${esx2}
+    Set Suite Variable  ${esx2-ip}  ${esx2-ip}
     
     ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${VC}  ${vc}
+    Set Suite Variable  ${vc-ip}  ${vc-ip}
 
-    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${vc}
+    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${vc}
 
     Log To Console  Create a datacenter on the VC
     ${out}=  Run  govc datacenter.create ${datacenter}

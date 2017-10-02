@@ -29,6 +29,7 @@ Combine Dictionaries
     [Return]  ${dict1}
 
 Multiple Datacenter Setup
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     &{esxes}=  Create Dictionary
     ${num_of_esxes}=  Evaluate  2
     :FOR  ${i}  IN RANGE  3
@@ -52,8 +53,7 @@ Multiple Datacenter Setup
     ${esx2-ip}=  Get From List  ${esx-ips}  1
 
     ${esx3}  ${esx4}  ${esx5}  ${vc}  ${esx3-ip}  ${esx4-ip}  ${esx5-ip}  ${vc-ip}=  Create a Simple VC Cluster  datacenter1  cls1
-
-    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${esx4}  ${esx5}  ${vc}
+    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${esx4}  ${esx5}  ${vc}
 
     Log To Console  Create datacenter2 on the VC
     ${out}=  Run  govc datacenter.create datacenter2

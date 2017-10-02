@@ -20,9 +20,10 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***
 Heterogenous ESXi Setup
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     ${pid-vc}=  Deploy Nimbus vCenter Server Async  ${vc}
-    Set Global Variable  @{list}  %{NIMBUS_USER}-${vc}
+    Set Suite Variable  @{list}  %{NIMBUS_USER}-${vc}
 
     Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  3029944

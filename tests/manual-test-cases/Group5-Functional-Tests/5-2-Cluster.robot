@@ -24,6 +24,7 @@ Cluster Setup
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Close Connection
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     ${pid}=  Deploy Nimbus vCenter Server Async  ${vc}
 
@@ -31,7 +32,7 @@ Cluster Setup
     @{esx_names}=  Get Dictionary Keys  ${esxes}
     @{esx_ips}=  Get Dictionary Values  ${esxes}
 
-    Set Global Variable  @{list}  %{NIMBUS_USER}-@{esx_names}[0]  %{NIMBUS_USER}-@{esx_names}[1]  %{NIMBUS_USER}-@{esx_names}[2]  %{NIMBUS_USER}-${vc}
+    Set Suite Variable  @{list}  %{NIMBUS_USER}-@{esx_names}[0]  %{NIMBUS_USER}-@{esx_names}[1]  %{NIMBUS_USER}-@{esx_names}[2]  %{NIMBUS_USER}-${vc}
 
     # Finish vCenter deploy
     ${output}=  Wait For Process  ${pid}

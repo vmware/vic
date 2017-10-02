@@ -90,6 +90,7 @@ Run Regression Test With More Log Information
     Scrape Logs For The Password
 
 High Availability Setup
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     ${pid}=  Deploy Nimbus vCenter Server Async  ${vc}
     Set Suite Variable  ${VC}  ${vc}
@@ -101,7 +102,7 @@ High Availability Setup
     @{esx_names}=  Get Dictionary Keys  ${esxes}
     @{esx_ips}=  Get Dictionary Values  ${esxes}
 
-    Set Global Variable  @{list}  ${esx_names}  ${vc}
+    Set Suite Variable  @{list}  ${esx_names}  ${vc}
 
     # Finish vCenter deploy
     ${output}=  Wait For Process  ${pid}
