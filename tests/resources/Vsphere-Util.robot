@@ -161,6 +161,11 @@ Get Datacenter Name
     ${name}=  Fetch From Right  @{out}[0]  ${SPACE}
     [Return]  ${name}
 
+Get Datacenter ID
+    ${name}=  Get Datacenter Name
+    ${id}=  Run  govc datacenter.info -k --json -dc ${name} | jq .Datacenters[0].Self.Value
+    [Return]  ${id}
+
 Get Test Server Hostname
     [Tags]  secret
     ${hostname}=  Run  sshpass -p $TEST_PASSWORD ssh $TEST_USERNAME@$TEST_URL hostname

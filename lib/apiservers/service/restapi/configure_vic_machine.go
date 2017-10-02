@@ -76,6 +76,12 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 	// GET /container/target/{target}/vch/{vch-id}
 	api.GetTargetTargetVchVchIDHandler = &handlers.VCHGet{}
 
+	// GET /container/target/{target}/vch/{vch-id}/certificate
+	api.GetTargetTargetVchVchIDCertificateHandler = &handlers.VCHCertGet{}
+
+	// GET /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}/certificate
+	api.GetTargetTargetDatacenterDatacenterVchVchIDCertificateHandler = &handlers.VCHDatacenterCertGet{}
+
 	// PUT /container/target/{target}/vch/{vch-id}
 	api.PutTargetTargetVchVchIDHandler = operations.PutTargetTargetVchVchIDHandlerFunc(func(params operations.PutTargetTargetVchVchIDParams, principal interface{}) middleware.Responder {
 		return middleware.NotImplemented("operation .PutTargetTargetVchVchID has not yet been implemented")
