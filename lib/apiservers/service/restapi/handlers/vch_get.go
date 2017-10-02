@@ -28,6 +28,7 @@ import (
 	"github.com/go-openapi/strfmt"
 
 	"github.com/vmware/govmomi/vim25/types"
+
 	"github.com/vmware/vic/lib/apiservers/service/models"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/util"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
@@ -390,7 +391,7 @@ func asPemCertificates(certificates []byte) []*models.X509Data {
 		}
 
 		m = append(m, &models.X509Data{
-			Pem: buf.String(),
+			Pem: models.PEM(buf.String()),
 		})
 
 		c = &rest
