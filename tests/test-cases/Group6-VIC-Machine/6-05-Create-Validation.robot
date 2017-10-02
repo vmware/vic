@@ -68,12 +68,18 @@ Default image datastore
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --insecure-registry harbor.ci.drone.local
     Log  ${output}
-    Should Contain  ${output}  Using default datastore
-    Should Contain  ${output}  Installer completed successfully
-    Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: %{VCH-NAME}...
-    Run Regression Tests
-    Cleanup VIC Appliance On Test Server
+
+    # VCH creation should succeed on ESXi with one datastore
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  Using default datastore
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  Installer completed successfully
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Get Docker Params  ${output}  ${true}
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Log To Console  Installer completed successfully: %{VCH-NAME}...
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run Regression Tests
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Cleanup VIC Appliance On Test Server
+
+    # VCH creation should fail on VC
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  Suggested values for --image-store
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  vic-machine-linux create failed
 
 Custom image datastore
     # This test case is dependent on the ESX environment having only one datastore
@@ -85,7 +91,9 @@ Custom image datastore
     Set Test VCH Name
 
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --image-store=%{TEST_DATASTORE}/long/weird/path ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    ${output-esx}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --image-store=%{TEST_DATASTORE}/long/weird/path ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    ${output-vc}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --image-store=%{TEST_DATASTORE}/long/weird/path ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    ${output}=  Set Variable If  '%{HOST_TYPE}' == 'ESXi'  ${output-esx}  ${output-vc}
     Log  ${output}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
@@ -96,7 +104,9 @@ Custom image datastore
 Trailing slash works as expected
     Set Test Environment Variables
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    ${output-esx}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    ${output-vc}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    ${output}=  Set Variable If  '%{HOST_TYPE}' == 'ESXi'  ${output-esx}  ${output-vc}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}...
@@ -107,7 +117,9 @@ Whitelist registries - blocked registry wildcard domain
     Set Test Environment Variables
     Log To Console  \nInstalling VCH to test server...
     # *.docker.io
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry *.docker.io
+    ${output-esx}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry *.docker.io
+    ${output-vc}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --whitelist-registry *.docker.io
+    ${output}=  Set Variable If  '%{HOST_TYPE}' == 'ESXi'  ${output-esx}  ${output-vc}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     # try a docker pull from docker.io; this should fail
@@ -118,7 +130,9 @@ Whitelist registries - blocked registry wildcard domain
 Whitelist registries - blocked registry ip address of valid registry fqdn
     Set Test Environment Variables
     # ip address of docker.io
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry 52.200.132.201
+    ${output-esx}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry 52.200.132.201
+    ${output-vc}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --whitelist-registry 52.200.132.201
+    ${output}=  Set Variable If  '%{HOST_TYPE}' == 'ESXi'  ${output-esx}  ${output-vc}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     # try a docker pull from docker.io; this should fail
@@ -128,7 +142,9 @@ Whitelist registries - blocked registry ip address of valid registry fqdn
 
 Whitelist registries - allowed registry fqdn
     Set Test Environment Variables
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry registry.hub.docker.com
+    ${output-esx}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry registry.hub.docker.com
+    ${output-vc}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --whitelist-registry registry.hub.docker.com
+    ${output}=  Set Variable If  '%{HOST_TYPE}' == 'ESXi'  ${output-esx}  ${output-vc}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     # try a docker pull from docker.io; this should succeed
@@ -138,7 +154,9 @@ Whitelist registries - allowed registry fqdn
 
 Whitelist registries - allowed registry wildcard domain
     Set Test Environment Variables
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry *hub.docker.com
+    ${output-esx}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry *hub.docker.com
+    ${output-vc}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --whitelist-registry *hub.docker.com
+    ${output}=  Set Variable If  '%{HOST_TYPE}' == 'ESXi'  ${output-esx}  ${output-vc}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     # try a docker pull from docker.io; this should succeed
