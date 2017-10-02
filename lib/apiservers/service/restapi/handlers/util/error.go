@@ -24,11 +24,11 @@ func StatusCode(err error) int {
 }
 
 func NewError(code int, message string) error {
-	return &httpError{code: code, message: message}
+	return httpError{code: code, message: message}
 }
 
 func WrapError(code int, err error) error {
-	return &wrappedError{error: err, code: code}
+	return wrappedError{error: err, code: code}
 }
 
 // Pattern based on https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully
@@ -42,15 +42,23 @@ type httpError struct {
 	message string
 }
 
-func (e *httpError) Code() int {
+func (e httpError) Code() int {
 	return e.code
 }
 
-func (e *httpError) Error() string {
+func (e httpError) Error() string {
 	return e.message
 }
 
 type wrappedError struct {
 	error
 	code int
+}
+
+func (e wrappedError) Code() int {
+	return e.code
+}
+
+func (e wrappedError) Error() string {
+	return e.error.Error()
 }
