@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 13-2 - vMotion Container
 Resource  ../../resources/Util.robot
-Suite Setup  Create a VSAN Cluster
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Create a VSAN Cluster
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 Test Teardown  Cleanup VIC Appliance On Test Server
 

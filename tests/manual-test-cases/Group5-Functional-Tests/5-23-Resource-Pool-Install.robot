@@ -15,16 +15,17 @@
 *** Settings ***
 Documentation  Test 5-23 - Resource Pool Install
 Resource  ../../resources/Util.robot
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Resource Pool Install Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 Test Teardown  Cleanup VIC Appliance On Test Server
+
+*** Keywords ***
+Resource Pool Install Setup
+    ${esx1}  ${esx2}  ${esx3}  ${vc}  ${esx1-ip}  ${esx2-ip}  ${esx3-ip}  ${vc-ip}=  Create a Simple VC Cluster  datacenter  cls
+    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
 
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
-    ${esx1}  ${esx2}  ${esx3}  ${vc}  ${esx1-ip}  ${esx2-ip}  ${esx3-ip}  ${vc-ip}=  Create a Simple VC Cluster  datacenter  cls
-
-    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
-
     Install VIC Appliance To Test Server  additional-args=--use-rp
-
     Run Regression Tests

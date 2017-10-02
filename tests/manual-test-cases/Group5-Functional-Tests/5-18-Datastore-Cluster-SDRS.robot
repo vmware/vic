@@ -15,12 +15,13 @@
 *** Settings ***
 Documentation  Test 5-18 - Datastore Cluster SDRS
 Resource  ../../resources/Util.robot
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  SDRS Datastore Setup
 Test Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
-*** Test Cases ***
-SDRS Datastore
+*** Keywords ***
+SDRS Datastore Setup
     Pass Execution  VIC does not support SDRS yet, see issue #2729
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --customizeTestbed '/esx desiredPassword=e2eFunctionalTest' --noSupportBundles --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-sdrs-fc-fullInstall-vcva --runName vic-fc
+    {out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --customizeTestbed '/esx desiredPassword=e2eFunctionalTest' --noSupportBundles --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-sdrs-fc-fullInstall-vcva --runName vic-fc
     Set Global Variable  @{list}  %{NIMBUS_USER}-vic-fc.vcva-${VC_VERSION}  %{NIMBUS_USER}-vic-fc.esx.0  %{NIMBUS_USER}-vic-fc.esx.1  %{NIMBUS_USER}-vic-fc.fc.0
     Should Contain  ${out}  "deployment_result"=>"PASS"
 
@@ -68,6 +69,7 @@ SDRS Datastore
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
 
+*** Test Cases ***
+SDRS Datastore
     Install VIC Appliance To Test Server
-
     Run Regression Tests

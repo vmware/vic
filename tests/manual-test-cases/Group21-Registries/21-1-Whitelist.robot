@@ -21,7 +21,7 @@ Suite Teardown  Nimbus Cleanup  ${list}
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
 *** Keywords ***
-Setup Harbor
+Simple ESXi Setup
     ${esx}  ${esx-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Global Variable  @{list}  ${esx}
 
@@ -36,6 +36,9 @@ Setup Harbor
     Remove Environment Variable  TEST_RESOURCE
     Remove Environment Variable  BRIDGE_NETWORK
     Remove Environment Variable  PUBLIC_NETWORK
+
+Setup Harbor
+    Wait Until Keyword Succeeds  10x  10m  Simple ESXi Setup
 
     # Install a Harbor server with HTTPS a Harbor server with HTTP
     Install Harbor To Test Server  protocol=https  name=harbor-https

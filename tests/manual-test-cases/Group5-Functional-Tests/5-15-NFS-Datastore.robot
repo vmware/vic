@@ -15,11 +15,11 @@
 *** Settings ***
 Documentation  Test 5-15 - NFS Datastore
 Resource  ../../resources/Util.robot
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  NFS Datastore Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
-*** Test Cases ***
-Test
-    Log To Console  \nStarting test...
+*** Keywords ***
+NFS Datastore Setup
     ${esx3}  ${esx4}  ${esx5}  ${vc}  ${esx3-ip}  ${esx4-ip}  ${esx5-ip}  ${vc-ip}=  Create a Simple VC Cluster  datacenter1  cls1
 
     Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${esx4}  ${esx5}  ${vc}
@@ -30,6 +30,10 @@ Test
     Should Be Empty  ${out}
 
     Set Environment Variable  TEST_DATASTORE  nfsDatastore
+
+*** Test Cases ***
+Test
+    Log To Console  \nStarting test...
     Install VIC Appliance To Test Server
 
     Run Regression Tests

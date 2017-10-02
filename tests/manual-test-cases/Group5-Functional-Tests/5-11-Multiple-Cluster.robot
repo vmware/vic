@@ -15,6 +15,7 @@
 *** Settings ***
 Documentation  Test 5-11 - Multiple Clusters
 Resource  ../../resources/Util.robot
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Multiple Cluster Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***
@@ -27,9 +28,7 @@ Combine Dictionaries
     \    Set To Dictionary  ${dict1}  ${key}  ${elem}
     [Return]  ${dict1}
 
-*** Test Cases ***
-Test
-    Log To Console  \nStarting test...
+Multiple Cluster Setup
     &{esxes}=  Create Dictionary
     ${num_of_esxes}=  Evaluate  2
     :FOR  ${i}  IN RANGE  3
@@ -67,6 +66,11 @@ Test
     Should Be Empty  ${out}
     ${out}=  Run  govc cluster.add -hostname=${esx2-ip} -username=root -dc=datacenter1 -cluster=cls3 -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
+
+*** Test Cases ***
+Test
+    Log To Console  \nStarting test...
+    
 
     Install VIC Appliance To Test Server  certs=${false}  vol=default
 

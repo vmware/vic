@@ -15,10 +15,11 @@
 *** Settings ***
 Documentation  Test 5-16 - iSCSI Datastore
 Resource  ../../resources/Util.robot
-Test Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Suite Setup  Wait Until Keyword Succeeds  10x  10s  iSCSI Datastore Setup
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
-*** Test Cases ***
-iSCSI Datastore
+*** Keywords ***
+iSCSI Datastore Setup
     ${name}=  Evaluate  'vic-iscsi-' + str(random.randint(1000,9999))  modules=random
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --customizeTestbed '/esx desiredPassword=e2eFunctionalTest' --noSupportBundles --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-sdrs-iscsi-fullInstall-vcva --runName vic-iscsi
     Set Global Variable  @{list}  %{NIMBUS_USER}-vic-iscsi.vcva-${VC_VERSION}  %{NIMBUS_USER}-vic-iscsi.esx.0  %{NIMBUS_USER}-vic-iscsi.esx.1  %{NIMBUS_USER}-vic-iscsi.iscsi.0
@@ -65,6 +66,7 @@ iSCSI Datastore
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
 
+*** Test Cases ***
+iSCSI Datastore
     Install VIC Appliance To Test Server
-
     Run Regression Tests

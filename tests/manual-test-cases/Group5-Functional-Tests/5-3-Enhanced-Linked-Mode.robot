@@ -15,6 +15,7 @@
 *** Settings ***
 Documentation  Test 5-3 - Enhanced Linked Mode
 Resource  ../../resources/Util.robot
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Enhanced Link Mode Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***
@@ -27,10 +28,9 @@ Combine Dictionaries
     \    Set To Dictionary  ${dict1}  ${key}  ${elem}
     [Return]  ${dict1}
 
-*** Test Cases ***
-Test
+Enhanced Link Mode Setup
     ${name}=  Evaluate  'els-' + str(random.randint(1000,9999))  modules=random
-    Set Test Variable  ${user}  %{NIMBUS_USER}
+    Set Suite Variable  ${user}  %{NIMBUS_USER}
     Log To Console  \nDeploying Nimbus Testbed: ${name}
 
     ${pid}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-testbeddeploy --lease=1 --noStatsDump --noSupportBundles --plugin test-vpx --testbedName test-vpx-m2n2-vcva-3esx-pxeBoot-8gbmem --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --runName ${name}'
@@ -68,19 +68,19 @@ Test
     :FOR  ${line}  IN  @{output}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.vc.0' is up. IP:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
-    \   Run Keyword If  ${status}  Set Test Variable  ${vc1-ip}  ${ip}
+    \   Run Keyword If  ${status}  Set Suite Variable  ${vc1-ip}  ${ip}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.vc.1' is up. IP:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
-    \   Run Keyword If  ${status}  Set Test Variable  ${vc2-ip}  ${ip}
+    \   Run Keyword If  ${status}  Set Suite Variable  ${vc2-ip}  ${ip}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.esx.0' is up. IP:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
-    \   Run Keyword If  ${status}  Set Test Variable  ${esx1-ip}  ${ip}
+    \   Run Keyword If  ${status}  Set Suite Variable  ${esx1-ip}  ${ip}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.esx.1' is up. IP:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
-    \   Run Keyword If  ${status}  Set Test Variable  ${esx2-ip}  ${ip}
+    \   Run Keyword If  ${status}  Set Suite Variable  ${esx2-ip}  ${ip}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.esx.2' is up. IP:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
-    \   Run Keyword If  ${status}  Set Test Variable  ${esx3-ip}  ${ip}
+    \   Run Keyword If  ${status}  Set Suite Variable  ${esx3-ip}  ${ip}
 
     Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${user}-${name}.vc.0  ${user}-${name}.vc.1  ${user}-${name}.vc.2  ${user}-${name}.vc.3  ${user}-${name}.nfs.0  ${user}-${name}.esx.0  ${user}-${name}.esx.1  ${user}-${name}.esx.2
 
@@ -161,6 +161,7 @@ Test
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
 
+*** Test Cases ***
+Test
     Install VIC Appliance To Test Server
-
     Run Regression Tests

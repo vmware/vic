@@ -15,11 +15,11 @@
 *** Settings ***
 Documentation  Test 5-2 - Cluster
 Resource  ../../resources/Util.robot
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Cluster Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
-*** Test Cases ***
-Test
-    Log To Console  \nStarting test...
+*** Keywords ***
+Cluster Setup
     Log To Console  \nWait until Nimbus is at least available...
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
@@ -85,6 +85,8 @@ Test
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
 
+*** Test Cases ***
+Test
+    Log To Console  \nStarting test...
     Install VIC Appliance To Test Server
-
     Run Regression Tests
