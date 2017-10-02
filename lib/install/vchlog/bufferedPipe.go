@@ -16,8 +16,8 @@ package vchlog
 
 import (
 	"bytes"
-	"sync"
 	"io"
+	"sync"
 )
 
 // BufferedPipe struct implements a pipe readwriter with buffer
