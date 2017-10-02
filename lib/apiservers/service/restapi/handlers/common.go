@@ -23,8 +23,11 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/util"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -121,4 +124,30 @@ func upgradeStatusMessage(ctx context.Context, vch *vm.VirtualMachine, installer
 
 	// can't get here
 	return "Invalid upgrade status"
+}
+
+func getVCHConfig(op trace.Operation, d *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
+	// TODO(jzt): abstract some of this boilerplate into helpers
+	validator, err := validateTarget(op.Context, d)
+	if err != nil {
+		return nil, util.WrapError(400, err)
+	}
+
+	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
+	vch, err := executor.NewVCHFromID(d.ID)
+	if err != nil {
+		return nil, util.NewError(500, fmt.Sprintf("failed to create VCH %s: %s", d.ID, err))
+	}
+
+	err = validate.SetDataFromVM(validator.Context, validator.Session.Finder, vch, d)
+	if err != nil {
+		return nil, util.NewError(500, fmt.Sprintf("Failed to load VCH data: %s", err))
+	}
+
+	vchConfig, err := executor.GetNoSecretVCHConfig(vch)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to retrieve VCH information: %s", err)
+	}
+
+	return vchConfig, nil
 }
