@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/vchlog"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
@@ -37,6 +38,7 @@ const (
 	uploadMaxElapsedTime  = 30 * time.Minute
 	uploadMaxInterval     = 1 * time.Minute
 	uploadInitialInterval = 10 * time.Second
+	timeFormat            = "2006-01-02T15:04:05-0700"
 )
 
 func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
@@ -59,6 +61,16 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 	if err = d.createAppliance(conf, settings); err != nil {
 		return errors.Errorf("Creating the appliance failed with %s. Exiting...", err)
 	}
+
+	// send the signal to VCH logger to indicate VCH datastore path is ready
+	datastoreReadySignal := vchlog.DatastoreReadySignal{
+		Datastore:   d.session.Datastore,
+		LogFileName: "vic-machine-create",
+		Operation:   trace.NewOperation(d.ctx, "vic-machine create"),
+		VMPathName:  d.vmPathName,
+		Timestamp:   time.Now().UTC().Format(timeFormat),
+	}
+	vchlog.Signal(datastoreReadySignal)
 
 	if err = d.uploadImages(settings.ImageFiles); err != nil {
 		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
@@ -125,7 +137,7 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 					switch err.(type) {
 					// if not found, do nothing
 					case object.DatastoreNoSuchFileError:
-					// otherwise force delete
+						// otherwise force delete
 					default:
 						log.Debugf("target delete path = %s", isoTargetPath)
 						err := fm.Delete(d.ctx, isoTargetPath)
