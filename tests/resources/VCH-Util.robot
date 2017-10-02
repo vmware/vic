@@ -297,6 +297,14 @@ Cleanup VCH Bridge Network
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  ${name}-bridge
 
+Add VC Distributed Portgroup
+    [Arguments]  ${dvs}  ${pg}
+    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=%{TEST_DATACENTER} -dvs=${dvs} ${pg}
+
+Remove VC Distributed Portgroup
+    [Arguments]  ${pg}
+    ${out}=  Run  govc object.destroy %{TEST_DATACENTER}/network/${pg}
+
 Cleanup Datastore On Test Server
     ${out}=  Run  govc datastore.ls
     ${items}=  Split To Lines  ${out}
