@@ -32,6 +32,7 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/list"
 	"github.com/vmware/vic/cmd/vic-machine/update"
 	"github.com/vmware/vic/cmd/vic-machine/upgrade"
+	"github.com/vmware/vic/lib/install/vchlog"
 	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/version"
 )
@@ -138,6 +139,12 @@ func main() {
 		defer f.Close()
 		logs = append(logs, f)
 	}
+
+	// create the logger for streaming VCH log messages
+	vchlog.Init()
+	logs = append(logs, vchlog.GetPipe())
+	go vchlog.Run()
+	defer vchlog.Close() // close the logger pipe when done
 
 	// Initiliaze logger with default TextFormatter
 	log.SetFormatter(viclog.NewTextFormatter())
