@@ -96,6 +96,16 @@ func (r NotFoundError) Error() string {
 	return "VM has either been deleted or has not been fully created"
 }
 
+func IsNotFoundError(err error) bool {
+	if soap.IsSoapFault(err) {
+		fault := soap.ToSoapFault(err).VimFault()
+		if _, ok := fault.(types.ManagedObjectNotFound); ok {
+			return true
+		}
+	}
+	return false
+}
+
 // RemovePowerError is returned when attempting to remove a containerVM that is powered on
 type RemovePowerError struct {
 	err error
@@ -345,7 +355,7 @@ func (c *Container) RefreshFromHandle(ctx context.Context, h *Handle) {
 	defer c.m.Unlock()
 
 	if c.Config != nil && (h.Config == nil || h.Config.ChangeVersion != c.Config.ChangeVersion) {
-		log.Warnf("container and handle ChangeVersions do not match for %s: %s != %s", c.ExecConfig.ID, c.Config.ChangeVersion, h.Config.ChangeVersion)
+		log.Warnf("container and handle ChangeVersions do not match: %s != %s", c.Config.ChangeVersion, h.Config.ChangeVersion)
 		return
 	}
 
@@ -570,12 +580,9 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	if err != nil {
 
 		// handle the out-of-band removal case
-		if soap.IsSoapFault(err) {
-			fault := soap.ToSoapFault(err).VimFault()
-			if _, ok := fault.(types.ManagedObjectNotFound); ok {
-				Containers.Remove(c.ExecConfig.ID)
-				return NotFoundError{}
-			}
+		if IsNotFoundError(err) {
+			Containers.Remove(c.ExecConfig.ID)
+			return NotFoundError{}
 		}
 
 		log.Errorf("Failed to get datastore path for %s: %s", c.ExecConfig.ID, err)
@@ -668,6 +675,7 @@ func (c *Container) OnEvent(e events.Event) {
 	defer c.m.Unlock()
 
 	if c.vm == nil {
+		log.Warnf("c.vm is nil for id: %d", e.String(), e.EventID())
 		return
 	}
 	newState := eventedState(e, c.state)
@@ -719,6 +727,8 @@ func (c *Container) OnEvent(e events.Event) {
 		publishContainerEvent(c.ExecConfig.ID, e.Created(), e.String())
 		return
 	}
+
+	log.Debugf("Container(%s) state didn't changed (%s)", c, newState)
 
 	switch e.String() {
 	case events.ContainerRelocated:

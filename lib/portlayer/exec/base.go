@@ -102,7 +102,7 @@ func (c *containerBase) VMReference() types.ManagedObjectReference {
 func (c *containerBase) refresh(ctx context.Context) error {
 	base, err := c.updates(ctx)
 	if err != nil {
-		log.Errorf("Update: unable to update container %s", c.ExecConfig.ID)
+		log.Errorf("Update: unable to update container %s: %s", c.ExecConfig.ID, err)
 		return err
 	}
 
