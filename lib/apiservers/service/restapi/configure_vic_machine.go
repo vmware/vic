@@ -21,6 +21,7 @@ import (
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
+	"github.com/rs/cors"
 	"github.com/tylerb/graceful"
 
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers"
@@ -162,5 +163,16 @@ func setupMiddlewares(handler http.Handler) http.Handler {
 // The middleware configuration happens before anything, this middleware also applies to serving the swagger.json document.
 // So this is a good place to plug in a panic handling middleware, logging and metrics
 func setupGlobalMiddleware(handler http.Handler) http.Handler {
-	return handler
+	// These settings have security implications. These settings should not be changed without appropriate review.
+	// For more information, see the relevant section of the design document:
+	// https://github.com/vmware/vic/blob/7f575392df99642c5edd8f539a74fe9c89155b00/doc/design/vic-machine/service.md#cross-origin-requests--cross-site-request-forgery
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type", "User-Agent"},
+		AllowedMethods:   []string{"HEAD", "GET", "POST", "PUT", "PATCH", "DELETE"},
+		ExposedHeaders:   []string{"Content-Length"},
+		AllowCredentials: false,
+	})
+
+	return c.Handler(handler)
 }
