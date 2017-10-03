@@ -75,3 +75,5 @@ Test
     Log To Console  \nStarting test...
     Install VIC Appliance To Test Server  certs=${false}  vol=default
     Run Regression Tests
+    Remove Environment Variable  TEST_DATACENTER
+    Remove Environment Variable  GOVC_DATASTORE

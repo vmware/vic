@@ -62,6 +62,7 @@ Deploy Nimbus ESXi Server
     # Let's set a password so govc doesn't complain
     Remove Environment Variable  GOVC_PASSWORD
     Remove Environment Variable  GOVC_USERNAME
+    Remove Environment Variable  GOVC_DATASTORE
     Set Environment Variable  GOVC_INSECURE  1
     Set Environment Variable  GOVC_URL  root:@${ip}
     ${out}=  Run  govc host.account.update -id root -password ${NIMBUS_ESX_PASSWORD}
@@ -75,6 +76,7 @@ Set Host Password
     [Arguments]  ${ip}  ${NIMBUS_ESX_PASSWORD}
     Remove Environment Variable  GOVC_PASSWORD
     Remove Environment Variable  GOVC_USERNAME
+    Remove Environment Variable  GOVC_DATASTORE
     Set Environment Variable  GOVC_INSECURE  1
     Set Environment Variable  GOVC_URL  root:@${ip}
     ${out}=  Run  govc host.account.update -id root -password ${NIMBUS_ESX_PASSWORD}
