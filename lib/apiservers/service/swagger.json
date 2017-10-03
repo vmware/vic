@@ -366,7 +366,7 @@
         ],
         "responses": {
             "200": {
-              "$ref": "#/responses/vch-certificate"
+                "$ref": "#/responses/vch-certificate"
             },
           "default": { "$ref": "#/responses/error" }
         }
