@@ -179,7 +179,7 @@
         "summary": "Access the host certificate for a VCH",
         "description": "Making a GET request on /certificate under a VCH resource will return the certificate the VCH uses when acting as a server, which clients may wish to access to download and add to a trust store.",
         "produces": [
-            "application/x-pem-file"
+          "application/x-pem-file"
         ],
         "parameters": [
           { "$ref": "#/parameters/target" },
@@ -187,9 +187,27 @@
           { "$ref": "#/parameters/thumbprint" }
         ],
         "responses": {
-            "200": {
-                "$ref": "#/responses/vch-certificate"
-            },
+          "200": {
+            "$ref": "#/responses/vch-certificate"
+          },
+          "default": { "$ref": "#/responses/error" }
+        }
+      }
+    },
+    "/target/{target}/vch/{vchId}/log": {
+      "get": {
+        "summary": "Access log messages for a VCH",
+        "description": "Making a `GET` request on /log under a VCH resource will return the log messages for vic-machine processes on a VCH",
+        "produces": [
+          "text/plain"
+        ],
+        "parameters": [
+          { "$ref": "#/parameters/target" },
+          { "$ref": "#/parameters/vch-id" },
+          { "$ref": "#/parameters/thumbprint" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/responses/vch-log" },
           "default": { "$ref": "#/responses/error" }
         }
       }
@@ -338,7 +356,7 @@
         "summary": "Access the host certificate for a VCH in a particular datacenter",
         "description": "Making a GET request on /certificate under a VCH resource will return the certificate the VCH uses when acting as a server, which clients may wish to access to download and add to a trust store.",
         "produces": [
-            "application/x-pem-file"
+          "application/x-pem-file"
         ],
         "parameters": [
           { "$ref": "#/parameters/target" },
@@ -347,9 +365,28 @@
           { "$ref": "#/parameters/thumbprint" }
         ],
         "responses": {
-            "200": {
-                "$ref": "#/responses/vch-certificate"
-            },
+          "200": {
+            "$ref": "#/responses/vch-certificate"
+          },
+          "default": { "$ref": "#/responses/error" }
+        }
+      }
+    },
+    "/target/{target}/datacenter/{datacenter}/vch/{vchId}/log": {
+      "get": {
+        "summary": "Access log messages for a VCH in a particular datacenter",
+        "description": "Making a `GET` request on /log under a VCH resource will return the log messages for vic-machine processes on a VCH.",
+        "produces": [
+          "text/plain"
+        ],
+        "parameters": [
+          { "$ref": "#/parameters/target" },
+          { "$ref": "#/parameters/datacenter" },
+          { "$ref": "#/parameters/vch-id" },
+          { "$ref": "#/parameters/thumbprint" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/responses/vch-log" },
           "default": { "$ref": "#/responses/error" }
         }
       }
@@ -560,7 +597,7 @@
       "minProperties": 1,
       "maxProperties": 1,
       "properties": {
-          "pem": { "$ref": "#/definitions/PEM" }
+        "pem": { "$ref": "#/definitions/PEM" }
       }
     },
     "VCH": {
@@ -800,10 +837,10 @@
   },
   "parameters": {
     "target": {
-        "name": "target",
-        "in": "path",
-        "required": true,
-        "type": "string"
+      "name": "target",
+      "in": "path",
+      "required": true,
+      "type": "string"
     },
     "datacenter": {
       "name": "datacenter",
@@ -899,6 +936,15 @@
     "vch-certificate": {
       "description": "A VCH host certificate",
       "schema": { "$ref": "#/definitions/PEM" }
+    },
+    "vch-log": {
+      "description": "Log messages for a VCH",
+      "schema": {
+        "type": "string"
+      },
+      "examples": {
+        "text/plain": "Sep  8 2017 09:41:56.772-05:00 INFO  ### Installing VCH ####"
+      }
     },
     "vsphere-task": {
       "description": "A vSphere task",
