@@ -86,7 +86,6 @@ func DownloadLogFile(ctx context.Context) (io.ReadCloser, error) {
 	}
 
 	reader, _, err := datastore.Download(ctx, logFilePath, nil)
-
 	if err != nil {
 		return nil, err
 	}

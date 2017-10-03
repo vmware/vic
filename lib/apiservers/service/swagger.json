@@ -179,7 +179,7 @@
         "summary": "Access the host certificate for a VCH",
         "description": "Making a GET request on /certificate under a VCH resource will return the certificate the VCH uses when acting as a server, which clients may wish to access to download and add to a trust store.",
         "produces": [
-          "application/x-pem-file"
+            "application/x-pem-file"
         ],
         "parameters": [
           { "$ref": "#/parameters/target" },
@@ -187,9 +187,9 @@
           { "$ref": "#/parameters/thumbprint" }
         ],
         "responses": {
-          "200": {
-            "$ref": "#/responses/vch-certificate"
-          },
+            "200": {
+              "$ref": "#/responses/vch-certificate"
+            },
           "default": { "$ref": "#/responses/error" }
         }
       }
@@ -356,7 +356,7 @@
         "summary": "Access the host certificate for a VCH in a particular datacenter",
         "description": "Making a GET request on /certificate under a VCH resource will return the certificate the VCH uses when acting as a server, which clients may wish to access to download and add to a trust store.",
         "produces": [
-          "application/x-pem-file"
+            "application/x-pem-file"
         ],
         "parameters": [
           { "$ref": "#/parameters/target" },
@@ -365,9 +365,9 @@
           { "$ref": "#/parameters/thumbprint" }
         ],
         "responses": {
-          "200": {
-            "$ref": "#/responses/vch-certificate"
-          },
+            "200": {
+              "$ref": "#/responses/vch-certificate"
+            },
           "default": { "$ref": "#/responses/error" }
         }
       }
@@ -597,7 +597,7 @@
       "minProperties": 1,
       "maxProperties": 1,
       "properties": {
-        "pem": { "$ref": "#/definitions/PEM" }
+          "pem": { "$ref": "#/definitions/PEM" }
       }
     },
     "VCH": {
@@ -837,10 +837,10 @@
   },
   "parameters": {
     "target": {
-      "name": "target",
-      "in": "path",
-      "required": true,
-      "type": "string"
+        "name": "target",
+        "in": "path",
+        "required": true,
+        "type": "string"
     },
     "datacenter": {
       "name": "datacenter",
