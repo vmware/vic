@@ -196,6 +196,7 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 
 		// start the container
 		if err := c.start(ctx); err != nil {
+			publishContainerEvent(h.ExecConfig.ID, time.Now().UTC(), events.ContainerFailed)
 			return err
 		}
 

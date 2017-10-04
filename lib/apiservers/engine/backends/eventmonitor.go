@@ -218,34 +218,32 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 
 	vc := cache.ContainerCache().GetContainer(event.Ref)
 	if vc == nil {
-		log.Warnf("Portlayer event for container %s but not found in cache", event.Ref)
+		log.Warnf("Received portlayer event %s for container %s but not found in cache", event.Event, event.Ref)
 		return
 	}
 
 	var attrs map[string]string
-	// TODO: move to a container.OnEvent() so that container drives the necessary changes
-	// based on event activity
+	// TODO: move to a container.OnEvent() so that container drives the necessary changes based on event activity
 	switch event.Event {
 	case plevents.ContainerStopped,
-		plevents.ContainerPoweredOff:
-		// since we are going to make a call to the portLayer lets execute this in a
-		// go routine
+		plevents.ContainerPoweredOff,
+		plevents.ContainerFailed:
+		// since we are going to make a call to the portLayer lets execute this in a go routine
 		go func() {
 			attrs := make(map[string]string)
 			// get the containerEngine
 			code, err := NewContainerBackend().containerProxy.exitCode(vc)
 			if err != nil {
 				// log the error, but continue
-				log.Errorf("unable to get exitCode for die event: %s", err)
+				log.Warnf("Unable to get exit code for %s: %s", vc.ContainerID, err)
 			}
-			// if the docker client is unable to convert the code to an int then
-			// then the client will return 125
-			attrs["exitCode"] = code
 			log.Infof("Sending die event for container %s - code: %s", vc.ContainerID, code)
+			// if the docker client is unable to convert the code to an int the client will return 125
+			attrs["exitCode"] = code
 			actor := CreateContainerEventActorWithAttributes(vc, attrs)
 			EventService().Log(containerDieEvent, eventtypes.ContainerEventType, actor)
 			if err := UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
-				log.Warn(err)
+				log.Warnf("Failed to unmap ports for container %s: %s", vc.ContainerID, err)
 			}
 
 			// auto-remove if required
@@ -257,17 +255,17 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 
 				err := NewContainerBackend().ContainerRm(vc.Name, config)
 				if err != nil {
-					log.Warnf("failed to auto remove container: %s", err.Error())
+					log.Errorf("Failed to remove container %s: %s", vc.ContainerID, err)
 				}
 			}
-
 		}()
 	case plevents.ContainerRemoved:
 		attrs = make(map[string]string)
-		//pop the destroy event...
+		// pop the destroy event...
 		actor := CreateContainerEventActorWithAttributes(vc, attrs)
 		EventService().Log(containerDestroyEvent, eventtypes.ContainerEventType, actor)
 		if err := UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
+			log.Errorf("Failed to unmap ports for container %s: %s", vc.ContainerID, err)
 			log.Warn(err)
 		}
 		// remove from the container cache...

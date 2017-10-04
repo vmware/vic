@@ -177,7 +177,7 @@ func engageContext(ctx context.Context, netctx *Context, em event.EventManager) 
 	s.Suspend(true)
 	defer s.Resume()
 	for _, c := range exec.Containers.Containers(nil) {
-		log.Debugf("adding container %s", c.ExecConfig.ID)
+		log.Debugf("adding container %s", c)
 		h := c.NewHandle(ctx)
 		defer h.Close()
 
