@@ -112,10 +112,8 @@ VIC Appliance Install with Read Only NFS Volume
     # Will only produce a warning in VCH creation output
     ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${NFS_READONLY_IP}/exports/storage1?uid=0&gid=0:${nfsReadOnlyVolumeStore}"
     Should Contain  ${output}  Installer completed successfully
-    Should Contain  ${output}  VolumeStore (${nfsReadOnlyVolumeStore}) specified was not able to be established in the portlayer. Please check network and nfs server configurations.
-    Should Contain  ${output}  Some Volume Stores that were specified were not successfully created,
-    Should Contain  ${output}  Please check the above output for more information.
-    Should Contain  ${output}  More Information on failed volume store targets can also be found in the portlayer logs found at the vic admin endpoint.
+    Should Contain  ${output}  VolumeStore (${nfsReadOnlyVolumeStore}) cannot be brought online - check network, nfs server, and --volume-store configurations
+    Should Contain  ${output}  Not all configured volume stores are online - check port layer log via vicadmin
 
     ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --opt VolumeStore=${nfsReadOnlyVolumeStore}
     Should Be Equal As Integers  ${rc}  1
@@ -126,7 +124,7 @@ VIC Appliance Install With Fake NFS Server
 
     # Will only produce a warning in VCH creation output
     ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${nfs_bogon_ip}/store?uid=0&gid=0:${nfsFakeVolumeStore}"
-    Should Contain  ${output}  VolumeStore (${nfsFakeVolumeStore}) specified was not able to be established in the portlayer. Please check network and nfs server configurations.
+    Should Contain  ${output}  VolumeStore (${nfsReadOnlyVolumeStore}) cannot be brought online - check network, nfs server, and --volume-store configurations
 
 VIC Appliance Install With Correct NFS Server
     Setup ENV Variables for VIC Appliance Install
