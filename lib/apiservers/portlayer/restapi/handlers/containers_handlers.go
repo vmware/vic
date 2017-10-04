@@ -43,6 +43,8 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/version"
+
+	"github.com/vmware/govmomi/vim25/types"
 )
 
 const (
@@ -255,6 +257,13 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 		case exec.RemovePowerError:
 			return containers.NewContainerRemoveConflict().WithPayload(&models.Error{Message: err.Error()})
 		default:
+			f, ok := err.(types.HasFault)
+			if ok {
+				switch f.Fault().(type) {
+				case *types.HostNotConnected:
+					return containers.NewContainerRemoveDefault(501).WithPayload(&models.Error{Message: "Couldn't remove container because the host the container is placed on is not connected"})
+				}
+			}
 			return containers.NewContainerRemoveInternalServerError()
 		}
 	}
