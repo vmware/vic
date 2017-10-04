@@ -32,6 +32,10 @@ const (
 	NFSProc3FSInfo      = 19
 	NFSProc3Commit      = 21
 
+	// The size in bytes of the opaque cookie verifier passed by
+	// READDIR and READDIRPLUS.
+	NFS3_COOKIEVERFSIZE = 8
+
 	// file types
 	NF3Reg  = 1
 	NF3Dir  = 2
@@ -51,19 +55,37 @@ type Sattr3 struct {
 	Mode  SetMode
 	UID   SetUID
 	GID   SetUID
-	Size  uint64
-	Atime NFS3Time
-	Mtime NFS3Time
+	Size  SetSize
+	Atime SetTime
+	Mtime SetTime
 }
 
 type SetMode struct {
-	Set  uint32
-	Mode uint32
+	SetIt bool   `xdr:"union"`
+	Mode  uint32 `xdr:"unioncase=1"`
 }
 
 type SetUID struct {
-	Set uint32
-	UID uint32
+	SetIt bool   `xdr:"union"`
+	UID   uint32 `xdr:"unioncase=1"`
+}
+
+type SetSize struct {
+	SetIt bool   `xdr:"union"`
+	Size  uint64 `xdr:"unioncase=1"`
+}
+
+type TimeHow int
+
+const (
+	DontChange TimeHow = iota
+	SetToServerTime
+	SetToClientTime
+)
+
+type SetTime struct {
+	SetIt TimeHow  `xdr:"union"`
+	Time  NFS3Time `xdr:"unioncase=2"` //SetToClientTime
 }
 
 type NFS3Time struct {
@@ -109,17 +131,23 @@ func (f *Fattr) Sys() interface{} {
 	return nil
 }
 
+type PostOpFH3 struct {
+	IsSet bool   `xdr:"union"`
+	FH    []byte `xdr:"unioncase=1"`
+}
+
+type PostOpAttr struct {
+	IsSet bool  `xdr:"union"`
+	Attr  Fattr `xdr:"unioncase=1"`
+}
+
 type EntryPlus struct {
 	FileId   uint64
 	FileName string
 	Cookie   uint64
-	Attr     struct {
-		Follows uint32
-		Attr    Fattr
-	}
-	FHSet        uint32
-	FH           []byte
-	ValueFollows uint32
+	Attr     PostOpAttr
+	Handle   PostOpFH3
+	// NextEntry *EntryPlus
 }
 
 func (e *EntryPlus) Name() string {
@@ -127,7 +155,7 @@ func (e *EntryPlus) Name() string {
 }
 
 func (e *EntryPlus) Size() int64 {
-	if e.Attr.Follows == 0 {
+	if !e.Attr.IsSet {
 		return 0
 	}
 
@@ -135,7 +163,7 @@ func (e *EntryPlus) Size() int64 {
 }
 
 func (e *EntryPlus) Mode() os.FileMode {
-	if e.Attr.Follows == 0 {
+	if !e.Attr.IsSet {
 		return 0
 	}
 
@@ -143,7 +171,7 @@ func (e *EntryPlus) Mode() os.FileMode {
 }
 
 func (e *EntryPlus) ModTime() time.Time {
-	if e.Attr.Follows == 0 {
+	if !e.Attr.IsSet {
 		return time.Time{}
 	}
 
@@ -151,7 +179,7 @@ func (e *EntryPlus) ModTime() time.Time {
 }
 
 func (e *EntryPlus) IsDir() bool {
-	if e.Attr.Follows == 0 {
+	if !e.Attr.IsSet {
 		return false
 	}
 
@@ -159,15 +187,25 @@ func (e *EntryPlus) IsDir() bool {
 }
 
 func (e *EntryPlus) Sys() interface{} {
-	if e.Attr.Follows == 0 {
+	if !e.Attr.IsSet {
 		return 0
 	}
 
 	return e.FileId
 }
 
+type WccData struct {
+	Before struct {
+		IsSet bool     `xdr:"union"`
+		Size  uint64   `xdr:"unioncase=1"`
+		MTime NFS3Time `xdr:"unioncase=1"`
+		CTime NFS3Time `xdr:"unioncase=1"`
+	}
+	After PostOpAttr
+}
+
 type FSInfo struct {
-	Follows    uint32
+	Attr       PostOpAttr
 	RTMax      uint32
 	RTPref     uint32
 	RTMult     uint32
@@ -184,6 +222,7 @@ type FSInfo struct {
 func DialService(addr string, prog rpc.Mapping) (*rpc.Client, error) {
 	pm, err := rpc.DialPortmapper("tcp", addr)
 	if err != nil {
+		util.Errorf("Failed to connect to portmapper: %s", err)
 		return nil, err
 	}
 	defer pm.Close()
@@ -194,6 +233,9 @@ func DialService(addr string, prog rpc.Mapping) (*rpc.Client, error) {
 	}
 
 	client, err := dialService(addr, port)
+	if err != nil {
+		return nil, err
+	}
 
 	return client, nil
 }
@@ -222,7 +264,10 @@ func dialService(addr string, port int) (*rpc.Client, error) {
 				Port: p,
 			}
 
-			client, err = rpc.DialTCP("tcp", ldr, fmt.Sprintf("%s:%d", addr, port))
+			raddr := fmt.Sprintf("%s:%d", addr, port)
+			util.Debugf("Connecting to %s", raddr)
+
+			client, err = rpc.DialTCP("tcp", ldr, raddr)
 			if err == nil {
 				break
 			}
@@ -236,8 +281,10 @@ func dialService(addr string, port int) (*rpc.Client, error) {
 
 		util.Debugf("using random port %d -> %d", p, port)
 	} else {
+		raddr := fmt.Sprintf("%s:%d", addr, port)
+		util.Debugf("Connecting to %s from unprivileged port", raddr)
 
-		client, err = rpc.DialTCP("tcp", ldr, fmt.Sprintf("%s:%d", addr, port))
+		client, err = rpc.DialTCP("tcp", ldr, raddr)
 		if err != nil {
 			return nil, err
 		}

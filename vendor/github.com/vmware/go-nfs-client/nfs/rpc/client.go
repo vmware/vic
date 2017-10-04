@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/vmware/go-nfs-client/nfs/util"
 	"github.com/vmware/go-nfs-client/nfs/xdr"
 )
 
@@ -25,6 +26,9 @@ const (
 	Success = iota
 	ProgUnavail
 	ProgMismatch
+	ProcUnavail
+	GarbageArgs
+	SystemErr
 )
 
 const (
@@ -68,11 +72,14 @@ type message struct {
 }
 
 func (c *Client) Call(call interface{}) (io.ReadSeeker, error) {
+	retries := 1
+
 	msg := &message{
 		Xid:  atomic.AddUint32(&xid, 1),
 		Body: call,
 	}
 
+retry:
 	w := new(bytes.Buffer)
 	if err := xdr.Write(w, msg); err != nil {
 		return nil, err
@@ -135,11 +142,24 @@ func (c *Client) Call(call interface{}) (io.ReadSeeker, error) {
 		case Success:
 			return res, nil
 		case ProgUnavail:
-			return nil, fmt.Errorf("PROG_UNAVAIL")
+			return nil, fmt.Errorf("rpc: PROG_UNAVAIL - server does not recognize the program number")
 		case ProgMismatch:
-			return nil, fmt.Errorf("rpc: PROG_MISMATCH")
+			return nil, fmt.Errorf("rpc: PROG_MISMATCH - program version does not exist on the")
+		case ProcUnavail:
+			return nil, fmt.Errorf("rpc: PROC_UNAVAIL - unrecognized procedure number")
+		case GarbageArgs:
+			// emulate Linux behaviour for GARBAGE_ARGS
+			if retries > 0 {
+				util.Debugf("Retrying on GARBAGE_ARGS per linux semantics")
+				retries--
+				goto retry
+			}
+
+			return nil, fmt.Errorf("rpc: GARBAGE_ARGS - rpc arguments cannot be XDR decoded")
+		case SystemErr:
+			return nil, fmt.Errorf("rpc: SYSTEM_ERR - unknown error on server")
 		default:
-			return nil, fmt.Errorf("rpc: unknown status %d", acceptStatus)
+			return nil, fmt.Errorf("rpc: unknown accepted status error: %d", acceptStatus)
 		}
 
 	case MsgDenied:
