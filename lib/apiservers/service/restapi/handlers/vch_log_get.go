@@ -178,15 +178,15 @@ func getAllLogFilePaths(ctx context.Context, helper *datastore.Helper) ([]string
 		return nil, util.NewError(404, "No log file available in datastore folder")
 	}
 
-	// sort log files based on timestamp
-	sort.Strings(paths)
-
 	return paths, nil
 }
 
 // getContentFromLogFile downloads all log files in the list, concatenates the content of each log file and outputs a string of contents
 func getContentFromLogFile(ctx context.Context, helper *datastore.Helper, paths []string) (string, error) {
 	var buffer bytes.Buffer
+
+	// sort log files based on timestamp
+	sort.Strings(paths)
 
 	for _, p := range paths {
 		reader, err := helper.Download(ctx, p)
