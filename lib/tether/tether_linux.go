@@ -245,6 +245,7 @@ func lookPath(file string, env []string, dir string) (string, error) {
 func establishPty(session *SessionConfig) error {
 	defer trace.End(trace.Begin("initializing pty handling for session " + session.ID))
 
+	// pty.Start creates a process group anyway so no change needed to kill all decendents
 	var err error
 	session.Pty, err = pty.Start(&session.Cmd)
 	if err != nil {
@@ -279,6 +280,13 @@ func establishPty(session *SessionConfig) error {
 func establishNonPty(session *SessionConfig) error {
 	defer trace.End(trace.Begin("initializing nonpty handling for session " + session.ID))
 	var err error
+
+	// configure a process group so we can kill any decendents
+	if session.Cmd.SysProcAttr == nil {
+		session.Cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	// session.Cmd.SysProcAttr.Setpgid = true
+	session.Cmd.SysProcAttr.Setsid = true
 
 	if session.OpenStdin {
 		log.Debugf("Setting StdinPipe")

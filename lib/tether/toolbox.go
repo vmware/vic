@@ -189,10 +189,9 @@ func (t *Toolbox) killHelper(session *SessionConfig, name string) error {
 
 	num := syscall.Signal(sig.Signum())
 
-	log.Infof("sending signal %s (%d) to %s", sig.Signal, num, session.ID)
-
-	if err := session.Cmd.Process.Signal(num); err != nil {
-		return fmt.Errorf("failed to signal %s: %s", session.ID, err)
+	log.Infof("sending signal %s (%d) to process group for %s", sig.Signal, num, session.ID)
+	if err := syscall.Kill(-session.Cmd.Process.Pid, num); err != nil {
+		return fmt.Errorf("failed to signal %s group: %s", session.ID, err)
 	}
 
 	return nil
