@@ -28,7 +28,7 @@ import (
 // VMPathName: the datastore path
 type DatastoreReadySignal struct {
 	Datastore   *object.Datastore
-	LogFileName string
+	Name        string
 	Operation   trace.Operation
 	VMPathName  string
 	Timestamp   string
@@ -50,7 +50,7 @@ func Init() {
 func Run() {
 	sig := <-signalChan
 	// suffix the log file name with caller operation ID and timestamp
-	logFileName := sig.LogFileName + "_time_" + sig.Timestamp + "_op_" + sig.Operation.ID()
+	logFileName := "vic-machine" + "_" + sig.Timestamp + "_" + sig.Name + "_" + sig.Operation.ID()
 	sig.Datastore.Upload(sig.Operation.Context, pipe, path.Join(sig.VMPathName, logFileName), nil)
 }
 

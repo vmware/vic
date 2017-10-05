@@ -35,9 +35,9 @@ import (
 )
 
 // logFilePrefix is the prefix for file names of all vic-machine log files
-// example: "vic-machine-create_time_2017-10-04T15:18:01 0000_op_45798.3"
-//			"vic-machine-inspect_time_2017-10-04T15:20:12 0000_op_452847.9"
-const LogFilePrefix = "vic-machine-"
+// example: "vic-machine_2017-10-04T15:18:01 0000_create_45798.3"
+//			"vic-machine_2017-10-04T15:20:12 0000_inspect_452847.9"
+const LogFilePrefix = "vic-machine"
 
 // VCHLogGet is the handler for getting the log messages for a VCH
 type VCHLogGet struct {

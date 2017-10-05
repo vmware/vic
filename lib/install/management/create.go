@@ -65,8 +65,8 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 	// send the signal to VCH logger to indicate VCH datastore path is ready
 	datastoreReadySignal := vchlog.DatastoreReadySignal{
 		Datastore:   d.session.Datastore,
-		LogFileName: "vic-machine-create",
-		Operation:   trace.NewOperation(d.ctx, "vic-machine create"),
+		Name:        "create",
+		Operation:   trace.NewOperation(d.ctx, "create"),
 		VMPathName:  d.vmPathName,
 		Timestamp:   time.Now().UTC().Format(timeFormat),
 	}
