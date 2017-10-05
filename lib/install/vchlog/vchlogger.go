@@ -50,7 +50,7 @@ func Init() {
 func Run() {
 	sig := <-signalChan
 	// suffix the log file name with caller operation ID and timestamp
-	logFileName := "vic-machine" + "_" + sig.Timestamp + "_" + sig.Name + "_" + sig.Operation.ID()
+	logFileName := "vic-machine" + "_" + sig.Timestamp + "_" + sig.Name + "_" + sig.Operation.ID() + ".log"
 	sig.Datastore.Upload(sig.Operation.Context, pipe, path.Join(sig.VMPathName, logFileName), nil)
 }
 

@@ -941,9 +941,6 @@
       "description": "Log messages for a VCH",
       "schema": {
         "type": "string"
-      },
-      "examples": {
-        "text/plain": "Sep  8 2017 09:41:56.772-05:00 INFO  ### Installing VCH ####"
       }
     },
     "vsphere-task": {

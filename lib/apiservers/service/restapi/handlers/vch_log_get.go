@@ -32,12 +32,15 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
+	"sort"
 )
 
 // logFilePrefix is the prefix for file names of all vic-machine log files
-// example: "vic-machine_2017-10-04T15:18:01 0000_create_45798.3"
-//			"vic-machine_2017-10-04T15:20:12 0000_inspect_452847.9"
+// logFileSuffix is the suffix for file names of all vic-machine log files
+// example: "vic-machine_2017-10-04T15:18:01 0000_create_45798.log"
+//			"vic-machine_2017-10-04T15:20:12 0000_inspect_452847.log"
 const LogFilePrefix = "vic-machine"
+const LogFileSuffix = ".log"
 
 // VCHLogGet is the handler for getting the log messages for a VCH
 type VCHLogGet struct {
@@ -56,11 +59,8 @@ func (h *VCHLogGet) Handle(params operations.GetTargetTargetVchVchIDLogParams, p
 		nil,
 		nil)
 	if err != nil {
-		log.Printf("error building data")
 		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
-
-	log.Printf("done building data")
 
 	d.ID = params.VchID
 	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
@@ -127,7 +127,7 @@ func getDatastoreHelper(ctx context.Context, d *data.Data) (*datastore.Helper, e
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
-		return nil, util.NewError(500, fmt.Sprintf("failed to create VCH %s: %s", d.ID, err))
+		return nil, util.NewError(500, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))
 	}
 
 	err = validate.SetDataFromVM(validator.Context, validator.Session.Finder, vch, d)
@@ -169,7 +169,7 @@ func getAllLogFilePaths(ctx context.Context, helper *datastore.Helper) ([]string
 	var paths []string
 	for _, f := range res.File {
 		path := f.GetFileInfo().Path
-		if strings.HasPrefix(path, LogFilePrefix) {
+		if strings.HasPrefix(path, LogFilePrefix) && strings.HasSuffix(path, LogFileSuffix) {
 			paths = append(paths, path)
 		}
 	}
@@ -177,6 +177,9 @@ func getAllLogFilePaths(ctx context.Context, helper *datastore.Helper) ([]string
 	if len(paths) == 0 {
 		return nil, util.NewError(404, "No log file available in datastore folder")
 	}
+
+	// sort log files based on timestamp
+	sort.Strings(paths)
 
 	return paths, nil
 }
