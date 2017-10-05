@@ -15,18 +15,29 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"log"
 	"net/url"
+	"strings"
 
 	"github.com/go-openapi/runtime/middleware"
 
 	"github.com/vmware/vic/lib/apiservers/service/models"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/util"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
-	"github.com/vmware/vic/lib/install/vchlog"
+	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/management"
+	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 )
+
+// logFilePrefix is the prefix for file names of all vic-machine log files
+// example: "vic-machine-create_time_2017-10-04T15:18:01 0000_op_45798.3"
+//			"vic-machine-inspect_time_2017-10-04T15:20:12 0000_op_452847.9"
+const LogFilePrefix = "vic-machine-"
 
 // VCHLogGet is the handler for getting the log messages for a VCH
 type VCHLogGet struct {
@@ -45,18 +56,31 @@ func (h *VCHLogGet) Handle(params operations.GetTargetTargetVchVchIDLogParams, p
 		nil,
 		nil)
 	if err != nil {
+		log.Printf("error building data")
 		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
+	log.Printf("done building data")
+
 	d.ID = params.VchID
+	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
 
-	response, err := downloadAndReadLogFileFromDatastore(params.HTTPRequest.Context(), d.ID)
-
+	helper, err := getDatastoreHelper(op.Context, d)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	return operations.NewGetTargetTargetVchVchIDLogOK().WithPayload(response)
+	logFilePaths, err := getAllLogFilePaths(op.Context, helper)
+	if err != nil {
+		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+	}
+
+	output, err := getContentFromLogFile(op.Context, helper, logFilePaths)
+	if err != nil {
+		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+	}
+
+	return operations.NewGetTargetTargetVchVchIDLogOK().WithPayload(output)
 }
 
 func (h *VCHDatacenterLogGet) Handle(params operations.GetTargetTargetDatacenterDatacenterVchVchIDLogParams, principal interface{}) middleware.Responder {
@@ -72,28 +96,105 @@ func (h *VCHDatacenterLogGet) Handle(params operations.GetTargetTargetDatacenter
 	}
 
 	d.ID = params.VchID
+	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
 
-	response, err := downloadAndReadLogFileFromDatastore(params.HTTPRequest.Context(), d.ID)
-
+	helper, err := getDatastoreHelper(op.Context, d)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogOK().WithPayload(response)
+	logFilePaths, err := getAllLogFilePaths(op.Context, helper)
+	if err != nil {
+		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+	}
+
+	output, err := getContentFromLogFile(op.Context, helper, logFilePaths)
+	if err != nil {
+		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+	}
+
+	return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogOK().WithPayload(output)
 }
 
-// downloadAndReadLogFileFromDatastore downloads log file from VCH datastore folder and returns the content of log
-// file upon success, and returns error if log file is not found or read fails.
-func downloadAndReadLogFileFromDatastore(ctx context.Context, ID string) (string, error) {
-	reader, err := vchlog.DownloadLogFile(ctx)
+// getDatastoreHelper validates the VCH and returns the datastore helper for the VCH. It errors when validation fails or when datastore is not ready
+func getDatastoreHelper(ctx context.Context, d *data.Data) (*datastore.Helper, error) {
+	// TODO (angiew): abstract some of the boilerplate into helpers in common.go
+	validator, err := validateTarget(ctx, d)
 	if err != nil {
-		return "", util.NewError(404, fmt.Sprintf("No log file found for VCH %s", ID))
+		return nil, util.WrapError(400, err)
 	}
 
-	bytes, err := ioutil.ReadAll(reader)
+	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
+	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
-		return "", util.NewError(404, fmt.Sprintf("Error reading log file from datastore for VCH %s", ID))
+		return nil, util.NewError(500, fmt.Sprintf("failed to create VCH %s: %s", d.ID, err))
 	}
 
-	return string(bytes), nil
+	err = validate.SetDataFromVM(validator.Context, validator.Session.Finder, vch, d)
+	if err != nil {
+		return nil, util.NewError(500, fmt.Sprintf("Failed to load VCH data: %s", err))
+	}
+
+	// Get VCH configuration
+	vchConfig, err := executor.GetNoSecretVCHConfig(vch)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to retrieve VCH information: %s", err)
+	}
+
+	// Relative path of datastore folder
+	vmPath := vchConfig.ImageStores[0].Path
+
+	// Get VCH datastore object
+	ds, err := validator.Session.Finder.Datastore(validator.Context, vchConfig.ImageStores[0].Host)
+	if err != nil {
+		return nil, util.NewError(404, fmt.Sprintf("Datastore folder not found for VCH %s: %s", d.ID, err))
+	}
+
+	// Create a new datastore helper for file finding
+	helper, err := datastore.NewHelper(ctx, validator.Session, ds, vmPath)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to get datastore helper: %s", err)
+	}
+
+	return helper, nil
+}
+
+// getAllLogFilePaths returns a list of all log file paths under datastore folder, errors out when no log file found
+func getAllLogFilePaths(ctx context.Context, helper *datastore.Helper) ([]string, error) {
+	res, err := helper.Ls(ctx, "")
+	if err != nil {
+		return nil, fmt.Errorf("Unable to list all files under datastore: %s", err)
+	}
+
+	var paths []string
+	for _, f := range res.File {
+		path := f.GetFileInfo().Path
+		if strings.HasPrefix(path, LogFilePrefix) {
+			paths = append(paths, path)
+		}
+	}
+
+	if len(paths) == 0 {
+		return nil, util.NewError(404, "No log file available in datastore folder")
+	}
+
+	return paths, nil
+}
+
+// getContentFromLogFile downloads all log files in the list, concatenates the content of each log file and outputs a string of contents
+func getContentFromLogFile(ctx context.Context, helper *datastore.Helper, paths []string) (string, error) {
+	var buffer bytes.Buffer
+
+	for _, p := range paths {
+		reader, err := helper.Download(ctx, p)
+		if err != nil {
+			return "", fmt.Errorf("Unable to download log file %s: %s", p, err)
+		}
+		_, err = buffer.ReadFrom(reader)
+		if err != nil {
+			return "", fmt.Errorf("Error reading from log file: %s", err)
+		}
+	}
+
+	return string(buffer.Bytes()), nil
 }
