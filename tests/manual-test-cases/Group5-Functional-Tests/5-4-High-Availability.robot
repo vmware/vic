@@ -155,6 +155,7 @@ High Availability Setup
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
     Set Environment Variable  TEST_RESOURCE  cls
+    Remove Environment Variable  TEST_DATACENTER
     Set Environment Variable  TEST_DATASTORE  nfsDatastore
     Set Environment Variable  TEST_TIMEOUT  30m
 
