@@ -858,6 +858,85 @@ func (c *Context) container(h *exec.Handle) (*Container, error) {
 	return nil, ResourceNotFoundError{error: fmt.Errorf("container %s not found", id.String())}
 }
 
+func (c *Context) UnbindContainerByID(id string) ([]*Endpoint, error) {
+	defer trace.End(trace.Begin(""))
+	c.Lock()
+	defer c.Unlock()
+
+	uuid := uid.Parse(id)
+	if uuid == uid.NilUID {
+		return nil, fmt.Errorf("invalid container id %s", id)
+	}
+
+	con, ok := c.containers[uuid.String()]
+	if !ok {
+		return nil, nil // not bound
+	}
+
+	// aliases to remove
+	var aliases []string
+	var endpoints []*Endpoint
+	for _, ne := range con.endpoints {
+		s := ne.scope
+
+		// save the endpoint info
+		e := con.Endpoint(s).copy()
+
+		if err := s.RemoveContainer(con); err != nil {
+			return nil, err
+		}
+
+		// aliases to remove
+		// name for dns lookup
+		aliases = append(aliases, fmt.Sprintf("%s:%s", s.Name(), con.name))
+		aliases = append(aliases, fmt.Sprintf("%s:%s", s.Name(), con.id.Truncate()))
+		for _, as := range e.aliases {
+			for _, a := range as {
+				aliases = append(aliases, a.scopedName())
+			}
+		}
+
+		// aliases from other containers
+		for _, e := range s.Endpoints() {
+			if e.Container() == con {
+				continue
+			}
+
+			for _, a := range e.getAliases(con.name) {
+				aliases = append(aliases, a.scopedName())
+			}
+		}
+
+		endpoints = append(endpoints, e)
+	}
+
+	// remove aliases
+	for _, a := range aliases {
+		as := c.aliases[a]
+		for i := range as {
+			if as[i] == con {
+				as = append(as[:i], as[i+1:]...)
+				if len(as) == 0 {
+					delete(c.aliases, a)
+				} else {
+					c.aliases[a] = as
+				}
+
+				break
+			}
+		}
+	}
+
+	// long id
+	delete(c.containers, con.ID().String())
+	// short id
+	delete(c.containers, con.ID().Truncate().String())
+	// name
+	delete(c.containers, con.Name())
+
+	return endpoints, nil
+}
+
 func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	defer trace.End(trace.Begin(""))
 	c.Lock()

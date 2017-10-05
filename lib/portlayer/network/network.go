@@ -122,10 +122,14 @@ func handleEvent(netctx *Context, ie events.Event) {
 	case events.ContainerPoweredOff:
 		handle := exec.GetContainer(context.Background(), uid.Parse(ie.Reference()))
 		if handle == nil {
-			log.Errorf("Container %s not found - unable to UnbindContainer", ie.Reference())
+			_, err := netctx.UnbindContainerByID(ie.Reference())
+			if err != nil {
+				log.Errorf("Failed to unbind container %s by id: %s", ie.Reference(), err)
+			}
 			return
 		}
 		defer handle.Close()
+
 		if _, err := netctx.UnbindContainer(handle); err != nil {
 			log.Warnf("Failed to unbind container %s: %s", ie.Reference(), err)
 			return
