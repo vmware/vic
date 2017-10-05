@@ -136,7 +136,7 @@ func getVCHConfig(op trace.Operation, d *data.Data) (*config.VirtualContainerHos
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
-		return nil, util.NewError(500, fmt.Sprintf("failed to create VCH %s: %s", d.ID, err))
+		return nil, util.NewError(500, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))
 	}
 
 	err = validate.SetDataFromVM(validator.Context, validator.Session.Finder, vch, d)
