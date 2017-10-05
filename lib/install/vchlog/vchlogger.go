@@ -15,13 +15,10 @@
 package vchlog
 
 import (
-	"context"
-	"io"
 	"path"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/errors"
 )
 
 // DatastoreReadySignal serves as a signal struct indicating datastore folder path is available
@@ -43,18 +40,10 @@ var pipe *BufferedPipe
 // signalChan: channel for signaling when datastore folder is ready
 var signalChan chan DatastoreReadySignal
 
-// logFilePath: absolute path of log file uploaded to datastore
-var logFilePath string
-
-// datastore: govmomi datastore object
-var datastore *object.Datastore
-
 // Init initializes the logger, creates the streaming pipe and makes the singaling channel.
 func Init() {
 	pipe = NewBufferedPipe()
 	signalChan = make(chan DatastoreReadySignal)
-	datastore = nil
-	logFilePath = ""
 }
 
 // Run waits until the signal arrives and uploads the streaming pipe to datastore
@@ -62,11 +51,7 @@ func Run() {
 	sig := <-signalChan
 	// suffix the log file name with caller operation ID and timestamp
 	logFileName := sig.LogFileName + "_time_" + sig.Timestamp + "_op_" + sig.Operation.ID()
-	// set the datastore and log file path
-	datastore = sig.Datastore
-	logFilePath = path.Join(sig.VMPathName, logFileName)
-	// upload to datastore
-	sig.Datastore.Upload(sig.Operation.Context, pipe, logFilePath, nil)
+	sig.Datastore.Upload(sig.Operation.Context, pipe, path.Join(sig.VMPathName, logFileName), nil)
 }
 
 // GetPipe returns the streaming pipe of the vch logger
@@ -77,20 +62,6 @@ func GetPipe() *BufferedPipe {
 // Signal signals the logger that the datastore folder is ready
 func Signal(sig DatastoreReadySignal) {
 	signalChan <- sig
-}
-
-// DownloadLogFile downloads the log file in datastore folder, returns an error when datastore is not ready
-func DownloadLogFile(ctx context.Context) (io.ReadCloser, error) {
-	if datastore == nil || len(logFilePath) == 0 {
-		return nil, errors.Errorf("Attempt to download log file when VCH datastore folder is not available.")
-	}
-
-	reader, _, err := datastore.Download(ctx, logFilePath, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return reader, nil
 }
 
 // Close stops the logger by closing the underlying pipe
