@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 
 	"github.com/go-openapi/runtime/middleware"
@@ -31,7 +32,6 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
-	"sort"
 )
 
 // logFilePrefix is the prefix for file names of all vic-machine log files
@@ -126,7 +126,7 @@ func getDatastoreHelper(ctx context.Context, d *data.Data) (*datastore.Helper, e
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
-		return nil, util.NewError(500, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))
+		return nil, util.NewError(404, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))
 	}
 
 	err = validate.SetDataFromVM(validator.Context, validator.Session.Finder, vch, d)
