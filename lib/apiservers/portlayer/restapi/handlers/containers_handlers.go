@@ -257,11 +257,10 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 		case exec.RemovePowerError:
 			return containers.NewContainerRemoveConflict().WithPayload(&models.Error{Message: err.Error()})
 		default:
-			f, ok := err.(types.HasFault)
-			if ok {
+			if f, ok := err.(types.HasFault); ok {
 				switch f.Fault().(type) {
 				case *types.HostNotConnected:
-					return containers.NewContainerRemoveDefault(501).WithPayload(&models.Error{Message: "Couldn't remove container because the host the container is placed on is not connected"})
+					return containers.NewContainerRemoveDefault(501).WithPayload(&models.Error{Message: "Couldn't remove container.  The ESX host is temporarily disconnected.  Please try again later."})
 				}
 			}
 			return containers.NewContainerRemoveInternalServerError()
