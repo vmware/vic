@@ -858,6 +858,57 @@ func (c *Context) container(h *exec.Handle) (*Container, error) {
 	return nil, ResourceNotFoundError{error: fmt.Errorf("container %s not found", id.String())}
 }
 
+func (c *Context) populateAliases(con *Container, s *Scope, e *Endpoint) []string {
+	var aliases []string
+
+	// aliases to remove
+	// name for dns lookup
+	aliases = append(aliases, fmt.Sprintf("%s:%s", s.Name(), con.name))
+	aliases = append(aliases, fmt.Sprintf("%s:%s", s.Name(), con.id.Truncate()))
+	for _, as := range e.aliases {
+		for _, a := range as {
+			aliases = append(aliases, a.scopedName())
+		}
+	}
+
+	// aliases from other containers
+	for _, e := range s.Endpoints() {
+		if e.Container() == con {
+			continue
+		}
+
+		for _, a := range e.getAliases(con.name) {
+			aliases = append(aliases, a.scopedName())
+		}
+	}
+	return aliases
+}
+
+func (c *Context) removeAliases(aliases []string, con *Container) {
+	// remove aliases
+	for _, a := range aliases {
+		as := c.aliases[a]
+		for i := range as {
+			if as[i] == con {
+				as = append(as[:i], as[i+1:]...)
+				if len(as) == 0 {
+					delete(c.aliases, a)
+				} else {
+					c.aliases[a] = as
+				}
+
+				break
+			}
+		}
+	}
+	// long id
+	delete(c.containers, con.ID().String())
+	// short id
+	delete(c.containers, con.ID().Truncate().String())
+	// name
+	delete(c.containers, con.Name())
+}
+
 func (c *Context) UnbindContainerByID(id string) ([]*Endpoint, error) {
 	defer trace.End(trace.Begin(""))
 	c.Lock()
@@ -886,53 +937,11 @@ func (c *Context) UnbindContainerByID(id string) ([]*Endpoint, error) {
 			return nil, err
 		}
 
-		// aliases to remove
-		// name for dns lookup
-		aliases = append(aliases, fmt.Sprintf("%s:%s", s.Name(), con.name))
-		aliases = append(aliases, fmt.Sprintf("%s:%s", s.Name(), con.id.Truncate()))
-		for _, as := range e.aliases {
-			for _, a := range as {
-				aliases = append(aliases, a.scopedName())
-			}
-		}
-
-		// aliases from other containers
-		for _, e := range s.Endpoints() {
-			if e.Container() == con {
-				continue
-			}
-
-			for _, a := range e.getAliases(con.name) {
-				aliases = append(aliases, a.scopedName())
-			}
-		}
-
+		aliases = append(aliases, c.populateAliases(con, s, e)...)
 		endpoints = append(endpoints, e)
 	}
 
-	// remove aliases
-	for _, a := range aliases {
-		as := c.aliases[a]
-		for i := range as {
-			if as[i] == con {
-				as = append(as[:i], as[i+1:]...)
-				if len(as) == 0 {
-					delete(c.aliases, a)
-				} else {
-					c.aliases[a] = as
-				}
-
-				break
-			}
-		}
-	}
-
-	// long id
-	delete(c.containers, con.ID().String())
-	// short id
-	delete(c.containers, con.ID().Truncate().String())
-	// name
-	delete(c.containers, con.Name())
+	c.removeAliases(aliases, con)
 
 	return endpoints, nil
 }
@@ -955,7 +964,6 @@ func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	var aliases []string
 	var endpoints []*Endpoint
 	for _, ne := range h.ExecConfig.Networks {
-		var s *Scope
 		s, ok := c.scopes[ne.Network.Name]
 		if !ok {
 			return nil, &ResourceNotFoundError{}
@@ -971,53 +979,11 @@ func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		// clear out assigned ip
 		ne.Assigned.IP = net.IPv4zero
 
-		// aliases to remove
-		// name for dns lookup
-		aliases = append(aliases, fmt.Sprintf("%s:%s", s.Name(), con.name))
-		aliases = append(aliases, fmt.Sprintf("%s:%s", s.Name(), con.id.Truncate()))
-		for _, as := range e.aliases {
-			for _, a := range as {
-				aliases = append(aliases, a.scopedName())
-			}
-		}
-
-		// aliases from other containers
-		for _, e := range s.Endpoints() {
-			if e.Container() == con {
-				continue
-			}
-
-			for _, a := range e.getAliases(con.name) {
-				aliases = append(aliases, a.scopedName())
-			}
-		}
-
+		aliases = append(aliases, c.populateAliases(con, s, e)...)
 		endpoints = append(endpoints, e)
 	}
 
-	// remove aliases
-	for _, a := range aliases {
-		as := c.aliases[a]
-		for i := range as {
-			if as[i] == con {
-				as = append(as[:i], as[i+1:]...)
-				if len(as) == 0 {
-					delete(c.aliases, a)
-				} else {
-					c.aliases[a] = as
-				}
-
-				break
-			}
-		}
-	}
-
-	// long id
-	delete(c.containers, con.ID().String())
-	// short id
-	delete(c.containers, con.ID().Truncate().String())
-	// name
-	delete(c.containers, con.Name())
+	c.removeAliases(aliases, con)
 
 	return endpoints, nil
 }
