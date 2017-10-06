@@ -32,8 +32,6 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
-
-	"log"
 )
 
 // logFilePrefix is the prefix for file names of all vic-machine log files
@@ -66,32 +64,21 @@ func (h *VCHLogGet) Handle(params operations.GetTargetTargetVchVchIDLogParams, p
 	d.ID = params.VchID
 	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
 
-	log.Printf("getting datastore helper...")
-
 	helper, err := getDatastoreHelper(op.Context, d)
-	log.Printf("got datastore helper")
 	if err != nil {
-		log.Printf("got datastore helper error: %v", err)
 		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	log.Printf("get all log file paths...")
 	logFilePaths, err := getAllLogFilePaths(op.Context, helper)
-	log.Printf("got all log file paths.")
 	if err != nil {
-		log.Printf("got all log file paths error %v", err)
 		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	log.Printf("get content from log files...")
 	output, err := getContentFromLogFile(op.Context, helper, logFilePaths)
-	log.Printf("got content from log files.")
 	if err != nil {
-		log.Printf("got content from log files error: %v", err)
 		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	log.Printf("all done. output: %s", output)
 	return operations.NewGetTargetTargetVchVchIDLogOK().WithPayload(output)
 }
 
@@ -187,7 +174,6 @@ func getAllLogFilePaths(ctx context.Context, helper *datastore.Helper) ([]string
 	}
 
 	if len(paths) == 0 {
-		log.Printf("no log file avialable.")
 		return nil, util.NewError(404, "No log file available in datastore folder")
 	}
 

@@ -8,7 +8,7 @@ To verify vic-machine-server can provide logs for a VCH host when available
 [1 - VIC Machine Service API Design Doc - VCH Certificate](../../../doc/design/vic-machine/service.md)
 
 # Environment:
-This test runs an external service binary that exposes the vic-machine API.
+This test requires that a vSphere server is running and available, where VCH can be deployed.
 
 # Test Steps:
 1. Deloy a VCH into the test environment

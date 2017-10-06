@@ -17,6 +17,7 @@ Documentation  Test 23-05 - VCH Logs
 Resource  ../../resources/Util.robot
 Suite Setup  Start VIC Machine Server
 Suite Teardown  Terminate All Processes  kill=True
+Test Setup  Install VIC Appliance To Test Server
 Test Teardown  Cleanup VIC Appliance On Test Server
 Default Tags
 
@@ -32,12 +33,8 @@ Curl No Datacenter
 
 Curl Datacenter
     [Arguments]  ${vch-id}  ${auth}
-    ${orig}=  Get Environment Variable  TEST_DATACENTER
-    ${dc}=  Run Keyword If  '%{TEST_DATACENTER}' == '${SPACE}'  Get Datacenter Name
-    Run Keyword If  '%{TEST_DATACENTER}' == '${SPACE}'  Set Environment Variable  TEST_DATACENTER  ${dc}
     ${dcID}=  Get Datacenter ID
     ${rc}  ${output}=  Run And Return Rc And Output  curl -s -w "\%{http_code}\n" -X GET "http://127.0.0.1:31337/container/target/%{TEST_URL}/datacenter/${dcID}/vch/${vch-id}/log?thumbprint=%{TEST_THUMBPRINT}" -H "authorization: Basic ${auth}"
-    Set Environment Variable  TEST_DATACENTER  ${orig}
     [Return]  ${rc}  ${output}
 
 Delete Log File From VCH Datastore
@@ -50,7 +47,6 @@ Delete Log File From VCH Datastore
 
 *** Test Cases ***
 Get VCH Creation Log succeeds after installation completes
-    Install VIC Appliance To Test Server
     ${id}=  Get VCH ID  %{VCH-NAME}
     ${auth}=  Evaluate  base64.b64encode("%{TEST_USERNAME}:%{TEST_PASSWORD}")  modules=base64
     ${rc}  ${output}=  Curl No Datacenter  ${id}  ${auth}
@@ -63,7 +59,6 @@ Get VCH Creation Log succeeds after installation completes
     Should Be Equal  ${output}  ${outputDC}
 
 Get VCH Creation log errors with 404 after log file is deleted
-    Install VIC Appliance To Test Server
     ${id}=  Get VCH ID  %{VCH-NAME}
     ${auth}=  Evaluate  base64.b64encode("%{TEST_USERNAME}:%{TEST_PASSWORD}")  modules=base64
     Delete Log File From VCH Datastore
