@@ -40,6 +40,13 @@ Curl Datacenter
     Set Environment Variable  TEST_DATACENTER  ${orig}
     [Return]  ${rc}  ${output}
 
+Delete Log File From VCH Datastore
+    ${filename}=  Run  GOVC_DATASTORE=%{TEST_DATASTORE} govc datastore.ls %{VCH-NAME} | grep vic-machine_
+    Should Not Be Empty  ${filename}
+    ${output}=  Run  govc datastore.rm "%{VCH-NAME}/${filename}"
+    ${filename}=  Run  GOVC_DATASTORE=%{TEST_DATASTORE} govc datastore.ls %{VCH-NAME} | grep vic-machine_
+    Should Be Empty  ${filename}
+
 
 *** Test Cases ***
 Get VCH Creation Log succeeds after installation completes
@@ -51,6 +58,19 @@ Get VCH Creation Log succeeds after installation completes
     Should Contain  ${output}  Installer completed successfully
     ${status}=  Get Line  ${output}  -1
     Should Be Equal As Integers  200  ${status}
+    ${rc}  ${outputDC}=  Curl Datacenter  ${id}  ${auth}
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal  ${output}  ${outputDC}
+
+Get VCH Creation log errors with 404 after log file is deleted
+    Install VIC Appliance To Test Server
+    ${id}=  Get VCH ID  %{VCH-NAME}
+    ${auth}=  Evaluate  base64.b64encode("%{TEST_USERNAME}:%{TEST_PASSWORD}")  modules=base64
+    Delete Log File From VCH Datastore
+    ${rc}  ${output}=  Curl No Datacenter  ${id}  ${auth}
+    Should Be Equal As Integers  ${rc}  0
+    ${status}=  Get Line  ${output}  -1
+    Should Be Equal As Integers  404  ${status}
     ${rc}  ${outputDC}=  Curl Datacenter  ${id}  ${auth}
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${output}  ${outputDC}

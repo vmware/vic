@@ -198,9 +198,6 @@
       "get": {
         "summary": "Access log messages for a VCH",
         "description": "Making a `GET` request on /log under a VCH resource will return the log messages for vic-machine processes on a VCH",
-        "produces": [
-          "text/plain"
-        ],
         "parameters": [
           { "$ref": "#/parameters/target" },
           { "$ref": "#/parameters/vch-id" },
@@ -376,9 +373,6 @@
       "get": {
         "summary": "Access log messages for a VCH in a particular datacenter",
         "description": "Making a `GET` request on /log under a VCH resource will return the log messages for vic-machine processes on a VCH.",
-        "produces": [
-          "text/plain"
-        ],
         "parameters": [
           { "$ref": "#/parameters/target" },
           { "$ref": "#/parameters/datacenter" },
