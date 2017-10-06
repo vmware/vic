@@ -23,7 +23,7 @@ Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 *** Keywords ***
 Simple ESXi Setup
     ${esx}  ${esx-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Global Variable  @{list}  ${esx}
+    Set Suite Variable  @{list}  ${esx}
 
     Set Environment Variable  TEST_URL_ARRAY  ${esx-ip}
     Set Environment Variable  TEST_URL  ${esx-ip}
