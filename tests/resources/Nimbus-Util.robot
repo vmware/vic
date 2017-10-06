@@ -110,7 +110,7 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     :FOR  ${name}  IN  @{names}
     \    ${ip}=  Get IP  ${name}
     \    ${ip}=  Evaluate  $ip if $ip else ''
-    \    Run Keyword If  '${ip}'  Set To Dictionary  ${ips}  ${name}  ${ip}
+    \    Run Keyword If  '${ip}'  Set To Dictionary  ${ips}  ${user}-${name}  ${ip}
 
     # Let's set a password so govc doesn't complain
     ${just_ips}=  Get Dictionary Values  ${ips}
