@@ -89,8 +89,6 @@ DATE=`date +%m_%d_%H_%M_`
 nightlystatus=()
 count=0
 
-source /home/vicadmin/internal-repo/vic-internal/nightly_secrets.sh
-
 for i in $nightly_list_var; do
     #Clean up any previous runs creds
     rm -rf VCH-0-*
