@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 13-1 - vMotion VCH Appliance
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Create a VSAN Cluster
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Create a VSAN Cluster  vic-vmotion-13-1
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 Test Teardown  Gather Logs From Test Server 
 
@@ -55,7 +55,7 @@ Test Teardown  Gather Logs From Test Server
 
 Step 6-9
     Set Test Variable  ${user}  %{NIMBUS_USER}
-    Set Global Variable  @{list}  ${user}-vic-vmotion.vcva-${VC_VERSION}  ${user}-vic-vmotion.esx.0  ${user}-vic-vmotion.esx.1  ${user}-vic-vmotion.esx.2  ${user}-vic-vmotion.esx.3  ${user}-vic-vmotion.nfs.0  ${user}-vic-vmotion.iscsi.0
+    Set Global Variable  @{list}  ${user}-vic-vmotion-13-1.vcva-${VC_VERSION}  ${user}-vic-vmotion-13-1.esx.0  ${user}-vic-vmotion-13-1.esx.1  ${user}-vic-vmotion-13-1.esx.2  ${user}-vic-vmotion-13-1.esx.3  ${user}-vic-vmotion-13-1.nfs.0  ${user}-vic-vmotion-13-1.iscsi.0
     Install VIC Appliance To Test Server
     Run Regression Tests
     ${host}=  Get VM Host Name  %{VCH-NAME}/%{VCH-NAME}
