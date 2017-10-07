@@ -76,7 +76,7 @@ func (h *VCHLogGet) Handle(params operations.GetTargetTargetVchVchIDLogParams, p
 		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	output, err := getContentFromLogFile(op.Context, helper, logFilePaths)
+	output, err := getContentFromLogFiles(op.Context, helper, logFilePaths)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -109,7 +109,7 @@ func (h *VCHDatacenterLogGet) Handle(params operations.GetTargetTargetDatacenter
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	output, err := getContentFromLogFile(op.Context, helper, logFilePaths)
+	output, err := getContentFromLogFiles(op.Context, helper, logFilePaths)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
