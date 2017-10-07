@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"sort"
 	"strings"
@@ -34,12 +35,13 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 )
 
-// logFilePrefix is the prefix for file names of all vic-machine log files
-// logFileSuffix is the suffix for file names of all vic-machine log files
-// example: "vic-machine_2017-10-04T15:18:01 0000_create_45798.log"
-//			"vic-machine_2017-10-04T15:20:12 0000_inspect_452847.log"
-const LogFilePrefix = "vic-machine"
-const LogFileSuffix = ".log"
+const (
+	// logFilePrefix is the prefix for file names of all vic-machine log files
+	// example: "vic-machine_2017-10-04T15:18:01 0000_create_45798.log"
+	logFilePrefix = "vic-machine"
+	// logFileSuffix is the suffix for file names of all vic-machine log files
+	logFileSuffix = ".log"
+)
 
 // VCHLogGet is the handler for getting the log messages for a VCH
 type VCHLogGet struct {
@@ -120,18 +122,17 @@ func getDatastoreHelper(ctx context.Context, d *data.Data) (*datastore.Helper, e
 	// TODO (angiew): abstract some of the boilerplate into helpers in common.go
 	validator, err := validateTarget(ctx, d)
 	if err != nil {
-		return nil, util.WrapError(400, err)
+		return nil, util.WrapError(http.StatusBadRequest, err)
 	}
 
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
-		return nil, util.NewError(404, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))
+		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))
 	}
 
-	err = validate.SetDataFromVM(validator.Context, validator.Session.Finder, vch, d)
-	if err != nil {
-		return nil, util.NewError(500, fmt.Sprintf("Failed to load VCH data: %s", err))
+	if err := validate.SetDataFromVM(validator.Context, validator.Session.Finder, vch, d); err != nil {
+		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
 	}
 
 	// Get VCH configuration
@@ -146,7 +147,7 @@ func getDatastoreHelper(ctx context.Context, d *data.Data) (*datastore.Helper, e
 	// Get VCH datastore object
 	ds, err := validator.Session.Finder.Datastore(validator.Context, vchConfig.ImageStores[0].Host)
 	if err != nil {
-		return nil, util.NewError(404, fmt.Sprintf("Datastore folder not found for VCH %s: %s", d.ID, err))
+		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Datastore folder not found for VCH %s: %s", d.ID, err))
 	}
 
 	// Create a new datastore helper for file finding
@@ -168,20 +169,20 @@ func getAllLogFilePaths(ctx context.Context, helper *datastore.Helper) ([]string
 	var paths []string
 	for _, f := range res.File {
 		path := f.GetFileInfo().Path
-		if strings.HasPrefix(path, LogFilePrefix) && strings.HasSuffix(path, LogFileSuffix) {
+		if strings.HasPrefix(path, logFilePrefix) && strings.HasSuffix(path, logFileSuffix) {
 			paths = append(paths, path)
 		}
 	}
 
 	if len(paths) == 0 {
-		return nil, util.NewError(404, "No log file available in datastore folder")
+		return nil, util.NewError(http.StatusNotFound, "No log file available in datastore folder")
 	}
 
 	return paths, nil
 }
 
 // getContentFromLogFile downloads all log files in the list, concatenates the content of each log file and outputs a string of contents
-func getContentFromLogFile(ctx context.Context, helper *datastore.Helper, paths []string) (string, error) {
+func getContentFromLogFiles(ctx context.Context, helper *datastore.Helper, paths []string) (string, error) {
 	var buffer bytes.Buffer
 
 	// sort log files based on timestamp
@@ -192,9 +193,9 @@ func getContentFromLogFile(ctx context.Context, helper *datastore.Helper, paths 
 		if err != nil {
 			return "", fmt.Errorf("Unable to download log file %s: %s", p, err)
 		}
-		_, err = buffer.ReadFrom(reader)
-		if err != nil {
-			return "", fmt.Errorf("Error reading from log file: %s", err)
+
+		if _, err := buffer.ReadFrom(reader); err != nil {
+			return "", fmt.Errorf("Error reading from log file %s: %s", p, err)
 		}
 	}
 
