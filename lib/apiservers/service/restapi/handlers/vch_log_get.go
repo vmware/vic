@@ -36,11 +36,8 @@ import (
 )
 
 const (
-	// logFilePrefix is the prefix for file names of all vic-machine log files
-	// example: "vic-machine_2017-10-04T15:18:01 0000_create_45798.log"
-	logFilePrefix = "vic-machine"
-	// logFileSuffix is the suffix for file names of all vic-machine log files
-	logFileSuffix = ".log"
+	logFilePrefix = "vic-machine" // logFilePrefix is the prefix for file names of all vic-machine log files
+	logFileSuffix = ".log"        // logFileSuffix is the suffix for file names of all vic-machine log files
 )
 
 // VCHLogGet is the handler for getting the log messages for a VCH
