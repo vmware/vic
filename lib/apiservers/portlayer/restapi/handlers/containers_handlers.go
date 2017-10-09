@@ -32,7 +32,6 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 
 	"github.com/vmware/govmomi/vim25/types"
-
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/containers"
