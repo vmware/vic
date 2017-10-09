@@ -17,6 +17,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 
 	"github.com/vmware/govmomi/object"
@@ -48,14 +49,14 @@ func buildData(ctx context.Context, url url.URL, user string, pass string, thumb
 	if datacenter != nil {
 		validator, err := validateTarget(ctx, &d)
 		if err != nil {
-			return nil, util.WrapError(500, err)
+			return nil, util.WrapError(http.StatusInternalServerError, err)
 		}
 
 		datacenterManagedObjectReference := types.ManagedObjectReference{Type: "Datacenter", Value: *datacenter}
 
 		datacenterObject, err := validator.Session.Finder.ObjectReference(ctx, datacenterManagedObjectReference)
 		if err != nil {
-			return nil, util.WrapError(404, err)
+			return nil, util.WrapError(http.StatusNotFound, err)
 		}
 
 		d.Target.URL.Path = datacenterObject.(*object.Datacenter).InventoryPath
@@ -130,18 +131,18 @@ func getVCHConfig(op trace.Operation, d *data.Data) (*config.VirtualContainerHos
 	// TODO(jzt): abstract some of this boilerplate into helpers
 	validator, err := validateTarget(op.Context, d)
 	if err != nil {
-		return nil, util.WrapError(400, err)
+		return nil, util.WrapError(http.StatusBadRequest, err)
 	}
 
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
-		return nil, util.NewError(500, fmt.Sprintf("failed to create VCH %s: %s", d.ID, err))
+		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))
 	}
 
 	err = validate.SetDataFromVM(validator.Context, validator.Session.Finder, vch, d)
 	if err != nil {
-		return nil, util.NewError(500, fmt.Sprintf("Failed to load VCH data: %s", err))
+		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
 	}
 
 	vchConfig, err := executor.GetNoSecretVCHConfig(vch)
