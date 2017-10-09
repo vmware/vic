@@ -224,6 +224,7 @@ Gather Host IPs
 Create a VSAN Cluster
     [Arguments]  ${name}=vic-vmotion
     Log To Console  \nStarting basic VSAN cluster deploy...
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --lease 1 --noStatsDump --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName ${name}
     Should Contain  ${out}  .vcva-${VC_VERSION}' is up. IP:
     ${out}=  Split To Lines  ${out}
