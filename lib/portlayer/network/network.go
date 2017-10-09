@@ -122,9 +122,9 @@ func handleEvent(netctx *Context, ie events.Event) {
 	case events.ContainerPoweredOff:
 		handle := exec.GetContainer(context.Background(), uid.Parse(ie.Reference()))
 		if handle == nil {
-			_, err := netctx.UnbindContainerByID(ie.Reference())
+			_, err := netctx.RemoveIDFromScopes(ie.Reference())
 			if err != nil {
-				log.Errorf("Failed to unbind container %s by id: %s", ie.Reference(), err)
+				log.Errorf("Failed to remove container %s scope: %s", ie.Reference(), err)
 			}
 			return
 		}

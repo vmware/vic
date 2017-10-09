@@ -909,8 +909,11 @@ func (c *Context) removeAliases(aliases []string, con *Container) {
 	delete(c.containers, con.Name())
 }
 
-func (c *Context) UnbindContainerByID(id string) ([]*Endpoint, error) {
+// RemoveIDFromScopes removes the container from the scopes but doesn't touch the runtime state
+// Because of that it requires an id
+func (c *Context) RemoveIDFromScopes(id string) ([]*Endpoint, error) {
 	defer trace.End(trace.Begin(""))
+
 	c.Lock()
 	defer c.Unlock()
 
@@ -920,7 +923,7 @@ func (c *Context) UnbindContainerByID(id string) ([]*Endpoint, error) {
 	}
 
 	con, ok := c.containers[uuid.String()]
-	if !ok {
+	if !ok || con == nil {
 		return nil, nil // not bound
 	}
 
@@ -946,6 +949,8 @@ func (c *Context) UnbindContainerByID(id string) ([]*Endpoint, error) {
 	return endpoints, nil
 }
 
+// UnbindContainer removes the container from the scopes and clears out the assigned IP
+// Because of that, it requires a handle
 func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	defer trace.End(trace.Begin(""))
 	c.Lock()
