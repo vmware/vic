@@ -23,15 +23,16 @@ import (
 
 // DatastoreReadySignal serves as a signal struct indicating datastore folder path is available
 // Datastore: the govmomi datastore object
+// Name: the name of the vic-machine process that sends the signal (e.g. "create", "inspect")
 // LogFileName: the filename of the destination path on datastore
 // Context: the caller context when sending the signal
 // VMPathName: the datastore path
 type DatastoreReadySignal struct {
-	Datastore   *object.Datastore
-	LogFileName string
-	Operation   trace.Operation
-	VMPathName  string
-	Timestamp   string
+	Datastore  *object.Datastore
+	Name       string
+	Operation  trace.Operation
+	VMPathName string
+	Timestamp  string
 }
 
 // pipe: the streaming readwriter pipe to hold log messages
@@ -50,7 +51,7 @@ func Init() {
 func Run() {
 	sig := <-signalChan
 	// suffix the log file name with caller operation ID and timestamp
-	logFileName := sig.LogFileName + "_time_" + sig.Timestamp + "_op_" + sig.Operation.ID()
+	logFileName := "vic-machine" + "_" + sig.Timestamp + "_" + sig.Name + "_" + sig.Operation.ID() + ".log"
 	sig.Datastore.Upload(sig.Operation.Context, pipe, path.Join(sig.VMPathName, logFileName), nil)
 }
 
