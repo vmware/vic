@@ -196,6 +196,10 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 
 		// start the container
 		if err := c.start(ctx); err != nil {
+			// We observed that PowerOn_Task could get stuck on VC time to time even though the VM was starting fine on the host ESXi.
+			// Eventually the task was getting timed out (After 20 min.) and that was setting the container state back to Stopped.
+			// During that time VC was not generating any other event so the persona listener was getting nothing.
+			// This new event is for signaling the eventmonitor so that it can autoremove the container after this failure.
 			publishContainerEvent(h.ExecConfig.ID, time.Now().UTC(), events.ContainerFailed)
 			return err
 		}

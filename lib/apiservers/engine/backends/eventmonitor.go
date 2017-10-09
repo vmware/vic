@@ -232,18 +232,15 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 		go func() {
 			attrs := make(map[string]string)
 			// get the containerEngine
-			code, err := NewContainerBackend().containerProxy.exitCode(vc)
-			if err != nil {
-				// log the error, but continue
-				log.Warnf("Unable to get exit code for %s: %s", vc.ContainerID, err)
-			}
+			code, _ := NewContainerBackend().containerProxy.exitCode(vc)
+
 			log.Infof("Sending die event for container %s - code: %s", vc.ContainerID, code)
 			// if the docker client is unable to convert the code to an int the client will return 125
 			attrs["exitCode"] = code
 			actor := CreateContainerEventActorWithAttributes(vc, attrs)
 			EventService().Log(containerDieEvent, eventtypes.ContainerEventType, actor)
 			if err := UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
-				log.Warnf("Failed to unmap ports for container %s: %s", vc.ContainerID, err)
+				log.Errorf("Failed to unmap ports for container %s: %s", vc.ContainerID, err)
 			}
 
 			// auto-remove if required
@@ -266,7 +263,6 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 		EventService().Log(containerDestroyEvent, eventtypes.ContainerEventType, actor)
 		if err := UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
 			log.Errorf("Failed to unmap ports for container %s: %s", vc.ContainerID, err)
-			log.Warn(err)
 		}
 		// remove from the container cache...
 		cache.ContainerCache().DeleteContainer(vc.ContainerID)
