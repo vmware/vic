@@ -483,6 +483,10 @@ func fromNetworkAddress(m *models.NetworkAddress) string {
 }
 
 func fromManagedObject(op trace.Operation, finder *find.Finder, t string, m *models.ManagedObject) (string, error) {
+	if m == nil {
+		return "", nil
+	}
+
 	if m.ID != "" {
 		managedObjectReference := types.ManagedObjectReference{Type: t, Value: m.ID}
 		element, err := finder.Element(op, managedObjectReference)
