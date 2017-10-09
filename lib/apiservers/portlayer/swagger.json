@@ -1572,7 +1572,7 @@
 					"500": {
 						"description": "server error",
 						"schema": {
-						"$ref": "#/definitions/Error"
+							"$ref": "#/definitions/Error"
 						}
 					},
 					"default": {
