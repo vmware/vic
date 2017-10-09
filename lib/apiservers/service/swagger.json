@@ -194,6 +194,21 @@
         }
       }
     },
+    "/target/{target}/vch/{vchId}/log": {
+      "get": {
+        "summary": "Access log messages for a VCH",
+        "description": "Making a `GET` request on /log under a VCH resource will return the log messages for vic-machine processes on a VCH",
+        "parameters": [
+          { "$ref": "#/parameters/target" },
+          { "$ref": "#/parameters/vch-id" },
+          { "$ref": "#/parameters/thumbprint" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/responses/vch-log" },
+          "default": { "$ref": "#/responses/error" }
+        }
+      }
+    },
     "/target/{target}/datacenter/{datacenter}": {
       "get": {
         "summary": "Show information about the specified vSphere resources",
@@ -350,6 +365,22 @@
             "200": {
                 "$ref": "#/responses/vch-certificate"
             },
+          "default": { "$ref": "#/responses/error" }
+        }
+      }
+    },
+    "/target/{target}/datacenter/{datacenter}/vch/{vchId}/log": {
+      "get": {
+        "summary": "Access log messages for a VCH in a particular datacenter",
+        "description": "Making a `GET` request on /log under a VCH resource will return the log messages for vic-machine processes on a VCH.",
+        "parameters": [
+          { "$ref": "#/parameters/target" },
+          { "$ref": "#/parameters/datacenter" },
+          { "$ref": "#/parameters/vch-id" },
+          { "$ref": "#/parameters/thumbprint" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/responses/vch-log" },
           "default": { "$ref": "#/responses/error" }
         }
       }
@@ -899,6 +930,12 @@
     "vch-certificate": {
       "description": "A VCH host certificate",
       "schema": { "$ref": "#/definitions/PEM" }
+    },
+    "vch-log": {
+      "description": "Log messages for a VCH",
+      "schema": {
+        "type": "string"
+      }
     },
     "vsphere-task": {
       "description": "A vSphere task",
