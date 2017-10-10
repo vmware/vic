@@ -36,7 +36,8 @@ pipeline:
       GS_PRIVATE_KEY: ${GS_PRIVATE_KEY}
       DOMAIN: ${DOMAIN}
     commands:
-      - tests/integration-test.sh
-      #- pybot tests/test-cases/Group1-Docker-Commands/1-13-Docker-Version.robot
+      #- tests/integration-test.sh
+      #- pybot tests/test-cases/Group1-Docker-Commands/1-04-Docker-Create.robot
+      - pybot tests/test-cases/Group1-Docker-Commands/1-00-Docker-Commands.robot
     volumes:
       - /tmp
