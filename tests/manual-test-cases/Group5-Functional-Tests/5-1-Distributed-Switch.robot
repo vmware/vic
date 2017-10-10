@@ -33,7 +33,7 @@ Distributed Switch Setup
     @{esx_names}=  Get Dictionary Keys  ${esxes}
     @{esx_ips}=  Get Dictionary Values  ${esxes}
 
-    Set Suite Variable  @{list}  ${esx_names}  ${vc}
+    Set Suite Variable  @{list}  @{esx_names}[0]  @{esx_names}[1]  @{esx_names}[2]  ${vc}
 
     # Finish vCenter deploy
     ${output}=  Wait For Process  ${pid}
