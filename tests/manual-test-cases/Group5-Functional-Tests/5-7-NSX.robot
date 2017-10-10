@@ -29,6 +29,7 @@ Test
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  vxw-dvs-53-virtualwire-1-sid-5001-nsx-switch
     Set Environment Variable  PUBLIC_NETWORK  'VM Network'
+    Remove Environment Variable  TEST_DATACENTER
     Set Environment Variable  TEST_DATASTORE  vsanDatastore
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
