@@ -1570,7 +1570,10 @@
 						}
 					},
 					"500": {
-						"description": "server error"
+						"description": "server error",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
 					},
 					"default": {
 						"description": "Error",
