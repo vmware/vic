@@ -48,7 +48,7 @@ import (
 )
 
 const (
-	LogFile = "vic-machine.log"
+	LogFile = "vic-machine.log" // name of local log file
 )
 
 // VCHCreate is the handler for creating a VCH
