@@ -96,6 +96,16 @@ func (r NotFoundError) Error() string {
 	return "VM has either been deleted or has not been fully created"
 }
 
+func IsNotFoundError(err error) bool {
+	if soap.IsSoapFault(err) {
+		fault := soap.ToSoapFault(err).VimFault()
+		if _, ok := fault.(types.ManagedObjectNotFound); ok {
+			return true
+		}
+	}
+	return false
+}
+
 // RemovePowerError is returned when attempting to remove a containerVM that is powered on
 type RemovePowerError struct {
 	err error
@@ -220,6 +230,10 @@ func (c *ContainerInfo) State() State {
 	return c.state
 }
 
+func (c *Container) String() string {
+	return c.ExecConfig.ID
+}
+
 // Info returns a copy of the public container configuration that
 // is consistent and copied under lock
 func (c *Container) Info() *ContainerInfo {
@@ -245,7 +259,7 @@ func (c *Container) SetState(s State) State {
 }
 
 func (c *Container) updateState(s State) State {
-	log.Debugf("Setting container %s state: %s", c.ExecConfig.ID, s)
+	log.Debugf("Setting container %s state: %s", c, s)
 	prevState := c.state
 	if s != c.state {
 		c.state = s
@@ -265,7 +279,7 @@ func (c *Container) transitionState(initialState, finalState State) error {
 
 	if c.state == initialState {
 		c.state = finalState
-		log.Debugf("Set container %s state: %s", c.ExecConfig.ID, finalState)
+		log.Debugf("Set container %s state: %s", c, finalState)
 		return nil
 	}
 
@@ -303,7 +317,7 @@ func (c *Container) NewHandle(ctx context.Context) *Handle {
 	if c.vm != nil {
 		// FIXME: this should be calling the cache to decide if a refresh is needed
 		if err := c.Refresh(ctx); err != nil {
-			log.Errorf("refreshing container %s failed: %s", c.ExecConfig.ID, err)
+			log.Errorf("refreshing container %s failed: %s", c, err)
 			return nil // nil indicates error
 		}
 	}
@@ -345,7 +359,7 @@ func (c *Container) RefreshFromHandle(ctx context.Context, h *Handle) {
 	defer c.m.Unlock()
 
 	if c.Config != nil && (h.Config == nil || h.Config.ChangeVersion != c.Config.ChangeVersion) {
-		log.Warnf("container and handle ChangeVersions do not match for %s: %s != %s", c.ExecConfig.ID, c.Config.ChangeVersion, h.Config.ChangeVersion)
+		log.Warnf("container and handle ChangeVersions do not match for %s: %s != %s", c, c.Config.ChangeVersion, h.Config.ChangeVersion)
 		return
 	}
 
@@ -462,7 +476,7 @@ func (c *Container) onStop() {
 	lf := c.logFollowers
 	c.logFollowers = nil
 
-	log.Debugf("Container(%s) closing %d log followers", c.ExecConfig.ID, len(lf))
+	log.Debugf("Container(%s) closing %d log followers", c, len(lf))
 	for _, l := range lf {
 		// #nosec: Errors unhandled.
 		_ = l.Close()
@@ -558,7 +572,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 
 	// check state first
 	if c.state == StateRunning {
-		return RemovePowerError{fmt.Errorf("Container is powered on")}
+		return RemovePowerError{fmt.Errorf("Container %s is powered on", c)}
 	}
 
 	// get existing state and set to removing
@@ -570,15 +584,12 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	if err != nil {
 
 		// handle the out-of-band removal case
-		if soap.IsSoapFault(err) {
-			fault := soap.ToSoapFault(err).VimFault()
-			if _, ok := fault.(types.ManagedObjectNotFound); ok {
-				Containers.Remove(c.ExecConfig.ID)
-				return NotFoundError{}
-			}
+		if IsNotFoundError(err) {
+			Containers.Remove(c.ExecConfig.ID)
+			return NotFoundError{}
 		}
 
-		log.Errorf("Failed to get datastore path for %s: %s", c.ExecConfig.ID, err)
+		log.Errorf("Failed to get datastore path for %s: %s", c, err)
 		c.updateState(existingState)
 		return err
 	}
@@ -591,40 +602,57 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	// enable Destroy
 	c.vm.EnableDestroy(ctx)
 
-	//removes the vm from vsphere, but detaches the disks first
+	concurrent := false
+	// if DeleteExceptDisks succeeds on VC, it leaves the VM orphan so we need to call Unregister
+	// if DeleteExceptDisks succeeds on ESXi, no further action needed
+	// if DeleteExceptDisks fails, we should call Unregister and only return an error if that fails too
+	//		Unregister sometimes can fail with ManagedObjectNotFound so we ignore it
 	_, err = c.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return c.vm.DeleteExceptDisks(ctx)
 	})
 	if err != nil {
 		f, ok := err.(types.HasFault)
 		if !ok {
+			log.Warnf("DeleteExceptDisks failed with non-fault error %s for %s.", err, c)
+
 			c.updateState(existingState)
 			return err
 		}
+
 		switch f.Fault().(type) {
 		case *types.InvalidState:
-			log.Warnf("container VM is in invalid state, unregistering")
+			log.Warnf("container VM %s is in invalid state, unregistering", c)
 			if err := c.vm.Unregister(ctx); err != nil {
-				log.Errorf("Error while attempting to unregister container VM: %s", err)
+				log.Errorf("Error while attempting to unregister container VM %s: %s", c, err)
 				return err
 			}
 		case *types.ConcurrentAccess:
 			// We are getting ConcurrentAccess errors from DeleteExceptDisks - even though we don't set ChangeVersion in that path
 			// We are ignoring the error because in reality the operation finishes successfully.
-			log.Warnf("DeleteExceptDisks failed with ConcurrentAccess error. Ignoring it.")
+			log.Warnf("DeleteExceptDisks failed with ConcurrentAccess error for %s. Ignoring it.", c)
+			concurrent = true
 		default:
-			log.Debugf("Fault while attempting to destroy vm: %#v", f.Fault())
+			log.Debugf("Unhandled fault while attempting to destroy vm %s: %#v", c, f.Fault())
+
 			c.updateState(existingState)
 			return err
 		}
 	}
 
+	if concurrent && c.vm.IsVC() {
+		if err := c.vm.Unregister(ctx); err != nil {
+			if !IsNotFoundError(err) {
+				log.Errorf("Error while attempting to unregister container VM %s: %s", c, err)
+				return err
+			}
+		}
+	}
+
 	// remove from datastore
 	fm := ds.NewFileManager(sess.Datacenter, true)
-
 	if err = fm.Delete(ctx, url.Path); err != nil {
 		// at this phase error doesn't matter. Just log it.
-		log.Debugf("Failed to delete %s, %s", url, err)
+		log.Debugf("Failed to delete %s, %s for %s", url, err, c)
 	}
 
 	//remove container from cache
@@ -668,6 +696,7 @@ func (c *Container) OnEvent(e events.Event) {
 	defer c.m.Unlock()
 
 	if c.vm == nil {
+		log.Warnf("c.vm is nil for id: %d", e.String(), e.EventID())
 		return
 	}
 	newState := eventedState(e, c.state)
@@ -695,7 +724,7 @@ func (c *Container) OnEvent(e events.Event) {
 		case StateRemoved:
 			if c.vm != nil && c.vm.IsFixing() {
 				// is fixing vm, which will be registered back soon, so do not remove from containers cache
-				log.Debugf("Container(%s) %s is being fixed - %s event ignored", c.ExecConfig.ID, newState)
+				log.Debugf("Container(%s) %s is being fixed - %s event ignored", c, newState)
 
 				// Received remove event triggered by unregister VM operation - leave
 				// fixing state now. In a loaded environment, the remove event may be
@@ -719,6 +748,8 @@ func (c *Container) OnEvent(e events.Event) {
 		publishContainerEvent(c.ExecConfig.ID, e.Created(), e.String())
 		return
 	}
+
+	log.Debugf("Container(%s) state didn't changed (%s)", c, newState)
 
 	switch e.String() {
 	case events.ContainerRelocated:
