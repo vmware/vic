@@ -221,16 +221,18 @@ func main() {
 	}
 	progressBars.Printf("\nConcurrent testing...\n\n")
 
-	create := progressBars.MakeBar(config.Concurrency-1, "Creating")
+	create := progressBars.MakeBar(config.Concurrency-1, fmt.Sprintf("%16s", "Creating"))
 	start := func(progress int) {}
 	stop := func(progress int) {}
 	if config.Start {
-		start = progressBars.MakeBar(config.Concurrency-1, "Starting")
-		stop = progressBars.MakeBar(config.Concurrency-1, "Stopping")
+		start = progressBars.MakeBar(config.Concurrency-1, fmt.Sprintf("%16s", "Starting"))
+		stop = progressBars.MakeBar(config.Concurrency-1, fmt.Sprintf("%16s", "Stopping"))
 	}
-	destroy := progressBars.MakeBar(config.Concurrency-1, "Destroying")
+	destroy := progressBars.MakeBar(config.Concurrency-1, fmt.Sprintf("%16s", "Destroying"))
 
-	progressBars.Printf("\nConcurrent testing...\n\n")
+	for i := range progressBars.Bars {
+		progressBars.Bars[i].ShowTimeElapsed = false
+	}
 
 	go progressBars.Listen()
 
