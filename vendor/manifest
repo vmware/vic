@@ -1062,7 +1062,7 @@
 			"importpath": "github.com/vmware/go-nfs-client",
 			"repository": "https://github.com/vmware/go-nfs-client",
 			"vcs": "git",
-			"revision": "492894f630f2f2e2c38de9d6e076c6c801dc3362",
+			"revision": "42fca177a36031d648551c751de1daf5f55dd4f0",
 			"branch": "master",
 			"notests": true
 		},

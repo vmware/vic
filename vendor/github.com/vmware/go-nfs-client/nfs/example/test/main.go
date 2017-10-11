@@ -47,6 +47,13 @@ func main() {
 	}
 	defer v.Close()
 
+	// discover any system files such as lost+found or .snapshot
+	dirs, err := ls(v, ".")
+	if err != nil {
+		log.Fatalf("ls: %s", err.Error())
+	}
+	baseDirCount := len(dirs)
+
 	if _, err = v.Mkdir(dir, 0775); err != nil {
 		log.Fatalf("mkdir error: %v", err)
 	}
@@ -65,14 +72,14 @@ func main() {
 		log.Fatalf("mkdir error: %v", err)
 	}
 
-	dirs, err := ls(v, ".")
+	dirs, err = ls(v, ".")
 	if err != nil {
 		log.Fatalf("ls: %s", err.Error())
 	}
 
-	// check the length.  There should only be 1 entry in the target (aside from . and ..)
-	if len(dirs) != 3 {
-		log.Fatalf("expected 3 dirs, got %d", len(dirs))
+	// check the length.  There should only be 1 entry in the target (aside from . and .., et al)
+	if len(dirs) != 1+baseDirCount {
+		log.Fatalf("expected %d dirs, got %d", 1+baseDirCount, len(dirs))
 	}
 
 	// 10 MB file
@@ -131,8 +138,8 @@ func main() {
 		log.Fatalf("ls: %s", err.Error())
 	}
 
-	if len(outDirs) != 2 {
-		log.Fatalf("directory shoudl be empty!")
+	if len(outDirs) != baseDirCount {
+		log.Fatalf("directory should be empty of our created files!")
 	}
 
 	if err = mount.Unmount(); err != nil {
@@ -140,6 +147,7 @@ func main() {
 	}
 
 	mount.Close()
+	util.Infof("Completed tests")
 }
 
 func testFileRW(v *nfs.Target, name string, filesize uint64) error {
@@ -162,9 +170,9 @@ func testFileRW(v *nfs.Target, name string, filesize uint64) error {
 	t := io.TeeReader(f, h)
 
 	// Copy filesize
-	_, err = io.CopyN(wr, t, int64(filesize))
+	n, err := io.CopyN(wr, t, int64(filesize))
 	if err != nil {
-		util.Errorf("error copying: %s", err.Error())
+		util.Errorf("error copying: n=%d, %s", n, err.Error())
 		return err
 	}
 	expectedSum := h.Sum(nil)
