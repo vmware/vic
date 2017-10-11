@@ -144,7 +144,7 @@ retry:
 		case ProgUnavail:
 			return nil, fmt.Errorf("rpc: PROG_UNAVAIL - server does not recognize the program number")
 		case ProgMismatch:
-			return nil, fmt.Errorf("rpc: PROG_MISMATCH - program version does not exist on the")
+			return nil, fmt.Errorf("rpc: PROG_MISMATCH - program version does not exist on the server")
 		case ProcUnavail:
 			return nil, fmt.Errorf("rpc: PROC_UNAVAIL - unrecognized procedure number")
 		case GarbageArgs:

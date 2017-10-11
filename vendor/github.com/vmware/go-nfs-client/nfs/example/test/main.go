@@ -139,7 +139,7 @@ func main() {
 	}
 
 	if len(outDirs) != baseDirCount {
-		log.Fatalf("directory shoudl be empty of our created files!")
+		log.Fatalf("directory should be empty of our created files!")
 	}
 
 	if err = mount.Unmount(); err != nil {
