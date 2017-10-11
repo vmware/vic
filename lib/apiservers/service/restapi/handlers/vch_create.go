@@ -433,6 +433,16 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 
 func handleCreate(op trace.Operation, c *create.Create, validator *validate.Validator) (*strfmt.URI, error) {
 	vchConfig, err := validator.Validate(validator.Context, c.Data)
+	if err != nil {
+		issues := validator.GetIssues()
+		messages := make([]string, 0, len(issues))
+		for _, issue := range issues {
+			messages = append(messages, issue.Error())
+		}
+
+		return nil, util.NewError(400, fmt.Sprintf("Failed to validate VCH: %s", strings.Join(messages, ", ")))
+	}
+
 	vConfig := validator.AddDeprecatedFields(validator.Context, vchConfig, c.Data)
 
 	// TODO: make this configurable
