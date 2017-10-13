@@ -44,6 +44,7 @@ import (
 	"github.com/vmware/vic/lib/install/vchlog"
 	"github.com/vmware/vic/pkg/ip"
 	viclog "github.com/vmware/vic/pkg/log"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 )
 
@@ -77,17 +78,19 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	validator, err := validateTarget(params.HTTPRequest.Context(), d)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "vch create handler")
+
+	validator, err := validateTarget(op.Context, d)
 	if err != nil {
 		return operations.NewPostTargetTargetVchDefault(400).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	c, err := buildCreate(params.HTTPRequest.Context(), d, validator.Session.Finder, params.Vch)
+	c, err := buildCreate(op.Context, d, validator.Session.Finder, params.Vch)
 	if err != nil {
 		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	task, err := handleCreate(params.HTTPRequest.Context(), c, validator)
+	task, err := handleCreate(op.Context, c, validator)
 	if err != nil {
 		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -113,17 +116,19 @@ func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacente
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	validator, err := validateTarget(params.HTTPRequest.Context(), d)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "vch create handler")
+
+	validator, err := validateTarget(op.Context, d)
 	if err != nil {
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(400).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	c, err := buildCreate(params.HTTPRequest.Context(), d, validator.Session.Finder, params.Vch)
+	c, err := buildCreate(op.Context, d, validator.Session.Finder, params.Vch)
 	if err != nil {
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	task, err := handleCreate(params.HTTPRequest.Context(), c, validator)
+	task, err := handleCreate(op.Context, c, validator)
 	if err != nil {
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}

@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -52,7 +53,8 @@ func (h *VCHListGet) Handle(params operations.GetTargetTargetVchParams, principa
 		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	vchs, err := listVCHs(params.HTTPRequest.Context(), d)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "vch_list get handler")
+	vchs, err := listVCHs(op.Context, d)
 	if err != nil {
 		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -72,7 +74,8 @@ func (h *VCHDatacenterListGet) Handle(params operations.GetTargetTargetDatacente
 		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	vchs, err := listVCHs(params.HTTPRequest.Context(), d)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "vch_list get handler")
+	vchs, err := listVCHs(op.Context, d)
 	if err != nil {
 		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}

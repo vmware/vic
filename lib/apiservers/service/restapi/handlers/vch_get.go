@@ -37,6 +37,7 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -63,7 +64,8 @@ func (h *VCHGet) Handle(params operations.GetTargetTargetVchVchIDParams, princip
 
 	d.ID = params.VchID
 
-	vch, err := getVCH(params.HTTPRequest.Context(), d)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
+	vch, err := getVCH(op.Context, d)
 
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
@@ -86,7 +88,8 @@ func (h *VCHDatacenterGet) Handle(params operations.GetTargetTargetDatacenterDat
 
 	d.ID = params.VchID
 
-	vch, err := getVCH(params.HTTPRequest.Context(), d)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
+	vch, err := getVCH(op.Context, d)
 
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
