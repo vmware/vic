@@ -66,7 +66,6 @@ func (h *VCHGet) Handle(params operations.GetTargetTargetVchVchIDParams, princip
 
 	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
 	vch, err := getVCH(op.Context, d)
-
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -90,7 +89,6 @@ func (h *VCHDatacenterGet) Handle(params operations.GetTargetTargetDatacenterDat
 
 	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
 	vch, err := getVCH(op.Context, d)
-
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
