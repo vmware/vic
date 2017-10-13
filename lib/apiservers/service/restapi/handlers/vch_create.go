@@ -48,7 +48,7 @@ import (
 )
 
 const (
-	LogFile = "vic-machine.log" // name of local log file
+	logFile = "vic-machine.log" // name of local log file
 )
 
 // VCHCreate is the handler for creating a VCH
@@ -137,7 +137,7 @@ func setUpLogger() *os.File {
 
 	// Write to local log file
 	// #nosec: Expect file permissions to be 0600 or less
-	localLogFile, err := os.OpenFile(LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	localLogFile, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	if err == nil {
 		logs = append(logs, localLogFile)
 	}
