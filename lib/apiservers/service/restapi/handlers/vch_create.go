@@ -79,7 +79,6 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 	}
 
 	op := trace.NewOperation(params.HTTPRequest.Context(), "vch create handler")
-
 	validator, err := validateTarget(op.Context, d)
 	if err != nil {
 		return operations.NewPostTargetTargetVchDefault(400).WithPayload(&models.Error{Message: err.Error()})
@@ -117,7 +116,6 @@ func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacente
 	}
 
 	op := trace.NewOperation(params.HTTPRequest.Context(), "vch create handler")
-
 	validator, err := validateTarget(op.Context, d)
 	if err != nil {
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(400).WithPayload(&models.Error{Message: err.Error()})
