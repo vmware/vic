@@ -18,6 +18,13 @@ Resource  ../../resources/Util.robot
 
 *** Test Cases ***
 Test
+    Log To Console  \nWait until Nimbus is at least available...
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS2_USER}  %{NIMBUS2_PASSWORD}
+    ${out}=  Execute Command  nimbus-ctl --lease 5 extend_lease '*'
+    Log  ${out}
+    Close Connection    
+
     Log To Console  Set environment variables up for GOVC
     Set Environment Variable  GOVC_URL  10.160.21.102
     Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
@@ -29,6 +36,7 @@ Test
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  vxw-dvs-53-virtualwire-1-sid-5001-nsx-switch
     Set Environment Variable  PUBLIC_NETWORK  'VM Network'
+    Remove Environment Variable  TEST_DATACENTER
     Set Environment Variable  TEST_DATASTORE  vsanDatastore
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m

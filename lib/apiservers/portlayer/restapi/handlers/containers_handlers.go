@@ -31,6 +31,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/runtime/middleware"
 
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/containers"
@@ -223,7 +224,7 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 	}
 
 	if err := h.Commit(context.Background(), handler.handlerCtx.Session, params.WaitTime); err != nil {
-		log.Errorf("CommitHandler error on handle(%s) for %s: %#v", h.String(), h.ExecConfig.ID, err)
+		log.Errorf("CommitHandler error on handle(%s) for %s: %s", h, h.ExecConfig.ID, err)
 		switch err := err.(type) {
 		case exec.ConcurrentAccessError:
 			return containers.NewCommitConflict().WithPayload(&models.Error{Message: err.Error()})
@@ -255,6 +256,13 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 		case exec.RemovePowerError:
 			return containers.NewContainerRemoveConflict().WithPayload(&models.Error{Message: err.Error()})
 		default:
+			if f, ok := err.(types.HasFault); ok {
+				switch f.Fault().(type) {
+				case *types.HostNotConnected:
+					p := &models.Error{Message: "Couldn't remove container. The ESX host is temporarily disconnected. Please try again later."}
+					return containers.NewContainerRemoveInternalServerError().WithPayload(p)
+				}
+			}
 			return containers.NewContainerRemoveInternalServerError()
 		}
 	}

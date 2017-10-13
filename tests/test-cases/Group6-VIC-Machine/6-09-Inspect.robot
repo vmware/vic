@@ -19,10 +19,15 @@ Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
 *** Keywords ***
-Cleanup Container Network Test 
+Cleanup Container Network Test Networks
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove published-net
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove peers-net
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  published-net
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  peers-net
+
+Cleanup Container Network Test
     Cleanup VIC Appliance On Test Server
-    ${out}=  Run  govc host.portgroup.remove published-net
-    ${out}=  Run  govc host.portgroup.remove peers-net
+    Cleanup Container Network Test Networks
 
 *** Test Cases ***
 Inspect VCH Configuration
@@ -116,11 +121,12 @@ Inspect VCH Configuration with Container Networks
     # Set the only teardown for this test to cleanup both portgroups and VCH, regardless of test outcome.
     [Teardown]  Cleanup Container Network Test
 
-    ${out}=  Run  govc host.portgroup.remove published-net
-    ${out}=  Run  govc host.portgroup.remove peers-net
+    Cleanup Container Network Test Networks
 
-    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN published-net
-    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN peers-net 
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vswitch vSwitchLAN published-net
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vswitch vSwitchLAN peers-net
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Add VC Distributed Portgroup  test-ds  published-net
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Add VC Distributed Portgroup  test-ds  peers-net
 
     Install VIC Appliance To Test Server  additional-args=-cn published-net -cn peers-net -cnf peers-net:peers --container-network-ip-range peers-net:10.10.10.0/24 -cng peers-net:10.10.10.1/24
 

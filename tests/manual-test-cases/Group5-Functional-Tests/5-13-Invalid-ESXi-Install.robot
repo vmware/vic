@@ -15,22 +15,27 @@
 *** Settings ***
 Documentation  Test 5-13 - Invalid ESXi Install
 Resource  ../../resources/Util.robot
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Invalid ESXi Install Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
-*** Test Cases ***
-Test
+*** Keywords ***
+Invalid ESXi Install Setup
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     Set Suite Variable  ${datacenter}  datacenter1
     Set Suite Variable  ${cluster}  cls
 
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${ESX1}  ${esx1}
+    Set Suite Variable  ${esx1-ip}  ${esx1-ip}
     ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${ESX2}  ${esx2}
+    Set Suite Variable  ${esx2-ip}  ${esx2-ip}
     
     ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${VC}  ${vc}
+    Set Suite Variable  ${vc-ip}  ${vc-ip}
 
-    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${vc}
+    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${vc}
 
     Log To Console  Create a datacenter on the VC
     ${out}=  Run  govc datacenter.create ${datacenter}
@@ -66,5 +71,7 @@ Test
     ${out}=  Run  govc cluster.change -drs-enabled /${datacenter}/host/${cluster}
     Should Be Empty  ${out}
 
+*** Test Cases ***
+Test
     ${out}=  Run  bin/vic-machine-linux create --target ${esx1-ip} --user root --password e2eFunctionalTest --no-tls --name VCH-invalid-test --force --timeout 30m
     Should Contain  ${out}  Target is managed by vCenter server "${vc-ip}", please change --target to vCenter server address or select a standalone ESXi

@@ -59,7 +59,7 @@ func eventCallback(ctx context.Context, ie events.Event) {
 		// grab the container from the cache
 		container := exec.Containers.Container(ie.Reference())
 		if container == nil {
-			log.Errorf("Container %s not found", ie.Reference())
+			log.Errorf("Container %s not found. Dropping the event %s from Logging subsystem.", ie.Reference(), ie)
 			return
 		}
 

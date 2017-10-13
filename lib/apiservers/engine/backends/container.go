@@ -788,6 +788,11 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 			return InternalServerError(err.Payload.Message)
 		case *containers.ContainerRemoveConflict:
 			return derr.NewRequestConflictError(fmt.Errorf("You cannot remove a running container. Stop the container before attempting removal or use -f"))
+		case *containers.ContainerRemoveInternalServerError:
+			if err.Payload == nil || err.Payload.Message == "" {
+				return InternalServerError(err.Error())
+			}
+			return InternalServerError(err.Payload.Message)
 		default:
 			return InternalServerError(err.Error())
 		}
