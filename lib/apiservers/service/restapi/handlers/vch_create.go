@@ -17,12 +17,15 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"io"
 	"math"
 	"net"
 	"net/url"
+	"os"
 	"path"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/go-units"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/strfmt"
@@ -38,8 +41,14 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/lib/install/vchlog"
 	"github.com/vmware/vic/pkg/ip"
+	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/version"
+)
+
+const (
+	logFile = "vic-machine.log" // name of local log file
 )
 
 // VCHCreate is the handler for creating a VCH
@@ -51,6 +60,12 @@ type VCHDatacenterCreate struct {
 }
 
 func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principal interface{}) middleware.Responder {
+	// Set up VCH create logger
+	localLogFile := setUpLogger()
+	// Close the two logging streams when done
+	defer vchlog.Close()
+	defer localLogFile.Close()
+
 	d, err := buildData(params.HTTPRequest.Context(),
 		url.URL{Host: params.Target},
 		principal.(Credentials).user,
@@ -81,6 +96,12 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 }
 
 func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacenterDatacenterVchParams, principal interface{}) middleware.Responder {
+	// Set up VCH create logger
+	localLogFile := setUpLogger()
+	// Close the two logging streams when done
+	defer vchlog.Close()
+	defer localLogFile.Close()
+
 	d, err := buildData(params.HTTPRequest.Context(),
 		url.URL{Host: params.Target},
 		principal.(Credentials).user,
@@ -108,6 +129,32 @@ func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacente
 	}
 
 	return operations.NewPostTargetTargetDatacenterDatacenterVchCreated().WithPayload(operations.PostTargetTargetDatacenterDatacenterVchCreatedBody{Task: task})
+}
+
+func setUpLogger() *os.File {
+	vchlog.Init()
+	logs := []io.Writer{}
+
+	// Write to local log file
+	// #nosec: Expect file permissions to be 0600 or less
+	localLogFile, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	if err == nil {
+		logs = append(logs, localLogFile)
+	}
+
+	// Also write logs to pipe streaming to VCH datastore
+	logs = append(logs, vchlog.GetPipe())
+	// Set log level to debug
+	log.SetLevel(log.DebugLevel)
+	// Initiliaze logger with default TextFormatter
+	log.SetFormatter(viclog.NewTextFormatter())
+	// SetOutput to io.MultiWriter so that we can log to stdout and a file
+	log.SetOutput(io.MultiWriter(logs...))
+
+	// Fire the logger
+	go vchlog.Run()
+
+	return localLogFile
 }
 
 func buildCreate(ctx context.Context, d *data.Data, finder *find.Finder, vch *models.VCH) (*create.Create, error) {
