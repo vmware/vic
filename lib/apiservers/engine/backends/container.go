@@ -257,7 +257,8 @@ func (c *Container) TaskWaitToStart(cid, cname, eid string) error {
 
 // ContainerExecCreate sets up an exec in a running container.
 func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (string, error) {
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.TODO(), "")
+	defer trace.End(trace.Begin(fmt.Sprintf("opid=(%s) name=(%s)", op.ID(), name)))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -271,6 +272,8 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 	if err != nil {
 		return "", InternalServerError(err.Error())
 	}
+
+	// This does not appear to be working... we may need to do this check further down the stack. it is going to be very race filled.
 	if state.Restarting {
 		return "", ConflictError(fmt.Sprintf("Container %s is restarting, wait until the container is running", id))
 	}
@@ -278,6 +281,7 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 		return "", ConflictError(fmt.Sprintf("Container %s is not running", id))
 	}
 
+	op.Debugf("State checks succeeded for exec operation on cotnainer(%s)", id)
 	handle, err := c.Handle(id, name)
 	if err != nil {
 		return "", InternalServerError(err.Error())
@@ -288,11 +292,13 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 
 	handleprime, eid, err := c.containerProxy.CreateExecTask(handle, config)
 	if err != nil {
+		op.Errorf("Failed to create exec task for container(%s) due to error(%s)", id, err)
 		return "", InternalServerError(err.Error())
 	}
 
 	err = c.containerProxy.CommitContainerHandle(handleprime, id, 0)
 	if err != nil {
+		op.Errorf("Failed to commit exec handle for container(%s) due to error(%s)", id, err)
 		return "", err
 	}
 
@@ -301,6 +307,7 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 
 	ec, err := c.TaskInspect(id, name, eid)
 	if err != nil {
+		op.Errorf("Task Inspection failed for container(%s) due to error(%s)", id, err)
 		return "", InternalServerError(err.Error())
 	}
 
@@ -315,7 +322,8 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 // ContainerExecInspect returns low-level information about the exec
 // command. An error is returned if the exec cannot be found.
 func (c *Container) ContainerExecInspect(eid string) (*backend.ExecInspect, error) {
-	defer trace.End(trace.Begin(eid))
+	op := trace.NewOperation(context.TODO(), "")
+	defer trace.End(trace.Begin(fmt.Sprintf("opID=(%s) eid=(%s)", op.ID(), eid)))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainerFromExec(eid)
@@ -381,7 +389,8 @@ func (c *Container) ContainerExecResize(eid string, height, width int) error {
 // ContainerExecStart starts a previously set up exec instance. The
 // std streams are set up.
 func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error {
-	defer trace.End(trace.Begin(eid))
+	op := trace.NewOperation(ctx, "")
+	defer trace.End(trace.Begin(fmt.Sprintf("opID=(%s) eid=(%s)", op.ID(), eid)))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainerFromExec(eid)
@@ -394,11 +403,13 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	// grab the task details
 	ec, err := c.TaskInspect(id, name, eid)
 	if err != nil {
+		op.Errorf("Failed to inspect task during exec start for container(%s) due to error: %s", id, err)
 		return InternalServerError(err.Error())
 	}
 
 	handle, err := c.Handle(id, name)
 	if err != nil {
+		op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
 		return InternalServerError(err.Error())
 	}
 
@@ -414,6 +425,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	bindparams := tasks.NewBindParamsWithContext(ctx).WithConfig(bindconfig)
 	resp, err := client.Tasks.Bind(bindparams)
 	if err != nil {
+		op.Errorf("Failed to bind parameters during exec start for container(%s) due to error: %s", id, err)
 		return InternalServerError(err.Error())
 	}
 	handle = resp.Payload.Handle.(string)
@@ -424,11 +436,13 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		if attach {
 			handle, err = c.containerProxy.BindInteraction(handle, name, eid)
 			if err != nil {
+				op.Errorf("Failed to initiate interactivity during exec start for container(%s) due to error: %s", id, err)
 				return err
 			}
 		}
 
 		if err := c.containerProxy.CommitContainerHandle(handle, name, 0); err != nil {
+			op.Errorf("Failed to commit handle for container(%s) due to error: %s", id, err)
 			return err
 		}
 
@@ -440,7 +454,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 			defer trace.End(trace.Begin(eid))
 			// wait property collector
 			if err := c.TaskWaitToStart(id, name, eid); err != nil {
-				log.Errorf("Task wait returned %s, canceling the context", err)
+				op.Errorf("Task wait returned %s, canceling the context", err)
 
 				// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly
 				// https://github.com/docker/docker/blob/a039ca9affe5fa40c4e029d7aae399b26d433fe9/api/server/router/container/exec.go#L114
@@ -459,7 +473,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 
 		// no need to attach for detached case
 		if !attach {
-			log.Debugf("Detached mode. Returning early.")
+			op.Debugf("Detached mode. Returning early.")
 			return nil
 		}
 		EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
@@ -485,7 +499,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		err = c.containerProxy.AttachStreams(ctx, ac, stdin, stdout, stderr)
 		if err != nil {
 			if _, ok := err.(DetachError); ok {
-				log.Infof("Detach detected, tearing down connection")
+				op.Infof("Detach detected, tearing down connection")
 
 				// QUESTION: why are we returning DetachError? It doesn't seem like an error
 				// fire detach event

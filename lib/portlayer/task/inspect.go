@@ -38,6 +38,10 @@ func Inspect(op *trace.Operation, h interface{}, id string) (*executor.SessionCo
 	_, okS := stasks[id]
 	_, okE := etasks[id]
 
+	op.Debugf("target task ID: %s", id)
+	op.Debugf("session tasks during inspect: %s", stasks)
+	op.Debugf("exec tasks during inspect: %s", etasks)
+
 	if !okS && !okE {
 		return nil, fmt.Errorf("unknown task ID: %s", id)
 	}

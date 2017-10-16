@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/retry"
@@ -211,34 +210,38 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 	return nil
 }
 
+// HELPER FUNCTIONS BELOW
+
+// reloadConfig is responsible for triggering a guest_reconfigure in order to perform an operation on a running cVM
+// this function needs to be resilient to intermittent config errors and task errors, but will pass concurrent
+// modification issues back immediately.
 func reloadConfig(ctx context.Context, h *Handle, c *Container) error {
 
-	log.Infof("Attempting to perform an config reload guest operation on (%s)", h.ExecConfig.ID)
+	log.Infof("Attempting to perform a guest reconfigure operation on (%s)", h.ExecConfig.ID)
 	retryFunc := func() error {
 		if h.reload && h.Runtime != nil && h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
-
-			//we need to refresh the change version.
-			c.Refresh(ctx)
-			h.refresh(ctx)
-
-			// not 100% that this is needed here... but if we do collide with a concurrent access then we should always grab the new change version just in case.
 			err := c.ReloadConfig(ctx)
 
 			if err != nil {
-				if h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff {
-					// We hit a concurrent edge case where the vm was shutdown after the check but during the config reload.
+				log.Debugf("Error occurred during an attempt to reload the container config for an exec operation: (%s)", err)
+
+				// we will request the powerstate directly(this could be very costly without the vmomi gateway)
+				state, err := c.vm.PowerState(ctx)
+				if err != nil && state == types.VirtualMachinePowerStatePoweredOff {
 					// TODO: probably should make this error a specific type such as PowerOffDuringExecError( or a better name ofcourse)
-					return fmt.Errorf("container(%s) exited during the operation", h.ExecConfig.ID)
+					return fmt.Errorf("container(%s) was powered down during the requested operation.", h.ExecConfig.ID)
 				}
+				return err
 			}
-			return err
+			return nil
 		}
 
 		// nothing to be done.
 		return nil
 	}
 
-	err := retry.Do(retryFunc, isConcurrentAccessError)
+	err := retry.Do(retryFunc, isIntermittentFailure)
+
 	if err != nil {
 		log.Debugf("Failed an exec operation with err: %s", err)
 		return err
@@ -246,22 +249,10 @@ func reloadConfig(ctx context.Context, h *Handle, c *Container) error {
 	return nil
 }
 
-// IsConcurrentError will return true when receiving a concurrent access error
-func isConcurrentAccessError(err error) bool {
-	if soap.IsSoapFault(err) {
-		switch soap.ToSoapFault(err).VimFault().(type) {
-		case types.ConcurrentAccess:
-			// here a concurrent access error has been located. We should make sure that we grab the new "ChangeVersion" after the config becomes available for the VM again.
-			return true
-		}
-	}
-
-	if soap.IsVimFault(err) {
-		switch soap.ToVimFault(err).(type) {
-		case *types.ConcurrentAccess:
-			return true
-		}
-	}
-
-	return false
+// TODO: refactor later, I need to test this and we need to unify the Task package and the retry Package(make task use retry imo)
+// right now this just looks silly...
+func isIntermittentFailure(err error) bool {
+	// in the future commit should be using the trace.operation for these calls and this function can act as a passthrough.
+	op := trace.NewOperation(context.TODO(), "")
+	return tasks.IsRetryError(op, err)
 }

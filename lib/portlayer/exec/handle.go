@@ -243,6 +243,7 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 	}
 	s.ExtraConfig = h.changes
 
+	// FIXME: should we retry concurrent access here a few times? or should the personality do it? Ideally I would assume that a personality should handle concurrent operations... atleast when it pertains to manipulating a compute/storage/network configuration request.
 	if err := Commit(ctx, sess, h, waitTime); err != nil {
 		return err
 	}
