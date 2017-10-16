@@ -33,6 +33,7 @@ Commit nano to image
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run debian-nano whereis nano
     Should Be Equal As Integers  ${rc}  0
+    Log To Console  ${output}
     Should Contain  ${output}  /usr/bin/nano
 
 Commit env variable to image
