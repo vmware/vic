@@ -124,7 +124,7 @@ VIC Appliance Install With Fake NFS Server
 
     # Will only produce a warning in VCH creation output
     ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${nfs_bogon_ip}/store?uid=0&gid=0:${nfsFakeVolumeStore}"
-    Should Contain  ${output}  VolumeStore (${nfsReadOnlyVolumeStore}) cannot be brought online - check network, nfs server, and --volume-store configurations
+    Should Contain  ${output}  VolumeStore (${nfsFakeVolumeStore}) cannot be brought online - check network, nfs server, and --volume-store configurations
 
 VIC Appliance Install With Correct NFS Server
     Setup ENV Variables for VIC Appliance Install
