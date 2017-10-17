@@ -798,6 +798,9 @@
               "type": "string"
             }
           }
+        },
+        "syslog_addr": {
+          "type": "string"
         }
       }
     },
