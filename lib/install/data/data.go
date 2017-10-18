@@ -50,7 +50,6 @@ type Data struct {
 
 	ImageDatastorePath     string              `cmd:"image-store"`
 	VolumeLocations        map[string]*url.URL `cmd:"volume-store" label:"value-key"`
-	ContainerDatastoreName string
 
 	BridgeNetworkName string        `cmd:"bridge-network"`
 	ClientNetwork     NetworkConfig `cmd:"client-network"`
