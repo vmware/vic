@@ -323,8 +323,8 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 			GuestId:            string(types.VirtualMachineGuestOsIdentifierOtherGuest64),
 			AlternateGuestName: constants.DefaultAltVCHGuestName(),
 			Files:              &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
-			NumCPUs:            int32(vConf.ApplianceSize.CPU.Limit),
-			MemoryMB:           vConf.ApplianceSize.Memory.Limit,
+			NumCPUs:            int32(*vConf.ApplianceSize.CPU.Limit),
+			MemoryMB:           *vConf.ApplianceSize.Memory.Limit,
 			// Encode the config both here and after the VMs created so that it can be identified as a VCH appliance as soon as
 			// creation is complete.
 			ExtraConfig: append(vmomi.OptionValueFromMap(cfg, true), &types.OptionValue{Key: "answer.msg.serial.file.open", Value: "Append"}),
