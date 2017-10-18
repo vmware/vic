@@ -38,6 +38,9 @@ does not support rename
 * All other steps should result in success
 
 # Possible Problems:
-Upgrade test will upgrade VCH from build 7315, because that build has VCH restart and configuration restart features done.
-Before GA, if there is any VCH configuration change, please bump upgrade from version, and be sure to add cases to cover those changes.
-After GA, the upgrade from version will be GA release version.
+* Upgrade test will upgrade VCH from build 7315, because that build has VCH restart and configuration restart features done.
+* Before GA, if there is any VCH configuration change, please bump upgrade from version, and be sure to add cases to cover those changes.
+* After GA, the upgrade from version will be GA release version.
+* This suite may fail when run locally due to a `vic-machine upgrade` issue. Since `vic-machine` checks the build number of its binary to determine upgrade status and a locally-built `vic-machine` binary may not have the `BUILD_NUMBER` set correctly, `vic-machine upgrade` may fail with the message `foo-VCH has same or newer version x than installer version y. No upgrade is available.` To resolve this, follow these steps:
+  * Set `BUILD_NUMBER` to a high number at the top of the `Makefile` - `BUILD_NUMBER ?= 9999999999`
+  * Re-build binaries - `sudo make distclean && sudo make clean && sudo make all`

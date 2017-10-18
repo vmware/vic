@@ -38,7 +38,11 @@ Error response from daemon: Conflict, You cannot remove a running container. Sto
 ```
 Error response from daemon: No such container: fakeContainer
 ```
-* Step 14 should result in the following error:  
+* Step 13 should succeed on ESXi and fail on vCenter with the following error:
+```
+govc: ServerFaultCode: The method is disabled by 'VIC'
+```
+* When run on standalone ESXi, step 14 should result in the following error:  
 ```
 Error response from daemon: No such container: test
 ```

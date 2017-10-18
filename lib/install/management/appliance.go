@@ -790,7 +790,7 @@ func isPortLayerRunning(res *http.Response, conf *config.VirtualContainerHostCon
 
 	allVolumeStoresPresent := confirmVolumeStores(conf, volumeStoresLine)
 	if !allVolumeStoresPresent {
-		log.Warn("Some Volume Stores that were specified were not successfully created, Please check the above output for more information. More Information on failed volume store targets can also be found in the portlayer logs found at the vic admin endpoint.")
+		log.Error("Not all configured volume stores are online - check port layer log via vicadmin")
 	}
 
 	for _, status := range sysInfo.SystemStatus {
@@ -814,7 +814,7 @@ func confirmVolumeStores(conf *config.VirtualContainerHostConfigSpec, rawVolumeS
 	result := true
 	for k := range conf.VolumeLocations {
 		if _, ok := establishedVolumeStores[k]; !ok {
-			log.Warnf("VolumeStore (%s) specified was not able to be established in the portlayer. Please check network and nfs server configurations.", k)
+			log.Errorf("VolumeStore (%s) cannot be brought online - check network, nfs server, and --volume-store configurations", k)
 			result = false
 		}
 	}

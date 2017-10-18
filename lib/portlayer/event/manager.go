@@ -72,7 +72,7 @@ func NewEventManager(collectors ...collector.Collector) *Manager {
 			log.Debugf("Found %d subscribers to id: %d - %s: %s", len(subs), e.EventID(), e.Topic(), e.Message())
 
 			for sub, s := range subs {
-				log.Debugf("Event manager calling back to %s", sub)
+				log.Debugf("Event manager calling back to %s for %d - %s: %s", sub, e.EventID(), e.Topic(), e.Message())
 				s.onEvent(e)
 			}
 		}

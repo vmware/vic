@@ -42,6 +42,8 @@ This test requires that a vSphere server is running and available
 29. Create a container using a rest api call without HostConfig in the form data
 30. Create a container, then check the vm display name in vsphere through govc
 31. Create a container, then check the vm Destroy_Task method is disabled in VC through govc
+32. Create two containers with the same name in parallel, then check that only one attempt is successful
+33. Remove the container from Step 32 by name and create another container with the same name
 
 # Expected Outcome:
 * Steps 3-7 should all return without error and printing the container ID on return
@@ -59,6 +61,8 @@ This test requires that a vSphere server is running and available
 * Step 29 should return without error.
 * Step 30 should show that the VM display name equals to containerName-containerShortID and datastore folder name equal to containerID
 * Step 31 should show that the VM Destroy_Task method is disabled in VC
+* Step 32 should have one container create process succeed and the other fail with an error
+* Step 33 should succeed
 
 # Possible Problems:
 None
