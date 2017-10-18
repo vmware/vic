@@ -48,8 +48,8 @@ type Data struct {
 	RegistryCAs []byte
 	common.Images
 
-	ImageDatastorePath     string              `cmd:"image-store"`
-	VolumeLocations        map[string]*url.URL `cmd:"volume-store" label:"value-key"`
+	ImageDatastorePath string              `cmd:"image-store"`
+	VolumeLocations    map[string]*url.URL `cmd:"volume-store" label:"value-key"`
 
 	BridgeNetworkName string        `cmd:"bridge-network"`
 	ClientNetwork     NetworkConfig `cmd:"client-network"`
