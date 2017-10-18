@@ -1,7 +1,7 @@
 # Building:
 # from vic root directory
 # docker build --no-cache -t vic-machine-server -f cmd/vic-machine-server/Dockerfile .
-# docker tag vic-test gcr.io/eminent-nation-87317/vic-machine-server:1.x
+# docker tag vic-machine-server gcr.io/eminent-nation-87317/vic-machine-server:1.x
 # gcloud auth login
 # gcloud docker -- push gcr.io/eminent-nation-87317/vic-machine-server:1.x
 
