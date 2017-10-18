@@ -17,19 +17,6 @@ pipeline:
     # dont clone submodules
     recursive: false
 
-  wait-for-build:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.36
-    pull: true
-    environment:
-      BIN: bin
-      GOPATH: /go
-      SHELL: /bin/bash
-      TEST_URL_ARRAY: ${TEST_URL_ARRAY}
-      DRONE_SERVER: ${DRONE_SERVER}
-      DRONE_TOKEN: ${DRONE_TOKEN}
-    commands:
-      - tests/wait_until_previous_builds_complete.sh
-
   vic-engine:
     image: harbor.ci.drone.local/library/vic-integration-test:1.36
     pull: true
@@ -37,13 +24,14 @@ pipeline:
       BIN: bin
       GOPATH: /go
       SHELL: /bin/bash
-      TEST_URL_ARRAY:  ${TEST_URL_ARRAY}
+      TEST_URL:  ${TEST_URL}
       TEST_USERNAME:  ${TEST_USERNAME}
       TEST_PASSWORD:  ${TEST_PASSWORD}
       REGISTRY_PASSWORD:  ${REGISTRY_PASSWORD}
       BUILD_NUMBER: ${DRONE_BUILD_NUMBER}
       COMMIT: ${DRONE_COMMIT}
     commands:
+      - . ./tests/ci-env.sh # set CI env variable values
       - make mark
       - make all
       - make sincemark
@@ -51,11 +39,29 @@ pipeline:
       - echo `ls vendor/github.com/vmware/govmomi/vim25/methods`
       - echo `ls vendor/github.com/vmware/govmomi/vim25/types`
       - echo `ls vendor/github.com/docker/docker/vendor/github.com/opencontainers/runc/libcontainer/system`
-      - export VIC_ESX_URL_ARRAY="`tests/get_test_url.sh`"
+      - export VIC_ESX_URL_ARRAY="$TEST_USERNAME:$TEST_PASSWORD@$TEST_URL"
       - make test
       - make sincemark
+    volumes:
+      - /home/vic:/ci
     when:
       status:  success
+
+  wait-for-build:
+    image: harbor.ci.drone.local/library/vic-integration-test:1.36
+    pull: true
+    environment:
+      BIN: bin
+      GOPATH: /go
+      SHELL: /bin/bash
+      DRONE_SERVER: ${DRONE_SERVER}
+      DRONE_TOKEN: ${DRONE_TOKEN}
+      ACTIVE_BUILD_NUMBER: ${ACTIVE_BUILD_NUMBER}
+    volumes:
+      - /home/vic:/ci
+    commands:
+      - . ./tests/ci-env.sh # set CI env variable values
+      - tests/wait_until_previous_builds_complete.sh
 
   vic-integration-test-on-pr:
     image: harbor.ci.drone.local/library/vic-integration-test:1.36
@@ -69,7 +75,8 @@ pipeline:
       GITHUB_AUTOMATION_API_KEY:  ${GITHUB_AUTOMATION_API_KEY}
       DRONE_SERVER:  ${DRONE_SERVER}
       DRONE_TOKEN:  ${DRONE_TOKEN}
-      TEST_URL_ARRAY:  ${TEST_URL_ARRAY}
+      DRONE_MACHINE:  ${DRONE_MACHINE}
+      TEST_URL:  ${TEST_URL}
       TEST_USERNAME:  ${TEST_USERNAME}
       TEST_PASSWORD:  ${TEST_PASSWORD}
       REGISTRY_PASSWORD:  ${REGISTRY_PASSWORD}
@@ -88,11 +95,13 @@ pipeline:
       SYSLOG_USER: ${SYSLOG_USER}
       SYSLOG_PASSWD: ${SYSLOG_PASSWD}
     commands:
+      - . ./tests/ci-env.sh # set CI env variable values
       - make mark
       - tests/integration-test.sh
       - make sincemark
     volumes:
       - /tmp
+      - /home/vic:/ci
     when:
       status:  success
 

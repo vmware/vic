@@ -31,7 +31,7 @@ Test
     Set Environment Variable  GOVC_PASSWORD  Admin\!23
 
     Log To Console  Deploy VIC to the VC cluster
-    Set Environment Variable  TEST_URL_ARRAY  10.160.21.102
+    Set Environment Variable  TEST_URL  10.160.21.102
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  vxw-dvs-53-virtualwire-1-sid-5001-nsx-switch

@@ -13,7 +13,7 @@ Use ./local-integration-test.sh
   ```
     GITHUB_AUTOMATION_API_KEY=<token from https://github.com/settings/tokens>
     TEST_BUILD_IMAGE=""
-    TEST_URL_ARRAY=<IP address of your test server>
+    TEST_URL=<IP address of your test server>
     TEST_USERNAME=<username you use to login to test server>
     TEST_PASSWORD=<password you use to login to test server>
     TEST_RESOURCE=<resource pool, e.g. /ha-datacenter/host/localhost.localdomain/Resources>

@@ -82,7 +82,7 @@ pipeline:
     pull: true
     environment:
       GITHUB_AUTOMATION_API_KEY: $GITHUB_TOKEN
-      TEST_URL_ARRAY:   $(govc env -x GOVC_URL_HOST)
+      TEST_URL:   $(govc env -x GOVC_URL_HOST)
       TEST_USERNAME:    $(govc env GOVC_USERNAME)
       TEST_PASSWORD:    $(govc env GOVC_PASSWORD)
       TEST_DATASTORE:   ${GOVC_DATASTORE:-$(basename "$(govc ls datastore | head -1)")}

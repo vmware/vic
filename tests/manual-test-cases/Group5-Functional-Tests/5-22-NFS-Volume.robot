@@ -53,7 +53,6 @@ Setup ESX And NFS Suite
 Setup ENV Variables for VIC Appliance Install
     Log To Console  \nSetup Environment Variables for VIC Appliance To ESX\n
 
-    Set Environment Variable  TEST_URL_ARRAY  ${ESX1_IP}
     Set Environment Variable  TEST_URL  ${ESX1_IP}
     Set Environment Variable  TEST_USERNAME  root
     Set Environment Variable  TEST_PASSWORD  ${NIMBUS_ESX_PASSWORD}

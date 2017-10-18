@@ -42,7 +42,7 @@ ${tls_not_disabled}  False
 *** Keywords ***
 # Requires vc credential for govc
 Deploy VIC-OVA To Test Server
-    [Arguments]  ${dhcp}=True  ${protocol}=http  ${build}=False  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}  ${host}=%{TEST_URL_ARRAY}  ${datastore}=%{TEST_DATASTORE}  ${cluster}=%{TEST_RESOURCE}  ${datacenter}=%{TEST_DATACENTER}   
+    [Arguments]  ${dhcp}=True  ${protocol}=http  ${build}=False  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}  ${host}=%{TEST_URL}  ${datastore}=%{TEST_DATASTORE}  ${cluster}=%{TEST_RESOURCE}  ${datacenter}=%{TEST_DATACENTER}   
     Set Global Variable  ${ova_path}  bin/vic-1.1.1-${rev}.ova
     Run Keyword if  ${build}  Build Unified OVA
     ${rev}=  Run  git rev-parse --short HEAD
