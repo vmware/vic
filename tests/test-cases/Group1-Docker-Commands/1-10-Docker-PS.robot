@@ -147,11 +147,18 @@ Docker ps Remove container OOB
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     ${len}=  Get Length  ${output}
+
     # Remove container VM out-of-band
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}/"lolo*"
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "lolo*"
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}/"lolo*"
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  govc: ServerFaultCode: The method is disabled by 'VIC'
+
+    # Remove the 'lolo' container on VC so it does not affect subsequent test cases
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f lolo
+    Pass Execution If  '%{HOST_TYPE}' == 'VC'  Remaining steps not applicable on VC - skipping
+
     Wait Until VM Is Destroyed  "lolo*"
     Wait Until Keyword Succeeds  10x  6s  Assert Number Of Containers  ${len-1}  -aq
     ${rc}  ${output}=  Run Keyword If  '%{DATASTORE_TYPE}' == 'VSAN'  Run And Return Rc And Output  govc datastore.ls | grep "lolo*" | xargs -n1 govc datastore.rm
