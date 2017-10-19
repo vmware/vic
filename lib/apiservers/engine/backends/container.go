@@ -222,6 +222,7 @@ func (c *Container) TaskInspect(cid, cname, eid string) (*models.TaskInspectResp
 	if err != nil {
 		return nil, err
 	}
+
 	return resp.Payload, nil
 
 }
@@ -284,6 +285,7 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 	op.Debugf("State checks succeeded for exec operation on cotnainer(%s)", id)
 	handle, err := c.Handle(id, name)
 	if err != nil {
+		log.Error(err.Error())
 		return "", InternalServerError(err.Error())
 	}
 
@@ -307,8 +309,16 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 
 	ec, err := c.TaskInspect(id, name, eid)
 	if err != nil {
-		op.Errorf("Task Inspection failed for container(%s) due to error(%s)", id, err)
-		return "", InternalServerError(err.Error())
+		switch err := err.(type) {
+		case *tasks.InspectInternalServerError:
+			log.Debugf("received an internal server error during task inspect: %s", err.Payload.Message)
+			return "", InternalServerError(err.Payload.Message)
+		case *tasks.InspectConflict:
+			log.Debugf("received a conflict error during task inspect: %s", err.Payload.Message)
+			return "", ConflictError(fmt.Sprintf("Cannot complete the operation, container %s has been powered off during execution", id))
+		default:
+			return "", InternalServerError(err.Error())
+		}
 	}
 
 	// exec_create event
@@ -335,7 +345,16 @@ func (c *Container) ContainerExecInspect(eid string) (*backend.ExecInspect, erro
 
 	ec, err := c.TaskInspect(id, name, eid)
 	if err != nil {
-		return nil, InternalServerError(err.Error())
+		switch err := err.(type) {
+		case *tasks.InspectInternalServerError:
+			log.Debugf("received an internal server error during task inspect: %s", err.Payload.Message)
+			return nil, InternalServerError(err.Payload.Message)
+		case *tasks.InspectConflict:
+			log.Debugf("received a conflict error during task inspect: %s", err.Payload.Message)
+			return nil, ConflictError(fmt.Sprintf("Cannot complete the operation, container %s has been powered off during execution", id))
+		default:
+			return nil, InternalServerError(err.Error())
+		}
 	}
 
 	exit := int(ec.ExitCode)
@@ -403,8 +422,16 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	// grab the task details
 	ec, err := c.TaskInspect(id, name, eid)
 	if err != nil {
-		op.Errorf("Failed to inspect task during exec start for container(%s) due to error: %s", id, err)
-		return InternalServerError(err.Error())
+		switch err := err.(type) {
+		case *tasks.InspectInternalServerError:
+			log.Debugf("received an internal server error during task inspect: %s", err.Payload.Message)
+			return InternalServerError(err.Payload.Message)
+		case *tasks.InspectConflict:
+			log.Debugf("received a conflict error during task inspect: %s", err.Payload.Message)
+			return ConflictError(fmt.Sprintf("Cannot complete the operation, container %s has been powered off during execution", id))
+		default:
+			return InternalServerError(err.Error())
+		}
 	}
 
 	handle, err := c.Handle(id, name)
