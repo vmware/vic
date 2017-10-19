@@ -419,7 +419,7 @@ func buildCreate(ctx context.Context, d *data.Data, finder *find.Finder, vch *mo
 			}
 		}
 
-		if len(vch.SyslogAddr) > 0 {
+		if vch.SyslogAddr.String() != ""{
 			c.SyslogAddr = vch.SyslogAddr.String()
 			if err := c.ProcessSyslog(); err != nil {
 				return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error processing syslog server address: %s", err))
