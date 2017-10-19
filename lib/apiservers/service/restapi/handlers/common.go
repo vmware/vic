@@ -69,23 +69,23 @@ func buildData(ctx context.Context, url url.URL, user string, pass string, thumb
 	return &d, nil
 }
 
-func validateTarget(op trace.Operation, d *data.Data) (*validate.Validator, error) {
+func validateTarget(ctx context.Context, d *data.Data) (*validate.Validator, error) {
 	if err := d.HasCredentials(); err != nil {
 		return nil, fmt.Errorf("Invalid Credentials: %s", err)
 	}
 
-	validator, err := validate.NewValidator(op, d)
+	validator, err := validate.NewValidator(ctx, d)
 	if err != nil {
 		return nil, fmt.Errorf("Validation Error: %s", err)
 	}
 	// If dc is not set, and multiple datacenter is available, vic-machine ls will list VCHs under all datacenters.
 	validator.AllowEmptyDC()
 
-	_, err = validator.ValidateTarget(op, d)
+	_, err = validator.ValidateTarget(ctx, d)
 	if err != nil {
 		return nil, fmt.Errorf("Target validation failed: %s", err)
 	}
-	_, err = validator.ValidateCompute(op, d, false)
+	_, err = validator.ValidateCompute(ctx, d, false)
 	if err != nil {
 		return nil, fmt.Errorf("Compute resource validation failed: %s", err)
 	}
