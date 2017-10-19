@@ -17,6 +17,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"path"
 
@@ -30,7 +31,6 @@ import (
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-	"net/http"
 )
 
 // VCHListGet is the handler for listing VCHs
