@@ -370,10 +370,17 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 			InsecureSkipVerify: skipVerify,
 		})
 
-		// Attempt to get the Auth URL from HEAD operation to the registry
-		hdr, err := fetcher.Head(loginURL)
-		if err == nil && fetcher.IsStatusUnauthorized() {
-			authURL, err = fetcher.ExtractOAuthURL(hdr.Get("www-authenticate"), nil)
+		// Attempt to get the Auth URL from a simple ping operation (GET) to the registry
+		hdr, err := fetcher.Ping(loginURL)
+		if err == nil {
+			if fetcher.IsStatusUnauthorized() {
+				log.Debugf("Looking up OAuth URL from server %s", loginURL)
+				authURL, err = fetcher.ExtractOAuthURL(hdr.Get("www-authenticate"), nil)
+			} else {
+				// We're not suppose to be here, but if we do end up here, use the login
+				//	URL for the auth URL.
+				authURL = loginURL
+			}
 		}
 		if err != nil {
 			log.Errorf("Looking up OAuth URL failed: %s", err)
@@ -385,10 +392,12 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 		// Just check if we get a token back.
 		token, err := fetcher.FetchAuthToken(authURL)
 		if err != nil || token.Token == "" {
-			log.Errorf("Fetch auth token failed: %s", err)
 			// At this point, if a request cannot be solved by a retry, it is an authentication error.
+			log.Errorf("Fetch auth token failed: %s", err)
 			if _, ok := err.(urlfetcher.DoNotRetry); ok {
 				err = fmt.Errorf("Get %s: unauthorized: incorrect username or password", loginURL)
+			} else {
+				err = urlfetcher.AuthTokenError{TokenServer: *authURL}
 			}
 			return "", err
 		}
