@@ -138,6 +138,18 @@ func (r *resolvConf) ConsumeEntry(t string) error {
 	return nil
 }
 
+func (r *resolvConf) Copy(conf Conf) error {
+	existing := conf.(*resolvConf)
+
+	existing.Lock()
+	defer existing.Unlock()
+
+	r.nameservers = existing.nameservers
+	r.dirty = true
+
+	return r.Save()
+}
+
 func (r *resolvConf) Load() error {
 	r.Lock()
 	defer r.Unlock()
