@@ -679,6 +679,7 @@ func ApplyEndpoint(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) err
 }
 
 func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc client.Client) {
+	divisor := time.Duration(2)
 	exp := time.After(dc.LastAck().LeaseTime() / 2)
 	for {
 		select {
@@ -693,6 +694,18 @@ func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc cli
 			err := dc.Renew()
 			if err != nil {
 				log.Errorf("failed to renew ip address for network %s: %s", e.Name, err)
+
+				// wait half of the remaining lease time before trying again
+				divisor *= 2
+				duration := dc.LastAck().LeaseTime() / divisor
+
+				// for now go with a minimum retry of 1min
+				if duration < time.Minute {
+					duration = time.Minute
+				}
+
+				exp = time.After(duration)
+
 				continue
 			}
 
@@ -705,6 +718,7 @@ func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc cli
 				Nameservers: ack.DNS(),
 			}
 
+			// TODO: determine if there are actually any changes to apply before performing updates
 			e.configured = false
 			t.Apply(e)
 			if err = t.config.UpdateNetworkEndpoint(e); err != nil {
@@ -1105,8 +1119,8 @@ func bindMount(src, target string) error {
 		if err.Error() == os.ErrInvalid.Error() {
 			log.Debug("path is not currently a bindmount target")
 		} else {
-		log.Errorf("failed to unmount %s: %s", target, err)
-	}
+			log.Errorf("failed to unmount %s: %s", target, err)
+		}
 	}
 
 	// bind mount src to target

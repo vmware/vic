@@ -220,8 +220,18 @@ func setupFirewall(ctx context.Context, t *tether.BaseOperations, config *tether
 			ifaceName := iface.Attrs().Name
 			log.Debugf("slot %d -> %s", endpoint.ID, ifaceName)
 
+			// ensure that we can pass DHCP traffic if it's necessary
+			if endpoint.Network.TrustLevel != executor.Open && endpoint.IsDynamic() {
+				allowDHCPTraffic(ctx, t, ifaceName)
+			}
+
 			switch endpoint.Network.TrustLevel {
 			case executor.Open:
+				// Configure port redirect in Open deployment
+				if err := setupPorts(ctx, t, endpoint, ifaceName, true); err != nil {
+					return err
+				}
+
 				// Accept all incoming and outgoing traffic
 				for _, chain := range []netfilter.Chain{netfilter.Input, netfilter.Output, netfilter.Forward} {
 					fn := (&netfilter.Rule{
@@ -249,6 +259,12 @@ func setupFirewall(ctx context.Context, t *tether.BaseOperations, config *tether
 				if err := setupOutboundFirewall(ctx, t, ifaceName); err != nil {
 					return err
 				}
+
+				// Configure port redirect in Peer deployment
+				if err := setupPorts(ctx, t, endpoint, ifaceName, true); err != nil {
+					return err
+				}
+
 				sourceAddresses := make([]string, len(endpoint.Network.Pools))
 				for i, v := range endpoint.Network.Pools {
 					sourceAddresses[i] = v.String()
@@ -262,25 +278,24 @@ func setupFirewall(ctx context.Context, t *tether.BaseOperations, config *tether
 				if err := invoke(t, fn, "allow outbound and peers"); err != nil {
 					return err
 				}
+
 				if err := allowPingTraffic(ctx, t, ifaceName, sourceAddresses); err != nil {
 					return err
 				}
 
-			case executor.Published:
-				if err := setupPublishedFirewall(ctx, t, endpoint, ifaceName); err != nil {
-					return err
-				}
-
-			case executor.Unspecified:
-				// Unspecified network firewalls default to published.
-				if err := setupPublishedFirewall(ctx, t, endpoint, ifaceName); err != nil {
-					return err
-				}
-
 			default:
-				log.Warningf("Received invalid firewall configuration %v: defaulting to published.",
-					endpoint.Network.TrustLevel)
-				if err := setupPublishedFirewall(ctx, t, endpoint, ifaceName); err != nil {
+				// covers executor.Published and executor.Unspecified as well as invalid values
+				log.Infof("Applying published rules for configuration %v", endpoint.Network.TrustLevel)
+
+				if err := setupOutboundFirewall(ctx, t, ifaceName); err != nil {
+					return err
+				}
+
+				if err := allowPingTraffic(ctx, t, ifaceName, nil); err != nil {
+					return err
+				}
+
+				if err := setupPorts(ctx, t, endpoint, ifaceName, false); err != nil {
 					return err
 				}
 			}
@@ -345,28 +360,23 @@ func setupOutboundFirewall(ctx context.Context, t *tether.BaseOperations, ifaceN
 	return invoke(t, fn, "permit all outbound")
 }
 
-func setupPublishedFirewall(ctx context.Context, t *tether.BaseOperations, endpoint *tether.NetworkEndpoint, ifaceName string) error {
-	if err := setupOutboundFirewall(ctx, t, ifaceName); err != nil {
-		return err
-	}
-	if err := allowPingTraffic(ctx, t, ifaceName, nil); err != nil {
-		return err
-	}
-
+func setupPorts(ctx context.Context, t *tether.BaseOperations, endpoint *tether.NetworkEndpoint, ifaceName string, redirectOnly bool) error {
 	// handle the ports
 	for _, p := range endpoint.Ports {
 		// parse the port maps
-		r, err := portToRule(p)
+		rules, err := portToRule(p, redirectOnly)
 		if err != nil {
 			log.Errorf("can't apply port rule (%s): %s", p, err.Error())
 			continue
 		}
 
-		log.Infof("Applying rule for port %s", p)
-		r.Interface = ifaceName
-		fn := r.Commit(ctx)
-		if err := invoke(t, fn, "allow incoming on published port"); err != nil {
-			return err
+		log.Infof("Applying %d rules for port %s", len(rules), p)
+		for _, r := range rules {
+			r.Interface = ifaceName
+			fn := r.Commit(ctx)
+			if err := invoke(t, fn, "allow incoming on published port"); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -397,39 +407,84 @@ func allowPingTraffic(ctx context.Context, t *tether.BaseOperations, ifaceName s
 	return invoke(t, fn, "allow ping outbound")
 }
 
-func portToRule(p string) (*netfilter.Rule, error) {
-	if strings.Contains(p, ":") {
-		return nil, errors.New("port maps are TBD")
+func allowDHCPTraffic(ctx context.Context, t *tether.BaseOperations, ifaceName string) error {
+	fn := (&netfilter.Rule{
+		Chain:     netfilter.Input,
+		Target:    netfilter.Accept,
+		Interface: ifaceName,
+		Protocol:  netfilter.UDP,
+		FromPort:  "67:68",
+		SrcPort:   "67:68",
+	}).Commit(ctx)
+	if err := invoke(t, fn, "allow dhcp inbound"); err != nil {
+		return err
 	}
 
+	fn = (&netfilter.Rule{
+		Chain:     netfilter.Output,
+		Target:    netfilter.Accept,
+		Interface: ifaceName,
+		Protocol:  netfilter.UDP,
+		FromPort:  "67:68",
+		SrcPort:   "67:68",
+	}).Commit(ctx)
+	return invoke(t, fn, "allow dhcp outbound")
+}
+
+func portToRule(p string, redirectOnly bool) ([]*netfilter.Rule, error) {
 	// 9999/tcp
 	s := strings.Split(p, "/")
 	if len(s) != 2 {
 		return nil, errors.New("can't parse port spec: " + p)
 	}
 
-	rule := &netfilter.Rule{
-		Chain:     netfilter.Input,
-		Interface: "external",
-		Target:    netfilter.Accept,
-	}
-
-	switch netfilter.Protocol(s[1]) {
+	proto := netfilter.Protocol(s[1])
+	switch proto {
 	case netfilter.UDP:
-		rule.Protocol = netfilter.UDP
 	case netfilter.TCP:
-		rule.Protocol = netfilter.TCP
-
 	default:
 		return nil, errors.New("unknown protocol")
 	}
 
-	port, err := strconv.Atoi(s[0])
-	if err != nil {
-		return nil, err
+	mapping := strings.Split(s[0], ":")
+	directPort := mapping[len(mapping)-1]
+
+	// publish the actual port directly
+	var rules []*netfilter.Rule
+	expose := &netfilter.Rule{
+		Chain:     netfilter.Input,
+		Interface: "external",
+		Target:    netfilter.Accept,
+		Protocol:  proto,
+		// ranges are specified using a hyphen in docker
+		FromPort: strings.Replace(directPort, "-", ":", -1),
 	}
 
-	rule.FromPort = port
+	if !redirectOnly {
+		rules = append(rules, expose)
+	}
 
-	return rule, nil
+	// if there's no redirection we're done
+	if len(mapping) == 1 || mapping[0] == mapping[1] {
+		return rules, nil
+	}
+
+	// redirect port
+	// https://wiki.debian.org/Firewalls-local-port-redirection contains a useful reference
+
+	if strings.Contains(s[0], "-") {
+		return nil, errors.New("cannot port forward a range")
+	}
+
+	rules = append(rules, &netfilter.Rule{
+		Table:     netfilter.Nat,
+		Chain:     netfilter.Prerouting,
+		Interface: "external",
+		Target:    netfilter.Redirect,
+		Protocol:  proto,
+		FromPort:  mapping[0],
+		ToPort:    mapping[1],
+	})
+
+	return rules, nil
 }

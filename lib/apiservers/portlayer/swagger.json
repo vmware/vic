@@ -3394,6 +3394,9 @@
 				"reservation": {
 					"$ref": "#/definitions/ReservationConfig"
 				},
+				"address": {
+					"type": "string"
+				},
 				"ports": {
 					"type": "array",
 					"items": {

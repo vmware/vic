@@ -41,6 +41,7 @@ import (
 	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/metrics"
+	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/version"
@@ -513,6 +514,18 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 	container := c.Info()
 	defer trace.End(trace.Begin(container.ExecConfig.ID))
 
+	// ensure we have probably up-to-date info
+	for _, endpoint := range container.ExecConfig.Networks {
+		if !endpoint.Static && (endpoint.IP == nil || ip.IsUnspecifiedIP(endpoint.IP.IP)) {
+			// container has dynamic IP but we do not have a reported address
+			op := trace.NewOperation(context.Background(), "state refresh triggered by missing DHCP data")
+			c.Refresh(op)
+			container = c.Info()
+			// shouldn't need multiple refreshes if multiple dhcps
+			break
+		}
+	}
+
 	// convert the container type to the required model
 	info := &models.ContainerInfo{
 		ContainerConfig: &models.ContainerConfig{},
@@ -600,6 +613,15 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 
 	info.HostConfig = &models.HostConfig{}
 	for _, endpoint := range container.ExecConfig.Networks {
+		// if an external type this will be the endpoint used to publish ports
+		if endpoint.Network.Type == constants.ExternalScopeType && !ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
+			info.HostConfig.Address = endpoint.Assigned.IP.String()
+			if endpoint.Network.TrustLevel == executor.Open {
+				// add all ports as port range
+				info.HostConfig.Ports = append(info.HostConfig.Ports, constants.PortsOpenNetwork)
+			}
+		}
+
 		ep := &models.EndpointConfig{
 			Address:     "",
 			Container:   ccid,
