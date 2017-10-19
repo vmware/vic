@@ -1,9 +1,0 @@
-# build artifacts
-vic/src/main/webapp/locales/
-vic/src/main/webapp/resources/dist/
-vic/src/main/webapp/resources/build-dev/
-vic/src/vic-app/coverage/
-
-# build shortcuts
-dev-build.sh
-prod-build.sh
