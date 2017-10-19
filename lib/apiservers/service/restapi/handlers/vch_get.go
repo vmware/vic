@@ -263,7 +263,7 @@ func vchToModel(vch *vm.VirtualMachine, d *data.Data, executor *management.Dispa
 
 	// syslog_addr: syslog server address
 	if syslogConfig := vchConfig.Diagnostics.SysLogConfig; syslogConfig != nil {
-		model.SyslogAddr = syslogConfig.Network + "://" + syslogConfig.RAddr
+		model.SyslogAddr = strfmt.URI(syslogConfig.Network + "://" + syslogConfig.RAddr)
 	}
 
 	return model, nil
