@@ -130,15 +130,6 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.ScratchSize,
 			Hidden:      true,
 		},
-
-		// container disk
-		cli.StringFlag{
-			Name:        "container-store, cs",
-			Value:       "",
-			Usage:       "Container datastore path - not supported yet, defaults to image datastore",
-			Destination: &c.ContainerDatastoreName,
-			Hidden:      true,
-		},
 	}
 
 	networks := []cli.Flag{
