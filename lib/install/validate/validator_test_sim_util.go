@@ -92,8 +92,7 @@ var testInputConfigVPX = data.Data{
 			Fragment:   "",
 		},
 	},
-	ContainerDatastoreName: "",
-	BridgeNetworkName:      "DC0_DVPG0",
+	BridgeNetworkName: "DC0_DVPG0",
 	ClientNetwork: data.NetworkConfig{
 		Name:         "VM Network",
 		Destinations: nil,
