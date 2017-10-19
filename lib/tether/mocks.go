@@ -49,6 +49,10 @@ func (h MockHosts) Save() error {
 	return nil
 }
 
+func (h MockHosts) Copy(conf etcconf.Conf) error {
+	return nil
+}
+
 func (h MockHosts) SetHost(_ string, _ net.IP) {
 }
 
@@ -58,7 +62,7 @@ func (h MockHosts) RemoveHost(_ string) {
 func (h MockHosts) RemoveAll() {
 }
 
-func (h MockHosts) HostIP(_ string) net.IP {
+func (h MockHosts) HostIP(_ string) []net.IP {
 	return nil
 }
 
@@ -73,6 +77,10 @@ func (h MockResolvConf) Load() error {
 }
 
 func (h MockResolvConf) Save() error {
+	return nil
+}
+
+func (h MockResolvConf) Copy(conf etcconf.Conf) error {
 	return nil
 }
 
