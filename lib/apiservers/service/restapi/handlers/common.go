@@ -69,23 +69,23 @@ func buildData(ctx context.Context, url url.URL, user string, pass string, thumb
 	return &d, nil
 }
 
-func validateTarget(ctx context.Context, d *data.Data) (*validate.Validator, error) {
+func validateTarget(op trace.Operation, d *data.Data) (*validate.Validator, error) {
 	if err := d.HasCredentials(); err != nil {
 		return nil, fmt.Errorf("Invalid Credentials: %s", err)
 	}
 
-	validator, err := validate.NewValidator(ctx, d)
+	validator, err := validate.NewValidator(op, d)
 	if err != nil {
 		return nil, fmt.Errorf("Validation Error: %s", err)
 	}
 	// If dc is not set, and multiple datacenter is available, vic-machine ls will list VCHs under all datacenters.
 	validator.AllowEmptyDC()
 
-	_, err = validator.ValidateTarget(ctx, d)
+	_, err = validator.ValidateTarget(op, d)
 	if err != nil {
 		return nil, fmt.Errorf("Target validation failed: %s", err)
 	}
-	_, err = validator.ValidateCompute(ctx, d, false)
+	_, err = validator.ValidateCompute(op, d, false)
 	if err != nil {
 		return nil, fmt.Errorf("Compute resource validation failed: %s", err)
 	}
@@ -94,12 +94,12 @@ func validateTarget(ctx context.Context, d *data.Data) (*validate.Validator, err
 }
 
 // Copied from list.go, and appears to be present other places. TODO: deduplicate
-func upgradeStatusMessage(ctx context.Context, vch *vm.VirtualMachine, installerVer *version.Build, vchVer *version.Build) string {
+func upgradeStatusMessage(op trace.Operation, vch *vm.VirtualMachine, installerVer *version.Build, vchVer *version.Build) string {
 	if sameVer := installerVer.Equal(vchVer); sameVer {
 		return "Up to date"
 	}
 
-	upgrading, err := vch.VCHUpdateStatus(ctx)
+	upgrading, err := vch.VCHUpdateStatus(op)
 	if err != nil {
 		return fmt.Sprintf("Unknown: %s", err)
 	}
