@@ -26,6 +26,8 @@ Set Test Environment Variables
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  PUBLIC_NETWORK  'VM Network'
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_DATACENTER
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_DATACENTER  ${SPACE}
+    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_MACHINE
+    Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_MACHINE  'local'
 
     @{URLs}=  Split String  %{TEST_URL_ARRAY}
     ${len}=  Get Length  ${URLs}
