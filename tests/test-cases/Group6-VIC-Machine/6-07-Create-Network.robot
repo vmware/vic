@@ -494,7 +494,7 @@ Container Firewalls
     Log To Console  Checking Closed Firewall
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=closed-net --name shouldfail -p 123 ${busybox} nc -l -p 1234
-    Should Contain  ${output}  Ports cannot be published via
+    Should Contain  ${output}  ports cannot be published via
     Should Not Be Equal As Integers  ${rc}  0
 
     # Create a closed container listening on port 1234.
@@ -574,6 +574,10 @@ Container Firewalls
     Should Not Be Equal As Integers  ${rc}  0
 
     ### PEERS FIREWALL ###
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=peers-net-1 --name shouldfail -p 123 ${busybox} nc -l -p 1234
+    Should Contain  ${output}  ports published via container network peers-net-1 must specify a mapping
+    Should Not Be Equal As Integers  ${rc}  0
+    
     Log To Console  Checking Peers Firewall
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=peers-net-1 --name p7 ${busybox} nc -l -p 1234
     Should Be Equal As Integers  ${rc}  0
@@ -624,12 +628,23 @@ Reset VCH doesn't cause unintentionally exposed ports from container network
     ${output}=  Run  docker %{VCH-PARAMS} network ls
     Should Contain  ${output}  vmnet
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vmnet -p 80 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull nginx
+    Should Be Equal As Integers  ${rc}  0
     Log  ${output}
+
+    ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vmnet -p 80 nginx
+    Log  ${cid}
     Should Be Equal As Integers  ${rc}  0
 
-    ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
-    Should Not Contain  ${output}  ->80/tcp
+    # get the containerVM direct IP address
+    ${rc}  ${ipaddr}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${cid}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  %{VCH-IP}  ${ipaddr}
+
+    # ensure that we're reporting the containerVM IP in the ps output
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -f id=${cid}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${ipaddr}:80->80/tcp
 
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -reset=true %{VCH-NAME}
     Log To Console  ${output}
@@ -645,8 +660,10 @@ Reset VCH doesn't cause unintentionally exposed ports from container network
     # wait for docker info to succeed
     Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
-    Should Not Contain  ${output}  ->80/tcp
+    
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -f id=${cid}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  %{VCH-IP}:80->80/tcp
 
     # Delete the portgroup added by env vars keyword
     Cleanup VIC Appliance On Test Server
