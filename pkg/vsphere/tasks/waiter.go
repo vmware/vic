@@ -72,8 +72,6 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 		var t Task
 		var info *types.TaskInfo
 
-		// TODO: we should definitely rewrite this function to utilize the retry package.
-		// it is more configurable and flexible for fine tuning the actual retry mechanic.
 		if t, err = f(op); err == nil {
 			if info, err = t.WaitForResult(op, nil); err == nil {
 				return info, nil

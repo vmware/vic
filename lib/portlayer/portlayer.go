@@ -170,7 +170,7 @@ func TakeCareOfSerialPorts(sess *session.Session) {
 				return err
 			}
 
-			// Commit the handle, this needs to be more resilient to Concurrent Acces
+			// Commit the handle
 			if err := execHandle.Commit(ctx, sess, nil); err != nil {
 				log.Errorf("unable to commit handle for container %s: %s", containerID, err)
 				return err
