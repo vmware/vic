@@ -15,7 +15,6 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"net/url"
 	"path"
@@ -28,6 +27,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -52,7 +52,8 @@ func (h *VCHListGet) Handle(params operations.GetTargetTargetVchParams, principa
 		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	vchs, err := listVCHs(params.HTTPRequest.Context(), d)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "vch_list get handler")
+	vchs, err := listVCHs(op, d)
 	if err != nil {
 		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -72,7 +73,8 @@ func (h *VCHDatacenterListGet) Handle(params operations.GetTargetTargetDatacente
 		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	vchs, err := listVCHs(params.HTTPRequest.Context(), d)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "vch_list get handler")
+	vchs, err := listVCHs(op, d)
 	if err != nil {
 		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -80,8 +82,8 @@ func (h *VCHDatacenterListGet) Handle(params operations.GetTargetTargetDatacente
 	return operations.NewGetTargetTargetVchOK().WithPayload(operations.GetTargetTargetVchOKBody{Vchs: vchs})
 }
 
-func listVCHs(ctx context.Context, d *data.Data) ([]*models.VCHListItem, error) {
-	validator, err := validateTarget(ctx, d)
+func listVCHs(op trace.Operation, d *data.Data) ([]*models.VCHListItem, error) {
+	validator, err := validateTarget(op, d)
 	if err != nil {
 		return nil, util.WrapError(400, err)
 	}
@@ -92,10 +94,10 @@ func listVCHs(ctx context.Context, d *data.Data) ([]*models.VCHListItem, error) 
 		return nil, util.NewError(500, fmt.Sprintf("Failed to search VCHs in %s: %s", validator.ResourcePoolPath, err))
 	}
 
-	return vchsToModels(ctx, vchs, executor), nil
+	return vchsToModels(op, vchs, executor), nil
 }
 
-func vchsToModels(ctx context.Context, vchs []*vm.VirtualMachine, executor *management.Dispatcher) []*models.VCHListItem {
+func vchsToModels(op trace.Operation, vchs []*vm.VirtualMachine, executor *management.Dispatcher) []*models.VCHListItem {
 	installerVer := version.GetBuild()
 	payload := make([]*models.VCHListItem, 0)
 	for _, vch := range vchs {
@@ -124,7 +126,7 @@ func vchsToModels(ctx context.Context, vchs []*vm.VirtualMachine, executor *mana
 
 		if version != nil {
 			model.Version = version.ShortVersion()
-			model.UpgradeStatus = upgradeStatusMessage(ctx, vch, installerVer, version)
+			model.UpgradeStatus = upgradeStatusMessage(op, vch, installerVer, version)
 		}
 
 		payload = append(payload, model)
