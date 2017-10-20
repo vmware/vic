@@ -15,7 +15,6 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"math"
@@ -44,6 +43,7 @@ import (
 	"github.com/vmware/vic/lib/install/vchlog"
 	"github.com/vmware/vic/pkg/ip"
 	viclog "github.com/vmware/vic/pkg/log"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 )
 
@@ -77,17 +77,18 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	validator, err := validateTarget(params.HTTPRequest.Context(), d)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "vch create handler")
+	validator, err := validateTarget(op, d)
 	if err != nil {
 		return operations.NewPostTargetTargetVchDefault(400).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	c, err := buildCreate(params.HTTPRequest.Context(), d, validator.Session.Finder, params.Vch)
+	c, err := buildCreate(op, d, validator.Session.Finder, params.Vch)
 	if err != nil {
 		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	task, err := handleCreate(params.HTTPRequest.Context(), c, validator)
+	task, err := handleCreate(op, c, validator)
 	if err != nil {
 		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -113,17 +114,18 @@ func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacente
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	validator, err := validateTarget(params.HTTPRequest.Context(), d)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "vch create handler")
+	validator, err := validateTarget(op, d)
 	if err != nil {
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(400).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	c, err := buildCreate(params.HTTPRequest.Context(), d, validator.Session.Finder, params.Vch)
+	c, err := buildCreate(op, d, validator.Session.Finder, params.Vch)
 	if err != nil {
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	task, err := handleCreate(params.HTTPRequest.Context(), c, validator)
+	task, err := handleCreate(op, c, validator)
 	if err != nil {
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -157,7 +159,7 @@ func setUpLogger() *os.File {
 	return localLogFile
 }
 
-func buildCreate(ctx context.Context, d *data.Data, finder *find.Finder, vch *models.VCH) (*create.Create, error) {
+func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *models.VCH) (*create.Create, error) {
 	c := &create.Create{Data: d}
 
 	// TODO: deduplicate with create.processParams
@@ -193,7 +195,7 @@ func buildCreate(ctx context.Context, d *data.Data, finder *find.Finder, vch *mo
 				c.ResourceLimits.VCHMemoryShares = fromShares(vch.Compute.Memory.Shares)
 			}
 
-			resourcePath, err := fromManagedObject(ctx, finder, "ResourcePool", vch.Compute.Resource) // TODO: Do we need to handle clusters differently?
+			resourcePath, err := fromManagedObject(op, finder, "ResourcePool", vch.Compute.Resource) // TODO: Do we need to handle clusters differently?
 			if err != nil {
 				return nil, util.NewError(400, fmt.Sprintf("Error finding resource pool: %s", err))
 			}
@@ -205,7 +207,7 @@ func buildCreate(ctx context.Context, d *data.Data, finder *find.Finder, vch *mo
 
 		if vch.Network != nil {
 			if vch.Network.Bridge != nil {
-				path, err := fromManagedObject(ctx, finder, "Network", vch.Network.Bridge.PortGroup)
+				path, err := fromManagedObject(op, finder, "Network", vch.Network.Bridge.PortGroup)
 				if err != nil {
 					return nil, util.NewError(400, fmt.Sprintf("Error finding bridge network: %s", err))
 				}
@@ -221,7 +223,7 @@ func buildCreate(ctx context.Context, d *data.Data, finder *find.Finder, vch *mo
 			}
 
 			if vch.Network.Client != nil {
-				path, err := fromManagedObject(ctx, finder, "Network", vch.Network.Client.PortGroup)
+				path, err := fromManagedObject(op, finder, "Network", vch.Network.Client.PortGroup)
 				if err != nil {
 					return nil, util.NewError(400, fmt.Sprintf("Error finding client network portgroup: %s", err))
 				}
@@ -238,7 +240,7 @@ func buildCreate(ctx context.Context, d *data.Data, finder *find.Finder, vch *mo
 			}
 
 			if vch.Network.Management != nil {
-				path, err := fromManagedObject(ctx, finder, "Network", vch.Network.Management.PortGroup)
+				path, err := fromManagedObject(op, finder, "Network", vch.Network.Management.PortGroup)
 				if err != nil {
 					return nil, util.NewError(400, fmt.Sprintf("Error finding management network portgroup: %s", err))
 				}
@@ -255,7 +257,7 @@ func buildCreate(ctx context.Context, d *data.Data, finder *find.Finder, vch *mo
 			}
 
 			if vch.Network.Public != nil {
-				path, err := fromManagedObject(ctx, finder, "Network", vch.Network.Public.PortGroup)
+				path, err := fromManagedObject(op, finder, "Network", vch.Network.Public.PortGroup)
 				if err != nil {
 					return nil, util.NewError(400, fmt.Sprintf("Error finding public network portgroup: %s", err))
 				}
@@ -282,7 +284,7 @@ func buildCreate(ctx context.Context, d *data.Data, finder *find.Finder, vch *mo
 				for _, cnetwork := range vch.Network.Container {
 					alias := cnetwork.Alias
 
-					path, err := fromManagedObject(ctx, finder, "Network", cnetwork.PortGroup)
+					path, err := fromManagedObject(op, finder, "Network", cnetwork.PortGroup)
 					if err != nil {
 						return nil, util.NewError(400, fmt.Sprintf("Error finding portgroup for container network %s: %s", alias, err))
 					}
@@ -422,7 +424,7 @@ func buildCreate(ctx context.Context, d *data.Data, finder *find.Finder, vch *mo
 	return c, nil
 }
 
-func handleCreate(ctx context.Context, c *create.Create, validator *validate.Validator) (*strfmt.URI, error) {
+func handleCreate(op trace.Operation, c *create.Create, validator *validate.Validator) (*strfmt.URI, error) {
 	vchConfig, err := validator.Validate(validator.Context, c.Data)
 	vConfig := validator.AddDeprecatedFields(validator.Context, vchConfig, c.Data)
 
@@ -462,10 +464,10 @@ func fromNetworkAddress(m *models.NetworkAddress) string {
 	return string(m.Hostname)
 }
 
-func fromManagedObject(ctx context.Context, finder *find.Finder, t string, m *models.ManagedObject) (string, error) {
+func fromManagedObject(op trace.Operation, finder *find.Finder, t string, m *models.ManagedObject) (string, error) {
 	if m.ID != "" {
 		managedObjectReference := types.ManagedObjectReference{Type: t, Value: m.ID}
-		element, err := finder.Element(ctx, managedObjectReference)
+		element, err := finder.Element(op, managedObjectReference)
 
 		if err != nil {
 			return "", err

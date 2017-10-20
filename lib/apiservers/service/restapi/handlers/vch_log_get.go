@@ -16,7 +16,6 @@ package handlers
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -63,17 +62,17 @@ func (h *VCHLogGet) Handle(params operations.GetTargetTargetVchVchIDLogParams, p
 	d.ID = params.VchID
 	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
 
-	helper, err := getDatastoreHelper(op.Context, d)
+	helper, err := getDatastoreHelper(op, d)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	logFilePaths, err := getAllLogFilePaths(op.Context, helper)
+	logFilePaths, err := getAllLogFilePaths(op, helper)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	output, err := getContentFromLogFiles(op.Context, helper, logFilePaths)
+	output, err := getContentFromLogFiles(op, helper, logFilePaths)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -96,17 +95,17 @@ func (h *VCHDatacenterLogGet) Handle(params operations.GetTargetTargetDatacenter
 	d.ID = params.VchID
 	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
 
-	helper, err := getDatastoreHelper(op.Context, d)
+	helper, err := getDatastoreHelper(op, d)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	logFilePaths, err := getAllLogFilePaths(op.Context, helper)
+	logFilePaths, err := getAllLogFilePaths(op, helper)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	output, err := getContentFromLogFiles(op.Context, helper, logFilePaths)
+	output, err := getContentFromLogFiles(op, helper, logFilePaths)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -115,9 +114,9 @@ func (h *VCHDatacenterLogGet) Handle(params operations.GetTargetTargetDatacenter
 }
 
 // getDatastoreHelper validates the VCH and returns the datastore helper for the VCH. It errors when validation fails or when datastore is not ready
-func getDatastoreHelper(ctx context.Context, d *data.Data) (*datastore.Helper, error) {
+func getDatastoreHelper(op trace.Operation, d *data.Data) (*datastore.Helper, error) {
 	// TODO (angiew): abstract some of the boilerplate into helpers in common.go
-	validator, err := validateTarget(ctx, d)
+	validator, err := validateTarget(op, d)
 	if err != nil {
 		return nil, util.WrapError(http.StatusBadRequest, err)
 	}
@@ -148,7 +147,7 @@ func getDatastoreHelper(ctx context.Context, d *data.Data) (*datastore.Helper, e
 	}
 
 	// Create a new datastore helper for file finding
-	helper, err := datastore.NewHelper(ctx, validator.Session, ds, vmPath)
+	helper, err := datastore.NewHelper(op, validator.Session, ds, vmPath)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get datastore helper: %s", err)
 	}
@@ -157,8 +156,8 @@ func getDatastoreHelper(ctx context.Context, d *data.Data) (*datastore.Helper, e
 }
 
 // getAllLogFilePaths returns a list of all log file paths under datastore folder, errors out when no log file found
-func getAllLogFilePaths(ctx context.Context, helper *datastore.Helper) ([]string, error) {
-	res, err := helper.Ls(ctx, "")
+func getAllLogFilePaths(op trace.Operation, helper *datastore.Helper) ([]string, error) {
+	res, err := helper.Ls(op, "")
 	if err != nil {
 		return nil, fmt.Errorf("Unable to list all files under datastore: %s", err)
 	}
@@ -179,14 +178,14 @@ func getAllLogFilePaths(ctx context.Context, helper *datastore.Helper) ([]string
 }
 
 // getContentFromLogFile downloads all log files in the list, concatenates the content of each log file and outputs a string of contents
-func getContentFromLogFiles(ctx context.Context, helper *datastore.Helper, paths []string) (string, error) {
+func getContentFromLogFiles(op trace.Operation, helper *datastore.Helper, paths []string) (string, error) {
 	var buffer bytes.Buffer
 
 	// sort log files based on timestamp
 	sort.Strings(paths)
 
 	for _, p := range paths {
-		reader, err := helper.Download(ctx, p)
+		reader, err := helper.Download(op, p)
 		if err != nil {
 			return "", fmt.Errorf("Unable to download log file %s: %s", p, err)
 		}
