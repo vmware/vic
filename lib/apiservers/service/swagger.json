@@ -802,7 +802,7 @@
         "syslog_addr": {
           "type": "string",
           "format": "uri",
-          "pattern": "^((tc|ud)p)|((tc|ud)p6).*"
+          "pattern": "^(tc|ud)p:\/\/.*"
         }
       }
     },
