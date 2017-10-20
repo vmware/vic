@@ -16,7 +16,6 @@ package handlers
 
 import (
 	"bytes"
-	"context"
 	"encoding/pem"
 	"fmt"
 	"net"
@@ -37,6 +36,7 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -63,8 +63,8 @@ func (h *VCHGet) Handle(params operations.GetTargetTargetVchVchIDParams, princip
 
 	d.ID = params.VchID
 
-	vch, err := getVCH(params.HTTPRequest.Context(), d)
-
+	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
+	vch, err := getVCH(op, d)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -86,8 +86,8 @@ func (h *VCHDatacenterGet) Handle(params operations.GetTargetTargetDatacenterDat
 
 	d.ID = params.VchID
 
-	vch, err := getVCH(params.HTTPRequest.Context(), d)
-
+	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
+	vch, err := getVCH(op, d)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -95,8 +95,8 @@ func (h *VCHDatacenterGet) Handle(params operations.GetTargetTargetDatacenterDat
 	return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDOK().WithPayload(vch)
 }
 
-func getVCH(ctx context.Context, d *data.Data) (*models.VCH, error) {
-	validator, err := validateTarget(ctx, d)
+func getVCH(op trace.Operation, d *data.Data) (*models.VCH, error) {
+	validator, err := validateTarget(op, d)
 	if err != nil {
 		return nil, util.WrapError(400, err)
 	}
@@ -112,7 +112,7 @@ func getVCH(ctx context.Context, d *data.Data) (*models.VCH, error) {
 		return nil, util.NewError(500, fmt.Sprintf("Failed to load VCH data: %s", err))
 	}
 
-	model, err := vchToModel(vch, d, executor)
+	model, err := vchToModel(op, vch, d, executor)
 	if err != nil {
 		return nil, util.WrapError(500, err)
 	}
@@ -120,7 +120,7 @@ func getVCH(ctx context.Context, d *data.Data) (*models.VCH, error) {
 	return model, nil
 }
 
-func vchToModel(vch *vm.VirtualMachine, d *data.Data, executor *management.Dispatcher) (*models.VCH, error) {
+func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, executor *management.Dispatcher) (*models.VCH, error) {
 	vchConfig, err := executor.GetNoSecretVCHConfig(vch)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to retrieve VCH information: %s", err)
@@ -236,10 +236,10 @@ func vchToModel(vch *vm.VirtualMachine, d *data.Data, executor *management.Dispa
 	model.Runtime = &models.VCHRuntime{}
 
 	installerVer := version.GetBuild()
-	upgradeStatus := upgradeStatusMessage(context.Background(), vch, installerVer, vchConfig.Version)
+	upgradeStatus := upgradeStatusMessage(op, vch, installerVer, vchConfig.Version)
 	model.Runtime.UpgradeStatus = upgradeStatus
 
-	powerState, err := vch.PowerState(context.Background())
+	powerState, err := vch.PowerState(op)
 	if err != nil {
 		powerState = "error"
 	}

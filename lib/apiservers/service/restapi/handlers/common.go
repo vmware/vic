@@ -94,12 +94,12 @@ func validateTarget(ctx context.Context, d *data.Data) (*validate.Validator, err
 }
 
 // Copied from list.go, and appears to be present other places. TODO: deduplicate
-func upgradeStatusMessage(ctx context.Context, vch *vm.VirtualMachine, installerVer *version.Build, vchVer *version.Build) string {
+func upgradeStatusMessage(op trace.Operation, vch *vm.VirtualMachine, installerVer *version.Build, vchVer *version.Build) string {
 	if sameVer := installerVer.Equal(vchVer); sameVer {
 		return "Up to date"
 	}
 
-	upgrading, err := vch.VCHUpdateStatus(ctx)
+	upgrading, err := vch.VCHUpdateStatus(op)
 	if err != nil {
 		return fmt.Sprintf("Unknown: %s", err)
 	}
