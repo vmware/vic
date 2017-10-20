@@ -398,9 +398,9 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 					OpsPassword: &opsPassword,
 				}
 			}
-			if err := c.OpsCredentials.ProcessOpsCredentials(true, c.Target.User, c.Target.Password); err != nil {
-				return nil, util.WrapError(http.StatusBadRequest, err)
-			}
+		}
+		if err := c.OpsCredentials.ProcessOpsCredentials(true, c.Target.User, c.Target.Password); err != nil {
+			return nil, util.WrapError(http.StatusBadRequest, err)
 		}
 
 		if vch.Registry != nil {
