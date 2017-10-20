@@ -30,36 +30,32 @@ import (
 func (d *Dispatcher) createVApp(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*object.VirtualApp, error) {
 	defer trace.End(trace.Begin(""))
 	var err error
-	var zero int64
 	log.Infof("Creating virtual app %q", conf.Name)
 
 	resSpec := types.DefaultResourceConfigSpec()
-	cpu := resSpec.CpuAllocation.GetResourceAllocationInfo()
 
-	if settings.VCHSize.CPU.Limit != nil && *settings.VCHSize.CPU.Limit != zero {
-		cpu.Limit = settings.VCHSize.CPU.Limit
+	if settings.VCHSize.CPU.Limit != nil && *settings.VCHSize.CPU.Limit != 0 {
+		resSpec.CpuAllocation.Limit = settings.VCHSize.CPU.Limit
 	}
 
-	if settings.VCHSize.CPU.Reservation != nil && *settings.VCHSize.CPU.Reservation != zero {
-		cpu.Reservation = settings.VCHSize.CPU.Reservation
+	if settings.VCHSize.CPU.Reservation != nil && *settings.VCHSize.CPU.Reservation != 0 {
+		resSpec.CpuAllocation.Reservation = settings.VCHSize.CPU.Reservation
 	}
 
 	if settings.VCHSize.CPU.Shares != nil {
-		cpu.Shares = settings.VCHSize.CPU.Shares
+		resSpec.CpuAllocation.Shares = settings.VCHSize.CPU.Shares
 	}
 
-	memory := resSpec.MemoryAllocation.GetResourceAllocationInfo()
-
-	if settings.VCHSize.Memory.Limit != nil && *settings.VCHSize.Memory.Limit != zero {
-		memory.Limit = settings.VCHSize.Memory.Limit
+	if settings.VCHSize.Memory.Limit != nil && *settings.VCHSize.Memory.Limit != 0 {
+		resSpec.MemoryAllocation.Limit = settings.VCHSize.Memory.Limit
 	}
 
-	if settings.VCHSize.Memory.Reservation != nil && *settings.VCHSize.Memory.Reservation != zero {
-		memory.Reservation = settings.VCHSize.Memory.Reservation
+	if settings.VCHSize.Memory.Reservation != nil && *settings.VCHSize.Memory.Reservation != 0 {
+		resSpec.MemoryAllocation.Reservation = settings.VCHSize.Memory.Reservation
 	}
 
 	if settings.VCHSize.Memory.Shares != nil {
-		memory.Shares = settings.VCHSize.Memory.Shares
+		resSpec.MemoryAllocation.Shares = settings.VCHSize.Memory.Shares
 	}
 
 	prodSpec := types.VAppProductSpec{

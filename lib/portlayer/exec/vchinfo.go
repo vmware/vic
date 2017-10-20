@@ -54,12 +54,12 @@ func GetVCHstats(ctx context.Context, moref ...types.ManagedObjectReference) VCH
 	vch.CPUUsage = p.Runtime.Cpu.OverallUsage
 	vch.MemoryUsage = p.Runtime.Memory.OverallUsage
 
-	if p.Config.CpuAllocation.GetResourceAllocationInfo().Limit != nil {
-		vch.CPULimit = *p.Config.CpuAllocation.GetResourceAllocationInfo().Limit
+	if p.Config.CpuAllocation.Limit != nil {
+		vch.CPULimit = *p.Config.CpuAllocation.Limit
 	}
 
-	if p.Config.MemoryAllocation.GetResourceAllocationInfo().Limit != nil {
-		vch.MemoryLimit = *p.Config.MemoryAllocation.GetResourceAllocationInfo().Limit
+	if p.Config.MemoryAllocation.Limit != nil {
+		vch.MemoryLimit = *p.Config.MemoryAllocation.Limit
 	}
 
 	stats := []int64{vch.CPULimit,

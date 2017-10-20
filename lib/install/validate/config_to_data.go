@@ -109,24 +109,30 @@ func setVCHResources(ctx context.Context, vch *object.ResourcePool, d *data.Data
 		return err
 	}
 
-	cpu := p.Config.CpuAllocation.GetResourceAllocationInfo()
-	if cpu != nil {
+	cpu := p.Config.CpuAllocation
+	// only set if we have a limit set.  -1 == no limit
+	if cpu.Limit != nil && *cpu.Limit != -1 {
 		currentCPULimit := int(*cpu.Limit)
-		currentCPUReserve := int(*cpu.Reservation)
-
 		d.VCHCPULimitsMHz = &currentCPULimit
+	}
+	if cpu.Reservation != nil {
+		currentCPUReserve := int(*cpu.Reservation)
 		d.VCHCPUReservationsMHz = &currentCPUReserve
-		d.VCHCPUShares = cpu.Shares
 	}
+	d.VCHCPUShares = cpu.Shares
 
-	memory := p.Config.MemoryAllocation.GetResourceAllocationInfo()
-	if memory != nil {
+	memory := p.Config.MemoryAllocation
+	// only set if we have a limit set.  -1 == no limit
+	if memory.Limit != nil && *memory.Limit != -1 {
 		currentMemLimit := int(*memory.Limit)
-		currentMemReserve := int(*memory.Reservation)
 		d.VCHMemoryLimitsMB = &currentMemLimit
-		d.VCHMemoryReservationsMB = &currentMemReserve
-		d.VCHMemoryShares = memory.Shares
 	}
+	if memory.Reservation != nil {
+		currentMemReserve := int(*memory.Reservation)
+		d.VCHMemoryReservationsMB = &currentMemReserve
+	}
+	d.VCHMemoryShares = memory.Shares
+
 	return nil
 }
 
