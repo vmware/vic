@@ -528,13 +528,6 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (contain
 
 	var err error
 
-	// bail early if container name already exists
-	if exists := cache.ContainerCache().GetContainerByName(config.Name); exists != nil {
-		err := fmt.Errorf("Conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", config.Name, exists.ContainerID)
-		log.Errorf("%s", err.Error())
-		return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestConflictError(err)
-	}
-
 	// get the image from the cache
 	image, err := cache.ImageCache().Get(config.Config.Image)
 	if err != nil {
@@ -558,9 +551,15 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (contain
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
 
+	// Reserve the container name to prevent duplicates during a parallel operation.
+	if err := cache.ContainerCache().ReserveName(container, config.Name); err != nil {
+		return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestConflictError(err)
+	}
+
 	// Create an actualized container in the VIC port layer
 	id, err := c.containerCreate(container, config)
 	if err != nil {
+		cache.ContainerCache().ReleaseName(config.Name)
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
 

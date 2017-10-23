@@ -76,7 +76,11 @@ This test requires that a vSphere server is running and available
 * Step 19 should include the port-mappings of Step 18's container
 * Step 20 should return without error
 * Step 21 should include the port-mappings of Step 20's container
-* Steps 22-26 should return without errors
+* Steps 22-25 should return without errors
+* Step 26 should succeed on ESXi and fail on vCenter with the error:
+```
+govc: ServerFaultCode: The method is disabled by 'VIC'
+```
 * Step 27 should include one less container than in Step 25
 * Step 28 should include only redis
 * Step 29 should include only redis and nginx

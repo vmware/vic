@@ -69,6 +69,7 @@ pipeline:
       GITHUB_AUTOMATION_API_KEY:  ${GITHUB_AUTOMATION_API_KEY}
       DRONE_SERVER:  ${DRONE_SERVER}
       DRONE_TOKEN:  ${DRONE_TOKEN}
+      DRONE_MACHINE:  ${DRONE_MACHINE}
       TEST_URL_ARRAY:  ${TEST_URL_ARRAY}
       TEST_USERNAME:  ${TEST_USERNAME}
       TEST_PASSWORD:  ${TEST_PASSWORD}
@@ -88,11 +89,13 @@ pipeline:
       SYSLOG_USER: ${SYSLOG_USER}
       SYSLOG_PASSWD: ${SYSLOG_PASSWD}
     commands:
+      - . ./tests/ci-env.sh # set CI env variable values
       - make mark
       - tests/integration-test.sh
       - make sincemark
     volumes:
       - /tmp
+      - /home/vic:/ci
     when:
       status:  success
 

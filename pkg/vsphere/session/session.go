@@ -51,7 +51,8 @@ import (
 )
 
 const (
-	defaultMaxInFlight = 16
+	defaultMaxInFlight  = 32
+	tlsHandshakeTimeout = 30 * time.Second
 )
 
 // Config contains the configuration used to create a Session.
@@ -222,6 +223,7 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 	// Limit the concurrenty of SOAP requests
 	if t, ok := soapClient.Transport.(*http.Transport); ok {
 		t.MaxIdleConnsPerHost = maxInFlight
+		t.TLSHandshakeTimeout = tlsHandshakeTimeout
 	}
 	soapClient.Transport = LimitConcurrency(soapClient.Transport, maxInFlight)
 

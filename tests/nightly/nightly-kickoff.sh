@@ -93,7 +93,7 @@ for i in $nightly_list_var; do
     #Clean up any previous runs creds
     rm -rf VCH-0-*
     echo "Executing nightly test $i vSphere 6.5"
-    pybot -d 65/$i --suite $i tests/manual-test-cases/
+    pybot --removekeywords TAG:secret -d 65/$i --suite $i tests/manual-test-cases/
 
     if [ $? -eq 0 ]
     then
@@ -114,7 +114,7 @@ for i in $nightly_list_var; do
     #Clean up any previous runs creds
     rm -rf VCH-0-*
     echo "Executing nightly test $i on vSphere 6.0"
-    pybot --variable ESX_VERSION:ob-5251623 --variable VC_VERSION:ob-5112509 -d 60/$i --suite $i tests/manual-test-cases/
+    pybot --removekeywords TAG:secret --variable ESX_VERSION:ob-5251623 --variable VC_VERSION:ob-5112509 -d 60/$i --suite $i tests/manual-test-cases/
 
     if [ $? -eq 0 ]
     then
