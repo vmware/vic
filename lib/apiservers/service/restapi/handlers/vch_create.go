@@ -556,7 +556,7 @@ func mhzFromValueHertz(m *models.ValueHertz) *int {
 	v := float64(m.Value.Value)
 
 	var mhzs float64
-	switch m.Units {
+	switch m.Value.Units {
 	case models.ValueHertzUnitsHz:
 		mhzs = v / float64(units.MB)
 	case models.ValueHertzUnitsKHz:
