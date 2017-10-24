@@ -19,6 +19,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -98,23 +99,23 @@ func (h *VCHDatacenterGet) Handle(params operations.GetTargetTargetDatacenterDat
 func getVCH(op trace.Operation, d *data.Data) (*models.VCH, error) {
 	validator, err := validateTarget(op, d)
 	if err != nil {
-		return nil, util.WrapError(400, err)
+		return nil, util.WrapError(http.StatusBadRequest, err)
 	}
 
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
-		return nil, util.NewError(500, fmt.Sprintf("Failed to inspect VCH: %s", err))
+		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to inspect VCH: %s", err))
 	}
 
 	err = validate.SetDataFromVM(validator.Context, validator.Session.Finder, vch, d)
 	if err != nil {
-		return nil, util.NewError(500, fmt.Sprintf("Failed to load VCH data: %s", err))
+		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
 	}
 
 	model, err := vchToModel(op, vch, d, executor)
 	if err != nil {
-		return nil, util.WrapError(500, err)
+		return nil, util.WrapError(http.StatusInternalServerError, err)
 	}
 
 	return model, nil
@@ -257,6 +258,11 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 			model.Runtime.DockerHost = fmt.Sprintf("%s:%s", publicIP, dockerPort)
 			model.Runtime.AdminPortal = fmt.Sprintf("https://%s:2378", publicIP)
 		}
+	}
+
+	// syslog_addr: syslog server address
+	if syslogConfig := vchConfig.Diagnostics.SysLogConfig; syslogConfig != nil {
+		model.SyslogAddr = strfmt.URI(syslogConfig.Network + "://" + syslogConfig.RAddr)
 	}
 
 	return model, nil
