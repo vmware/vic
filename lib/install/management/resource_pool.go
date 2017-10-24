@@ -27,7 +27,6 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
-	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -41,6 +40,7 @@ func (d *Dispatcher) createResourcePool(conf *config.VirtualContainerHostConfigS
 
 	rp, err := d.session.Finder.ResourcePool(d.ctx, d.vchPoolPath)
 	if err != nil {
+		// if we didn't find the resource pool then we will create
 		_, ok := err.(*find.NotFoundError)
 		if !ok {
 			err = errors.Errorf("Failed to query compute resource (%q): %q", d.vchPoolPath, err)
@@ -52,13 +52,10 @@ func (d *Dispatcher) createResourcePool(conf *config.VirtualContainerHostConfigS
 	}
 
 	log.Infof("Creating Resource Pool %q", conf.Name)
-	// TODO: expose the limits and reservation here via options
-	resSpec := types.ResourceConfigSpec{
-		CpuAllocation:    &types.ResourceAllocationInfo{},
-		MemoryAllocation: &types.ResourceAllocationInfo{},
-	}
-	setResources(resSpec.CpuAllocation.GetResourceAllocationInfo(), settings.VCHSize.CPU)
-	setResources(resSpec.MemoryAllocation.GetResourceAllocationInfo(), settings.VCHSize.Memory)
+	resSpec := types.DefaultResourceConfigSpec()
+	setResources(&resSpec.CpuAllocation, settings.VCHSize.CPU)
+	setResources(&resSpec.MemoryAllocation, settings.VCHSize.Memory)
+
 	rp, err = d.session.Pool.Create(d.ctx, conf.Name, resSpec)
 	if err != nil {
 		log.Debugf("Failed to create resource pool %q: %s", d.vchPoolPath, err)
@@ -69,22 +66,32 @@ func (d *Dispatcher) createResourcePool(conf *config.VirtualContainerHostConfigS
 	return rp, nil
 }
 
+// setResources will modify the resourceAllocation spec with the user provided allocation info
 func setResources(spec *types.ResourceAllocationInfo, resource types.ResourceAllocationInfo) {
-	*spec = resource
-	if spec.Limit == 0 {
-		spec.Limit = -1
-	}
-	// FIXME: govmomi omitempty
-	if spec.Reservation == 0 {
-		spec.Reservation = 1
-	}
-	if spec.Shares == nil {
-		spec.Shares = &types.SharesInfo{
-			Level: types.SharesLevelNormal,
+	if resource.Limit != nil {
+		// if no limit is requested then set to -1 for unlimited
+		if *resource.Limit == int64(0) {
+			resource.Limit = types.NewInt64(-1)
 		}
+		spec.Limit = resource.Limit
 	}
-	if spec.ExpandableReservation == nil {
-		spec.ExpandableReservation = types.NewBool(true)
+	if resource.Reservation != nil {
+		spec.Reservation = resource.Reservation
+	}
+	if resource.Shares != nil {
+		// were custom shares specified
+		if resource.Shares.Shares != 0 {
+			spec.Shares = resource.Shares
+		} else {
+			// resource shares are zero, so set level to anything except custom
+			if resource.Shares.Level != "custom" {
+				spec.Shares.Level = resource.Shares.Level
+			}
+		}
+
+	}
+	if resource.ExpandableReservation != nil {
+		spec.ExpandableReservation = resource.ExpandableReservation
 	}
 }
 
@@ -136,28 +143,19 @@ func (d *Dispatcher) getPoolResourceSettings(pool *object.ResourcePool) (*config
 	if err := pool.Properties(d.ctx, pool.Reference(), ps, &p); err != nil {
 		return nil, err
 	}
-	res := &config.Resources{}
-	cpu := p.Config.CpuAllocation.GetResourceAllocationInfo()
-	if cpu != nil {
-		res.CPU = *cpu
-		// handle default value
-		validate.HandleDefaultSettings(&res.CPU)
-	}
-	memory := p.Config.MemoryAllocation.GetResourceAllocationInfo()
-	if memory != nil {
-		res.Memory = *memory
-		validate.HandleDefaultSettings(&res.Memory)
+
+	res := &config.Resources{
+		CPU:    p.Config.CpuAllocation,
+		Memory: p.Config.MemoryAllocation,
 	}
 	return res, nil
 }
 
 func updateResourcePoolConfig(ctx context.Context, pool *object.ResourcePool, name string, size *config.Resources) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("cpu %#v, memory: %#v", size.CPU, size.Memory)))
-	resSpec := &types.ResourceConfigSpec{
-		CpuAllocation:    &types.ResourceAllocationInfo{},
-		MemoryAllocation: &types.ResourceAllocationInfo{},
-	}
-	setResources(resSpec.CpuAllocation.GetResourceAllocationInfo(), size.CPU)
-	setResources(resSpec.MemoryAllocation.GetResourceAllocationInfo(), size.Memory)
-	return pool.UpdateConfig(ctx, name, resSpec)
+	resSpec := types.DefaultResourceConfigSpec()
+	// update with user provided configuration
+	setResources(&resSpec.CpuAllocation, size.CPU)
+	setResources(&resSpec.MemoryAllocation, size.Memory)
+	return pool.UpdateConfig(ctx, name, &resSpec)
 }

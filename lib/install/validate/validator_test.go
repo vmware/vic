@@ -224,25 +224,7 @@ func createPool(ctx context.Context, sess *session.Session, poolPath string, nam
 		return err
 	}
 	t.Logf("Creating Resource Pool %s", name)
-	resSpec := types.ResourceConfigSpec{
-		CpuAllocation: &types.ResourceAllocationInfo{
-			Shares: &types.SharesInfo{
-				Level: types.SharesLevelNormal,
-			},
-			ExpandableReservation: types.NewBool(true),
-			Limit:       -1,
-			Reservation: 1,
-		},
-		MemoryAllocation: &types.ResourceAllocationInfo{
-			Shares: &types.SharesInfo{
-				Level: types.SharesLevelNormal,
-			},
-			ExpandableReservation: types.NewBool(true),
-			Limit:       -1,
-			Reservation: 1,
-		},
-	}
-
+	resSpec := types.DefaultResourceConfigSpec()
 	_, err = rp.Create(ctx, name, resSpec)
 	if err != nil {
 		t.Logf("Failed to create resource pool %s: %s", name, err)

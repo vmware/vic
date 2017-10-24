@@ -23,17 +23,18 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-type VmwareDistributedVirtualSwitch struct {
-	mo.VmwareDistributedVirtualSwitch
+type DistributedVirtualSwitch struct {
+	mo.DistributedVirtualSwitch
 }
 
-func (s *VmwareDistributedVirtualSwitch) AddDVPortgroupTask(c *types.AddDVPortgroup_Task) soap.HasFault {
+func (s *DistributedVirtualSwitch) AddDVPortgroupTask(c *types.AddDVPortgroup_Task) soap.HasFault {
 	task := CreateTask(s, "addDVPortgroup", func(t *Task) (types.AnyType, types.BaseMethodFault) {
 		f := Map.getEntityParent(s, "Folder").(*Folder)
 
 		for _, spec := range c.Spec {
-			pg := &mo.DistributedVirtualPortgroup{}
+			pg := &DistributedVirtualPortgroup{}
 			pg.Name = spec.Name
+			pg.Config.DefaultPortConfig = spec.DefaultPortConfig
 			pg.Entity().Name = pg.Name
 
 			if obj := Map.FindByName(pg.Name, f.ChildEntity); obj != nil {
@@ -70,7 +71,7 @@ func (s *VmwareDistributedVirtualSwitch) AddDVPortgroupTask(c *types.AddDVPortgr
 	}
 }
 
-func (s *VmwareDistributedVirtualSwitch) ReconfigureDvsTask(req *types.ReconfigureDvs_Task) soap.HasFault {
+func (s *DistributedVirtualSwitch) ReconfigureDvsTask(req *types.ReconfigureDvs_Task) soap.HasFault {
 	task := CreateTask(s, "reconfigureDvs", func(t *Task) (types.AnyType, types.BaseMethodFault) {
 		spec := req.Spec.GetDVSConfigSpec()
 
@@ -93,7 +94,7 @@ func (s *VmwareDistributedVirtualSwitch) ReconfigureDvsTask(req *types.Reconfigu
 				s.Summary.HostMember = append(s.Summary.HostMember, member.Host)
 
 				for _, ref := range s.Portgroup {
-					pg := Map.Get(ref).(*mo.DistributedVirtualPortgroup)
+					pg := Map.Get(ref).(*DistributedVirtualPortgroup)
 					pg.Host = AddReference(member.Host, pg.Host)
 				}
 			case types.ConfigSpecOperationRemove:
@@ -121,4 +122,58 @@ func (s *VmwareDistributedVirtualSwitch) ReconfigureDvsTask(req *types.Reconfigu
 			Returnval: task.Self,
 		},
 	}
+}
+
+func (s *DistributedVirtualSwitch) FetchDVPorts(req *types.FetchDVPorts) soap.HasFault {
+	body := &methods.FetchDVPortsBody{}
+	body.Res = &types.FetchDVPortsResponse{
+		Returnval: s.dvPortgroups(req.Criteria),
+	}
+	return body
+}
+
+func (s *DistributedVirtualSwitch) DestroyTask(req *types.Destroy_Task) soap.HasFault {
+	task := CreateTask(s, "destroy", func(t *Task) (types.AnyType, types.BaseMethodFault) {
+		f := Map.getEntityParent(s, "Folder").(*Folder)
+		f.removeChild(s.Reference())
+		return nil, nil
+	})
+
+	task.Run()
+
+	return &methods.Destroy_TaskBody{
+		Res: &types.Destroy_TaskResponse{
+			Returnval: task.Self,
+		},
+	}
+}
+
+func (s *DistributedVirtualSwitch) dvPortgroups(_ *types.DistributedVirtualSwitchPortCriteria) []types.DistributedVirtualPort {
+	// TODO(agui): Filter is not implemented yet
+	var res []types.DistributedVirtualPort
+	for _, ref := range s.Portgroup {
+		pg := Map.Get(ref).(*DistributedVirtualPortgroup)
+		res = append(res, types.DistributedVirtualPort{
+			DvsUuid: s.Uuid,
+			Key:     pg.Key,
+			Config: types.DVPortConfigInfo{
+				Setting: pg.Config.DefaultPortConfig,
+			},
+		})
+
+		if pg.PortKeys == nil {
+			continue
+		}
+
+		for _, key := range pg.PortKeys {
+			res = append(res, types.DistributedVirtualPort{
+				DvsUuid: s.Uuid,
+				Key:     key,
+				Config: types.DVPortConfigInfo{
+					Setting: pg.Config.DefaultPortConfig,
+				},
+			})
+		}
+	}
+	return res
 }
