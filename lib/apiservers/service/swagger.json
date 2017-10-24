@@ -798,6 +798,11 @@
               "type": "string"
             }
           }
+        },
+        "syslog_addr": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^(tc|ud)p:\/\/.*"
         }
       }
     },
