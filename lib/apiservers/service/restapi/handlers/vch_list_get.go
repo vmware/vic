@@ -16,6 +16,7 @@ package handlers
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"path"
 
@@ -85,13 +86,13 @@ func (h *VCHDatacenterListGet) Handle(params operations.GetTargetTargetDatacente
 func listVCHs(op trace.Operation, d *data.Data) ([]*models.VCHListItem, error) {
 	validator, err := validateTarget(op, d)
 	if err != nil {
-		return nil, util.WrapError(400, err)
+		return nil, util.WrapError(http.StatusBadRequest, err)
 	}
 
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 	vchs, err := executor.SearchVCHs(validator.ClusterPath)
 	if err != nil {
-		return nil, util.NewError(500, fmt.Sprintf("Failed to search VCHs in %s: %s", validator.ResourcePoolPath, err))
+		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to search VCHs in %s: %s", validator.ResourcePoolPath, err))
 	}
 
 	return vchsToModels(op, vchs, executor), nil

@@ -79,7 +79,7 @@ type Create struct {
 
 	Proxies common.Proxies
 
-	syslogAddr string
+	SyslogAddr string
 
 	executor *management.Dispatcher
 }
@@ -262,7 +262,7 @@ func (c *Create) Flags() []cli.Flag {
 			Name:        "syslog-address",
 			Value:       "",
 			Usage:       "Address of the syslog server to send Virtual Container Host logs to. Must be in the format transport://host[:port], where transport is udp or tcp. port defaults to 514 if not specified",
-			Destination: &c.syslogAddr,
+			Destination: &c.SyslogAddr,
 			Hidden:      true,
 		},
 	}
@@ -407,7 +407,7 @@ func (c *Create) processParams() error {
 	c.HTTPProxy = hproxy
 	c.HTTPSProxy = sproxy
 
-	if err := c.processSyslog(); err != nil {
+	if err := c.ProcessSyslog(); err != nil {
 		return err
 	}
 
@@ -534,12 +534,12 @@ func (c *Create) ProcessNetwork(network *data.NetworkConfig, netName, pgName, st
 	return nil
 }
 
-func (c *Create) processSyslog() error {
-	if len(c.syslogAddr) == 0 {
+func (c *Create) ProcessSyslog() error {
+	if len(c.SyslogAddr) == 0 {
 		return nil
 	}
 
-	u, err := url.Parse(c.syslogAddr)
+	u, err := url.Parse(c.SyslogAddr)
 	if err != nil {
 		return err
 	}
