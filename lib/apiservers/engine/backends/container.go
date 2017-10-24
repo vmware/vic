@@ -259,7 +259,7 @@ func (c *Container) TaskWaitToStart(cid, cname, eid string) error {
 // ContainerExecCreate sets up an exec in a running container.
 func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (string, error) {
 	op := trace.NewOperation(context.TODO(), "")
-	defer trace.End(trace.Begin(fmt.Sprintf("opid=(%s) name=(%s)", op.ID(), name)))
+	defer trace.End(trace.Begin(op.Sprintf("name=(%s)", name)))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
