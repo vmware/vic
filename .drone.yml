@@ -99,6 +99,20 @@ pipeline:
     when:
       status:  success
 
+  vic-ui:
+    image: harbor.ci.drone.local/library/vic-integration-test:1.36
+    pull: true
+    environment:
+      BUILD_NUMBER: ${DRONE_BUILD_NUMBER}
+      BIN: bin
+      GS_PROJECT_ID: ${GS_PROJECT_ID}
+      GS_CLIENT_EMAIL: ${GS_CLIENT_EMAIL}
+      GS_PRIVATE_KEY: ${GS_PRIVATE_KEY}
+    commands:
+      - make vic-ui-plugins
+    when:
+      status:  success
+
   bundle:
     image: harbor.ci.drone.local/library/golang:1.8
     pull: true
