@@ -426,6 +426,13 @@ $(gandalf):  $$(call godeps,cmd/gandalf/*.go)
 	@echo building gandalf...
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
+vic-ui-plugins:
+	GCP_UI_DOWNLOAD_PATH = $(gsutil ls -l "gs://vic-ui-builds" | grep -v TOTAL | grep vic_ | sort -k2 -r | (trap '' PIPE; head -1) | xargs | cut -d ' ' -f 3 | sed 's/gs:\/\//https:\/\/storage.googleapis.com\//')
+	wget -nv $(GCP_UI_DOWNLOAD_PATH) -O /tmp/
+	tar --warning=no-unknown-keyword -xzf -C /tmp/
+	mkdir -p $(BIN)/ui
+	cp -rf /tmp/bin/ci/ui/* $(BIN)/ui
+
 distro: all
 	@tar czvf $(REV).tar.gz bin/*.iso bin/vic-machine-*
 

@@ -1076,6 +1076,20 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	// as we're only using it for IP in the success case
 	updateErr := d.applianceConfiguration(conf)
 
+	// confirm components launched correctly
+	log.Debug("  State of components:")
+	for name, session := range conf.ExecutorConfig.Sessions {
+		status := "waiting to launch"
+		if session.Started == "true" {
+			status = "started successfully"
+		} else if session.Started != "" {
+			status = session.Started
+			log.Errorf("  Component did not launch successfully - %s: %s", name, status)
+		}
+
+		log.Debugf("    %q: %q", name, status)
+	}
+
 	// TODO: we should call to the general vic-machine inspect implementation here for more detail
 	// but instead...
 	if !ip.IsUnspecifiedIP(conf.ExecutorConfig.Networks["client"].Assigned.IP) {
