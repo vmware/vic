@@ -93,7 +93,7 @@ func getVCHCert(op trace.Operation, d *data.Data) (*config.RawCertificate, error
 	}
 
 	if vchConfig.HostCertificate.IsNil() {
-		return nil, util.NewError(404, fmt.Sprintf("No certificate found for VCH %s", d.ID))
+		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("No certificate found for VCH %s", d.ID))
 	}
 
 	return vchConfig.HostCertificate, nil
