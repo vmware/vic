@@ -235,11 +235,13 @@ misspell: $(MISSPELL)
 
 govet:
 	@echo checking go vet...
+	@$(GO) tool vet -all -lostcancel -tests $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
 # 	one day we will enable shadow check
 # 	@$(GO) tool vet -all -shadow -lostcancel -tests $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
 
 gas: $(GAS)
 	@echo checking security problems
+	@$(GAS) -skip=*_responses.go -quiet lib/... cmd/... pkg/... 2> /dev/null
 
 vendor: $(GVT)
 	@echo restoring vendor

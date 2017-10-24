@@ -241,7 +241,6 @@ func reloadConfig(ctx context.Context, h *Handle, c *Container) error {
 	}
 
 	err := retry.Do(retryFunc, isIntermittentFailure)
-
 	if err != nil {
 		log.Debugf("Failed an exec operation with err: %s", err)
 		return err

@@ -274,7 +274,6 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 		return "", InternalServerError(err.Error())
 	}
 
-	// This does not appear to be working... we may need to do this check further down the stack. it is going to be very race filled.
 	if state.Restarting {
 		return "", ConflictError(fmt.Sprintf("Container %s is restarting, wait until the container is running", id))
 	}
@@ -285,7 +284,7 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 	op.Debugf("State checks succeeded for exec operation on cotnainer(%s)", id)
 	handle, err := c.Handle(id, name)
 	if err != nil {
-		log.Error(err.Error())
+		op.Error(err.Error())
 		return "", InternalServerError(err.Error())
 	}
 
@@ -477,6 +476,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
+		// we do not return an error here if this fails. TODO: Investigate what exactly happens on error here...
 		go func() {
 			defer trace.End(trace.Begin(eid))
 			// wait property collector
@@ -504,7 +504,6 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 			return nil
 		}
 		EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
-
 		ca := &backend.ContainerAttachConfig{
 			UseStdin:  ec.OpenStdin,
 			UseStdout: ec.OpenStdout,
@@ -544,6 +543,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		return nil
 	}
 	if err := retry.Do(operation, IsConflictError); err != nil {
+		op.Errorf("Failed to start Exec task for container(%s) due to error (%s)", id, err)
 		return err
 	}
 	return nil
