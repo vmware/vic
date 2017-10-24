@@ -30,25 +30,6 @@ wget https://github.com/vmware/harbor/releases/download/v${version}/harbor-onlin
 pushd harbor
 echo "Configuring Harbor"
 sed -i 's/hostname = reg.mydomain.com/hostname = willie.eng.vmware.com/g' harbor.cfg
-
-
-if [ ! -e /home/$USER/harbor-keys ]; then
-    echo "Generating SSL cert for Harbor"
-    mkdir -p ~/harbor-keys
-    pushd ~/harbor-keys
-    openssl genrsa -des3 -passout pass:x -out harbor.pass.key 2048
-    openssl rsa -passin pass:x -in harbor.pass.key -out harbor.key
-    rm harbor.pass.key
-    openssl req -new -key harbor.key -out harbor.csr \
-            -subj "/C=US/ST=TX/L=Austin/O=CNAU/OU=Testing/CN=willie.eng.vmware.com"
-    openssl x509 -req -days 365 -in harbor.csr -signkey harbor.key -out harbor.crt
-    popd
-fi
-
-
-sed -i "s#/data/cert/server.crt#/home/$USER/harbor-keys/harbor.crt#g" harbor.cfg
-sed -i "s#/data/cert/server.key#/home/$USER/harbor-keys/harbor.key#g" harbor.cfg
-
 echo "Installing & starting Harbor"
 sudo ./install.sh
 popd
