@@ -410,15 +410,6 @@ $(vic-ui-darwin): $$(call godeps,cmd/vic-ui/*.go)
 	@echo building vic-ui darwin...
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
 
-vic-ui-plugins:
-	@echo downloading vic-ui build...
-	GCP_UI_DOWNLOAD_PATH = $(gsutil ls -l "gs://vic-ui-builds" | grep -v TOTAL | grep vic_ | sort -k2 -r | (trap '' PIPE; head -1) | xargs | cut -d ' ' -f 3 | sed 's/gs\:\/\//https\:\/\/storage.googleapis.com\//')
-	@echo from..$(GCP_UI_DOWNLOAD_PATH)...
-	wget -nv $(GCP_UI_DOWNLOAD_PATH) -O /tmp/
-	tar --warning=no-unknown-keyword -xzf -C /tmp/
-	mkdir -p $(BIN)/ui
-	cp -rf /tmp/bin/ci/ui/* $(BIN)/ui
-
 $(vic-dns-linux): $$(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns linux...
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
