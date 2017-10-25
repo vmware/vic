@@ -130,6 +130,7 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 	model := &models.VCH{}
 	model.Version = models.Version(vchConfig.Version.ShortVersion())
 	model.Name = vchConfig.Name
+	model.Debug = int64(vchConfig.Diagnostics.DebugLevel)
 
 	// compute
 	model.Compute = &models.VCHCompute{
