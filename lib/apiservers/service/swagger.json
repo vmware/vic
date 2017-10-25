@@ -471,6 +471,25 @@
         }
       }
     },
+    "Value_Bytes_Metric": {
+      "type": "object",
+      "allOf": [
+        { "$ref" : "#/definitions/Value" }
+      ],
+      "properties": {
+        "units": {
+          "type": "string",
+          "enum": [
+            "B",
+            "KB",
+            "MB",
+            "GB",
+            "TB",
+            "PB"
+          ]
+        }
+      }
+    },
     "Value_Hertz": {
       "type": "object",
       "allOf": [
@@ -664,7 +683,7 @@
                 }
               }
             },
-            "base_image_size": { "$ref": "#/definitions/Value_Bytes" }
+            "base_image_size": { "$ref": "#/definitions/Value_Bytes_Metric" }
           }
         },
         "auth": {
