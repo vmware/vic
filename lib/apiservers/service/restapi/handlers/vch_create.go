@@ -444,7 +444,7 @@ func handleCreate(op trace.Operation, c *create.Create, validator *validate.Vali
 			messages = append(messages, issue.Error())
 		}
 
-		return nil, util.NewError(400, fmt.Sprintf("Failed to validate VCH: %s", strings.Join(messages, ", ")))
+		return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Failed to validate VCH: %s", strings.Join(messages, ", ")))
 	}
 
 	vConfig := validator.AddDeprecatedFields(validator.Context, vchConfig, c.Data)
