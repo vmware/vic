@@ -34,6 +34,9 @@ nightly_list_var="5-1-Distributed-Switch \
 13-2-vMotion-Container \
 21-1-Whitelist"
 
+numberOfTests=($nightly_list_var)
+numberOfTests=${#numberOfTests[@]}
+
 input=$(gsutil ls -l gs://vic-engine-builds/vic_* | grep -v TOTAL | sort -k2 -r | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
 buildNumber=${input:4}
 
@@ -89,6 +92,9 @@ DATE=`date +%m_%d_%H_%M_`
 nightlystatus=()
 count=0
 
+# There should not be any VMs existing prior to running this test
+sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl kill '*'
+
 for i in $nightly_list_var; do
     #Clean up any previous runs creds
     rm -rf VCH-0-*
@@ -109,6 +115,10 @@ for i in $nightly_list_var; do
     ((count++))
     echo $count
 done
+
+# See if any VMs leaked and clean them up if so
+sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl list
+sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl kill '*'
 
 for i in $nightly_list_var; do
     #Clean up any previous runs creds
@@ -131,8 +141,11 @@ for i in $nightly_list_var; do
     echo $count
 done
 
+# See if any VMs leaked
+sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking\=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl list
+
 # Setting the NSX test status to Not Implemented.
-nightlystatus[26]="N/A"
+nightlystatus[7+$numberOfTests]="N/A"
 
 for i in "${nightlystatus[@]}"
 do
