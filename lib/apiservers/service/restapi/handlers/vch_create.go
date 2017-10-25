@@ -414,10 +414,13 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 
 			if vch.Registry.ImageFetchProxy != nil {
 				c.Proxies = fromImageFetchProxy(vch.Registry.ImageFetchProxy)
-				_, _, err := c.Proxies.ProcessProxies()
+
+				hproxy, sproxy, err := c.Proxies.ProcessProxies()
 				if err != nil {
 					return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error processing proxies: %s", err))
 				}
+				c.HTTPProxy = hproxy
+				c.HTTPSProxy = sproxy
 			}
 		}
 
@@ -451,6 +454,9 @@ func handleCreate(op trace.Operation, c *create.Create, validator *validate.Vali
 	vConfig.ImageFiles, err = images.CheckImagesFiles(true)
 	vConfig.ApplianceISO = path.Base(images.ApplianceISO)
 	vConfig.BootstrapISO = path.Base(images.BootstrapISO)
+
+	vConfig.HTTPProxy = c.HTTPProxy
+	vConfig.HTTPSProxy = c.HTTPSProxy
 
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 	err = executor.CreateVCH(vchConfig, vConfig)
