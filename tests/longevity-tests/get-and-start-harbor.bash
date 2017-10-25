@@ -29,12 +29,7 @@ echo "Pulling down version ${version} of Harbor..."
 wget https://github.com/vmware/harbor/releases/download/v${version}/harbor-online-installer-v${version}.tgz -qO - | tar xz
 pushd harbor
 echo "Configuring Harbor"
-sed -i.bak 's/hostname = reg.mydomain.com/hostname = harbor.longevity/g' harbor.cfg
-if [[ ! $(grep harbor.longevity /etc/hosts) ]]; then
-    echo "Adding harbor.longevity to /etc/hosts"
-    sudo sh -c 'echo "127.0.0.1  harbor.longevity" >> /etc/hosts'
-fi
-
+sed -i 's/hostname = reg.mydomain.com/hostname = willie.eng.vmware.com/g' harbor.cfg
 echo "Installing & starting Harbor"
 sudo ./install.sh
 popd
@@ -42,13 +37,13 @@ popd
 
 echo "Preparing Harbor..."
 echo "Logging in..."
-docker login harbor.longevity --username=admin --password="Harbor12345"
+docker login willie.eng.vmware.com --username=admin --password="Harbor12345"
 echo "Pulling some images to put in Harbor and putting them in Harbor.."
 
 pushd /home/$USER/vic/tests/resources
 for image in $(python -c "vars=__import__('dynamic-vars'); print(\" \".join(vars.images))"); do
     docker pull $image
-    docker tag $image harbor.longevity/library/${image}
-    docker push harbor.longevity/library/${image}
+    docker tag $image willie.eng.vmware.com/library/${image}
+    docker push willie.eng.vmware.com/library/${image}
 done
 popd

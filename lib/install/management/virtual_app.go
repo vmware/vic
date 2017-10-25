@@ -30,49 +30,32 @@ import (
 func (d *Dispatcher) createVApp(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*object.VirtualApp, error) {
 	defer trace.End(trace.Begin(""))
 	var err error
-
 	log.Infof("Creating virtual app %q", conf.Name)
 
-	resSpec := types.ResourceConfigSpec{
-		CpuAllocation: &types.ResourceAllocationInfo{
-			Shares: &types.SharesInfo{
-				Level: types.SharesLevelNormal,
-			},
-			ExpandableReservation: types.NewBool(true),
-		},
-		MemoryAllocation: &types.ResourceAllocationInfo{
-			Shares: &types.SharesInfo{
-				Level: types.SharesLevelNormal,
-			},
-			ExpandableReservation: types.NewBool(true),
-		},
-	}
-	cpu := resSpec.CpuAllocation.GetResourceAllocationInfo()
-	cpu.Limit = -1
-	if settings.VCHSize.CPU.Limit != 0 {
-		cpu.Limit = settings.VCHSize.CPU.Limit
-	}
-	// FIXME: govmomi omitempty
-	cpu.Reservation = 1
-	if settings.VCHSize.CPU.Reservation != 0 {
-		cpu.Reservation = settings.VCHSize.CPU.Reservation
-	}
-	if settings.VCHSize.CPU.Shares != nil {
-		cpu.Shares = settings.VCHSize.CPU.Shares
+	resSpec := types.DefaultResourceConfigSpec()
+
+	if settings.VCHSize.CPU.Limit != nil && *settings.VCHSize.CPU.Limit != 0 {
+		resSpec.CpuAllocation.Limit = settings.VCHSize.CPU.Limit
 	}
 
-	memory := resSpec.MemoryAllocation.GetResourceAllocationInfo()
-	memory.Limit = -1
-	if settings.VCHSize.Memory.Limit != 0 {
-		memory.Limit = settings.VCHSize.Memory.Limit
+	if settings.VCHSize.CPU.Reservation != nil && *settings.VCHSize.CPU.Reservation != 0 {
+		resSpec.CpuAllocation.Reservation = settings.VCHSize.CPU.Reservation
 	}
-	// FIXME: govmomi omitempty
-	memory.Reservation = 1
-	if settings.VCHSize.Memory.Reservation != 0 {
-		memory.Reservation = settings.VCHSize.Memory.Reservation
+
+	if settings.VCHSize.CPU.Shares != nil {
+		resSpec.CpuAllocation.Shares = settings.VCHSize.CPU.Shares
 	}
+
+	if settings.VCHSize.Memory.Limit != nil && *settings.VCHSize.Memory.Limit != 0 {
+		resSpec.MemoryAllocation.Limit = settings.VCHSize.Memory.Limit
+	}
+
+	if settings.VCHSize.Memory.Reservation != nil && *settings.VCHSize.Memory.Reservation != 0 {
+		resSpec.MemoryAllocation.Reservation = settings.VCHSize.Memory.Reservation
+	}
+
 	if settings.VCHSize.Memory.Shares != nil {
-		memory.Shares = settings.VCHSize.Memory.Shares
+		resSpec.MemoryAllocation.Shares = settings.VCHSize.Memory.Shares
 	}
 
 	prodSpec := types.VAppProductSpec{

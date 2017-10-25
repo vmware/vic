@@ -32,7 +32,7 @@ def getEnvironment():
 
 def getName(image):
     return {TestEnvironment.DRONE: 'harbor.ci.drone.local/library/{}'.format(image),
-            TestEnvironment.LONGEVITY: 'harbor.longevity/library/{}'.format(image),
+            TestEnvironment.LONGEVITY: 'willie.eng.vmware.com/library/{}'.format(image),
             TestEnvironment.LOCAL: image}[getEnvironment()]
 
 # this global variable (images) is used by the Longevity scripts. If you change this, change those!

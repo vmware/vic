@@ -13,7 +13,7 @@
 # limitations under the License
 
 #!/bin/bash
-pushd /home/$USER/longevity-tests
+pushd /home/$USER/vic/tests/longevity-tests
 set -e
 if [ $# -ne 1 ] && [ $# -ne 2 ]; then
     echo "Usage: $0 target-cluster optional-harbor-version"
@@ -60,16 +60,6 @@ echo "Building container images...."
 docker build -q -t longevity-base -f Dockerfile.foundation .
 docker build -q -t tests-"$target" -f Dockerfile."${target}" .
 
-# get latest tests
-pushd /home/$USER
-if [ ! -e vic ]; then
-    git clone https://github.com/vmware/vic vic
-else
-    pushd vic
-    git checkout master && git pull
-    popd
-fi
-
 # remove old binaries
 pushd /home/$USER/vic
 rm -rf bin && mkdir bin
@@ -104,5 +94,4 @@ echo "Run docker attach $testsContainer to interact with the container or use do
 docker start $testsContainer
 
 echo "Output can be found in $odir"
-popd
 popd
