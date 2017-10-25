@@ -17,7 +17,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
@@ -35,13 +34,14 @@ type VCHCertGet struct{}
 type VCHDatacenterCertGet struct{}
 
 func (h *VCHCertGet) Handle(params operations.GetTargetTargetVchVchIDCertificateParams, principal interface{}) middleware.Responder {
-	d, err := buildData(params.HTTPRequest.Context(),
-		url.URL{Host: params.Target},
-		principal.(Credentials).user,
-		principal.(Credentials).pass,
-		params.Thumbprint,
-		nil,
-		nil)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHCertGet: %s", params.VchID)
+
+	b := buildDataParams{
+		target:     params.Target,
+		thumbprint: params.Thumbprint,
+	}
+
+	d, err := buildData(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDCertificateDefault(
 			util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
@@ -49,7 +49,6 @@ func (h *VCHCertGet) Handle(params operations.GetTargetTargetVchVchIDCertificate
 
 	d.ID = params.VchID
 
-	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
 	c, err := getVCHCert(op, d)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDCertificateDefault(
@@ -61,13 +60,15 @@ func (h *VCHCertGet) Handle(params operations.GetTargetTargetVchVchIDCertificate
 }
 
 func (h *VCHDatacenterCertGet) Handle(params operations.GetTargetTargetDatacenterDatacenterVchVchIDCertificateParams, principal interface{}) middleware.Responder {
-	d, err := buildData(params.HTTPRequest.Context(),
-		url.URL{Host: params.Target},
-		principal.(Credentials).user,
-		principal.(Credentials).pass,
-		params.Thumbprint,
-		&params.Datacenter,
-		nil)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHDatacenterCertGet: %s", params.VchID)
+
+	b := buildDataParams{
+		target:     params.Target,
+		thumbprint: params.Thumbprint,
+		datacenter: &params.Datacenter,
+	}
+
+	d, err := buildData(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDCertificateDefault(
 			util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
@@ -75,7 +76,6 @@ func (h *VCHDatacenterCertGet) Handle(params operations.GetTargetTargetDatacente
 
 	d.ID = params.VchID
 
-	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
 	c, err := getVCHCert(op, d)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDCertificateDefault(

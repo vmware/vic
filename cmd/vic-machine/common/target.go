@@ -30,9 +30,10 @@ import (
 type Target struct {
 	URL *url.URL `cmd:"target"`
 
-	User       string
-	Password   *string
-	Thumbprint string `cmd:"thumbprint"`
+	User        string
+	Password    *string
+	CloneTicket string
+	Thumbprint  string `cmd:"thumbprint"`
 }
 
 func NewTarget() *Target {
@@ -74,6 +75,12 @@ func (t *Target) TargetFlags() []cli.Flag {
 func (t *Target) HasCredentials() error {
 	if t.URL == nil {
 		return cli.NewExitError("--target argument must be specified", 1)
+	}
+
+	// assume if a vsphere session key exists, we want to use that instead of user/pass
+	if t.CloneTicket != "" {
+		t.URL.User = nil // necessary?
+		return nil
 	}
 
 	var urlUser string

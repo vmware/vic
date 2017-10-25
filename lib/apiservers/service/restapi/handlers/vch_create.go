@@ -20,7 +20,6 @@ import (
 	"math"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"strings"
@@ -61,24 +60,24 @@ type VCHDatacenterCreate struct {
 }
 
 func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principal interface{}) middleware.Responder {
+	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHCreate")
+
 	// Set up VCH create logger
 	localLogFile := setUpLogger()
 	// Close the two logging streams when done
 	defer vchlog.Close()
 	defer localLogFile.Close()
 
-	d, err := buildData(params.HTTPRequest.Context(),
-		url.URL{Host: params.Target},
-		principal.(Credentials).user,
-		principal.(Credentials).pass,
-		params.Thumbprint,
-		nil,
-		nil)
+	b := buildDataParams{
+		target:     params.Target,
+		thumbprint: params.Thumbprint,
+	}
+
+	d, err := buildData(op, b, principal)
 	if err != nil {
 		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	op := trace.NewOperation(params.HTTPRequest.Context(), "vch create handler")
 	validator, err := validateTarget(op, d)
 	if err != nil {
 		return operations.NewPostTargetTargetVchDefault(http.StatusBadRequest).WithPayload(&models.Error{Message: err.Error()})
@@ -98,24 +97,25 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 }
 
 func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacenterDatacenterVchParams, principal interface{}) middleware.Responder {
+	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHDatacenterCreate")
+
 	// Set up VCH create logger
 	localLogFile := setUpLogger()
 	// Close the two logging streams when done
 	defer vchlog.Close()
 	defer localLogFile.Close()
 
-	d, err := buildData(params.HTTPRequest.Context(),
-		url.URL{Host: params.Target},
-		principal.(Credentials).user,
-		principal.(Credentials).pass,
-		params.Thumbprint,
-		&params.Datacenter,
-		nil)
+	b := buildDataParams{
+		target:     params.Target,
+		thumbprint: params.Thumbprint,
+		datacenter: &params.Datacenter,
+	}
+
+	d, err := buildData(op, b, principal)
 	if err != nil {
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	op := trace.NewOperation(params.HTTPRequest.Context(), "vch create handler")
 	validator, err := validateTarget(op, d)
 	if err != nil {
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(http.StatusBadRequest).WithPayload(&models.Error{Message: err.Error()})

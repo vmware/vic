@@ -61,6 +61,8 @@ type Config struct {
 	Service string
 	// Credentials
 	User *url.Userinfo
+	// CloneTicket is used to clone an existing session
+	CloneTicket string
 	// Allow insecure connection to Service
 	Insecure bool
 	// Target thumbprint
@@ -202,6 +204,7 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 	}
 
 	soapClient := soap.NewClient(soapURL, s.Insecure)
+
 	soapClient.Version = "6.0" // Pin to 6.0 until we need 6.5+ specific API
 
 	var login func(context.Context) error
@@ -220,7 +223,7 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 			maxInFlight = i
 		}
 	}
-	// Limit the concurrenty of SOAP requests
+	// Limit the concurrency of SOAP requests
 	if t, ok := soapClient.Transport.(*http.Transport); ok {
 		t.MaxIdleConnsPerHost = maxInFlight
 		t.TLSHandshakeTimeout = tlsHandshakeTimeout
@@ -265,7 +268,13 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 		SessionManager: session.NewManager(vimClient),
 	}
 
-	err = login(ctx)
+	if s.CloneTicket != "" {
+		// clone a user session if we have a ticket
+		err = s.SessionManager.CloneSession(ctx, s.CloneTicket)
+	} else {
+		// otherwise login to create a new one
+		err = login(ctx)
+	}
 	if err != nil {
 		return nil, UserPassLoginError{
 			Host: soapURL.Host,
