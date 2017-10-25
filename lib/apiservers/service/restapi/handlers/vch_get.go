@@ -184,7 +184,7 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 	// storage
 	scratchSize := int(vchConfig.Storage.ScratchSize)
 	model.Storage = &models.VCHStorage{
-		BaseImageSize: asKiB(&scratchSize),
+		BaseImageSize: asKB(&scratchSize),
 	}
 
 	volumeLocations := make([]*models.VCHStorageVolumeStoresItems0, 0, len(vchConfig.Storage.VolumeLocations))
@@ -286,13 +286,31 @@ func asBytes(value *int, units string) *models.ValueBytes {
 	}
 }
 
-func asKiB(value *int) *models.ValueBytes {
-	return asBytes(value, models.ValueBytesUnitsKiB)
-}
-
 func asMiB(value *int) *models.ValueBytes {
 	return asBytes(value, models.ValueBytesUnitsMiB)
 }
+
+func asBytesMetric(value *int, units string) *models.ValueBytesMetric {
+	if value == nil {
+		return nil
+	}
+
+	if *value == 0 {
+		return nil
+	}
+
+	return &models.ValueBytesMetric{
+		Value: models.Value{
+			Value: int64(*value),
+			Units: units,
+		},
+	}
+}
+
+func asKB(value *int) *models.ValueBytesMetric {
+	return asBytesMetric(value, models.ValueBytesMetricUnitsKB)
+}
+
 
 func asMHz(value *int) *models.ValueHertz {
 	if value == nil {

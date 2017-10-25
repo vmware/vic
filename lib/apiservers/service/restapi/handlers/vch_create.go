@@ -349,7 +349,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 
 			c.ScratchSize = "8GB"
 			if vch.Storage.BaseImageSize != nil {
-				c.ScratchSize = fromValueBytes(vch.Storage.BaseImageSize)
+				c.ScratchSize = fromValueBytesMetric(vch.Storage.BaseImageSize)
 			}
 		}
 
@@ -525,23 +525,23 @@ func fromGateway(m *models.Gateway) string {
 	)
 }
 
-func fromValueBytes(m *models.ValueBytes) string {
+func fromValueBytesMetric(m *models.ValueBytesMetric) string {
 	v := float64(m.Value.Value)
 
 	var bytes float64
 	switch m.Value.Units {
-	case models.ValueBytesUnitsB:
+	case models.ValueBytesMetricUnitsB:
 		bytes = v
-	case models.ValueBytesUnitsKiB:
-		bytes = v * float64(units.KiB)
-	case models.ValueBytesUnitsMiB:
-		bytes = v * float64(units.MiB)
-	case models.ValueBytesUnitsGiB:
-		bytes = v * float64(units.GiB)
-	case models.ValueBytesUnitsTiB:
-		bytes = v * float64(units.TiB)
-	case models.ValueBytesUnitsPiB:
-		bytes = v * float64(units.PiB)
+	case models.ValueBytesMetricUnitsKB:
+		bytes = v * float64(units.KB)
+	case models.ValueBytesMetricUnitsMB:
+		bytes = v * float64(units.MB)
+	case models.ValueBytesMetricUnitsGB:
+		bytes = v * float64(units.GB)
+	case models.ValueBytesMetricUnitsTB:
+		bytes = v * float64(units.TB)
+	case models.ValueBytesMetricUnitsPB:
+		bytes = v * float64(units.PB)
 	}
 
 	return fmt.Sprintf("%d B", int64(bytes))
