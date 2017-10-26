@@ -19,6 +19,12 @@ This test requires that a vSphere server is running and available
 9. Start container with same port
 10. Create container with volume and then reboot VCH
 11. Inspect container to check volume info
+12. Deploy VIC appliance with open container network
+13. Create container on the open network, and create container with port mapping
+14. Reboot VCH
+15. Check container service in specified port
+16. Create container with volume and then reboot VCH
+17. Inspect container to check volume info
 
 # Expected Outcome:
 * VCH should reboot within a reasonable amount of time
