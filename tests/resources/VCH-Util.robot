@@ -201,7 +201,6 @@ Run VIC Machine Command
 Run Secret VIC Machine Delete Command
     [Tags]  secret
     [Arguments]  ${vch-name}
-    Run  govc vm.unregister ${vch-name}
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     [Return]  ${rc}  ${output}
 
