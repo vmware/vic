@@ -152,23 +152,10 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
 Container on Open Network And Port Forwarding Persist After Reboot
     [Setup]     NONE
 
-    Set Test Environment Variables
-
     Log To Console  Create Port Groups For Container network
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vswitch vSwitchLAN open-net
 
-    ${createcommand}=  catenate  SEPARATOR=\ \
-    ...  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME}
-    ...  --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT}
-    ...  --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD}
-    ...  --force=true --bridge-network=bridge --compute-resource=%{TEST_RESOURCE} --no-tlsverify --no-tls
-    ...  --container-network=open-net --container-network-firewall=open-net:open
-
-    ${output}=  Run  ${createcommand}
-
-    Should Contain  ${output}  Installer completed successfully
-    Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: %{VCH-NAME}
+    Install VIC Appliance To Test Server  additional-args=--container-network=open-net --container-network-firewall=open-net:open
 
     # Create a container on the open network
     ${open-running}=  Launch Container  vch-restart-open-running  open-net
@@ -179,6 +166,9 @@ Container on Open Network And Port Forwarding Persist After Reboot
     Launch Container with Port Forwarding  webserver-bridge  10002  10003  bridge
     Check Nginx Port Forwarding  10002  10003
 
+    # Gather logs before rebooting
+    Run Keyword And Continue On Failure  Gather Logs From Test Server  -open-network
+
     # Reboot VCH
     Reboot VM  %{VCH-NAME}
     Wait For VCH Initialization  20x  10 seconds
@@ -187,12 +177,13 @@ Container on Open Network And Port Forwarding Persist After Reboot
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${open-running} | jq '.[0].State.Status'
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${output}  \"running\"
+    # ensure that there isn't a mapping entry for unspecified ports - they are all open but we are not listing them as bindings
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${open-running} | jq '.[0].HostConfig.PortBindings'
     Should Be Equal As Integers  ${rc}  0
-    Should Be Equal  $[output}  \"{}\"
+    Should Not Contain  $[output}  \"0/tcp\":
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${open-exited} | jq -r '.[0].State.Status'
     Should Be Equal As Integers  ${rc}  0
-    Should Be Equal  ${output}  \"exited\"
+    Should Be Equal  ${output}  exited
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${open-exited}
     Should Be Equal As Integers  ${rc}  0
 
@@ -204,8 +195,6 @@ Container on Open Network And Port Forwarding Persist After Reboot
     ${rc2}  ${output2}=  Run And Return Rc And Output  wget %{VCH-IP}:10001
     Should Not Be Equal As Integers  ${rc1}  0
     Should Not Be Equal As Integers  ${rc2}  0
-
-    [Teardown]     Run VIC Machine Delete Command
 
 
 Create VCH attach disk and reboot

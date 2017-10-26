@@ -19,6 +19,7 @@ import (
 	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 )
 
 // VicContainer is VIC's abridged version of Docker's container object.
@@ -29,6 +30,7 @@ type VicContainer struct {
 	ContainerID string
 	Config      *containertypes.Config //Working copy of config (with overrides from container create)
 	HostConfig  *containertypes.HostConfig
+	NATMap      nat.PortMap // the endpoint NAT mappings only
 
 	m        sync.RWMutex
 	execs    map[string]struct{}

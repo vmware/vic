@@ -387,7 +387,7 @@ func toEndpointConfig(e *network.Endpoint) *models.EndpointConfig {
 	ports := e.Ports()
 	ecports := make([]string, len(ports))
 	for i, p := range e.Ports() {
-		ecports[i] = p.String()
+		ecports[i] = p.FullString()
 	}
 
 	return &models.EndpointConfig{

@@ -138,20 +138,28 @@ Docker ps ports output
     ${rc}  ${containerC}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8001:80 --net=public ${nginx}
     Should Be Equal As Integers  ${rc}  0
 
+    # published via the endpointVM but connected to container-network
+    ${rc}  ${containerD}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8002:80 ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} network connect public ${containerD}
+    Should Be Equal As Integers  ${rc}  0
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
 
     ## Check that ports are not displayed before start
-    Should Not Contain  ${output}  :8000->80/tcp
-    Should Not Contain  ${output}  :8443->443/tcp
-    Should Not Contain  ${output}  :8000->8000/tcp
+    Should Not Contain  ${output}  80/tcp
+    Should Not Contain  ${output}  443/tcp
+    Should Not Contain  ${output}  8000/tcp
     Should Not Contain  ${output}  :8001->80/tcp
+    Should Not Contain  ${output}  :8002->80/tcp
 
     ## Check ports are displayed once started
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} start ${containerA} ${containerB} ${containerC}
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} start ${containerA} ${containerB} ${containerC} ${containerD}
     Should Be Equal As Integers  ${rc}  0
     ${ipB}=  Get Container IP  %{VCH-PARAMS}  ${containerB}  public
     ${ipC}=  Get Container IP  %{VCH-PARAMS}  ${containerC}  public
+    ${ipD}=  Get Container IP  %{VCH-PARAMS}  ${containerD}  public
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
@@ -159,20 +167,23 @@ Docker ps ports output
     Should Contain  ${output}  %{EXT-IP}:8000->80/tcp
     Should Contain  ${output}  %{EXT-IP}:8443->443/tcp
     Should Contain  ${output}  ${ipB}:8000->8000/tcp
-    Should Contain  ${output}  ${ipB}:8000->80/tcp
+    Should Contain  ${output}  ${ipC}:8001->80/tcp
+    Should Contain  ${output}  %{EXT-IP}:8002->80/tcp
+    Should Not Contain  ${output}  ${ipD}:8002->80/tcp
 
     ## Stop the containers and ensure ports are not listed
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} stop ${containerA} ${containerB} ${containerC}
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} stop ${containerA} ${containerB} ${containerC} ${containerD}
     Should Be Equal As Integers  ${rc}  0
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
 
     # forwarding via endpointVM.
-    Should Not Contain  ${output}  :8000->80/tcp
-    Should Not Contain  ${output}  :8443->443/tcp
-    Should Not Contain  ${output}  :8000->8000/tcp
-    Should Not Contain  ${output}  :8001->80/tcp
+    Should Not Contain  ${output}  80/tcp
+    Should Not Contain  ${output}  443/tcp
+    Should Not Contain  ${output}  8000/tcp
+    Should Not Contain  ${output}  8001->80/tcp
+    Should Not Contain  ${output}  8002->80/tcp
 
 
 Create reference containers for last container and status tests

@@ -40,6 +40,7 @@ import (
 	plscopes "github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	plmodels "github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -720,14 +721,19 @@ func TestPortInformation(t *testing.T) {
 	mockHostConfig.PortBindings = portMap
 
 	mockContainerInfo.ContainerConfig = mockContainerConfig
-	mockContainerInfo.HostConfig = &plmodels.HostConfig{
-		Ports: []string{"8000/tcp"},
+	mockContainerInfo.Endpoints = []*plmodels.EndpointConfig{
+		{
+			Direct: true,
+			Trust:  executor.Published.String(),
+			Ports:  []string{"8000/tcp"},
+		},
 	}
 
 	ips := []string{"192.168.1.1"}
 
 	co := viccontainer.NewVicContainer()
 	co.HostConfig = mockHostConfig
+	co.NATMap = portMap
 	co.ContainerID = containerID
 	co.Name = "bar"
 	cache.ContainerCache().AddContainer(co)
