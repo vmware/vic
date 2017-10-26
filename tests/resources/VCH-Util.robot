@@ -205,7 +205,7 @@ Add VCH to Removal Exception List
 Remove VCH from Removal Exception List
     [Arguments]  ${vch}=${EMPTY}
     ${exceptions-string}=  Get Environment Variable  VM_EXCEPTIONS  ${EMPTY}
-    Return From Keyword If  '${exceptions-string}' == '${EMPTY}'  No Exceptions Found 
+    Return From Keyword If  '${exceptions-string}' == '${EMPTY}'  No Exceptions Found
     @{exceptions-list}=  Run Keyword Unless  '${exceptions-string}' == '${EMPTY}'  Split String  ${exceptions-string}  separator=|
     ${idx}=  Get Index From List  ${exceptions-list}  ${vch}
     Remove From List  ${exceptions-list}  ${idx}
@@ -266,7 +266,7 @@ Conditional Install VIC Appliance To Test Server
 
     # In single vch mode, save VCH name to TARGET_VCH and add VCH to exception removal list
     Run Keyword If  ${init}  Set Environment Variable  TARGET_VCH  %{VCH-NAME}
- 
+
 Install VIC Appliance To Test Server
     [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${additional-args}=${EMPTY}
     Set Test Environment Variables
