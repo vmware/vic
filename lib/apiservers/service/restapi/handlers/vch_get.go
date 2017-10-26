@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/docker/docker/opts"
@@ -51,20 +50,20 @@ type VCHDatacenterGet struct {
 }
 
 func (h *VCHGet) Handle(params operations.GetTargetTargetVchVchIDParams, principal interface{}) middleware.Responder {
-	d, err := buildData(params.HTTPRequest.Context(),
-		url.URL{Host: params.Target},
-		principal.(Credentials).user,
-		principal.(Credentials).pass,
-		params.Thumbprint,
-		nil,
-		nil)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHGet: %s", params.VchID)
+
+	b := buildDataParams{
+		target:     params.Target,
+		thumbprint: params.Thumbprint,
+	}
+
+	d, err := buildData(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	d.ID = params.VchID
 
-	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
 	vch, err := getVCH(op, d)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
@@ -74,20 +73,21 @@ func (h *VCHGet) Handle(params operations.GetTargetTargetVchVchIDParams, princip
 }
 
 func (h *VCHDatacenterGet) Handle(params operations.GetTargetTargetDatacenterDatacenterVchVchIDParams, principal interface{}) middleware.Responder {
-	d, err := buildData(params.HTTPRequest.Context(),
-		url.URL{Host: params.Target},
-		principal.(Credentials).user,
-		principal.(Credentials).pass,
-		params.Thumbprint,
-		&params.Datacenter,
-		nil)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHDatacenterGet: %s", params.VchID)
+
+	b := buildDataParams{
+		target:     params.Target,
+		thumbprint: params.Thumbprint,
+		datacenter: &params.Datacenter,
+	}
+
+	d, err := buildData(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	d.ID = params.VchID
 
-	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
 	vch, err := getVCH(op, d)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
