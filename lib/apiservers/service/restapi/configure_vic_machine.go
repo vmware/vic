@@ -55,6 +55,8 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 	// Applies when the Authorization header is set with the Basic scheme
 	api.BasicAuth = handlers.BasicAuth
 
+	api.SessionAuth = handlers.SessionAuth
+
 	// GET /container
 	api.GetHandler = operations.GetHandlerFunc(func(params operations.GetParams) middleware.Responder {
 		return middleware.NotImplemented("operation .Get has not yet been implemented")
@@ -174,7 +176,7 @@ func setupGlobalMiddleware(handler http.Handler) http.Handler {
 	// https://github.com/vmware/vic/blob/7f575392df99642c5edd8f539a74fe9c89155b00/doc/design/vic-machine/service.md#cross-origin-requests--cross-site-request-forgery
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
-		AllowedHeaders:   []string{"Authorization", "Content-Type", "User-Agent"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type", "User-Agent", "X-VMWARE-TICKET"},
 		AllowedMethods:   []string{"HEAD", "GET", "POST", "PUT", "PATCH", "DELETE"},
 		ExposedHeaders:   []string{"Content-Length"},
 		AllowCredentials: false,

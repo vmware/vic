@@ -967,9 +967,15 @@
   "securityDefinitions": {
     "basic": {
       "type": "basic"
+    },
+    "session": {
+      "type": "apiKey",
+      "in": "header",
+      "name": "X-VMWARE-TICKET"
     }
   },
   "security": [
-    {"basic": []}
+    {"basic": []},
+    {"session": []}
   ]
 }

@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-	"net/url"
 	"sort"
 	"strings"
 
@@ -48,19 +47,19 @@ type VCHDatacenterLogGet struct {
 }
 
 func (h *VCHLogGet) Handle(params operations.GetTargetTargetVchVchIDLogParams, principal interface{}) middleware.Responder {
-	d, err := buildData(params.HTTPRequest.Context(),
-		url.URL{Host: params.Target},
-		principal.(Credentials).user,
-		principal.(Credentials).pass,
-		params.Thumbprint,
-		nil,
-		nil)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHLogGet: %s", params.VchID)
+
+	b := buildDataParams{
+		target:     params.Target,
+		thumbprint: params.Thumbprint,
+	}
+
+	d, err := buildData(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	d.ID = params.VchID
-	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
 
 	helper, err := getDatastoreHelper(op, d)
 	if err != nil {
@@ -81,19 +80,20 @@ func (h *VCHLogGet) Handle(params operations.GetTargetTargetVchVchIDLogParams, p
 }
 
 func (h *VCHDatacenterLogGet) Handle(params operations.GetTargetTargetDatacenterDatacenterVchVchIDLogParams, principal interface{}) middleware.Responder {
-	d, err := buildData(params.HTTPRequest.Context(),
-		url.URL{Host: params.Target},
-		principal.(Credentials).user,
-		principal.(Credentials).pass,
-		params.Thumbprint,
-		&params.Datacenter,
-		nil)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHDatacenterLogGet: %s", params.VchID)
+
+	b := buildDataParams{
+		target:     params.Target,
+		thumbprint: params.Thumbprint,
+		datacenter: &params.Datacenter,
+	}
+
+	d, err := buildData(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	d.ID = params.VchID
-	op := trace.NewOperation(params.HTTPRequest.Context(), "vch: %s", params.VchID)
 
 	helper, err := getDatastoreHelper(op, d)
 	if err != nil {
