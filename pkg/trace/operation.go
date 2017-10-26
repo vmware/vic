@@ -112,6 +112,10 @@ func (o Operation) Err() error {
 	return nil
 }
 
+func (o operation) String() string {
+	return o.id
+}
+
 func (o *Operation) ID() string {
 	return o.id
 }
