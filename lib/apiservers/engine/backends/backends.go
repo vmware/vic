@@ -313,9 +313,9 @@ func setPortMapping(info *models.ContainerInfo, backend *Container, container *c
 		log.Infof("container state is nil")
 		return nil
 	}
+
 	if info.ContainerConfig.State != "Running" || len(container.HostConfig.PortBindings) == 0 {
-		log.Infof("Container info state: %s", info.ContainerConfig.State)
-		log.Infof("container portbinding: %+v", container.HostConfig.PortBindings)
+		log.Infof("No need to restore port bindings, state: %s, portbinding: %+v", info.ContainerConfig.State, container.HostConfig.PortBindings)
 		return nil
 	}
 
@@ -328,7 +328,7 @@ func setPortMapping(info *models.ContainerInfo, backend *Container, container *c
 	}
 	for _, e := range endpointsOK.Payload {
 		if len(e.Ports) > 0 && e.Scope == constants.BridgeScopeType {
-			if err = MapPorts(container.HostConfig, e, container.ContainerID); err != nil {
+			if err = MapPorts(container, e, container.ContainerID); err != nil {
 				log.Errorf(err.Error())
 				return err
 			}
