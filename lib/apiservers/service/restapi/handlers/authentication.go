@@ -19,6 +19,14 @@ type Credentials struct {
 	pass string
 }
 
+type Session struct {
+	ticket string
+}
+
 func BasicAuth(user string, pass string) (interface{}, error) {
 	return Credentials{user: user, pass: pass}, nil
+}
+
+func SessionAuth(ticket string) (interface{}, error) {
+	return Session{ticket: ticket}, nil
 }

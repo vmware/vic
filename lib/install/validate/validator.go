@@ -139,6 +139,8 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 
 	sessionconfig.Service = tURL.String()
 
+	sessionconfig.CloneTicket = input.CloneTicket
+
 	v.Session = session.NewSession(sessionconfig)
 	v.Session.UserAgent = version.UserAgent("vic-machine")
 	v.Session, err = v.Session.Connect(v.Context)

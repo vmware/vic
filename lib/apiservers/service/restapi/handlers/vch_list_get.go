@@ -17,7 +17,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 	"path"
 
 	"github.com/docker/docker/opts"
@@ -37,23 +36,24 @@ import (
 type VCHListGet struct {
 }
 
-// VCHListGet is the handler for listing VCHs within a Datacenter
+// VCHDatacenterListGet is the handler for listing VCHs within a Datacenter
 type VCHDatacenterListGet struct {
 }
 
 func (h *VCHListGet) Handle(params operations.GetTargetTargetVchParams, principal interface{}) middleware.Responder {
-	d, err := buildData(params.HTTPRequest.Context(),
-		url.URL{Host: params.Target},
-		principal.(Credentials).user,
-		principal.(Credentials).pass,
-		params.Thumbprint,
-		nil,
-		params.ComputeResource)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHListGet")
+
+	b := buildDataParams{
+		target:          params.Target,
+		thumbprint:      params.Thumbprint,
+		computeResource: params.ComputeResource,
+	}
+
+	d, err := buildData(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	op := trace.NewOperation(params.HTTPRequest.Context(), "vch_list get handler")
 	vchs, err := listVCHs(op, d)
 	if err != nil {
 		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
@@ -63,18 +63,20 @@ func (h *VCHListGet) Handle(params operations.GetTargetTargetVchParams, principa
 }
 
 func (h *VCHDatacenterListGet) Handle(params operations.GetTargetTargetDatacenterDatacenterVchParams, principal interface{}) middleware.Responder {
-	d, err := buildData(params.HTTPRequest.Context(),
-		url.URL{Host: params.Target},
-		principal.(Credentials).user,
-		principal.(Credentials).pass,
-		params.Thumbprint,
-		&params.Datacenter,
-		params.ComputeResource)
+	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHDatacenterListGet")
+
+	b := buildDataParams{
+		target:          params.Target,
+		thumbprint:      params.Thumbprint,
+		datacenter:      &params.Datacenter,
+		computeResource: params.ComputeResource,
+	}
+
+	d, err := buildData(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	op := trace.NewOperation(params.HTTPRequest.Context(), "vch_list get handler")
 	vchs, err := listVCHs(op, d)
 	if err != nil {
 		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})

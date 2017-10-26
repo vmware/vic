@@ -33,26 +33,38 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-func buildData(ctx context.Context, url url.URL, user string, pass string, thumbprint *string, datacenter *string, computeResource *string) (*data.Data, error) {
+type buildDataParams struct {
+	target          string
+	thumbprint      *string
+	datacenter      *string
+	computeResource *string
+}
+
+func buildData(ctx context.Context, params buildDataParams, principal interface{}) (*data.Data, error) {
 	d := data.Data{
 		Target: &common.Target{
-			URL:      &url,
-			User:     user,
-			Password: &pass,
+			URL: &url.URL{Host: params.target},
 		},
 	}
 
-	if thumbprint != nil {
-		d.Thumbprint = *thumbprint
+	if c, ok := principal.(Credentials); ok {
+		d.Target.User = c.user
+		d.Target.Password = &c.pass
+	} else {
+		d.Target.CloneTicket = principal.(Session).ticket
 	}
 
-	if datacenter != nil {
+	if params.thumbprint != nil {
+		d.Thumbprint = *params.thumbprint
+	}
+
+	if params.datacenter != nil {
 		validator, err := validateTarget(ctx, &d)
 		if err != nil {
 			return nil, util.WrapError(http.StatusInternalServerError, err)
 		}
 
-		datacenterManagedObjectReference := types.ManagedObjectReference{Type: "Datacenter", Value: *datacenter}
+		datacenterManagedObjectReference := types.ManagedObjectReference{Type: "Datacenter", Value: *params.datacenter}
 
 		datacenterObject, err := validator.Session.Finder.ObjectReference(ctx, datacenterManagedObjectReference)
 		if err != nil {
@@ -62,8 +74,8 @@ func buildData(ctx context.Context, url url.URL, user string, pass string, thumb
 		d.Target.URL.Path = datacenterObject.(*object.Datacenter).InventoryPath
 	}
 
-	if computeResource != nil {
-		d.ComputeResourcePath = *computeResource
+	if params.computeResource != nil {
+		d.ComputeResourcePath = *params.computeResource
 	}
 
 	return &d, nil
