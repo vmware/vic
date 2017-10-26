@@ -26,6 +26,7 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/strfmt"
 
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 
 	"github.com/vmware/vic/lib/apiservers/service/models"
@@ -189,6 +190,12 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 
 	volumeLocations := make([]*models.VCHStorageVolumeStoresItems0, 0, len(vchConfig.Storage.VolumeLocations))
 	for label, path := range vchConfig.Storage.VolumeLocations {
+		parsedPath := object.DatastorePath{}
+		parsed := parsedPath.FromString(path.Path)
+		if parsed {
+			path.Path = parsedPath.Path
+		}
+
 		volume := models.VCHStorageVolumeStoresItems0{Datastore: path.String(), Label: label}
 		volumeLocations = append(volumeLocations, &volume)
 	}
@@ -310,7 +317,6 @@ func asBytesMetric(value *int, units string) *models.ValueBytesMetric {
 func asKB(value *int) *models.ValueBytesMetric {
 	return asBytesMetric(value, models.ValueBytesMetricUnitsKB)
 }
-
 
 func asMHz(value *int) *models.ValueHertz {
 	if value == nil {
