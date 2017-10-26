@@ -101,6 +101,12 @@ Get VM Info
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${out}
 
+Get VM Moid
+    [Arguments]  ${vm}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -dump -json ${vm} | jq -c '.VirtualMachines[] | .Self.Value'
+    Should Be Equal As Integers  ${rc}  0
+    [Return]  ${output}
+
 Check ImageStore
     ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls -R -ds=%{TEST_DATASTORE} %{VCH-NAME}/VIC
     Should Be Equal As Integers  ${rc}  0
