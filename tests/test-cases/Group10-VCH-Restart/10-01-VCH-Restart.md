@@ -18,7 +18,7 @@ This test requires that a vSphere server is running and available
 8. Check container service in specified port
 9. Start container with same port
 10. Deploy VIC appliance with open container network
-11. Create container on the open network, and create contaienr with port mapping
+11. Create container on the open network, and create container with port mapping
 12. Reboot VCH
 13. Check container service in specified port
 14. Create container with volume and then reboot VCH
