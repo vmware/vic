@@ -1564,13 +1564,18 @@ payloadLoop:
 			names = append(names, clientFriendlyContainerName(t.ContainerConfig.Names[i]))
 		}
 
-		ips, err := publicIPv4Addrs()
 		var ports []types.Port
-		if err != nil {
-			log.Errorf("Could not get IP information for reporting port bindings.")
-		} else {
-			ports = portInformation(t, ips)
+		if t.HostConfig.Address != "" {
+			ports = directPortInformation(t)
 		}
+
+		ips, err := publicIPv4Addrs()
+		if err != nil {
+			log.Errorf("Could not get IP information for reporting port bindings: %s", err)
+			// display port mappings without IP data if we cannot get it
+			ips = []string{""}
+		}
+		ports = append(ports, portForwardingInformation(t, ips)...)
 
 		// verify that the repo:tag exists for the container -- if it doesn't then we should present the
 		// truncated imageID -- if we have a failure determining then we'll show the data we have
@@ -1954,7 +1959,7 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	} else {
 		ips = make([]string, len(addrs))
 		for i := range addrs {
-			ips[i] = addrs[i].IP.String()
+			ips[i] = addrs[i]
 		}
 	}
 
@@ -2016,43 +2021,108 @@ func copyConfigOverrides(vc *viccontainer.VicContainer, config types.ContainerCr
 	vc.HostConfig = config.HostConfig
 }
 
-func publicIPv4Addrs() ([]netlink.Addr, error) {
+func publicIPv4Addrs() ([]string, error) {
 	l, err := netlink.LinkByName(publicIfaceName)
 	if err != nil {
-		return nil, fmt.Errorf("Could not look up link from public interface name %s due to error %s",
-			publicIfaceName, err.Error())
+		return nil, fmt.Errorf("could not look up link from interface name %s: %s", publicIfaceName, err.Error())
 	}
-	ips, err := netlink.AddrList(l, netlink.FAMILY_V4)
+
+	addrs, err := netlink.AddrList(l, netlink.FAMILY_V4)
 	if err != nil {
-		return nil, fmt.Errorf("Could not get IP addresses of link due to error %s", err.Error())
+		return nil, fmt.Errorf("could not get addresses from public link: %s", err.Error())
+	}
+
+	ips := make([]string, len(addrs))
+	for i := range addrs {
+		ips[i] = addrs[i].IP.String()
 	}
 
 	return ips, nil
 }
 
+func directPortInformation(t *models.ContainerInfo) []types.Port {
+	var redirectPorts []types.Port
+	var directPorts []types.Port
+
+	ip := t.HostConfig.Address
+
+	openNetwork := false
+	for _, p := range t.HostConfig.Ports {
+		port := types.Port{IP: ip}
+
+		// see if it's an open network
+		if p == constants.PortsOpenNetwork {
+			openNetwork = true
+			port.Type = "*"
+			// we're presenting this in redirect ports as that's assured to be returned
+			redirectPorts = append(redirectPorts, port)
+			continue
+		}
+
+		portsAndType := strings.SplitN(p, "/", 2)
+		port.Type = portsAndType[1]
+
+		mapping := strings.Split(portsAndType[0], ":")
+		// if no mapping is supplied then there's only one and that's public. If there is a mapping then the first
+		// entry is the public
+		public, err := strconv.Atoi(mapping[0])
+		if err != nil {
+			log.Errorf("Got an error trying to convert public port number \"%s\" to an int: %s", mapping[0], err)
+			continue
+		}
+		port.PublicPort = uint16(public)
+
+		// If port is on container network then a different container could be forwarding the same port via the endpoint
+		// so must check for explicit ID match. If no match, definitely not forwarded via endpoint.
+		if containerByPort[mapping[0]] == t.ContainerConfig.ContainerID {
+			continue
+		}
+
+		// did not find a way to have the client not render both ports so setting them the same even if there's not
+		// redirect occurring
+		port.PrivatePort = port.PublicPort
+
+		if len(mapping) == 1 {
+			directPorts = append(directPorts, port)
+			continue
+		}
+
+		private, err := strconv.Atoi(mapping[1])
+		if err != nil {
+			log.Errorf("Got an error trying to convert private port number \"%s\" to an int: %s", mapping[1], err)
+			continue
+		}
+		port.PrivatePort = uint16(private)
+		redirectPorts = append(redirectPorts, port)
+	}
+
+	// if it's an open network then don't bother detailing ports without a redirection as all ports are exposed
+	if !openNetwork {
+		redirectPorts = append(redirectPorts, directPorts...)
+	}
+
+	return redirectPorts
+}
+
 // returns port bindings as a slice of Docker Ports for return to the client
 // returns empty slice on error
-func portInformation(t *models.ContainerInfo, ips []netlink.Addr) []types.Port {
-	// create a port for each IP on the interface (usually only 1, but could be more)
-	// (works with both IPv4 and IPv6 addresses)
-	var ports []types.Port
-
+func portForwardingInformation(t *models.ContainerInfo, ips []string) []types.Port {
 	cid := t.ContainerConfig.ContainerID
 	c := cache.ContainerCache().GetContainer(cid)
 
 	if c == nil {
 		log.Errorf("Could not find container with ID %s", cid)
-		return ports
-	}
-
-	for _, ip := range ips {
-		ports = append(ports, types.Port{IP: ip.IP.String()})
+		return nil
 	}
 
 	portBindings := c.HostConfig.PortBindings
 	var resultPorts []types.Port
 
-	for _, port := range ports {
+	// create a port for each IP on the interface (usually only 1, but could be more)
+	// (works with both IPv4 and IPv6 addresses)
+	for _, ip := range ips {
+		port := types.Port{IP: ip}
+
 		for portBindingPrivatePort, hostPortBindings := range portBindings {
 			portAndType := strings.SplitN(string(portBindingPrivatePort), "/", 2)
 			portNum, err := strconv.Atoi(portAndType[0])
@@ -2070,6 +2140,13 @@ func portInformation(t *models.ContainerInfo, ips []netlink.Addr) []types.Port {
 					log.Infof("Got an error trying to convert public port number to an int")
 					continue
 				}
+
+				// If port is on container network then a different container could be forwarding the same port via the endpoint
+				// so must check for explicit ID match. If no match, definitely not forwarded via endpoint.
+				if containerByPort[hostPortBindings[i].HostPort] != t.ContainerConfig.ContainerID {
+					continue
+				}
+
 				newport.PublicPort = uint16(publicPort)
 				// sanity check -- sometimes these come back as 0 when no binding actually exists
 				// that doesn't make sense, so in that case we don't want to report these bindings

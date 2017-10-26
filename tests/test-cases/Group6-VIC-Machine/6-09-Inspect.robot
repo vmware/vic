@@ -128,7 +128,7 @@ Inspect VCH Configuration with Container Networks
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Add VC Distributed Portgroup  test-ds  published-net
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Add VC Distributed Portgroup  test-ds  peers-net
 
-    Install VIC Appliance To Test Server  additional-args=-cn published-net -cn peers-net -cnf peers-net:peers --container-network-ip-range peers-net:10.10.10.0/24 -cng peers-net:10.10.10.1/24
+    Install VIC Appliance To Test Server  additional-args=-container-network published-net -container-network peers-net -cnf peers-net:peers --container-network-ip-range peers-net:10.10.10.0/24 -cng peers-net:10.10.10.1/24
 
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect config --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} --format raw
 

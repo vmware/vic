@@ -133,17 +133,17 @@ vic-tail-docker() {
 #    export COMPUTE=cluster/pool
 #    export DATASTORE=datastore1
 #    export IMAGE_STORE=$DATASTORE/image/path
-#    export TLS=("--tls-cname=vch-hostname.domain.com" "--organisation=MyCompany")
 #    export TIMEOUT="--timeout=10m"
 #    export IPADDR="--client-network-ip=vch-hostname.domain.com --client-network-gateway=x.x.x.x/22 --dns-server=y.y.y.y --dns-server=z.z.z.z"
 #    export VIC_NAME="MyVCH"
 #
+#    TLS=("--tls-cname=vch-hostname.domain.com" "--organization=MyCompany")
 #    OPS_CREDS=("--ops-user=<user>" "--ops-password=<password>")
 #    NETWORKS=("--bridge-network=private-dpg-vlan" "--public-network=extern-dpg")
 #    MAPPED_NETWORKS=("--container-network=VM Network:external" "--container-network=SomeOtherNet:elsewhere")
 #    VOLUME_STORES=("--volume-store=$DATASTORE:default")
 #
-#    export NETWORKS MAPPED_NETWORKS VOLUME_STORES OPS_CREDS
+#    export NETWORKS MAPPED_NETWORKS VOLUME_STORES OPS_CREDS TLS
 #}
 
 . ~/.vic
