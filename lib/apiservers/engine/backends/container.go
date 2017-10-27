@@ -222,7 +222,6 @@ func (c *Container) TaskInspect(cid, cname, eid string) (*models.TaskInspectResp
 	if err != nil {
 		return nil, err
 	}
-
 	return resp.Payload, nil
 
 }
@@ -259,7 +258,7 @@ func (c *Container) TaskWaitToStart(cid, cname, eid string) error {
 // ContainerExecCreate sets up an exec in a running container.
 func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (string, error) {
 	op := trace.NewOperation(context.TODO(), "")
-	defer trace.End(trace.Begin(op.Sprintf("name=(%s)", name)))
+	defer trace.End(trace.Begin(fmt.Sprintf("%s: name=(%s)", op, name)))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -332,7 +331,7 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 // command. An error is returned if the exec cannot be found.
 func (c *Container) ContainerExecInspect(eid string) (*backend.ExecInspect, error) {
 	op := trace.NewOperation(context.TODO(), "")
-	defer trace.End(trace.Begin(fmt.Sprintf("opID=(%s) eid=(%s)", op.ID(), eid)))
+	defer trace.End(trace.Begin(fmt.Sprintf("opID=(%s) eid=(%s)", op, eid)))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainerFromExec(eid)
@@ -408,7 +407,7 @@ func (c *Container) ContainerExecResize(eid string, height, width int) error {
 // std streams are set up.
 func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error {
 	op := trace.NewOperation(ctx, "")
-	defer trace.End(trace.Begin(fmt.Sprintf("opID=(%s) eid=(%s)", op.ID(), eid)))
+	defer trace.End(trace.Begin(fmt.Sprintf("opID=(%s) eid=(%s)", op, eid)))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainerFromExec(eid)

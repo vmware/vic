@@ -112,17 +112,12 @@ func (o Operation) Err() error {
 	return nil
 }
 
-func (o operation) String() string {
-	return o.id
+func (o Operation) String() string {
+	return o.header()
 }
 
 func (o *Operation) ID() string {
 	return o.id
-}
-
-func (o *Operation) Sprintf(format string, args ...interface{}) string {
-	preppedFormat := fmt.Sprintf("%s: %s", o.header(), format)
-	return fmt.Sprintf(preppedFormat, args...)
 }
 
 func (o *Operation) Infof(format string, args ...interface{}) {
