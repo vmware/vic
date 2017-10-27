@@ -117,7 +117,6 @@ pipeline:
     when:
       status:  success
 
-
   bundle:
     image: harbor.ci.drone.local/library/golang:1.8
     pull: true
