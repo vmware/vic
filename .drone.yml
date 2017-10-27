@@ -109,11 +109,13 @@ pipeline:
       GS_CLIENT_EMAIL: ${GS_CLIENT_EMAIL}
       GS_PRIVATE_KEY: ${GS_PRIVATE_KEY}
     commands:
-      - make mark
-      - ui/build-ui-plugins.sh
-      - make sincemark
+      - mkdir -p $BIN/ui
+      - wget -nv $(gsutil ls -l "gs://vic-ui-builds" | grep -v TOTAL | grep vic_ | sort -k2 -r | (trap " " PIPE; head -1) | xargs | cut -d " " -f 3 | sed "s/gs:\/\//https:\/\/storage.googleapis.com\//") -P $BIN
+      - tar -xvzf $BIN/vic_ui_*.tar.gz
+      - rm $BIN/vic_ui_*.tar.gz
     when:
       status:  success
+
 
   bundle:
     image: harbor.ci.drone.local/library/golang:1.8
