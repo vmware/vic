@@ -23,7 +23,7 @@ Test Teardown  Cleanup VIC Appliance On Test Server
 Multiple VLAN Setup
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${esx1}  ${esx2}  ${esx3}  ${vc}  ${esx1-ip}  ${esx2-ip}  ${esx3-ip}  ${vc-ip}=  Create a Simple VC Cluster  multi-vlan-1  cls
-    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
+    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  %{NIMBUS_USER}-${vc}
 
 *** Test Cases ***
 Test1
