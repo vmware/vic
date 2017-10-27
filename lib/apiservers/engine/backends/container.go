@@ -284,7 +284,7 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 	op.Debugf("State checks succeeded for exec operation on cotnainer(%s)", id)
 	handle, err := c.Handle(id, name)
 	if err != nil {
-		op.Error(err.Error())
+		op.Error(err)
 		return "", InternalServerError(err.Error())
 	}
 
