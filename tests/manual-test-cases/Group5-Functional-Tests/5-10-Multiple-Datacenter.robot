@@ -53,7 +53,7 @@ Multiple Datacenter Setup
     ${esx2-ip}=  Get From List  ${esx-ips}  1
 
     ${esx3}  ${esx4}  ${esx5}  ${vc}  ${esx3-ip}  ${esx4-ip}  ${esx5-ip}  ${vc-ip}=  Create a Simple VC Cluster  datacenter1  cls1
-    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${esx4}  ${esx5}  ${vc}
+    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${esx4}  ${esx5}  %{NIMBUS_USER}-${vc}
 
     Log To Console  Create datacenter2 on the VC
     ${out}=  Run  govc datacenter.create datacenter2

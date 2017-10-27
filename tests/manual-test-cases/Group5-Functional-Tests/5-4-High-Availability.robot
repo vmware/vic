@@ -96,13 +96,12 @@ High Availability Setup
     Set Suite Variable  ${VC}  ${vc}
 
     Log To Console  \nStarting test...
-    # Let's make 5 because it is free and in parallel, but only use 3 of them
-    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  5  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  3  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
 
     @{esx_names}=  Get Dictionary Keys  ${esxes}
     @{esx_ips}=  Get Dictionary Values  ${esxes}
 
-    Set Suite Variable  @{list}  ${esx_names}  ${vc}
+    Set Suite Variable  @{list}  @{esx_names}[0]  @{esx_names}[1]  @{esx_names}[2]  %{NIMBUS_USER}-${vc}
 
     # Finish vCenter deploy
     ${output}=  Wait For Process  ${pid}
