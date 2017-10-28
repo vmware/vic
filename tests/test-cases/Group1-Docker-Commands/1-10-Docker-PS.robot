@@ -123,18 +123,70 @@ Docker ps powerOff container OOB
     Wait Until Keyword Succeeds  10x  6s  Assert Number Of Containers  ${len-1}
 
 Docker ps ports output
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8000:80 -p 8443:443 ${nginx}
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull ${nginx}
     Should Be Equal As Integers  ${rc}  0
+
+    # forwarding via the endpointVM
+    ${rc}  ${containerA}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8000:80 -p 8443:443 ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+
+    # published via the container-network with no port redirect
+    ${rc}  ${containerB}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8000 --net=public ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+
+    # published via the container-network with port redirect
+    ${rc}  ${containerC}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8001:80 --net=public ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  :8000->80/tcp
-    Should Contain  ${output}  :8443->443/tcp
 
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 6379 redis:alpine
+    ## Check that ports are not displayed before start
+    Should Not Contain  ${output}  :8000->80/tcp
+    Should Not Contain  ${output}  :8443->443/tcp
+    Should Not Contain  ${output}  :8000->8000/tcp
+    Should Not Contain  ${output}  :8001->80/tcp
+
+    ## Check ports are displayed once started
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} start ${containerA} ${containerB} ${containerC}
+    Should Be Equal As Integers  ${rc}  0
+    ${ipB}=  Get Container IP  %{VCH-PARAMS}  ${containerB}  public
+    ${ipC}=  Get Container IP  %{VCH-PARAMS}  ${containerC}  public
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    Should Be Equal As Integers  ${rc}  0
+
+    Should Contain  ${output}  %{EXT-IP}:8000->80/tcp
+    Should Contain  ${output}  %{EXT-IP}:8443->443/tcp
+    Should Contain  ${output}  ${ipB}:8000->8000/tcp
+    Should Contain  ${output}  ${ipB}:8000->80/tcp
+
+    ## Stop the containers and ensure ports are not listed
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} stop ${containerA} ${containerB} ${containerC}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    Should Be Equal As Integers  ${rc}  0
+
+    # forwarding via endpointVM.
+    Should Not Contain  ${output}  :8000->80/tcp
+    Should Not Contain  ${output}  :8443->443/tcp
+    Should Not Contain  ${output}  :8000->8000/tcp
+    Should Not Contain  ${output}  :8001->80/tcp
+
+
+Create reference containers for last container and status tests
+    # used as a reference during the status filter test
+    ${rc}  ${containerA}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8000:80 -p 8443:443 ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Used as a reference after the OOB test
+    ${rc}  ${containerB}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 6379 redis:alpine
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ->6379/tcp
+
 
 Docker ps Remove container OOB
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name lolo ${busybox} /bin/top

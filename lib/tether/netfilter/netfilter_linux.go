@@ -18,7 +18,6 @@ import (
 	"context"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 
 	"syscall"
@@ -61,6 +60,12 @@ type Table string
 type ICMPType string
 
 const (
+	Filter   = Table("filter")
+	Nat      = Table("nat")
+	Mangle   = Table("mangle")
+	Raw      = Table("raw")
+	Security = Table("security")
+
 	Prerouting = Chain("PREROUTING")
 	Input      = Chain("INPUT")
 	Forward    = Chain("FORWARD")
@@ -78,10 +83,10 @@ const (
 
 	Drop     = Target("DROP")
 	Accept   = Target("ACCEPT")
+	Queue    = Target("QUEUE")
+	NoQueue  = Target("NFQUEUE")
 	Reject   = Target("REJECT")
 	Redirect = Target("REDIRECT")
-
-	NAT = Table("nat")
 
 	EchoRequest = ICMPType("echo-request")
 	EchoReply   = ICMPType("echo-reply")
@@ -96,9 +101,11 @@ type Rule struct {
 	Protocol
 	Target
 
-	Interface        string
-	SourceAddresses  []string
-	FromPort, ToPort int
+	Interface       string
+	SourceAddresses []string
+	FromPort        string
+	SrcPort         string
+	ToPort          string
 }
 
 func (r *Rule) Commit(ctx context.Context) tether.UtilityFn {
@@ -130,8 +137,12 @@ func (r *Rule) args() []string {
 		args = append(args, "-s", strings.Join(r.SourceAddresses, ","))
 	}
 
-	if r.FromPort != 0 {
-		args = append(args, "--dport", strconv.Itoa(r.FromPort))
+	if r.FromPort != "" {
+		args = append(args, "--dport", r.FromPort)
+	}
+
+	if r.SrcPort != "" {
+		args = append(args, "--sport", r.SrcPort)
 	}
 
 	if len(r.States) > 0 {
@@ -148,8 +159,8 @@ func (r *Rule) args() []string {
 
 	args = append(args, "-j", string(r.Target))
 
-	if r.ToPort != 0 {
-		args = append(args, "--to-port", strconv.Itoa(r.ToPort))
+	if r.ToPort != "" {
+		args = append(args, "--to-port", r.ToPort)
 	}
 
 	return args

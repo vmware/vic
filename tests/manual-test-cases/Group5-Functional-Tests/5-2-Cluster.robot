@@ -32,7 +32,7 @@ Cluster Setup
     @{esx_names}=  Get Dictionary Keys  ${esxes}
     @{esx_ips}=  Get Dictionary Values  ${esxes}
 
-    Set Suite Variable  @{list}  %{NIMBUS_USER}-@{esx_names}[0]  %{NIMBUS_USER}-@{esx_names}[1]  %{NIMBUS_USER}-@{esx_names}[2]  %{NIMBUS_USER}-${vc}
+    Set Suite Variable  @{list}  @{esx_names}[0]  @{esx_names}[1]  @{esx_names}[2]  %{NIMBUS_USER}-${vc}
 
     # Finish vCenter deploy
     ${output}=  Wait For Process  ${pid}

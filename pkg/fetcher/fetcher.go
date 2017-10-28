@@ -53,6 +53,7 @@ type Fetcher interface {
 	Fetch(ctx context.Context, url *url.URL, reqHdrs *http.Header, toFile bool, po progress.Output, id ...string) (string, error)
 	FetchAuthToken(url *url.URL) (*Token, error)
 
+	Ping(url *url.URL) (http.Header, error)
 	Head(url *url.URL) (http.Header, error)
 
 	ExtractOAuthURL(hdr string, repository *url.URL) (*url.URL, error)
@@ -375,17 +376,31 @@ func (u *URLFetcher) fetchToString(ctx context.Context, url *url.URL, reqHdrs *h
 	return string(out.Bytes()), nil
 }
 
-// Head sends a HEAD request to url
-func (u *URLFetcher) Head(url *url.URL) (http.Header, error) {
-	defer trace.End(trace.Begin(url.String()))
-
+// Ping sends a GET request to an url and returns the header if successful
+func (u *URLFetcher) Ping(url *url.URL) (http.Header, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), u.options.Timeout)
 	defer cancel()
 
-	return u.head(ctx, url)
+	res, err := ctxhttp.Get(ctx, u.client, url.String())
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	u.StatusCode = res.StatusCode
+	if u.IsStatusUnauthorized() || u.IsStatusOK() {
+		log.Debugf("header = %#v", res.Header)
+		return res.Header, nil
+	}
+
+	return nil, fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
 }
 
-func (u *URLFetcher) head(ctx context.Context, url *url.URL) (http.Header, error) {
+// Head sends a HEAD request to url
+func (u *URLFetcher) Head(url *url.URL) (http.Header, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), u.options.Timeout)
+	defer cancel()
+
 	res, err := ctxhttp.Head(ctx, u.client, url.String())
 	if err != nil {
 		return nil, err
@@ -393,10 +408,10 @@ func (u *URLFetcher) head(ctx context.Context, url *url.URL) (http.Header, error
 	defer res.Body.Close()
 
 	u.StatusCode = res.StatusCode
-
 	if u.IsStatusUnauthorized() || u.IsStatusOK() {
 		return res.Header, nil
 	}
+
 	return nil, fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
 }
 

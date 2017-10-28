@@ -16,6 +16,43 @@
 Documentation  Test 5-7 - NSX
 Resource  ../../resources/Util.robot
 
+*** Keywords ***
+NSX Install VIC Appliance To Test Server
+    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${additional-args}=${EMPTY}
+    Set Test Environment Variables
+    # disable firewall
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
+    # Attempt to cleanup old/canceled tests
+    Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
+    Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
+    Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Containers On Test Server
+    Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Resource Pools On Test Server
+
+    # Install the VCH now
+    Log To Console  \nInstalling VCH to test server...
+    ${output}=  NSX Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${debug}  ${additional-args}
+    Log  ${output}
+    Should Contain  ${output}  Installer completed successfully
+
+    Get Docker Params  ${output}  ${certs}
+    Log To Console  Installer completed successfully: %{VCH-NAME}...
+
+    [Return]  ${output}
+
+NSX Run VIC Machine Command
+    [Tags]  secret
+    [Arguments]  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${debug}  ${additional-args}
+    ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug ${debug} --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry harbor.ci.drone.local --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:${vol} ${vicmachinetls} ${additional-args}
+    Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
+    Return From Keyword If  ${certs}  ${output}
+
+    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug ${debug} --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry harbor.ci.drone.local --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:${vol} --no-tlsverify ${additional-args}
+    Run Keyword Unless  ${certs}  Should Contain  ${output}  Installer completed successfully
+    [Return]  ${output}
+
+
 *** Test Cases ***
 Test
     Log To Console  \nWait until Nimbus is at least available...
@@ -41,7 +78,7 @@ Test
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
 
-    Install VIC Appliance To Test Server  certs=${false}  vol=default
+    NSX Install VIC Appliance To Test Server  certs=${false}  vol=default
 
     Run Regression Tests
 

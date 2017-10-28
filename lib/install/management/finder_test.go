@@ -297,7 +297,7 @@ func createNodes(ctx context.Context, sess *session.Session, pool *object.Resour
 	if node == nil {
 		return nil
 	}
-	spec := simulator.NewResourceConfigSpec()
+	spec := types.DefaultResourceConfigSpec()
 	node.Name = fmt.Sprintf("%s-%s", base, node.Name)
 	switch node.Kind {
 	case rpNode:

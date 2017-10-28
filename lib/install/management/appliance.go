@@ -308,6 +308,8 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 
 	var devices object.VirtualDeviceList
 	var err error
+	var cpus int32   // appliance number of CPUs
+	var memory int64 // appliance memory in MB
 
 	// set to creating VCH
 	conf.SetIsCreating(true)
@@ -317,14 +319,21 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 		return nil, err
 	}
 
+	if vConf.ApplianceSize.CPU.Limit != nil {
+		cpus = int32(*vConf.ApplianceSize.CPU.Limit)
+	}
+	if vConf.ApplianceSize.Memory.Limit != nil {
+		memory = *vConf.ApplianceSize.Memory.Limit
+	}
+
 	spec := &spec.VirtualMachineConfigSpec{
 		VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{
 			Name:               conf.Name,
 			GuestId:            string(types.VirtualMachineGuestOsIdentifierOtherGuest64),
 			AlternateGuestName: constants.DefaultAltVCHGuestName(),
 			Files:              &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
-			NumCPUs:            int32(vConf.ApplianceSize.CPU.Limit),
-			MemoryMB:           vConf.ApplianceSize.Memory.Limit,
+			NumCPUs:            cpus,
+			MemoryMB:           memory,
 			// Encode the config both here and after the VMs created so that it can be identified as a VCH appliance as soon as
 			// creation is complete.
 			ExtraConfig: append(vmomi.OptionValueFromMap(cfg, true), &types.OptionValue{Key: "answer.msg.serial.file.open", Value: "Append"}),
@@ -1075,6 +1084,20 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	// at this point either everything has succeeded or we're going into diagnostics, ignore error
 	// as we're only using it for IP in the success case
 	updateErr := d.applianceConfiguration(conf)
+
+	// confirm components launched correctly
+	log.Debug("  State of components:")
+	for name, session := range conf.ExecutorConfig.Sessions {
+		status := "waiting to launch"
+		if session.Started == "true" {
+			status = "started successfully"
+		} else if session.Started != "" {
+			status = session.Started
+			log.Errorf("  Component did not launch successfully - %s: %s", name, status)
+		}
+
+		log.Debugf("    %q: %q", name, status)
+	}
 
 	// TODO: we should call to the general vic-machine inspect implementation here for more detail
 	// but instead...
