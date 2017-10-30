@@ -4,6 +4,7 @@
 package nfs
 
 import (
+	"errors"
 	"io"
 	"os"
 
@@ -177,8 +178,36 @@ func (f *File) Close() error {
 	return nil
 }
 
+// Seek sets the offset for the next Read or Write to offset, interpreted according to whence.
+// This method implements Seeker interface.
+func (f *File) Seek(offset int64, whence int) (int64, error) {
+
+	// It would be nice to try to validate the offset here.
+	// However, as we're working with the shared file system, the file
+	// size might even change between NFSPROC3_GETATTR call and
+	// Seek() call, so don't even try to validate it.
+	// The only disadvantage of not knowing the current file size is that
+	// we cannot do io.SeekEnd seeks.
+	switch whence {
+	case io.SeekStart:
+		if offset < 0 {
+			return int64(f.curr), errors.New("offset cannot be negative")
+		}
+		f.curr = uint64(offset)
+		return int64(f.curr), nil
+	case io.SeekCurrent:
+		f.curr = uint64(int64(f.curr) + offset)
+		return int64(f.curr), nil
+	case io.SeekEnd:
+		return int64(f.curr), errors.New("SeekEnd is not supported yet")
+	default:
+		// This indicates serious programming error
+		return int64(f.curr), errors.New("Invalid whence")
+	}
+}
+
 // OpenFile writes to an existing file or creates one
-func (v *Target) OpenFile(path string, perm os.FileMode) (io.ReadWriteCloser, error) {
+func (v *Target) OpenFile(path string, perm os.FileMode) (*File, error) {
 	_, fh, err := v.Lookup(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -201,7 +230,7 @@ func (v *Target) OpenFile(path string, perm os.FileMode) (io.ReadWriteCloser, er
 }
 
 // Open opens a file for reading
-func (v *Target) Open(path string) (io.ReadCloser, error) {
+func (v *Target) Open(path string) (*File, error) {
 	_, fh, err := v.Lookup(path)
 	if err != nil {
 		return nil, err

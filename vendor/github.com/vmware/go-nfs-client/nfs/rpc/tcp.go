@@ -7,12 +7,15 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+	"net"
 	"sync"
+	"time"
 )
 
 type tcpTransport struct {
-	r  io.Reader
-	wc io.WriteCloser
+	r       io.Reader
+	wc      net.Conn
+	timeout time.Duration
 
 	rlock, wlock sync.Mutex
 }
@@ -22,6 +25,10 @@ type tcpTransport struct {
 func (t *tcpTransport) recv() (io.ReadSeeker, error) {
 	t.rlock.Lock()
 	defer t.rlock.Unlock()
+	if t.timeout != 0 {
+		deadline := time.Now().Add(t.timeout)
+		t.wc.SetReadDeadline(deadline)
+	}
 
 	var hdr uint32
 	if err := binary.Read(t.r, binary.BigEndian, &hdr); err != nil {
@@ -43,6 +50,10 @@ func (t *tcpTransport) Write(buf []byte) (int, error) {
 	var hdr uint32 = uint32(len(buf)) | 0x80000000
 	b := make([]byte, 4)
 	binary.BigEndian.PutUint32(b, hdr)
+	if t.timeout != 0 {
+		deadline := time.Now().Add(t.timeout)
+		t.wc.SetWriteDeadline(deadline)
+	}
 	n, err := t.wc.Write(append(b, buf...))
 
 	return n, err
@@ -50,4 +61,12 @@ func (t *tcpTransport) Write(buf []byte) (int, error) {
 
 func (t *tcpTransport) Close() error {
 	return t.wc.Close()
+}
+
+func (t *tcpTransport) SetTimeout(d time.Duration) {
+	t.timeout = d
+	if d == 0 {
+		var zeroTime time.Time
+		t.wc.SetDeadline(zeroTime)
+	}
 }
