@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 1-10 - Docker PS
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Conditional Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
@@ -107,6 +107,9 @@ Docker ps powerOn container OOB
     Power On VM OOB  jojo*
 
     Wait Until Keyword Succeeds  10x  6s  Assert Number Of Containers  ${len+1}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop jojo
+    Should Be Equal As Integers  ${rc}  0
 
 Docker ps powerOff container OOB
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name koko ${busybox} /bin/top
