@@ -309,10 +309,10 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 	if err != nil {
 		switch err := err.(type) {
 		case *tasks.InspectInternalServerError:
-			log.Debugf("received an internal server error during task inspect: %s", err.Payload.Message)
+			op.Debugf("received an internal server error during task inspect: %s", err.Payload.Message)
 			return "", InternalServerError(err.Payload.Message)
 		case *tasks.InspectConflict:
-			log.Debugf("received a conflict error during task inspect: %s", err.Payload.Message)
+			op.Debugf("received a conflict error during task inspect: %s", err.Payload.Message)
 			return "", ConflictError(fmt.Sprintf("Cannot complete the operation, container %s has been powered off during execution", id))
 		default:
 			return "", InternalServerError(err.Error())
@@ -345,10 +345,10 @@ func (c *Container) ContainerExecInspect(eid string) (*backend.ExecInspect, erro
 	if err != nil {
 		switch err := err.(type) {
 		case *tasks.InspectInternalServerError:
-			log.Debugf("received an internal server error during task inspect: %s", err.Payload.Message)
+			op.Debugf("received an internal server error during task inspect: %s", err.Payload.Message)
 			return nil, InternalServerError(err.Payload.Message)
 		case *tasks.InspectConflict:
-			log.Debugf("received a conflict error during task inspect: %s", err.Payload.Message)
+			op.Debugf("received a conflict error during task inspect: %s", err.Payload.Message)
 			return nil, ConflictError(fmt.Sprintf("Cannot complete the operation, container %s has been powered off during execution", id))
 		default:
 			return nil, InternalServerError(err.Error())
@@ -422,10 +422,10 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	if err != nil {
 		switch err := err.(type) {
 		case *tasks.InspectInternalServerError:
-			log.Debugf("received an internal server error during task inspect: %s", err.Payload.Message)
+			op.Debugf("received an internal server error during task inspect: %s", err.Payload.Message)
 			return InternalServerError(err.Payload.Message)
 		case *tasks.InspectConflict:
-			log.Debugf("received a conflict error during task inspect: %s", err.Payload.Message)
+			op.Debugf("received a conflict error during task inspect: %s", err.Payload.Message)
 			return ConflictError(fmt.Sprintf("Cannot complete the operation, container %s has been powered off during execution", id))
 		default:
 			return InternalServerError(err.Error())
