@@ -93,7 +93,7 @@ nightlystatus=()
 count=0
 
 # There should not be any VMs existing prior to running this test
-sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl kill '*'
+sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl kill '\*'
 
 for i in $nightly_list_var; do
     #Clean up any previous runs creds
@@ -118,7 +118,7 @@ done
 
 # See if any VMs leaked and clean them up if so
 sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl list
-sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl kill '*'
+sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl kill '\*'
 
 for i in $nightly_list_var; do
     #Clean up any previous runs creds
