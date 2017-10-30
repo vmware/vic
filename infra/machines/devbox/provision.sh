@@ -31,7 +31,7 @@ echo "export PATH=$PATH:${BASH_ARGV[1]}/bin" >> "$pro"
 apt-get -y install curl lsof strace git shellcheck tree mc silversearcher-ag jq htpdate apt-transport-https ca-certificates nfs-common sshpass
 
 function update_go {
-    (cd /usr/local &&
+    (cd /usr/local && rm -rf /usr/local/go &&
             (curl --silent -L $go_file | tar -zxf -) &&
             ln -fs /usr/local/go/bin/* /usr/local/bin/)
 }
