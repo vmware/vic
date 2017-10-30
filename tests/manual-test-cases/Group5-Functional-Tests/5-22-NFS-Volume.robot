@@ -43,7 +43,7 @@ Setup ESX And NFS Suite
 
     ${nfs_readonly}  ${nfs_readonly_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--disk 5000000 --disk 5000000 --mountOpt ro --nfsOpt ro --mountPoint=storage1 --mountPoint=storage2
 
-    Set Suite Variable  @{list}  ${esx1}  ${nfs}
+    Set Suite Variable  @{list}  ${esx1}  ${nfs}  ${nfs_readonly}
     Set Suite Variable  ${ESX1}  ${esx1}
     Set Suite Variable  ${ESX1_IP}  ${esx1_ip}
     Set Suite Variable  ${NFS_IP}  ${nfs_ip}
