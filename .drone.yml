@@ -110,7 +110,9 @@ pipeline:
       GS_PRIVATE_KEY: ${GS_PRIVATE_KEY}
     commands:
       - mkdir -p $BIN/ui
-      - wget -nv $(gsutil ls -l "gs://vic-ui-builds" | grep -v TOTAL | grep vic_ | sort -k2 -r | (trap " " PIPE; head -1) | xargs | cut -d " " -f 3 | sed "s/gs:\/\//https:\/\/storage.googleapis.com\//") -P $BIN
+      - export LATEST_VIC_UI_BUILD=$(gsutil ls -l "gs://vic-ui-builds" | grep -v TOTAL | grep vic_ | sort -k2 -r | (trap " " PIPE; head -1))
+      - export VIC_UI_URL=$(echo $LATEST_VIC_UI_BUILD | xargs | cut -d " " -f 3 | sed "s/gs:\/\//https:\/\/storage.googleapis.com\//")
+      - wget -nv $VIC_UI_URL -P $BIN
       - tar -xvzf $BIN/vic_ui_*.tar.gz
       - ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1
       - rm $BIN/vic_ui_*.tar.gz
