@@ -18,11 +18,17 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"time"
 
 	nfsClient "github.com/vmware/go-nfs-client/nfs"
 	"github.com/vmware/go-nfs-client/nfs/rpc"
 
 	"github.com/vmware/vic/pkg/trace"
+)
+
+const (
+	// nfs client volume store mount idle timeout duration, this should protect us from waiting too long on idle NFS servers
+	nfsClientIdleTimeout = 2 * time.Minute
 )
 
 // MountServer is an interface used to communicate with network attached storage.
@@ -82,18 +88,20 @@ func NewMount(t *url.URL, hostname string, uid, gid uint32) *NfsMount {
 
 func (m *NfsMount) Mount(op trace.Operation) (Target, error) {
 	op.Debugf("Mounting %s", m.TargetURL.String())
+
 	s, err := nfsClient.DialMount(m.TargetURL.Host)
 	if err != nil {
 		return nil, err
 	}
 	m.s = s
-
 	defer func() {
 		if err != nil {
 			// #nosec: Errors unhandled.
 			m.s.Close()
 		}
 	}()
+
+	m.s.SetTimeout(nfsClientIdleTimeout)
 
 	auth := rpc.NewAuthUnix(m.Hostname, m.UID, m.GID)
 	mnt, err := s.Mount(m.TargetURL.Path, auth.Auth())
