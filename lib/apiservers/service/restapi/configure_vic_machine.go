@@ -107,9 +107,7 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 	})
 
 	// DELETE /container/target/{target}/vch/{vch-id}
-	api.DeleteTargetTargetVchVchIDHandler = operations.DeleteTargetTargetVchVchIDHandlerFunc(func(params operations.DeleteTargetTargetVchVchIDParams, principal interface{}) middleware.Responder {
-		return middleware.NotImplemented("operation .DeleteTargetTargetVchVchID has not yet been implemented")
-	})
+	api.DeleteTargetTargetVchVchIDHandler = &handlers.VCHDelete{}
 
 	// POST /container/target/{target}/datacenter/{datacenter}
 	api.PostTargetTargetDatacenterDatacenterHandler = operations.PostTargetTargetDatacenterDatacenterHandlerFunc(func(params operations.PostTargetTargetDatacenterDatacenterParams, principal interface{}) middleware.Responder {
@@ -141,9 +139,7 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 	})
 
 	// DELETE /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}
-	api.DeleteTargetTargetDatacenterDatacenterVchVchIDHandler = operations.DeleteTargetTargetDatacenterDatacenterVchVchIDHandlerFunc(func(params operations.DeleteTargetTargetDatacenterDatacenterVchVchIDParams, principal interface{}) middleware.Responder {
-		return middleware.NotImplemented("operation .DeleteTargetTargetDatacenterDatacenterVchVchID has not yet been implemented")
-	})
+	api.DeleteTargetTargetDatacenterDatacenterVchVchIDHandler = &handlers.VCHDatacenterDelete{}
 
 	api.ServerShutdown = func() {}
 
