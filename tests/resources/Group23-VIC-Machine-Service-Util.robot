@@ -58,6 +58,16 @@ Post Path Under Target
     Set Test Variable    ${OUTPUT}
     Set Test Variable    ${STATUS}
 
+Delete Path Under Target
+    [Arguments]    ${path}    ${data}=''    @{query}
+    ${fullQuery}=    Catenate    SEPARATOR=&    thumbprint=%{TEST_THUMBPRINT}    @{query}
+    ${auth}=    Evaluate    base64.b64encode("%{TEST_USERNAME}:%{TEST_PASSWORD}")    modules=base64
+    ${RC}  ${OUTPUT}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X DELETE "http://127.0.0.1:${HTTP_PORT}/container/target/%{TEST_URL}/${PATH}?${fullQuery}" -H "Accept: application/json" -H "Authorization: Basic ${auth}" -H "Content-Type: application/json" --data ${data}
+    ${OUTPUT}    ${STATUS}=    Split String From Right    ${OUTPUT}    \n    1
+    Set Test Variable    ${RC}
+    Set Test Variable    ${OUTPUT}
+    Set Test Variable    ${STATUS}
+
 
 Verify Return Code
     Should Be Equal As Integers    ${RC}    0
@@ -73,11 +83,20 @@ Verify Status Ok
 Verify Status Created
     Verify Status    201
 
+Verify Status Accepted
+    Verify Status    202
+
 Verify Status Bad Request
     Verify Status    400
 
 Verify Status Not Found
     Verify Status    404
+
+Verify Status Unprocessable Entity
+    Verify Status    422
+
+Verify Status Internal Server Error
+    Verify Status    500
 
 
 Output Should Contain
