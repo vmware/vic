@@ -97,7 +97,7 @@ Enhanced Link Mode Setup
     Set Environment Variable  GOVC_URL  ${vc1-ip}
     Set Environment Variable  GOVC_USERNAME  administrator@vsphere.local
     Set Environment Variable  GOVC_PASSWORD  Admin!23
-    
+
     ${license}=  Run  govc license.ls
 
     # First VC cluster
@@ -165,5 +165,5 @@ Enhanced Link Mode Setup
 
 *** Test Cases ***
 Test
-    Install VIC Appliance To Test Server
+    Wait Until Keyword Succeeds  5x  5m  Install VIC Appliance To Test Server
     Run Regression Tests
