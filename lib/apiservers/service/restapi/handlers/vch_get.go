@@ -105,7 +105,7 @@ func getVCH(op trace.Operation, d *data.Data) (*models.VCH, error) {
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
-		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to inspect VCH: %s", err))
+		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Failed to inspect VCH: %s", err))
 	}
 
 	err = validate.SetDataFromVM(validator.Context, validator.Session.Finder, vch, d)

@@ -167,7 +167,7 @@ func testDeleteVCH(v *validate.Validator, conf *config.VirtualContainerHostConfi
 		force:   false,
 	}
 	// failed to get vm FolderName, that will eventually cause panic in simulator to delete empty datastore file
-	if err := d.DeleteVCH(conf); err != nil {
+	if err := d.DeleteVCH(conf, nil, nil); err != nil {
 		t.Errorf("Failed to get VCH: %s", err)
 		return
 	}

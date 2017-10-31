@@ -31,7 +31,21 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec) error {
+type DeleteContainers int
+
+const (
+	AllContainers DeleteContainers = iota
+	PoweredOffContainers
+)
+
+type DeleteVolumeStores int
+
+const (
+	AllVolumeStores DeleteVolumeStores = iota
+	NoVolumeStores
+)
+
+func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, containers *DeleteContainers, volumeStores *DeleteVolumeStores) error {
 	defer trace.End(trace.Begin(conf.Name))
 
 	var errs []string
@@ -46,7 +60,7 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec) erro
 		return nil
 	}
 
-	if err = d.DeleteVCHInstances(vmm, conf); err != nil {
+	if err = d.DeleteVCHInstances(vmm, conf, containers); err != nil {
 		// if container delete failed, do not remove anything else
 		log.Infof("Specify --force to force delete")
 		return err
@@ -56,7 +70,7 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec) erro
 		errs = append(errs, err.Error())
 	}
 
-	d.deleteVolumeStoreIfForced(conf) // logs errors but doesn't ever bail out if it has an issue
+	d.deleteVolumeStoreIfForced(conf, volumeStores) // logs errors but doesn't ever bail out if it has an issue
 
 	if err = d.deleteNetworkDevices(vmm, conf); err != nil {
 		errs = append(errs, err.Error())
@@ -84,8 +98,10 @@ func (d *Dispatcher) getComputeResource(vmm *vm.VirtualMachine, conf *config.Vir
 	var rpRef types.ManagedObjectReference
 	var err error
 
+	ignoreFailureToFindComputeResources := d.force
+
 	if len(conf.ComputeResources) == 0 {
-		if !d.force {
+		if !ignoreFailureToFindComputeResources {
 			err = errors.Errorf("Cannot find compute resources from configuration")
 			return nil, err
 		}
@@ -188,8 +204,11 @@ func (d *Dispatcher) detachAttachedDisks(v *vm.VirtualMachine) error {
 	return err
 }
 
-func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, containers *DeleteContainers) error {
 	defer trace.End(trace.Begin(conf.Name))
+
+	deletePoweredOnContainers := d.force || (containers != nil && *containers == AllContainers)
+	ignoreFailureToFindImageStores := d.force
 
 	log.Infof("Removing VMs")
 
@@ -208,7 +227,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 		return err
 	}
 
-	if d.session.Datastore, err = d.getImageDatastore(vmm, conf, d.force); err != nil {
+	if d.session.Datastore, err = d.getImageDatastore(vmm, conf, ignoreFailureToFindImageStores); err != nil {
 		return err
 	}
 
@@ -232,7 +251,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 		wg.Add(1)
 		go func(child *vm.VirtualMachine) {
 			defer wg.Done()
-			if err = d.deleteVM(child, d.force); err != nil {
+			if err = d.deleteVM(child, deletePoweredOnContainers); err != nil {
 				mu.Lock()
 				errs = append(errs, err.Error())
 				mu.Unlock()
