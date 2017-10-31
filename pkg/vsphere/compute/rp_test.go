@@ -24,7 +24,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/test"
 )
 
-func TestMain(t *testing.T) {
+func TestRp(t *testing.T) {
 
 	ctx := context.Background()
 
@@ -55,6 +55,7 @@ func TestMain(t *testing.T) {
 		testGetChildrenVMs(ctx, sess, t)
 		testGetChildVM(ctx, sess, t)
 		testGetCluster(ctx, sess, t)
+		testGetDatacenter(ctx, sess, t)
 	}
 }
 
@@ -89,4 +90,14 @@ func testGetCluster(ctx context.Context, sess *session.Session, t *testing.T) {
 		t.Errorf("Should get owner")
 	}
 	t.Logf("Cluster: %s", cluster)
+}
+
+func testGetDatacenter(ctx context.Context, sess *session.Session, t *testing.T) {
+	rp := NewResourcePool(ctx, sess, sess.Pool.Reference())
+	datacenter, err := rp.GetDatacenter(ctx)
+	if err != nil {
+		t.Logf("Failed to find parent Datacenter: %s", err)
+		t.Errorf("Should get Datacenter")
+	}
+	t.Logf("Datacenter: %s", datacenter)
 }
