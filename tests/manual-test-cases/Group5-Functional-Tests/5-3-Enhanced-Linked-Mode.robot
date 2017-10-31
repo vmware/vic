@@ -93,6 +93,7 @@ Enhanced Link Mode Setup
     \   Set Environment Variable  GOVC_URL  root:@${ip}
     \   Wait Until Keyword Succeeds  10x  3 minutes  Change ESXi Server Password  e2eFunctionalTest
     \   ${license}=  Run  govc license.ls
+    \   Check License Features
 
     Set Environment Variable  GOVC_URL  ${vc1-ip}
     Set Environment Variable  GOVC_USERNAME  administrator@vsphere.local
