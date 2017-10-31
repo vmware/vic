@@ -13,59 +13,71 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 23-05 - VCH Logs
-Resource  ../../resources/Util.robot
-Suite Setup  Start VIC Machine Server
-Suite Teardown  Terminate All Processes  kill=True
-Test Setup  Install VIC Appliance To Test Server
-Test Teardown  Cleanup VIC Appliance On Test Server
+Documentation     Test 23-05 - VCH Logs
+Resource          ../../resources/Util.robot
+Resource          ../../resources/Group23-VIC-Machine-Service-Util.robot
+Suite Setup       Start VIC Machine Server
+Suite Teardown    Terminate All Processes  kill=True
+Test Setup        Install VIC Appliance To Test Server
+Test Teardown     Cleanup VIC Appliance On Test Server
 Default Tags
 
 *** Keywords ***
-Start VIC Machine Server
-    Start Process  ./bin/vic-machine-server --port 31337 --scheme http  shell=True  cwd=/go/src/github.com/vmware/vic
-    Sleep  1s  for service to start
+Get VCH Log
+    [Arguments]    ${vch-id}
 
-Curl No Datacenter
-    [Arguments]  ${vch-id}  ${auth}
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -s -w "\%{http_code}\n" -X GET "http://127.0.0.1:31337/container/target/%{TEST_URL}/vch/${vch-id}/log?thumbprint=%{TEST_THUMBPRINT}" -H "authorization: Basic ${auth}"
-    [Return]  ${rc}  ${output}
+    Get Path Under Target    vch/${vch-id}/log
 
-Curl Datacenter
-    [Arguments]  ${vch-id}  ${auth}
-    ${dcID}=  Get Datacenter ID
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -s -w "\%{http_code}\n" -X GET "http://127.0.0.1:31337/container/target/%{TEST_URL}/datacenter/${dcID}/vch/${vch-id}/log?thumbprint=%{TEST_THUMBPRINT}" -H "authorization: Basic ${auth}"
-    [Return]  ${rc}  ${output}
+
+Get VCH Log Within Datacenter
+    [Arguments]    ${vch-id}
+    ${dcID}=    Get Datacenter ID
+
+    Get Path Under Target    datacenter/${dcID}/vch/${vch-id}/log
+
 
 Delete Log File From VCH Datastore
-    ${filename}=  Run  GOVC_DATASTORE=%{TEST_DATASTORE} govc datastore.ls %{VCH-NAME} | grep vic-machine_
-    Should Not Be Empty  ${filename}
-    ${output}=  Run  govc datastore.rm "%{VCH-NAME}/${filename}"
-    ${filename}=  Run  GOVC_DATASTORE=%{TEST_DATASTORE} govc datastore.ls %{VCH-NAME} | grep vic-machine_
-    Should Be Empty  ${filename}
+    ${filename}=    Run    GOVC_DATASTORE=%{TEST_DATASTORE} govc datastore.ls %{VCH-NAME} | grep vic-machine_
+    Should Not Be Empty    ${filename}
+
+    ${output}=      Run    govc datastore.rm "%{VCH-NAME}/${filename}"
+
+    ${filename}=    Run    GOVC_DATASTORE=%{TEST_DATASTORE} govc datastore.ls %{VCH-NAME} | grep vic-machine_
+    Should Be Empty        ${filename}
+
+
+Verify Log
+    Output Should Contain    Installer completed successfully
 
 
 *** Test Cases ***
 Get VCH Creation Log succeeds after installation completes
-    ${id}=  Get VCH ID  %{VCH-NAME}
-    ${auth}=  Evaluate  base64.b64encode("%{TEST_USERNAME}:%{TEST_PASSWORD}")  modules=base64
-    ${rc}  ${output}=  Curl No Datacenter  ${id}  ${auth}
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  Installer completed successfully
-    ${status}=  Get Line  ${output}  -1
-    Should Be Equal As Integers  200  ${status}
-    ${rc}  ${outputDC}=  Curl Datacenter  ${id}  ${auth}
-    Should Be Equal As Integers  ${rc}  0
-    Should Be Equal  ${output}  ${outputDC}
+    ${id}=    Get VCH ID    %{VCH-NAME}
+
+    Get VCH Log    ${id}
+
+    Verify Return Code
+    Verify Status Ok
+    Verify Log
+
+    Get VCH Log Within Datacenter    ${id}
+
+    Verify Return Code
+    Verify Status Ok
+    Verify Log
+
 
 Get VCH Creation log errors with 404 after log file is deleted
-    ${id}=  Get VCH ID  %{VCH-NAME}
-    ${auth}=  Evaluate  base64.b64encode("%{TEST_USERNAME}:%{TEST_PASSWORD}")  modules=base64
+    ${id}=    Get VCH ID    %{VCH-NAME}
+
     Delete Log File From VCH Datastore
-    ${rc}  ${output}=  Curl No Datacenter  ${id}  ${auth}
-    Should Be Equal As Integers  ${rc}  0
-    ${status}=  Get Line  ${output}  -1
-    Should Be Equal As Integers  404  ${status}
-    ${rc}  ${outputDC}=  Curl Datacenter  ${id}  ${auth}
-    Should Be Equal As Integers  ${rc}  0
-    Should Be Equal  ${output}  ${outputDC}
+
+    Get VCH Log    ${id}
+
+    Verify Return Code
+    Verify Status Not Found
+
+    Get VCH Log Within Datacenter    ${id}
+
+    Verify Return Code
+    Verify Status Not Found

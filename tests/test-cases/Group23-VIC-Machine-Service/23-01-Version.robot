@@ -13,18 +13,12 @@
 # limitations under the License
 
 *** Settings ***
-Documentation	Test 23-01 - Version
-Resource	../../resources/Util.robot
-Resource	../../resources/Group23-VIC-Machine-Service-Util.robot
-Suite Setup	Start VIC Machine Server
-Suite Teardown	Terminate All Processes  kill=True
+Documentation     Test 23-01 - Version
+Resource          ../../resources/Util.robot
+Resource          ../../resources/Group23-VIC-Machine-Service-Util.robot
+Suite Setup       Start VIC Machine Server
+Suite Teardown    Terminate All Processes    kill=True
 Default Tags
-
-
-*** Variables ***
-${RC}		The return code of the last curl invocation
-${OUTPUT}	The output of the last curl invocation
-${STATUS}	The HTTP status of the last curl invocation
 
 
 *** Keywords ***
@@ -33,8 +27,8 @@ Get Version
 
 
 Verify Version
-    Should Match Regexp    ${OUTPUT}    v\\d+\\.\\d+\\.\\d+-\\w+-\\d+-[a-f0-9]+
-    Should Not Contain     ${OUTPUT}    "
+    Output Should Match Regexp    v\\d+\\.\\d+\\.\\d+-\\w+-\\d+-[a-f0-9]+
+    Output Should Not Contain     "
 
 
 *** Test Cases ***

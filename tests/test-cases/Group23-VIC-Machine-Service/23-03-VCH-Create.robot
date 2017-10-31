@@ -48,39 +48,11 @@ Inspect VCH ${name}
     Set Test Variable    ${OUTPUT}
 
 
-Arguments Should Contain
-    [Arguments]    ${expected}
-    Should Contain    ${OUTPUT}    ${expected}
-
-
-Get VCH
-    [Arguments]    ${name}
-
+Get VCH ${name}
     Get Path Under Target    vch
     ${id}=    Run    echo '${OUTPUT}' | jq -r '.vchs[] | select(.name=="${name}").id'
 
     Get Path Under Target    vch/${id}
-
-
-Property Should Be Equal
-    [Arguments]    ${jq}    ${expected}
-
-    ${actual}=  Run    echo '${OUTPUT}' | jq -r '${jq}'
-    Should Be Equal    ${actual}    ${expected}
-
-
-Property Should Not Be Equal
-    [Arguments]    ${jq}    ${expected}
-
-    ${actual}=  Run    echo '${OUTPUT}' | jq -r '${jq}'
-    Should Not Be Equal    ${actual}    ${expected}
-
-
-Property Should Contain
-    [Arguments]    ${jq}    ${expected}
-
-    ${actual}=  Run    echo '${OUTPUT}' | jq -r '${jq}'
-    Should Contain    ${actual}    ${expected}
 
 
 *** Test Cases ***
@@ -88,16 +60,16 @@ Create minimal VCH
     Create VCH    '{"name":"%{VCH-NAME}-api-test-minimal","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"%{PUBLIC_NETWORK}"}}},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
 
     Verify Return Code
-    Verify Status    201
+    Verify Status Created
 
 
     Inspect VCH %{VCH-NAME}-api-test-minimal
 
-    Arguments Should Contain    --image-store=ds://%{TEST_DATASTORE}
-    Arguments Should Contain    --bridge-network=%{BRIDGE_NETWORK}
+    Output Should Contain    --image-store=ds://%{TEST_DATASTORE}
+    Output Should Contain    --bridge-network=%{BRIDGE_NETWORK}
 
 
-    Get VCH    %{VCH-NAME}-api-test-minimal
+    Get VCH %{VCH-NAME}-api-test-minimal
 
     Property Should Be Equal        .name                                %{VCH-NAME}-api-test-minimal
 
@@ -122,16 +94,16 @@ Create minimal VCH within datacenter
     Create VCH Within Datacenter    '{"name":"%{VCH-NAME}-api-test-dc","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"%{PUBLIC_NETWORK}"}}},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
 
     Verify Return Code
-    Verify Status    201
+    Verify Status Created
 
 
     Inspect VCH %{VCH-NAME}-api-test-dc
 
-    Arguments Should Contain    --image-store=ds://%{TEST_DATASTORE}
-    Arguments Should Contain    --bridge-network=%{BRIDGE_NETWORK}
+    Output Should Contain    --image-store=ds://%{TEST_DATASTORE}
+    Output Should Contain    --bridge-network=%{BRIDGE_NETWORK}
 
 
-    Get VCH    %{VCH-NAME}-api-test-dc
+    Get VCH %{VCH-NAME}-api-test-dc
 
     Property Should Be Equal        .name                                %{VCH-NAME}-api-test-dc
 
@@ -156,35 +128,35 @@ Create complex VCH
     Create VCH    '{"name":"%{VCH-NAME}-api-test-complex","debug":3,"compute":{"cpu":{"limit":{"units":"MHz","value":2345},"reservation":{"units":"GHz","value":2},"shares":{"level":"high"}},"memory":{"limit":{"units":"MiB","value":1200},"reservation":{"units":"MiB","value":501},"shares":{"number":81910}},"resource":{"name":"%{TEST_RESOURCE}"}},"endpoint":{"cpu":{"sockets":2},"memory":{"units":"MiB","value":3072}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"],"volume_stores":[{"datastore":"ds://%{TEST_DATASTORE}/test-volumes/foo","label":"foo"}],"base_image_size":{"units":"B","value":16000000}},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"%{PUBLIC_NETWORK}"}}},"registry":{"image_fetch_proxy":{"http":"http://example.com","https":"https://example.com"},"insecure":["https://insecure.example.com"],"whitelist":["10.0.0.0/8"]},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}},"syslog_addr":"tcp://syslog.example.com:4444"}'
 
     Verify Return Code
-    Verify Status    201
+    Verify Status Created
 
 
     Inspect VCH %{VCH-NAME}-api-test-complex
 
-    Arguments Should Contain    --debug=3
+    Output Should Contain    --debug=3
 
-    Arguments Should Contain    --cpu=2345
-    Arguments Should Contain    --cpu-reservation=2000
-    Arguments Should Contain    --cpu-shares=high
-    Arguments Should Contain    --memory=1200
-    Arguments Should Contain    --memory-reservation=501
-    Arguments Should Contain    --memory-shares=81910
+    Output Should Contain    --cpu=2345
+    Output Should Contain    --cpu-reservation=2000
+    Output Should Contain    --cpu-shares=high
+    Output Should Contain    --memory=1200
+    Output Should Contain    --memory-reservation=501
+    Output Should Contain    --memory-shares=81910
 
-    Arguments Should Contain    --endpoint-cpu=2
-    Arguments Should Contain    --endpoint-memory=3072
+    Output Should Contain    --endpoint-cpu=2
+    Output Should Contain    --endpoint-memory=3072
 
-    Arguments Should Contain    --image-store=ds://%{TEST_DATASTORE}
-    Arguments Should Contain    --volume-store=ds://%{TEST_DATASTORE}/test-volumes/foo:foo
-    Arguments Should Contain    --base-image-size=16MB
+    Output Should Contain    --image-store=ds://%{TEST_DATASTORE}
+    Output Should Contain    --volume-store=ds://%{TEST_DATASTORE}/test-volumes/foo:foo
+    Output Should Contain    --base-image-size=16MB
 
-    Arguments Should Contain    --bridge-network=%{BRIDGE_NETWORK}
+    Output Should Contain    --bridge-network=%{BRIDGE_NETWORK}
 
-    Arguments Should Contain    --insecure-registry=https://insecure.example.com
-    Arguments Should Contain    --whitelist-registry=10.0.0.0/8
-    Arguments Should Contain    --whitelist-registry=https://insecure.example.com
+    Output Should Contain    --insecure-registry=https://insecure.example.com
+    Output Should Contain    --whitelist-registry=10.0.0.0/8
+    Output Should Contain    --whitelist-registry=https://insecure.example.com
 
 
-    Get VCH    %{VCH-NAME}-api-test-complex
+    Get VCH %{VCH-NAME}-api-test-complex
 
     Property Should Be Equal        .name                                %{VCH-NAME}-api-test-complex
     Property Should Be Equal        .debug                               3
@@ -233,33 +205,33 @@ Fail to create VCH with invalid operations credentials
     Create VCH    '{"name":"%{VCH-NAME}-api-bad-ops","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"endpoint":{"operations_credentials":{"user":"invalid","password":"invalid"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"%{PUBLIC_NETWORK}"}}},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
 
     Verify Return Code
-    Verify Status    400
+    Verify Status Bad Request
 
-    Should Contain    ${output}    operations credentials
+    Output Should Contain    operations credentials
 
 
 Fail to create VCH with invalid datastore
     Create VCH    '{"name":"%{VCH-NAME}-api-bad-storage","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}-invalid"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"%{PUBLIC_NETWORK}"}}},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
 
     Verify Return Code
-    Verify Status    400
+    Verify Status Bad Request
 
-    Should Contain    ${output}    datastore
+    Output Should Contain    datastore
 
 
 Fail to create VCH with invalid compute
     Create VCH    '{"name":"%{VCH-NAME}-api-bad-compute","compute":{"resource":{"name":"%{TEST_RESOURCE}-invalid"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"%{PUBLIC_NETWORK}"}}},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
 
     Verify Return Code
-    Verify Status    400
+    Verify Status Bad Request
 
-    Should Contain    ${output}    compute resource
+    Output Should Contain    compute resource
 
 
 Fail to create VCH without network
     Create VCH    '{"name":"%{VCH-NAME}-api-bad-network","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
 
     Verify Return Code
-    Verify Status    400
+    Verify Status Bad Request
 
-    Should Contain    ${output}    network
+    Output Should Contain    network
