@@ -303,11 +303,13 @@ func (d *Dispatcher) createVolumeStores(conf *config.VirtualContainerHostConfigS
 }
 
 // returns # of removed stores
-func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHostConfigSpec) (removed int) {
+func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHostConfigSpec, volumeStores *DeleteVolumeStores) (removed int) {
 	defer trace.End(trace.Begin(""))
 	removed = 0
 
-	if !d.force {
+	deleteVolumeStores := d.force || (volumeStores != nil && *volumeStores == AllVolumeStores)
+
+	if !deleteVolumeStores {
 		if len(conf.VolumeLocations) == 0 {
 			return 0
 		}
@@ -365,7 +367,7 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHost
 		}
 
 		datastore := datastores[0]
-		if _, err := d.deleteDatastoreFiles(datastore, dsURL.Path, d.force); err != nil {
+		if _, err := d.deleteDatastoreFiles(datastore, dsURL.Path, deleteVolumeStores); err != nil {
 			log.Errorf("Failed to delete volume store %q on Datastore %q at path %q", label, dsURL.Host, dsURL.Path)
 		} else {
 			removed++
