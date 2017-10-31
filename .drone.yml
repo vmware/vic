@@ -130,8 +130,8 @@ pipeline:
     commands:
       - make mark
       - rm -rf $BIN_TEMP_DIR
-      - mkdir -p $BIN_TEMP_DIR/ui
-      - mv $BIN/ui $BIN_TEMP_DIR/ui
+      - mkdir -p $BIN_TEMP_DIR
+      - mv $BIN/ui $BIN_TEMP_DIR
       - cp LICENSE $BIN_TEMP_DIR
       - cp doc/bundle/README $BIN_TEMP_DIR
       - cp $BIN/vic-machine* $BIN_TEMP_DIR
