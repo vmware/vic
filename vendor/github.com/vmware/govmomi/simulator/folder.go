@@ -233,7 +233,7 @@ type createVM struct {
 }
 
 func (c *createVM) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
-	vm, err := NewVirtualMachine(&c.req.Config)
+	vm, err := NewVirtualMachine(c.Folder.Self, &c.req.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +261,6 @@ func (c *createVM) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 
 	vm.Summary.Config.VmPathName = vm.Config.Files.VmPathName
 	vm.Summary.Runtime.Host = vm.Runtime.Host
-	vm.Parent = &c.Folder.Self
 
 	err = vm.create(&c.req.Config, c.register)
 	if err != nil {
@@ -309,24 +308,32 @@ type registerVM struct {
 }
 
 func (c *registerVM) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
-	if c.req.AsTemplate {
-		return nil, &types.NotSupported{}
-	}
+	host := c.req.Host
+	pool := c.req.Pool
 
-	if c.req.Pool == nil {
-		return nil, &types.InvalidArgument{InvalidProperty: "pool"}
+	if c.req.AsTemplate {
+		if host == nil {
+			return nil, &types.InvalidArgument{InvalidProperty: "host"}
+		} else if pool != nil {
+			return nil, &types.InvalidArgument{InvalidProperty: "pool"}
+		}
+
+		pool = hostParent(&Map.Get(*host).(*HostSystem).HostSystem).ResourcePool
+	} else {
+		if pool == nil {
+			return nil, &types.InvalidArgument{InvalidProperty: "pool"}
+		}
 	}
 
 	if c.req.Path == "" {
 		return nil, &types.InvalidArgument{InvalidProperty: "path"}
 	}
 
-	p := Map.Get(*c.req.Pool).(mo.Entity)
 	s := Map.SearchIndex()
 	r := s.FindByDatastorePath(&types.FindByDatastorePath{
 		This:       s.Reference(),
 		Path:       c.req.Path,
-		Datacenter: Map.getEntityDatacenter(p).Reference(),
+		Datacenter: Map.getEntityDatacenter(c.Folder).Reference(),
 	})
 
 	if ref := r.(*methods.FindByDatastorePathBody).Res.Returnval; ref != nil {
@@ -353,8 +360,8 @@ func (c *registerVM) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 					VmPathName: c.req.Path,
 				},
 			},
-			Pool: *c.req.Pool,
-			Host: c.req.Host,
+			Pool: *pool,
+			Host: host,
 		},
 	})
 
@@ -410,7 +417,7 @@ func (f *Folder) MoveIntoFolderTask(c *types.MoveIntoFolder_Task) soap.HasFault 
 
 func (f *Folder) CreateDVSTask(c *types.CreateDVS_Task) soap.HasFault {
 	task := CreateTask(f, "createDVS", func(t *Task) (types.AnyType, types.BaseMethodFault) {
-		dvs := &VmwareDistributedVirtualSwitch{}
+		dvs := &DistributedVirtualSwitch{}
 		dvs.Name = c.Spec.ConfigSpec.GetDVSConfigSpec().Name
 		dvs.Entity().Name = dvs.Name
 

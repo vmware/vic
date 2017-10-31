@@ -26,7 +26,10 @@ package session
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -45,6 +48,11 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+)
+
+const (
+	defaultMaxInFlight  = 32
+	tlsHandshakeTimeout = 30 * time.Second
 )
 
 // Config contains the configuration used to create a Session.
@@ -84,6 +92,32 @@ type Session struct {
 	VMFolder *object.Folder
 
 	Finder *find.Finder
+}
+
+// RoundTripFunc alias
+type RoundTripFunc func(*http.Request) (*http.Response, error)
+
+// RoundTrip method
+func (rt RoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return rt(r)
+}
+
+// LimitConcurrency limits how many requests can be processed at once
+func LimitConcurrency(rt http.RoundTripper, limit int) http.RoundTripper {
+	limiter := make(chan struct{}, limit)
+
+	return RoundTripFunc(func(r *http.Request) (*http.Response, error) {
+		// reserve a slot
+		limiter <- struct{}{}
+
+		// free the slot
+		defer func() {
+			<-limiter
+		}()
+
+		// use the given round tripper
+		return rt.RoundTrip(r)
+	})
 }
 
 // NewSession creates a new Session struct. If config is nil,
@@ -180,8 +214,20 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 
 	soapClient.SetThumbprint(soapURL.Host, s.Thumbprint)
 
-	// TODO: option to set http.Client.Transport.TLSClientConfig.RootCAs
+	maxInFlight := defaultMaxInFlight
+	if e := os.Getenv("VIC_MAX_IN_FLIGHT"); e != "" {
+		if i, err := strconv.Atoi(e); err == nil {
+			maxInFlight = i
+		}
+	}
+	// Limit the concurrenty of SOAP requests
+	if t, ok := soapClient.Transport.(*http.Transport); ok {
+		t.MaxIdleConnsPerHost = maxInFlight
+		t.TLSHandshakeTimeout = tlsHandshakeTimeout
+	}
+	soapClient.Transport = LimitConcurrency(soapClient.Transport, maxInFlight)
 
+	// TODO: option to set http.Client.Transport.TLSClientConfig.RootCAs
 	vimClient, err := vim25.NewClient(ctx, soapClient)
 	if err != nil {
 		return nil, SoapClientError{

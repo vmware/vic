@@ -1570,7 +1570,10 @@
 						}
 					},
 					"500": {
-						"description": "server error"
+						"description": "server error",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
 					},
 					"default": {
 						"description": "Error",
@@ -3048,6 +3051,14 @@
 					"additionalProperties": {
 						"type": "string"
 					}
+				},
+				"hostname": {
+					"type": "string",
+					"x-nullable": false
+				},
+				"domainname": {
+					"type": "string",
+					"x-nullable": false
 				}
 			}
 		},
@@ -3382,6 +3393,9 @@
 				},
 				"reservation": {
 					"$ref": "#/definitions/ReservationConfig"
+				},
+				"address": {
+					"type": "string"
 				},
 				"ports": {
 					"type": "array",

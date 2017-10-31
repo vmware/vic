@@ -33,7 +33,6 @@ import (
 const (
 	//https://github.com/golang/go/blob/master/src/syscall/zerrors_linux_arm64.go#L919
 	SetChildSubreaper = 0x24
-	pidFilePath       = ".tether/run"
 
 	// in sync with lib/apiservers/portlayer/handlers/interaction_handler.go
 	// 115200 bps is 14.4 KB/s so use that
@@ -246,6 +245,7 @@ func lookPath(file string, env []string, dir string) (string, error) {
 func establishPty(session *SessionConfig) error {
 	defer trace.End(trace.Begin("initializing pty handling for session " + session.ID))
 
+	// pty.Start creates a process group anyway so no change needed to kill all descendants
 	var err error
 	session.Pty, err = pty.Start(&session.Cmd)
 	if err != nil {
@@ -280,6 +280,12 @@ func establishPty(session *SessionConfig) error {
 func establishNonPty(session *SessionConfig) error {
 	defer trace.End(trace.Begin("initializing nonpty handling for session " + session.ID))
 	var err error
+
+	// configure a process group so we can kill any descendants
+	if session.Cmd.SysProcAttr == nil {
+		session.Cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	session.Cmd.SysProcAttr.Setsid = true
 
 	if session.OpenStdin {
 		log.Debugf("Setting StdinPipe")

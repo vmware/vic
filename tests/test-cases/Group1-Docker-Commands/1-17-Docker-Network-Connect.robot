@@ -15,8 +15,9 @@
 *** Settings ***
 Documentation  Test 1-17 - Docker Network Connect
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server  certs=${false}
+Suite Setup  Run Keywords  Conditional Install VIC Appliance To Test Server  Remove All Container Networks
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Connect containers to multiple bridge networks overlapping
@@ -144,3 +145,23 @@ Connect containers to an internal network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net internal-net ${busybox} ping -c2 ${ip}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  2 packets transmitted, 2 packets received
+
+Check Name Resolution Between Containers On Internal Network
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create --internal mynet
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create pubnet
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name foo --net mynet alpine:latest sleep 10000
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name baz --net pubnet -p 80 alpine:latest ping -c3 foo
+    Log  ${output}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect mynet baz
+    Log  ${output}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -i baz
+    Log  ${output}
+
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  PING foo
+    Should Contain  ${output}  3 packets transmitted, 3 packets received

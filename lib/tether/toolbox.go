@@ -25,7 +25,6 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
-	"path"
 	"strconv"
 	"sync"
 	"syscall"
@@ -40,7 +39,7 @@ import (
 	"github.com/vmware/govmomi/toolbox/vix"
 	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/lib/archive"
-	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
+	"github.com/vmware/vic/lib/tether/shared"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -61,6 +60,7 @@ type Toolbox struct {
 
 var (
 	defaultArchiveHandler = hgfs.NewArchiveHandler().(*hgfs.ArchiveHandler)
+	baseOp                = &BaseOperations{}
 )
 
 // NewToolbox returns a tether.Extension that wraps the vsphere/toolbox service
@@ -161,7 +161,7 @@ func (t *Toolbox) session() *SessionConfig {
 	return t.sess.session
 }
 
-func (t *Toolbox) kill(name string) error {
+func (t *Toolbox) kill(_ context.Context, name string) error {
 	session := t.session()
 	if session == nil {
 		return fmt.Errorf("failed to kill container: process not found")
@@ -189,10 +189,9 @@ func (t *Toolbox) killHelper(session *SessionConfig, name string) error {
 
 	num := syscall.Signal(sig.Signum())
 
-	log.Infof("sending signal %s (%d) to %s", sig.Signal, num, session.ID)
-
-	if err := session.Cmd.Process.Signal(num); err != nil {
-		return fmt.Errorf("failed to signal %s: %s", session.ID, err)
+	log.Infof("sending signal %s (%d) to process group for %s", sig.Signal, num, session.ID)
+	if err := syscall.Kill(-session.Cmd.Process.Pid, num); err != nil {
+		return fmt.Errorf("failed to signal %s group: %s", session.ID, err)
 	}
 
 	return nil
@@ -221,14 +220,20 @@ func (t *Toolbox) containerAuthenticate(_ vix.CommandRequestHeader, data []byte)
 }
 
 func (t *Toolbox) containerStartCommand(m *toolbox.ProcessManager, r *vix.StartProgramRequest) (int64, error) {
+	var p *toolbox.Process
+
 	switch r.ProgramPath {
 	case "kill":
-		return -1, t.kill(r.Arguments)
+		p = toolbox.NewProcessFunc(t.kill)
 	case "reload":
-		return -1, ReloadConfig()
+		p = toolbox.NewProcessFunc(func(_ context.Context, _ string) error {
+			return ReloadConfig()
+		})
 	default:
 		return -1, fmt.Errorf("unknown command %q", r.ProgramPath)
 	}
+
+	return m.Start(r, p)
 }
 
 func (t *Toolbox) halt() error {
@@ -268,8 +273,8 @@ func (t *Toolbox) halt() error {
 func toolboxOverrideArchiveRead(u *url.URL, tr *tar.Reader) error {
 
 	// special behavior when using disk-labels and filterspec
-	diskLabel := u.Query().Get(vsphere.DiskLabelQueryName)
-	filterSpec := u.Query().Get(vsphere.FilterSpecQueryName)
+	diskLabel := u.Query().Get(shared.DiskLabelQueryName)
+	filterSpec := u.Query().Get(shared.FilterSpecQueryName)
 	if diskLabel != "" && filterSpec != "" {
 		op := trace.NewOperation(context.Background(), "ToolboxOnlineDataSink: %s", u.String())
 		op.Debugf("Reading from tar archive to path %s: %s", u.Path, u.String())
@@ -278,7 +283,8 @@ func toolboxOverrideArchiveRead(u *url.URL, tr *tar.Reader) error {
 			op.Errorf(err.Error())
 			return err
 		}
-		diskPath, err := mountDiskLabel(diskLabel)
+
+		diskPath, err := mountDiskLabel(op, diskLabel)
 		if err != nil {
 			op.Errorf(err.Error())
 			return err
@@ -302,13 +308,11 @@ func toolboxOverrideArchiveRead(u *url.URL, tr *tar.Reader) error {
 func toolboxOverrideArchiveWrite(u *url.URL, tw *tar.Writer) error {
 
 	// special behavior when using disk-labels and filterspec
-	diskLabel := u.Query().Get(vsphere.DiskLabelQueryName)
-	filterSpec := u.Query().Get(vsphere.FilterSpecQueryName)
+	diskLabel := u.Query().Get(shared.DiskLabelQueryName)
+	filterSpec := u.Query().Get(shared.FilterSpecQueryName)
 
-	// #nosec: Errors unhandled.
-	skiprecurse, _ := strconv.ParseBool(u.Query().Get(vsphere.SkipRecurseQueryName))
-	// #nosec: Errors unhandled.
-	skipdata, _ := strconv.ParseBool(u.Query().Get(vsphere.SkipDataQueryName))
+	skiprecurse, _ := strconv.ParseBool(u.Query().Get(shared.SkipRecurseQueryName))
+	skipdata, _ := strconv.ParseBool(u.Query().Get(shared.SkipDataQueryName))
 
 	if diskLabel != "" && filterSpec != "" {
 		op := trace.NewOperation(context.Background(), "ToolboxOnlineDataSource: %s", u.String())
@@ -321,7 +325,7 @@ func toolboxOverrideArchiveWrite(u *url.URL, tw *tar.Writer) error {
 		}
 
 		// get the container fs mount
-		diskPath, err := mountDiskLabel(diskLabel)
+		diskPath, err := mountDiskLabel(op, diskLabel)
 		if err != nil {
 			op.Errorf(err.Error())
 			return err
@@ -379,24 +383,24 @@ func toolboxOverrideArchiveWrite(u *url.URL, tw *tar.Writer) error {
 	return defaultArchiveHandler.Write(u, tw)
 }
 
-func mountDiskLabel(label string) (string, error) {
+func mountDiskLabel(op trace.Operation, label string) (string, error) {
 	// We know the vmdk will always be attached at '/'
 	if label == "containerfs" {
 		return "/", nil
 	}
 
 	// otherwise, label represents a volume that needs to be mounted
-	path := path.Join("/dev/disk/by-label/", label)
-	_, err := os.Lstat(path)
-	// label does not exist
+	tmpDir, err := ioutil.TempDir("", fmt.Sprintf("toolbox-%s", label))
 	if err != nil {
-		return "", err
+		op.Errorf("failed to create mountpoint %s: %s", tmpDir, err)
+		return "", fmt.Errorf("failed to create mountpoint %s: %s", tmpDir, err)
 	}
 
-	// label exists, mount the device to a tmp directory
-	tmpDir, err := ioutil.TempDir("", fmt.Sprintf("toolbox-%s", label))
-	if err := Sys.Syscall.Mount(path, tmpDir, ext4FileSystemType, syscall.MS_NOATIME, ""); err != nil {
-		return "", fmt.Errorf("failed to mount %s to %s: %s", path, tmpDir, err)
+	err = baseOp.MountLabel(op, label, tmpDir)
+	if err != nil {
+		os.Remove(tmpDir)
+		op.Errorf("failed to mount label %s at %s: %s", label, tmpDir, err)
+		return "", fmt.Errorf("failed to mount label %s at %s: %s", label, tmpDir, err)
 	}
 
 	return tmpDir, nil
@@ -412,6 +416,7 @@ func unmount(op trace.Operation, unmountPath string) {
 	if err := Sys.Syscall.Unmount(unmountPath, syscall.MNT_DETACH); err != nil {
 		op.Errorf("failed to unmount %s: %s", unmountPath, err.Error())
 	}
+
 	// finally, remove the temporary directory
 	os.Remove(unmountPath)
 }

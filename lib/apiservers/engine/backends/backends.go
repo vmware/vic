@@ -29,6 +29,7 @@ import (
 	"github.com/go-openapi/runtime"
 	rc "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/swag"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
@@ -42,6 +43,7 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/dynamic"
 	"github.com/vmware/vic/lib/config/dynamic/admiral"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/registry"
@@ -83,6 +85,9 @@ type dynConfig struct {
 
 	Whitelist, Blacklist, Insecure registry.Set
 	remoteWl                       bool
+
+	group   singleflight.Group
+	lastCfg *dynConfig
 }
 
 func Init(portLayerAddr, product string, port uint, config *config.VirtualContainerHostConfigSpec) error {
@@ -204,6 +209,11 @@ func hydrateCaches() error {
 	if len(errs) > 0 {
 		e = fmt.Errorf(strings.Join(errs, ", "))
 	}
+
+	if e != nil {
+		log.Errorf("Errors occurred during cache hydration at VCH start: %s", e)
+	}
+
 	return e
 }
 
@@ -290,6 +300,7 @@ func syncContainerCache() error {
 			errs = append(errs, err.Error())
 		}
 	}
+
 	if len(errs) > 0 {
 		return errors.Errorf("Failed to set port mapping: %s", strings.Join(errs, "\n"))
 	}
@@ -315,7 +326,7 @@ func setPortMapping(info *models.ContainerInfo, backend *Container, container *c
 		return err
 	}
 	for _, e := range endpointsOK.Payload {
-		if len(e.Ports) > 0 {
+		if len(e.Ports) > 0 && e.Scope == constants.BridgeScopeType {
 			if err = MapPorts(container.HostConfig, e, container.ContainerID); err != nil {
 				log.Errorf(err.Error())
 				return err
@@ -353,6 +364,7 @@ func EventService() *events.Events {
 // registries lists. It returns true for each list where u matches that list.
 func (d *dynConfig) RegistryCheck(ctx context.Context, u *url.URL) (wl bool, bl bool, insecure bool) {
 	m := d.update(ctx)
+
 	us := u.String()
 	wl = len(m.Whitelist) == 0 || m.Whitelist.Match(us)
 	bl = len(m.Blacklist) == 0 || !m.Blacklist.Match(us)
@@ -361,40 +373,63 @@ func (d *dynConfig) RegistryCheck(ctx context.Context, u *url.URL) (wl bool, bl 
 }
 
 func (d *dynConfig) update(ctx context.Context) *dynConfig {
-	d.Lock()
-	src := d.src
-	d.Unlock()
+	const key = "RegistryCheck"
+	resCh := d.group.DoChan(key, func() (interface{}, error) {
+		d.Lock()
+		src := d.src
+		d.Unlock()
 
-	c, err := src.Get(ctx)
-	if err != nil {
-		log.Warnf("error getting config from source: %s", err)
-	}
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
 
-	d.Lock()
-	defer d.Unlock()
+		c, err := src.Get(ctx)
+		if err != nil {
+			log.Warnf("error getting config from source: %s", err)
+		}
 
-	m := d
-	if c != nil {
-		// update config
-		if m, err = d.merged(c); err != nil {
-			log.Errorf("error updating config: %s", err)
-			m = d
-		} else {
-			if len(c.RegistryWhitelist) > 0 {
-				m.remoteWl = true
+		d.Lock()
+		defer d.Unlock()
+
+		m := d
+		if c != nil {
+			// update config
+			if m, err = d.merged(c); err != nil {
+				log.Errorf("error updating config: %s", err)
+				m = d
+			} else {
+				if len(c.RegistryWhitelist) > 0 {
+					m.remoteWl = true
+				}
+			}
+		} else if err == nil && src == d.src {
+			// err == nil and c == nil, which
+			// indicates no remote sources
+			// were found, try resetting the
+			// source for next time
+			if err := d.resetSrc(); err != nil {
+				log.Warnf("could not reset config source: %s", err)
 			}
 		}
-	} else if err == nil && src == d.src {
-		// err == nil and c == nil, which
-		// indicates no remote sources
-		// were found, try resetting the
-		// source for next time
-		if err := d.resetSrc(); err != nil {
-			log.Warnf("could not reset config source: %s", err)
-		}
-	}
 
-	return m
+		d.lastCfg = m
+		return m, nil
+	})
+
+	select {
+	case res := <-resCh:
+		return res.Val.(*dynConfig)
+	case <-ctx.Done():
+		return func() *dynConfig {
+			d.Lock()
+			defer d.Unlock()
+
+			if d.lastCfg == nil {
+				return d
+			}
+
+			return d.lastCfg
+		}()
+	}
 }
 
 func (d *dynConfig) resetSrc() error {
@@ -408,7 +443,9 @@ func (d *dynConfig) resetSrc() error {
 }
 
 func newDynConfig(ctx context.Context, c *config.VirtualContainerHostConfigSpec) (*dynConfig, error) {
-	d := &dynConfig{Cfg: c}
+	d := &dynConfig{
+		Cfg: c,
+	}
 	var err error
 	if d.Insecure, err = dynamic.ParseRegistries(c.InsecureRegistries); err != nil {
 		return nil, err

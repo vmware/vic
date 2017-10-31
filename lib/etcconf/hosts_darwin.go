@@ -14,4 +14,4 @@
 
 package etcconf
 
-const hostsPath = "/etc/hosts"
+const HostsPath = "/etc/hosts"

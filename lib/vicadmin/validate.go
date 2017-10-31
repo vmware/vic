@@ -26,6 +26,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -39,7 +40,7 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/install/validate"
-	"github.com/vmware/vic/lib/tether"
+	"github.com/vmware/vic/lib/tether/shared"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -186,7 +187,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	nwErrors := []error{}
 
 	// create a http client with a custom transport using the proxy from env vars
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: 10 * time.Second}
 	// priority given to https proxies
 	proxy := os.Getenv("VICADMIN_HTTPS_PROXY")
 	if proxy == "" {
@@ -202,12 +203,26 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	}
 
 	// perform the wan check
+	var wg sync.WaitGroup
+	wg.Add(len(hosts))
+	errs := make(chan error, len(hosts))
 	for _, host := range hosts {
-		_, err := client.Get(host)
-		if err != nil {
-			nwErrors = append(nwErrors, err)
-		}
+		go func(host string) {
+			defer wg.Done()
+			log.Infof("Getting %s", host)
+			_, err := client.Get(host)
+			if err != nil {
+				errs <- err
+			}
+		}(host)
 	}
+
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		nwErrors = append(nwErrors, err)
+	}
+
 	if len(nwErrors) > 0 {
 		v.NetworkStatus = BadStatus
 		for _, err := range nwErrors {
@@ -368,7 +383,7 @@ func (v *Validator) QueryVCHStatus(vch *config.VirtualContainerHostConfigSpec, s
 
 	for service, proc := range procs {
 		log.Infof("Checking status of %s", proc)
-		pid, err := ioutil.ReadFile(fmt.Sprintf("%s.pid", path.Join(tether.PIDFileDir(), proc)))
+		pid, err := ioutil.ReadFile(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(), proc)))
 		if err != nil {
 			// #nosec: this method will not auto-escape HTML. Verify data is well formed.
 			v.VCHIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s service is not running</span>\n",

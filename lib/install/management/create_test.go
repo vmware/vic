@@ -57,8 +57,10 @@ func TestMain(t *testing.T) {
 			t.Fatal(err)
 		}
 		installSettings := &data.InstallerData{}
-		installSettings.ApplianceSize.CPU.Limit = 1
-		installSettings.ApplianceSize.Memory.Limit = 1024
+		cpu := int64(1)
+		memory := int64(1024)
+		installSettings.ApplianceSize.CPU.Limit = &cpu
+		installSettings.ApplianceSize.Memory.Limit = &memory
 
 		validator, err := validate.NewValidator(ctx, input)
 		if err != nil {

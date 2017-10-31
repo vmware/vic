@@ -17,6 +17,7 @@ Documentation  Test 6-03 - Verify delete clean up all resources
 Resource  ../../resources/Util.robot
 Test Setup  Install VIC Appliance To Test Server
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Keywords ***
 Initial load
@@ -48,6 +49,7 @@ Delete VCH and verify
     ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --force
     Should Contain  ${ret}  Completed successfully
     Should Not Contain  ${ret}  Operation failed: Error caused by file
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
 
     # Check VM is removed
     ${ret}=  Run  govc vm.info -json=true ${containerName}-*
@@ -69,9 +71,6 @@ Delete VCH and verify
 
 Attach Disks and Delete VCH
     # VCH should delete normally during commit/pull/cp/push operations
-    ${output}=  Install VIC Appliance To Test Server
-    Should Contain    ${output}    Installer completed successfully
-
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${ubuntu}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
@@ -90,9 +89,9 @@ Attach Disks and Delete VCH
 
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME}
     Log  ${output}
-
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
 
     ${rc}=  Run And Return Rc  govc datastore.ls -dc=%{TEST_DATACENTER} %{VCH-NAME}/VIC/
     Should Be Equal As Integers  ${rc}  1

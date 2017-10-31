@@ -17,6 +17,7 @@ Documentation  Test 6-11 - Verify enable of ssh in the appliance
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Enable SSH and verify

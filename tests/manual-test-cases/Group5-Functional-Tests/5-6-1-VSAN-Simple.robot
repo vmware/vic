@@ -15,22 +15,24 @@
 *** Settings ***
 Documentation  Test 5-6-1 - VSAN-Simple
 Resource  ../../resources/Util.robot
-Test Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Simple VSAN Setup
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
-*** Test Cases ***
-Simple VSAN
+*** Keywords ***
+Simple VSAN Setup
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${name}=  Evaluate  'vic-vsan-' + str(random.randint(1000,9999))  modules=random
-    Set Test Variable  ${user}  %{NIMBUS_USER}
+    Set Suite Variable  ${user}  %{NIMBUS_USER}
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --vcfvtBuildPath /dbc/pa-dbc1111/mhagen/ --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-vsan-simple-pxeBoot-vcva --runName ${name}
     Should Contain  ${out}  "deployment_result"=>"PASS"
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  .vcva-${VC_VERSION}' is up. IP:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
-    \   Run Keyword If  ${status}  Set Test Variable  ${vc-ip}  ${ip}
+    \   Run Keyword If  ${status}  Set Suite Variable  ${vc-ip}  ${ip}
     \   Exit For Loop If  ${status}
 
-    Set Global Variable  @{list}  ${user}-${name}.vcva-${VC_VERSION}  ${user}-${name}.esx.0  ${user}-${name}.esx.1  ${user}-${name}.esx.2  ${user}-${name}.esx.3  ${user}-${name}.nfs.0  ${user}-${name}.iscsi.0
+    Set Suite Variable  @{list}  ${user}-${name}.vcva-${VC_VERSION}  ${user}-${name}.esx.0  ${user}-${name}.esx.1  ${user}-${name}.esx.2  ${user}-${name}.esx.3  ${user}-${name}.nfs.0  ${user}-${name}.iscsi.0
 
     Log To Console  Set environment variables up for GOVC
     Set Environment Variable  GOVC_URL  ${vc-ip}
@@ -49,17 +51,18 @@ Simple VSAN
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
+    Remove Environment Variable  TEST_DATACENTER
     Set Environment Variable  TEST_DATASTORE  vsanDatastore
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  15m
 
+*** Test Cases ***
+Simple VSAN
     ${out}=  Run  govc datastore.vsan.dom.ls -ds %{TEST_DATASTORE} -l -o
     Should Be Empty  ${out}
 
     Install VIC Appliance To Test Server
-
     Run Regression Tests
-
     Cleanup VIC Appliance On Test Server
 
     ${out}=  Run  govc datastore.vsan.dom.ls -ds %{TEST_DATASTORE} -l -o

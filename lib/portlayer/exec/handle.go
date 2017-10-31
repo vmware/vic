@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,8 +32,8 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/guest"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/trace"
@@ -149,7 +150,13 @@ func (h *Handle) Rename(newName string) *Handle {
 		ID:   h.ExecConfig.ID,
 		Name: newName,
 	}
-	h.Spec.Spec().Name = util.DisplayName(s)
+	// Only rename on vSphere when the containerNameConvention is name
+	var convention string
+	if strings.Contains(Config.ContainerNameConvention, "{name}") {
+		convention = Config.ContainerNameConvention
+	}
+
+	h.Spec.Spec().Name = util.DisplayName(s, convention)
 
 	return h
 }
@@ -343,7 +350,7 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 		specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", vmomiSession.Datastore.Name(), specconfig.ID, specconfig.ID)
 	}
 
-	specconfig.VMFullName = util.DisplayName(specconfig)
+	specconfig.VMFullName = util.DisplayName(specconfig, Config.ContainerNameConvention)
 
 	// log only core portions
 	s := specconfig

@@ -138,6 +138,11 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 			if s.ExtraConfig != nil && h.TargetState() == StateStopped && h.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
 				detail := fmt.Sprintf("Reconfigure: collision of concurrent operations - expected power state poweredOff, found %s", h.Runtime.PowerState)
 				log.Warn(detail)
+
+				// log out current vm power state and runtime power state got from refresh, to see if there is anything mismatch,
+				// cause in issue #6127, we see the runtime power state is not updated even after 1 minute
+				ps, _ := h.vm.PowerState(ctx)
+				log.Debugf("Container %s power state: %s, runtime power state: %s", h.ExecConfig.ID, ps, h.Runtime.PowerState)
 				// this should cause a second attempt at the power op. This could result repeated contention that fails to resolve, but the randomness in the backoff and the tight timing
 				// to hit this scenario should mean it will resolve in a reasonable timeframe.
 				return ConcurrentAccessError{errors.New(detail)}
@@ -165,7 +170,7 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 
 			// trigger a configuration reload in the container if needed
 			if h.reload && h.Runtime != nil && h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
-				err = h.startGuestProgram(ctx, "reload", "")
+				err = c.ReloadConfig(ctx)
 				if err != nil {
 					// NOTE: not sure how to handle this error - the change is already applied, it's just not picked up in the container
 				}
@@ -191,6 +196,11 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 
 		// start the container
 		if err := c.start(ctx); err != nil {
+			// We observed that PowerOn_Task could get stuck on VC time to time even though the VM was starting fine on the host ESXi.
+			// Eventually the task was getting timed out (After 20 min.) and that was setting the container state back to Stopped.
+			// During that time VC was not generating any other event so the persona listener was getting nothing.
+			// This new event is for signaling the eventmonitor so that it can autoremove the container after this failure.
+			publishContainerEvent(h.ExecConfig.ID, time.Now().UTC(), events.ContainerFailed)
 			return err
 		}
 

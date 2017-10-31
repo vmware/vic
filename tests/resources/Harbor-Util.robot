@@ -639,4 +639,5 @@ Cleanup Harbor
     Log To Console  \nCleanup Harbor... TEST_URL:%{TEST_URL}
     Remove File  ${HARBOR_VERSION}.ova
     Remove File  ${harbor_cert}
-    Run Keyword And Ignore Error  Run  GOVC_URL=${host} GOVC_USERNAME=${user} GOVC_PASSWORD=${password} GOVC_INSECURE=1 govc vm.destroy ${harbor-name}
+    ${out}=  Run Keyword And Ignore Error  Run  GOVC_URL=${host} GOVC_USERNAME=${user} GOVC_PASSWORD=${password} GOVC_INSECURE=1 govc vm.destroy ${harbor-name}
+    [Return]  ${out}

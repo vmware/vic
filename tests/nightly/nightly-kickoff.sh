@@ -34,6 +34,9 @@ nightly_list_var="5-1-Distributed-Switch \
 13-2-vMotion-Container \
 21-1-Whitelist"
 
+numberOfTests=($nightly_list_var)
+numberOfTests=${#numberOfTests[@]}
+
 input=$(gsutil ls -l gs://vic-engine-builds/vic_* | grep -v TOTAL | sort -k2 -r | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
 buildNumber=${input:4}
 
@@ -89,13 +92,14 @@ DATE=`date +%m_%d_%H_%M_`
 nightlystatus=()
 count=0
 
-nightly_secrets_file="/home/vicadmin/internal-repo/vic-internal/nightly_secrets.yml"
+# There should not be any VMs existing prior to running this test
+sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl kill '\*'
 
 for i in $nightly_list_var; do
     #Clean up any previous runs creds
     rm -rf VCH-0-*
     echo "Executing nightly test $i vSphere 6.5"
-    drone exec --trusted -e test="pybot -d 65/$i --suite $i tests/manual-test-cases/" -E $nightly_secrets_file --yaml .drone.nightly.yml
+    pybot --removekeywords TAG:secret -d 65/$i --suite $i tests/manual-test-cases/
 
     if [ $? -eq 0 ]
     then
@@ -112,11 +116,15 @@ for i in $nightly_list_var; do
     echo $count
 done
 
+# See if any VMs leaked and clean them up if so
+sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl list
+sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl kill '\*'
+
 for i in $nightly_list_var; do
     #Clean up any previous runs creds
     rm -rf VCH-0-*
     echo "Executing nightly test $i on vSphere 6.0"
-    drone exec --trusted -e test="pybot --variable ESX_VERSION:ob-5251623 --variable VC_VERSION:ob-5112509 -d 60/$i --suite $i tests/manual-test-cases/" -E $nightly_secrets_file --yaml .drone.nightly.yml
+    pybot --removekeywords TAG:secret --variable ESX_VERSION:ob-5251623 --variable VC_VERSION:ob-5112509 -d 60/$i --suite $i tests/manual-test-cases/
 
     if [ $? -eq 0 ]
     then
@@ -133,8 +141,11 @@ for i in $nightly_list_var; do
     echo $count
 done
 
+# See if any VMs leaked
+sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking\=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl list
+
 # Setting the NSX test status to Not Implemented.
-nightlystatus[26]="N/A"
+nightlystatus[7+$numberOfTests]="N/A"
 
 for i in "${nightlystatus[@]}"
 do
@@ -152,7 +163,7 @@ done
 
 echo "Global Nightly Test Status $buildStatus"
 
-drone exec --trusted -e test="sh tests/nightly/upload-logs.sh $DATE$input" -E $nightly_secrets_file --yaml .drone.nightly.yml
+sh tests/nightly/upload-logs.sh $DATE$input
 
 rm nightly_mail.html
 

@@ -72,8 +72,8 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/metadata"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
@@ -106,6 +106,8 @@ type VicContainerProxy interface {
 	Rename(vc *viccontainer.VicContainer, newName string) error
 
 	GetContainerChanges(op trace.Operation, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error)
+
+	UnbindContainerFromNetwork(vc *viccontainer.VicContainer, handle string) (string, error)
 
 	Handle(id, name string) (string, error)
 	Client() *client.PortLayer
@@ -143,7 +145,7 @@ type AttachConfig struct {
 
 const (
 	attachConnectTimeout  time.Duration = 15 * time.Second //timeout for the connection
-	attachAttemptTimeout  time.Duration = 40 * time.Second //timeout before we ditch an attach attempt
+	attachAttemptTimeout  time.Duration = 60 * time.Second //timeout before we ditch an attach attempt
 	attachPLAttemptDiff   time.Duration = 10 * time.Second
 	attachStdinInitString               = "v1c#>"
 	swaggerSubstringEOF                 = "EOF"
@@ -779,24 +781,13 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 	}
 
 	if unbound {
-		unbindParams := scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle)
-		ub, err := c.client.Scopes.UnbindContainer(unbindParams)
+		handle, err = c.UnbindContainerFromNetwork(vc, handle)
 		if err != nil {
-			switch err := err.(type) {
-			case *scopes.UnbindContainerNotFound:
-				// ignore error
-				log.Warnf("Container %s not found by network unbind", vc.ContainerID)
-			case *scopes.UnbindContainerInternalServerError:
-				return InternalServerError(err.Payload.Message)
-			default:
-				return InternalServerError(err.Error())
-			}
-		} else {
-			handle = ub.Payload.Handle
+			return err
 		}
 
 		// unmap ports
-		if err = UnmapPorts(vc.HostConfig); err != nil {
+		if err = UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
 			return err
 		}
 	}
@@ -833,6 +824,27 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 	}
 
 	return nil
+}
+
+// UnbindContainerFromNetwork unbinds a container from the networks that it connects to
+func (c *ContainerProxy) UnbindContainerFromNetwork(vc *viccontainer.VicContainer, handle string) (string, error) {
+	defer trace.End(trace.Begin(vc.ContainerID))
+
+	unbindParams := scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle)
+	ub, err := c.client.Scopes.UnbindContainer(unbindParams)
+	if err != nil {
+		switch err := err.(type) {
+		case *scopes.UnbindContainerNotFound:
+			// ignore error
+			log.Warnf("Container %s not found by network unbind", vc.ContainerID)
+		case *scopes.UnbindContainerInternalServerError:
+			return "", InternalServerError(err.Payload.Message)
+		default:
+			return "", InternalServerError(err.Error())
+		}
+	}
+
+	return ub.Payload.Handle, nil
 }
 
 // State returns container state
@@ -969,7 +981,7 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 
 	if state, err := c.State(vc); !state.Running && err == nil {
 		// unmap ports
-		if err = UnmapPorts(vc.HostConfig); err != nil {
+		if err = UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
 			return err
 		}
 	}
@@ -1272,6 +1284,11 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, vc *
 	if cc.HostConfig.AutoRemove {
 		convert.SetContainerAnnotation(config, convert.AnnotationKeyAutoRemove, cc.HostConfig.AutoRemove)
 	}
+
+	// hostname
+	config.Hostname = cc.Config.Hostname
+	// domainname - https://github.com/moby/moby/issues/27067
+	config.Domainname = cc.Config.Domainname
 
 	log.Debugf("dockerContainerCreateParamsToPortlayer = %+v", config)
 
@@ -1794,6 +1811,7 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 	if info.ContainerConfig.LayerID != "" {
 		vc.LayerID = info.ContainerConfig.LayerID
 	}
+
 	if info.ContainerConfig.ImageID != "" {
 		vc.ImageID = info.ContainerConfig.ImageID
 	}
@@ -1817,6 +1835,9 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 		vc.HostConfig.Binds = append(vc.HostConfig.Binds, mount)
 		log.Debugf("add volume mount %s to config.volumes and hostconfig.binds", mount)
 	}
+
+	vc.Config.Cmd = info.ProcessConfig.ExecArgs
+
 	return vc
 }
 

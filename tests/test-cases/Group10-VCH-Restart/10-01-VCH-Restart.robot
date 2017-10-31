@@ -49,6 +49,20 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     ${bar-running}=  Launch Container  vch-restart-bar-running  bar
     ${bar-running-ip}=  Get Container IP  ${bar-running}  bar
 
+    Launch Container  foo-c1  foo
+    Launch Container  foo-c2  foo
+    Launch Container  bar-c1  bar
+    Launch Container  bar-c2  bar
+    # name resolution should work on the foo and bar networks
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} exec foo-c1 ping -c3 foo-c2
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} exec foo-c2 ping -c3 foo-c1
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} exec bar-c1 ping -c3 bar-c2
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} exec bar-c2 ping -c3 bar-c1
+    Should Be Equal As Integers  ${rc}  0
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver ${nginx}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
@@ -67,6 +81,16 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
 
     # wait for docker info to succeed
     Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+
+    # name resolution should work on the foo and bar networks
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} exec foo-c1 ping -c3 foo-c2
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} exec foo-c2 ping -c3 foo-c1
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} exec bar-c1 ping -c3 bar-c2
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} exec bar-c2 ping -c3 bar-c1
+    Should Be Equal As Integers  ${rc}  0
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
     Should Be Equal As Integers  ${rc}  0
@@ -132,15 +156,21 @@ Create VCH attach disk and reboot
     ${rc}=  Run And Return Rc  govc device.ls -vm=%{VCH-NAME} | grep disk
     Should Be Equal As Integers  ${rc}  1
 
-Docker inspect mount data after reboot
+Docker inspect mount and cmd data after reboot
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=named-volume
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=mount-data-test -v /mnt/test -v named-volume:/mnt/named busybox
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=mount-data-test -v /mnt/test -v named-volume:/mnt/named busybox /bin/ls -la /
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' mount-data-test
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${out}  /mnt/test
     Should Contain  ${out}  /mnt/named
+
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Config.Cmd}}' mount-data-test
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain X Times  ${out}  /bin/ls  1
+    Should Contain X Times  ${out}  -la  1
+    Should Contain X Times  ${out}  ${SPACE}/  1
 
     Reboot VM  %{VCH-NAME}
 
@@ -150,3 +180,9 @@ Docker inspect mount data after reboot
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${out}  /mnt/test
     Should Contain  ${out}  /mnt/named
+
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Config.Cmd}}' mount-data-test
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain X Times  ${out}  /bin/ls  1
+    Should Contain X Times  ${out}  -la  1
+    Should Contain X Times  ${out}  ${SPACE}/  1

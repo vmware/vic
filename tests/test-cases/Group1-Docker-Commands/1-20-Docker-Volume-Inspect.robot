@@ -15,8 +15,9 @@
 *** Settings ***
 Documentation  Test 1-20 - Docker Volume Inspect
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Run Keywords  Conditional Install VIC Appliance To Test Server  Remove All Volumes
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Simple docker volume inspect

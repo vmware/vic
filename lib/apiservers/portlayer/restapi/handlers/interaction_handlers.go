@@ -26,9 +26,9 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/interaction"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/lib/portlayer/attach/communication"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -39,7 +39,8 @@ type InteractionHandlersImpl struct {
 }
 
 const (
-	interactionTimeout    time.Duration = 30 * time.Second
+	// bump to 50 seconds for 30s is not enough for slow environment
+	interactionTimeout    time.Duration = 50 * time.Second
 	attachStdinInitString               = "v1c#>"
 
 	// in sync with lib/tether/tether_linux.go

@@ -172,12 +172,7 @@ func (vm *VirtualMachine) WaitForExtraConfig(ctx context.Context, waitFunc func(
 
 	// Wait on config.extraConfig
 	// https://www.vmware.com/support/developer/vc-sdk/visdk2xpubs/ReferenceGuide/vim.vm.ConfigInfo.html
-	err := property.Wait(ctx, p, vm.Reference(), []string{"config.extraConfig", object.PropRuntimePowerState}, waitFunc)
-	if err != nil {
-		log.Errorf("Property collector error: %s", err)
-		return err
-	}
-	return nil
+	return property.Wait(ctx, p, vm.Reference(), []string{"config.extraConfig", object.PropRuntimePowerState}, waitFunc)
 }
 
 func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key string) (string, error) {
@@ -224,7 +219,6 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 	}
 
 	if err != nil {
-		log.Errorf("Unable to wait for extra config property %s: %s", key, err.Error())
 		return "", err
 	}
 	return detail, nil
@@ -262,7 +256,6 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*object.Task, 
 	}
 
 	disks := devices.SelectByType(&types.VirtualDisk{})
-
 	err = vm.RemoveDevice(ctx, true, disks...)
 	if err != nil {
 		return nil, err

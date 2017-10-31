@@ -59,13 +59,25 @@ func NewServiceInstance(content types.ServiceContent, folder mo.Folder) *Service
 
 	objects := []object.Reference{
 		NewSessionManager(*s.Content.SessionManager),
+		NewAuthorizationManager(*s.Content.AuthorizationManager),
+		NewPerformanceManager(*s.Content.PerfManager),
 		NewPropertyCollector(s.Content.PropertyCollector),
 		NewFileManager(*s.Content.FileManager),
+		NewVirtualDiskManager(*s.Content.VirtualDiskManager),
 		NewLicenseManager(*s.Content.LicenseManager),
 		NewSearchIndex(*s.Content.SearchIndex),
 		NewViewManager(*s.Content.ViewManager),
 		NewTaskManager(*s.Content.TaskManager),
+		NewUserDirectory(*s.Content.UserDirectory),
 		NewOptionManager(s.Content.Setting, setting),
+	}
+
+	if s.Content.CustomFieldsManager != nil {
+		objects = append(objects, NewCustomFieldsManager(*s.Content.CustomFieldsManager))
+	}
+
+	if s.Content.IpPoolManager != nil {
+		objects = append(objects, NewIpPoolManager(*s.Content.IpPoolManager))
 	}
 
 	for _, o := range objects {

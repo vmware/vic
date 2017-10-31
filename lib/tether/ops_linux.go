@@ -73,6 +73,15 @@ const (
 	nfsFileSystemType  = "nfs"
 	ext4FileSystemType = "ext4"
 	bridgeTableNumber  = 201
+
+	// directory in which to perform the direct mount of disk for bind mount to actual
+	// target
+	diskBindBase = "/.filesystem-by-label/"
+	// used to isolate applications from the lost+found in the root of ext4
+	volumeDataDir = "/.vic.vol.data"
+
+	// temp directory to copy existing data to mounts
+	bindDir = "/.bind"
 )
 
 type BaseOperations struct {
@@ -150,7 +159,7 @@ func (t *BaseOperations) RuleList(family int) ([]netlink.Rule, error) {
 }
 
 func (t *BaseOperations) LinkBySlot(slot int32) (netlink.Link, error) {
-	pciPath, err := slotToPCIPath(slot)
+	pciPath, err := slotToPCIPath(slot, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -202,10 +211,15 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 		return err
 	}
 
+	if err := BindSys.Hosts.Load(); err != nil {
+		log.Errorf("Unable to load existing /etc/hosts file - modifications since last load will be overwritten: %s", err)
+	}
+
 	// add entry to hosts for resolution without nameservers
 	lo4 := net.IPv4(127, 0, 1, 1)
 	for _, a := range append(aliases, hostname) {
 		BindSys.Hosts.SetHost(a, lo4)
+		BindSys.Hosts.SetHost(a, net.IPv6loopback)
 	}
 
 	if err = bindMountAndSave(Sys.Hosts, BindSys.Hosts); err != nil {
@@ -215,23 +229,25 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	return nil
 }
 
-func slotToPCIPath(pciSlot int32) (string, error) {
+func slotToPCIPath(pciSlot int32, fun int32) (string, error) {
 	// see https://kb.vmware.com/kb/2047927
-	dev := pciSlot & 0x1f
-	bus := (pciSlot >> 5) & 0x1f
-	fun := (pciSlot >> 10) & 0x7
+	dev := pciSlot & 0x1f        // DDDDD
+	bus := (pciSlot >> 5) & 0x1f // BBBBB
+	if fun == 0 {
+		fun = (pciSlot >> 10) & 0x7 // FFF
+	}
 	if bus == 0 {
 		return path.Join(pciDevPath, fmt.Sprintf("0000:%02x:%02x.%d", bus, dev, fun)), nil
 	}
 
-	// device on secondary bus, prepend pci bridge address
+	// device on secondary bus, prepend pci bridge address, pciBridge0.pciSlotNumber is "17" aka "0x11"
 	bridgeSlot := 0x11 + (bus - 1)
-	bridgeAddr, err := slotToPCIPath(bridgeSlot)
+	bridgeAddr, err := slotToPCIPath(bridgeSlot, fun)
 	if err != nil {
 		return "", err
 	}
 
-	return path.Join(bridgeAddr, fmt.Sprintf("0000:*:%02x.%d", dev, fun)), nil
+	return path.Join(bridgeAddr, fmt.Sprintf("0000:*:%02x.0", dev)), nil
 }
 
 func pciToLinkName(pciPath string) (string, error) {
@@ -491,6 +507,10 @@ func (t *BaseOperations) updateHosts(endpoint *NetworkEndpoint) error {
 		return nil
 	}
 
+	if err := BindSys.Hosts.Load(); err != nil {
+		log.Errorf("Unable to load existing /etc/hosts file - modifications since last load will be overwritten: %s", err)
+	}
+
 	BindSys.Hosts.SetHost(fmt.Sprintf("%s.localhost", endpoint.Network.Name), endpoint.Assigned.IP)
 
 	if err := bindMountAndSave(Sys.Hosts, BindSys.Hosts); err != nil {
@@ -659,6 +679,7 @@ func ApplyEndpoint(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) err
 }
 
 func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc client.Client) {
+	divisor := time.Duration(2)
 	exp := time.After(dc.LastAck().LeaseTime() / 2)
 	for {
 		select {
@@ -673,6 +694,18 @@ func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc cli
 			err := dc.Renew()
 			if err != nil {
 				log.Errorf("failed to renew ip address for network %s: %s", e.Name, err)
+
+				// wait half of the remaining lease time before trying again
+				divisor *= 2
+				duration := dc.LastAck().LeaseTime() / divisor
+
+				// for now go with a minimum retry of 1min
+				if duration < time.Minute {
+					duration = time.Minute
+				}
+
+				exp = time.After(duration)
+
 				continue
 			}
 
@@ -685,6 +718,7 @@ func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc cli
 				Nameservers: ack.DNS(),
 			}
 
+			// TODO: determine if there are actually any changes to apply before performing updates
 			e.configured = false
 			t.Apply(e)
 			if err = t.config.UpdateNetworkEndpoint(e); err != nil {
@@ -716,6 +750,8 @@ func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc cli
 func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", label, target)))
 
+	bindTarget := path.Join(BindSys.Root, diskBindBase, label)
+
 	fi, err := os.Stat(target)
 	if err != nil {
 		// #nosec
@@ -728,24 +764,43 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 	// convert the label to a filesystem path
 	label = "/dev/disk/by-label/" + label
 
-	// do..while ! timedout
-	var timeout bool
-	for timeout = false; !timeout; {
-		_, err := os.Stat(label)
-		if err == nil || !os.IsNotExist(err) {
-			break
+	var e1, e2 error
+	_, e1 = os.Stat(bindTarget)
+	if e1 == nil {
+		// bindTarget exists, check whether or not bindTarget is a mount point
+		e2 = os.Remove(bindTarget)
+	}
+
+	if (e1 == nil && e2 == nil) || os.IsNotExist(e1) {
+		// #nosec
+		if err := os.MkdirAll(bindTarget, 0744); err != nil {
+			return fmt.Errorf("unable to create mount point %s: %s", bindTarget, err)
 		}
-
-		deadline, ok := ctx.Deadline()
-		timeout = ok && time.Now().After(deadline)
+		if err := mountDeviceLabel(ctx, label, bindTarget); err != nil {
+			return err
+		}
 	}
 
-	if timeout {
-		detail := fmt.Sprintf("timed out waiting for %s to appear", label)
-		return errors.New(detail)
+	// at this point bindTarget should be mounted successfully
+	mntsrc := path.Join(bindTarget, volumeDataDir)
+	mnttype := "bind"
+	mntflags := uintptr(syscall.MS_BIND)
+	// if the volume contains a volumeDataDir directory then mount that instead of the root of the filesystem
+	// if we cannot read it we go with the root of the filesystem
+	_, err = os.Stat(mntsrc)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// if there's not such directory then revert to using the device directly
+			log.Info("No " + volumeDataDir + " data directory in volume, mounting filesystem directly")
+			mntsrc = label
+			mnttype = ext4FileSystemType
+			mntflags = syscall.MS_NOATIME
+		} else {
+			return fmt.Errorf("unable to determine whether lost+found masking is required: %s", err)
+		}
 	}
 
-	if err := Sys.Syscall.Mount(label, target, ext4FileSystemType, syscall.MS_NOATIME, ""); err != nil {
+	if err := Sys.Syscall.Mount(mntsrc, target, mnttype, mntflags, ""); err != nil {
 		// consistent with MountFileSystem
 		detail := fmt.Sprintf("mounting %s on %s failed: %s", label, target, err)
 		return errors.New(detail)
@@ -764,6 +819,34 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 			return fmt.Errorf("unable to change the owner of the mount point %s: %s", target, err)
 		}
 	}
+	return nil
+}
+
+// mountDeviceLabel mounts the device to target
+func mountDeviceLabel(ctx context.Context, label string, target string) error {
+	// wait for device label to show up until the ctx deadline exceeds.
+WaitForDevice:
+	for {
+		select {
+		case <-ctx.Done():
+			detail := fmt.Sprintf("timed out waiting for %s to appear", label)
+			return errors.New(detail)
+		default:
+			_, err := os.Stat(label)
+			if err == nil || !os.IsNotExist(err) {
+				break WaitForDevice
+			}
+			// sleep for 1 ms to reduce pressure on cpu
+			time.Sleep(time.Millisecond)
+		}
+	}
+
+	if err := Sys.Syscall.Mount(label, target, ext4FileSystemType, syscall.MS_NOATIME, ""); err != nil {
+		// consistent with MountFileSystem
+		detail := fmt.Sprintf("Actual mount: mounting %s on %s failed: %s", label, target, err)
+		return errors.New(detail)
+	}
+
 	return nil
 }
 
@@ -796,6 +879,8 @@ func (t *BaseOperations) CopyExistingContent(source string) error {
 
 	source = filepath.Clean(source)
 
+	bind := path.Join(BindSys.Root, bindDir)
+
 	// if mounted volume is not empty skip the copy task
 	if empty, err := isEmpty(source); err != nil || !empty {
 		if err != nil {
@@ -806,40 +891,40 @@ func (t *BaseOperations) CopyExistingContent(source string) error {
 		return nil
 	}
 
-	log.Debugf("creating directory %s", bindDir)
-	if err := os.MkdirAll(bindDir, 0644); err != nil {
-		log.Errorf("error creating directory %s: %+v", bindDir, err)
+	log.Debugf("creating directory %s", bind)
+	if err := os.MkdirAll(bind, 0644); err != nil {
+		log.Errorf("error creating directory %s: %+v", bind, err)
 		return err
 	}
 
 	// remove dir
 	defer func() {
-		log.Debugf("removing %s", bindDir)
-		if err := os.Remove(bindDir); err != nil {
-			log.Errorf("error removing directory %s: %+v", bindDir, err)
+		log.Debugf("removing %s", bind)
+		if err := os.Remove(bind); err != nil {
+			log.Errorf("error removing directory %s: %+v", bind, err)
 		}
 	}()
 
 	parentDir := filepath.Dir(source)
-	// mount the parent directory of the source to bindDir
-	// e.g if source is /foo/bar, mount /foo to ./bindDir
-	log.Debugf("mounting %s on %s", parentDir, bindDir)
-	if err := Sys.Syscall.Mount(parentDir, bindDir, ext4FileSystemType, syscall.MS_BIND, ""); err != nil {
-		log.Errorf("error mounting to %s: %+v", bindDir, err)
+	// mount the parent directory of the source to bind
+	// e.g if source is /foo/bar, mount /foo to ./bind
+	log.Debugf("mounting %s on %s", parentDir, bind)
+	if err := Sys.Syscall.Mount(parentDir, bind, ext4FileSystemType, syscall.MS_BIND, ""); err != nil {
+		log.Errorf("error mounting to %s: %+v", bind, err)
 		return err
 	}
 
 	// unmount
 	defer func() {
-		log.Debugf("unmounting %s", bindDir)
-		if err := Sys.Syscall.Unmount(bindDir, syscall.MNT_DETACH); err != nil {
+		log.Debugf("unmounting %s", bind)
+		if err := Sys.Syscall.Unmount(bind, syscall.MNT_DETACH); err != nil {
 			log.Errorf("error unmounting %+v", err)
 		}
 	}()
 
-	mountedSource := filepath.Join(bindDir, filepath.Base(source))
-	// copy data from the bindDir to the source
-	// e.g if source is /foo/bar, copy ./bindDir/bar to /foo/bar
+	mountedSource := filepath.Join(bind, filepath.Base(source))
+	// copy data from the bind to the source
+	// e.g if source is /foo/bar, copy ./bind/bar to /foo/bar
 	log.Debugf("copying contents from to %s to %s", mountedSource, source)
 	if err := archive.CopyWithTar(mountedSource, source); err != nil {
 		log.Errorf("err copying %s to %s: %+v", mountedSource, source, err)
@@ -908,13 +993,22 @@ func (t *BaseOperations) Setup(config Config) error {
 		return err
 	}
 
+	// Seed the working copy of the hosts file with that from the image
+	BindSys.Hosts.Copy(Sys.Hosts)
+
 	// make sure localhost entries are present
 	entries := []struct {
 		hostname string
 		addr     net.IP
 	}{
 		{"localhost", net.ParseIP("127.0.0.1")},
+		{"localhost4", net.ParseIP("127.0.0.1")},
+		{"localhost.localdomain", net.ParseIP("127.0.0.1")},
+		{"localhost4.localdomain4", net.ParseIP("127.0.0.1")},
 		{"ip6-localhost", net.ParseIP("::1")},
+		{"localhost", net.ParseIP("::1")},
+		{"localhost.localdomain", net.ParseIP("::1")},
+		{"localhost6.localdomain6", net.ParseIP("::1")},
 		{"ip6-loopback", net.ParseIP("::1")},
 		{"ip6-localnet", net.ParseIP("fe00::0")},
 		{"ip6-mcastprefix", net.ParseIP("ff00::0")},
@@ -1022,13 +1116,19 @@ func bindMount(src, target string) error {
 	// no need to return if unmount fails; it's possible that the target is not mounted previously
 	log.Infof("unmounting %s", target)
 	if err := Sys.Syscall.Unmount(target, syscall.MNT_DETACH); err != nil {
-		log.Errorf("failed to unmount %s: %s", target, err)
+		if err.Error() == os.ErrInvalid.Error() {
+			log.Debug("path is not currently a bindmount target")
+		} else {
+			log.Errorf("failed to unmount %s: %s", target, err)
+		}
 	}
 
 	// bind mount src to target
 	log.Infof("bind-mounting %s on %s", src, target)
 	if err := Sys.Syscall.Mount(src, target, "bind", syscall.MS_BIND, ""); err != nil {
-		return fmt.Errorf("faild to mount %s to %s: %s", src, target, err)
+		detail := fmt.Errorf("failed to mount %s to %s: %s", src, target, err)
+		log.Error(detail)
+		return detail
 	}
 
 	// make sure the file is readable

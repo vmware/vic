@@ -15,8 +15,9 @@
 *** Settings ***
 Documentation  Test 1-15 - Docker Network Create
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Run Keywords  Conditional Install VIC Appliance To Test Server  Remove All Container Networks
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Basic network create
@@ -39,7 +40,7 @@ Network create with label
 Create already created network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create test-network
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  already exists 
+    Should Contain  ${output}  already exists
 
 Create overlay network
     ${status}=  Get State Of Github Issue  1222

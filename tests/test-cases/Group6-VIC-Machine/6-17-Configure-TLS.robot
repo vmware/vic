@@ -18,6 +18,7 @@ Resource  ../../resources/Util.robot
 Suite Teardown  Run Keyword  Cleanup VIC Appliance On Test Server
 Suite Setup  Run Keyword  Setup Test Environment
 Test Teardown  Run Keyword  Test Cleanup
+Test Timeout  20 minutes
 
 *** Keywords ***
 Setup Test Environment

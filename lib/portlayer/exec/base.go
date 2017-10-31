@@ -24,10 +24,10 @@ import (
 	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/migration"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
@@ -89,6 +89,11 @@ func newBase(vm *vm.VirtualMachine, c *types.VirtualMachineConfigInfo, r *types.
 	return base
 }
 
+// String returns the string representation of ContainerBase
+func (c *containerBase) String() string {
+	return c.ExecConfig.ID
+}
+
 // VMReference will provide the vSphere vm managed object reference
 func (c *containerBase) VMReference() types.ManagedObjectReference {
 	var moref types.ManagedObjectReference
@@ -102,7 +107,7 @@ func (c *containerBase) VMReference() types.ManagedObjectReference {
 func (c *containerBase) refresh(ctx context.Context) error {
 	base, err := c.updates(ctx)
 	if err != nil {
-		log.Errorf("Update: unable to update container %s", c.ExecConfig.ID)
+		log.Errorf("Update: unable to update container %s: %s", c, err)
 		return err
 	}
 
@@ -123,7 +128,7 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 	}
 
 	if c.Config != nil {
-		log.Debugf("Update: refreshing from change version %s", c.Config.ChangeVersion)
+		log.Debugf("Update: for %s, refreshing from change version %s", c, c.Config.ChangeVersion)
 	}
 
 	if err := c.vm.Properties(ctx, c.vm.Reference(), []string{"config", "runtime"}, &o); err != nil {
@@ -144,7 +149,7 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 		return nil, fmt.Errorf("Update: change version %s failed assertion extraconfig id != nil", o.Config.ChangeVersion)
 	}
 
-	log.Debugf("Update: change version %s, extraconfig id: %+v", o.Config.ChangeVersion, containerExecKeyValues["guestinfo.vice./common/id"])
+	log.Debugf("Update: for %s, change version %s, extraconfig id: %+v", c, o.Config.ChangeVersion, containerExecKeyValues["guestinfo.vice./common/id"])
 	// #nosec: Errors unhandled.
 	base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
 	migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
@@ -212,15 +217,8 @@ func (c *containerBase) start(ctx context.Context) error {
 	_, err := c.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return c.vm.PowerOn(ctx)
 	})
-	if err != nil {
-		return err
-	}
 
-	// wait task to set started field to something
-	ctx, cancel := context.WithTimeout(ctx, constants.PropertyCollectorTimeout)
-	defer cancel()
-
-	return c.waitForSession(ctx, c.ExecConfig.ID)
+	return err
 }
 
 func (c *containerBase) stop(ctx context.Context, waitTime *int32) error {
@@ -237,7 +235,7 @@ func (c *containerBase) stop(ctx context.Context, waitTime *int32) error {
 		return nil
 	}
 
-	log.Warnf("stopping %s via hard power off due to: %s", c.ExecConfig.ID, err)
+	log.Warnf("stopping %s via hard power off due to: %s", c, err)
 
 	return c.poweroff(ctx)
 }
@@ -253,26 +251,33 @@ func (c *containerBase) kill(ctx context.Context) error {
 	defer cancel()
 
 	sig := string(ssh.SIGKILL)
-	log.Infof("sending kill -%s %s", sig, c.ExecConfig.ID)
+	log.Infof("sending kill -%s %s", sig, c)
 
 	err := c.startGuestProgram(timeout, "kill", sig)
-	if err == nil {
-		log.Infof("waiting %s for %s to power off", wait, c.ExecConfig.ID)
-		err := c.vm.WaitForPowerState(timeout, types.VirtualMachinePowerStatePoweredOff)
-		if err == nil {
-			return nil // VM has powered off
-		}
-
-		if timeout.Err() != nil {
-			log.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c.ExecConfig.ID, sig)
-		}
+	if err == nil && timeout.Err() != nil {
+		log.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c, sig)
 	}
-
 	if err != nil {
-		log.Warnf("killing %s attempt resulted in: %s", c.ExecConfig.ID, err)
+		log.Warnf("killing %s attempt resulted in: %s", c, err)
+
+		if isInvalidPowerStateError(err) {
+			return nil
+		}
 	}
 
-	log.Warnf("killing %s via hard power off", c.ExecConfig.ID)
+	// Even if startGuestProgram failed above, it may actually have executed.  If the container came up and then
+	// we kill it before VC gets a chance to detect the toolbox, vSphere can execute the kill but report an
+	// error 3016 indicating the guest toolbox wasn't found.  If we then try to poweroff, it may throw vSphere
+	// into an invalid transition and will need to recover.  If we try to grab properties at this time, the
+	// power state may be incorrect.  We work around this by waiting on the power state, regardless of error
+	// from startGuestProgram. https://github.com/vmware/vic/issues/5803
+	log.Infof("waiting %s for %s to power off", wait, c)
+	err = c.vm.WaitForPowerState(timeout, types.VirtualMachinePowerStatePoweredOff)
+	if err == nil {
+		return nil // VM has powered off
+	}
+
+	log.Warnf("killing %s via hard power off", c)
 
 	// stop wait time is not applied for the hard kill
 	return c.poweroff(ctx)
@@ -295,8 +300,10 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 		stop[0] = string(ssh.SIGTERM)
 	}
 
+	var killed bool
+
 	for _, sig := range stop {
-		msg := fmt.Sprintf("sending kill -%s %s", sig, c.ExecConfig.ID)
+		msg := fmt.Sprintf("sending kill -%s %s", sig, c)
 		log.Info(msg)
 
 		timeout, cancel := context.WithTimeout(ctx, wait)
@@ -304,10 +311,19 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 
 		err := c.startGuestProgram(timeout, "kill", sig)
 		if err != nil {
-			return fmt.Errorf("%s: %s", msg, err)
+			// Just warn and proceed to waiting for power state per issue https://github.com/vmware/vic/issues/5803
+			// Description above in function kill()
+			log.Warnf("%s: %s", msg, err)
+
+			// If the error tells us "The attempted operation cannot be performed in the current state (Powered off)" (InvalidPowerState),
+			// we can avoid hard poweroff (issues #6236 and #6252). Here we wait for the power state changes instead of return
+			// immediately to avoid excess vSphere queries
+			if isInvalidPowerStateError(err) {
+				killed = true
+			}
 		}
 
-		log.Infof("waiting %s for %s to power off", wait, c.ExecConfig.ID)
+		log.Infof("waiting %s for %s to power off", wait, c)
 		err = c.vm.WaitForPowerState(timeout, types.VirtualMachinePowerStatePoweredOff)
 		if err == nil {
 			return nil // VM has powered off
@@ -317,10 +333,14 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 			return err // error other than timeout
 		}
 
-		log.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c.ExecConfig.ID, sig)
+		log.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c, sig)
+
+		if killed {
+			return nil
+		}
 	}
 
-	return fmt.Errorf("failed to shutdown %s via kill signals %s", c.ExecConfig.ID, stop)
+	return fmt.Errorf("failed to shutdown %s via kill signals %s", c, stop)
 }
 
 func (c *containerBase) poweroff(ctx context.Context) error {
@@ -340,7 +360,7 @@ func (c *containerBase) poweroff(ctx context.Context) error {
 			switch terr := terr.Fault().(type) {
 			case *types.InvalidPowerState:
 				if terr.ExistingState == types.VirtualMachinePowerStatePoweredOff {
-					log.Warnf("power off %s task skipped (state was already %s)", c.ExecConfig.ID, terr.ExistingState)
+					log.Warnf("power off %s task skipped (state was already %s)", c, terr.ExistingState)
 					return nil
 				}
 				log.Warnf("invalid power state during power off: %s", terr.ExistingState)
@@ -351,7 +371,7 @@ func (c *containerBase) poweroff(ctx context.Context) error {
 				if len(terr.FaultMessage) > 0 {
 					k := terr.FaultMessage[0].Key
 					if k == vmNotSuspendedKey || k == vmPoweringOffKey {
-						log.Infof("power off %s task skipped due to guest shutdown", c.ExecConfig.ID)
+						log.Infof("power off %s task skipped due to guest shutdown", c)
 						return nil
 					}
 				}
@@ -409,4 +429,14 @@ func (c *containerBase) waitFor(ctx context.Context, key string) error {
 	}
 
 	return nil
+}
+
+// isInvalidPowerStateError verifies if an error is the InvalidPowerStateError
+func isInvalidPowerStateError(err error) bool {
+	if soap.IsSoapFault(err) {
+		_, ok := soap.ToSoapFault(err).VimFault().(types.InvalidPowerState)
+		return ok
+	}
+
+	return false
 }

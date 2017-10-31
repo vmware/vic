@@ -156,8 +156,9 @@ func testUpdateResources(ctx context.Context, sess *session.Session, conf *confi
 	d.appliance = vm.NewVirtualMachine(ctx, sess, appliance.Reference())
 
 	settings := &data.InstallerData{}
-	settings.VCHSize.CPU.Limit = 1024
-	settings.VCHSize.Memory.Limit = 1024
+	limit := int64(1024)
+	settings.VCHSize.CPU.Limit = &limit
+	settings.VCHSize.Memory.Limit = &limit
 	settings.VCHSizeIsSet = true
 
 	if err = d.updateResourceSettings(conf.Name, settings); err != nil {
@@ -178,8 +179,9 @@ func testUpdateResources(ctx context.Context, sess *session.Session, conf *confi
 	assert.Equal(t, d.oldVCHResources, nil, "should not update for same resource settings")
 
 	settings2 := &data.InstallerData{}
-	settings2.VCHSize.CPU.Limit = 2048
-	settings2.VCHSize.Memory.Limit = 2048
+	limit = int64(2048)
+	settings2.VCHSize.CPU.Limit = &limit
+	settings2.VCHSize.Memory.Limit = &limit
 	settings2.VCHSizeIsSet = false
 	if err = d.updateResourceSettings(conf.Name, settings); err != nil {
 		t.Errorf("Failed to update resources: %s", err)

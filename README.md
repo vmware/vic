@@ -167,6 +167,12 @@ From the root directory of the `vic` repository run `drone exec --repo.trusted`
 
     *Solution:* Delete everything under `$GOPATH/pkg/linux_amd64/github.com/vmware/vic` and re-run `make all`.
 
+3.  `vic-machine upgrade` integration tests fail due to `BUILD_NUMBER` being set incorrectly when building locally
+
+    *Cause:* `vic-machine` checks the build number of its binary to determine upgrade status and a locally-built `vic-machine` binary may not have the `BUILD_NUMBER` set correctly. Upon running `vic-machine upgrade`, it may fail with the message `foo-VCH has same or newer version x than installer version y. No upgrade is available.`
+
+    *Solution:* Set `BUILD_NUMBER` to a high number at the top of the `Makefile` - `BUILD_NUMBER ?= 9999999999`. Then, re-build binaries - `sudo make distclean && sudo make clean && sudo make all` and run `vic-machine upgrade` with the new binary.
+
 ## Integration Tests
 
 [VIC Engine Integration Test Suite](tests/README.md) includes instructions to run locally.

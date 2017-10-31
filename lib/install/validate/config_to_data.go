@@ -18,12 +18,11 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"path"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/go-units"
-
-	"path/filepath"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -101,6 +100,7 @@ func setApplianceResources(ctx context.Context, vm *vm.VirtualMachine, d *data.D
 	return nil
 }
 
+// setVCHResources will populate the configuration data based on the deployed VCH config
 func setVCHResources(ctx context.Context, vch *object.ResourcePool, d *data.Data) error {
 	var p mo.ResourcePool
 	ps := []string{"config.cpuAllocation", "config.memoryAllocation"}
@@ -108,53 +108,32 @@ func setVCHResources(ctx context.Context, vch *object.ResourcePool, d *data.Data
 	if err := vch.Properties(ctx, vch.Reference(), ps, &p); err != nil {
 		return err
 	}
-	cpu := p.Config.CpuAllocation.GetResourceAllocationInfo()
-	if cpu != nil {
-		HandleDefaultSettings(cpu)
-		setResources(&d.VCHCPULimitsMHz, &d.VCHCPUReservationsMHz, &d.VCHCPUShares, cpu)
+
+	cpu := p.Config.CpuAllocation
+	// only set if we have a limit set.  -1 == no limit
+	if cpu.Limit != nil && *cpu.Limit != -1 {
+		currentCPULimit := int(*cpu.Limit)
+		d.VCHCPULimitsMHz = &currentCPULimit
 	}
-	memory := p.Config.MemoryAllocation.GetResourceAllocationInfo()
-	if memory != nil {
-		HandleDefaultSettings(memory)
-		setResources(&d.VCHMemoryLimitsMB, &d.VCHMemoryReservationsMB, &d.VCHMemoryShares, memory)
+	if cpu.Reservation != nil {
+		currentCPUReserve := int(*cpu.Reservation)
+		d.VCHCPUReservationsMHz = &currentCPUReserve
 	}
+	d.VCHCPUShares = cpu.Shares
+
+	memory := p.Config.MemoryAllocation
+	// only set if we have a limit set.  -1 == no limit
+	if memory.Limit != nil && *memory.Limit != -1 {
+		currentMemLimit := int(*memory.Limit)
+		d.VCHMemoryLimitsMB = &currentMemLimit
+	}
+	if memory.Reservation != nil {
+		currentMemReserve := int(*memory.Reservation)
+		d.VCHMemoryReservationsMB = &currentMemReserve
+	}
+	d.VCHMemoryShares = memory.Shares
+
 	return nil
-}
-
-func HandleDefaultSettings(allocation *types.ResourceAllocationInfo) {
-	if allocation == nil {
-		return
-	}
-	if allocation.Limit == -1 {
-		allocation.Limit = 0
-	}
-	// FIXME: govmomi omit empty value issue
-	// During creation, to workaround govmomi omit empty value issue (which is generated from vsphere WSDL), we have to set reservation to 1 instead of 0.
-	// But this 1 is not a custom setting, we don't want to show that 1 in the user configuration output, so reset that back to correct default.
-	if allocation.Reservation == 1 {
-		allocation.Reservation = 0
-	}
-	if allocation.Shares != nil && allocation.Shares.Level == types.SharesLevelNormal {
-		allocation.Shares.Shares = 0
-	}
-	allocation.ExpandableReservation = nil
-}
-
-func setResources(limit **int, reservation **int, shares **types.SharesInfo, allocation *types.ResourceAllocationInfo) {
-	if limit != nil {
-		// default unlimited value is -1, so no need to set
-		al := int(allocation.Limit)
-		*limit = &al
-	}
-	if reservation != nil {
-		// reservation is set to 1 to avoid empty value issue in govmomi
-		ar := int(allocation.Reservation)
-		*reservation = &ar
-	}
-	if shares != nil {
-		// default value is normal share level
-		*shares = allocation.Shares
-	}
 }
 
 // NewDataFromConfig converts VirtualContainerHostConfigSpec back to data.Data object
@@ -238,6 +217,8 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 			return
 		}
 	}
+
+	d.ContainerNameConvention = conf.ContainerNameConvention
 	return
 }
 
@@ -283,7 +264,7 @@ func setVolumeLocations(d *data.Data, conf *config.VirtualContainerHostConfigSpe
 			continue
 		}
 		u := *v
-		u.Path = filepath.Join(dsURL.Datastore, dsURL.Path)
+		u.Path = path.Join(dsURL.Datastore, dsURL.Path)
 		u.Host = ""
 		d.VolumeLocations[k] = &u
 	}

@@ -16,6 +16,7 @@
 Documentation  Test 6-02 - Verify default parameters
 Resource  ../../resources/Util.robot
 Suite Teardown  Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Keywords ***
 Should Not Have VMOMI Session
@@ -96,3 +97,5 @@ Check That VMOMI Sessions Don't Leak From VIC Machine
     Log  ${output}
     ${thumbprint}=  Get Thumbprint From Log  ${output}
     Should Not Have VMOMI Session  ${thumbprint}
+
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}

@@ -1,8 +1,0 @@
-<!--
-   Shortcut to invoke the build script with the compile-resources target.
--->
-<project name="vic-resources" default="compile-resources">
-   <target name="compile-resources">
-       <ant antfile="build-war.xml" target="compile-resources"/>
-   </target>
-</project>

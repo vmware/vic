@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
@@ -217,15 +218,23 @@ func TestMain(m *testing.M) {
 	}(Sys.Hosts, Sys.ResolvConf)
 
 	// replace the Sys variable with a mock
-	Sys = system.NewWithRoot(os.TempDir())
+	r, err := ioutil.TempDir("", "tether-root")
+	if err != nil {
+		os.Exit(1)
+		log.Fatalf("Failed to create tmpdir for test root filesytem: %s", err)
+	}
+
+	Sys = system.NewWithRoot(r)
 	Sys.Syscall = &MockSyscall{}
 
-	BindSys = system.NewWithRoot(path.Join(os.TempDir(), "/.tether"))
+	BindSys = system.NewWithRoot(path.Join(Sys.Root, "/.tether"))
 	BindSys.Syscall = &MockSyscall{}
 
 	// ensure that the bindsys root exists
 	// #nosec
-	os.MkdirAll(BindSys.Root, 0644)
+	os.MkdirAll(BindSys.Root, 0744)
+
+	log.Debugf("Configured sys and bindsys to root in %s and %s", Sys.Root, BindSys.Root)
 
 	retCode := m.Run()
 
@@ -289,14 +298,14 @@ func testSetup(t *testing.T) (string, *Mocker) {
 	log.Infof("Started test setup for %s", name)
 
 	// use the mock ops - fresh one each time as tests might apply different mocked calls
-	mocker := Mocker{
+	mocker := &Mocker{
 		Started:    make(chan bool, 0),
 		Cleaned:    make(chan bool, 0),
 		Reloaded:   make(chan bool, 100),
 		Interfaces: make(map[string]netlink.Link, 0),
 	}
 
-	return name, &mocker
+	return name, mocker
 }
 
 func testTeardown(t *testing.T, mocker *Mocker) {

@@ -61,8 +61,8 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/metadata"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
@@ -108,6 +108,9 @@ const (
 	DefaultCPUs = 2
 	// Default timeout to stop a container if not specified in container config
 	DefaultStopTimeout = 10
+
+	// maximum elapsed time for retry
+	maxElapsedTime = 2 * time.Minute
 )
 
 var (
@@ -525,13 +528,6 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (contain
 
 	var err error
 
-	// bail early if container name already exists
-	if exists := cache.ContainerCache().GetContainerByName(config.Name); exists != nil {
-		err := fmt.Errorf("Conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", config.Name, exists.ContainerID)
-		log.Errorf("%s", err.Error())
-		return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestConflictError(err)
-	}
-
 	// get the image from the cache
 	image, err := cache.ImageCache().Get(config.Config.Image)
 	if err != nil {
@@ -555,9 +551,15 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (contain
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
 
+	// Reserve the container name to prevent duplicates during a parallel operation.
+	if err := cache.ContainerCache().ReserveName(container, config.Name); err != nil {
+		return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestConflictError(err)
+	}
+
 	// Create an actualized container in the VIC port layer
 	id, err := c.containerCreate(container, config)
 	if err != nil {
+		cache.ContainerCache().ReleaseName(config.Name)
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
 
@@ -761,6 +763,16 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		if state.Status == "Starting" {
 			return derr.NewRequestConflictError(fmt.Errorf("The container is starting.  To remove use -f"))
 		}
+
+		handle, err := c.Handle(id, name)
+		if err != nil {
+			return err
+		}
+
+		_, err = c.containerProxy.UnbindContainerFromNetwork(vc, handle)
+		if err != nil {
+			return err
+		}
 	}
 
 	//call the remove directly on the name. No need for using a handle.
@@ -775,6 +787,11 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 			return InternalServerError(err.Payload.Message)
 		case *containers.ContainerRemoveConflict:
 			return derr.NewRequestConflictError(fmt.Errorf("You cannot remove a running container. Stop the container before attempting removal or use -f"))
+		case *containers.ContainerRemoveInternalServerError:
+			if err.Payload == nil || err.Payload.Message == "" {
+				return InternalServerError(err.Error())
+			}
+			return InternalServerError(err.Payload.Message)
 		default:
 			return InternalServerError(err.Error())
 		}
@@ -826,7 +843,7 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 			}
 
 			log.Debugf("Unmapping ports for powered off / removed container %q", mappedCtr)
-			err = UnmapPorts(cc.HostConfig)
+			err = UnmapPorts(cc.ContainerID, cc.HostConfig)
 			if err != nil {
 				return fmt.Errorf("Failed to unmap host port %s for container %q: %s",
 					hPort, mappedCtr, err)
@@ -943,7 +960,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 
 			defer func() {
 				if err != nil {
-					UnmapPorts(hostConfig)
+					UnmapPorts(id, hostConfig)
 				}
 			}()
 		}
@@ -1068,8 +1085,8 @@ func MapPorts(hostconfig *containertypes.HostConfig, endpoint *models.EndpointCo
 	return nil
 }
 
-// UnmapPorts unmaps ports defined in hostconfig
-func UnmapPorts(hostconfig *containertypes.HostConfig) error {
+// UnmapPorts unmaps ports defined in hostconfig if it's mapped for this container
+func UnmapPorts(id string, hostconfig *containertypes.HostConfig) error {
 	log.Debugf("UnmapPorts: %v", hostconfig.PortBindings)
 
 	if len(hostconfig.PortBindings) == 0 {
@@ -1085,9 +1102,13 @@ func UnmapPorts(hostconfig *containertypes.HostConfig) error {
 	defer cbpLock.Unlock()
 	for _, p := range portMap {
 		// check if we should actually unmap based on current mappings
-		_, mapped := containerByPort[p.strHostPort]
+		mappedID, mapped := containerByPort[p.strHostPort]
 		if !mapped {
 			log.Debugf("skipping already unmapped %s", p.strHostPort)
+			continue
+		}
+		if mappedID != id {
+			log.Debugf("port is mapped for container %s, not %s, skipping", mappedID, id)
 			continue
 		}
 
@@ -1232,7 +1253,10 @@ func (c *Container) ContainerStop(name string, seconds *int) error {
 	operation := func() error {
 		return c.containerProxy.Stop(vc, name, seconds, true)
 	}
-	if err := retry.Do(operation, IsConflictError); err != nil {
+
+	config := retry.NewBackoffConfig()
+	config.MaxElapsedTime = maxElapsedTime
+	if err := retry.DoWithConfig(operation, IsConflictError, config); err != nil {
 		return err
 	}
 
@@ -1540,13 +1564,18 @@ payloadLoop:
 			names = append(names, clientFriendlyContainerName(t.ContainerConfig.Names[i]))
 		}
 
-		ips, err := publicIPv4Addrs()
 		var ports []types.Port
-		if err != nil {
-			log.Errorf("Could not get IP information for reporting port bindings.")
-		} else {
-			ports = portInformation(t, ips)
+		if t.HostConfig.Address != "" {
+			ports = directPortInformation(t)
 		}
+
+		ips, err := publicIPv4Addrs()
+		if err != nil {
+			log.Errorf("Could not get IP information for reporting port bindings: %s", err)
+			// display port mappings without IP data if we cannot get it
+			ips = []string{""}
+		}
+		ports = append(ports, portForwardingInformation(t, ips)...)
 
 		// verify that the repo:tag exists for the container -- if it doesn't then we should present the
 		// truncated imageID -- if we have a failure determining then we'll show the data we have
@@ -1716,7 +1745,11 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 		return derr.NewRequestConflictError(err)
 	}
 
-	if err := c.containerProxy.Rename(vc, newName); err != nil {
+	renameOp := func() error {
+		return c.containerProxy.Rename(vc, newName)
+	}
+
+	if err := retry.Do(renameOp, IsConflictError); err != nil {
 		log.Errorf("Rename error: %s", err)
 		cache.ContainerCache().ReleaseName(newName)
 		return err
@@ -1926,7 +1959,7 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	} else {
 		ips = make([]string, len(addrs))
 		for i := range addrs {
-			ips[i] = addrs[i].IP.String()
+			ips[i] = addrs[i]
 		}
 	}
 
@@ -1960,10 +1993,11 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	}
 
 	// Was a name provided - if not create a friendly name
+	generatedName := namesgenerator.GetRandomName(0)
 	if config.Name == "" {
 		//TODO: Assume we could have a name collison here : need to
 		// provide validation / retry CDG June 9th 2016
-		config.Name = namesgenerator.GetRandomName(0)
+		config.Name = generatedName
 	}
 
 	return nil
@@ -1987,43 +2021,108 @@ func copyConfigOverrides(vc *viccontainer.VicContainer, config types.ContainerCr
 	vc.HostConfig = config.HostConfig
 }
 
-func publicIPv4Addrs() ([]netlink.Addr, error) {
+func publicIPv4Addrs() ([]string, error) {
 	l, err := netlink.LinkByName(publicIfaceName)
 	if err != nil {
-		return nil, fmt.Errorf("Could not look up link from public interface name %s due to error %s",
-			publicIfaceName, err.Error())
+		return nil, fmt.Errorf("could not look up link from interface name %s: %s", publicIfaceName, err.Error())
 	}
-	ips, err := netlink.AddrList(l, netlink.FAMILY_V4)
+
+	addrs, err := netlink.AddrList(l, netlink.FAMILY_V4)
 	if err != nil {
-		return nil, fmt.Errorf("Could not get IP addresses of link due to error %s", err.Error())
+		return nil, fmt.Errorf("could not get addresses from public link: %s", err.Error())
+	}
+
+	ips := make([]string, len(addrs))
+	for i := range addrs {
+		ips[i] = addrs[i].IP.String()
 	}
 
 	return ips, nil
 }
 
+func directPortInformation(t *models.ContainerInfo) []types.Port {
+	var redirectPorts []types.Port
+	var directPorts []types.Port
+
+	ip := t.HostConfig.Address
+
+	openNetwork := false
+	for _, p := range t.HostConfig.Ports {
+		port := types.Port{IP: ip}
+
+		// see if it's an open network
+		if p == constants.PortsOpenNetwork {
+			openNetwork = true
+			port.Type = "*"
+			// we're presenting this in redirect ports as that's assured to be returned
+			redirectPorts = append(redirectPorts, port)
+			continue
+		}
+
+		portsAndType := strings.SplitN(p, "/", 2)
+		port.Type = portsAndType[1]
+
+		mapping := strings.Split(portsAndType[0], ":")
+		// if no mapping is supplied then there's only one and that's public. If there is a mapping then the first
+		// entry is the public
+		public, err := strconv.Atoi(mapping[0])
+		if err != nil {
+			log.Errorf("Got an error trying to convert public port number \"%s\" to an int: %s", mapping[0], err)
+			continue
+		}
+		port.PublicPort = uint16(public)
+
+		// If port is on container network then a different container could be forwarding the same port via the endpoint
+		// so must check for explicit ID match. If no match, definitely not forwarded via endpoint.
+		if containerByPort[mapping[0]] == t.ContainerConfig.ContainerID {
+			continue
+		}
+
+		// did not find a way to have the client not render both ports so setting them the same even if there's not
+		// redirect occurring
+		port.PrivatePort = port.PublicPort
+
+		if len(mapping) == 1 {
+			directPorts = append(directPorts, port)
+			continue
+		}
+
+		private, err := strconv.Atoi(mapping[1])
+		if err != nil {
+			log.Errorf("Got an error trying to convert private port number \"%s\" to an int: %s", mapping[1], err)
+			continue
+		}
+		port.PrivatePort = uint16(private)
+		redirectPorts = append(redirectPorts, port)
+	}
+
+	// if it's an open network then don't bother detailing ports without a redirection as all ports are exposed
+	if !openNetwork {
+		redirectPorts = append(redirectPorts, directPorts...)
+	}
+
+	return redirectPorts
+}
+
 // returns port bindings as a slice of Docker Ports for return to the client
 // returns empty slice on error
-func portInformation(t *models.ContainerInfo, ips []netlink.Addr) []types.Port {
-	// create a port for each IP on the interface (usually only 1, but could be more)
-	// (works with both IPv4 and IPv6 addresses)
-	var ports []types.Port
-
+func portForwardingInformation(t *models.ContainerInfo, ips []string) []types.Port {
 	cid := t.ContainerConfig.ContainerID
 	c := cache.ContainerCache().GetContainer(cid)
 
 	if c == nil {
 		log.Errorf("Could not find container with ID %s", cid)
-		return ports
-	}
-
-	for _, ip := range ips {
-		ports = append(ports, types.Port{IP: ip.IP.String()})
+		return nil
 	}
 
 	portBindings := c.HostConfig.PortBindings
 	var resultPorts []types.Port
 
-	for _, port := range ports {
+	// create a port for each IP on the interface (usually only 1, but could be more)
+	// (works with both IPv4 and IPv6 addresses)
+	for _, ip := range ips {
+		port := types.Port{IP: ip}
+
 		for portBindingPrivatePort, hostPortBindings := range portBindings {
 			portAndType := strings.SplitN(string(portBindingPrivatePort), "/", 2)
 			portNum, err := strconv.Atoi(portAndType[0])
@@ -2041,6 +2140,13 @@ func portInformation(t *models.ContainerInfo, ips []netlink.Addr) []types.Port {
 					log.Infof("Got an error trying to convert public port number to an int")
 					continue
 				}
+
+				// If port is on container network then a different container could be forwarding the same port via the endpoint
+				// so must check for explicit ID match. If no match, definitely not forwarded via endpoint.
+				if containerByPort[hostPortBindings[i].HostPort] != t.ContainerConfig.ContainerID {
+					continue
+				}
+
 				newport.PublicPort = uint16(publicPort)
 				// sanity check -- sometimes these come back as 0 when no binding actually exists
 				// that doesn't make sense, so in that case we don't want to report these bindings

@@ -31,15 +31,17 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/runtime/middleware"
 
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/containers"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/iolog"
 	"github.com/vmware/vic/lib/migration/feature"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/metrics"
+	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/version"
@@ -109,6 +111,8 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		LayerID:    params.CreateConfig.Layer,
 		ImageID:    params.CreateConfig.Image,
 		RepoName:   params.CreateConfig.RepoName,
+		Hostname:   params.CreateConfig.Hostname,
+		Domainname: params.CreateConfig.Domainname,
 	}
 
 	if params.CreateConfig.Annotations != nil && len(params.CreateConfig.Annotations) > 0 {
@@ -221,7 +225,7 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 	}
 
 	if err := h.Commit(context.Background(), handler.handlerCtx.Session, params.WaitTime); err != nil {
-		log.Errorf("CommitHandler error on handle(%s) for %s: %#v", h.String(), h.ExecConfig.ID, err)
+		log.Errorf("CommitHandler error on handle(%s) for %s: %s", h, h.ExecConfig.ID, err)
 		switch err := err.(type) {
 		case exec.ConcurrentAccessError:
 			return containers.NewCommitConflict().WithPayload(&models.Error{Message: err.Error()})
@@ -253,6 +257,13 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 		case exec.RemovePowerError:
 			return containers.NewContainerRemoveConflict().WithPayload(&models.Error{Message: err.Error()})
 		default:
+			if f, ok := err.(types.HasFault); ok {
+				switch f.Fault().(type) {
+				case *types.HostNotConnected:
+					p := &models.Error{Message: "Couldn't remove container. The ESX host is temporarily disconnected. Please try again later."}
+					return containers.NewContainerRemoveInternalServerError().WithPayload(p)
+				}
+			}
 			return containers.NewContainerRemoveInternalServerError()
 		}
 	}
@@ -503,6 +514,18 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 	container := c.Info()
 	defer trace.End(trace.Begin(container.ExecConfig.ID))
 
+	// ensure we have probably up-to-date info
+	for _, endpoint := range container.ExecConfig.Networks {
+		if !endpoint.Static && (endpoint.IP == nil || ip.IsUnspecifiedIP(endpoint.IP.IP)) {
+			// container has dynamic IP but we do not have a reported address
+			op := trace.NewOperation(context.Background(), "state refresh triggered by missing DHCP data")
+			c.Refresh(op)
+			container = c.Info()
+			// shouldn't need multiple refreshes if multiple dhcps
+			break
+		}
+	}
+
 	// convert the container type to the required model
 	info := &models.ContainerInfo{
 		ContainerConfig: &models.ContainerConfig{},
@@ -590,6 +613,15 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 
 	info.HostConfig = &models.HostConfig{}
 	for _, endpoint := range container.ExecConfig.Networks {
+		// if an external type this will be the endpoint used to publish ports
+		if endpoint.Network.Type == constants.ExternalScopeType && !ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
+			info.HostConfig.Address = endpoint.Assigned.IP.String()
+			if endpoint.Network.TrustLevel == executor.Open {
+				// add all ports as port range
+				info.HostConfig.Ports = append(info.HostConfig.Ports, constants.PortsOpenNetwork)
+			}
+		}
+
 		ep := &models.EndpointConfig{
 			Address:     "",
 			Container:   ccid,

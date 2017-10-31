@@ -40,6 +40,7 @@ var (
 )
 
 func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSource, _ extraconfig.DataSink) error {
+	log.Info("Beginning initialization of portlayer exec component")
 	initializer.once.Do(func() {
 		var err error
 		defer func() {
@@ -108,13 +109,10 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		// Grab the AboutInfo about our host environment
 		about := sess.Vim25().ServiceContent.About
 
-		p, err := GetVCHstats(ctx)
-		if err != nil {
-			log.Errorf("Failed to get VCH stats: %s", err)
-		} else {
-			Config.VCHMhz = p.Config.CpuAllocation.GetResourceAllocationInfo().Limit
-			Config.VCHMemoryLimit = p.Config.MemoryAllocation.GetResourceAllocationInfo().Limit
-		}
+		vch := GetVCHstats(ctx)
+		Config.VCHMhz = vch.CPULimit
+		Config.VCHMemoryLimit = vch.MemoryLimit
+
 		Config.HostOS = about.OsType
 		Config.HostOSVersion = about.Version
 		Config.HostProductName = about.Name
@@ -124,7 +122,9 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		// sync container cache
 		vmSub.Suspend(true)
 		defer vmSub.Resume()
+		log.Info("Syncing container cache")
 		if err = Containers.sync(ctx, sess); err != nil {
+			log.Errorf("Error encountered during container cache sync during init process: %s", err)
 			return
 		}
 	})

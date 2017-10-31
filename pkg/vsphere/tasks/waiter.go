@@ -39,6 +39,10 @@ type Task interface {
 	WaitForResult(ctx context.Context, s progress.Sinker) (*types.TaskInfo, error)
 }
 
+type temporary interface {
+	Temporary() bool
+}
+
 // Wait wraps govmomi operations and wait the operation to complete
 // Sample usage:
 //    info, err := Wait(ctx, func(ctx), (*object.Reference, *TaskInfo, error) {
@@ -57,7 +61,6 @@ func Wait(ctx context.Context, f func(context.Context) (Task, error)) error {
 //    })
 func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (*types.TaskInfo, error) {
 	var err error
-	var info *types.TaskInfo
 	var backoffFactor int64 = 1
 
 	op, err := trace.FromContext(ctx)
@@ -67,10 +70,11 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 
 	for {
 		var t Task
+		var info *types.TaskInfo
+
 		if t, err = f(op); err == nil {
-			info, err = t.WaitForResult(op, nil)
-			if err == nil {
-				return info, err
+			if info, err = t.WaitForResult(op, nil); err == nil {
+				return info, nil
 			}
 		}
 
@@ -116,6 +120,7 @@ func isRetryError(op trace.Operation, err error) bool {
 			return true
 		default:
 			logSoapFault(op, f)
+			return false
 		}
 	}
 
@@ -131,6 +136,7 @@ func isRetryError(op trace.Operation, err error) bool {
 			return true
 		default:
 			logFault(op, f)
+			return false
 		}
 	}
 
@@ -147,30 +153,37 @@ func isRetryError(op trace.Operation, err error) bool {
 			return true
 		default:
 			logFault(op, err.Fault())
+			return false
 		}
 	default:
-		if f, ok := err.(types.HasFault); ok {
-			logFault(op, f.Fault())
-		} else {
-			logError(op, err)
+		// retry the temporary errors
+		t, ok := err.(temporary)
+		if ok && t.Temporary() {
+			logExpectedError(op, err)
+			return true
 		}
+		logError(op, err)
+		return false
 	}
-	return false
 }
 
 // Helper Functions
 func logFault(op trace.Operation, fault types.BaseMethodFault) {
-	op.Errorf("unexpected fault on task retry : %#v", fault)
+	op.Errorf("unexpected fault on task retry: %#v", fault)
 }
 
 func logSoapFault(op trace.Operation, fault types.AnyType) {
-	op.Debugf("unexpected soap fault on task retry : %#v", fault)
+	op.Debugf("unexpected soap fault on task retry: %s", fault)
 }
 
 func logError(op trace.Operation, err error) {
-	op.Debugf("unexpected error on task retry : %#v", err)
+	op.Debugf("unexpected error on task retry: %s", err)
 }
 
 func logExpectedFault(op trace.Operation, kind string, fault interface{}) {
 	op.Debugf("task retry on expected %s fault: %#v", kind, fault)
+}
+
+func logExpectedError(op trace.Operation, err error) {
+	op.Debugf("task retry on expected error %s", err)
 }

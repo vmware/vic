@@ -15,8 +15,9 @@
 *** Settings ***
 Documentation  Test 1-36 - Docker Rename
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Conditional Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Rename a non-existent container
