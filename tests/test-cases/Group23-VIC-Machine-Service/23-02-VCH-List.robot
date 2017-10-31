@@ -43,20 +43,13 @@ Get VCH List Within Datacenter
 
 Verify VCH List
     ${expectedId}=    Get VCH ID    %{VCH-NAME}
-    ${actualId}=  Run    echo '${OUTPUT}' | jq -r '.vchs[] | select(.name=="%{VCH-NAME}").id'
-    Should Be Equal    ${expectedId}    ${actualId}
 
-    ${admin_portal}=  Run    echo '${OUTPUT}' | jq -r '.vchs[] | select(.name=="%{VCH-NAME}").admin_portal'
-    Should Not Be Empty    ${admin_portal}
+    Property Should Be Equal    .vchs[] | select(.name=="%{VCH-NAME}").id    ${expectedId}
 
-    ${docker_host}=  Run    echo '${OUTPUT}' | jq -r '.vchs[] | select(.name=="%{VCH-NAME}").docker_host'
-    Should Not Be Empty    ${docker_host}
-
-    ${upgrade_status}=  Run    echo '${OUTPUT}' | jq -r '.vchs[] | select(.name=="%{VCH-NAME}").upgrade_status'
-    Should Not Be Empty    ${upgrade_status}
-
-    ${version}=  Run    echo '${OUTPUT}' | jq -r '.vchs[] | select(.name=="%{VCH-NAME}").version'
-    Should Not Be Empty    ${version}
+    Property Should Not Be Empty    .vchs[] | select(.name=="%{VCH-NAME}").admin_portal
+    Property Should Not Be Empty    .vchs[] | select(.name=="%{VCH-NAME}").docker_host
+    Property Should Not Be Empty    .vchs[] | select(.name=="%{VCH-NAME}").upgrade_status
+    Property Should Not Be Empty    .vchs[] | select(.name=="%{VCH-NAME}").version
 
 
 *** Test Cases ***
@@ -82,18 +75,18 @@ Get VCH List Within Invalid Datacenter
     Get Path Under Target    datacenter/INVALID/vch
 
     Verify Return Code
-    Verify Status    404
+    Verify Status Not Found
 
 
 Get VCH List Within Invalid Compute Resource
     Get Path Under Target    vch    compute-resource=INVALID
 
     Verify Return Code
-    Verify Status    400
+    Verify Status Bad Request
 
 
 Get VCH List Within Invalid Datacenter and Compute Resource
     Get Path Under Target    datacenter/INVALID/vch    compute-resource=INVALID
 
     Verify Return Code
-    Verify Status    404
+    Verify Status Not Found

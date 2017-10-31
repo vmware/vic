@@ -13,16 +13,19 @@
 # limitations under the License
 
 *** Settings ***
-Documentation	This resource contains keywords which are helpful for using curl to test the vic-machine API.
+Documentation    This resource contains keywords which are helpful for using curl to test the vic-machine API.
 
 
 *** Variables ***
-${HTTP_PORT}	1337
-${HTTPS_PORT}	31337
+${HTTP_PORT}     1337
+${HTTPS_PORT}    31337
+
+${RC}            The return code of the last curl invocation
+${OUTPUT}        The output of the last curl invocation
+${STATUS}        The HTTP status of the last curl invocation
 
 
 *** Keywords ***
-
 Start VIC Machine Server
     Start Process    ./bin/vic-machine-server --port ${HTTP_PORT} --scheme http    shell=True    cwd=/go/src/github.com/vmware/vic
 
@@ -35,7 +38,6 @@ Get Path
     Set Test Variable    ${OUTPUT}
     Set Test Variable    ${STATUS}
 
-
 Get Path Under Target
     [Arguments]    ${path}    @{query}
     ${fullQuery}=    Catenate    SEPARATOR=&    thumbprint=%{TEST_THUMBPRINT}    @{query}
@@ -45,7 +47,6 @@ Get Path Under Target
     Set Test Variable    ${RC}
     Set Test Variable    ${OUTPUT}
     Set Test Variable    ${STATUS}
-
 
 Post Path Under Target
     [Arguments]    ${path}    ${data}    @{query}
@@ -66,6 +67,52 @@ Verify Status
     [Arguments]    ${expected}
     Should Be Equal As Integers    ${expected}    ${STATUS}
 
-
 Verify Status Ok
     Verify Status    200
+
+Verify Status Created
+    Verify Status    201
+
+Verify Status Bad Request
+    Verify Status    400
+
+Verify Status Not Found
+    Verify Status    404
+
+
+Output Should Contain
+    [Arguments]    ${expected}
+    Should Contain    ${OUTPUT}    ${expected}
+
+Output Should Not Contain
+    [Arguments]    ${expected}
+    Should Not Contain    ${OUTPUT}    ${expected}
+
+Output Should Match Regexp
+    [Arguments]    ${expected}
+    Should Match Regexp    ${OUTPUT}    ${expected}
+
+
+Property Should Be Equal
+    [Arguments]    ${jq}    ${expected}
+
+    ${actual}=  Run    echo '${OUTPUT}' | jq -r '${jq}'
+    Should Be Equal    ${actual}    ${expected}
+
+Property Should Not Be Equal
+    [Arguments]    ${jq}    ${expected}
+
+    ${actual}=  Run    echo '${OUTPUT}' | jq -r '${jq}'
+    Should Not Be Equal    ${actual}    ${expected}
+
+Property Should Contain
+    [Arguments]    ${jq}    ${expected}
+
+    ${actual}=  Run    echo '${OUTPUT}' | jq -r '${jq}'
+    Should Contain    ${actual}    ${expected}
+
+Property Should Not Be Empty
+    [Arguments]    ${jq}
+
+    ${actual}=  Run    echo '${OUTPUT}' | jq -r '${jq}'
+    Should Not Be Empty    ${actual}
