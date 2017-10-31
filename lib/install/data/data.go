@@ -76,7 +76,6 @@ type Data struct {
 	Timeout time.Duration
 
 	Force               bool
-	UseRP               bool `cmd:"use-rp"`
 	ResetInProgressFlag bool
 
 	AsymmetricRouting bool `cmd:"asymmetric-routes"`
@@ -137,8 +136,6 @@ type InstallerData struct {
 	ISOVersion        string
 	PreUpgradeVersion string
 	Timeout           time.Duration
-
-	UseRP bool
 
 	HTTPSProxy *url.URL
 	HTTPProxy  *url.URL

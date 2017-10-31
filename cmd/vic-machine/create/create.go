@@ -279,13 +279,6 @@ func (c *Create) Flags() []cli.Flag {
 	util := []cli.Flag{
 		// miscellaneous
 		cli.BoolFlag{
-			Name:        "use-rp",
-			Usage:       "Use resource pool for vch parent in VC instead of a vApp",
-			Destination: &c.UseRP,
-			Hidden:      true,
-		},
-
-		cli.BoolFlag{
 			Name:        "force, f",
 			Usage:       "Ignore error messages and proceed",
 			Destination: &c.Force,

@@ -254,9 +254,6 @@ Create VCH - Existing RP on ESX
     ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy %{TEST_RESOURCE}/%{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
 
-Create VCH - Existing vApp on vCenter
-    Pass execution  Test not implemented
-
 Basic timeout
     Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
@@ -275,9 +272,6 @@ Basic VCH resource config
     Pass execution  Test not implemented
 
 Invalid VCH resource config
-    Pass execution  Test not implemented
-
-Use resource pool
     Pass execution  Test not implemented
 
 CPU reservation shares invalid

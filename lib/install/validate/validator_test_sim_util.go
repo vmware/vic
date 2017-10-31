@@ -134,7 +134,6 @@ var testInputConfigVPX = data.Data{
 	MemoryMB:            2048,
 	Timeout:             180000000000,
 	Force:               true,
-	UseRP:               true,
 	ResetInProgressFlag: false,
 	AsymmetricRouting:   false,
 	ScratchSize:         "8GB",
