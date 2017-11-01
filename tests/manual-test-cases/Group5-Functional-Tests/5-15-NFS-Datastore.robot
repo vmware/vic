@@ -27,7 +27,7 @@ NFS Datastore Setup
     ${name}  ${ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Append To List  ${list}  ${name}
 
-    ${out}=  Run  govc datastore.create -mode readWrite -type nfs -name nfsDatastore -remote-host ${ip} -remote-path /store cls1
+    ${out}=  Run  govc datastore.create -mode readWrite -type nfs -name nfsDatastore -remote-host ${ip} -remote-path /store /datacenter1/host/cls1
     Should Be Empty  ${out}
 
     Set Environment Variable  TEST_DATASTORE  nfsDatastore
