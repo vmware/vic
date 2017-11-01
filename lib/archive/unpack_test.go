@@ -29,6 +29,10 @@ import (
 )
 
 var (
+
+	// evil filepath
+	evilpath = "../../../../../../../../tmp/evil"
+
 	// L1 directories
 	path1dir1 = "/path1dir1"
 	path2dir1 = "/path2dir1"
@@ -146,6 +150,53 @@ func TestSimpleWrite(t *testing.T) {
 		}
 	}
 
+}
+
+func TestDangerousWriteSymLink(t *testing.T) {
+	op := trace.NewOperation(context.TODO(), "")
+
+	writetarget := "/"
+	tempPath, err := ioutil.TempDir("", "write-unit-test")
+	defer os.RemoveAll(tempPath)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	filesToWrite := prepareTarFileSlice()
+
+	symLinks := []TarFile{}
+	// assemble standard file symlink
+	symlinkName := filepath.Join(path1dir1, "link1")
+	symlinkBody := filepath.Join("../", evilpath)
+	symLink := TarFile{
+		Name: symlinkName,
+		Type: tar.TypeSymlink,
+		Body: symlinkBody,
+	}
+	symLinks = append(symLinks, symLink)
+	filesToWrite = append(filesToWrite, symLinks...)
+
+	tarBytes, err := TarFiles(filesToWrite)
+	if !assert.NoError(t, err) {
+		return
+	}
+	tarStream := ioutil.NopCloser(tarBytes)
+
+	op.Infof("%s", tempPath)
+
+	specMap := make(map[string]FilterType)
+	specMap[writetarget] = Rebase
+
+	filterSpec, err := CreateFilterSpec(op, specMap)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	err = Unpack(op, tarStream, filterSpec, tempPath)
+
+	if assert.NoError(t, err) {
+		return
+	}
 }
 
 func TestSimpleWriteSymLink(t *testing.T) {

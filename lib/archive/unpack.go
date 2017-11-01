@@ -100,6 +100,12 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 				return err
 			}
 		case tar.TypeSymlink:
+			fullLinkPath := filepath.Join(absPath, header.Linkname)
+			p, _ := filepath.Rel(root, fullLinkPath)
+			if strings.HasPrefix(p, ".."+string(os.PathSeparator)) {
+				op.Errorf("Attempt to unpack symlink pointing to %s denied as it is outside of target root", p)
+				return err
+			}
 			err := os.Symlink(header.Linkname, absPath)
 			if err != nil {
 				op.Errorf("Failed to create symlink %s->%s: %s", absPath, header.Linkname, err)
