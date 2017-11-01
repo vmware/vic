@@ -34,6 +34,7 @@ Teardown
 
 Adjust Variables
     ${PUBLIC_NETWORK}=  Remove String  %{PUBLIC_NETWORK}  '
+    Set Test Variable    ${PUBLIC_NETWORK}
 
 
 Create VCH
