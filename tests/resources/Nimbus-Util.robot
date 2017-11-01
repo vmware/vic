@@ -62,6 +62,7 @@ Deploy Nimbus ESXi Server
     # Let's set a password so govc doesn't complain
     Remove Environment Variable  GOVC_PASSWORD
     Remove Environment Variable  GOVC_USERNAME
+    Remove Environment Variable  GOVC_DATACENTER
     Set Environment Variable  GOVC_INSECURE  1
     Set Environment Variable  GOVC_URL  root:@${ip}
     ${out}=  Run  govc host.account.update -id root -password ${NIMBUS_ESX_PASSWORD}
@@ -75,6 +76,7 @@ Set Host Password
     [Arguments]  ${ip}  ${NIMBUS_ESX_PASSWORD}
     Remove Environment Variable  GOVC_PASSWORD
     Remove Environment Variable  GOVC_USERNAME
+    Remove Environment Variable  GOVC_DATACENTER
     Set Environment Variable  GOVC_INSECURE  1
     Set Environment Variable  GOVC_URL  root:@${ip}
     ${out}=  Run  govc host.account.update -id root -password ${NIMBUS_ESX_PASSWORD}
@@ -108,7 +110,7 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     :FOR  ${name}  IN  @{names}
     \    ${ip}=  Get IP  ${name}
     \    ${ip}=  Evaluate  $ip if $ip else ''
-    \    Run Keyword If  '${ip}'  Set To Dictionary  ${ips}  ${name}  ${ip}
+    \    Run Keyword If  '${ip}'  Set To Dictionary  ${ips}  ${user}-${name}  ${ip}
 
     # Let's set a password so govc doesn't complain
     ${just_ips}=  Get Dictionary Values  ${ips}
@@ -178,6 +180,7 @@ Deploy Nimbus Testbed
 
     :FOR  ${IDX}  IN RANGE  1  5
     \   ${out}=  Execute Command  nimbus-testbeddeploy --lease=1 ${testbed}
+    \   Log  ${out}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  "deployment_result"=>"PASS"
     \   Return From Keyword If  ${status}  ${out}
@@ -190,6 +193,7 @@ Kill Nimbus Server
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
     ${out}=  Execute Command  nimbus-ctl kill ${name}
+    Log  ${out}
     Close connection
 
 Reset Nimbus Server
@@ -225,8 +229,10 @@ Gather Host IPs
     \   ${idx}=  Evaluate  ${idx}+1
 
 Create a VSAN Cluster
+    [Arguments]  ${name}=vic-vmotion
     Log To Console  \nStarting basic VSAN cluster deploy...
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --lease 1 --noStatsDump --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName vic-vmotion
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --lease 1 --noStatsDump --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName ${name}
     Should Contain  ${out}  .vcva-${VC_VERSION}' is up. IP:
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
@@ -410,3 +416,7 @@ Change ESXi Server Password
     ${out}=  Run  govc host.account.update -id root -password ${password}
     Should Be Empty  ${out}
 
+Check License Features
+    ${out}=  Run  govc object.collect -json $(govc object.collect -s - content.licenseManager) licenses | jq '.[].Val.LicenseManagerLicenseInfo[].Properties[] | select(.Key == "feature") | .Value'
+    Should Contain  ${out}  serialuri
+    Should Contain  ${out}  dvs

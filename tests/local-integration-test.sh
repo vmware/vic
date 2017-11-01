@@ -78,7 +78,7 @@ pipeline:
     # dont clone submodules
     recursive: false
   vic-integration-test-on-pr:
-    image: gcr.io/eminent-nation-87317/vic-integration-test:1.33
+    image: gcr.io/eminent-nation-87317/vic-integration-test:1.36
     pull: true
     environment:
       GITHUB_AUTOMATION_API_KEY: $GITHUB_TOKEN

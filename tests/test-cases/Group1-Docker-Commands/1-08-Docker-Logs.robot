@@ -15,8 +15,9 @@
 *** Settings ***
 Documentation  Test 1-08 - Docker Logs
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC with version to Test Server  7315
+Suite Setup  Install VIC with version to Test Server  version=7315
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Keywords ***
 Grep Logs And Count Lines

@@ -15,6 +15,7 @@
 *** Settings ***
 Documentation  Test 6-12 - Verify vic-machine version command
 Resource  ../../resources/Util.robot
+Test Timeout  20 minutes
 
 *** Test Cases ***
 VIC-machine - Version check

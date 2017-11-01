@@ -15,8 +15,9 @@
 *** Settings ***
 Documentation  Test 1-10 - Docker PS
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Conditional Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Keywords ***
 Assert VM Power State
@@ -107,6 +108,9 @@ Docker ps powerOn container OOB
 
     Wait Until Keyword Succeeds  10x  6s  Assert Number Of Containers  ${len+1}
 
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop jojo
+    Should Be Equal As Integers  ${rc}  0
+
 Docker ps powerOff container OOB
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name koko ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
@@ -122,18 +126,70 @@ Docker ps powerOff container OOB
     Wait Until Keyword Succeeds  10x  6s  Assert Number Of Containers  ${len-1}
 
 Docker ps ports output
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8000:80 -p 8443:443 ${nginx}
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull ${nginx}
     Should Be Equal As Integers  ${rc}  0
+
+    # forwarding via the endpointVM
+    ${rc}  ${containerA}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8000:80 -p 8443:443 ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+
+    # published via the container-network with no port redirect
+    ${rc}  ${containerB}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8000 --net=public ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+
+    # published via the container-network with port redirect
+    ${rc}  ${containerC}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8001:80 --net=public ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  :8000->80/tcp
-    Should Contain  ${output}  :8443->443/tcp
 
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 6379 redis:alpine
+    ## Check that ports are not displayed before start
+    Should Not Contain  ${output}  :8000->80/tcp
+    Should Not Contain  ${output}  :8443->443/tcp
+    Should Not Contain  ${output}  :8000->8000/tcp
+    Should Not Contain  ${output}  :8001->80/tcp
+
+    ## Check ports are displayed once started
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} start ${containerA} ${containerB} ${containerC}
+    Should Be Equal As Integers  ${rc}  0
+    ${ipB}=  Get Container IP  %{VCH-PARAMS}  ${containerB}  public
+    ${ipC}=  Get Container IP  %{VCH-PARAMS}  ${containerC}  public
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    Should Be Equal As Integers  ${rc}  0
+
+    Should Contain  ${output}  %{EXT-IP}:8000->80/tcp
+    Should Contain  ${output}  %{EXT-IP}:8443->443/tcp
+    Should Contain  ${output}  ${ipB}:8000->8000/tcp
+    Should Contain  ${output}  ${ipB}:8000->80/tcp
+
+    ## Stop the containers and ensure ports are not listed
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} stop ${containerA} ${containerB} ${containerC}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    Should Be Equal As Integers  ${rc}  0
+
+    # forwarding via endpointVM.
+    Should Not Contain  ${output}  :8000->80/tcp
+    Should Not Contain  ${output}  :8443->443/tcp
+    Should Not Contain  ${output}  :8000->8000/tcp
+    Should Not Contain  ${output}  :8001->80/tcp
+
+
+Create reference containers for last container and status tests
+    # used as a reference during the status filter test
+    ${rc}  ${containerA}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8000:80 -p 8443:443 ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Used as a reference after the OOB test
+    ${rc}  ${containerB}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 6379 redis:alpine
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ->6379/tcp
+
 
 Docker ps Remove container OOB
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name lolo ${busybox} /bin/top
@@ -146,11 +202,18 @@ Docker ps Remove container OOB
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     ${len}=  Get Length  ${output}
+
     # Remove container VM out-of-band
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}/"lolo*"
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "lolo*"
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}/"lolo*"
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  govc: ServerFaultCode: The method is disabled by 'VIC'
+
+    # Remove the 'lolo' container on VC so it does not affect subsequent test cases
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f lolo
+    Pass Execution If  '%{HOST_TYPE}' == 'VC'  Remaining steps not applicable on VC - skipping
+
     Wait Until VM Is Destroyed  "lolo*"
     Wait Until Keyword Succeeds  10x  6s  Assert Number Of Containers  ${len-1}  -aq
     ${rc}  ${output}=  Run Keyword If  '%{DATASTORE_TYPE}' == 'VSAN'  Run And Return Rc And Output  govc datastore.ls | grep "lolo*" | xargs -n1 govc datastore.rm

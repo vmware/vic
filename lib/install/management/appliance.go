@@ -41,8 +41,8 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
@@ -264,7 +264,7 @@ func (d *Dispatcher) addNetworkDevices(conf *config.VirtualContainerHostConfigSp
 		}
 
 		slot := cspec.AssignSlotNumber(nic, slots)
-		if slot == spec.NilSlot {
+		if slot == constants.NilSlot {
 			err = errors.Errorf("Failed to assign stable PCI slot for %q network card", name)
 		}
 
@@ -308,6 +308,8 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 
 	var devices object.VirtualDeviceList
 	var err error
+	var cpus int32   // appliance number of CPUs
+	var memory int64 // appliance memory in MB
 
 	// set to creating VCH
 	conf.SetIsCreating(true)
@@ -317,14 +319,21 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 		return nil, err
 	}
 
+	if vConf.ApplianceSize.CPU.Limit != nil {
+		cpus = int32(*vConf.ApplianceSize.CPU.Limit)
+	}
+	if vConf.ApplianceSize.Memory.Limit != nil {
+		memory = *vConf.ApplianceSize.Memory.Limit
+	}
+
 	spec := &spec.VirtualMachineConfigSpec{
 		VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{
 			Name:               conf.Name,
 			GuestId:            string(types.VirtualMachineGuestOsIdentifierOtherGuest64),
 			AlternateGuestName: constants.DefaultAltVCHGuestName(),
 			Files:              &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
-			NumCPUs:            int32(vConf.ApplianceSize.CPU.Limit),
-			MemoryMB:           vConf.ApplianceSize.Memory.Limit,
+			NumCPUs:            cpus,
+			MemoryMB:           memory,
 			// Encode the config both here and after the VMs created so that it can be identified as a VCH appliance as soon as
 			// creation is complete.
 			ExtraConfig: append(vmomi.OptionValueFromMap(cfg, true), &types.OptionValue{Key: "answer.msg.serial.file.open", Value: "Append"}),
@@ -790,7 +799,7 @@ func isPortLayerRunning(res *http.Response, conf *config.VirtualContainerHostCon
 
 	allVolumeStoresPresent := confirmVolumeStores(conf, volumeStoresLine)
 	if !allVolumeStoresPresent {
-		log.Warn("Some Volume Stores that were specified were not successfully created, Please check the above output for more information. More Information on failed volume store targets can also be found in the portlayer logs found at the vic admin endpoint.")
+		log.Error("Not all configured volume stores are online - check port layer log via vicadmin")
 	}
 
 	for _, status := range sysInfo.SystemStatus {
@@ -814,7 +823,7 @@ func confirmVolumeStores(conf *config.VirtualContainerHostConfigSpec, rawVolumeS
 	result := true
 	for k := range conf.VolumeLocations {
 		if _, ok := establishedVolumeStores[k]; !ok {
-			log.Warnf("VolumeStore (%s) specified was not able to be established in the portlayer. Please check network and nfs server configurations.", k)
+			log.Errorf("VolumeStore (%s) cannot be brought online - check network, nfs server, and --volume-store configurations", k)
 			result = false
 		}
 	}
@@ -1075,6 +1084,20 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	// at this point either everything has succeeded or we're going into diagnostics, ignore error
 	// as we're only using it for IP in the success case
 	updateErr := d.applianceConfiguration(conf)
+
+	// confirm components launched correctly
+	log.Debug("  State of components:")
+	for name, session := range conf.ExecutorConfig.Sessions {
+		status := "waiting to launch"
+		if session.Started == "true" {
+			status = "started successfully"
+		} else if session.Started != "" {
+			status = session.Started
+			log.Errorf("  Component did not launch successfully - %s: %s", name, status)
+		}
+
+		log.Debugf("    %q: %q", name, status)
+	}
 
 	// TODO: we should call to the general vic-machine inspect implementation here for more detail
 	// but instead...

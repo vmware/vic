@@ -93,10 +93,9 @@ func (u *UserSessionStore) VSphere(ctx context.Context, id string) (*session.Ses
 	if err != nil || vsphus == nil {
 		if err != nil {
 			log.Warnf("Failed to validate user %s session: %v", id, err)
-			return nil, nil
+			return nil, err
 		}
-		log.Warnf("User %s session has expired", id)
-		return nil, nil
+		return nil, fmt.Errorf("User %s session has expired", id)
 	}
 	log.Infof("Found vSphere session for vicadmin usersession %s", id)
 	return us.vsphere, nil
@@ -105,7 +104,6 @@ func (u *UserSessionStore) VSphere(ctx context.Context, id string) (*session.Ses
 // reaper takes abandoned sessions to a farm upstate so they don't build up forever
 func (u *UserSessionStore) reaper() {
 	for range u.ticker.C {
-		log.Infof("Reaping old sessions..")
 		for id, session := range u.sessions {
 			if time.Since(session.created) > sessionExpiration {
 				u.Delete(id)

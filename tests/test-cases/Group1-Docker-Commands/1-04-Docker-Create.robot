@@ -15,8 +15,9 @@
 *** Settings ***
 Documentation  Test 1-04 - Docker Create
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Conditional Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Simple creates
@@ -207,3 +208,34 @@ Create disables VC destroy
     Should Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  Destroy_Task
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${output}  Destroy_Task
+
+Parallel creates with same container name
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${suffix}=  Evaluate  '%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
+    Set Test Variable  ${name}  testDuplicates-${suffix}
+    ${pid1}=  Start Process  docker %{VCH-PARAMS} create --name ${name} ${busybox}  shell=True
+    ${pid2}=  Start Process  docker %{VCH-PARAMS} create --name ${name} ${busybox}  shell=True
+    ${res1}=  Wait For Process  ${pid1}
+    ${res2}=  Wait For Process  ${pid2}
+
+    # Only one process should succeed
+    Run Keyword If  ${res1.rc} == 0  Should Not Be Equal As Integers  ${res2.rc}  0
+    Run Keyword If  ${res2.rc} == 0  Should Not Be Equal As Integers  ${res1.rc}  0
+
+    ${status1}  ${out1}=  Run Keyword And Ignore Error  Should Contain  ${res1.stderr}  is already in use
+    ${status2}  ${out2}=  Run Keyword And Ignore Error  Should Contain  ${res2.stderr}  is already in use
+    # Only and only one process's stderr should contain the error message
+    Run Keyword If  '${status1}' == 'PASS'  Should Not Be Equal  '${status2}'  'PASS'
+    Run Keyword If  '${status2}' == 'PASS'  Should Not Be Equal  '${status1}'  'PASS'
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -f status=created
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain X Times  ${output}  ${name}  1
+
+    # Verify that remove and re-create works for the same name
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${name}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${name} ${busybox}
+    Should Be Equal As Integers  ${rc}  0

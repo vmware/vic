@@ -88,3 +88,48 @@ func (rp *ResourcePool) GetCluster(ctx context.Context) (*object.ComputeResource
 
 	return object.NewComputeResource(rp.Client.Client, mrp.Owner), nil
 }
+
+func (rp *ResourcePool) GetDatacenter(ctx context.Context) (*object.Datacenter, error) {
+	dcRef, err := rp.getLowestAncestor(ctx, "Datacenter")
+	if err != nil || dcRef == nil {
+		log.Errorf("Unable to get datacenter ancestor of rp %s: %s", rp.Name(), err)
+		return nil, errors.Errorf("Unable to get datacenter ancestor of rp %s: %s", rp.Name(), err)
+	}
+
+	return object.NewDatacenter(rp.Client.Client, *dcRef), nil
+}
+
+func (rp *ResourcePool) getAncestors(ctx context.Context, inType string) ([]types.ManagedObjectReference, error) {
+	client := rp.Session.Vim25()
+
+	ancestors, err := mo.Ancestors(ctx, client, client.ServiceContent.PropertyCollector, rp.Reference())
+	if err != nil {
+		log.Errorf("Unable to get ancestors of rp %s: %s", rp.Name(), err)
+		return nil, err
+	}
+
+	outAncestors := make([]types.ManagedObjectReference, 0, len(ancestors))
+	for _, ancestor := range ancestors {
+		if ancestor.Self.Type == inType {
+			a := ancestor.Self
+			outAncestors = append(outAncestors, a)
+		}
+	}
+
+	return outAncestors, nil
+}
+
+func (rp *ResourcePool) getLowestAncestor(ctx context.Context, inType string) (*types.ManagedObjectReference, error) {
+	ancestors, err := rp.getAncestors(ctx, inType)
+	if err != nil {
+		log.Errorf("Unable to get ancestors of rp %s: %s", rp.Name(), err)
+		return nil, err
+	}
+
+	if len(ancestors) == 0 {
+		return nil, nil
+	}
+
+	index := len(ancestors) - 1
+	return &ancestors[index], nil
+}

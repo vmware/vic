@@ -38,6 +38,7 @@ RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
     iptables \
     xfsprogs \
     dnsutils \
+    netcat \
     # Add headless chrome support
     google-chrome-stable \
     # Speed up ISO builds with already installed reqs
@@ -55,7 +56,7 @@ RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
 
 RUN wget https://bootstrap.pypa.io/get-pip.py && \
     python ./get-pip.py  && \
-    pip install pyasn1 gsutil robotframework robotframework-sshlibrary robotframework-httplibrary requests dbbot robotframework-selenium2library --upgrade
+    pip install pyasn1 google-apitools==0.5.15 gsutil robotframework robotframework-sshlibrary robotframework-httplibrary requests dbbot robotframework-selenium2library --upgrade
 
 # Install docker, docker clients 1.11,1.12 and 1.13
 # Also install docker compose 1.13
@@ -83,7 +84,7 @@ RUN curl -fsSLO https://releases.hashicorp.com/packer/0.12.2/packer_0.12.2_linux
 RUN curl http://downloads.drone.io/release/linux/amd64/drone.tar.gz | tar zx && \
     install -t /usr/local/bin drone
 
-RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.14.0/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc && \
+RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.15.0/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc && \
     chmod +x /usr/local/bin/govc
 
 RUN  wget http://mirrors.kernel.org/ubuntu/pool/main/w/wget/wget_1.18-2ubuntu1_amd64.deb && \

@@ -15,6 +15,7 @@
 *** Settings ***
 Documentation  Test 5-11 - Multiple Clusters
 Resource  ../../resources/Util.robot
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Multiple Cluster Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***
@@ -27,9 +28,8 @@ Combine Dictionaries
     \    Set To Dictionary  ${dict1}  ${key}  ${elem}
     [Return]  ${dict1}
 
-*** Test Cases ***
-Test
-    Log To Console  \nStarting test...
+Multiple Cluster Setup
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     &{esxes}=  Create Dictionary
     ${num_of_esxes}=  Evaluate  2
     :FOR  ${i}  IN RANGE  3
@@ -53,8 +53,7 @@ Test
     ${esx2-ip}=  Get From List  ${esx-ips}  1
 
     ${esx3}  ${esx4}  ${esx5}  ${vc}  ${esx3-ip}  ${esx4-ip}  ${esx5-ip}  ${vc-ip}=  Create a Simple VC Cluster  datacenter1  cls1
-
-    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${esx4}  ${esx5}  ${vc}
+    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${esx4}  ${esx5}  %{NIMBUS_USER}-${vc}
 
     Log To Console  Create cluster2 on the VC
     ${out}=  Run  govc cluster.create cls2
@@ -67,6 +66,11 @@ Test
     Should Be Empty  ${out}
     ${out}=  Run  govc cluster.add -hostname=${esx2-ip} -username=root -dc=datacenter1 -cluster=cls3 -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
+
+*** Test Cases ***
+Test
+    Log To Console  \nStarting test...
+    
 
     Install VIC Appliance To Test Server  certs=${false}  vol=default
 

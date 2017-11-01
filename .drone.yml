@@ -18,7 +18,7 @@ pipeline:
     recursive: false
 
   wait-for-build:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.33
+    image: harbor.ci.drone.local/library/vic-integration-test:1.36
     pull: true
     environment:
       BIN: bin
@@ -31,7 +31,7 @@ pipeline:
       - tests/wait_until_previous_builds_complete.sh
 
   vic-engine:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.33
+    image: harbor.ci.drone.local/library/vic-integration-test:1.36
     pull: true
     environment:
       BIN: bin
@@ -58,7 +58,7 @@ pipeline:
       status:  success
 
   vic-integration-test-on-pr:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.33
+    image: harbor.ci.drone.local/library/vic-integration-test:1.36
     pull: true
     privileged: true
     environment:
@@ -69,6 +69,7 @@ pipeline:
       GITHUB_AUTOMATION_API_KEY:  ${GITHUB_AUTOMATION_API_KEY}
       DRONE_SERVER:  ${DRONE_SERVER}
       DRONE_TOKEN:  ${DRONE_TOKEN}
+      DRONE_MACHINE:  ${DRONE_MACHINE}
       TEST_URL_ARRAY:  ${TEST_URL_ARRAY}
       TEST_USERNAME:  ${TEST_USERNAME}
       TEST_PASSWORD:  ${TEST_PASSWORD}
@@ -88,16 +89,18 @@ pipeline:
       SYSLOG_USER: ${SYSLOG_USER}
       SYSLOG_PASSWD: ${SYSLOG_PASSWD}
     commands:
+      - . ./tests/ci-env.sh # set CI env variable values
       - make mark
       - tests/integration-test.sh
       - make sincemark
     volumes:
       - /tmp
+      - /home/vic:/ci
     when:
       status:  success
 
   vic-ui:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.33
+    image: harbor.ci.drone.local/library/vic-integration-test:1.36
     pull: true
     environment:
       BUILD_NUMBER: ${DRONE_BUILD_NUMBER}
@@ -106,9 +109,13 @@ pipeline:
       GS_CLIENT_EMAIL: ${GS_CLIENT_EMAIL}
       GS_PRIVATE_KEY: ${GS_PRIVATE_KEY}
     commands:
-      - make mark
-      - ui/build-ui-plugins.sh
-      - make sincemark
+      - mkdir -p $BIN/ui
+      - export LATEST_VIC_UI_BUILD="$(gsutil ls -l 'gs://vic-ui-builds' | grep -v TOTAL | grep vic_ | sort -k2 -r | (trap ' ' PIPE; head -1))"
+      - export VIC_UI_URL=$(echo $LATEST_VIC_UI_BUILD | xargs | cut -d " " -f 3 | sed "s/gs:\/\//https:\/\/storage.googleapis.com\//")
+      - wget -nv $VIC_UI_URL -P $BIN
+      - tar -xvzf $BIN/vic_ui_*.tar.gz
+      - ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1
+      - rm $BIN/vic_ui_*.tar.gz
     when:
       status:  success
 
@@ -123,8 +130,8 @@ pipeline:
     commands:
       - make mark
       - rm -rf $BIN_TEMP_DIR
-      - mkdir -p $BIN_TEMP_DIR/ui
-      - cp -rf ui/installer/* $BIN_TEMP_DIR/ui
+      - mkdir -p $BIN_TEMP_DIR
+      - mv $BIN/ui $BIN_TEMP_DIR
       - cp LICENSE $BIN_TEMP_DIR
       - cp doc/bundle/README $BIN_TEMP_DIR
       - cp $BIN/vic-machine* $BIN_TEMP_DIR
@@ -137,7 +144,9 @@ pipeline:
       - md5sum $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz
       - du -ks $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz | awk '{print $1 / 1024}' | { read x; echo $x MB; }
       - mkdir bundle
+      - mkdir bundle-release
       - cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle
+      - cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle-release/vic_`git describe --tags $(git rev-list --tags --max-count=1)`.tar.gz
       - make sincemark
     when:
       repo: vmware/vic
@@ -163,7 +172,18 @@ pipeline:
       build https://ci.vcna.io/vmware/vic/{{ build.number }} finished with a {{ build.status }} status, find the build here: https://storage.googleapis.com/vic-engine-builds/vic_{{ build.number }}.tar.gz
     when:
       repo: vmware/vic
-      branch: [ master, releases/*, refs/tags/* ]
+      branch: [ master, releases/* ]
+      status: success
+
+  notify-slack-on-successful-tag:
+    image: plugins/slack
+    webhook: ${SLACK_URL}
+    username: drone
+    template: >
+      The latest version of VIC engine has been released, find the build here: https://console.cloud.google.com/storage/browser/vic-engine-releases
+    when:
+      repo: vmware/vic
+      branch: [ refs/tags/* ]
       status: success
 
   publish-gcs-builds-on-pass:
@@ -197,7 +217,7 @@ pipeline:
   publish-gcs-releases:
     image: maplain/drone-gcs:latest
     pull: true
-    source: bundle
+    source: bundle-release
     target: vic-engine-releases
     acl:
       - allUsers:READER

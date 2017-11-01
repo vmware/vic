@@ -50,3 +50,11 @@ func (l *LazySessionInteractor) Initialize() (SessionInteractor, error) {
 	}
 	return l.si, nil
 }
+
+// SessionInteractor returns either an initialized connection, or nil if it was never initialized
+func (l *LazySessionInteractor) SessionInteractor() SessionInteractor {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	return l.si
+}

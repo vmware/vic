@@ -355,6 +355,18 @@ func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.V
 		log.Debugf("Setting scratch image size to %d KB in VCHConfig", conf.ScratchSize)
 	}
 
+	if input.ContainerNameConvention != "" {
+		// ensure token is present
+		if !strings.Contains(input.ContainerNameConvention, string(config.ID)) && !strings.Contains(input.ContainerNameConvention, string(config.Name)) {
+			v.NoteIssue(errors.Errorf("Container name convention must include %s or %s token", config.ID, config.Name))
+		}
+		// guard against both -- possibly we want to allow, but for now only allow one
+		if strings.Contains(input.ContainerNameConvention, string(config.ID)) && strings.Contains(input.ContainerNameConvention, string(config.Name)) {
+			v.NoteIssue(errors.Errorf("Container name convention only allows one token, either %s or %s", config.ID, config.Name))
+		}
+	}
+
+	conf.ContainerNameConvention = input.ContainerNameConvention
 }
 
 func (v *Validator) checkSessionSet() []string {
@@ -789,8 +801,10 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.Virtua
 
 	dconfig := data.InstallerData{}
 
-	dconfig.ApplianceSize.CPU.Limit = int64(input.NumCPUs)
-	dconfig.ApplianceSize.Memory.Limit = int64(input.MemoryMB)
+	cpuLimit := int64(input.NumCPUs)
+	memLimit := int64(input.MemoryMB)
+	dconfig.ApplianceSize.CPU.Limit = &cpuLimit
+	dconfig.ApplianceSize.Memory.Limit = &memLimit
 
 	if v.Session.Datacenter != nil {
 		dconfig.Datacenter = v.Session.Datacenter.Reference()
@@ -812,18 +826,22 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.Virtua
 	log.Debugf("Datacenter: %q, Cluster: %q, Resource Pool: %q", dconfig.DatacenterName, dconfig.Cluster, dconfig.ResourcePoolPath)
 
 	if input.VCHCPUReservationsMHz != nil {
-		dconfig.VCHSize.CPU.Reservation = int64(*input.VCHCPUReservationsMHz)
+		cpuReserve := int64(*input.VCHCPUReservationsMHz)
+		dconfig.VCHSize.CPU.Reservation = &cpuReserve
 	}
 	if input.VCHCPULimitsMHz != nil {
-		dconfig.VCHSize.CPU.Limit = int64(*input.VCHCPULimitsMHz)
+		cpuLimit := int64(*input.VCHCPULimitsMHz)
+		dconfig.VCHSize.CPU.Limit = &cpuLimit
 	}
 	dconfig.VCHSize.CPU.Shares = input.VCHCPUShares
 
 	if input.VCHMemoryReservationsMB != nil {
-		dconfig.VCHSize.Memory.Reservation = int64(*input.VCHMemoryReservationsMB)
+		memReserve := int64(*input.VCHMemoryReservationsMB)
+		dconfig.VCHSize.Memory.Reservation = &memReserve
 	}
 	if input.VCHMemoryLimitsMB != nil {
-		dconfig.VCHSize.Memory.Limit = int64(*input.VCHMemoryLimitsMB)
+		memLimit := int64(*input.VCHMemoryLimitsMB)
+		dconfig.VCHSize.Memory.Limit = &memLimit
 	}
 	dconfig.VCHSize.Memory.Shares = input.VCHMemoryShares
 

@@ -15,8 +15,9 @@
 *** Settings ***
 Documentation  Test 1-12 - Docker RMI
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Run Keywords  Conditional Install VIC Appliance To Test Server  Remove All Containers
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Timeout  20 minutes
 
 *** Test Cases ***
 Basic docker pull, restart, and remove image
@@ -40,9 +41,11 @@ Basic docker pull, restart, and remove image
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images ${busybox}:latest
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images ${alpine}:latest
+    Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  alpine
 
 Remove image with a removed container
@@ -54,7 +57,7 @@ Remove image with a removed container
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images ${busybox}:latest
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  busybox
 
