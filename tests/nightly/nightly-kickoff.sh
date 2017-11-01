@@ -28,8 +28,12 @@ nightly_list_var="5-1-Distributed-Switch \
 5-12-Multiple-VLAN \
 5-13-Invalid-ESXi-Install \
 5-14-Remove-Container-OOB \
+5-15-NFS-Datastore \
+5-16-iSCSI-Datastore \
+5-17-FC-Datastore \
 5-21-Datastore-Path \
 5-22-NFS-Volume \
+5-24-Non-vSphere-Local-Cluster \
 13-1-vMotion-VCH-Appliance \
 13-2-vMotion-Container \
 21-1-Whitelist"
