@@ -26,15 +26,15 @@ Test
     Close Connection
 
     ${esx1}  ${esx2}  ${esx3}  ${vc}  ${esx1-ip}  ${esx2-ip}  ${esx3-ip}  ${vc_ip}=  Create a Simple VC Cluster
-    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
+    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  %{NIMBUS_USER}-${vc}
 
     Install VIC Appliance To Test Server
     Run Regression Tests
 
-    Reset Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${vc}
+    Reset Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  %{NIMBUS_USER}-${vc}
     Wait Until vSphere Is Powered On
 
-    Power On vApp  %{VCH-NAME}
+    #Power On vApp  %{VCH-NAME}
     Wait Until VM Powers On  %{VCH-NAME}
 
     Log To Console  Getting VCH IP ...

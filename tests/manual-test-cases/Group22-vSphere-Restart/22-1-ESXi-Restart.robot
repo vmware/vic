@@ -45,7 +45,7 @@ Test
 
     Reset Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${esx}
     Log To Console  Sleeping 5 minutes to allow for the server to reboot in Nimbus...
-    Sleep  5 minutes
+    Sleep  10 minutes
     Wait Until vSphere Is Powered On
 
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -on %{VCH-NAME}
