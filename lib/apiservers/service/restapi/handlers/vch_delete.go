@@ -53,7 +53,7 @@ func (h *VCHDelete) Handle(params operations.DeleteTargetTargetVchVchIDParams, p
 
 	d.ID = params.VchID
 
-	err = deleteVCH(op, d)
+	err = deleteVCH(op, d, params.DeletionSpecification)
 	if err != nil {
 		return operations.NewDeleteTargetTargetVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -77,7 +77,7 @@ func (h *VCHDatacenterDelete) Handle(params operations.DeleteTargetTargetDatacen
 
 	d.ID = params.VchID
 
-	err = deleteVCH(op, d)
+	err = deleteVCH(op, d, params.DeletionSpecification)
 	if err != nil {
 		return operations.NewDeleteTargetTargetDatacenterDatacenterVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -85,7 +85,7 @@ func (h *VCHDatacenterDelete) Handle(params operations.DeleteTargetTargetDatacen
 	return operations.NewDeleteTargetTargetDatacenterDatacenterVchVchIDAccepted()
 }
 
-func deleteVCH(op trace.Operation, d *data.Data) (error) {
+func deleteVCH(op trace.Operation, d *data.Data, specification *models.DeletionSpecification) (error) {
 	validator, err := validateTarget(op, d)
 	if err != nil {
 		return util.WrapError(http.StatusBadRequest, err)
