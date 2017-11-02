@@ -92,3 +92,43 @@ Delete VCH in Invalid Datacenter
     Verify Status Ok
 
     [Teardown]    Cleanup VIC Appliance On Test Server
+
+
+Delete With Invalid Bodies
+    ${id}=    Get VCH ID %{VCH-NAME}
+
+    Delete Path Under Target    vch/${id}    {"invalid"}
+
+    Verify Return Code
+    Verify Status Bad Request
+
+    Delete Path Under Target    vch/${id}    {"containers":"invalid"}
+
+    Verify Return Code
+    Verify Status Unprocessable Entity
+    Output Should Contain       containers
+
+    Delete Path Under Target    vch/${id}    {"volume_stores":"invalid"}
+
+    Verify Return Code
+    Verify Status Unprocessable Entity
+    Output Should Contain       volume_stores
+
+    Delete Path Under Target    vch/${id}    {"containers":"invalid", "volume_stores":"all"}
+
+    Verify Return Code
+    Verify Status Unprocessable Entity
+    Output Should Contain       containers
+
+    Delete Path Under Target    vch/${id}    {"containers":"all", "volume_stores":"invalid"}
+
+    Verify Return Code
+    Verify Status Unprocessable Entity
+    Output Should Contain       volume_stores
+
+    Get Path Under Target       vch/${id}
+
+    Verify Return Code
+    Verify Status Ok
+
+    [Teardown]    Cleanup VIC Appliance On Test Server

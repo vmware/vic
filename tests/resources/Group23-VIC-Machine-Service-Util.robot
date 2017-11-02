@@ -92,6 +92,9 @@ Verify Status Bad Request
 Verify Status Not Found
     Verify Status    404
 
+Verify Status Unprocessable Entity
+    Verify Status    422
+
 
 Output Should Contain
     [Arguments]    ${expected}
