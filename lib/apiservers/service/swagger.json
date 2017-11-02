@@ -994,7 +994,7 @@
       }
     },
     "vsphere-task": {
-      "description": "A vSphere task",
+      "description": "A vSphere task for work that is occurring asynchronously, or null if the operation is complete.",
       "schema": {
         "type": "object",
         "properties": {
