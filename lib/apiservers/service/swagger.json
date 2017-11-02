@@ -860,7 +860,6 @@
         "containers": {
           "type": "string",
           "enum": [
-            "none",
             "off",
             "all"
           ],

@@ -85,10 +85,14 @@ func (h *VCHDatacenterDelete) Handle(params operations.DeleteTargetTargetDatacen
 	return operations.NewDeleteTargetTargetDatacenterDatacenterVchVchIDAccepted()
 }
 
-func deleteVCH(op trace.Operation, d *data.Data, specification *models.DeletionSpecification) (error) {
+func deleteVCH(op trace.Operation, d *data.Data, specification *models.DeletionSpecification) error {
 	validator, err := validateTarget(op, d)
 	if err != nil {
 		return util.WrapError(http.StatusBadRequest, err)
+	}
+
+	if specification == nil {
+		specification = &models.DeletionSpecification{}
 	}
 
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
@@ -114,7 +118,7 @@ func deleteVCH(op trace.Operation, d *data.Data, specification *models.DeletionS
 		return util.WrapError(http.StatusBadRequest, err)
 	}
 
-	err = executor.DeleteVCH(vchConfig)
+	err = executor.DeleteVCH(vchConfig, specification.Containers, specification.VolumeStores)
 	if err != nil {
 		return util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to delete VCH: %s", err))
 	}
