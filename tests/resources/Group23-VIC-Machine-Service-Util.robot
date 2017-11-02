@@ -95,6 +95,9 @@ Verify Status Not Found
 Verify Status Unprocessable Entity
     Verify Status    422
 
+Verify Status Internal Server Error
+    Verify Status    500
+
 
 Output Should Contain
     [Arguments]    ${expected}
