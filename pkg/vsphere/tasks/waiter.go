@@ -78,7 +78,7 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 			}
 		}
 
-		if !isRetryError(op, err) {
+		if !IsRetryError(op, err) {
 			return info, err
 		}
 
@@ -103,11 +103,11 @@ const (
 	taskFault = "task"
 )
 
-// isRetryErrors will return true for vSphere errors, which can be fixed by retry.
+// IsRetryErrors will return true for vSphere errors, which can be fixed by retry.
 // Currently the error includes TaskInProgress, NetworkDisruptedAndConfigRolledBack and InvalidArgument
 // Retry on NetworkDisruptedAndConfigRolledBack is to workaround vSphere issue
 // Retry on InvalidArgument(invlid path) is to workaround vSAN bug: https://bugzilla.eng.vmware.com/show_bug.cgi?id=1770798. TODO: Should remove it after vSAN fixed the bug
-func isRetryError(op trace.Operation, err error) bool {
+func IsRetryError(op trace.Operation, err error) bool {
 	if soap.IsSoapFault(err) {
 		switch f := soap.ToSoapFault(err).VimFault().(type) {
 		case types.TaskInProgress:
@@ -116,6 +116,12 @@ func isRetryError(op trace.Operation, err error) bool {
 			logExpectedFault(op, soapFault, f)
 			return true
 		case types.InvalidArgument:
+			logExpectedFault(op, soapFault, f)
+			return true
+		case types.VAppTaskInProgress:
+			logExpectedFault(op, soapFault, f)
+			return true
+		case types.FailToLockFaultToleranceVMs:
 			logExpectedFault(op, soapFault, f)
 			return true
 		default:
@@ -133,6 +139,12 @@ func isRetryError(op trace.Operation, err error) bool {
 			return true
 		case *types.InvalidArgument:
 			logExpectedFault(op, vimFault, f)
+			return true
+		case *types.VAppTaskInProgress:
+			logExpectedFault(op, soapFault, f)
+			return true
+		case *types.FailToLockFaultToleranceVMs:
+			logExpectedFault(op, soapFault, f)
 			return true
 		default:
 			logFault(op, f)

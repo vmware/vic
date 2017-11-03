@@ -206,6 +206,12 @@ func (handler *TaskHandlersImpl) InspectHandler(params tasks.InspectParams) midd
 	if err != nil {
 		log.Errorf("%s", err.Error())
 
+		if _, ok := err.(task.TaskPowerStateError); ok {
+			return tasks.NewInspectConflict().WithPayload(
+				&models.Error{Message: err.Error()},
+			)
+		}
+
 		return tasks.NewInspectInternalServerError().WithPayload(
 			&models.Error{Message: err.Error()},
 		)
