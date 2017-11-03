@@ -16,11 +16,19 @@ package management
 
 import (
 	"context"
+	"fmt"
+	"net/url"
 
+	"github.com/vmware/govmomi"
+	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+	gvsession "github.com/vmware/govmomi/session"
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/vsphere/compute"
+	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 const (
@@ -34,11 +42,16 @@ const (
 	Endpoint
 )
 
+type NameToRef map[string]types.ManagedObjectReference
+
 type AuthzManager struct {
 	authzManager *object.AuthorizationManager
 	client       *vim25.Client
-	vchConfig    *config.VirtualContainerHostConfigSpec
+	configSpec   *config.VirtualContainerHostConfigSpec
 	principal    string
+	rbacConfig   *RBACConfig
+	resources    map[int8]*RBACResource
+	targetRoles  []types.AuthorizationRole
 }
 
 type RBACResource struct {
@@ -52,6 +65,12 @@ type RBACConfig struct {
 }
 
 type PermissionList []types.Permission
+
+type RBACResourcePermission struct {
+	rType      int8
+	reference  types.ManagedObjectReference
+	permission types.Permission
+}
 
 var rolePrefix = "vic-vch-"
 
@@ -113,7 +132,7 @@ var RoleEndpoint = types.AuthorizationRole{
 	},
 }
 
-var RBACConf = RBACConfig{
+var OpsUserRBACConf = RBACConfig{
 	Resources: []RBACResource{
 		{
 			Type:      VCenter,
@@ -158,29 +177,239 @@ var RBACConf = RBACConfig{
 	},
 }
 
-func NewAuthzManager(ctx context.Context, client *vim25.Client, principal string) *AuthzManager {
+func NewAuthzManager(ctx context.Context, client *vim25.Client, configSpec *config.VirtualContainerHostConfigSpec) *AuthzManager {
 	authManager := object.NewAuthorizationManager(client)
 	mgr := &AuthzManager{
 		client:       client,
 		authzManager: authManager,
-		principal:    principal,
+		configSpec:   configSpec,
 	}
 	return mgr
 }
 
+func ProcessOpsUser(ctx context.Context, client *vim25.Client, principal string, configSpec *config.VirtualContainerHostConfigSpec) error {
+	am := NewAuthzManager(ctx, client, configSpec)
+	am.configSpec = configSpec
+	am.InitRBACConfig(principal, &OpsUserRBACConf)
+	_, err := am.SetupRolesAndPermissions(ctx)
+	return err
+}
+
+func (am *AuthzManager) InitRBACConfig(principal string, config *RBACConfig) {
+	am.principal = principal
+	am.rbacConfig = config
+	am.initTargetRoles()
+	am.initResourceMap()
+}
+
 func (am *AuthzManager) CreateRoles(ctx context.Context) (int, error) {
-	return am.createOrRepairRoles(ctx, getTargetRoles())
+	return am.createOrRepairRoles(ctx)
 }
 
 func (am *AuthzManager) DeleteRoles(ctx context.Context) (int, error) {
-	return am.deleteRoles(ctx, getTargetRoles())
+	return am.deleteRoles(ctx)
 }
 
 func (am *AuthzManager) RoleList(ctx context.Context) (object.AuthorizationRoleList, error) {
 	return am.getRoleList(ctx)
 }
 
-func (am *AuthzManager) createOrRepairRoles(ctx context.Context, targetRoles []types.AuthorizationRole) (int, error) {
+func (am *AuthzManager) SetupRolesAndPermissions(ctx context.Context) ([]RBACResourcePermission, error) {
+	if _, err := am.CreateRoles(ctx); err != nil {
+		return nil, err
+	}
+	return am.SetupPermissions(ctx)
+}
+
+func (am *AuthzManager) SetupPermissions(ctx context.Context) ([]RBACResourcePermission, error) {
+	return am.setupPermissions(ctx)
+}
+
+func (am *AuthzManager) setupPermissions(ctx context.Context) ([]RBACResourcePermission, error) {
+	type ResourceDesc struct {
+		rType int8
+		ref   types.ManagedObjectReference
+	}
+
+	resourceDescs := make([]ResourceDesc, 0, len(am.rbacConfig.Resources))
+
+	// Get a reference to the top object
+	finder := find.NewFinder(am.client, false)
+
+	root, err := finder.Folder(ctx, "/")
+	if err != nil {
+		return nil, errors.Errorf("Ops-User: AuthzManager, Unable to find top object: %s", err.Error())
+	}
+
+	resourceDescs = append(resourceDescs, ResourceDesc{VCenter, root.Reference()})
+
+	session := session.NewSession(&session.Config{})
+	// Set client
+	session.Client = &govmomi.Client{
+		Client:         am.client,
+		SessionManager: gvsession.NewManager(am.client),
+	}
+
+	// Use the VirtualContainerHostConfigSpec to find the various resources
+	// Start with Resource Pool, Cluster and Datacenter
+	rpRef := am.configSpec.ComputeResources[0]
+	rp := compute.NewResourcePool(ctx, session, rpRef)
+
+	datacenter, err := rp.GetDatacenter(ctx)
+	if err != nil {
+		return nil, errors.Errorf("Ops-User: AuthzManager, Unable to find Datacenter: %s", err.Error())
+	}
+	resourceDescs = append(resourceDescs, ResourceDesc{Datacenter, datacenter.Reference()})
+
+	finder.SetDatacenter(datacenter)
+
+	cluster, err := rp.GetCluster(ctx)
+	if err != nil {
+		return nil, errors.Errorf("Ops-User: AuthzManager, Unable to find Cluster: %s", err.Error())
+	}
+	resourceDescs = append(resourceDescs, ResourceDesc{Cluster, cluster.Reference()})
+
+	// Find image datastore
+	dsNameToRef := make(NameToRef)
+	err = am.collectDatastores(ctx, finder, dsNameToRef)
+	if err != nil {
+		return nil, errors.Errorf("Ops-User: AuthzManager, Unable to find Datastores: %s", err.Error())
+	}
+
+	for _, ref := range dsNameToRef {
+		resourceDescs = append(resourceDescs, ResourceDesc{Datastore, ref})
+	}
+
+	// Find bridged networks
+	bridgeNet, ok := am.configSpec.Networks["bridge"]
+	if !ok {
+		return nil, errors.Errorf("Ops-User: AuthzManager, Unable to find Bridged Network: %s", err.Error())
+	}
+
+	bridgeNetRef := &types.ManagedObjectReference{}
+	bridgeNetRef.FromString(bridgeNet.ID)
+	if bridgeNetRef.Type == "" || bridgeNetRef.Value == "" {
+		return nil, errors.Errorf("Ops-User: AuthzManager, Unable to build Bridged Network MoRef: %s", bridgeNet.ID)
+	}
+	resourceDescs = append(resourceDescs, ResourceDesc{Network, *bridgeNetRef})
+
+	// Get VM MoRef
+	vmRef := &types.ManagedObjectReference{}
+	vmRef.FromString(am.configSpec.ID)
+	resourceDescs = append(resourceDescs, ResourceDesc{Endpoint, *vmRef})
+
+	resourcePermissions := make([]RBACResourcePermission, 0, len(am.rbacConfig.Resources))
+	// Apply permissions
+	for _, desc := range resourceDescs {
+		resourcePermission, err := am.addPermission(ctx, desc.ref, desc.rType, false)
+		if err != nil {
+			return nil, errors.Errorf("Ops-User: AuthzManager, Unable to set permissions on %s, error: %s",
+				desc.ref.String(), err.Error())
+		}
+		if resourcePermission != nil {
+			resourcePermissions = append(resourcePermissions, *resourcePermission)
+		}
+	}
+
+	return resourcePermissions, nil
+}
+
+func (am *AuthzManager) getPermissions(ctx context.Context,
+	ref types.ManagedObjectReference) ([]types.Permission, error) {
+	// Get current Permissions
+	return am.authzManager.RetrieveEntityPermissions(ctx, ref, false)
+}
+
+func (am *AuthzManager) addPermission(ctx context.Context, ref types.ManagedObjectReference,
+	resourceType int8, isGroup bool) (*RBACResourcePermission, error) {
+
+	resource := am.getResource(resourceType)
+	if resource == nil {
+		return nil, fmt.Errorf("cannot find resource of type %d", resourceType)
+	}
+
+	// Collect the new roles, possibly cache the result in the Authz manager
+	roleList, err := am.getRoleList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Locate target role
+	role := roleList.ByName(rolePrefix + resource.Role.Name)
+	if role == nil {
+		return nil, fmt.Errorf("cannot find role: %s", resource.Role.Name)
+	}
+
+	// Get current Permissions
+	permissions, err := am.authzManager.RetrieveEntityPermissions(ctx, ref, false)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, permission := range permissions {
+		if permission.Principal == am.principal &&
+			permission.RoleId == role.RoleId &&
+			permission.Propagate == resource.Propagate {
+			return nil, nil
+		}
+	}
+
+	// No match found, create new permission
+	permission := types.Permission{
+		Principal: am.principal,
+		RoleId:    role.RoleId,
+		Propagate: resource.Propagate,
+		Group:     isGroup,
+	}
+
+	permissions = append(permissions, permission)
+
+	if err = am.authzManager.SetEntityPermissions(ctx, ref, permissions); err != nil {
+		return nil, err
+	}
+
+	resourcePermission := &RBACResourcePermission{
+		permission: permission,
+		reference:  ref,
+		rType:      resourceType,
+	}
+
+	return resourcePermission, nil
+}
+
+func (am *AuthzManager) collectDatastores(ctx context.Context, finder *find.Finder, dsNameToRef NameToRef) error {
+	err := am.findDatastores(ctx, finder, am.configSpec.Storage.ImageStores, dsNameToRef)
+	if err != nil {
+		return err
+	}
+	volumeLocations := make([]url.URL, 0, len(am.configSpec.Storage.VolumeLocations))
+	for _, volumeLocation := range am.configSpec.Storage.VolumeLocations {
+		volumeLocations = append(volumeLocations, *volumeLocation)
+	}
+	if err = am.findDatastores(ctx, finder, volumeLocations, dsNameToRef); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (am *AuthzManager) findDatastores(ctx context.Context, finder *find.Finder,
+	storeURLs []url.URL, dsNameToRef NameToRef) error {
+	for _, storeURL := range storeURLs {
+		dsName := storeURL.Host
+		// Skip if we already have one
+		if _, ok := dsNameToRef[dsName]; ok {
+			continue
+		}
+		ds, err := finder.Datastore(ctx, dsName)
+		if err != nil {
+			return err
+		}
+		dsNameToRef[dsName] = ds.Reference()
+	}
+	return nil
+}
+
+func (am *AuthzManager) createOrRepairRoles(ctx context.Context) (int, error) {
 	// Get all the existing roles
 	mgr := am.authzManager
 	roleList, err := mgr.RoleList(ctx)
@@ -189,7 +418,7 @@ func (am *AuthzManager) createOrRepairRoles(ctx context.Context, targetRoles []t
 	}
 
 	var count int
-	for _, targetRole := range targetRoles {
+	for _, targetRole := range am.targetRoles {
 		foundRole := roleList.ByName(targetRole.Name)
 		if foundRole != nil {
 			isMod, err := am.checkAndRepairRole(ctx, &targetRole, foundRole)
@@ -209,7 +438,7 @@ func (am *AuthzManager) createOrRepairRoles(ctx context.Context, targetRoles []t
 	return count, nil
 }
 
-func (am *AuthzManager) deleteRoles(ctx context.Context, targetRoles []types.AuthorizationRole) (int, error) {
+func (am *AuthzManager) deleteRoles(ctx context.Context) (int, error) {
 	mgr := am.authzManager
 	// Get all the existing roles
 	roleList, err := mgr.RoleList(ctx)
@@ -218,7 +447,7 @@ func (am *AuthzManager) deleteRoles(ctx context.Context, targetRoles []types.Aut
 	}
 
 	var count int
-	for _, targetRole := range targetRoles {
+	for _, targetRole := range am.targetRoles {
 		foundRole := roleList.ByName(targetRole.Name)
 		if foundRole != nil {
 			err = mgr.RemoveRole(ctx, foundRole.RoleId, true)
@@ -262,11 +491,11 @@ func (am *AuthzManager) checkAndRepairRole(ctx context.Context, tRole *types.Aut
 	return true, err
 }
 
-func getTargetRoles() []types.AuthorizationRole {
-	count := len(RBACConf.Resources)
+func (am *AuthzManager) initTargetRoles() {
+	count := len(am.rbacConfig.Resources)
 	roles := make([]types.AuthorizationRole, 0, count)
 	dSet := make(map[string]bool)
-	for _, resource := range RBACConf.Resources {
+	for _, resource := range am.rbacConfig.Resources {
 		name := rolePrefix + resource.Role.Name
 		// Discard duplicates
 		if _, found := dSet[name]; !found {
@@ -277,14 +506,20 @@ func getTargetRoles() []types.AuthorizationRole {
 			roles = append(roles, *role)
 		}
 	}
-	return roles
+	am.targetRoles = roles
 }
 
-func getResource(resourceType int8) *RBACResource {
-	for _, resource := range RBACConf.Resources {
-		if resource.Type == resourceType {
-			return &resource
-		}
+func (am *AuthzManager) initResourceMap() {
+	am.resources = make(map[int8]*RBACResource)
+	for _, resource := range am.rbacConfig.Resources {
+		am.resources[resource.Type] = &resource
 	}
-	return nil
+}
+
+func (am *AuthzManager) getResource(resourceType int8) *RBACResource {
+	resource, ok := am.resources[resourceType]
+	if !ok {
+		panic(errors.Errorf("Cannot find RBAC resource type: %d", resourceType))
+	}
+	return resource
 }
