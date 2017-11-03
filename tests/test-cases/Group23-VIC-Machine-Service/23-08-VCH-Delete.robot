@@ -74,22 +74,24 @@ Populate VCH with Powered On Container
 Verify Container Exists
     [Arguments]    ${name}
 
-    ${ret}=    Run    govc vm.info -json=true ${name}-* | jq '.VirtualMachines | length'
+    ${vm}=    Run    govc vm.info -json=true ${name}-* | jq '.VirtualMachines | length'
 
-    Should Be Equal As Integers    1    ${ret}
+    Should Be Equal As Integers    ${vm}    1
 
 Verify Container Not Exists
     [Arguments]    ${name}
 
-    ${ret}=    Run    govc vm.info -json=true ${name}-* | jq '.VirtualMachines | length'
+    ${vm}=    Run    govc vm.info -json=true ${name}-* | jq '.VirtualMachines | length'
+    ${ds}=    Run    govc datastore.ls VIC/${name}-*
 
-    Should Be Equal As Integers    0    ${ret}
+    Should Be Equal As Integers    ${vm}    0
+    Should Contain                 ${ds}    was not found
 
 
 Verify VCH Exists
     [Arguments]    ${path}
 
-    Get Path Under Target       ${path}
+    Get Path Under Target          ${path}
 
     Verify Return Code
     Verify Status Ok
@@ -97,10 +99,18 @@ Verify VCH Exists
 Verify VCH Not Exists
     [Arguments]    ${path}
 
-    Get Path Under Target       ${path}
+    Get Path Under Target          ${path}
 
     Verify Return Code
     Verify Status Not Found
+
+    ${rp}=    Run    govc pool.info -json=true host/*/Resources/%{VCH-NAME} | jq '.ResourcePools | length'
+    ${vm}=    Run    govc vm.info -json=true %{VCH-NAME} | jq '.VirtualMachines | length'
+    ${ds}=    Run    govc datastore.ls %{VCH-NAME}
+
+    Should Be Equal As Integers    ${rp}    0
+    Should Be Equal As Integers    ${vm}    0
+    Should Contain                 ${ds}    was not found
 
 
 *** Test Cases ***
@@ -134,12 +144,12 @@ Delete VCH within datacenter
 Delete invalid VCH
     ${id}=    Get VCH ID %{VCH-NAME}
 
-    Delete Path Under Target    vch/INVALID
+    Delete Path Under Target        vch/INVALID
 
     Verify Return Code
     Verify Status Not Found
 
-    Verify VCH Exists           vch/${id}
+    Verify VCH Exists               vch/${id}
 
     [Teardown]    Cleanup VIC Appliance On Test Server
 
@@ -147,12 +157,12 @@ Delete invalid VCH
 Delete VCH in invalid datacenter
     ${id}=    Get VCH ID %{VCH-NAME}
 
-    Delete Path Under Target    datacenter/INVALID/vch/${id}
+    Delete Path Under Target        datacenter/INVALID/vch/${id}
 
     Verify Return Code
     Verify Status Not Found
 
-    Verify VCH Exists           vch/${id}
+    Verify VCH Exists               vch/${id}
 
     [Teardown]    Cleanup VIC Appliance On Test Server
 
@@ -160,36 +170,36 @@ Delete VCH in invalid datacenter
 Delete with invalid bodies
     ${id}=    Get VCH ID %{VCH-NAME}
 
-    Delete Path Under Target    vch/${id}    '{"invalid"}'
+    Delete Path Under Target        vch/${id}    '{"invalid"}'
 
     Verify Return Code
     Verify Status Bad Request
 
-    Delete Path Under Target    vch/${id}    '{"containers":"invalid"}'
+    Delete Path Under Target        vch/${id}    '{"containers":"invalid"}'
 
     Verify Return Code
     Verify Status Unprocessable Entity
-    Output Should Contain       containers
+    Output Should Contain           containers
 
-    Delete Path Under Target    vch/${id}    '{"volume_stores":"invalid"}'
-
-    Verify Return Code
-    Verify Status Unprocessable Entity
-    Output Should Contain       volume_stores
-
-    Delete Path Under Target    vch/${id}    '{"containers":"invalid", "volume_stores":"all"}'
+    Delete Path Under Target        vch/${id}    '{"volume_stores":"invalid"}'
 
     Verify Return Code
     Verify Status Unprocessable Entity
-    Output Should Contain       containers
+    Output Should Contain           volume_stores
 
-    Delete Path Under Target    vch/${id}    '{"containers":"all", "volume_stores":"invalid"}'
+    Delete Path Under Target        vch/${id}    '{"containers":"invalid", "volume_stores":"all"}'
 
     Verify Return Code
     Verify Status Unprocessable Entity
-    Output Should Contain       volume_stores
+    Output Should Contain           containers
 
-    Verify VCH Exists           vch/${id}
+    Delete Path Under Target        vch/${id}    '{"containers":"all", "volume_stores":"invalid"}'
+
+    Verify Return Code
+    Verify Status Unprocessable Entity
+    Output Should Contain           volume_stores
+
+    Verify VCH Exists               vch/${id}
 
     [Teardown]    Cleanup VIC Appliance On Test Server
 
