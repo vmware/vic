@@ -22,6 +22,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/event/events"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -169,11 +170,9 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 			log.Infof("Reconfigure: committed update to %s with change version: %s", h.ExecConfig.ID, s.ChangeVersion)
 
 			// trigger a configuration reload in the container if needed
-			if h.reload && h.Runtime != nil && h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
-				err = c.ReloadConfig(ctx)
-				if err != nil {
-					// NOTE: not sure how to handle this error - the change is already applied, it's just not picked up in the container
-				}
+			err = reloadConfig(ctx, h, c)
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -209,4 +208,50 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 	}
 
 	return nil
+}
+
+// HELPER FUNCTIONS BELOW
+
+// reloadConfig is responsible for triggering a guest_reconfigure in order to perform an operation on a running cVM
+// this function needs to be resilient to intermittent config errors and task errors, but will pass concurrent
+// modification issues back immediately.
+func reloadConfig(ctx context.Context, h *Handle, c *Container) error {
+
+	log.Infof("Attempting to perform a guest reconfigure operation on (%s)", h.ExecConfig.ID)
+	retryFunc := func() error {
+		if h.reload && h.Runtime != nil && h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
+			err := c.ReloadConfig(ctx)
+
+			if err != nil {
+				log.Debugf("Error occurred during an attempt to reload the container config for an exec operation: (%s)", err)
+
+				// we will request the powerstate directly(this could be very costly without the vmomi gateway)
+				state, err := c.vm.PowerState(ctx)
+				if err != nil && state == types.VirtualMachinePowerStatePoweredOff {
+					// TODO: probably should make this error a specific type such as PowerOffDuringExecError( or a better name ofcourse)
+					return fmt.Errorf("container(%s) was powered down during the requested operation.", h.ExecConfig.ID)
+				}
+				return err
+			}
+			return nil
+		}
+
+		// nothing to be done.
+		return nil
+	}
+
+	err := retry.Do(retryFunc, isIntermittentFailure)
+	if err != nil {
+		log.Debugf("Failed an exec operation with err: %s", err)
+		return err
+	}
+	return nil
+}
+
+// TODO: refactor later, I need to test this and we need to unify the Task package and the retry Package(make task use retry imo)
+// right now this just looks silly...
+func isIntermittentFailure(err error) bool {
+	// in the future commit should be using the trace.operation for these calls and this function can act as a passthrough.
+	op := trace.NewOperation(context.TODO(), "")
+	return tasks.IsRetryError(op, err)
 }

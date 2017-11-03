@@ -35,3 +35,5 @@ Longevity
     \   Install VIC Appliance To Test Server  debug=0  certs=${true}  additional-args=%{STATIC_VCH_OPTIONS}
     \   Repeat Keyword  ${rand} times  Run Regression Tests
     \   Cleanup VIC Appliance On Test Server
+
+    Post Message To Slack Channel  mwilliamson-staff  Longevity has passed on %{GOVC_URL}
