@@ -343,26 +343,26 @@ Delete VCH and powered off containers and volumes
     Verify Return Code
     #
 
+    Verify VCH Exists                 vch/${id}
     Verify Container Exists           ${NAME}-container
     Verify Container Exists           ${NAME}-cfoo
-    Verify VCH Exists                 vch/${id}
-    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
-    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Store Exists        %{VCH-NAME}-VOL-foo
+    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
 
     Delete Path Under Target          vch/${id}    '{"containers":"off","volume_stores":"all"}'
 
     Verify Return Code
     Verify Status Accepted
 
+    Verify VCH Not Exists             vch/${id}
     Verify Container Not Exists       ${NAME}-container
     Verify Container Not Exists       ${NAME}-cfoo
-    Verify VCH Not Exists             vch/${id}
-    Verify Volume Not Exists          %{VCH-NAME}-VOL        ${NAME}-volume
-    Verify Volume Not Exists          %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
     Verify Volume Store Not Exists    %{VCH-NAME}-VOL
     Verify Volume Store Not Exists    %{VCH-NAME}-VOL-foo
+    Verify Volume Not Exists          %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Not Exists          %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
 
 
 Delete VCH and powered on containers and volumes
@@ -393,21 +393,21 @@ Delete VCH and powered on containers and volumes
     Verify Return Code
     #
 
+    Verify VCH Exists                 vch/${id}
     Verify Container Exists           ${NAME}-container
     Verify Container Exists           ${NAME}-cfoo
-    Verify VCH Exists                 vch/${id}
-    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
-    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Store Exists        %{VCH-NAME}-VOL-foo
+    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
 
     Delete Path Under Target          vch/${id}    '{"containers":"all","volume_stores":"all"}'
 
     Verify Return Code
     Verify Status Accepted
 
-    Verify Container Not Exists       ${NAME}-container
     Verify VCH Not Exists             vch/${id}
+    Verify Container Not Exists       ${NAME}-container
     Verify Volume Store Not Exists    %{VCH-NAME}-VOL
     Verify Volume Store Not Exists    %{VCH-NAME}-VOL-foo
     Verify Volume Not Exists          %{VCH-NAME}-VOL        ${NAME}-volume
@@ -436,26 +436,26 @@ Delete VCH and powered off container and preserve volumes
     Verify Return Code
     #
 
+    Verify VCH Exists                 vch/${id}
     Verify Container Exists           ${NAME}-container
     Verify Container Exists           ${NAME}-cfoo
-    Verify VCH Exists                 vch/${id}
-    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
-    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Store Exists        %{VCH-NAME}-VOL-foo
+    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
 
     Delete Path Under Target          vch/${id}    '{"containers":"off","volume_stores":"none"}'
 
     Verify Return Code
     Verify Status Accepted
 
+    Verify VCH Not Exists             vch/${id}
     Verify Container Not Exists       ${NAME}-container
     Verify Container Not Exists       ${NAME}-cfoo
-    Verify VCH Not Exists             vch/${id}
-    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
-    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Store Exists        %{VCH-NAME}-VOL-foo
+    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
 
     # Re-use preserved volumes
     Install And Prepare VIC Appliance
@@ -492,8 +492,8 @@ Delete VCH and powered on container but preserve volume
     Verify Return Code
     #
 
-    Verify Container Exists           ${NAME}-container
     Verify VCH Exists                 vch/${id}
+    Verify Container Exists           ${NAME}-container
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
 
@@ -502,8 +502,8 @@ Delete VCH and powered on container but preserve volume
     Verify Return Code
     Verify Status Accepted
 
-    Verify Container Not Exists       ${NAME}-container
     Verify VCH Not Exists             vch/${id}
+    Verify Container Not Exists       ${NAME}-container
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
 
@@ -535,8 +535,8 @@ Delete VCH and preserve powered on container and volumes
     Verify Return Code
     #
 
-    Verify Container Exists           ${NAME}-container
     Verify VCH Exists                 vch/${id}
+    Verify Container Exists           ${NAME}-container
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
 
@@ -568,8 +568,8 @@ Delete VCH and preserve powered on container and fail to delete volumes
     Verify Return Code
     #
 
-    Verify Container Exists           ${NAME}-container
     Verify VCH Exists                 vch/${id}
+    Verify Container Exists           ${NAME}-container
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
 
