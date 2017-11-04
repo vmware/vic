@@ -18,11 +18,28 @@ Resource          ../../resources/Util.robot
 Resource          ../../resources/Group23-VIC-Machine-Service-Util.robot
 Suite Setup       Start VIC Machine Server
 Suite Teardown    Terminate All Processes    kill=True
-Test Setup        Install VIC Appliance To Test Server
+Test Setup        Install And Prepare VIC Appliance
 Default Tags
 
 
 *** Keywords ***
+Pull Busybox
+    Run Docker Command    pull ${busybox}
+
+    Verify Return Code
+    Output Should Not Contain    Error
+
+Install And Prepare VIC Appliance
+    Install VIC Appliance To Test Server
+    Pull Busybox
+
+
+Install And Prepare VIC Appliance With Volume Stores
+    Set Test Environment Variables
+    Install VIC Appliance To Test Server    additional-args=--volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL-foo:foo
+    Pull Busybox
+
+
 Get VCH ID ${name}
     Get Path Under Target    vch
     ${id}=    Run    echo '${OUTPUT}' | jq -r '.vchs[] | select(.name=="${name}").id'
@@ -38,11 +55,6 @@ Run Docker Command
 
 
 Populate VCH with Powered Off Container
-    Run Docker Command    pull ${busybox}
-
-    Verify Return Code
-    Output Should Not Contain    Error
-
     ${POWERED_OFF_CONTAINER_NAME}=  Generate Random String  15
     Run Docker Command    create --name ${POWERED_OFF_CONTAINER_NAME} ${busybox} /bin/top
 
@@ -52,11 +64,6 @@ Populate VCH with Powered Off Container
     Set Test Variable    ${POWERED_OFF_CONTAINER_NAME}
 
 Populate VCH with Powered On Container
-    Run Docker Command    pull ${busybox}
-
-    Verify Return Code
-    Output Should Not Contain    Error
-
     ${POWERED_ON_CONTAINER_NAME}=  Generate Random String  15
     Run Docker Command    create --name ${POWERED_ON_CONTAINER_NAME} ${busybox} /bin/top
 
@@ -76,7 +83,7 @@ Verify Container Exists
 
     ${vm}=    Run    govc vm.info -json=true ${name}-* | jq '.VirtualMachines | length'
 
-    Should Be Equal As Integers    ${vm}    1
+    Should Be Equal As Integers       ${vm}    1
 
 Verify Container Not Exists
     [Arguments]    ${name}
@@ -84,14 +91,14 @@ Verify Container Not Exists
     ${vm}=    Run    govc vm.info -json=true ${name}-* | jq '.VirtualMachines | length'
     ${ds}=    Run    govc datastore.ls VIC/${name}-*
 
-    Should Be Equal As Integers    ${vm}    0
-    Should Contain                 ${ds}    was not found
+    Should Be Equal As Integers       ${vm}    0
+    Should Contain                    ${ds}    was not found
 
 
 Verify VCH Exists
     [Arguments]    ${path}
 
-    Get Path Under Target          ${path}
+    Get Path Under Target             ${path}
 
     Verify Return Code
     Verify Status Ok
@@ -99,7 +106,7 @@ Verify VCH Exists
 Verify VCH Not Exists
     [Arguments]    ${path}
 
-    Get Path Under Target          ${path}
+    Get Path Under Target             ${path}
 
     Verify Return Code
     Verify Status Not Found
@@ -108,48 +115,77 @@ Verify VCH Not Exists
     ${vm}=    Run    govc vm.info -json=true %{VCH-NAME} | jq '.VirtualMachines | length'
     ${ds}=    Run    govc datastore.ls %{VCH-NAME}
 
-    Should Be Equal As Integers    ${rp}    0
-    Should Be Equal As Integers    ${vm}    0
-    Should Contain                 ${ds}    was not found
+    Should Be Equal As Integers       ${rp}    0
+    Should Be Equal As Integers       ${vm}    0
+    Should Contain                    ${ds}    was not found
+
+
+Verify Volume Exists
+    [Arguments]    ${volume}    ${name}
+
+    ${ds}=    Run    govc datastore.ls ${volume}/volumes/${name}
+
+    Should Not Contain                ${ds}    was not found
+
+Verify Volume Not Exists
+    [Arguments]    ${volume}    ${name}
+
+    ${ds}=    Run    govc datastore.ls ${volume}/volumes/${name}
+
+    Should Contain                    ${ds}    was not found
+
+Verify Volume Store Exists
+    [Arguments]    ${name}
+
+    ${ds}=    Run    govc datastore.ls ${name}
+
+    Should Not Contain                ${ds}    was not found
+
+Verify Volume Store Not Exists
+    [Arguments]    ${name}
+
+    ${ds}=    Run    govc datastore.ls ${name}
+
+    Should Contain                    ${ds}    was not found
 
 
 *** Test Cases ***
 Delete VCH
     ${id}=    Get VCH ID %{VCH-NAME}
 
-    Verify VCH Exists              vch/${id}
+    Verify VCH Exists                 vch/${id}
 
-    Delete Path Under Target       vch/${id}
+    Delete Path Under Target          vch/${id}
 
     Verify Return Code
     Verify Status Accepted
 
-    Verify VCH Not Exists          vch/${id}
+    Verify VCH Not Exists             vch/${id}
 
 
 Delete VCH within datacenter
     ${dc}=    Get Datacenter ID
     ${id}=    Get VCH ID %{VCH-NAME}
 
-    Verify VCH Exists              datacenter/${dc}/vch/${id}
+    Verify VCH Exists                 datacenter/${dc}/vch/${id}
 
-    Delete Path Under Target       datacenter/${dc}/vch/${id}
+    Delete Path Under Target          datacenter/${dc}/vch/${id}
 
     Verify Return Code
     Verify Status Accepted
 
-    Verify VCH Not Exists          datacenter/${dc}/vch/${id}
+    Verify VCH Not Exists             datacenter/${dc}/vch/${id}
 
 
 Delete invalid VCH
     ${id}=    Get VCH ID %{VCH-NAME}
 
-    Delete Path Under Target        vch/INVALID
+    Delete Path Under Target           vch/INVALID
 
     Verify Return Code
     Verify Status Not Found
 
-    Verify VCH Exists               vch/${id}
+    Verify VCH Exists                  vch/${id}
 
     [Teardown]    Cleanup VIC Appliance On Test Server
 
@@ -157,12 +193,12 @@ Delete invalid VCH
 Delete VCH in invalid datacenter
     ${id}=    Get VCH ID %{VCH-NAME}
 
-    Delete Path Under Target        datacenter/INVALID/vch/${id}
+    Delete Path Under Target           datacenter/INVALID/vch/${id}
 
     Verify Return Code
     Verify Status Not Found
 
-    Verify VCH Exists               vch/${id}
+    Verify VCH Exists                  vch/${id}
 
     [Teardown]    Cleanup VIC Appliance On Test Server
 
@@ -170,36 +206,36 @@ Delete VCH in invalid datacenter
 Delete with invalid bodies
     ${id}=    Get VCH ID %{VCH-NAME}
 
-    Delete Path Under Target        vch/${id}    '{"invalid"}'
+    Delete Path Under Target           vch/${id}    '{"invalid"}'
 
     Verify Return Code
     Verify Status Bad Request
 
-    Delete Path Under Target        vch/${id}    '{"containers":"invalid"}'
+    Delete Path Under Target           vch/${id}    '{"containers":"invalid"}'
 
     Verify Return Code
     Verify Status Unprocessable Entity
-    Output Should Contain           containers
+    Output Should Contain              containers
 
-    Delete Path Under Target        vch/${id}    '{"volume_stores":"invalid"}'
-
-    Verify Return Code
-    Verify Status Unprocessable Entity
-    Output Should Contain           volume_stores
-
-    Delete Path Under Target        vch/${id}    '{"containers":"invalid", "volume_stores":"all"}'
+    Delete Path Under Target           vch/${id}    '{"volume_stores":"invalid"}'
 
     Verify Return Code
     Verify Status Unprocessable Entity
-    Output Should Contain           containers
+    Output Should Contain              volume_stores
 
-    Delete Path Under Target        vch/${id}    '{"containers":"all", "volume_stores":"invalid"}'
+    Delete Path Under Target           vch/${id}    '{"containers":"invalid", "volume_stores":"all"}'
 
     Verify Return Code
     Verify Status Unprocessable Entity
-    Output Should Contain           volume_stores
+    Output Should Contain              containers
 
-    Verify VCH Exists               vch/${id}
+    Delete Path Under Target           vch/${id}    '{"containers":"all", "volume_stores":"invalid"}'
+
+    Verify Return Code
+    Verify Status Unprocessable Entity
+    Output Should Contain              volume_stores
+
+    Verify VCH Exists                  vch/${id}
 
     [Teardown]    Cleanup VIC Appliance On Test Server
 
@@ -209,16 +245,16 @@ Delete VCH with powered off container
 
     Populate VCH with Powered Off Container
 
-    Verify Container Exists        ${POWERED_OFF_CONTAINER_NAME}
-    Verify VCH Exists              vch/${id}
+    Verify Container Exists           ${POWERED_OFF_CONTAINER_NAME}
+    Verify VCH Exists                 vch/${id}
 
-    Delete Path Under Target       vch/${id}
+    Delete Path Under Target          vch/${id}
 
     Verify Return Code
     Verify Status Accepted
 
-    Verify VCH Not Exists          vch/${id}
-    Verify Container Not Exists    ${POWERED_OFF_CONTAINER_NAME}
+    Verify VCH Not Exists             vch/${id}
+    Verify Container Not Exists       ${POWERED_OFF_CONTAINER_NAME}
 
 
 Delete VCH without deleting powered on container
@@ -227,18 +263,18 @@ Delete VCH without deleting powered on container
     Populate VCH with Powered On Container
     Populate VCH with Powered Off Container
 
-    Verify Container Exists        ${POWERED_ON_CONTAINER_NAME}
-    Verify Container Exists        ${POWERED_OFF_CONTAINER_NAME}
-    Verify VCH Exists              vch/${id}
+    Verify Container Exists           ${POWERED_ON_CONTAINER_NAME}
+    Verify Container Exists           ${POWERED_OFF_CONTAINER_NAME}
+    Verify VCH Exists                 vch/${id}
 
-    Delete Path Under Target       vch/${id}
+    Delete Path Under Target          vch/${id}
 
     Verify Return Code
     Verify Status Internal Server Error
 
-    Verify VCH Exists              vch/${id}
-    Verify Container Exists        ${POWERED_ON_CONTAINER_NAME}
-    Verify Container Not Exists    ${POWERED_OFF_CONTAINER_NAME}
+    Verify VCH Exists                 vch/${id}
+    Verify Container Exists           ${POWERED_ON_CONTAINER_NAME}
+    Verify Container Not Exists       ${POWERED_OFF_CONTAINER_NAME}
 
     [Teardown]    Cleanup VIC Appliance On Test Server
 
@@ -249,18 +285,18 @@ Delete VCH explicitly without deleting powered on container
     Populate VCH with Powered On Container
     Populate VCH with Powered Off Container
 
-    Verify Container Exists        ${POWERED_ON_CONTAINER_NAME}
-    Verify Container Exists        ${POWERED_OFF_CONTAINER_NAME}
-    Verify VCH Exists              vch/${id}
+    Verify Container Exists           ${POWERED_ON_CONTAINER_NAME}
+    Verify Container Exists           ${POWERED_OFF_CONTAINER_NAME}
+    Verify VCH Exists                 vch/${id}
 
-    Delete Path Under Target       vch/${id}    '{"containers":"off"}'
+    Delete Path Under Target          vch/${id}    '{"containers":"off"}'
 
     Verify Return Code
     Verify Status Internal Server Error
 
-    Verify VCH Exists              vch/${id}
-    Verify Container Exists        ${POWERED_ON_CONTAINER_NAME}
-    Verify Container Not Exists    ${POWERED_OFF_CONTAINER_NAME}
+    Verify VCH Exists                 vch/${id}
+    Verify Container Exists           ${POWERED_ON_CONTAINER_NAME}
+    Verify Container Not Exists       ${POWERED_OFF_CONTAINER_NAME}
 
     [Teardown]    Cleanup VIC Appliance On Test Server
 
@@ -271,42 +307,54 @@ Delete VCH and delete powered on container
     Populate VCH with Powered On Container
     Populate VCH with Powered Off Container
 
-    Verify Container Exists        ${POWERED_ON_CONTAINER_NAME}
-    Verify Container Exists        ${POWERED_OFF_CONTAINER_NAME}
-    Verify VCH Exists              vch/${id}
+    Verify Container Exists           ${POWERED_ON_CONTAINER_NAME}
+    Verify Container Exists           ${POWERED_OFF_CONTAINER_NAME}
+    Verify VCH Exists                 vch/${id}
 
-    Delete Path Under Target       vch/${id}    '{"containers":"all"}'
+    Delete Path Under Target          vch/${id}    '{"containers":"all"}'
 
     Verify Return Code
     Verify Status Accepted
 
-    Verify VCH Not Exists          vch/${id}
-    Verify Container Not Exists    ${POWERED_ON_CONTAINER_NAME}
-    Verify Container Not Exists    ${POWERED_OFF_CONTAINER_NAME}
+    Verify VCH Not Exists             vch/${id}
+    Verify Container Not Exists       ${POWERED_ON_CONTAINER_NAME}
+    Verify Container Not Exists       ${POWERED_OFF_CONTAINER_NAME}
 
 
 Delete VCH and volumes
+    [Setup]    Install And Prepare VIC Appliance With Volume Stores
     ${id}=    Get VCH ID %{VCH-NAME}
 
     ${NAME}=  Generate Random String  15
 
+    # Setup powered off container VM with named volume on default volume store
     Run Docker Command    volume create --name ${NAME}-volume
     Verify Return Code
 
     Run Docker Command    create --name ${NAME}-container -v ${NAME}-volume:/volume ${busybox} /bin/top
     Verify Return Code
+    #
 
-    Verify Container Exists        ${NAME}-container
-    Verify VCH Exists              vch/${id}
+    # Setup powered off container VM with named volume on named volume store
+    Run Docker Command    volume create --name ${NAME}-volume-foo --opt VolumeStore=foo
+    Verify Return Code
 
-    Delete Path Under Target       vch/${id}    '{"containers":"off","volume_stores":"all"}'
+    Run Docker Command    create --name ${NAME}-container-foo -v ${NAME}-volume-foo:/volume ${busybox} /bin/top
+    Verify Return Code
+    #
 
-    Verify Container Not Exists    ${NAME}-container
-    Verify VCH Not Exists          vch/${id}
+    Verify Container Exists           ${NAME}-container
+    Verify Container Exists           ${NAME}-container-foo
+    Verify VCH Exists                 vch/${id}
 
-    ${ds}=    Run    govc datastore.ls %{VCH-NAME}-VOL
+    Delete Path Under Target          vch/${id}    '{"containers":"off","volume_stores":"all"}'
 
-    Should Contain                 ${ds}    was not found
+    Verify Container Not Exists       ${NAME}-container
+    Verify Container Not Exists       ${NAME}-container-foo
+    Verify VCH Not Exists             vch/${id}
+
+    Verify Volume Store Not Exists    %{VCH-NAME}-VOL
+    Verify Volume Store Not Exists    %{VCH-NAME}-VOL-foo
 
 
 Delete powered on VCH and volumes
@@ -314,6 +362,7 @@ Delete powered on VCH and volumes
 
     ${NAME}=  Generate Random String  15
 
+    # Setup powered off container VM with named volume on default volume store
     Run Docker Command    volume create --name ${NAME}-volume
     Verify Return Code
 
@@ -322,18 +371,19 @@ Delete powered on VCH and volumes
 
     Run Docker Command    start ${OUTPUT}
     Verify Return Code
+    #
 
-    Verify Container Exists        ${NAME}-container
-    Verify VCH Exists              vch/${id}
+    Verify Container Exists           ${NAME}-container
+    Verify VCH Exists                 vch/${id}
+    Verify Volume Store Exists        %{VCH-NAME}-VOL
+    Verify Volume Exists              %{VCH-NAME}-VOL    ${NAME}-volume
 
-    Delete Path Under Target       vch/${id}    '{"containers":"on","volume_stores":"all"}'
+    Delete Path Under Target          vch/${id}    '{"containers":"on","volume_stores":"all"}'
 
-    Verify Container Not Exists    ${NAME}-container
-    Verify VCH Not Exists          vch/${id}
-
-    ${ds}=    Run    govc datastore.ls %{VCH-NAME}-VOL
-
-    Should Contain                 ${ds}    was not found
+    Verify Container Not Exists       ${NAME}-container
+    Verify VCH Not Exists             vch/${id}
+    Verify Volume Store Not Exists    %{VCH-NAME}-VOL
+    Verify Volume Not Exists          %{VCH-NAME}-VOL    ${NAME}-volume
 
 
 Delete VCH and preserve volumes
@@ -341,19 +391,51 @@ Delete VCH and preserve volumes
 
     ${NAME}=  Generate Random String  15
 
+    # Setup powered off container VM with named volume on default volume store
+    Run Docker Command    volume create --name ${NAME}-volume
+    Verify Return Code
+
+    Run Docker Command    create --name ${NAME}-container -v ${NAME}-volume:/volume ${busybox} /bin/top
+    Verify Return Code
+    #
+
+    Verify Container Exists           ${NAME}-container
+    Verify VCH Exists                 vch/${id}
+    Verify Volume Store Exists        %{VCH-NAME}-VOL
+    Verify Volume Exists              %{VCH-NAME}-VOL    ${NAME}-volume
+
+    Delete Path Under Target          vch/${id}    '{"containers":"off","volume_stores":"none"}'
+
+    Verify Container Not Exists       ${NAME}-container
+    Verify VCH Not Exists             vch/${id}
+    Verify Volume Store Exists        %{VCH-NAME}-VOL
+    Verify Volume Exists              %{VCH-NAME}-VOL    ${NAME}-volume
+
+
+Delete powered on VCH and preserve volumes
+    ${id}=    Get VCH ID %{VCH-NAME}
+
+    ${NAME}=  Generate Random String  15
+
+    # Setup powered off container VM with named volume on default volume store
     Run Docker Command    volume create --name ${NAME}-volume
     Verify Return Code
 
     Run Docker Command    create --name ${NAME}-container -v ${NAME}-volume:/volume ${busybox} /bin/top
     Verify Return Code
 
-    Verify Container Exists        ${NAME}-container
-    Verify VCH Exists              vch/${id}
+    Run Docker Command    start ${OUTPUT}
+    Verify Return Code
+    #
 
-    Delete Path Under Target       vch/${id}    '{"containers":"off","volume_stores":"none"}'
+    Verify Container Exists           ${NAME}-container
+    Verify VCH Exists                 vch/${id}
+    Verify Volume Store Exists        %{VCH-NAME}-VOL
+    Verify Volume Exists              %{VCH-NAME}-VOL    ${NAME}-volume
 
-    Verify Container Not Exists    ${NAME}-container
-    Verify VCH Not Exists          vch/${id}
+    Delete Path Under Target          vch/${id}    '{"containers":"on","volume_stores":"none"}'
 
-    ${ds}=    Run    govc datastore.ls %{VCH-NAME}-VOL
-    ${ds}=    Run    govc datastore.ls %{VCH-NAME}-VOL/${NAME}-volume
+    Verify Container Not Exists       ${NAME}-container
+    Verify VCH Not Exists             vch/${id}
+    Verify Volume Store Exists        %{VCH-NAME}-VOL
+    Verify Volume Exists              %{VCH-NAME}-VOL    ${NAME}-volume
