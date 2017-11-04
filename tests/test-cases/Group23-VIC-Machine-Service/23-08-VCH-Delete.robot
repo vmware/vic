@@ -339,18 +339,18 @@ Delete VCH and volumes
     Run Docker Command    volume create --name ${NAME}-volume-foo --opt VolumeStore=foo
     Verify Return Code
 
-    Run Docker Command    create --name ${NAME}-container-foo -v ${NAME}-volume-foo:/volume ${busybox} /bin/top
+    Run Docker Command    create --name ${NAME}-cfoo -v ${NAME}-volume-foo:/volume ${busybox} /bin/top
     Verify Return Code
     #
 
     Verify Container Exists           ${NAME}-container
-    Verify Container Exists           ${NAME}-container-foo
+    Verify Container Exists           ${NAME}-cfoo
     Verify VCH Exists                 vch/${id}
 
     Delete Path Under Target          vch/${id}    '{"containers":"off","volume_stores":"all"}'
 
     Verify Container Not Exists       ${NAME}-container
-    Verify Container Not Exists       ${NAME}-container-foo
+    Verify Container Not Exists       ${NAME}-cfoo
     Verify VCH Not Exists             vch/${id}
 
     Verify Volume Store Not Exists    %{VCH-NAME}-VOL
