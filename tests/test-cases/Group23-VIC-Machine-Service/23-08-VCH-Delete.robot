@@ -121,16 +121,16 @@ Verify VCH Not Exists
 
 
 Verify Volume Exists
-    [Arguments]    ${volume}    ${name}
+    [Arguments]    ${path}
 
-    ${ds}=    Run    govc datastore.ls ${volume}/volumes/${name}
+    ${ds}=    Run    govc datastore.ls ${path}
 
     Should Not Contain                ${ds}    was not found
 
 Verify Volume Not Exists
-    [Arguments]    ${volume}    ${name}
+    [Arguments]    ${path}
 
-    ${ds}=    Run    govc datastore.ls ${volume}/volumes/${name}
+    ${ds}=    Run    govc datastore.ls ${path}
 
     Should Contain                    ${ds}    was not found
 
@@ -346,8 +346,8 @@ Delete VCH and powered off containers and volumes
     Verify Container Exists           ${NAME}-container
     Verify Container Exists           ${NAME}-cfoo
     Verify VCH Exists                 vch/${id}
-    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
-    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
+    Verify Volume Exists              %{VCH-NAME}-VOL/volumes/${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL-foo/${NAME}-volume-foo
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Store Exists        %{VCH-NAME}-VOL-foo
 
@@ -359,8 +359,8 @@ Delete VCH and powered off containers and volumes
     Verify Container Not Exists       ${NAME}-container
     Verify Container Not Exists       ${NAME}-cfoo
     Verify VCH Not Exists             vch/${id}
-    Verify Volume Not Exists          %{VCH-NAME}-VOL        ${NAME}-volume
-    Verify Volume Not Exists          %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
+    Verify Volume Not Exists          %{VCH-NAME}-VOL/volumes/${NAME}-volume
+    Verify Volume Not Exists          %{VCH-NAME}-VOL-foo/${NAME}-volume-foo
     Verify Volume Store Not Exists    %{VCH-NAME}-VOL
     Verify Volume Store Not Exists    %{VCH-NAME}-VOL-foo
 
@@ -396,8 +396,8 @@ Delete VCH and powered on containers and volumes
     Verify Container Exists           ${NAME}-container
     Verify Container Exists           ${NAME}-cfoo
     Verify VCH Exists                 vch/${id}
-    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
-    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
+    Verify Volume Exists              %{VCH-NAME}-VOL/volumes/${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL-foo/${NAME}-volume-foo
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Store Exists        %{VCH-NAME}-VOL-foo
 
@@ -410,8 +410,8 @@ Delete VCH and powered on containers and volumes
     Verify VCH Not Exists             vch/${id}
     Verify Volume Store Not Exists    %{VCH-NAME}-VOL
     Verify Volume Store Not Exists    %{VCH-NAME}-VOL-foo
-    Verify Volume Not Exists          %{VCH-NAME}-VOL        ${NAME}-volume
-    Verify Volume Not Exists          %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
+    Verify Volume Not Exists          %{VCH-NAME}-VOL/volumes/${NAME}-volume
+    Verify Volume Not Exists          %{VCH-NAME}-VOL-foo/${NAME}-volume-foo
 
 
 Delete VCH and powered off container and preserve volumes
@@ -438,8 +438,8 @@ Delete VCH and powered off container and preserve volumes
     Verify Container Exists           ${NAME}-container
     Verify Container Exists           ${NAME}-cfoo
     Verify VCH Exists                 vch/${id}
-    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
-    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
+    Verify Volume Exists              %{VCH-NAME}-VOL/volumes/${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL-foo/${NAME}-volume-foo
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Store Exists        %{VCH-NAME}-VOL-foo
 
@@ -451,8 +451,8 @@ Delete VCH and powered off container and preserve volumes
     Verify Container Not Exists       ${NAME}-container
     Verify Container Not Exists       ${NAME}-cfoo
     Verify VCH Not Exists             vch/${id}
-    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
-    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
+    Verify Volume Exists              %{VCH-NAME}-VOL/volumes/${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL-foo/${NAME}-volume-foo
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Store Exists        %{VCH-NAME}-VOL-foo
 
@@ -464,14 +464,14 @@ Delete VCH and powered off container and preserve volumes
 
     Verify Container Exists           ${NAME}-container
     Verify Volume Store Exists        %{VCH-NAME}-VOL
-    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL/volumes/${NAME}-volume
 
     Run Docker Command    create --name ${NAME}-cfoo -v ${NAME}-volume-foo:/volume ${busybox} /bin/top
     Verify Return Code
 
     Verify Container Exists           ${NAME}-cfoo
     Verify Volume Store Exists        %{VCH-NAME}-VOL-foo
-    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
+    Verify Volume Exists              %{VCH-NAME}-VOL-foo/${NAME}-volume-foo
 
 
 Delete VCH and powered on container but preserve volume
@@ -493,7 +493,7 @@ Delete VCH and powered on container but preserve volume
     Verify Container Exists           ${NAME}-container
     Verify VCH Exists                 vch/${id}
     Verify Volume Store Exists        %{VCH-NAME}-VOL
-    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL/volumes/${NAME}-volume
 
     Delete Path Under Target          vch/${id}    '{"containers":"all","volume_stores":"none"}'
 
@@ -503,7 +503,7 @@ Delete VCH and powered on container but preserve volume
     Verify Container Not Exists       ${NAME}-container
     Verify VCH Not Exists             vch/${id}
     Verify Volume Store Exists        %{VCH-NAME}-VOL
-    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL/volumes/${NAME}-volume
 
     # Re-use preserved volume
     Install And Prepare VIC Appliance
@@ -513,7 +513,7 @@ Delete VCH and powered on container but preserve volume
 
     Verify Container Exists           ${NAME}-container
     Verify Volume Store Exists        %{VCH-NAME}-VOL
-    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL/volumes/${NAME}-volume
 
 
 Delete VCH and preserve powered on container and volumes
@@ -535,7 +535,7 @@ Delete VCH and preserve powered on container and volumes
     Verify Container Exists           ${NAME}-container
     Verify VCH Exists                 vch/${id}
     Verify Volume Store Exists        %{VCH-NAME}-VOL
-    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL/volumes/${NAME}-volume
 
     Delete Path Under Target          vch/${id}    '{"containers":"off","volume_stores":"none"}'
 
@@ -545,7 +545,7 @@ Delete VCH and preserve powered on container and volumes
     Verify VCH Exists                 vch/${id}
     Verify Container Exists           ${NAME}-container
     Verify Volume Store Exists        %{VCH-NAME}-VOL
-    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL/volumes/${NAME}-volume
 
 
 Delete VCH and preserve powered on container but delete volumes  # This is weird, but technically allowed
@@ -567,7 +567,7 @@ Delete VCH and preserve powered on container but delete volumes  # This is weird
     Verify Container Exists           ${NAME}-container
     Verify VCH Exists                 vch/${id}
     Verify Volume Store Exists        %{VCH-NAME}-VOL
-    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL/volumes/${NAME}-volume
 
     Delete Path Under Target          vch/${id}    '{"containers":"off","volume_stores":"all"}'
 
@@ -577,4 +577,4 @@ Delete VCH and preserve powered on container but delete volumes  # This is weird
     Verify VCH Exists                 vch/${id}
     Verify Container Exists           ${NAME}-container
     Verify Volume Store Not Exists    %{VCH-NAME}-VOL
-    Verify Volume Not Exists          %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Not Exists          %{VCH-NAME}-VOL/volumes/${NAME}-volume
