@@ -166,6 +166,7 @@
         "parameters": [
           { "$ref": "#/parameters/target" },
           { "$ref": "#/parameters/vch-id" },
+          { "$ref": "#/parameters/deletion-specification" },
           { "$ref": "#/parameters/thumbprint" }
         ],
         "responses": {
@@ -340,6 +341,7 @@
           { "$ref": "#/parameters/target" },
           { "$ref": "#/parameters/datacenter" },
           { "$ref": "#/parameters/vch-id" },
+          { "$ref": "#/parameters/deletion-specification" },
           { "$ref": "#/parameters/thumbprint" }
         ],
         "responses": {
@@ -851,6 +853,27 @@
     "VCH_List": {
       "type": "array",
       "items": { "$ref": "#/definitions/VCH_List_Item" }
+    },
+    "Deletion_Specification": {
+      "type": "object",
+      "properties": {
+        "containers": {
+          "type": "string",
+          "enum": [
+            "off",
+            "all"
+          ],
+          "default": "off"
+        },
+        "volume_stores": {
+          "type": "string",
+          "enum": [
+            "none",
+            "all"
+          ],
+          "default": "none"
+        }
+      }
     }
   },
   "parameters": {
@@ -882,6 +905,15 @@
       "in": "query",
       "description": "Compute resource path",
       "type": "string"
+    },
+    "deletion-specification": {
+      "name": "deletion-specification",
+      "in": "body",
+      "description": "Information about the deletion operation",
+      "required": false,
+      "schema": {
+        "$ref": "#/definitions/Deletion_Specification"
+      }
     },
     "thumbprint": {
       "name": "thumbprint",
@@ -962,7 +994,7 @@
       }
     },
     "vsphere-task": {
-      "description": "A vSphere task",
+      "description": "A vSphere task for work that is occurring asynchronously, or null if the operation is complete.",
       "schema": {
         "type": "object",
         "properties": {

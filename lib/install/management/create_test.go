@@ -181,7 +181,7 @@ func testDeleteVolumeStores(ctx context.Context, sess *session.Session, conf *co
 		force:   true,
 	}
 
-	if removed := d.deleteVolumeStoreIfForced(conf); removed != numVols {
+	if removed := d.deleteVolumeStoreIfForced(conf, nil); removed != numVols {
 		t.Errorf("Did not successfully remove all specified volumes")
 	}
 
