@@ -321,7 +321,7 @@ Delete VCH and delete powered on container
     Verify Container Not Exists       ${POWERED_OFF_CONTAINER_NAME}
 
 
-Delete VCH and volumes
+Delete VCH and powered off containers and volumes
     [Setup]    Install And Prepare VIC Appliance With Volume Stores
     ${id}=    Get VCH ID %{VCH-NAME}
 
@@ -346,23 +346,140 @@ Delete VCH and volumes
     Verify Container Exists           ${NAME}-container
     Verify Container Exists           ${NAME}-cfoo
     Verify VCH Exists                 vch/${id}
+    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
+    Verify Volume Store Exists        %{VCH-NAME}-VOL
+    Verify Volume Store Exists        %{VCH-NAME}-VOL-foo
 
     Delete Path Under Target          vch/${id}    '{"containers":"off","volume_stores":"all"}'
+
+    Verify Return Code
+    Verify Status Accepted
 
     Verify Container Not Exists       ${NAME}-container
     Verify Container Not Exists       ${NAME}-cfoo
     Verify VCH Not Exists             vch/${id}
-
+    Verify Volume Not Exists          %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Not Exists          %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
     Verify Volume Store Not Exists    %{VCH-NAME}-VOL
     Verify Volume Store Not Exists    %{VCH-NAME}-VOL-foo
 
 
-Delete powered on VCH and volumes
+Delete VCH and powered on containers and volumes
+    [Setup]    Install And Prepare VIC Appliance With Volume Stores
+    ${id}=    Get VCH ID %{VCH-NAME}
+
+    ${NAME}=  Generate Random String  15
+
+    # Setup powered on container VM with named volume on default volume store
+    Run Docker Command    volume create --name ${NAME}-volume
+    Verify Return Code
+
+    Run Docker Command    create --name ${NAME}-container -v ${NAME}-volume:/volume ${busybox} /bin/top
+    Verify Return Code
+
+    Run Docker Command    start ${OUTPUT}
+    Verify Return Code
+    #
+
+    # Setup powered on container VM with named volume on named volume store
+    Run Docker Command    volume create --name ${NAME}-volume-foo --opt VolumeStore=foo
+    Verify Return Code
+
+    Run Docker Command    create --name ${NAME}-cfoo -v ${NAME}-volume-foo:/volume ${busybox} /bin/top
+    Verify Return Code
+
+    Run Docker Command    start ${OUTPUT}
+    Verify Return Code
+    #
+
+    Verify Container Exists           ${NAME}-container
+    Verify Container Exists           ${NAME}-cfoo
+    Verify VCH Exists                 vch/${id}
+    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
+    Verify Volume Store Exists        %{VCH-NAME}-VOL
+    Verify Volume Store Exists        %{VCH-NAME}-VOL-foo
+
+    Delete Path Under Target          vch/${id}    '{"containers":"all","volume_stores":"all"}'
+
+    Verify Return Code
+    Verify Status Accepted
+
+    Verify Container Not Exists       ${NAME}-container
+    Verify VCH Not Exists             vch/${id}
+    Verify Volume Store Not Exists    %{VCH-NAME}-VOL
+    Verify Volume Store Not Exists    %{VCH-NAME}-VOL-foo
+    Verify Volume Not Exists          %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Not Exists          %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
+
+
+Delete VCH and powered off container and preserve volumes
     ${id}=    Get VCH ID %{VCH-NAME}
 
     ${NAME}=  Generate Random String  15
 
     # Setup powered off container VM with named volume on default volume store
+    Run Docker Command    volume create --name ${NAME}-volume
+    Verify Return Code
+
+    Run Docker Command    create --name ${NAME}-container -v ${NAME}-volume:/volume ${busybox} /bin/top
+    Verify Return Code
+    #
+
+    # Setup powered off container VM with named volume on named volume store
+    Run Docker Command    volume create --name ${NAME}-volume-foo --opt VolumeStore=foo
+    Verify Return Code
+
+    Run Docker Command    create --name ${NAME}-cfoo -v ${NAME}-volume-foo:/volume ${busybox} /bin/top
+    Verify Return Code
+    #
+
+    Verify Container Exists           ${NAME}-container
+    Verify Container Exists           ${NAME}-cfoo
+    Verify VCH Exists                 vch/${id}
+    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
+    Verify Volume Store Exists        %{VCH-NAME}-VOL
+    Verify Volume Store Exists        %{VCH-NAME}-VOL-foo
+
+    Delete Path Under Target          vch/${id}    '{"containers":"off","volume_stores":"none"}'
+
+    Verify Return Code
+    Verify Status Accepted
+
+    Verify Container Not Exists       ${NAME}-container
+    Verify Container Not Exists       ${NAME}-cfoo
+    Verify VCH Not Exists             vch/${id}
+    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
+    Verify Volume Store Exists        %{VCH-NAME}-VOL
+    Verify Volume Store Exists        %{VCH-NAME}-VOL-foo
+
+    # Re-use preserved volumes
+    Install And Prepare VIC Appliance
+
+    Run Docker Command    create --name ${NAME}-container -v ${NAME}-volume:/volume ${busybox} /bin/top
+    Verify Return Code
+
+    Verify Container Exists           ${NAME}-container
+    Verify Volume Store Exists        %{VCH-NAME}-VOL
+    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+
+    Run Docker Command    create --name ${NAME}-cfoo -v ${NAME}-volume-foo:/volume ${busybox} /bin/top
+    Verify Return Code
+
+    Verify Container Exists           ${NAME}-cfoo
+    Verify Volume Store Exists        %{VCH-NAME}-VOL-foo
+    Verify Volume Exists              %{VCH-NAME}-VOL-foo    ${NAME}-volume-foo
+
+
+Delete VCH and powered on container but preserve volume
+    ${id}=    Get VCH ID %{VCH-NAME}
+
+    ${NAME}=  Generate Random String  15
+
+    # Setup powered on container VM with named volume on default volume store
     Run Docker Command    volume create --name ${NAME}-volume
     Verify Return Code
 
@@ -376,40 +493,17 @@ Delete powered on VCH and volumes
     Verify Container Exists           ${NAME}-container
     Verify VCH Exists                 vch/${id}
     Verify Volume Store Exists        %{VCH-NAME}-VOL
-    Verify Volume Exists              %{VCH-NAME}-VOL    ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
 
-    Delete Path Under Target          vch/${id}    '{"containers":"all","volume_stores":"all"}'
+    Delete Path Under Target          vch/${id}    '{"containers":"all","volume_stores":"none"}'
 
-    Verify Container Not Exists       ${NAME}-container
-    Verify VCH Not Exists             vch/${id}
-    Verify Volume Store Not Exists    %{VCH-NAME}-VOL
-    Verify Volume Not Exists          %{VCH-NAME}-VOL    ${NAME}-volume
-
-
-Delete VCH and preserve volumes
-    ${id}=    Get VCH ID %{VCH-NAME}
-
-    ${NAME}=  Generate Random String  15
-
-    # Setup powered off container VM with named volume on default volume store
-    Run Docker Command    volume create --name ${NAME}-volume
     Verify Return Code
-
-    Run Docker Command    create --name ${NAME}-container -v ${NAME}-volume:/volume ${busybox} /bin/top
-    Verify Return Code
-    #
-
-    Verify Container Exists           ${NAME}-container
-    Verify VCH Exists                 vch/${id}
-    Verify Volume Store Exists        %{VCH-NAME}-VOL
-    Verify Volume Exists              %{VCH-NAME}-VOL    ${NAME}-volume
-
-    Delete Path Under Target          vch/${id}    '{"containers":"off","volume_stores":"none"}'
+    Verify Status Accepted
 
     Verify Container Not Exists       ${NAME}-container
     Verify VCH Not Exists             vch/${id}
     Verify Volume Store Exists        %{VCH-NAME}-VOL
-    Verify Volume Exists              %{VCH-NAME}-VOL    ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
 
     # Re-use preserved volume
     Install And Prepare VIC Appliance
@@ -419,15 +513,15 @@ Delete VCH and preserve volumes
 
     Verify Container Exists           ${NAME}-container
     Verify Volume Store Exists        %{VCH-NAME}-VOL
-    Verify Volume Exists              %{VCH-NAME}-VOL    ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
 
 
-Delete powered on VCH and preserve volumes
+Delete VCH and preserve powered on container and volumes
     ${id}=    Get VCH ID %{VCH-NAME}
 
     ${NAME}=  Generate Random String  15
 
-    # Setup powered off container VM with named volume on default volume store
+    # Setup powered on container VM with named volume on default volume store
     Run Docker Command    volume create --name ${NAME}-volume
     Verify Return Code
 
@@ -441,11 +535,46 @@ Delete powered on VCH and preserve volumes
     Verify Container Exists           ${NAME}-container
     Verify VCH Exists                 vch/${id}
     Verify Volume Store Exists        %{VCH-NAME}-VOL
-    Verify Volume Exists              %{VCH-NAME}-VOL    ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
 
-    Delete Path Under Target          vch/${id}    '{"containers":"all","volume_stores":"none"}'
+    Delete Path Under Target          vch/${id}    '{"containers":"off","volume_stores":"none"}'
 
-    Verify Container Not Exists       ${NAME}-container
-    Verify VCH Not Exists             vch/${id}
+    Verify Return Code
+    Verify Status Internal Server Error
+
+    Verify VCH Exists                 vch/${id}
+    Verify Container Exists           ${NAME}-container
     Verify Volume Store Exists        %{VCH-NAME}-VOL
-    Verify Volume Exists              %{VCH-NAME}-VOL    ${NAME}-volume
+    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+
+
+Delete VCH and preserve powered on container but delete volumes  # This is weird, but technically allowed
+    ${id}=    Get VCH ID %{VCH-NAME}
+
+    ${NAME}=  Generate Random String  15
+
+    # Setup powered on container VM with named volume on default volume store
+    Run Docker Command    volume create --name ${NAME}-volume
+    Verify Return Code
+
+    Run Docker Command    create --name ${NAME}-container -v ${NAME}-volume:/volume ${busybox} /bin/top
+    Verify Return Code
+
+    Run Docker Command    start ${OUTPUT}
+    Verify Return Code
+    #
+
+    Verify Container Exists           ${NAME}-container
+    Verify VCH Exists                 vch/${id}
+    Verify Volume Store Exists        %{VCH-NAME}-VOL
+    Verify Volume Exists              %{VCH-NAME}-VOL        ${NAME}-volume
+
+    Delete Path Under Target          vch/${id}    '{"containers":"off","volume_stores":"all"}'
+
+    Verify Return Code
+    Verify Status Internal Server Error
+
+    Verify VCH Exists                 vch/${id}
+    Verify Container Exists           ${NAME}-container
+    Verify Volume Store Not Exists    %{VCH-NAME}-VOL
+    Verify Volume Not Exists          %{VCH-NAME}-VOL        ${NAME}-volume
