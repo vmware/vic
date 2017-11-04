@@ -17,6 +17,18 @@ pipeline:
     # dont clone submodules
     recursive: false
 
+  display-status:
+    image: harbor.ci.drone.local/library/vic-integration-test:1.36
+    pull: true
+    environment:
+      BIN: bin
+      SHELL: /bin/bash
+      COMMIT: ${DRONE_COMMIT}
+    commands:
+      - echo "Expecting ${DRONE_COMMIT}"
+      - git log -5
+      - git log -1 --pretty=oneline | grep "^${DRONE_COMMIT}" > /dev/null && echo 'Build matches' || (git log -1 --pretty=oneline | grep "Merge ${DRONE_COMMIT}" > /dev/null && echo 'Build is of a merge commit' || (echo 'Build does not match!' && exit 1))
+
   wait-for-build:
     image: harbor.ci.drone.local/library/vic-integration-test:1.36
     pull: true
