@@ -378,7 +378,7 @@ Delete powered on VCH and volumes
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Exists              %{VCH-NAME}-VOL    ${NAME}-volume
 
-    Delete Path Under Target          vch/${id}    '{"containers":"on","volume_stores":"all"}'
+    Delete Path Under Target          vch/${id}    '{"containers":"all","volume_stores":"all"}'
 
     Verify Container Not Exists       ${NAME}-container
     Verify VCH Not Exists             vch/${id}
@@ -411,6 +411,16 @@ Delete VCH and preserve volumes
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Exists              %{VCH-NAME}-VOL    ${NAME}-volume
 
+    # Re-use preserved volume
+    Install And Prepare VIC Appliance
+
+    Run Docker Command    create --name ${NAME}-container -v ${NAME}-volume:/volume ${busybox} /bin/top
+    Verify Return Code
+
+    Verify Container Exists           ${NAME}-container
+    Verify Volume Store Exists        %{VCH-NAME}-VOL
+    Verify Volume Exists              %{VCH-NAME}-VOL    ${NAME}-volume
+
 
 Delete powered on VCH and preserve volumes
     ${id}=    Get VCH ID %{VCH-NAME}
@@ -433,7 +443,7 @@ Delete powered on VCH and preserve volumes
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Exists              %{VCH-NAME}-VOL    ${NAME}-volume
 
-    Delete Path Under Target          vch/${id}    '{"containers":"on","volume_stores":"none"}'
+    Delete Path Under Target          vch/${id}    '{"containers":"all","volume_stores":"none"}'
 
     Verify Container Not Exists       ${NAME}-container
     Verify VCH Not Exists             vch/${id}
