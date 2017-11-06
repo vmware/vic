@@ -774,15 +774,9 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		return NotFoundError(name)
 	}
 	id := vc.ContainerID
-	// Get the portlayer Client API
-	client := c.containerProxy.Client()
-
-	// TODO: Pass this RemoveVolume flag to somewhere
-	_ = &config.RemoveVolume
 
 	// Use the force and stop the container first
 	secs := 0
-
 	if config.ForceRemove {
 		c.containerProxy.Stop(vc, name, &secs, true)
 	} else {
@@ -815,26 +809,8 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		}
 	}
 
-	//call the remove directly on the name. No need for using a handle.
-	_, err := client.Containers.ContainerRemove(containers.NewContainerRemoveParamsWithContext(ctx).WithID(id))
-	if err != nil {
-		switch err := err.(type) {
-		case *containers.ContainerRemoveNotFound:
-			// remove container from persona cache, but don't return error to the user
-			cache.ContainerCache().DeleteContainer(id)
-			return nil
-		case *containers.ContainerRemoveDefault:
-			return InternalServerError(err.Payload.Message)
-		case *containers.ContainerRemoveConflict:
-			return derr.NewRequestConflictError(fmt.Errorf("You cannot remove a running container. Stop the container before attempting removal or use -f"))
-		case *containers.ContainerRemoveInternalServerError:
-			if err.Payload == nil || err.Payload.Message == "" {
-				return InternalServerError(err.Error())
-			}
-			return InternalServerError(err.Payload.Message)
-		default:
-			return InternalServerError(err.Error())
-		}
+	if err := c.containerProxy.Remove(vc, config); err != nil {
+		return err
 	}
 
 	return nil

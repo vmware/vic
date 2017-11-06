@@ -350,6 +350,10 @@ func (m *MockContainerProxy) Rename(vc *viccontainer.VicContainer, newName strin
 	return nil
 }
 
+func (m *MockContainerProxy) Remove(vc *viccontainer.VicContainer, config *types.ContainerRmConfig) error {
+	return nil
+}
+
 func (m *MockContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, clStdin io.ReadCloser, clStdout, clStderr io.Writer) error {
 	return nil
 }
