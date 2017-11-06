@@ -99,20 +99,8 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 	var err error
 	d.vchPoolPath = path.Join(settings.ResourcePoolPath, conf.Name)
 	var orp *object.ResourcePool
-	var vapp *object.VirtualApp
-	if d.isVC {
-		vapp, err = d.findVirtualApp(d.vchPoolPath)
-		if err != nil {
-			return err
-		}
-		if vapp != nil {
-			orp = vapp.ResourcePool
-		}
-	}
-	if orp == nil {
-		if orp, err = d.findResourcePool(d.vchPoolPath); err != nil {
-			return err
-		}
+	if orp, err = d.findResourcePool(d.vchPoolPath); err != nil {
+		return err
 	}
 	if orp == nil {
 		return nil
@@ -124,11 +112,6 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 		return err
 	}
 	if vm == nil {
-		if vapp != nil {
-			err = errors.Errorf("Found virtual app %q, but it is not a VCH. Please choose a different virtual app.", d.vchPoolPath)
-			log.Error(err)
-			return err
-		}
 		return nil
 	}
 

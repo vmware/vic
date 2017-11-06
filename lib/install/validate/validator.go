@@ -821,7 +821,6 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.Virtua
 	}
 
 	dconfig.ResourcePoolPath = v.ResourcePoolPath
-	dconfig.UseRP = input.UseRP
 
 	log.Debugf("Datacenter: %q, Cluster: %q, Resource Pool: %q", dconfig.DatacenterName, dconfig.Cluster, dconfig.ResourcePoolPath)
 
