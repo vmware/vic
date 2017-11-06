@@ -762,7 +762,7 @@ func (c *Container) OnEvent(e events.Event) {
 		return
 	}
 
-	log.Debugf("Container(%s) state didn't changed (%s)", c, newState)
+	log.Debugf("Container(%s) state didn't change (%s)", c, newState)
 
 	switch e.String() {
 	case events.ContainerRelocated:
