@@ -369,6 +369,8 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 					c.Certs.Org = vch.Auth.Server.Generate.Organization
 					c.Certs.KeySize = fromValueBits(vch.Auth.Server.Generate.Size)
 
+					c.Certs.NoSaveToDisk = true
+
 					if err := c.Certs.ProcessCertificates(c.DisplayName, c.Force, 0); err != nil {
 						return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error generating certificates: %s", err))
 					}
