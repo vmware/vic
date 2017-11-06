@@ -55,6 +55,7 @@ type CertFactory struct {
 	NoTLSverify  bool
 	KeyPEM       []byte
 	CertPEM      []byte
+	NoSaveToDisk bool
 }
 
 func (c *CertFactory) CertFlags() []cli.Flag {
@@ -337,10 +338,12 @@ func (c *CertFactory) generateCertificates(server bool, client bool) ([]byte, *c
 		return nil, nil, fmt.Errorf("Specified directory to store certificates is not empty. Specify a new path in which to store generated certificates using --tls-cert-path or remove the contents of \"%s\" and run vic-machine again.", c.CertPath)
 	}
 
-	err = os.MkdirAll(c.CertPath, 0700)
-	if err != nil {
-		log.Errorf("Unable to make directory \"%s\" to hold certificates (set via --tls-cert-path)", c.CertPath)
-		return nil, nil, err
+	if !c.NoSaveToDisk {
+		err = os.MkdirAll(c.CertPath, 0700)
+		if err != nil {
+			log.Errorf("Unable to make directory \"%s\" to hold certificates (set via --tls-cert-path)", c.CertPath)
+			return nil, nil, err
+		}
 	}
 
 	c.Skey = filepath.Join(c.CertPath, certificate.ServerKey)
@@ -360,9 +363,11 @@ func (c *CertFactory) generateCertificates(server bool, client bool) ([]byte, *c
 			log.Errorf("Failed to generate self-signed certificate: %s", err)
 			return nil, nil, err
 		}
-		if err = keypair.SaveCertificate(); err != nil {
-			log.Errorf("Failed to save server certificates: %s", err)
-			return nil, nil, err
+		if !c.NoSaveToDisk {
+			if err = keypair.SaveCertificate(); err != nil {
+				log.Errorf("Failed to save server certificates: %s", err)
+				return nil, nil, err
+			}
 		}
 
 		return certs, keypair, nil
@@ -397,9 +402,11 @@ func (c *CertFactory) generateCertificates(server bool, client bool) ([]byte, *c
 		log.Errorf("Failed to generate CA: %s", err)
 		return nil, nil, err
 	}
-	if err = cakp.SaveCertificate(); err != nil {
-		log.Errorf("Failed to save CA certificates: %s", err)
-		return nil, nil, err
+	if !c.NoSaveToDisk {
+		if err = cakp.SaveCertificate(); err != nil {
+			log.Errorf("Failed to save CA certificates: %s", err)
+			return nil, nil, err
+		}
 	}
 
 	// Server certificates
@@ -412,9 +419,11 @@ func (c *CertFactory) generateCertificates(server bool, client bool) ([]byte, *c
 			log.Errorf("Failed to generate server certificates: %s", err)
 			return nil, nil, err
 		}
-		if err = skp.SaveCertificate(); err != nil {
-			log.Errorf("Failed to save server certificates: %s", err)
-			return nil, nil, err
+		if !c.NoSaveToDisk {
+			if err = skp.SaveCertificate(); err != nil {
+				log.Errorf("Failed to save server certificates: %s", err)
+				return nil, nil, err
+			}
 		}
 	}
 
@@ -427,9 +436,11 @@ func (c *CertFactory) generateCertificates(server bool, client bool) ([]byte, *c
 			log.Errorf("Failed to generate client certificates: %s", err)
 			return nil, nil, err
 		}
-		if err = ckp.SaveCertificate(); err != nil {
-			log.Errorf("Failed to save client certificates: %s", err)
-			return nil, nil, err
+		if !c.NoSaveToDisk {
+			if err = ckp.SaveCertificate(); err != nil {
+				log.Errorf("Failed to save client certificates: %s", err)
+				return nil, nil, err
+			}
 		}
 
 		c.ClientCert, err = ckp.Certificate()
