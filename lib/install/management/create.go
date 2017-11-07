@@ -64,6 +64,13 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
 	}
 
+	if conf.ShouldGrantPerms() {
+		err = GrantOpsUserPerms(d.ctx, d.session.Vim25(), conf)
+		if err != nil {
+			return errors.Errorf("Cannot init ops-user permissions, failure: %s. Exiting...", err)
+		}
+	}
+
 	return d.startAppliance(conf)
 }
 
