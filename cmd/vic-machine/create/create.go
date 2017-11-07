@@ -33,6 +33,7 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/lib/install/vchlog"
 )
 
 const (
@@ -82,6 +83,8 @@ type Create struct {
 	SyslogAddr string
 
 	executor *management.Dispatcher
+
+	logger *vchlog.VCHLogger
 }
 
 func NewCreate() *Create {
@@ -89,6 +92,10 @@ func NewCreate() *Create {
 	create.Data = data.NewData()
 
 	return create
+}
+
+func (c *Create) AddLogger(logger *vchlog.VCHLogger) {
+	c.logger = logger
 }
 
 // SetFields iterates through the fields in the Create struct, searching for fields
@@ -732,7 +739,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	log.Info("")
 
 	executor := management.NewDispatcher(ctx, validator.Session, vchConfig, c.Force)
-	if err = executor.CreateVCH(vchConfig, vConfig); err != nil {
+	if err = executor.CreateVCH(vchConfig, vConfig, c.logger); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Error(err)
 		return err
