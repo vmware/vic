@@ -31,7 +31,21 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, containers *string, volumeStores *string) error {
+type DeleteContainers int
+
+const (
+	AllContainers DeleteContainers = iota
+	PoweredOffContainers
+)
+
+type DeleteVolumeStores int
+
+const (
+	AllVolumeStores DeleteVolumeStores = iota
+	NoVolumeStores
+)
+
+func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, containers *DeleteContainers, volumeStores *DeleteVolumeStores) error {
 	defer trace.End(trace.Begin(conf.Name))
 
 	var errs []string
@@ -190,10 +204,10 @@ func (d *Dispatcher) detachAttachedDisks(v *vm.VirtualMachine) error {
 	return err
 }
 
-func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, containers *string) error {
+func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, containers *DeleteContainers) error {
 	defer trace.End(trace.Begin(conf.Name))
 
-	deletePoweredOnContainers := d.force || (containers != nil && *containers == "all")
+	deletePoweredOnContainers := d.force || (containers != nil && *containers == AllContainers)
 	ignoreFailureToFindImageStores := d.force
 
 	log.Infof("Removing VMs")

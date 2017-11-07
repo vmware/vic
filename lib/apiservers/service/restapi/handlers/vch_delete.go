@@ -91,10 +91,6 @@ func deleteVCH(op trace.Operation, d *data.Data, specification *models.DeletionS
 		return util.WrapError(http.StatusBadRequest, err)
 	}
 
-	if specification == nil {
-		specification = &models.DeletionSpecification{}
-	}
-
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
@@ -118,10 +114,47 @@ func deleteVCH(op trace.Operation, d *data.Data, specification *models.DeletionS
 		return util.WrapError(http.StatusBadRequest, err)
 	}
 
-	err = executor.DeleteVCH(vchConfig, specification.Containers, specification.VolumeStores)
+	deleteContainers, deleteVolumeStores := fromDeletionSpecification(specification)
+	err = executor.DeleteVCH(vchConfig, deleteContainers, deleteVolumeStores)
 	if err != nil {
 		return util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to delete VCH: %s", err))
 	}
 
 	return nil
+}
+
+func fromDeletionSpecification(specification *models.DeletionSpecification) (deleteContainers *management.DeleteContainers, deleteVolumeStores *management.DeleteVolumeStores) {
+	if specification != nil {
+		if specification.Containers != nil {
+			var dc management.DeleteContainers
+
+			switch *specification.Containers {
+			case models.DeletionSpecificationContainersAll:
+				dc = management.AllContainers
+			case models.DeletionSpecificationContainersOff:
+				dc = management.PoweredOffContainers
+			default:
+				panic("Deletion API handler received unexpected input")
+			}
+
+			deleteContainers = &dc
+		}
+
+		if specification.VolumeStores != nil {
+			var dv management.DeleteVolumeStores
+
+			switch *specification.VolumeStores {
+			case models.DeletionSpecificationVolumeStoresAll:
+				dv = management.AllVolumeStores
+			case models.DeletionSpecificationVolumeStoresNone:
+				dv = management.NoVolumeStores
+			default:
+				panic("Deletion API handler received unexpected input")
+			}
+
+			deleteVolumeStores = &dv
+		}
+	}
+
+	return
 }

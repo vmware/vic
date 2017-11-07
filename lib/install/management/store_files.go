@@ -303,11 +303,11 @@ func (d *Dispatcher) createVolumeStores(conf *config.VirtualContainerHostConfigS
 }
 
 // returns # of removed stores
-func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHostConfigSpec, volumeStores *string) (removed int) {
+func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHostConfigSpec, volumeStores *DeleteVolumeStores) (removed int) {
 	defer trace.End(trace.Begin(""))
 	removed = 0
 
-	deleteVolumeStores := d.force || (volumeStores != nil && *volumeStores == "all")
+	deleteVolumeStores := d.force || (volumeStores != nil && *volumeStores == AllVolumeStores)
 
 	if !deleteVolumeStores {
 		if len(conf.VolumeLocations) == 0 {
