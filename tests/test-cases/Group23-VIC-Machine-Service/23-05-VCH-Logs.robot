@@ -47,7 +47,12 @@ Delete Log File From VCH Datastore
 
 
 Verify Log
+    Output Should Contain    /n
     Output Should Contain    Installer completed successfully
+
+
+Verify Error String
+    Should Be String         ${OUTPUT}
 
 
 *** Test Cases ***
@@ -79,5 +84,6 @@ Get VCH Creation log errors with 404 after log file is deleted
 
     Get VCH Log Within Datacenter    ${id}
 
+    Verify Error String
     Verify Return Code
     Verify Status Not Found

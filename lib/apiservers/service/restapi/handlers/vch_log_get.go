@@ -23,7 +23,6 @@ import (
 
 	"github.com/go-openapi/runtime/middleware"
 
-	"github.com/vmware/vic/lib/apiservers/service/models"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/util"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/install/data"
@@ -56,24 +55,24 @@ func (h *VCHLogGet) Handle(params operations.GetTargetTargetVchVchIDLogParams, p
 
 	d, err := buildData(op, b, principal)
 	if err != nil {
-		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
 	}
 
 	d.ID = params.VchID
 
 	helper, err := getDatastoreHelper(op, d)
 	if err != nil {
-		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
 	}
 
 	logFilePaths, err := getAllLogFilePaths(op, helper)
 	if err != nil {
-		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
 	}
 
 	output, err := getContentFromLogFiles(op, helper, logFilePaths)
 	if err != nil {
-		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
 	}
 
 	return operations.NewGetTargetTargetVchVchIDLogOK().WithPayload(output)
@@ -90,24 +89,24 @@ func (h *VCHDatacenterLogGet) Handle(params operations.GetTargetTargetDatacenter
 
 	d, err := buildData(op, b, principal)
 	if err != nil {
-		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
 	}
 
 	d.ID = params.VchID
 
 	helper, err := getDatastoreHelper(op, d)
 	if err != nil {
-		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
 	}
 
 	logFilePaths, err := getAllLogFilePaths(op, helper)
 	if err != nil {
-		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
 	}
 
 	output, err := getContentFromLogFiles(op, helper, logFilePaths)
 	if err != nil {
-		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
 	}
 
 	return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogOK().WithPayload(output)
