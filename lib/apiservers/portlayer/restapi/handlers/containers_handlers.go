@@ -217,15 +217,16 @@ func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) m
 }
 
 func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitParams) middleware.Responder {
-	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", params.Handle)))
+	op := trace.NewOperation(context.Background(), fmt.Sprintf("commit handle(%s)", params.Handle))
+	defer trace.End(trace.Begin(fmt.Sprintf("commit handle(%s)", params.Handle), op))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
 		return containers.NewCommitNotFound().WithPayload(&models.Error{Message: "container not found"})
 	}
 
-	if err := h.Commit(context.Background(), handler.handlerCtx.Session, params.WaitTime); err != nil {
-		log.Errorf("CommitHandler error on handle(%s) for %s: %s", h, h.ExecConfig.ID, err)
+	if err := h.Commit(op, handler.handlerCtx.Session, params.WaitTime); err != nil {
+		op.Errorf("CommitHandler error on handle(%s) for %s: %s", h, h.ExecConfig.ID, err)
 		switch err := err.(type) {
 		case exec.ConcurrentAccessError:
 			return containers.NewCommitConflict().WithPayload(&models.Error{Message: err.Error()})
@@ -240,7 +241,8 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 }
 
 func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.ContainerRemoveParams) middleware.Responder {
-	defer trace.End(trace.Begin(params.ID))
+	op := trace.NewOperation(context.Background(), params.ID)
+	defer trace.End(trace.Begin(params.ID, op))
 
 	// get the indicated container for removal
 	container := exec.Containers.Container(params.ID)
@@ -249,7 +251,7 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 	}
 
 	// NOTE: this should allowing batching of operations, as with Create, Start, Stop, et al
-	err := container.Remove(context.Background(), handler.handlerCtx.Session)
+	err := container.Remove(op, handler.handlerCtx.Session)
 	if err != nil {
 		switch err := err.(type) {
 		case exec.NotFoundError:
@@ -272,17 +274,18 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 }
 
 func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers.GetContainerInfoParams) middleware.Responder {
-	defer trace.End(trace.Begin(params.ID))
+	op := trace.NewOperation(context.Background(), params.ID)
+	defer trace.End(trace.Begin(params.ID, op))
 
 	container := exec.Containers.Container(params.ID)
 	if container == nil {
 		info := fmt.Sprintf("GetContainerInfoHandler ContainerCache miss for container(%s)", params.ID)
-		log.Error(info)
+		op.Errorf(info)
 		return containers.NewGetContainerInfoNotFound().WithPayload(&models.Error{Message: info})
 	}
 
 	// Refresh to get up to date network info
-	container.Refresh(context.Background())
+	container.Refresh(op)
 	containerInfo := convertContainerToContainerInfo(container)
 	return containers.NewGetContainerInfoOK().WithPayload(containerInfo)
 }
@@ -319,7 +322,8 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 }
 
 func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
-	defer trace.End(trace.Begin(params.ID))
+	op := trace.NewOperation(context.Background(), params.ID)
+	defer trace.End(trace.Begin(params.ID, op))
 
 	// NOTE: I feel that this should be in a Commit path for consistency
 	// it would allow phrasings such as:
@@ -331,7 +335,7 @@ func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.
 		return containers.NewContainerSignalNotFound().WithPayload(&models.Error{Message: fmt.Sprintf("container %s not found", params.ID)})
 	}
 
-	err := container.Signal(context.Background(), params.Signal)
+	err := container.Signal(op, params.Signal)
 	if err != nil {
 		return containers.NewContainerSignalInternalServerError().WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -394,7 +398,8 @@ func (handler *ContainersHandlersImpl) GetContainerStatsHandler(params container
 }
 
 func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers.GetContainerLogsParams) middleware.Responder {
-	defer trace.End(trace.Begin(params.ID))
+	op := trace.NewOperation(context.Background(), params.ID)
+	defer trace.End(trace.Begin(params.ID, op))
 
 	container := exec.Containers.Container(params.ID)
 	if container == nil {
@@ -417,7 +422,7 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 		since = *params.Since
 	}
 
-	reader, err := container.LogReader(context.Background(), tail, follow, since)
+	reader, err := container.LogReader(op, tail, follow, since)
 	if err != nil {
 		// Do not return an error here.  It's a workaround for a panic similar to #2594
 		return containers.NewGetContainerLogsInternalServerError()

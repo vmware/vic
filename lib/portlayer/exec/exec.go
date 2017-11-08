@@ -25,9 +25,11 @@ import (
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+
 	"github.com/vmware/vic/lib/portlayer/event"
 	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
 	"github.com/vmware/vic/lib/portlayer/event/events"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -133,13 +135,16 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 }
 
 // publishContainerEvent will publish a ContainerEvent to the vic event stream
-func publishContainerEvent(id string, created time.Time, eventType string) {
+func publishContainerEvent(op trace.Operation, id string, created time.Time, eventType string) {
 	if Config.EventManager == nil || eventType == "" {
 		return
 	}
 
 	ce := &events.ContainerEvent{
 		BaseEvent: &events.BaseEvent{
+			// containerEvents are a construct of vic, so lets set the
+			// ID equal to the operation that created the event
+			ID:          op.ID(),
 			Ref:         id,
 			CreatedTime: created,
 			Event:       eventType,

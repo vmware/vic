@@ -40,6 +40,7 @@ import (
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/kvstore"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
@@ -875,7 +876,8 @@ func TestContextBindUnbindContainer(t *testing.T) {
 
 	// test UnbindContainer
 	for i, te := range tests {
-		eps, err := ctx.UnbindContainer(te.h)
+		op := trace.NewOperation(context.Background(), "Testing..")
+		eps, err := ctx.UnbindContainer(op, te.h)
 		if te.err != nil {
 			if err == nil {
 				t.Fatalf("%d: ctx.UnbindContainer(%s) => nil, want err", i, te.h)
@@ -1224,7 +1226,8 @@ func TestAliases(t *testing.T) {
 	t.Logf("containers: %#v", ctx.containers)
 
 	c := containers["c2"]
-	_, err = ctx.UnbindContainer(c)
+	op := trace.NewOperation(context.Background(), "unbind")
+	_, err = ctx.UnbindContainer(op, c)
 	assert.NoError(t, err)
 	// verify aliases are gone
 	assert.Nil(t, ctx.Container(c.ExecConfig.ID))

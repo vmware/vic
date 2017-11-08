@@ -30,13 +30,13 @@ func TestNewEventType(t *testing.T) {
 func TestBaseEvent(t *testing.T) {
 	be := &BaseEvent{
 		Event:  "PoweredOn",
-		ID:     12,
+		ID:     "12",
 		Detail: "VM 123 PoweredOn",
 		Ref:    "vm:12",
 	}
 
 	assert.Equal(t, "PoweredOn", be.String())
-	assert.Equal(t, 12, be.EventID())
+	assert.Equal(t, "12", be.EventID())
 	assert.Equal(t, "VM 123 PoweredOn", be.Message())
 	assert.Equal(t, "vm:12", be.Reference())
 

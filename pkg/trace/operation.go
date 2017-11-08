@@ -22,7 +22,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/vmware/govmomi/vim25/types"
 )
 
 type OperationKey string
@@ -52,7 +52,7 @@ func newOperation(ctx context.Context, id string, skip int, msg string) Operatio
 		id: id,
 
 		// Start the trace.
-		t: []Message{*newTrace(msg, skip)},
+		t: []Message{*newTrace(msg, skip, id)},
 	}
 
 	// We need to be able to identify this operation across API (and process)
@@ -60,6 +60,12 @@ func newOperation(ctx context.Context, id string, skip int, msg string) Operatio
 	// stash the values individually in the context because we can't assign
 	// the operation itself as a value to the embedded context (it's circular)
 	ctx = context.WithValue(ctx, OpTraceKey, op)
+
+	// By adding the op.id any operations passed to govmomi will result
+	// in the op.id being logged in vSphere (vpxa / hostd) as the prefix to opID
+	// For example if the op.id was 299.16 hostd would show
+	// verbose hostd[12281B70] [Originator@6876 sub=PropertyProvider opID=299.16-5b05 user=root]
+	ctx = context.WithValue(ctx, types.ID{}, op.id)
 
 	o := Operation{
 		Context:   ctx,
@@ -71,9 +77,6 @@ func newOperation(ctx context.Context, id string, skip int, msg string) Operatio
 
 // Creates a header string to be printed.
 func (o *Operation) header() string {
-	if Logger.Level >= logrus.DebugLevel {
-		return fmt.Sprintf("op=%s (delta:%s)", o.id, o.t[0].delta())
-	}
 	return fmt.Sprintf("op=%s", o.id)
 }
 
@@ -88,7 +91,7 @@ func (o Operation) Err() error {
 		buf := &bytes.Buffer{}
 
 		// Add a frame for this Err call, then walk the stack
-		currFrame := newTrace("Err", 2)
+		currFrame := newTrace("Err", 2, o.id)
 		fmt.Fprintf(buf, "%s: %s error: %s\n", currFrame.funcName, o.t[0].msg, err)
 
 		// handle the carriage return
@@ -154,13 +157,9 @@ func opID(opNum uint64) string {
 	return fmt.Sprintf("%d.%d", opIDPrefix, opNum)
 }
 
-// Add tracing info to the context.
+// NewOperation will return a new operation with operationID added as a value to the context
 func NewOperation(ctx context.Context, format string, args ...interface{}) Operation {
-	o := newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, fmt.Sprintf(format, args...))
-
-	frame := o.t[0]
-	o.Debugf("[NewOperation] %s [%s:%d]", o.header(), frame.funcName, frame.lineNo)
-	return o
+	return newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, fmt.Sprintf(format, args...))
 }
 
 // WithTimeout creates a new operation from parent with context.WithTimeout
@@ -201,20 +200,33 @@ func FromOperation(parent Operation, format string, args ...interface{}) Operati
 	return parent.newChild(parent.Context, fmt.Sprintf(format, args...))
 }
 
-// FromContext unpacks the values in the ctx to create an Operation
-func FromContext(ctx context.Context) (Operation, error) {
+// FromContext will return an Operation
+//
+// The Operation returned will be one of the following:
+//   The operation in the context value
+//   The operation passed as the context param
+//   A new operation
+func FromContext(ctx context.Context, message string) Operation {
 
-	o := Operation{
-		Context: ctx,
+	// do we have a context w/the op added as a value
+	if op, ok := ctx.Value(OpTraceKey).(operation); ok {
+		// ensure we have an initialized operation
+		if op.id == "" {
+			return NewOperation(ctx, message)
+		}
+		// return an operation based off the context value
+		return Operation{
+			Context:   ctx,
+			operation: op,
+		}
 	}
-
-	op := ctx.Value(OpTraceKey)
-	switch val := op.(type) {
-	case operation:
-		o.operation = val
-	default:
-		return Operation{}, fmt.Errorf("not an Operation")
+	// do we have an operation
+	op, ok := ctx.(Operation)
+	if !ok {
+		op = newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, message)
+		frame := op.t[0]
+		Logger.Debugf("%s: [OperationFromContext] [%s:%d]", op.id, frame.funcName, frame.lineNo)
 	}
-
-	return o, nil
+	// return the new or existing operation
+	return op
 }

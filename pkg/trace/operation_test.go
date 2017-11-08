@@ -39,11 +39,7 @@ func TestContextUnpack(t *testing.T) {
 			ctx := NewOperation(context.TODO(), "testmsg")
 
 			// unpack an Operation via the context using it's Values fields
-			c, err := FromContext(ctx)
-
-			if !assert.NoError(t, err) || !assert.NotNil(t, c) {
-				return
-			}
+			c := FromContext(ctx, "test")
 			c.Infof("test info message %d", i)
 		}(i) // fix race in test
 	}
