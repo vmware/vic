@@ -104,7 +104,7 @@ func validateTarget(ctx context.Context, d *data.Data) (*validate.Validator, err
 	return validator, nil
 }
 
-// Copied from list.go, and appears to be present other places. TODO: deduplicate
+// Copied from list.go, and appears to be present other places. TODO (#6032): deduplicate
 func upgradeStatusMessage(op trace.Operation, vch *vm.VirtualMachine, installerVer *version.Build, vchVer *version.Build) string {
 	if sameVer := installerVer.Equal(vchVer); sameVer {
 		return "Up to date"
@@ -139,7 +139,7 @@ func upgradeStatusMessage(op trace.Operation, vch *vm.VirtualMachine, installerV
 }
 
 func getVCHConfig(op trace.Operation, d *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
-	// TODO(jzt): abstract some of this boilerplate into helpers
+	// TODO (#6032): abstract some of this boilerplate into helpers
 	validator, err := validateTarget(op.Context, d)
 	if err != nil {
 		return nil, util.WrapError(http.StatusBadRequest, err)

@@ -163,7 +163,7 @@ func setUpLogger() *os.File {
 func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *models.VCH) (*create.Create, error) {
 	c := &create.Create{Data: d}
 
-	// TODO: deduplicate with create.processParams
+	// TODO (#6032): deduplicate with create.processParams
 
 	if vch != nil {
 		if vch.Version != "" && version.String() != string(vch.Version) {
@@ -172,7 +172,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 
 		c.DisplayName = vch.Name
 
-		// TODO: move validation to swagger
+		// TODO (#6710): move validation to swagger
 		if err := common.CheckUnsupportedChars(c.DisplayName); err != nil {
 			return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Invalid display name: %s", err))
 		}
@@ -196,7 +196,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 				c.ResourceLimits.VCHMemoryShares = fromShares(vch.Compute.Memory.Shares)
 			}
 
-			resourcePath, err := fromManagedObject(op, finder, "ResourcePool", vch.Compute.Resource) // TODO: Do we need to handle clusters differently?
+			resourcePath, err := fromManagedObject(op, finder, "ResourcePool", vch.Compute.Resource) // TODO (#6711): Do we need to handle clusters differently?
 			if err != nil {
 				return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding resource pool: %s", err))
 			}
@@ -326,7 +326,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 
 		if vch.Storage != nil {
 			if vch.Storage.ImageStores != nil && len(vch.Storage.ImageStores) > 0 {
-				c.ImageDatastorePath = vch.Storage.ImageStores[0] // TODO: many vs. one mismatch
+				c.ImageDatastorePath = vch.Storage.ImageStores[0] // TODO (#6712): many vs. one mismatch
 			}
 
 			if err := common.CheckUnsupportedCharsDatastore(c.ImageDatastorePath); err != nil {
@@ -407,7 +407,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 			c.InsecureRegistries = vch.Registry.Insecure
 			c.WhitelistRegistries = vch.Registry.Whitelist
 
-			//params.Vch.Registry.Blacklist
+			//TODO (#6713): params.Vch.Registry.Blacklist
 
 			c.RegistryCAs = fromPemCertificates(vch.Registry.CertificateAuthorities)
 
@@ -452,7 +452,7 @@ func handleCreate(op trace.Operation, c *create.Create, validator *validate.Vali
 
 	vConfig := validator.AddDeprecatedFields(validator.Context, vchConfig, c.Data)
 
-	// TODO: make this configurable
+	// TODO (#6714): make this configurable
 	images := common.Images{}
 	vConfig.ImageFiles, err = images.CheckImagesFiles(true)
 	vConfig.ApplianceISO = path.Base(images.ApplianceISO)
@@ -523,7 +523,7 @@ func fromGateway(m *models.Gateway) string {
 		return ""
 	}
 
-	return fmt.Sprintf("%s:%s", // TODO: what if RoutingDestinations is empty?
+	return fmt.Sprintf("%s:%s", // TODO (#6715): what if RoutingDestinations is empty?
 		strings.Join(*fromIPRanges(&m.RoutingDestinations), ","),
 		m.Address,
 	)

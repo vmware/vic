@@ -114,7 +114,7 @@ func (h *VCHDatacenterLogGet) Handle(params operations.GetTargetTargetDatacenter
 
 // getDatastoreHelper validates the VCH and returns the datastore helper for the VCH. It errors when validation fails or when datastore is not ready
 func getDatastoreHelper(op trace.Operation, d *data.Data) (*datastore.Helper, error) {
-	// TODO (angiew): abstract some of the boilerplate into helpers in common.go
+	// TODO (#6032): abstract some of the boilerplate into helpers in common.go
 	validator, err := validateTarget(op, d)
 	if err != nil {
 		return nil, util.WrapError(http.StatusBadRequest, err)
