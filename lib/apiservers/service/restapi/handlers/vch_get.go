@@ -273,6 +273,11 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 		model.SyslogAddr = strfmt.URI(syslogConfig.Network + "://" + syslogConfig.RAddr)
 	}
 
+	model.Container = &models.VCHContainer{}
+	if vchConfig.ContainerNameConvention != "" {
+		model.Container.NameConvention = vchConfig.ContainerNameConvention
+	}
+
 	return model, nil
 }
 
