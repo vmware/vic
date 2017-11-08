@@ -819,6 +819,15 @@
           "type": "string",
           "format": "uri",
           "pattern": "^(tc|ud)p:\/\/.*"
+        },
+        "container": {
+          "type": "object",
+          "properties": {
+            "name_convention": {
+              "type": "string",
+              "pattern": "^.*(\\{id\\}|\\{name\\}).*"
+            }
+          }
         }
       }
     },

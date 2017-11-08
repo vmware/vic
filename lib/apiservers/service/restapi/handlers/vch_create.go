@@ -429,6 +429,10 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 				return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error processing syslog server address: %s", err))
 			}
 		}
+
+		if vch.Container != nil && vch.Container.NameConvention != "" {
+			c.ContainerNameConvention = vch.Container.NameConvention
+		}
 	}
 
 	return c, nil
