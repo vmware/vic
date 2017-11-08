@@ -384,7 +384,7 @@ $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $(iso-base) -o $@
 
 # main appliance target - depends on all top level component targets
-$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(portlayerapi) $(serviceapi-server) $(docker-engine-api) $(appliance-staging)
+$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
 	@echo building VCH appliance ISO
 	@$(TIME) $< -p $(appliance-staging) -b $(BIN)
 
@@ -472,6 +472,8 @@ clean:
 	@rm -f ./lib/apiservers/service/restapi/doc.go
 	@rm -f ./lib/apiservers/service/restapi/embedded_spec.go
 	@rm -f ./lib/apiservers/service/restapi/server.go
+	@rm -rf ./lib/apiservers/service/restapi/cmd/
+	@rm -rf ./lib/apiservers/service/restapi/models/
 	@rm -rf ./lib/apiservers/service/restapi/operations/
 
 	@rm -f *.log
