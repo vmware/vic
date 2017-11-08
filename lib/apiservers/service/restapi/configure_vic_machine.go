@@ -46,7 +46,7 @@ func configureFlags(api *operations.VicMachineAPI) {
 	api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{
 		{
 			ShortDescription: "Logging options",
-			LongDescription: "Specify a log directory for storing vic-machine service log",
+			LongDescription: "Specify a directory for storing vic-machine service log",
 			Options: &loggingOption,
 		},
 	}
@@ -209,10 +209,10 @@ func addLogging(next http.Handler) http.Handler {
 }
 
 func getLogger() *log.Logger {
-	// check for default directory
 	if _, err := os.Stat(loggingOption.Directory); os.IsNotExist(err) {
-		os.Mkdir(loggingOption.Directory, os.ModePerm)
+		os.MkdirAll(loggingOption.Directory, os.ModePerm) // If directory does not exist, create dir and parents
 	}
+
 	path := loggingOption.Directory + "/vic-machine-server.log"
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
