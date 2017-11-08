@@ -394,7 +394,7 @@ func mobidToID(mobid string) string {
 	moref := new(types.ManagedObjectReference)
 	ok := moref.FromString(mobid)
 	if !ok {
-		return "" // TODO: Handle? (We probably don't want to let this fail the request, but may want to convey that something unexpected happened.)
+		return "" // TODO (#6717): Handle? (We probably don't want to let this fail the request, but may want to convey that something unexpected happened.)
 	}
 
 	return moref.Value
@@ -409,7 +409,7 @@ func asPemCertificates(certificates []byte) []*models.X509Data {
 
 		err := pem.Encode(&buf, b)
 		if err != nil {
-			continue // TODO: Handle? (We probably don't want to let this fail the request, but may want to convey that something unexpected happened.)
+			continue // TODO (#6716): Handle? (We probably don't want to let this fail the request, but may want to convey that something unexpected happened.)
 		}
 
 		m = append(m, &models.X509Data{
@@ -426,7 +426,7 @@ func asPemCertificate(certificates []byte) *models.X509Data {
 	m := asPemCertificates(certificates)
 
 	if len(m) > 1 {
-		// TODO: Error? (We probably don't want to let this fail the request, but may want to convey that something unexpected happened.)
+		// TODO (#6716): Error? (We probably don't want to let this fail the request, but may want to convey that something unexpected happened.)
 	}
 
 	return m[0]
