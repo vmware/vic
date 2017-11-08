@@ -461,6 +461,7 @@ func TestProperties(t *testing.T) {
 
 	// Nothing VC specific in this test, so we use the simpler ESX model
 	model := simulator.ESX()
+	model.Autostart = false
 	defer model.Remove()
 	err := model.Create()
 	if err != nil {
@@ -522,6 +523,7 @@ func TestWaitForResult(t *testing.T) {
 
 	// Nothing VC specific in this test, so we use the simpler ESX model
 	model := simulator.ESX()
+	model.Autostart = false
 	defer model.Remove()
 	err := model.Create()
 	if err != nil {
