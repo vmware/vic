@@ -84,23 +84,9 @@ func (d *Dispatcher) createPool(conf *config.VirtualContainerHostConfigSpec, set
 
 	var err error
 
-	if d.isVC && !settings.UseRP {
-		if d.vchVapp, err = d.createVApp(conf, settings); err != nil {
-			detail := fmt.Sprintf("Creating virtual app failed: %s", err)
-			if !d.force {
-				return errors.New(detail)
-			}
-
-			log.Error(detail)
-			log.Errorf("Deploying vch under parent pool %q, (--force=true)", settings.ResourcePoolPath)
-			d.vchPool = d.session.Pool
-			conf.ComputeResources = append(conf.ComputeResources, d.vchPool.Reference())
-		}
-	} else {
-		if d.vchPool, err = d.createResourcePool(conf, settings); err != nil {
-			detail := fmt.Sprintf("Creating resource pool failed: %s", err)
-			return errors.New(detail)
-		}
+	if d.vchPool, err = d.createResourcePool(conf, settings); err != nil {
+		detail := fmt.Sprintf("Creating resource pool failed: %s", err)
+		return errors.New(detail)
 	}
 
 	return nil

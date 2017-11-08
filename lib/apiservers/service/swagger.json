@@ -198,6 +198,7 @@
       "get": {
         "summary": "Access log messages for a VCH",
         "description": "Making a `GET` request on /log under a VCH resource will return the log messages for vic-machine processes on a VCH",
+        "produces": [ "text/plain" ],
         "parameters": [
           { "$ref": "#/parameters/target" },
           { "$ref": "#/parameters/vch-id" },
@@ -205,7 +206,7 @@
         ],
         "responses": {
           "200": { "$ref": "#/responses/vch-log" },
-          "default": { "$ref": "#/responses/error" }
+          "default": { "$ref": "#/responses/error-plain" }
         }
       }
     },
@@ -373,6 +374,7 @@
       "get": {
         "summary": "Access log messages for a VCH in a particular datacenter",
         "description": "Making a `GET` request on /log under a VCH resource will return the log messages for vic-machine processes on a VCH.",
+        "produces": [ "text/plain" ],
         "parameters": [
           { "$ref": "#/parameters/target" },
           { "$ref": "#/parameters/datacenter" },
@@ -381,7 +383,7 @@
         ],
         "responses": {
           "200": { "$ref": "#/responses/vch-log" },
-          "default": { "$ref": "#/responses/error" }
+          "default": { "$ref": "#/responses/error-plain" }
         }
       }
     }
@@ -735,9 +737,6 @@
         "endpoint": {
           "type": "object",
           "properties": {
-            "use_resource_pool": {
-              "type": "boolean"
-            },
             "memory": { "$ref": "#/definitions/Value_Bytes" },
             "cpu": {
               "type": "object",
@@ -822,6 +821,15 @@
           "type": "string",
           "format": "uri",
           "pattern": "^(tc|ud)p:\/\/.*"
+        },
+        "container": {
+          "type": "object",
+          "properties": {
+            "name_convention": {
+              "type": "string",
+              "pattern": "^.*(\\{id\\}|\\{name\\}).*"
+            }
+          }
         }
       }
     },
@@ -923,6 +931,12 @@
     "error": {
       "description": "An error occurred",
       "schema": { "$ref": "#/definitions/Error" }
+    },
+    "error-plain": {
+      "description": "An error occurred",
+      "schema": {
+        "type": "string"
+      }
     },
     "metadata": {
       "description": "VIC metadata information",

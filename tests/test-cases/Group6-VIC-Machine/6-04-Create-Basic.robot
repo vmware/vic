@@ -254,8 +254,18 @@ Create VCH - Existing RP on ESX
     ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy %{TEST_RESOURCE}/%{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
 
-Create VCH - Existing vApp on vCenter
-    Pass execution  Test not implemented
+Creation log file uploaded to datastore
+
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+
+    ${filename}=  Run  GOVC_DATASTORE=%{TEST_DATASTORE} govc datastore.ls %{VCH-NAME} | grep vic-machine_
+    Should Not Be Empty  ${filename}
+    ${output}=  Run  govc datastore.tail -n 1 "%{VCH-NAME}/${filename}"
+    Should Contain  ${output}  Installer completed successfully
 
 Creation log file uploaded to datastore
 
@@ -288,9 +298,6 @@ Basic VCH resource config
     Pass execution  Test not implemented
 
 Invalid VCH resource config
-    Pass execution  Test not implemented
-
-Use resource pool
     Pass execution  Test not implemented
 
 CPU reservation shares invalid

@@ -45,6 +45,7 @@ import (
 	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
+	"os"
 )
 
 const (
@@ -110,7 +111,6 @@ func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacente
 
 	logger := setUpLogger()
 	defer logger.Close()
-
 
 	b := buildDataParams{
 		target:     params.Target,
@@ -404,7 +404,6 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 
 		c.MemoryMB = 2048
 		if vch.Endpoint != nil {
-			c.UseRP = vch.Endpoint.UseResourcePool
 			if vch.Endpoint.Memory != nil {
 				c.MemoryMB = *mbFromValueBytes(vch.Endpoint.Memory)
 			}
@@ -449,6 +448,10 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 			if err := c.ProcessSyslog(); err != nil {
 				return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error processing syslog server address: %s", err))
 			}
+		}
+
+		if vch.Container != nil && vch.Container.NameConvention != "" {
+			c.ContainerNameConvention = vch.Container.NameConvention
 		}
 	}
 

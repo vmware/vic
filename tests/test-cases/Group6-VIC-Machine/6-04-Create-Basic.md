@@ -186,15 +186,6 @@ vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} \
 * Regression tests pass
 
 
-## Create VCH - Existing vApp on vCenter
-1. Create vApp on vCenter
-2. Create VCH with the same (already existing) name
-
-### Expected Outcome
-* Command fails
-
-
-
 Image files
 =======
 
@@ -295,7 +286,7 @@ Appliance size
 
 ### Expected Outcome
 * Deployed successfully
-* Check vApp or rp resource settings is correct through govc
+* Check rp resource settings are correct through govc
 * Integration test passed
 
 
@@ -332,5 +323,5 @@ Appliance size
 
 ### Expected Outcome
 * Deployed successfully
-* Check vApp or rp resource settings is correct through govc
+* Check rp resource settings are correct through govc
 * Integration test passed

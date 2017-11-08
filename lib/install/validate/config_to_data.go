@@ -58,10 +58,6 @@ func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d 
 		return err
 	}
 
-	if parent.Reference().Type != "VirtualApp" {
-		d.UseRP = true
-	}
-
 	var mrp mo.ResourcePool
 	if err = parent.Properties(ctx, parent.Reference(), []string{"parent"}, &mrp); err != nil {
 		return err
@@ -137,7 +133,7 @@ func setVCHResources(ctx context.Context, vch *object.ResourcePool, d *data.Data
 }
 
 // NewDataFromConfig converts VirtualContainerHostConfigSpec back to data.Data object
-// This method does not touch any configuration for VCH VM or resource pool, which should be retrieved from VM or vApp attributes
+// This method does not touch any configuration for VCH VM or resource pool, which should be retrieved from VM attributes
 func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualContainerHostConfigSpec) (d *data.Data, err error) {
 	if conf == nil {
 		err = fmt.Errorf("configuration is empty")

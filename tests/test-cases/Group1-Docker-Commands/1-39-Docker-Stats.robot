@@ -42,8 +42,7 @@ Create test containers
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  STOPPER  ${output}
     ${stress}=  Get Container ShortID  %{STRESSED}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  VM-PATH  vm/*${stress}
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Environment Variable  VM-PATH  */%{VCH-NAME}/*${stress}
+    Set Environment Variable  VM-PATH  vm/*${stress}
 
 Check Memory Usage
     ${vmomiMemory}=  Get Average Active Memory  %{VM-PATH}
