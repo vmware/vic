@@ -23,12 +23,12 @@ import (
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
+	"github.com/go-openapi/swag"
 	"github.com/rs/cors"
 	"github.com/tylerb/graceful"
 
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
-	"github.com/go-openapi/swag"
 )
 
 // This file is safe to edit. Once it exists it will not be overwritten
@@ -46,8 +46,8 @@ func configureFlags(api *operations.VicMachineAPI) {
 	api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{
 		{
 			ShortDescription: "Logging options",
-			LongDescription: "Specify a directory for storing vic-machine service log",
-			Options: &loggingOption,
+			LongDescription:  "Specify a directory for storing vic-machine service log",
+			Options:          &loggingOption,
 		},
 	}
 }
