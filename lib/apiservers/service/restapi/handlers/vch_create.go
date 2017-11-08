@@ -575,7 +575,6 @@ func mbFromValueBytes(m *models.ValueBytes) *int {
 	}
 
 	i := int(math.Ceil(mbs))
-
 	return &i
 }
 
@@ -599,7 +598,6 @@ func mhzFromValueHertz(m *models.ValueHertz) *int {
 	}
 
 	i := int(math.Ceil(mhzs))
-
 	return &i
 }
 

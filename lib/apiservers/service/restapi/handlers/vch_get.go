@@ -28,7 +28,6 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-
 	"github.com/vmware/vic/lib/apiservers/service/models"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/util"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
@@ -282,11 +281,7 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 }
 
 func asBytes(value *int, units string) *models.ValueBytes {
-	if value == nil {
-		return nil
-	}
-
-	if *value == 0 {
+	if value == nil || *value == 0 {
 		return nil
 	}
 
@@ -303,11 +298,7 @@ func asMiB(value *int) *models.ValueBytes {
 }
 
 func asBytesMetric(value *int, units string) *models.ValueBytesMetric {
-	if value == nil {
-		return nil
-	}
-
-	if *value == 0 {
+	if value == nil || *value == 0 {
 		return nil
 	}
 
@@ -324,11 +315,7 @@ func asKB(value *int) *models.ValueBytesMetric {
 }
 
 func asMHz(value *int) *models.ValueHertz {
-	if value == nil {
-		return nil
-	}
-
-	if *value == 0 {
+	if value == nil || *value == 0 {
 		return nil
 	}
 
