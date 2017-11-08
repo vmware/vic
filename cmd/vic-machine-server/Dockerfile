@@ -22,3 +22,7 @@ EXPOSE 443
 COPY bin/vic-machine-server /usr/local/bin/
 
 ENTRYPOINT /usr/local/bin/vic-machine-server
+
+# Volumes for storing logs
+VOLUME ["/var/log/vic-machine-server"]
+
