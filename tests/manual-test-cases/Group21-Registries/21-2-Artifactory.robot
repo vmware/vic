@@ -49,5 +49,5 @@ Test
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Login Succeeded
     
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull vic-docker-local.artifactory.eng.vmware.com/busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull vic-docker-local.artifactory.eng.vmware.com/busybox:1
     Should Be Equal As Integers  ${rc}  0
