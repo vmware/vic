@@ -214,13 +214,12 @@ func getLogger() *log.Logger {
 	}
 
 	path := loggingOption.Directory + "/vic-machine-server.log"
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		log.Fatalf("Failed to open log file %s: %s", path, err)
 	}
 
-	logger = log.New(file, "", log.Ldate|log.Ltime|log.Lshortfile)
-	logger.SetFlags(log.LstdFlags) // we don't want to include code line number in the log prefix
+	logger = log.New(file, "", log.Ldate|log.Ltime)
 
 	return logger
 }
