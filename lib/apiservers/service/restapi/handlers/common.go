@@ -93,12 +93,11 @@ func validateTarget(ctx context.Context, d *data.Data) (*validate.Validator, err
 	// If dc is not set, and multiple datacenter is available, vic-machine ls will list VCHs under all datacenters.
 	validator.AllowEmptyDC()
 
-	_, err = validator.ValidateTarget(ctx, d)
-	if err != nil {
+	if _, err = validator.ValidateTarget(ctx, d); err != nil {
 		return nil, fmt.Errorf("Target validation failed: %s", err)
 	}
-	_, err = validator.ValidateCompute(ctx, d, false)
-	if err != nil {
+
+	if _, err = validator.ValidateCompute(ctx, d, false); err != nil {
 		return nil, fmt.Errorf("Compute resource validation failed: %s", err)
 	}
 

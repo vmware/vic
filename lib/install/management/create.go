@@ -142,10 +142,10 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 				_, err := ds.Stat(d.ctx, isoTargetPath)
 				if err != nil {
 					switch err.(type) {
-					// if not found, do nothing
 					case object.DatastoreNoSuchFileError:
-						// otherwise force delete
+						// if not found, do nothing
 					default:
+						// otherwise force delete
 						log.Debugf("target delete path = %s", isoTargetPath)
 						err := fm.Delete(d.ctx, isoTargetPath)
 						if err != nil {
