@@ -149,5 +149,5 @@ Remove a container and its anonymous volumes
     # Verify that the above volume can be used by containers
     ${rc}  ${c4}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${anonvol}:/bar ${busybox} /bin/ls
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${c4}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c4}
     Should Be Equal As Integers  ${rc}  0
