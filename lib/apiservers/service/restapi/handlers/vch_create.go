@@ -407,8 +407,6 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 			c.InsecureRegistries = vch.Registry.Insecure
 			c.WhitelistRegistries = vch.Registry.Whitelist
 
-			//TODO (#6713): params.Vch.Registry.Blacklist
-
 			c.RegistryCAs = fromPemCertificates(vch.Registry.CertificateAuthorities)
 
 			if vch.Registry.ImageFetchProxy != nil {

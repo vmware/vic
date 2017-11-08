@@ -775,12 +775,6 @@
                 "type": "string"
               }
             },
-            "blacklist": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
             "certificate_authorities": {
               "type": "array",
               "items": { "$ref": "#/definitions/X509_Data" }

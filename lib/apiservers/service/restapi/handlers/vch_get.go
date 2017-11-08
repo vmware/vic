@@ -235,7 +235,6 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 	model.Registry = &models.VCHRegistry{
 		Insecure:               vchConfig.Registry.InsecureRegistries,
 		Whitelist:              vchConfig.Registry.RegistryWhitelist,
-		Blacklist:              vchConfig.Registry.RegistryBlacklist,
 		CertificateAuthorities: asPemCertificates(vchConfig.Certificate.RegistryCertificateAuthorities),
 		ImageFetchProxy:        asImageFetchProxy(vchConfig.ExecutorConfig.Sessions[config.VicAdminService], config.VICAdminHTTPProxy, config.VICAdminHTTPSProxy),
 	}
