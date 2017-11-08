@@ -25,10 +25,12 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/vmware/govmomi/session"
 	"github.com/vmware/govmomi/vim25"
@@ -70,9 +72,7 @@ type ClientFlag struct {
 	vimVersion    string
 	tlsCaCerts    string
 	tlsKnownHosts string
-	tlsHostHash   string
-
-	client *vim25.Client
+	client        *vim25.Client
 }
 
 var (
@@ -273,6 +273,18 @@ func (flag *ClientFlag) configure(sc *soap.Client) (soap.RoundTripper, error) {
 
 	if err := sc.LoadThumbprints(flag.tlsKnownHosts); err != nil {
 		return nil, err
+	}
+
+	if t, ok := sc.Transport.(*http.Transport); ok {
+		var err error
+
+		value := os.Getenv("GOVC_TLS_HANDSHAKE_TIMEOUT")
+		if value != "" {
+			t.TLSHandshakeTimeout, err = time.ParseDuration(value)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// Retry twice when a temporary I/O error occurs.
