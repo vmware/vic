@@ -192,6 +192,9 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 					if key == value.GetOptionValue().Key {
 						detail = value.GetOptionValue().Value.(string)
 						if detail != "" && detail != "<nil>" {
+							// ensure we clear any tentative error
+							poweredOff = nil
+
 							return true
 						}
 						break // continue the outer loop as we may have a powerState change too
@@ -206,11 +209,11 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 						msg = string(v)
 					}
 					poweredOff = fmt.Errorf("container VM has unexpectedly %s", msg)
-					return true
 				}
 			}
 		}
-		return false
+
+		return poweredOff != nil
 	}
 
 	err := vm.WaitForExtraConfig(ctx, waitFunc)
