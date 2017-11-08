@@ -37,6 +37,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/util"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
@@ -349,7 +350,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				c.VolumeLocations = volumeLocations
 			}
 
-			c.ScratchSize = "8GB"
+			c.ScratchSize = constants.DefaultBaseImageScratchSize
 			if vch.Storage.BaseImageSize != nil {
 				c.ScratchSize = fromValueBytesMetric(vch.Storage.BaseImageSize)
 			}
@@ -387,7 +388,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 			}
 		}
 
-		c.MemoryMB = 2048
+		c.MemoryMB = constants.DefaultEndpointMemoryMB
 		if vch.Endpoint != nil {
 			if vch.Endpoint.Memory != nil {
 				c.MemoryMB = *mbFromValueBytes(vch.Endpoint.Memory)
