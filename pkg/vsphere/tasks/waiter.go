@@ -63,10 +63,7 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 	var err error
 	var backoffFactor int64 = 1
 
-	op, err := trace.FromContext(ctx)
-	if err != nil {
-		op = trace.NewOperation(ctx, "WaitForResult")
-	}
+	op := trace.FromContext(ctx, "WaitForResult")
 
 	for {
 		var t Task

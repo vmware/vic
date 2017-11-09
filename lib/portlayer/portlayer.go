@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"path"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/lib/portlayer/exec"
@@ -109,10 +107,8 @@ func Init(ctx context.Context, sess *session.Session) error {
 // This is useful when the appliance or the portlayer restarts and the VCH has a new IP or container vms gets migrated
 // Any errors are logged and portlayer init proceeds as usual.
 func TakeCareOfSerialPorts(sess *session.Session) {
-	defer trace.End(trace.Begin(""))
-
-	ctx := context.Background()
-
+	op := trace.NewOperation(context.Background(), "SerialPorts")
+	defer trace.End(trace.Begin("", op))
 	// Get all running containers from the portlayer cache
 	runningState := new(exec.State)
 	*runningState = exec.StateRunning
@@ -124,14 +120,14 @@ func TakeCareOfSerialPorts(sess *session.Session) {
 		if containers[i].ExecConfig != nil {
 			containerID = containers[i].ExecConfig.ID
 		}
-		log.Infof("unbinding serial port for running container %s", containerID)
+		op.Infof("unbinding serial port for running container %s", containerID)
 
 		operation := func() error {
 			// Obtain a container handle
-			handle := containers[i].NewHandle(ctx)
+			handle := containers[i].NewHandle(op)
 			if handle == nil {
 				err := fmt.Errorf("unable to obtain a handle for container %s", containerID)
-				log.Error(err)
+				op.Errorf("%s", err)
 
 				return err
 			}
@@ -140,7 +136,7 @@ func TakeCareOfSerialPorts(sess *session.Session) {
 			unbindHandle, err := attach.Unbind(handle, containerID)
 			if err != nil {
 				err := fmt.Errorf("unable to unbind serial port for container %s: %s", containerID, err)
-				log.Error(err)
+				op.Errorf("%s", err)
 
 				return err
 			}
@@ -148,7 +144,7 @@ func TakeCareOfSerialPorts(sess *session.Session) {
 			execHandle, ok := unbindHandle.(*exec.Handle)
 			if !ok {
 				err := fmt.Errorf("handle type assertion failed for container %s", containerID)
-				log.Error(err)
+				op.Errorf("%s", err)
 
 				return err
 			}
@@ -157,7 +153,7 @@ func TakeCareOfSerialPorts(sess *session.Session) {
 			bindHandle, err := logging.Bind(execHandle)
 			if err != nil {
 				err := fmt.Errorf("unable to unbind serial port for container %s: %s", containerID, err)
-				log.Error(err)
+				op.Errorf("%s", err)
 
 				return err
 			}
@@ -165,21 +161,21 @@ func TakeCareOfSerialPorts(sess *session.Session) {
 			execHandle, ok = bindHandle.(*exec.Handle)
 			if !ok {
 				err := fmt.Errorf("handle type assertion failed for container %s", containerID)
-				log.Error(err)
+				op.Errorf("%s", err)
 
 				return err
 			}
 
 			// Commit the handle
-			if err := execHandle.Commit(ctx, sess, nil); err != nil {
-				log.Errorf("unable to commit handle for container %s: %s", containerID, err)
+			if err := execHandle.Commit(op, sess, nil); err != nil {
+				op.Errorf("unable to commit handle for container %s: %s", containerID, err)
 				return err
 			}
 			return nil
 		}
 
 		if err := retry.Do(operation, exec.IsConcurrentAccessError); err != nil {
-			log.Errorf("Multiple attempts failed for committing the handle with %s", err)
+			op.Errorf("Multiple attempts failed for committing the handle with %s", err)
 		}
 	}
 }

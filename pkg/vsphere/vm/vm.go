@@ -33,6 +33,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -179,6 +180,8 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 	var detail string
 	var poweredOff error
 
+	op := trace.FromContext(ctx, "WaitForKey")
+
 	waitFunc := func(pc []types.PropertyChange) bool {
 		for _, c := range pc {
 			if c.Op != types.PropertyChangeOpAssign {
@@ -216,7 +219,7 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 		return poweredOff != nil
 	}
 
-	err := vm.WaitForExtraConfig(ctx, waitFunc)
+	err := vm.WaitForExtraConfig(op, waitFunc)
 	if err == nil && poweredOff != nil {
 		err = poweredOff
 	}
@@ -489,7 +492,10 @@ func (vm *VirtualMachine) WaitForResult(ctx context.Context, f func(context.Cont
 }
 
 func (vm *VirtualMachine) Properties(ctx context.Context, r types.ManagedObjectReference, ps []string, o *mo.VirtualMachine) error {
-	log.Debugf("get vm properties %s of vm %s", ps, r)
+	// lets ensure we have an operation
+	op := trace.FromContext(ctx, "VM Properties")
+	defer trace.End(trace.Begin(fmt.Sprintf("VM(%s) Properties(%s)", r, ps), op))
+
 	contains := false
 	for i := range ps {
 		if ps[i] == "summary" || ps[i] == "summary.runtime" {
@@ -503,20 +509,20 @@ func (vm *VirtualMachine) Properties(ctx context.Context, r types.ManagedObjectR
 	} else {
 		newps = append(newps, ps...)
 	}
-	log.Debugf("properties: %s", newps)
-	if err := vm.VirtualMachine.Properties(ctx, r, newps, o); err != nil {
+	op.Debugf("properties: %s", newps)
+	if err := vm.VirtualMachine.Properties(op, r, newps, o); err != nil {
 		return err
 	}
 	if o.Summary.Runtime.ConnectionState != types.VirtualMachineConnectionStateInvalid {
 		return nil
 	}
-	log.Infof("vm %s is in invalid state", r)
-	if err := vm.fixVM(ctx); err != nil {
-		log.Errorf("Failed to fix vm %s: %s", vm.Reference(), err)
+	op.Infof("vm %s is in invalid state", r)
+	if err := vm.fixVM(op); err != nil {
+		op.Errorf("Failed to fix vm %s: %s", vm.Reference(), err)
 		return &InvalidState{r: vm.Reference()}
 	}
-	log.Debugf("Retry properties query %s of vm %s", ps, vm.Reference())
-	return vm.VirtualMachine.Properties(ctx, vm.Reference(), ps, o)
+
+	return vm.VirtualMachine.Properties(op, vm.Reference(), ps, o)
 }
 
 func (vm *VirtualMachine) Parent(ctx context.Context) (*types.ManagedObjectReference, error) {
