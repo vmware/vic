@@ -33,8 +33,6 @@ Logstash with stdin and stdout mapped
     Wait Until Keyword Succeeds  10x  6s  Check logstash logs  log1  Successfully started Logstash API endpoint
 
 Logstash with mapped volume log file
-    ${status}=  Get State Of Github Issue  6386
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 22-10-logstash.robot needs to be updated now that Issue #6384 has been resolved
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=vol1
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --rm -v vol1:/mydata ${busybox} sh -c "echo 'Initial log message' > /mydata/my.log"
