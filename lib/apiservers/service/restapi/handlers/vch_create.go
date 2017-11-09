@@ -295,6 +295,9 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 					containerNetworks.MappedNetworks[alias] = path
 
 					address := net.ParseIP(string(cnetwork.Gateway.Address))
+					if cnetwork.Gateway.RoutingDestinations == nil || len(cnetwork.Gateway.RoutingDestinations) != 1 {
+						return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: exactly one subnet must be specified", alias))
+					}
 					_, mask, err := net.ParseCIDR(string(cnetwork.Gateway.RoutingDestinations[0].CIDR))
 					if err != nil {
 						return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: %s", alias, err))
@@ -523,7 +526,13 @@ func fromGateway(m *models.Gateway) string {
 		return ""
 	}
 
-	return fmt.Sprintf("%s:%s", // TODO (#6715): what if RoutingDestinations is empty?
+	if m.RoutingDestinations == nil {
+		return fmt.Sprintf("%s",
+			m.Address,
+		)
+	}
+
+	return fmt.Sprintf("%s:%s",
 		strings.Join(*fromIPRanges(&m.RoutingDestinations), ","),
 		m.Address,
 	)
