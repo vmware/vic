@@ -20,11 +20,14 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/docker/docker/opts"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/util"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
@@ -163,4 +166,20 @@ func getVCHConfig(op trace.Operation, d *data.Data) (*config.VirtualContainerHos
 	}
 
 	return vchConfig, nil
+}
+
+func getAddresses(vchConfig *config.VirtualContainerHostConfigSpec) (dockerHost, adminPortal string) {
+	if client := vchConfig.ExecutorConfig.Networks["client"]; client != nil {
+		if publicIP := client.Assigned.IP; publicIP != nil {
+			var dockerPort = opts.DefaultTLSHTTPPort
+			if vchConfig.HostCertificate.IsNil() {
+				dockerPort = opts.DefaultHTTPPort
+			}
+
+			dockerHost = fmt.Sprintf("%s:%d", publicIP, dockerPort)
+			adminPortal = fmt.Sprintf("https://%s:%d", publicIP, constants.VchAdminPortalPort)
+		}
+	}
+
+	return
 }

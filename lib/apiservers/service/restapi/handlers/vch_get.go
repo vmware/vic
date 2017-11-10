@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/docker/docker/opts"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/strfmt"
 
@@ -254,19 +253,7 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 	}
 	model.Runtime.PowerState = string(powerState)
 
-	if public := vchConfig.ExecutorConfig.Networks["public"]; public != nil {
-		if publicIP := public.Assigned.IP; publicIP != nil {
-			var dockerPort string
-			if !vchConfig.HostCertificate.IsNil() {
-				dockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
-			} else {
-				dockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
-			}
-
-			model.Runtime.DockerHost = fmt.Sprintf("%s:%s", publicIP, dockerPort)
-			model.Runtime.AdminPortal = fmt.Sprintf("https://%s:2378", publicIP)
-		}
-	}
+	model.Runtime.DockerHost, model.Runtime.AdminPortal = getAddresses(vchConfig)
 
 	// syslog_addr: syslog server address
 	if syslogConfig := vchConfig.Diagnostics.SysLogConfig; syslogConfig != nil {
