@@ -216,7 +216,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 					return nil, util.NewError(http.StatusBadRequest, "Bridge network portgroup must be specified (by name or id)")
 				}
 				c.BridgeNetworkName = path
-				c.BridgeIPRange = fromCIDR(&vch.Network.Bridge.IPRange.CIDR)
+				c.BridgeIPRange = fromCIDR(&vch.Network.Bridge.IPRange)
 
 				if err := c.ProcessBridgeNetwork(); err != nil {
 					return nil, util.WrapError(http.StatusBadRequest, err)
@@ -298,7 +298,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 					if cnetwork.Gateway.RoutingDestinations == nil || len(cnetwork.Gateway.RoutingDestinations) != 1 {
 						return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: exactly one subnet must be specified", alias))
 					}
-					_, mask, err := net.ParseCIDR(string(cnetwork.Gateway.RoutingDestinations[0].CIDR))
+					_, mask, err := net.ParseCIDR(string(cnetwork.Gateway.RoutingDestinations[0]))
 					if err != nil {
 						return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: %s", alias, err))
 					}
@@ -309,7 +309,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 
 					ipranges := make([]ip.Range, 0, len(cnetwork.IPRanges))
 					for _, ipRange := range cnetwork.IPRanges {
-						r := ip.ParseRange(string(ipRange.CIDR))
+						r := ip.ParseRange(string(ipRange))
 
 						ipranges = append(ipranges, *r)
 					}
@@ -473,15 +473,6 @@ func handleCreate(op trace.Operation, c *create.Create, validator *validate.Vali
 	return nil, nil
 }
 
-func fromIPRanges(m *[]models.IPRange) *[]string {
-	s := make([]string, 0, len(*m))
-	for _, d := range *m {
-		s = append(s, string(d.CIDR))
-	}
-
-	return &s
-}
-
 func fromManagedObject(op trace.Operation, finder *find.Finder, t string, m *models.ManagedObject) (string, error) {
 	if m == nil {
 		return "", nil
@@ -509,6 +500,15 @@ func fromCIDR(m *models.CIDR) string {
 	return string(*m)
 }
 
+func fromCIDRs(m *[]models.CIDR) *[]string {
+	s := make([]string, 0, len(*m))
+	for _, d := range *m {
+		s = append(s, fromCIDR(&d))
+	}
+
+	return &s
+}
+
 func fromGateway(m *models.Gateway) string {
 	if m == nil {
 		return ""
@@ -521,7 +521,7 @@ func fromGateway(m *models.Gateway) string {
 	}
 
 	return fmt.Sprintf("%s:%s",
-		strings.Join(*fromIPRanges(&m.RoutingDestinations), ","),
+		strings.Join(*fromCIDRs(&m.RoutingDestinations), ","),
 		m.Address,
 	)
 }
