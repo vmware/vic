@@ -155,7 +155,7 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 			PortGroup: &models.ManagedObject{
 				ID: mobidToID(vchConfig.ExecutorConfig.Networks[vchConfig.Network.BridgeNetwork].Network.Common.ID),
 			},
-			IPRange: asIPRange(vchConfig.Network.BridgeIPRange),
+			IPRange: asCIDR(vchConfig.Network.BridgeIPRange),
 		},
 		Client:     asNetwork(vchConfig.ExecutorConfig.Networks["client"]),
 		Management: asNetwork(vchConfig.ExecutorConfig.Networks["management"]),
@@ -173,7 +173,7 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 				Nameservers: *asIPAddresses(&value.Nameservers),
 				Gateway: &models.Gateway{
 					Address:             asIPAddress(value.Gateway.IP),
-					RoutingDestinations: []models.IPRange{asIPRange(&value.Gateway)},
+					RoutingDestinations: []models.CIDR{asCIDR(&value.Gateway)},
 				},
 				IPRanges: *asIPRanges(&value.Destinations),
 			})
@@ -350,12 +350,29 @@ func asIPAddresses(addresses *[]net.IP) *[]models.IPAddress {
 	return &m
 }
 
-func asIPRange(network *net.IPNet) models.IPRange {
+func asCIDR(network *net.IPNet) models.CIDR {
 	if network == nil {
-		return models.IPRange{}
+		return models.CIDR("")
 	}
 
-	return models.IPRange{CIDR: models.CIDR(network.String())}
+	return models.CIDR(network.String())
+}
+
+func asCIDRs(networks *[]net.IPNet) *[]models.CIDR {
+	m := make([]models.CIDR, 0, len(*networks))
+	for _, value := range *networks {
+		m = append(m, asCIDR(&value))
+	}
+
+	return &m
+}
+
+func asIPRange(network *net.IPNet) models.IPRange {
+	if network == nil {
+		return models.IPRange("")
+	}
+
+	return models.IPRange(models.CIDR(network.String()))
 }
 
 func asIPRanges(networks *[]net.IPNet) *[]models.IPRange {
@@ -382,7 +399,7 @@ func asNetwork(network *executor.NetworkEndpoint) *models.Network {
 	if network.Network.Gateway.IP != nil {
 		m.Gateway = &models.Gateway{
 			Address:             asIPAddress(network.Network.Gateway.IP),
-			RoutingDestinations: *asIPRanges(&network.Network.Destinations),
+			RoutingDestinations: *asCIDRs(&network.Network.Destinations),
 		}
 	}
 
