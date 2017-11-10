@@ -36,6 +36,7 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -175,7 +176,8 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 					Address:             asIPAddress(value.Gateway.IP),
 					RoutingDestinations: []models.IPRange{asIPRange(&value.Gateway)},
 				},
-				IPRanges: *asIPRanges(&value.Destinations),
+				IPRanges: *rangesAsIPRanges(&value.Pools),
+				Firewall: value.TrustLevel.String(),
 			})
 		}
 	}
@@ -362,6 +364,15 @@ func asIPRanges(networks *[]net.IPNet) *[]models.IPRange {
 	m := make([]models.IPRange, 0, len(*networks))
 	for _, value := range *networks {
 		m = append(m, asIPRange(&value))
+	}
+
+	return &m
+}
+
+func rangesAsIPRanges(networks *[]ip.Range) *[]models.IPRange {
+	m := make([]models.IPRange, 0, len(*networks))
+	for _, value := range *networks {
+		m = append(m, asIPRange(value.Network()))
 	}
 
 	return &m

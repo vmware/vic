@@ -37,6 +37,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/service/models"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/util"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
@@ -276,10 +277,11 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 
 			if vch.Network.Container != nil {
 				containerNetworks := common.ContainerNetworks{
-					MappedNetworks:         make(map[string]string),
-					MappedNetworksGateways: make(map[string]net.IPNet),
-					MappedNetworksIPRanges: make(map[string][]ip.Range),
-					MappedNetworksDNS:      make(map[string][]net.IP),
+					MappedNetworks:          make(map[string]string),
+					MappedNetworksGateways:  make(map[string]net.IPNet),
+					MappedNetworksIPRanges:  make(map[string][]ip.Range),
+					MappedNetworksDNS:       make(map[string][]net.IP),
+					MappedNetworksFirewalls: make(map[string]executor.TrustLevel),
 				}
 
 				for _, cnetwork := range vch.Network.Container {
@@ -318,6 +320,15 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 						nameservers = append(nameservers, n)
 					}
 					containerNetworks.MappedNetworksDNS[alias] = nameservers
+
+					if cnetwork.Firewall != "" {
+						trustLevel, err := executor.ParseTrustLevel(cnetwork.Firewall)
+						if err != nil {
+							return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing trust level for container network %s: %s", alias, err))
+						}
+
+						containerNetworks.MappedNetworksFirewalls[alias] = trustLevel
+					}
 				}
 
 				c.ContainerNetworks = containerNetworks

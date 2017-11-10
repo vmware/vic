@@ -593,6 +593,16 @@
         "alias": {
           "type": "string"
         },
+        "firewall": {
+          "type": "string",
+          "enum": [
+            "closed",
+            "outbound",
+            "peers",
+            "published",
+            "open"
+          ]
+        },
         "nameservers": {
           "type": "array",
           "items": { "$ref": "#/definitions/IP_Address" }
