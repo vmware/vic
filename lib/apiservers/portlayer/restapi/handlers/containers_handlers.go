@@ -77,15 +77,13 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 
 // CreateHandler creates a new container
 func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreateParams) middleware.Responder {
-	defer trace.End(trace.Begin(""))
+	id := uid.New().String()
+	defer trace.End(trace.Begin(id))
 
 	var err error
 
 	session := handler.handlerCtx.Session
-
 	ctx := context.Background()
-
-	id := uid.New().String()
 
 	// Init key for tether
 	// #nosec: RSA keys should be at least 2048 bits
@@ -105,7 +103,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 			ID:   id,
 			Name: params.CreateConfig.Name,
 		},
-		CreateTime: time.Now().UTC().Unix(),
+		CreateTime: time.Now().UTC().UnixNano(),
 		Version:    version.GetBuild(),
 		Key:        pem.EncodeToMemory(&privateKeyBlock),
 		LayerID:    params.CreateConfig.Layer,

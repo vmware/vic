@@ -1632,7 +1632,7 @@ payloadLoop:
 		c := &types.Container{
 			ID:      t.ContainerConfig.ContainerID,
 			Image:   repo,
-			Created: t.ContainerConfig.CreateTime,
+			Created: time.Unix(0, t.ContainerConfig.CreateTime).Unix(),
 			Status:  dockerState.Status,
 			Names:   names,
 			Command: cmd,
