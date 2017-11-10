@@ -138,6 +138,14 @@ type target struct {
 	*nfsClient.Target
 }
 
+func (t *target) Open(path string) (io.ReadCloser, error) {
+	return t.Target.Open(path)
+}
+
+func (t *target) OpenFile(path string, perm os.FileMode) (io.ReadWriteCloser, error) {
+	return t.Target.OpenFile(path, perm)
+}
+
 func (t *target) ReadDir(path string) ([]os.FileInfo, error) {
 	entries, err := t.ReadDirPlus(path)
 	if err != nil {
