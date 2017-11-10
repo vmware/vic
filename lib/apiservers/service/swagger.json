@@ -544,9 +544,14 @@
     },
     "CIDR": {
       "type": "string",
-      "pattern": "^(([1-9]?[0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\.?){4}(\/([0-9]|[1-2][0-9]|3[0-2]))?$"
+      "description": "A range of IP addresses in CIDR notation (like 192.0.2.0/24).",
+      "pattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$"
     },
-    "IP_Range": { "$ref": "#/definitions/CIDR" },
+    "IP_Range": {
+      "type": "string",
+      "description": "A range of IP addresses in CIDR notation (like 192.0.2.0/24) or expressed as a simple range (like 198.51.100.10-198.51.100.20).",
+      "pattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2])|\\-(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))$"
+    },
     "IP_Address": {
       "type": "string",
       "description": "TODO: see if this can just be a string with a format that captures IPv4 and IPv6?",
@@ -557,7 +562,7 @@
       "properties": {
         "routing_destinations": {
           "type": "array",
-          "items": { "$ref": "#/definitions/IP_Range" }
+          "items": { "$ref": "#/definitions/CIDR" }
         },
         "address": { "$ref": "#/definitions/IP_Address" }
       }
@@ -642,7 +647,7 @@
             "bridge": {
               "type": "object",
               "properties": {
-                "ip_range": { "$ref": "#/definitions/IP_Range" },
+                "ip_range": { "$ref": "#/definitions/CIDR" },
                 "port_group": { "$ref": "#/definitions/Managed_Object" }
               }
             },
