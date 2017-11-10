@@ -29,6 +29,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/pkg/certificate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
@@ -165,7 +166,7 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 
 	log.Infof("")
 	log.Infof("VCH Admin Portal:")
-	log.Infof("https://%s:2378", d.HostIP)
+	log.Infof("https://%s:%d", d.HostIP, constants.VchAdminPortalPort)
 
 	log.Infof("")
 	publicIP := conf.ExecutorConfig.Networks["public"].Assigned.IP

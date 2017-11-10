@@ -19,7 +19,6 @@ import (
 	"net/http"
 	"path"
 
-	"github.com/docker/docker/opts"
 	"github.com/go-openapi/runtime/middleware"
 
 	"github.com/vmware/vic/lib/apiservers/service/models"
@@ -109,18 +108,7 @@ func vchsToModels(op trace.Operation, vchs []*vm.VirtualMachine, executor *manag
 		var adminPortal string
 		if vchConfig, err := executor.GetNoSecretVCHConfig(vch); err == nil {
 			version = vchConfig.Version
-
-			if public := vchConfig.ExecutorConfig.Networks["public"]; public != nil {
-				if publicIP := public.Assigned.IP; publicIP != nil {
-					var dockerPort = opts.DefaultTLSHTTPPort
-					if vchConfig.HostCertificate.IsNil() {
-						dockerPort = opts.DefaultHTTPPort
-					}
-
-					dockerHost = fmt.Sprintf("%s:%d", publicIP, dockerPort)
-					adminPortal = fmt.Sprintf("https://%s:2378", publicIP)
-				}
-			}
+			dockerHost, adminPortal = getAddresses(vchConfig)
 		}
 
 		name := path.Base(vch.InventoryPath)
