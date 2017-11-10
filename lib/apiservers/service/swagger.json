@@ -552,19 +552,6 @@
       "description": "TODO: see if this can just be a string with a format that captures IPv4 and IPv6?",
       "format": "ipv4"
     },
-    "Network_Address": {
-      "type": "object",
-      "description": "TODO: see if this can just be a string with a format that captures IPv4, IPv6, and FQDNs?",
-      "minProperties": 1,
-      "maxProperties": 1,
-      "properties": {
-        "ip": { "$ref": "#/definitions/IP_Address" },
-        "hostname": {
-          "type": "string",
-          "format": "hostname"
-        }
-      }
-    },
     "Gateway": {
       "type": "object",
       "properties": {
@@ -584,7 +571,7 @@
           "type": "array",
           "items": { "$ref": "#/definitions/IP_Address" }
         },
-        "static": { "$ref": "#/definitions/Network_Address" }
+        "static": { "$ref": "#/definitions/CIDR" }
       }
     },
     "Container_Network" : {
