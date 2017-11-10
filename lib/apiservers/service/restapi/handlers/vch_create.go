@@ -233,7 +233,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 				}
 				c.ClientNetworkName = path
 				c.ClientNetworkGateway = fromGateway(vch.Network.Client.Gateway)
-				c.ClientNetworkIP = fromNetworkAddress(vch.Network.Client.Static)
+				c.ClientNetworkIP = fromCIDR(&vch.Network.Client.Static)
 
 				if err := c.ProcessNetwork(&c.Data.ClientNetwork, "client", c.ClientNetworkName, c.ClientNetworkIP, c.ClientNetworkGateway); err != nil {
 					return nil, util.WrapError(http.StatusBadRequest, err)
@@ -250,7 +250,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 				}
 				c.ManagementNetworkName = path
 				c.ManagementNetworkGateway = fromGateway(vch.Network.Management.Gateway)
-				c.ManagementNetworkIP = fromNetworkAddress(vch.Network.Management.Static)
+				c.ManagementNetworkIP = fromCIDR(&vch.Network.Management.Static)
 
 				if err := c.ProcessNetwork(&c.Data.ManagementNetwork, "management", c.ManagementNetworkName, c.ManagementNetworkIP, c.ManagementNetworkGateway); err != nil {
 					return nil, util.WrapError(http.StatusBadRequest, err)
@@ -267,7 +267,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 				}
 				c.PublicNetworkName = path
 				c.PublicNetworkGateway = fromGateway(vch.Network.Public.Gateway)
-				c.PublicNetworkIP = fromNetworkAddress(vch.Network.Public.Static)
+				c.PublicNetworkIP = fromCIDR(&vch.Network.Public.Static)
 
 				if err := c.ProcessNetwork(&c.Data.PublicNetwork, "public", c.PublicNetworkName, c.PublicNetworkIP, c.PublicNetworkGateway); err != nil {
 					return nil, util.WrapError(http.StatusBadRequest, err)
@@ -478,18 +478,6 @@ func fromIPRanges(m *[]models.IPRange) *[]string {
 	}
 
 	return &s
-}
-
-func fromNetworkAddress(m *models.NetworkAddress) string {
-	if m == nil {
-		return ""
-	}
-
-	if m.IP != "" {
-		return string(m.IP)
-	}
-
-	return string(m.Hostname)
 }
 
 func fromManagedObject(op trace.Operation, finder *find.Finder, t string, m *models.ManagedObject) (string, error) {
