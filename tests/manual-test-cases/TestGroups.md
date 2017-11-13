@@ -20,11 +20,12 @@ VIC Manual Test Suite
 -
 [Group 18 - VIC UI](Group18-VIC-UI/TestCases.md)
 -
-[Group 19 - VIC Product](Group19-VIC-Product/TestCases.md)
--
 [Group 20 - Security](Group20-Security/TestCases.md)
 -
 [Group 21 - Whitelist](Group21-Registries/TestCases.md)
 -
 [Group 22 - vSphere Restart](Group22-vSphere-Restart/TestCases.md)
 -
+=======
+-
+

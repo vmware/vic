@@ -911,8 +911,8 @@ func (c *Context) removeAliases(aliases []string, con *Container) {
 
 // RemoveIDFromScopes removes the container from the scopes but doesn't touch the runtime state
 // Because of that it requires an id
-func (c *Context) RemoveIDFromScopes(id string) ([]*Endpoint, error) {
-	defer trace.End(trace.Begin(""))
+func (c *Context) RemoveIDFromScopes(op trace.Operation, id string) ([]*Endpoint, error) {
+	defer trace.End(trace.Begin("", op))
 
 	c.Lock()
 	defer c.Unlock()
@@ -951,8 +951,8 @@ func (c *Context) RemoveIDFromScopes(id string) ([]*Endpoint, error) {
 
 // UnbindContainer removes the container from the scopes and clears out the assigned IP
 // Because of that, it requires a handle
-func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
-	defer trace.End(trace.Begin(""))
+func (c *Context) UnbindContainer(op trace.Operation, h *exec.Handle) ([]*Endpoint, error) {
+	defer trace.End(trace.Begin("", op))
 	c.Lock()
 	defer c.Unlock()
 

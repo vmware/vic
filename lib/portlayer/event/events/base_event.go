@@ -26,13 +26,13 @@ type EventType string
 type BaseEvent struct {
 	Type        EventType
 	Event       string
-	ID          int
+	ID          string
 	Detail      string
 	Ref         string
 	CreatedTime time.Time
 }
 
-func (be *BaseEvent) EventID() int {
+func (be *BaseEvent) EventID() string {
 	return be.ID
 }
 
@@ -48,6 +48,7 @@ func (be *BaseEvent) Message() string {
 func (be *BaseEvent) Reference() string {
 	return be.Ref
 }
+
 func (be *BaseEvent) Created() time.Time {
 	return be.CreatedTime
 }

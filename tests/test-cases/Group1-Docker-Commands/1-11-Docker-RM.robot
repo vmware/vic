@@ -23,12 +23,9 @@ Test Timeout  20 minutes
 Check That VM Is Removed
     [Arguments]  ${container}
     ${id}=  Get container shortID  ${container}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc ls %{VCH-NAME}/vm
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${output}  ${id}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc ls vm
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${output}  ${id}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc ls vm
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  ${id}
 
 Check That Datastore Is Cleaned
     [Arguments]  ${container}
@@ -88,9 +85,8 @@ Remove a container deleted out of band
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name testRMOOB -p 80:8080 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     # Remove container VM out-of-band
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "testRMOOB*"
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy "testRMOOB*"
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}/"testRMOOB*"
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  govc: ServerFaultCode: The method is disabled by 'VIC'
     Pass Execution If  '%{HOST_TYPE}' == 'VC'  Remaining steps not applicable on VC - skipping
@@ -108,3 +104,50 @@ Remove a container created with unknown executable
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${container}
     Should Be Equal As Integers  ${rc}  0
     Wait Until Keyword Succeeds  10x  6s  Check That VM Is Removed  ${container}
+
+Remove a container and its anonymous volumes
+    ${suffix}=  Evaluate  '%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
+    Set Test Variable  ${namedvol}  namedvol-${suffix}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Verify that for a container with an anon and a named vol, only the anon vol gets removed
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create ${namedvol}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${c1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v /foo -v ${namedvol}:/bar ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${c1} | jq -c '.[0].Mounts'
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${vol1}=  Run And Return Rc And Output  echo '${output}' | jq -r '.[0].Name'
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${vol2}=  Run And Return Rc And Output  echo '${output}' | jq -r '.[1].Name'
+    Should Be Equal As Integers  ${rc}  0
+    ${anonvol}=  Set Variable If  '${vol1}' == '${namedvol}'  ${vol2}  ${vol1}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -v ${c1}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  ${anonvol}
+    Should Contain  ${output}  ${namedvol}
+
+    # Verify that for a container with an anon vol and another container with that vol as a named vol, the vol isn't removed
+    ${rc}  ${c2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v /foo ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${anonvol}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${c2} | jq -r '.[0].Mounts[0].Name'
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${c3}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v ${anonvol}:/bar ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -v ${c2}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls
+    Should Contain  ${output}  ${anonvol}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -v ${c3}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls
+    Should Contain  ${output}  ${anonvol}
+
+    # Verify that the above volume can be used by containers
+    ${rc}  ${c4}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${anonvol}:/bar ${busybox} /bin/ls
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c4}
+    Should Be Equal As Integers  ${rc}  0

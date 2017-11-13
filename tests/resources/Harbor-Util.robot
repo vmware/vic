@@ -484,12 +484,9 @@ Go To HomePage
 
 Check That VM Is Removed
     [Arguments]  ${container}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc ls %{VCH-NAME}/vm
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${output}  ${container}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc ls vm
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${output}  ${container}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc ls vm
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  ${container}
 
 Check That Datastore Is Cleaned
     [Arguments]  ${container}
@@ -504,13 +501,13 @@ Create Project And Three Users For It
     Open Browser  https://%{HARBOR_IP}/  chrome
     Log To Console  Opened
     Log Into Harbor  user=admin  pw=${password}
-    
+
     Create A New Project  name=${project}  public=${False}
     Log To Console  Create a New User..
     Create A New User  name=${developer}  email=${developerEmail}  fullName=${developerFullName}  password=${userPassword}  comments=${comments}
     Create A New User  name=${guest}  email=${guestEmail}  fullName=${guestFullName}  password=${userPassword}  comments=${comments}
     Create A New User  name=${developer2}  email=${developerEmail2}  fullName=${developerFullName}  password=${userPassword}  comments=${comments}
-    
+
     Add A User To A Project  user=${developer}  project=${project}  role=${developerRole}
     Add A User To A Project  user=${guest}  project=${project}  role=${guestRole}
     Add A User To A Project  user=${developer2}  project=${project}  role=${developerRole}

@@ -22,12 +22,9 @@ Test Timeout  20 minutes
 *** Keywords ***
 Assert VM Power State
     [Arguments]  ${name}  ${state}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info -json %{VCH-NAME}/${name}-* | jq -r .VirtualMachines[].Runtime.PowerState
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal  ${output}  ${state}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info -json ${name}-* | jq -r .VirtualMachines[].Runtime.PowerState
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal  ${output}  ${state}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -json ${name}-* | jq -r .VirtualMachines[].Runtime.PowerState
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal  ${output}  ${state}
 
 Create several containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
@@ -204,9 +201,8 @@ Docker ps Remove container OOB
     ${len}=  Get Length  ${output}
 
     # Remove container VM out-of-band
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "lolo*"
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy "lolo*"
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}/"lolo*"
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  govc: ServerFaultCode: The method is disabled by 'VIC'
 

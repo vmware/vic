@@ -16,6 +16,7 @@ package main
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"crypto/tls"
 	"flag"
@@ -29,11 +30,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	vchconfig "github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 )
 
@@ -290,4 +293,22 @@ func TestFindSeekPos(t *testing.T) {
 		log.Printf("Test case #%d: ", i)
 		testSeek(t, st, td)
 	}
+}
+
+func TestVersionReaderOpen(t *testing.T) {
+	version.Version = "1.2.1"
+	version.BuildNumber = "12345"
+	version.GitCommit = "abcdefg"
+
+	var vReader versionReader
+	en, err := vReader.open()
+	assert.NoError(t, err)
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(en)
+	fullVersion := buf.String()
+	versionFields := strings.SplitN(fullVersion, "-", 3)
+	assert.Equal(t, len(versionFields), 3)
+	assert.Equal(t, versionFields[0], version.Version)
+	assert.Equal(t, versionFields[1], version.BuildNumber)
+	assert.Equal(t, versionFields[2], version.GitCommit)
 }

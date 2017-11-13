@@ -15,9 +15,11 @@
 package vsphere
 
 import (
-	"github.com/vmware/vic/lib/portlayer/event/events"
+	"strconv"
 
 	"github.com/vmware/govmomi/vim25/types"
+
+	"github.com/vmware/vic/lib/portlayer/event/events"
 )
 
 type VMEvent struct {
@@ -52,7 +54,7 @@ func NewVMEvent(be types.BaseEvent) *VMEvent {
 	return &VMEvent{
 		&events.BaseEvent{
 			Event:       ee,
-			ID:          int(e.Key),
+			ID:          strconv.Itoa(int(e.Key)),
 			Detail:      e.FullFormattedMessage,
 			Ref:         e.Vm.Vm.String(),
 			CreatedTime: e.CreatedTime,

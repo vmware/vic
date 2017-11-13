@@ -16,7 +16,6 @@ package migration
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 
 	"github.com/vmware/vic/lib/migration/errors"
@@ -24,7 +23,6 @@ import (
 	"github.com/vmware/vic/lib/migration/manager"
 	// imported for the side effect
 	_ "github.com/vmware/vic/lib/migration/plugins"
-	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -74,7 +72,6 @@ func dataIsOlder(data map[string]string, target string, verKey string) (bool, er
 }
 
 func migrateConfig(ctx context.Context, s *session.Session, data map[string]string, target string, verKey string) (map[string]string, bool, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("target: %s, version key: %s", target, verKey)))
 
 	dst := make(map[string]string)
 	for k, v := range data {
