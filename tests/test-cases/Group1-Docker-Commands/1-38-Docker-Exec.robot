@@ -126,7 +126,7 @@ Exec NonExisting
 
 Exec During PowerOff
      ${status}=  Get State Of Github Issue  6744
-     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-38-Docker-Exec.robot needs to be updated now that Issue #5479 has been resolved
+     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-38-Docker-Exec.robot needs to be updated now that Issue #6744 has been resolved
      #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
      #Should Be Equal As Integers  ${rc}  0
      #Should Not Contain  ${output}  Error
