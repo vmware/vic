@@ -63,6 +63,7 @@ import (
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
@@ -132,6 +133,9 @@ var (
 	containerByPort map[string]string // port:containerID
 
 	ctx = context.TODO()
+
+	// allow mocking
+	randomName = namesgenerator.GetRandomName
 )
 
 func init() {
@@ -592,8 +596,23 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (contain
 	}
 
 	// Reserve the container name to prevent duplicates during a parallel operation.
-	if err := cache.ContainerCache().ReserveName(container, config.Name); err != nil {
-		return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestConflictError(err)
+	if config.Name != "" {
+		err := cache.ContainerCache().ReserveName(container, config.Name)
+		if err != nil {
+			return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestConflictError(err)
+		}
+	} else {
+		for i := 0; i < 5; i++ {
+			generated := randomName(i)
+			if cache.ContainerCache().ReserveName(container, generated) == nil {
+				config.Name = generated
+				break
+			}
+		}
+
+		if config.Name == "" {
+			return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestConflictError(errors.New("attempted random names conflicted with existing containers"))
+		}
 	}
 
 	// Create an actualized container in the VIC port layer
@@ -2006,14 +2025,6 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	// https://github.com/vmware/vic/issues/1378
 	if len(config.Config.Entrypoint) == 0 && len(config.Config.Cmd) == 0 {
 		return derr.NewRequestNotFoundError(fmt.Errorf("No command specified"))
-	}
-
-	// Was a name provided - if not create a friendly name
-	generatedName := namesgenerator.GetRandomName(0)
-	if config.Name == "" {
-		//TODO: Assume we could have a name collison here : need to
-		// provide validation / retry CDG June 9th 2016
-		config.Name = generatedName
 	}
 
 	return nil

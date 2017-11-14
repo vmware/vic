@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 14-1 - Longevity
 Resource  ../../resources/Util.robot
-Suite Teardown  Run Keyword If Test Failed  Longevity cleanup
+Test Teardown  Run Keyword If Test Failed  Longevity cleanup
 
 *** Keywords ***
 Longevity cleanup

@@ -440,6 +440,11 @@ func (v *Validator) credentials(ctx context.Context, input *data.Data, conf *con
 	conf.Token = *input.OpsCredentials.OpsPassword
 	conf.TargetThumbprint = input.Thumbprint
 
+	if input.OpsCredentials.GrantPerms {
+		// Set Grant Permissions level
+		conf.SetGrantPerms()
+	}
+
 	// Discard anything other than these URL fields for the target
 	stripped := &url.URL{
 		Scheme: u.Scheme,

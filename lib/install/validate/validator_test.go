@@ -148,6 +148,12 @@ func TestMain(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		opsUser := "ops-user-name"
+		opsPassword := "ops-user-password"
+		input.OpsCredentials.OpsUser = &opsUser
+		input.OpsCredentials.OpsPassword = &opsPassword
+		input.OpsCredentials.GrantPerms = true
+
 		validator, err := NewValidator(ctx, input)
 		if err != nil {
 			t.Errorf("Failed to new validator: %s", err)
@@ -287,6 +293,7 @@ func testTargets(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 	assert.Nil(t, u.User)
 	assert.NotEmpty(t, conf.Token)
 	assert.NotEmpty(t, conf.Username)
+	assert.Equal(t, conf.GrantPermsLevel, config.AddPerms)
 }
 
 func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {

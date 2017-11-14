@@ -111,7 +111,7 @@ func TestOpsUserPermsSimulatorVPX(t *testing.T) {
 	count := initRoles(ctx, t, am)
 
 	defer cleanup(ctx, t, am, true)
-	require.Equal(t, roleCount, count, "Incorrect number of roles: expcted %d, actual %d", roleCount, count)
+	require.Equal(t, roleCount, count, "Incorrect number of roles: expected %d, actual %d", roleCount, count)
 
 	c := sess.Client
 	// Find the Datacenter
