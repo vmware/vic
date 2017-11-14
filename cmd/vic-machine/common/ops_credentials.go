@@ -31,6 +31,7 @@ type OpsCredentials struct {
 	OpsUser     *string `cmd:"ops-user"`
 	OpsPassword *string
 	IsSet       bool
+	GrantPerms  bool
 }
 
 func (o *OpsCredentials) Flags(hidden bool) []cli.Flag {
@@ -66,13 +67,17 @@ func (o *OpsCredentials) ProcessOpsCredentials(isCreateOp bool, adminUser string
 			if adminPassword == nil {
 				return errors.New("Unable to use nil password from administrative user for operations user")
 			}
-
 			o.OpsPassword = adminPassword
+			// If using the admin user don't init roles and Permissions
+			o.GrantPerms = false
 			return nil
 		}
 	} else {
 		if o.OpsUser != nil {
 			o.IsSet = true
+		} else {
+			// If using the admin user don't init roles and Permissions
+			o.GrantPerms = false
 		}
 	}
 
