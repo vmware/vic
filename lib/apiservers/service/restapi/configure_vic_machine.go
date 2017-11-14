@@ -16,11 +16,14 @@ package restapi
 
 import (
 	"crypto/tls"
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
+	"github.com/go-openapi/swag"
 	"github.com/rs/cors"
 	"github.com/tylerb/graceful"
 
@@ -32,19 +35,30 @@ import (
 
 //go:generate swagger generate server --target ../lib/apiservers/service --name  --spec ../lib/apiservers/service/swagger.json --exclude-main
 
+var loggingOption = struct {
+	Directory string `long:"log-directory" description:"the directory where vic-machine-server log is stored" default:"/var/log/vic-machine-server" env:"LOG_DIRECTORY"`
+}{}
+
+var logger *log.Logger
+
 func configureFlags(api *operations.VicMachineAPI) {
 	// api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }
+	api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{
+		{
+			ShortDescription: "Logging options",
+			LongDescription:  "Specify a directory for storing vic-machine service log",
+			Options:          &loggingOption,
+		},
+	}
 }
 
 func configureAPI(api *operations.VicMachineAPI) http.Handler {
 	// configure the api here
 	api.ServeError = errors.ServeError
 
-	// Set your custom logger if needed. Default one is log.Printf
-	// Expected interface func(string, ...interface{})
-	//
-	// Example:
-	// s.api.Logger = log.Printf
+	// configure logging to user specified directory
+	logger = getLogger()
+	api.Logger = logger.Printf
 
 	api.JSONConsumer = runtime.JSONConsumer()
 
@@ -178,5 +192,49 @@ func setupGlobalMiddleware(handler http.Handler) http.Handler {
 		AllowCredentials: false,
 	})
 
-	return c.Handler(handler)
+	return addLogging(c.Handler(handler))
+}
+
+func addLogging(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		loggingrw := NewLoggingResponseWriter(w)
+		logger.Println("Received request: ", r.Method, r.URL)
+		next.ServeHTTP(loggingrw, r)
+		logger.Println("Response: ", loggingrw.status)
+	})
+}
+
+func getLogger() *log.Logger {
+	if _, err := os.Stat(loggingOption.Directory); os.IsNotExist(err) {
+		os.MkdirAll(loggingOption.Directory, os.ModePerm) // If directory does not exist, create dir and parents
+	}
+
+	path := loggingOption.Directory + "/vic-machine-server.log"
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	if err != nil {
+		log.Fatalf("Failed to open log file %s: %s", path, err)
+	}
+
+	logger = log.New(file, "", log.Ldate|log.Ltime)
+
+	return logger
+}
+
+// Reference for LoggingResponseWriter struct:
+// http://ndersson.me/post/capturing_status_code_in_net_http/
+
+type LoggingResponseWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func NewLoggingResponseWriter(w http.ResponseWriter) *LoggingResponseWriter {
+	return &LoggingResponseWriter{
+		ResponseWriter: w,
+	}
+}
+
+func (w *LoggingResponseWriter) WriteHeader(code int) {
+	w.status = code
+	w.ResponseWriter.WriteHeader(code)
 }
