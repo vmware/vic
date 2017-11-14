@@ -111,6 +111,12 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 	}
 
 	if err = d.update(conf, settings, isConfigureOp); err == nil {
+		if conf.ShouldGrantPerms() {
+			err = GrantOpsUserPerms(d.ctx, d.session.Vim25(), conf)
+			if err != nil {
+				return errors.Errorf("Cannot init ops-user permissions, failure: %s. Exiting...", err)
+			}
+		}
 		// compatible with old version's upgrade snapshot name
 		if oldSnapshot != nil && (vm.IsConfigureSnapshot(oldSnapshot, ConfigurePrefix) || vm.IsConfigureSnapshot(oldSnapshot, UpgradePrefix)) {
 			d.retryDeleteSnapshotByRef(&oldSnapshot.Snapshot, oldSnapshot.Name, conf.Name)
