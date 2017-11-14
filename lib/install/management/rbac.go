@@ -72,111 +72,6 @@ type RBACResourcePermission struct {
 	permission types.Permission
 }
 
-var rolePrefix = "vic-vch-"
-
-var RoleVCenter = types.AuthorizationRole{
-	Name: "vcenter",
-	Privilege: []string{
-		"Datastore.Config",
-	},
-}
-
-var RoleDataCenter = types.AuthorizationRole{
-	Name: "datacenter",
-	Privilege: []string{
-		"Datastore.Config",
-		"Datastore.FileManagement",
-	},
-}
-
-var RoleDataStore = types.AuthorizationRole{
-	Name: "datastore",
-	Privilege: []string{
-		"Datastore.AllocateSpace",
-		"Datastore.Browse",
-		"Datastore.Config",
-		"Datastore.DeleteFile",
-		"Datastore.FileManagement",
-		"Host.Config.SystemManagement",
-	},
-}
-
-var RoleNetwork = types.AuthorizationRole{
-	Name: "network",
-	Privilege: []string{
-		"Network.Assign",
-	},
-}
-
-var RoleEndpoint = types.AuthorizationRole{
-	Name: "endpoint",
-	Privilege: []string{
-		"DVPortgroup.Create",
-		"DVPortgroup.Delete",
-		"DVPortgroup.Modify",
-		"DVPortgroup.PolicyOp",
-		"DVPortgroup.ScopeOp",
-		"Resource.AssignVMToPool",
-		"VirtualMachine.Config.AddNewDisk",
-		"VirtualMachine.Config.AdvancedConfig",
-		"VirtualMachine.Config.EditDevice",
-		"VirtualMachine.Config.RemoveDisk",
-		"VirtualMachine.GuestOperations.Execute",
-		"VirtualMachine.Interact.DeviceConnection",
-		"VirtualMachine.Interact.PowerOff",
-		"VirtualMachine.Interact.PowerOn",
-		"VirtualMachine.Inventory.Create",
-		"VirtualMachine.Inventory.Delete",
-		"VirtualMachine.Inventory.Register",
-		"VirtualMachine.Inventory.Unregister",
-	},
-}
-
-var OpsUserRBACConf = RBACConfig{
-	Resources: []RBACResource{
-		{
-			Type:      VCenter,
-			Propagate: false,
-			Role:      RoleVCenter,
-		},
-		{
-			Type:      Datacenter,
-			Propagate: false,
-			Role:      RoleDataCenter,
-		},
-		{
-			Type:      Cluster,
-			Propagate: true,
-			Role:      RoleDataStore,
-		},
-		{
-			Type:      DatastoreFolder,
-			Propagate: true,
-			Role:      RoleDataStore,
-		},
-		{
-			Type:      Datastore,
-			Propagate: true,
-			Role:      RoleDataStore,
-		},
-		{
-			Type:      VSANDatastore,
-			Propagate: false,
-			Role:      RoleDataStore,
-		},
-		{
-			Type:      Network,
-			Propagate: false,
-			Role:      RoleNetwork,
-		},
-		{
-			Type:      Endpoint,
-			Propagate: true,
-			Role:      RoleEndpoint,
-		},
-	},
-}
-
 func NewAuthzManager(ctx context.Context, client *vim25.Client, configSpec *config.VirtualContainerHostConfigSpec) *AuthzManager {
 	authManager := object.NewAuthorizationManager(client)
 	mgr := &AuthzManager{
@@ -187,10 +82,10 @@ func NewAuthzManager(ctx context.Context, client *vim25.Client, configSpec *conf
 	return mgr
 }
 
-func ProcessOpsUser(ctx context.Context, client *vim25.Client, principal string, configSpec *config.VirtualContainerHostConfigSpec) error {
+func GrantOpsUserPerms(ctx context.Context, client *vim25.Client, configSpec *config.VirtualContainerHostConfigSpec) error {
 	am := NewAuthzManager(ctx, client, configSpec)
 	am.configSpec = configSpec
-	am.InitRBACConfig(principal, &OpsUserRBACConf)
+	am.InitRBACConfig(configSpec.Connection.Username, &OpsUserRBACConf)
 	_, err := am.SetupRolesAndPermissions(ctx)
 	return err
 }
@@ -276,27 +171,25 @@ func (am *AuthzManager) setupPermissions(ctx context.Context) ([]RBACResourcePer
 		return nil, errors.Errorf("Ops-User: AuthzManager, Unable to find Datastores: %s", err.Error())
 	}
 
+	// Loop over Datastores
 	for _, ref := range dsNameToRef {
 		resourceDescs = append(resourceDescs, ResourceDesc{Datastore, ref})
 	}
 
-	// Find bridged networks
-	bridgeNet, ok := am.configSpec.Networks["bridge"]
-	if !ok {
-		return nil, errors.Errorf("Ops-User: AuthzManager, Unable to find Bridged Network: %s", err.Error())
+	// Loop over Networks
+	for _, network := range am.configSpec.Network.ContainerNetworks {
+		netRef := &types.ManagedObjectReference{}
+		netRef.FromString(network.ID)
+		if netRef.Type == "" || netRef.Value == "" {
+			return nil, errors.Errorf("Ops-User: AuthzManager, Unable to build Bridged Network MoRef: %s", network.ID)
+		}
+		resourceDescs = append(resourceDescs, ResourceDesc{Network, *netRef})
 	}
 
-	bridgeNetRef := &types.ManagedObjectReference{}
-	bridgeNetRef.FromString(bridgeNet.ID)
-	if bridgeNetRef.Type == "" || bridgeNetRef.Value == "" {
-		return nil, errors.Errorf("Ops-User: AuthzManager, Unable to build Bridged Network MoRef: %s", bridgeNet.ID)
+	// Loop over Resource Pools
+	for _, rPoolRef := range am.configSpec.ComputeResources {
+		resourceDescs = append(resourceDescs, ResourceDesc{Endpoint, rPoolRef})
 	}
-	resourceDescs = append(resourceDescs, ResourceDesc{Network, *bridgeNetRef})
-
-	// Get VM MoRef
-	vmRef := &types.ManagedObjectReference{}
-	vmRef.FromString(am.configSpec.ID)
-	resourceDescs = append(resourceDescs, ResourceDesc{Endpoint, *vmRef})
 
 	resourcePermissions := make([]RBACResourcePermission, 0, len(am.rbacConfig.Resources))
 	// Apply permissions
@@ -511,8 +404,8 @@ func (am *AuthzManager) initTargetRoles() {
 
 func (am *AuthzManager) initResourceMap() {
 	am.resources = make(map[int8]*RBACResource)
-	for _, resource := range am.rbacConfig.Resources {
-		am.resources[resource.Type] = &resource
+	for i, resource := range am.rbacConfig.Resources {
+		am.resources[resource.Type] = &am.rbacConfig.Resources[i]
 	}
 }
 
