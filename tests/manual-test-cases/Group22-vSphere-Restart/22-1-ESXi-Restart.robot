@@ -15,18 +15,16 @@
 *** Settings ***
 Documentation  Test 22-1 - ESXi Restart
 Resource  ../../resources/Util.robot
+Suite Setup  ESXi Restart Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
-*** Test Cases ***
-Test
+*** Keywords ***
+ESXi Restart Setup
     Log To Console  \nStarting test...
-    Log To Console  \nWait until Nimbus is at least available...
-    Open Connection  %{NIMBUS_GW}
-    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Close Connection
-
     ${esx}  ${esx-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Global Variable  @{list}  ${esx}
+    Set Suite Variable  ${esx}  ${esx}
+    Set Suite Variable  ${esx-ip}  ${esx-ip}
     Set Environment Variable  GOVC_URL  root:${NIMBUS_ESX_PASSWORD}@${esx-ip}
     Set Environment Variable  TEST_URL_ARRAY  ${esx-ip}
     Set Environment Variable  TEST_URL  ${esx-ip}
@@ -40,12 +38,15 @@ Test
     Remove Environment Variable  BRIDGE_NETWORK
     Remove Environment Variable  PUBLIC_NETWORK
 
-    Install VIC Appliance To Test Server
-    Run Regression Tests
+*** Test Cases ***
+Test
+    ${out}=  Run  bin/vic-machine-linux create -t ${esx-ip} -u root -p ${NIMBUS_ESX_PASSWORD} --force --image-store=datastore1 --no-tls
+    #${out}=  Run  bin/vic-machine-linux create --debug 1 --name=VCH-0-6576 --target=${esx-ip} --user=root --image-store=datastore1 --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=${NIMBUS_ESX_PASSWORD} --force=true --bridge-network=VCH-0-6576-bridge --public-network='VM Network' --timeout 30m --insecure-registry harbor.ci.drone.local --volume-store=datastore1/VCH-0-6576-VOL:default --container-network='VM Network':public --no-tlsverify
+    Get Docker Params  ${out}  ${false}
+    #Install VIC Appliance To Test Server
+    #Run Regression Tests
 
     Reset Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${esx}
-    Log To Console  Sleeping 5 minutes to allow for the server to reboot in Nimbus...
-    Sleep  10 minutes
     Wait Until vSphere Is Powered On
 
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -on %{VCH-NAME}
