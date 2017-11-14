@@ -112,6 +112,18 @@ const (
 	fakeContainerID     = ""
 )
 
+var randomNames = []string{
+	"hello_world",
+	"hello_world",
+	"goodbye_world",
+	"goodbye_world",
+	"cruel_world",
+}
+
+func mockRandomName(retry int) string {
+	return randomNames[retry%len(randomNames)]
+}
+
 var dummyContainers = []string{dummyContainerID, dummyContainerIDTTY}
 
 func NewMockContainerProxy() *MockContainerProxy {
@@ -477,6 +489,12 @@ func TestCreateHandle(t *testing.T) {
 	}
 
 	AddMockImageToCache()
+
+	// configure mock naming for just this test
+	defer func(fn func(int) string) {
+		randomName = fn
+	}(randomName)
+	randomName = mockRandomName
 
 	// mock a container create config
 	var config types.ContainerCreateConfig
