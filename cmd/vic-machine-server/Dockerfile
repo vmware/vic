@@ -19,6 +19,10 @@ ENV TLS_PRIVATE_KEY=/certs/server.key.pem
 EXPOSE 80
 EXPOSE 443
 
-COPY bin/vic-machine-server /usr/local/bin/
+WORKDIR /opt/vmware/vsphere-integrated-containers/
 
-ENTRYPOINT /usr/local/bin/vic-machine-server
+COPY bin/vic-machine-server bin/
+COPY bin/appliance.iso .
+COPY bin/bootstrap.iso .
+
+ENTRYPOINT bin/vic-machine-server
