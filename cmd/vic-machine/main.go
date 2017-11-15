@@ -140,11 +140,16 @@ func main() {
 		logs = append(logs, f)
 	}
 
-	// create the logger for streaming VCH log messages
-	vchlog.Init()
-	logs = append(logs, vchlog.GetPipe())
-	go vchlog.Run()
-	defer vchlog.Close() // close the logger pipe when done
+	//// create the logger for streaming VCH log messages
+	//vchlog.Init()
+	//logs = append(logs, vchlog.GetPipe())
+	//go vchlog.Run()
+	//defer vchlog.Close() // close the logger pipe when done
+	logger := vchlog.NewVCHLogger()
+	logs = append(logs, logger.Pipe)
+	go logger.Run()
+	defer logger.Close()
+	create.AddLogger(logger)
 
 	// Initiliaze logger with default TextFormatter
 	log.SetFormatter(viclog.NewTextFormatter())

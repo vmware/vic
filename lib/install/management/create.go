@@ -41,7 +41,7 @@ const (
 	timeFormat            = "2006-01-02T15:04:05-0700"
 )
 
-func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData, logger *vchlog.VCHLogger) error {
 	defer trace.End(trace.Begin(conf.Name))
 
 	var err error
@@ -70,7 +70,7 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 		VMPathName: d.vmPathName,
 		Timestamp:  time.Now().UTC().Format(timeFormat),
 	}
-	vchlog.Signal(datastoreReadySignal)
+	logger.Signal(datastoreReadySignal)
 
 	if err = d.uploadImages(settings.ImageFiles); err != nil {
 		return errors.Errorf("Uploading images failed with %s. Exiting...", err)

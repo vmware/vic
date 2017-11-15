@@ -20,7 +20,7 @@ import (
 	"math"
 	"net"
 	"net/http"
-	"os"
+	//"os"
 	"path"
 	"strings"
 
@@ -46,6 +46,7 @@ import (
 	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
+	"os"
 )
 
 const (
@@ -63,11 +64,14 @@ type VCHDatacenterCreate struct {
 func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principal interface{}) middleware.Responder {
 	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHCreate")
 
-	// Set up VCH create logger
-	localLogFile := setUpLogger()
-	// Close the two logging streams when done
-	defer vchlog.Close()
-	defer localLogFile.Close()
+	//// Set up VCH create logger
+	//localLogFile := setUpLogger()
+	//// Close the two logging streams when done
+	//defer vchlog.Close()
+	//defer localLogFile.Close()
+
+	logger := setUpLogger()
+	defer logger.Close()
 
 	b := buildDataParams{
 		target:     params.Target,
@@ -89,7 +93,7 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	task, err := handleCreate(op, c, validator)
+	task, err := handleCreate(op, c, validator, logger)
 	if err != nil {
 		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -100,11 +104,14 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacenterDatacenterVchParams, principal interface{}) middleware.Responder {
 	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHDatacenterCreate")
 
-	// Set up VCH create logger
-	localLogFile := setUpLogger()
-	// Close the two logging streams when done
-	defer vchlog.Close()
-	defer localLogFile.Close()
+	//// Set up VCH create logger
+	//localLogFile := setUpLogger()
+	//// Close the two logging streams when done
+	//defer vchlog.Close()
+	//defer localLogFile.Close()
+
+	logger := setUpLogger()
+	defer logger.Close()
 
 	b := buildDataParams{
 		target:     params.Target,
@@ -127,7 +134,7 @@ func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacente
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	task, err := handleCreate(op, c, validator)
+	task, err := handleCreate(op, c, validator, logger)
 	if err != nil {
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -135,31 +142,44 @@ func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacente
 	return operations.NewPostTargetTargetDatacenterDatacenterVchCreated().WithPayload(operations.PostTargetTargetDatacenterDatacenterVchCreatedBody{Task: task})
 }
 
-func setUpLogger() *os.File {
-	vchlog.Init()
-	logs := []io.Writer{}
+func setUpLogger() *vchlog.VCHLogger {
+	logger := vchlog.NewVCHLogger()
 
-	// Write to local log file
-	// #nosec: Expect file permissions to be 0600 or less
-	localLogFile, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
-	if err == nil {
-		logs = append(logs, localLogFile)
-	}
-
-	// Also write logs to pipe streaming to VCH datastore
-	logs = append(logs, vchlog.GetPipe())
-	// Set log level to debug
+	//logs := []io.Writer{}
+	//logs = append(logs, logger.Pipe)
 	log.SetLevel(log.DebugLevel)
-	// Initiliaze logger with default TextFormatter
 	log.SetFormatter(viclog.NewTextFormatter())
-	// SetOutput to io.MultiWriter so that we can log to stdout and a file
-	log.SetOutput(io.MultiWriter(logs...))
+	log.SetOutput(logger.Pipe)
 
-	// Fire the logger
-	go vchlog.Run()
-
-	return localLogFile
+	go logger.Run()
+	return logger
 }
+
+//func setUpLogger() *os.File {
+//	vchlog.Init()
+//	logs := []io.Writer{}
+//
+//	// Write to local log file
+//	// #nosec: Expect file permissions to be 0600 or less
+//	localLogFile, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+//	if err == nil {
+//		logs = append(logs, localLogFile)
+//	}
+//
+//	// Also write logs to pipe streaming to VCH datastore
+//	logs = append(logs, vchlog.GetPipe())
+//	// Set log level to debug
+//	log.SetLevel(log.DebugLevel)
+//	// Initiliaze logger with default TextFormatter
+//	log.SetFormatter(viclog.NewTextFormatter())
+//	// SetOutput to io.MultiWriter so that we can log to stdout and a file
+//	log.SetOutput(io.MultiWriter(logs...))
+//
+//	// Fire the logger
+//	go vchlog.Run()
+//
+//	return localLogFile
+//}
 
 func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *models.VCH) (*create.Create, error) {
 	c := &create.Create{Data: d}
@@ -452,7 +472,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 	return c, nil
 }
 
-func handleCreate(op trace.Operation, c *create.Create, validator *validate.Validator) (*strfmt.URI, error) {
+func handleCreate(op trace.Operation, c *create.Create, validator *validate.Validator, logger *vchlog.VCHLogger) (*strfmt.URI, error) {
 	vchConfig, err := validator.Validate(validator.Context, c.Data)
 	if err != nil {
 		issues := validator.GetIssues()
@@ -476,7 +496,7 @@ func handleCreate(op trace.Operation, c *create.Create, validator *validate.Vali
 	vConfig.HTTPSProxy = c.HTTPSProxy
 
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
-	err = executor.CreateVCH(vchConfig, vConfig)
+	err = executor.CreateVCH(vchConfig, vConfig, logger)
 	if err != nil {
 		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to create VCH: %s", err))
 	}

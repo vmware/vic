@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
+	"github.com/vmware/vic/lib/apiservers/service/models"
 )
 
 const (
@@ -101,7 +102,6 @@ func (h *VCHDatacenterLogGet) Handle(params operations.GetTargetTargetDatacenter
 
 	logFilePaths, err := getAllLogFilePaths(op, helper)
 	if err != nil {
-		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
 	}
 
 	output, err := getContentFromLogFiles(op, helper, logFilePaths)

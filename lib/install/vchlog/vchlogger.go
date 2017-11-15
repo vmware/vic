@@ -35,37 +35,49 @@ type DatastoreReadySignal struct {
 	Timestamp  string
 }
 
-// pipe: the streaming readwriter pipe to hold log messages
-var pipe *BufferedPipe
-
-// signalChan: channel for signaling when datastore folder is ready
-var signalChan chan DatastoreReadySignal
-
-// Init initializes the logger, creates the streaming pipe and makes the singaling channel.
-func Init() {
-	pipe = NewBufferedPipe()
-	signalChan = make(chan DatastoreReadySignal)
+type VCHLogger struct {
+	Pipe *BufferedPipe
+	SignalChan chan DatastoreReadySignal
 }
+
+//// pipe: the streaming readwriter pipe to hold log messages
+//var pipe *BufferedPipe
+//
+//// signalChan: channel for signaling when datastore folder is ready
+//var signalChan chan DatastoreReadySignal
+
+func NewVCHLogger() *VCHLogger {
+	return &VCHLogger{
+		Pipe: NewBufferedPipe(),
+		SignalChan: make(chan DatastoreReadySignal),
+	}
+}
+
+//// Init initializes the logger, creates the streaming pipe and makes the singaling channel.
+//func Init() {
+//	pipe = NewBufferedPipe()
+//	signalChan = make(chan DatastoreReadySignal)
+//}
 
 // Run waits until the signal arrives and uploads the streaming pipe to datastore
-func Run() {
-	sig := <-signalChan
+func (logger *VCHLogger) Run() {
+	sig := <-logger.SignalChan
 	// suffix the log file name with caller operation ID and timestamp
 	logFileName := "vic-machine" + "_" + sig.Timestamp + "_" + sig.Name + "_" + sig.Operation.ID() + ".log"
-	sig.Datastore.Upload(sig.Operation.Context, pipe, path.Join(sig.VMPathName, logFileName), nil)
+	sig.Datastore.Upload(sig.Operation.Context, logger.Pipe, path.Join(sig.VMPathName, logFileName), nil)
 }
 
-// GetPipe returns the streaming pipe of the vch logger
-func GetPipe() *BufferedPipe {
-	return pipe
-}
+//// GetPipe returns the streaming pipe of the vch logger
+//func GetPipe() *BufferedPipe {
+//	return pipe
+//}
 
 // Signal signals the logger that the datastore folder is ready
-func Signal(sig DatastoreReadySignal) {
-	signalChan <- sig
+func (logger *VCHLogger) Signal(sig DatastoreReadySignal) {
+	logger.SignalChan <- sig
 }
 
 // Close stops the logger by closing the underlying pipe
-func Close() {
-	pipe.Close()
+func (logger *VCHLogger) Close() {
+	logger.Pipe.Close()
 }
