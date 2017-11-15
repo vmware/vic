@@ -257,6 +257,10 @@ func (t *VirtualContainerHostConfigSpec) SetGrantPerms() {
 	t.GrantPermsLevel = AddPerms
 }
 
+func (t *VirtualContainerHostConfigSpec) ClearGrantPerms() {
+	t.GrantPermsLevel = ""
+}
+
 func (t *VirtualContainerHostConfigSpec) ShouldGrantPerms() bool {
 	return t.GrantPermsLevel == AddPerms
 }
