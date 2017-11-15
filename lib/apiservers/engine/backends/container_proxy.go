@@ -82,12 +82,14 @@ import (
 // VicContainerProxy interface
 type VicContainerProxy interface {
 	CreateContainerHandle(vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error)
-	CreateContainerTask(handle string, id string, config types.ContainerCreateConfig) (string, error)
-	CreateExecTask(handle string, config *types.ExecConfig) (string, string, error)
 	AddContainerToScope(handle string, config types.ContainerCreateConfig) (string, error)
 	AddVolumesToContainer(handle string, config types.ContainerCreateConfig) (string, error)
 	AddLoggingToContainer(handle string, config types.ContainerCreateConfig) (string, error)
 	AddInteractionToContainer(handle string, config types.ContainerCreateConfig) (string, error)
+
+	CreateContainerTask(handle string, id string, config types.ContainerCreateConfig) (string, error)
+	CreateExecTask(handle string, config *types.ExecConfig) (string, string, error)
+	TaskInspect(handle string, eid string) (*models.TaskInspectConfig, error)
 
 	BindInteraction(handle string, name string, id string) (string, error)
 	UnbindInteraction(handle string, name string, id string) (string, error)
@@ -315,6 +317,31 @@ func (c *ContainerProxy) CreateExecTask(handle string, config *types.ExecConfig)
 	}
 
 	return handleprime, eid, nil
+}
+
+func (c *ContainerProxy) TaskInspect(handle string, eid string) (*models.TaskInspectConfig, error) {
+
+	// inspect the Task to obtain ProcessConfig
+	config := &models.TaskInspectConfig{
+		Handle: handle,
+		ID:     eid,
+	}
+
+	params := tasks.NewInspectParamsWithContext(ctx).WithConfig(config)
+	resp, err := client.Tasks.Inspect(params)
+	// FIXME: ERROR NEEDS INSPECTION HERE
+	switch err := err.(type) {
+	case *tasks.InspectInternalServerError:
+		op.Debugf("received an internal server error during task inspect: %s", err.Payload.Message)
+		return nil, InternalServerError(err.Payload.Message)
+	case *tasks.InspectConflict:
+		op.Debugf("received a conflict error during task inspect: %s", err.Payload.Message)
+		return nil, ConflictError(fmt.Sprintf("Cannot complete the operation, container %s has been powered off during execution", id))
+	default:
+		return nil, InternalServerError(err.Error())
+	}
+
+	return resp.Payload, nil
 }
 
 // AddContainerToScope adds a container, referenced by handle, to a scope.

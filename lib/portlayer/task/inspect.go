@@ -25,6 +25,7 @@ import (
 
 // Inspect the task configuration from the containerVM config
 func Inspect(op *trace.Operation, h interface{}, id string) (*executor.SessionConfig, error) {
+	// FIXME: THIS WORKS FOR NOW, BUT IF IT IS USED OUTSIDE OF EXEC THEN IT WILL NEED TO BE FIXED.
 	defer trace.End(trace.Begin(id))
 
 	handle, ok := h.(*exec.Handle)
@@ -54,6 +55,7 @@ func Inspect(op *trace.Operation, h interface{}, id string) (*executor.SessionCo
 	}
 
 	tasks := stasks
+	//FIXME: This needs to change when this function starts to be used for session IDs. When task.Inspect is used for retrieving execConfig.Sessions data.
 	if handle.Runtime != nil && handle.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
 		op.Debugf("Task configuration applies to ephemeral set")
 		tasks = etasks

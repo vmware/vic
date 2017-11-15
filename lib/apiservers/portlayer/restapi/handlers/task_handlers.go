@@ -111,6 +111,8 @@ func (handler *TaskHandlersImpl) JoinHandler(params tasks.JoinParams) middleware
 	return tasks.NewJoinOK().WithPayload(res)
 }
 
+// FIXME: NO MORE LOGGING!!!! DO OP LOGGING!!!!
+
 // BindHandler calls the Bind
 func (handler *TaskHandlersImpl) BindHandler(params tasks.BindParams) middleware.Responder {
 	defer trace.End(trace.Begin(""))

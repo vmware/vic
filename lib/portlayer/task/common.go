@@ -39,6 +39,17 @@ func toggleActive(op *trace.Operation, h interface{}, id string, active bool) (i
 	taskE, okE := etasks[id]
 
 	if !okS && !okE {
+
+		// in this case we must look at whether the container was turned off. I posit that we should check this after the runtime and state...
+		if handle.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff {
+			// we are now assuming that the task supplied was an etask that no longer exists... this is not necessarily a valid assumption.
+			// but since we never know which type of task was intended and it is in neither list we can only every assume here with current information.
+			powerStateError := TaskPowerStateError{
+				msg: fmt.Sprintf("the operation cannot be completed, container(%s) has been shut down during the operations execution.", handle.ExecConfig.ID),
+			}
+			return nil, powerStateError
+		}
+
 		return nil, fmt.Errorf("unknown task ID: %s", id)
 	}
 
