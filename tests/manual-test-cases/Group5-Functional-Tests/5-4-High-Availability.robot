@@ -227,6 +227,7 @@ Test
     \     Should Be Equal As Integers  ${rc}  0
     \     Should Be Equal  ${output}  running
     \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c}
+    \     Log To Console  ${output}
     \     Should Be Equal As Integers  ${rc}  0
 
     # check stopped containers are still stopped
@@ -235,6 +236,7 @@ Test
     \     Should Be Equal As Integers  ${rc}  0
     \     Should Be Equal  ${output}  exited
     \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c}
+    \     Log To Console  ${output}
     \     Should Be Equal As Integers  ${rc}  0
 
 Run Regression Tests
