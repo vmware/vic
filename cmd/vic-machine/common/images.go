@@ -20,7 +20,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/pkg/errors"
@@ -72,8 +71,8 @@ func (i *Images) ImageFlags(hidden bool) []cli.Flag {
 	}
 }
 
-func (i *Images) CheckImagesFiles(force bool) (map[string]string, error) {
-	defer trace.End(trace.Begin(""))
+func (i *Images) CheckImagesFiles(op trace.Operation, force bool) (map[string]string, error) {
+	defer trace.End(trace.Begin("", op))
 
 	i.OSType = "linux"
 	// detect images files
@@ -106,13 +105,13 @@ func (i *Images) CheckImagesFiles(force bool) (map[string]string, error) {
 		}
 
 		if os.IsNotExist(err) {
-			log.Warnf("\t\tUnable to locate %s in the current or installer directory.", img)
+			op.Warnf("\t\tUnable to locate %s in the current or installer directory.", img)
 			return nil, err
 		}
 
-		version, err := i.checkImageVersion(img, force)
+		version, err := i.checkImageVersion(op, img, force)
 		if err != nil {
-			log.Error(err)
+			op.Error(err)
 			return nil, err
 		}
 		versionedName := fmt.Sprintf("%s-%s", version, name)
@@ -128,8 +127,8 @@ func (i *Images) CheckImagesFiles(force bool) (map[string]string, error) {
 }
 
 // GetImageVersion will read iso file version from Primary Volume Descriptor, field "Publisher Identifier"
-func (i *Images) GetImageVersion(img string) (string, error) {
-	defer trace.End(trace.Begin(""))
+func (i *Images) GetImageVersion(op trace.Operation, img string) (string, error) {
+	defer trace.End(trace.Begin("", op))
 
 	f, err := os.Open(img)
 	if err != nil {
@@ -160,20 +159,20 @@ func (i *Images) GetImageVersion(img string) (string, error) {
 	return "version-unknown", nil
 }
 
-func (i *Images) checkImageVersion(img string, force bool) (string, error) {
-	defer trace.End(trace.Begin(""))
+func (i *Images) checkImageVersion(op trace.Operation, img string, force bool) (string, error) {
+	defer trace.End(trace.Begin("", op))
 
-	ver, err := i.GetImageVersion(img)
+	ver, err := i.GetImageVersion(op, img)
 	if err != nil {
 		return "", err
 	}
-	sv := i.getNoCommitHashVersion(ver)
+	sv := i.getNoCommitHashVersion(op, ver)
 	if sv == "" {
-		log.Debugf("Version is not set in %q", img)
+		op.Debugf("Version is not set in %q", img)
 		ver = ""
 	}
 
-	installerSV := i.getNoCommitHashVersion(version.GetBuild().ShortVersion())
+	installerSV := i.getNoCommitHashVersion(op, version.GetBuild().ShortVersion())
 
 	// here compare version without last commit hash, to make developer life easier
 	if !strings.EqualFold(installerSV, sv) {
@@ -181,13 +180,13 @@ func (i *Images) checkImageVersion(img string, force bool) (string, error) {
 		if !force {
 			return "", errors.Errorf("%s. Specify --force to force create. ", message)
 		}
-		log.Warn(message)
+		op.Warn(message)
 	}
 	return ver, nil
 }
 
-func (i *Images) getNoCommitHashVersion(version string) string {
-	defer trace.End(trace.Begin(""))
+func (i *Images) getNoCommitHashVersion(op trace.Operation, version string) string {
+	defer trace.End(trace.Begin("", op))
 
 	j := strings.LastIndex(version, "-")
 	if j == -1 {

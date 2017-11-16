@@ -17,15 +17,13 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"io"
 	"math"
 	"net"
 	"net/http"
-	"os"
 	"path"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-units"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/strfmt"
@@ -71,11 +69,8 @@ type VCHDatacenterCreate struct {
 func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principal interface{}) middleware.Responder {
 	op := trace.FromContext(params.HTTPRequest.Context(), "VCHCreate")
 
-	// Set up VCH create logger
-	localLogFile := setUpLogger()
-	// Close the two logging streams when done
-	defer vchlog.Close()
-	defer localLogFile.Close()
+	datastoreLogger := setUpLogger(&op)
+	defer datastoreLogger.Close()
 
 	b := buildDataParams{
 		target:     params.Target,
@@ -97,7 +92,7 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	task, err := handleCreate(op, c, validator)
+	task, err := handleCreate(op, c, validator, datastoreLogger)
 	if err != nil {
 		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -109,11 +104,8 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacenterDatacenterVchParams, principal interface{}) middleware.Responder {
 	op := trace.FromContext(params.HTTPRequest.Context(), "VCHDatacenterCreate")
 
-	// Set up VCH create logger
-	localLogFile := setUpLogger()
-	// Close the two logging streams when done
-	defer vchlog.Close()
-	defer localLogFile.Close()
+	datastoreLogger := setUpLogger(&op)
+	defer datastoreLogger.Close()
 
 	b := buildDataParams{
 		target:     params.Target,
@@ -136,7 +128,7 @@ func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacente
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	task, err := handleCreate(op, c, validator)
+	task, err := handleCreate(op, c, validator, datastoreLogger)
 	if err != nil {
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -144,30 +136,17 @@ func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacente
 	return operations.NewPostTargetTargetDatacenterDatacenterVchCreated().WithPayload(operations.PostTargetTargetDatacenterDatacenterVchCreatedBody{Task: task})
 }
 
-func setUpLogger() *os.File {
-	vchlog.Init()
-	logs := []io.Writer{}
+func setUpLogger(op *trace.Operation) *vchlog.VCHLogger {
+	log := vchlog.New()
 
-	// Write to local log file
-	// #nosec: Expect file permissions to be 0600 or less
-	localLogFile, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
-	if err == nil {
-		logs = append(logs, localLogFile)
-	}
+	op.Logger = logrus.New()
+	op.Logger.Out = log.GetPipe()
+	op.Logger.Level = logrus.DebugLevel
+	op.Logger.Formatter = viclog.NewTextFormatter()
 
-	// Also write logs to pipe streaming to VCH datastore
-	logs = append(logs, vchlog.GetPipe())
-	// Set log level to debug
-	log.SetLevel(log.DebugLevel)
-	// Initiliaze logger with default TextFormatter
-	log.SetFormatter(viclog.NewTextFormatter())
-	// SetOutput to io.MultiWriter so that we can log to stdout and a file
-	log.SetOutput(io.MultiWriter(logs...))
+	go log.Run()
 
-	// Fire the logger
-	go vchlog.Run()
-
-	return localLogFile
+	return log
 }
 
 func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VCH) (*create.Create, error) {
@@ -245,7 +224,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				c.ClientNetworkGateway = fromGateway(vch.Network.Client.Gateway)
 				c.ClientNetworkIP = fromCIDR(&vch.Network.Client.Static)
 
-				if err := c.ProcessNetwork(&c.Data.ClientNetwork, "client", c.ClientNetworkName, c.ClientNetworkIP, c.ClientNetworkGateway); err != nil {
+				if err := c.ProcessNetwork(op, &c.Data.ClientNetwork, "client", c.ClientNetworkName, c.ClientNetworkIP, c.ClientNetworkGateway); err != nil {
 					return nil, util.WrapError(http.StatusBadRequest, err)
 				}
 			}
@@ -262,7 +241,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				c.ManagementNetworkGateway = fromGateway(vch.Network.Management.Gateway)
 				c.ManagementNetworkIP = fromCIDR(&vch.Network.Management.Static)
 
-				if err := c.ProcessNetwork(&c.Data.ManagementNetwork, "management", c.ManagementNetworkName, c.ManagementNetworkIP, c.ManagementNetworkGateway); err != nil {
+				if err := c.ProcessNetwork(op, &c.Data.ManagementNetwork, "management", c.ManagementNetworkName, c.ManagementNetworkIP, c.ManagementNetworkGateway); err != nil {
 					return nil, util.WrapError(http.StatusBadRequest, err)
 				}
 			}
@@ -279,7 +258,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				c.PublicNetworkGateway = fromGateway(vch.Network.Public.Gateway)
 				c.PublicNetworkIP = fromCIDR(&vch.Network.Public.Static)
 
-				if err := c.ProcessNetwork(&c.Data.PublicNetwork, "public", c.PublicNetworkName, c.PublicNetworkIP, c.PublicNetworkGateway); err != nil {
+				if err := c.ProcessNetwork(op, &c.Data.PublicNetwork, "public", c.PublicNetworkName, c.PublicNetworkIP, c.PublicNetworkGateway); err != nil {
 					return nil, util.WrapError(http.StatusBadRequest, err)
 				}
 			}
@@ -394,7 +373,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 
 					c.Certs.NoSaveToDisk = true
 					c.Certs.Networks = c.Networks
-					if err := c.Certs.ProcessCertificates(c.DisplayName, c.Force, 0); err != nil {
+					if err := c.Certs.ProcessCertificates(op, c.DisplayName, c.Force, 0); err != nil {
 						return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error generating certificates: %s", err))
 					}
 				} else {
@@ -425,7 +404,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				}
 			}
 		}
-		if err := c.OpsCredentials.ProcessOpsCredentials(true, c.Target.User, c.Target.Password); err != nil {
+		if err := c.OpsCredentials.ProcessOpsCredentials(op, true, c.Target.User, c.Target.Password); err != nil {
 			return nil, util.WrapError(http.StatusBadRequest, err)
 		}
 
@@ -462,8 +441,8 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 	return c, nil
 }
 
-func handleCreate(op trace.Operation, c *create.Create, validator *validate.Validator) (*strfmt.URI, error) {
-	vchConfig, err := validator.Validate(validator.Context, c.Data)
+func handleCreate(op trace.Operation, c *create.Create, validator *validate.Validator, receiver vchlog.Receiver) (*strfmt.URI, error) {
+	vchConfig, err := validator.Validate(op, c.Data)
 	if err != nil {
 		issues := validator.GetIssues()
 		messages := make([]string, 0, len(issues))
@@ -474,19 +453,19 @@ func handleCreate(op trace.Operation, c *create.Create, validator *validate.Vali
 		return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Failed to validate VCH: %s", strings.Join(messages, ", ")))
 	}
 
-	vConfig := validator.AddDeprecatedFields(validator.Context, vchConfig, c.Data)
+	vConfig := validator.AddDeprecatedFields(op, vchConfig, c.Data)
 
 	// TODO (#6714): make this configurable
 	images := common.Images{}
-	vConfig.ImageFiles, err = images.CheckImagesFiles(true)
+	vConfig.ImageFiles, err = images.CheckImagesFiles(op, true)
 	vConfig.ApplianceISO = path.Base(images.ApplianceISO)
 	vConfig.BootstrapISO = path.Base(images.BootstrapISO)
 
 	vConfig.HTTPProxy = c.HTTPProxy
 	vConfig.HTTPSProxy = c.HTTPSProxy
 
-	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
-	err = executor.CreateVCH(vchConfig, vConfig)
+	executor := management.NewDispatcher(op, validator.Session, nil, false)
+	err = executor.CreateVCH(vchConfig, vConfig, receiver)
 	if err != nil {
 		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to create VCH: %s", err))
 	}

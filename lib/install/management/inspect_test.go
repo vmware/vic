@@ -15,12 +15,17 @@
 package management
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/vmware/vic/pkg/trace"
 )
 
 func TestFindCertPaths(t *testing.T) {
+	op := trace.NewOperation(context.Background(), "TestFindCertPaths")
+
 	vchName := "vch-foo"
 
 	// NOTE: not checking for dockerConfPath since $HOME is dependent on the user
@@ -31,7 +36,7 @@ func TestFindCertPaths(t *testing.T) {
 	}
 
 	// Get paths when an input certPath is not specified
-	paths := findCertPaths(vchName, "")
+	paths := findCertPaths(op, vchName, "")
 	assert.True(t, len(paths) >= 2)
 	for i := range paths {
 		possiblePaths[paths[i]] = true
@@ -40,7 +45,7 @@ func TestFindCertPaths(t *testing.T) {
 	assert.True(t, possiblePaths["."])
 
 	// Get paths when an input certPath is specified
-	paths = findCertPaths(vchName, "foopath")
+	paths = findCertPaths(op, vchName, "foopath")
 	for i := range paths {
 		possiblePaths[paths[i]] = true
 	}

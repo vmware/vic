@@ -25,12 +25,13 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 func TestMain(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
-	ctx := context.Background()
+	op := trace.NewOperation(context.Background(), "TestMain")
 
 	for i, model := range []*simulator.Model{simulator.ESX(), simulator.VPX()} {
 		t.Logf("%d", i)
@@ -62,27 +63,27 @@ func TestMain(t *testing.T) {
 		installSettings.ApplianceSize.CPU.Limit = &cpu
 		installSettings.ApplianceSize.Memory.Limit = &memory
 
-		validator, err := validate.NewValidator(ctx, input)
+		validator, err := validate.NewValidator(op, input)
 		if err != nil {
 			t.Fatalf("Failed to validator: %s", err)
 		}
 
-		conf, err := validator.Validate(ctx, input)
+		conf, err := validator.Validate(op, input)
 		if err != nil {
 			log.Errorf("Failed to validate conf: %s", err)
-			validator.ListIssues()
+			validator.ListIssues(op)
 		}
 
-		testCreateNetwork(ctx, validator.Session, conf, t)
+		testCreateNetwork(op, validator.Session, conf, t)
 
-		testCreateVolumeStores(ctx, validator.Session, conf, false, t)
-		testDeleteVolumeStores(ctx, validator.Session, conf, 1, t)
+		testCreateVolumeStores(op, validator.Session, conf, false, t)
+		testDeleteVolumeStores(op, validator.Session, conf, 1, t)
 		errConf := &config.VirtualContainerHostConfigSpec{}
 		*errConf = *conf
 		errConf.VolumeLocations = make(map[string]*url.URL)
 		errConf.VolumeLocations["volume-store"], _ = url.Parse("ds://store_not_exist/volumes/test")
-		testCreateVolumeStores(ctx, validator.Session, errConf, true, t)
-		testCreateAppliance(ctx, validator.Session, conf, installSettings, false, t)
+		testCreateVolumeStores(op, validator.Session, errConf, true, t)
+		testCreateAppliance(op, validator.Session, conf, installSettings, false, t)
 		// cannot run test for func not implemented in vcsim: ResourcePool:resourcepool-24 does not implement: UpdateConfig
 		// testUpdateResources(ctx, validator.Session, conf, installSettings, false, t)
 	}
@@ -125,10 +126,10 @@ func getVPXData(vcURL *url.URL) *data.Data {
 	return result
 }
 
-func testCreateNetwork(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
+func testCreateNetwork(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
 	d := &Dispatcher{
 		session: sess,
-		ctx:     ctx,
+		op:      op,
 		isVC:    sess.IsVC(),
 		force:   false,
 	}
@@ -151,10 +152,10 @@ func testCreateNetwork(ctx context.Context, sess *session.Session, conf *config.
 	}
 }
 
-func testCreateVolumeStores(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, hasErr bool, t *testing.T) {
+func testCreateVolumeStores(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, hasErr bool, t *testing.T) {
 	d := &Dispatcher{
 		session: sess,
-		ctx:     ctx,
+		op:      op,
 		isVC:    sess.IsVC(),
 		force:   false,
 	}
@@ -173,10 +174,10 @@ func testCreateVolumeStores(ctx context.Context, sess *session.Session, conf *co
 	}
 }
 
-func testDeleteVolumeStores(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, numVols int, t *testing.T) {
+func testDeleteVolumeStores(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, numVols int, t *testing.T) {
 	d := &Dispatcher{
 		session: sess,
-		ctx:     ctx,
+		op:      op,
 		isVC:    sess.IsVC(),
 		force:   true,
 	}
@@ -187,10 +188,10 @@ func testDeleteVolumeStores(ctx context.Context, sess *session.Session, conf *co
 
 }
 
-func testCreateAppliance(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, vConf *data.InstallerData, hasErr bool, t *testing.T) {
+func testCreateAppliance(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, vConf *data.InstallerData, hasErr bool, t *testing.T) {
 	d := &Dispatcher{
 		session: sess,
-		ctx:     ctx,
+		op:      op,
 		isVC:    sess.IsVC(),
 		force:   false,
 	}

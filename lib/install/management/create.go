@@ -21,8 +21,6 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
@@ -41,8 +39,8 @@ const (
 	timeFormat            = "2006-01-02T15:04:05-0700"
 )
 
-func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
-	defer trace.End(trace.Begin(conf.Name))
+func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData, receiver vchlog.Receiver) error {
+	defer trace.End(trace.Begin(conf.Name, d.op))
 
 	var err error
 
@@ -66,18 +64,18 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 	datastoreReadySignal := vchlog.DatastoreReadySignal{
 		Datastore:  d.session.Datastore,
 		Name:       "create",
-		Operation:  trace.NewOperation(d.ctx, "create"),
+		Operation:  trace.NewOperation(d.op, "create"),
 		VMPathName: d.vmPathName,
 		Timestamp:  time.Now().UTC().Format(timeFormat),
 	}
-	vchlog.Signal(datastoreReadySignal)
+	receiver.Signal(datastoreReadySignal)
 
 	if err = d.uploadImages(settings.ImageFiles); err != nil {
 		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
 	}
 
 	if conf.ShouldGrantPerms() {
-		err = GrantOpsUserPerms(d.ctx, d.session.Vim25(), conf)
+		err = GrantOpsUserPerms(d.op, d.session.Vim25(), conf)
 		if err != nil {
 			return errors.Errorf("Cannot init ops-user permissions, failure: %s. Exiting...", err)
 		}
@@ -87,7 +85,7 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 }
 
 func (d *Dispatcher) createPool(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin("", d.op))
 
 	var err error
 
@@ -100,10 +98,10 @@ func (d *Dispatcher) createPool(conf *config.VirtualContainerHostConfigSpec, set
 }
 
 func (d *Dispatcher) startAppliance(conf *config.VirtualContainerHostConfigSpec) error {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin("", d.op))
 
 	var err error
-	_, err = d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	_, err = d.appliance.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.PowerOn(ctx)
 	})
 
@@ -115,10 +113,10 @@ func (d *Dispatcher) startAppliance(conf *config.VirtualContainerHostConfigSpec)
 }
 
 func (d *Dispatcher) uploadImages(files map[string]string) error {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin("", d.op))
 
 	// upload the images
-	log.Infof("Uploading images for container")
+	d.op.Info("Uploading images for container")
 
 	results := make(chan error, len(files))
 	var wg sync.WaitGroup
@@ -128,7 +126,7 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 		wg.Add(1)
 		go func(key string, image string) {
 			finalMessage := ""
-			log.Infof("\t%q", image)
+			d.op.Infof("\t%q", image)
 
 			// upload function that is passed to retry
 			operationForRetry := func() error {
@@ -139,23 +137,23 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 
 				isoTargetPath := path.Join(d.vmPathName, key)
 				// check iso first
-				_, err := ds.Stat(d.ctx, isoTargetPath)
+				_, err := ds.Stat(d.op, isoTargetPath)
 				if err != nil {
 					switch err.(type) {
 					case object.DatastoreNoSuchFileError:
 						// if not found, do nothing
 					default:
 						// otherwise force delete
-						log.Debugf("target delete path = %s", isoTargetPath)
-						err := fm.Delete(d.ctx, isoTargetPath)
+						d.op.Debugf("target delete path = %s", isoTargetPath)
+						err := fm.Delete(d.op, isoTargetPath)
 						if err != nil {
-							log.Debugf("Failed to delete image (%s) with error (%s)", image, err.Error())
+							d.op.Debugf("Failed to delete image (%s) with error (%s)", image, err.Error())
 							return err
 						}
 					}
 				}
 
-				return d.session.Datastore.UploadFile(d.ctx, image, path.Join(d.vmPathName, key), nil)
+				return d.session.Datastore.UploadFile(d.op, image, path.Join(d.vmPathName, key), nil)
 			}
 
 			// counter for retry decider
@@ -169,10 +167,10 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 
 				retryCount--
 				if retryCount < 0 {
-					log.Warnf("Attempted upload a total of %d times without success, Upload process failed.", uploadRetryLimit)
+					d.op.Warnf("Attempted upload a total of %d times without success, Upload process failed.", uploadRetryLimit)
 					return false
 				}
-				log.Warnf("failed an attempt to upload isos with err (%s), %d retries remain", err.Error(), retryCount)
+				d.op.Warnf("failed an attempt to upload isos with err (%s), %d retries remain", err.Error(), retryCount)
 				return true
 			}
 
@@ -203,7 +201,7 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 	uploadFailed := false
 	for err := range results {
 		if err != nil {
-			log.Error(err.Error())
+			d.op.Error(err)
 			uploadFailed = true
 		}
 	}

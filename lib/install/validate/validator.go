@@ -25,7 +25,6 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	units "github.com/docker/go-units"
 
 	"github.com/vmware/govmomi"
@@ -72,7 +71,7 @@ type Validator struct {
 }
 
 func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) (*Validator, error) {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin("", ctx))
 
 	v := &Validator{}
 	v.Session = sess
@@ -83,7 +82,9 @@ func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostCo
 }
 
 func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
-	defer trace.End(trace.Begin(""))
+	op := trace.FromContext(ctx, "NewValidator")
+	defer trace.End(trace.Begin("", op))
+
 	var err error
 
 	v := &Validator{}
@@ -113,14 +114,14 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 		if cert.Err != nil {
 			if !input.Force {
 				// TODO: prompt user / check ./known_hosts
-				log.Errorf("Failed to verify certificate for target=%s (thumbprint=%s)",
+				op.Errorf("Failed to verify certificate for target=%s (thumbprint=%s)",
 					tURL.Host, cert.ThumbprintSHA1)
 				return nil, cert.Err
 			}
 		}
 
 		input.Thumbprint = cert.ThumbprintSHA1
-		log.Debugf("Accepting host %q thumbprint %s", tURL.Host, input.Thumbprint)
+		op.Debugf("Accepting host %q thumbprint %s", tURL.Host, input.Thumbprint)
 	}
 
 	sessionconfig := &session.Config{
@@ -156,13 +157,13 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 	// Intentionally ignore any error returned by Populate
 	_, err = v.Session.Populate(ctx)
 	if err != nil {
-		log.Debugf("new validator Session.Populate: %s", err)
+		op.Debugf("new validator Session.Populate: %s", err)
 	}
 
 	if strings.Contains(sessionconfig.DatacenterPath, "/") {
 		detail := "--target should only specify datacenter in the path (e.g. https://addr/datacenter) - specify cluster, resource pool, or folder with --compute-resource"
-		log.Error(detail)
-		v.suggestDatacenter()
+		op.Error(detail)
+		v.suggestDatacenter(op)
 		return nil, errors.New(detail)
 	}
 
@@ -197,7 +198,7 @@ func (v *Validator) AllowEmptyDC() {
 	v.allowEmptyDC = true
 }
 
-func (v *Validator) datacenter() error {
+func (v *Validator) datacenter(op trace.Operation) error {
 	if v.allowEmptyDC && v.DatacenterPath == "" {
 		return nil
 	}
@@ -212,8 +213,8 @@ func (v *Validator) datacenter() error {
 		// this means multiple datacenter exists, but user did not specify it in --target
 		detail = "Datacenter must be specified in --target (e.g. https://addr/datacenter)"
 	}
-	log.Error(detail)
-	v.suggestDatacenter()
+	op.Error(detail)
+	v.suggestDatacenter(op)
 	return errors.New(detail)
 }
 
@@ -235,25 +236,25 @@ func (v *Validator) ListDatacenters() ([]string, error) {
 }
 
 // suggestDatacenter suggests all datacenters on the target
-func (v *Validator) suggestDatacenter() {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) suggestDatacenter(op trace.Operation) {
+	defer trace.End(trace.Begin("", op))
 
-	log.Info("Suggesting valid values for datacenter in --target")
+	op.Info("Suggesting valid values for datacenter in --target")
 
 	dcs, err := v.ListDatacenters()
 	if err != nil {
-		log.Error(err)
+		op.Error(err)
 		return
 	}
 
 	if len(dcs) == 0 {
-		log.Info("No datacenters found")
+		op.Info("No datacenters found")
 		return
 	}
 
-	log.Info("Suggested datacenters:")
+	op.Info("Suggested datacenters:")
 	for _, d := range dcs {
-		log.Infof("  %q", d)
+		op.Infof("  %q", d)
 	}
 	return
 }
@@ -264,16 +265,17 @@ func (v *Validator) NoteIssue(err error) {
 	}
 }
 
-func (v *Validator) ListIssues() error {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) ListIssues(ctx context.Context) error {
+	op := trace.FromContext(ctx, "ListIssues")
+	defer trace.End(trace.Begin("", op))
 
 	if len(v.issues) == 0 {
 		return nil
 	}
 
-	log.Error("--------------------")
+	op.Error("--------------------")
 	for _, err := range v.issues {
-		log.Error(err)
+		op.Error(err)
 	}
 
 	return errors.New("validation of configuration failed")
@@ -290,54 +292,57 @@ func (v *Validator) ClearIssues() {
 // Validate runs through various validations, starting with basics such as naming, moving onto vSphere entities
 // and then the compatibility between those entities. It assembles a set of issues that are found for reporting.
 func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
-	defer trace.End(trace.Begin(""))
-	log.Infof("Validating supplied configuration")
+	op := trace.FromContext(ctx, "Validate")
+	defer trace.End(trace.Begin("", op))
+	op.Info("Validating supplied configuration")
 
 	conf := &config.VirtualContainerHostConfigSpec{}
 
-	if err := v.datacenter(); err != nil {
+	if err := v.datacenter(op); err != nil {
 		return conf, err
 	}
 
-	v.basics(ctx, input, conf)
+	v.basics(op, input, conf)
 
-	v.target(ctx, input, conf)
-	v.credentials(ctx, input, conf)
-	v.compute(ctx, input, conf)
-	v.storage(ctx, input, conf)
-	v.network(ctx, input, conf)
-	v.CheckFirewall(ctx, conf)
-	v.CheckLicense(ctx)
-	v.CheckDrs(ctx)
+	v.target(op, input, conf)
+	v.credentials(op, input, conf)
+	v.compute(op, input, conf)
+	v.storage(op, input, conf)
+	v.network(op, input, conf)
+	v.CheckFirewall(op, conf)
+	v.CheckLicense(op)
+	v.CheckDrs(op)
 
-	v.certificate(ctx, input, conf)
-	v.certificateAuthorities(ctx, input, conf)
-	v.registries(ctx, input, conf)
+	v.certificate(op, input, conf)
+	v.certificateAuthorities(op, input, conf)
+	v.registries(op, input, conf)
 
 	// Perform the higher level compatibility and consistency checks
-	v.compatibility(ctx, conf)
+	v.compatibility(op, conf)
 
-	v.syslog(conf, input)
+	v.syslog(op, conf, input)
 
 	// TODO: determine if this is where we should turn the noted issues into message
-	return conf, v.ListIssues()
+	return conf, v.ListIssues(op)
 
 }
 
 func (v *Validator) ValidateTarget(ctx context.Context, input *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
-	defer trace.End(trace.Begin(""))
+	op := trace.FromContext(ctx, "ValidateTarget")
+	defer trace.End(trace.Begin("", op))
+
 	conf := &config.VirtualContainerHostConfigSpec{}
 
-	log.Infof("Validating target")
-	if err := v.datacenter(); err != nil {
+	op.Info("Validating target")
+	if err := v.datacenter(op); err != nil {
 		return conf, err
 	}
-	v.target(ctx, input, conf)
-	return conf, v.ListIssues()
+	v.target(op, input, conf)
+	return conf, v.ListIssues(op)
 }
 
-func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) basics(op trace.Operation, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin("", op))
 
 	// TODO: ensure that displayname doesn't violate constraints (length, characters, etc)
 	conf.SetName(input.DisplayName)
@@ -354,7 +359,7 @@ func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.V
 		v.NoteIssue(errors.Errorf("Invalid default image size %s provided; error from parser: %s", input.ScratchSize, err.Error()))
 	} else {
 		conf.ScratchSize = scratchSize / units.KB
-		log.Debugf("Setting scratch image size to %d KB in VCHConfig", conf.ScratchSize)
+		op.Debugf("Setting scratch image size to %d KB in VCHConfig", conf.ScratchSize)
 	}
 
 	if input.ContainerNameConvention != "" {
@@ -384,11 +389,11 @@ func (v *Validator) checkSessionSet() []string {
 	return errs
 }
 
-func (v *Validator) sessionValid(errMsg string) bool {
+func (v *Validator) sessionValid(op trace.Operation, errMsg string) bool {
 	if c := v.checkSessionSet(); len(c) > 0 {
-		log.Error(errMsg)
+		op.Error(errMsg)
 		for _, e := range c {
-			log.Errorf("  %s", e)
+			op.Errorf("  %s", e)
 		}
 		v.NoteIssue(errors.New(errMsg))
 		return false
@@ -396,20 +401,20 @@ func (v *Validator) sessionValid(errMsg string) bool {
 	return true
 }
 
-func (v *Validator) target(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) target(op trace.Operation, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin("", op))
 
 	// check if host is managed by VC
-	v.managedbyVC(ctx)
+	v.managedbyVC(op)
 }
 
-func (v *Validator) managedbyVC(ctx context.Context) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) managedbyVC(op trace.Operation) {
+	defer trace.End(trace.Begin("", op))
 
 	if v.IsVC() {
 		return
 	}
-	host, err := v.Session.Finder.DefaultHostSystem(ctx)
+	host, err := v.Session.Finder.DefaultHostSystem(op)
 	if err != nil {
 		v.NoteIssue(fmt.Errorf("Failed to get host system: %s", err))
 		return
@@ -417,7 +422,7 @@ func (v *Validator) managedbyVC(ctx context.Context) {
 
 	var mh mo.HostSystem
 
-	if err = host.Properties(ctx, host.Reference(), []string{"summary.managementServerIp"}, &mh); err != nil {
+	if err = host.Properties(op, host.Reference(), []string{"summary.managementServerIp"}, &mh); err != nil {
 		v.NoteIssue(fmt.Errorf("Failed to get host properties: %s", err))
 		return
 	}
@@ -428,7 +433,7 @@ func (v *Validator) managedbyVC(ctx context.Context) {
 	return
 }
 
-func (v *Validator) credentials(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+func (v *Validator) credentials(op trace.Operation, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	// empty string for password is horrific, but a legitimate scenario especially in isolated labs
 	if input.OpsCredentials.OpsUser == nil || input.OpsCredentials.OpsPassword == nil {
 		v.NoteIssue(errors.New("User/password for the operations user has not been set"))
@@ -475,7 +480,7 @@ func (v *Validator) credentials(ctx context.Context, input *data.Data, conf *con
 	}
 	soapClient.UserAgent = "vice-validator"
 
-	vimClient, err := vim25.NewClient(ctx, soapClient)
+	vimClient, err := vim25.NewClient(op, soapClient)
 	if err != nil {
 		v.NoteIssue(fmt.Errorf("Failed to create client for validation of operations credentials: %s", err))
 		return
@@ -486,23 +491,23 @@ func (v *Validator) credentials(ctx context.Context, input *data.Data, conf *con
 		SessionManager: vmomisession.NewManager(vimClient),
 	}
 
-	err = client.Login(ctx, url.UserPassword(conf.Username, conf.Token))
+	err = client.Login(op, url.UserPassword(conf.Username, conf.Token))
 	if err != nil {
 		v.NoteIssue(fmt.Errorf("Failed to validate operations credentials: %s", err))
 		return
 	}
-	client.Logout(ctx)
+	client.Logout(op)
 
 	// confirm the RBAC configuration of the provided user
 	// TODO: this can be dropped once we move to configuration the RBAC during creation
 }
 
-func (v *Validator) certificate(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) certificate(op trace.Operation, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin("", op))
 
 	if len(input.CertPEM) == 0 && len(input.KeyPEM) == 0 {
 		// if there's no data supplied then we're configuring without TLS
-		log.Debug("Configuring without TLS due to empty key and cert buffers")
+		op.Debug("Configuring without TLS due to empty key and cert buffers")
 		return
 	}
 
@@ -516,12 +521,12 @@ func (v *Validator) certificate(ctx context.Context, input *data.Data, conf *con
 	}
 }
 
-func (v *Validator) certificateAuthorities(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) certificateAuthorities(op trace.Operation, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin("", op))
 
 	if len(input.ClientCAs) == 0 {
 		// if there's no data supplied then we're configuring without client verification
-		log.Debug("Configuring without client verification due to empty certificate authorities")
+		op.Debug("Configuring without client verification due to empty certificate authorities")
 		return
 	}
 
@@ -541,8 +546,8 @@ func (v *Validator) certificateAuthorities(ctx context.Context, input *data.Data
 	conf.CertificateAuthorities = input.ClientCAs
 }
 
-func (v *Validator) registries(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) registries(op trace.Operation, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin("", op))
 
 	// Check if CAs can be loaded
 	pool := x509.NewCertPool()
@@ -556,7 +561,7 @@ func (v *Validator) registries(ctx context.Context, input *data.Data, conf *conf
 	conf.RegistryCertificateAuthorities = input.RegistryCAs
 
 	// test reachability
-	insecureRegistries, whitelistRegistries, err := v.reachableRegistries(ctx, input, pool)
+	insecureRegistries, whitelistRegistries, err := v.reachableRegistries(op, input, pool)
 	if err != nil {
 		v.NoteIssue(err)
 		return
@@ -571,11 +576,11 @@ func (v *Validator) registries(ctx context.Context, input *data.Data, conf *conf
 	// create vic-machine info message
 	msg := v.friendlyRegistryList("Insecure registries", conf.InsecureRegistries)
 	if msg != "" {
-		log.Infof(msg)
+		op.Info(msg)
 	}
 	msg = v.friendlyRegistryList("Whitelist registries", conf.RegistryWhitelist)
 	if msg != "" {
-		log.Infof(msg)
+		op.Info(msg)
 	}
 
 	if len(input.RegistryCAs) == 0 {
@@ -593,7 +598,7 @@ func (v *Validator) friendlyRegistryList(registryType string, registryList []str
 
 // Validate registries are reachable.  Secure registries that are not specified as insecure are validated with the
 // CA certs passed into vic-machine.
-func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, pool *x509.CertPool) (insecureRegistries []string, whitelistRegistries []string, err error) {
+func (v *Validator) reachableRegistries(op trace.Operation, input *data.Data, pool *x509.CertPool) (insecureRegistries []string, whitelistRegistries []string, err error) {
 	secureRegistriesSet, err := dynamic.ParseRegistries(input.WhitelistRegistries)
 	if err != nil {
 		return nil, nil, err
@@ -625,7 +630,7 @@ func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, p
 
 		// Make sure address is not a wildcard domain or CIDR.  If it is, do not validate.
 		if strings.HasPrefix(r.URL().Host, "*") {
-			log.Debugf("Skipping registry validation for %s", r)
+			op.Debugf("Skipping registry validation for %s", r)
 			continue
 		}
 
@@ -642,9 +647,9 @@ func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, p
 		}
 
 		if err != nil {
-			log.Warnf("Unable to confirm insecure registry %s is a valid registry at this time.", r)
+			op.Warnf("Unable to confirm insecure registry %s is a valid registry at this time.", r)
 		} else {
-			log.Debugf("Insecure registry %s confirmed.", r)
+			op.Debugf("Insecure registry %s confirmed.", r)
 		}
 	}
 
@@ -652,18 +657,18 @@ func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, p
 	for _, w := range secureRegistriesSet {
 		// Make sure address is not a wildcard domain or CIDR.  If it is, do not validate.
 		if w.IsCIDR() {
-			log.Debugf("Skipping registry validation for %s", w)
+			op.Debugf("Skipping registry validation for %s", w)
 			continue
 		}
 
 		w, ok := w.(registry.URLEntry)
 		if !ok {
-			log.Debugf("Skipping registry validation for %s", w)
+			op.Debugf("Skipping registry validation for %s", w)
 			continue
 		}
 
 		if strings.HasPrefix(w.URL().Host, "*") {
-			log.Debugf("Skipping registry validation for %s", w)
+			op.Debugf("Skipping registry validation for %s", w)
 			continue
 		}
 
@@ -673,9 +678,9 @@ func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, p
 		}
 
 		if _, err = registry.Reachable(w.String(), scheme, "", "", pool, registryValidationTime, false); err != nil {
-			log.Warnf("Unable to confirm secure registry %s is a valid registry at this time.", w)
+			op.Warnf("Unable to confirm secure registry %s is a valid registry at this time.", w)
 		} else {
-			log.Debugf("Secure registry %s confirmed.", w)
+			op.Debugf("Secure registry %s confirmed.", w)
 		}
 	}
 
@@ -694,12 +699,12 @@ func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, p
 	return
 }
 
-func (v *Validator) compatibility(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) compatibility(op trace.Operation, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin("", op))
 
 	// TODO: add checks such as datastore is acessible from target cluster
 	errMsg := "Compatibility check SKIPPED"
-	if !v.sessionValid(errMsg) {
+	if !v.sessionValid(op, errMsg) {
 		return
 	}
 
@@ -707,16 +712,16 @@ func (v *Validator) compatibility(ctx context.Context, conf *config.VirtualConta
 	_, err := v.Session.Datastore.AttachedClusterHosts(v.Context, v.Session.Cluster)
 	v.NoteIssue(err)
 
-	v.checkDatastoresAreWriteable(ctx, conf)
+	v.checkDatastoresAreWriteable(op, conf)
 }
 
 // looks up a datastore and adds it to the set
-func (v *Validator) getDatastore(ctx context.Context, u *url.URL, datastoreSet map[types.ManagedObjectReference]*object.Datastore) map[types.ManagedObjectReference]*object.Datastore {
+func (v *Validator) getDatastore(op trace.Operation, u *url.URL, datastoreSet map[types.ManagedObjectReference]*object.Datastore) map[types.ManagedObjectReference]*object.Datastore {
 	if datastoreSet == nil {
 		datastoreSet = make(map[types.ManagedObjectReference]*object.Datastore)
 	}
 
-	datastores, err := v.Session.Finder.DatastoreList(ctx, u.Host)
+	datastores, err := v.Session.Finder.DatastoreList(op, u.Host)
 	v.NoteIssue(err)
 
 	if len(datastores) != 1 {
@@ -729,35 +734,35 @@ func (v *Validator) getDatastore(ctx context.Context, u *url.URL, datastoreSet m
 }
 
 // populates the v.datastoreSet "set" with datastore references generated from config
-func (v *Validator) getAllDatastores(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) map[types.ManagedObjectReference]*object.Datastore {
+func (v *Validator) getAllDatastores(op trace.Operation, conf *config.VirtualContainerHostConfigSpec) map[types.ManagedObjectReference]*object.Datastore {
 	// note that ImageStores, ContainerStores, and VolumeLocations
 	// have just-different-enough types/structures that this cannot be made more succinct
 	var datastoreSet map[types.ManagedObjectReference]*object.Datastore
 	for _, u := range conf.ImageStores {
-		datastoreSet = v.getDatastore(ctx, &u, datastoreSet)
+		datastoreSet = v.getDatastore(op, &u, datastoreSet)
 	}
 	for _, u := range conf.ContainerStores {
-		datastoreSet = v.getDatastore(ctx, &u, datastoreSet)
+		datastoreSet = v.getDatastore(op, &u, datastoreSet)
 	}
 	for _, u := range conf.VolumeLocations {
 		//skip non datastore volume stores
 		if u.Scheme != common.DsScheme {
 			continue
 		}
-		datastoreSet = v.getDatastore(ctx, u, datastoreSet)
+		datastoreSet = v.getDatastore(op, u, datastoreSet)
 	}
 	return datastoreSet
 }
 
-func (v *Validator) checkDatastoresAreWriteable(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) checkDatastoresAreWriteable(op trace.Operation, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin("", op))
 
 	// gather compute host references
-	clusterDatastores, err := v.Session.Cluster.Datastores(ctx)
+	clusterDatastores, err := v.Session.Cluster.Datastores(op)
 	v.NoteIssue(err)
 
 	// check that the cluster can see all of the datastores in question
-	requestedDatastores := v.getAllDatastores(ctx, conf)
+	requestedDatastores := v.getAllDatastores(op, conf)
 	validStores := make(map[types.ManagedObjectReference]*object.Datastore)
 	// remove any found datastores from requested datastores
 	for _, cds := range clusterDatastores {
@@ -771,12 +776,12 @@ func (v *Validator) checkDatastoresAreWriteable(ctx context.Context, conf *confi
 		v.NoteIssue(errors.Errorf("Datastore %q is not accessible by the compute resource", store.Name()))
 	}
 
-	clusterHosts, err := v.Session.Cluster.Hosts(ctx)
+	clusterHosts, err := v.Session.Cluster.Hosts(op)
 	justOneHost := len(clusterHosts) == 1
 	v.NoteIssue(err)
 
 	for _, store := range validStores {
-		aHosts, err := store.AttachedHosts(ctx)
+		aHosts, err := store.AttachedHosts(op)
 		v.NoteIssue(err)
 		clusterHosts = intersect(clusterHosts, aHosts)
 	}
@@ -788,7 +793,7 @@ func (v *Validator) checkDatastoresAreWriteable(ctx context.Context, conf *confi
 	if len(clusterHosts) == 1 && v.Session.IsVC() && !justOneHost {
 		// if we have a cluster with >1 host to begin with, on VC, and only one host can talk to all the datastores, warn
 		// on ESX and clusters with only one host to begin with, this warning would be redundant/irrelevant
-		log.Warnf("Only one host can access all of the image/container/volume datastores. This may be a point of contention/performance degradation and HA/DRS may not work as intended.")
+		op.Warn("Only one host can access all of the image/container/volume datastores. This may be a point of contention/performance degradation and HA/DRS may not work as intended.")
 	}
 }
 
@@ -810,7 +815,8 @@ func (v *Validator) IsVC() bool {
 }
 
 func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, input *data.Data) *data.InstallerData {
-	defer trace.End(trace.Begin(""))
+	op := trace.FromContext(ctx, "AddDeprecatedFields")
+	defer trace.End(trace.Begin("", op))
 
 	dconfig := data.InstallerData{}
 
@@ -823,19 +829,19 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.Virtua
 		dconfig.Datacenter = v.Session.Datacenter.Reference()
 		dconfig.DatacenterName = v.Session.Datacenter.Name()
 	} else {
-		log.Debugf("session datacenter is nil")
+		op.Debug("session datacenter is nil")
 	}
 
 	if v.Session.Cluster != nil {
 		dconfig.Cluster = v.Session.Cluster.Reference()
 		dconfig.ClusterPath = v.Session.Cluster.InventoryPath
 	} else {
-		log.Debugf("session cluster is nil")
+		op.Debug("session cluster is nil")
 	}
 
 	dconfig.ResourcePoolPath = v.ResourcePoolPath
 
-	log.Debugf("Datacenter: %q, Cluster: %q, Resource Pool: %q", dconfig.DatacenterName, dconfig.Cluster, dconfig.ResourcePoolPath)
+	op.Debugf("Datacenter: %q, Cluster: %q, Resource Pool: %q", dconfig.DatacenterName, dconfig.Cluster, dconfig.ResourcePoolPath)
 
 	if input.VCHCPUReservationsMHz != nil {
 		cpuReserve := int64(*input.VCHCPUReservationsMHz)
@@ -860,8 +866,8 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.Virtua
 	return &dconfig
 }
 
-func (v *Validator) syslog(conf *config.VirtualContainerHostConfigSpec, input *data.Data) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) syslog(op trace.Operation, conf *config.VirtualContainerHostConfigSpec, input *data.Data) {
+	defer trace.End(trace.Begin("", op))
 
 	if input.SyslogConfig.Addr == nil {
 		return

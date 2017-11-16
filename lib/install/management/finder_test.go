@@ -106,13 +106,13 @@ func TestFinder(t *testing.T) {
 func testSearchVCHs(t *testing.T, v *validate.Validator, expect bool) int {
 	d := &Dispatcher{
 		session: v.Session,
-		ctx:     v.Context,
+		op:      trace.FromContext(v.Context, "testSearchVCHs"),
 		isVC:    v.Session.IsVC(),
 	}
 
 	if expect {
 		// Add guestinfo so isVCH() returns true for all VMs
-		vms, err := d.session.Finder.VirtualMachineList(d.ctx, "/...")
+		vms, err := d.session.Finder.VirtualMachineList(d.op, "/...")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -156,7 +156,7 @@ func testSearchVCHs(t *testing.T, v *validate.Validator, expect bool) int {
 	for _, vm := range vchs {
 		// Find with --compute-resource
 		// The VM HostSystem's parent will be a cluster or standalone compute resource
-		host, err := vm.HostSystem(d.ctx)
+		host, err := vm.HostSystem(d.op)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -164,12 +164,12 @@ func testSearchVCHs(t *testing.T, v *validate.Validator, expect bool) int {
 		c := property.DefaultCollector(vm.VirtualMachine.Client())
 		var me mo.ManagedEntity
 
-		err = c.RetrieveOne(d.ctx, host.Reference(), []string{"parent"}, &me)
+		err = c.RetrieveOne(d.op, host.Reference(), []string{"parent"}, &me)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		obj, err := d.session.Finder.Element(d.ctx, *me.Parent)
+		obj, err := d.session.Finder.Element(d.op, *me.Parent)
 		if err != nil {
 			t.Fatal(err)
 		}

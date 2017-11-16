@@ -15,13 +15,10 @@
 package validate
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strings"
-
-	"context"
-
-	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/cmd/vic-machine/common"
@@ -32,11 +29,11 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 )
 
-func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) storage(op trace.Operation, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin("", op))
 
 	// Image Store
-	imageDSpath, ds, err := v.DatastoreHelper(ctx, input.ImageDatastorePath, "", "--image-store")
+	imageDSpath, ds, err := v.DatastoreHelper(op, input.ImageDatastorePath, "", "--image-store")
 
 	if err != nil {
 		v.NoteIssue(err)
@@ -45,7 +42,7 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 
 	// provide a default path if only a DS name is provided
 	if imageDSpath.Path == "" {
-		log.Debug("No path element specified for image store - will use default")
+		op.Debug("No path element specified for image store - will use default")
 	}
 
 	if ds != nil {
@@ -65,11 +62,11 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 			v.NoteIssue(vsErr)
 		case common.DsScheme:
 			// TODO: change v.DatastoreHelper to take url struct instead of string and modify tests.
-			targetURL, _, vsErr = v.DatastoreHelper(ctx, targetURL.Path, label, "--volume-store")
+			targetURL, _, vsErr = v.DatastoreHelper(op, targetURL.Path, label, "--volume-store")
 			v.NoteIssue(vsErr)
 		default:
 			// We should not reach here, if we do we will attempt to treat this as a vsphere datastore
-			targetURL, _, vsErr = v.DatastoreHelper(ctx, targetURL.String(), label, "--volume-store")
+			targetURL, _, vsErr = v.DatastoreHelper(op, targetURL.String(), label, "--volume-store")
 			v.NoteIssue(vsErr)
 		}
 
@@ -95,7 +92,8 @@ func validateNFSTarget(nfsURL *url.URL) error {
 }
 
 func (v *Validator) DatastoreHelper(ctx context.Context, path string, label string, flag string) (*url.URL, *object.Datastore, error) {
-	defer trace.End(trace.Begin(path))
+	op := trace.FromContext(ctx, "DatastoreHelper")
+	defer trace.End(trace.Begin(path, op))
 
 	stripRawTarget := path
 
@@ -133,27 +131,27 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string, label stri
 
 	if dsURL.Host == "" {
 		// see if we can find a default datastore
-		store, err := v.Session.Finder.DatastoreOrDefault(ctx, "*")
+		store, err := v.Session.Finder.DatastoreOrDefault(op, "*")
 		if err != nil {
-			v.suggestDatastore("*", label, flag)
+			v.suggestDatastore(op, "*", label, flag)
 			return nil, nil, errors.New("datastore empty")
 		}
 
 		dsURL.Host = store.Name()
-		log.Infof("Using default datastore: %s", dsURL.Host)
+		op.Infof("Using default datastore: %s", dsURL.Host)
 	}
 
-	stores, err := v.Session.Finder.DatastoreList(ctx, dsURL.Host)
+	stores, err := v.Session.Finder.DatastoreList(op, dsURL.Host)
 	if err != nil {
-		log.Debugf("no such datastore %#v", dsURL)
-		v.suggestDatastore(path, label, flag)
+		op.Debugf("no such datastore %#v", dsURL)
+		v.suggestDatastore(op, path, label, flag)
 		// TODO: error message about no such match and how to get a datastore list
 		// we return err directly here so we can check the type
 		return nil, nil, err
 	}
 	if len(stores) > 1 {
 		// TODO: error about required disabmiguation and list entries in stores
-		v.suggestDatastore(path, label, flag)
+		v.suggestDatastore(op, path, label, flag)
 		return nil, nil, errors.New("ambiguous datastore " + dsURL.Host)
 	}
 
@@ -192,8 +190,8 @@ func (v *Validator) ListDatastores() ([]string, error) {
 }
 
 // suggestDatastore suggests all datastores present on target in datastore:label format if applicable
-func (v *Validator) suggestDatastore(path string, label string, flag string) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) suggestDatastore(op trace.Operation, path string, label string, flag string) {
+	defer trace.End(trace.Begin("", op))
 
 	var val string
 	if label != "" {
@@ -201,26 +199,26 @@ func (v *Validator) suggestDatastore(path string, label string, flag string) {
 	} else {
 		val = path
 	}
-	log.Infof("Suggesting valid values for %s based on %q", flag, val)
+	op.Infof("Suggesting valid values for %s based on %q", flag, val)
 
 	dss, err := v.ListDatastores()
 	if err != nil {
-		log.Error(err)
+		op.Error(err)
 		return
 	}
 
 	if len(dss) == 0 {
-		log.Info("No datastores found")
+		op.Info("No datastores found")
 		return
 	}
 
 	if dss != nil {
-		log.Infof("Suggested values for %s:", flag)
+		op.Infof("Suggested values for %s:", flag)
 		for _, d := range dss {
 			if label != "" {
 				d = fmt.Sprintf("%s:%s", d, label)
 			}
-			log.Infof("  %q", d)
+			op.Infof("  %q", d)
 		}
 	}
 }

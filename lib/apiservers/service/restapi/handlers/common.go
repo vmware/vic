@@ -15,7 +15,6 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -43,7 +42,7 @@ type buildDataParams struct {
 	computeResource *string
 }
 
-func buildData(ctx context.Context, params buildDataParams, principal interface{}) (*data.Data, error) {
+func buildData(op trace.Operation, params buildDataParams, principal interface{}) (*data.Data, error) {
 	d := data.Data{
 		Target: &common.Target{
 			URL: &url.URL{Host: params.target},
@@ -62,14 +61,14 @@ func buildData(ctx context.Context, params buildDataParams, principal interface{
 	}
 
 	if params.datacenter != nil {
-		validator, err := validateTarget(ctx, &d)
+		validator, err := validateTarget(op, &d)
 		if err != nil {
 			return nil, util.WrapError(http.StatusInternalServerError, err)
 		}
 
 		datacenterManagedObjectReference := types.ManagedObjectReference{Type: "Datacenter", Value: *params.datacenter}
 
-		datacenterObject, err := validator.Session.Finder.ObjectReference(ctx, datacenterManagedObjectReference)
+		datacenterObject, err := validator.Session.Finder.ObjectReference(op, datacenterManagedObjectReference)
 		if err != nil {
 			return nil, util.WrapError(http.StatusNotFound, err)
 		}
@@ -84,12 +83,12 @@ func buildData(ctx context.Context, params buildDataParams, principal interface{
 	return &d, nil
 }
 
-func validateTarget(ctx context.Context, d *data.Data) (*validate.Validator, error) {
-	if err := d.HasCredentials(); err != nil {
+func validateTarget(op trace.Operation, d *data.Data) (*validate.Validator, error) {
+	if err := d.HasCredentials(op); err != nil {
 		return nil, fmt.Errorf("Invalid Credentials: %s", err)
 	}
 
-	validator, err := validate.NewValidator(ctx, d)
+	validator, err := validate.NewValidator(op, d)
 	if err != nil {
 		return nil, fmt.Errorf("Validation Error: %s", err)
 	}
@@ -97,11 +96,11 @@ func validateTarget(ctx context.Context, d *data.Data) (*validate.Validator, err
 	// If dc is not set, and multiple datacenters are available, operate on all datacenters.
 	validator.AllowEmptyDC()
 
-	if _, err = validator.ValidateTarget(ctx, d); err != nil {
+	if _, err = validator.ValidateTarget(op, d); err != nil {
 		return nil, fmt.Errorf("Target validation failed: %s", err)
 	}
 
-	if _, err = validator.ValidateCompute(ctx, d, false); err != nil {
+	if _, err = validator.ValidateCompute(op, d, false); err != nil {
 		return nil, fmt.Errorf("Compute resource validation failed: %s", err)
 	}
 
@@ -144,7 +143,7 @@ func upgradeStatusMessage(op trace.Operation, vch *vm.VirtualMachine, installerV
 
 func getVCHConfig(op trace.Operation, d *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
 	// TODO (#6032): abstract some of this boilerplate into helpers
-	validator, err := validateTarget(op.Context, d)
+	validator, err := validateTarget(op, d)
 	if err != nil {
 		return nil, util.WrapError(http.StatusBadRequest, err)
 	}

@@ -31,8 +31,6 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/opts"
 
@@ -76,7 +74,7 @@ func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
 	}
 	defer trace.End(trace.Begin(vm.InventoryPath))
 
-	info, err := vm.FetchExtraConfig(d.ctx)
+	info, err := vm.FetchExtraConfig(d.op)
 	if err != nil {
 		err = errors.Errorf("Failed to fetch guest info of appliance vm: %s", err)
 		return false, err
@@ -106,8 +104,8 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 		return nil
 	}
 
-	rp := compute.NewResourcePool(d.ctx, d.session, orp.Reference())
-	vm, err := rp.GetChildVM(d.ctx, d.session, conf.Name)
+	rp := compute.NewResourcePool(d.op, d.session, orp.Reference())
+	vm, err := rp.GetChildVM(d.op, d.session, conf.Name)
 	if err != nil {
 		return err
 	}
@@ -115,7 +113,7 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 		return nil
 	}
 
-	log.Debugf("Appliance is found")
+	d.op.Debug("Appliance is found")
 	if ok, verr := d.isVCH(vm); !ok {
 		verr = errors.Errorf("Found virtual machine %q, but it is not a VCH. Please choose a different virtual app.", conf.Name)
 		return verr
@@ -125,9 +123,9 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 }
 
 func (d *Dispatcher) getName(vm *vm.VirtualMachine) string {
-	name, err := vm.Name(d.ctx)
+	name, err := vm.Name(d.op)
 	if err != nil {
-		log.Errorf("VM name not found: %s", err)
+		d.op.Errorf("VM name not found: %s", err)
 		return ""
 	}
 	return name
@@ -137,10 +135,10 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("vm %q, force %t", vm.String(), force)))
 
 	var err error
-	power, err := vm.PowerState(d.ctx)
+	power, err := vm.PowerState(d.op)
 	if err != nil || power != types.VirtualMachinePowerStatePoweredOff {
 		if err != nil {
-			log.Warnf("Failed to get vm power status %q: %s", vm.Reference(), err)
+			d.op.Warnf("Failed to get vm power status %q: %s", vm.Reference(), err)
 		}
 		if !force {
 			if err != nil {
@@ -154,28 +152,28 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 			}
 			return err
 		}
-		if _, err = vm.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+		if _, err = vm.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
 			return vm.PowerOff(ctx)
 		}); err != nil {
-			log.Debugf("Failed to power off existing appliance for %s, try to remove anyway", err)
+			d.op.Debugf("Failed to power off existing appliance for %s, try to remove anyway", err)
 		}
 	}
 	// get the actual folder name before we delete it
-	folder, err := vm.FolderName(d.ctx)
+	folder, err := vm.FolderName(d.op)
 	if err != nil {
 		// failed to get folder name, might not be able to remove files for this VM
 		name := d.getName(vm)
 		if name == "" {
-			log.Errorf("Unable to automatically remove all files in datastore for VM %q", vm.Reference())
+			d.op.Errorf("Unable to automatically remove all files in datastore for VM %q", vm.Reference())
 		} else {
 			// try to use the vm name in place of folder
-			log.Infof("Delete will attempt to remove datastore files for VM %q", name)
+			d.op.Infof("Delete will attempt to remove datastore files for VM %q", name)
 			folder = name
 		}
 	}
 
 	//removes the vm from vsphere, but detaches the disks first
-	_, err = vm.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	_, err = vm.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
 		return vm.DeleteExceptDisks(ctx)
 	})
 	// We are getting ConcurrentAccess errors from DeleteExceptDisks - even though we don't set ChangeVersion in that path
@@ -185,22 +183,22 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		if f, ok := err.(types.HasFault); ok {
 			switch f.Fault().(type) {
 			case *types.ConcurrentAccess:
-				log.Warnf("DeleteExceptDisks failed with ConcurrentAccess error. Ignoring it.")
+				d.op.Warn("DeleteExceptDisks failed with ConcurrentAccess error. Ignoring it.")
 				ignore = true
 			}
 		}
 		if !ignore {
 			err = errors.Errorf("Failed to destroy VM %q: %s", vm.Reference(), err)
-			err2 := vm.Unregister(d.ctx)
+			err2 := vm.Unregister(d.op)
 			if err2 != nil {
 				return errors.Errorf("%s then failed to unregister VM: %s", err, err2)
 			}
-			log.Infof("Unregistered VM to cleanup after failed destroy: %q", vm.Reference())
+			d.op.Infof("Unregistered VM to cleanup after failed destroy: %q", vm.Reference())
 		}
 	}
 
 	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
-		log.Warnf("Failed to remove datastore files for VM path %q: %s", folder, err)
+		d.op.Warnf("Failed to remove datastore files for VM path %q: %s", folder, err)
 	}
 
 	return nil
@@ -217,7 +215,7 @@ func (d *Dispatcher) addNetworkDevices(conf *config.VirtualContainerHostConfigSp
 		if pnic, ok := nets[endpoint.Network.Common.ID]; ok {
 			// there's already a NIC on this network
 			endpoint.Common.ID = pnic.Common.ID
-			log.Infof("Network role %q is sharing NIC with %q", name, pnic.Network.Common.Name)
+			d.op.Infof("Network role %q is sharing NIC with %q", name, pnic.Network.Common.Name)
 			continue
 		}
 
@@ -225,7 +223,7 @@ func (d *Dispatcher) addNetworkDevices(conf *config.VirtualContainerHostConfigSp
 		if ok := moref.FromString(endpoint.Network.ID); !ok {
 			return nil, fmt.Errorf("serialized managed object reference in unexpected format: %q", endpoint.Network.ID)
 		}
-		obj, err := d.session.Finder.ObjectReference(d.ctx, *moref)
+		obj, err := d.session.Finder.ObjectReference(d.op, *moref)
 		if err != nil {
 			return nil, fmt.Errorf("unable to reacquire reference for network %q from serialized form: %q", endpoint.Network.Name, endpoint.Network.ID)
 		}
@@ -234,7 +232,7 @@ func (d *Dispatcher) addNetworkDevices(conf *config.VirtualContainerHostConfigSp
 			return nil, fmt.Errorf("reacquired reference for network %q, from serialized form %q, was not a network: %T", endpoint.Network.Name, endpoint.Network.ID, obj)
 		}
 
-		backing, err := network.EthernetCardBackingInfo(d.ctx)
+		backing, err := network.EthernetCardBackingInfo(d.op)
 		if err != nil {
 			err = errors.Errorf("Failed to get network backing info for %q: %s", network, err)
 			return nil, err
@@ -253,7 +251,7 @@ func (d *Dispatcher) addNetworkDevices(conf *config.VirtualContainerHostConfigSp
 
 		endpoint.Common.ID = strconv.Itoa(int(slot))
 		slots[slot] = true
-		log.Debugf("Setting %q to slot %d", name, slot)
+		d.op.Debugf("Setting %q to slot %d", name, slot)
 
 		devices = append(devices, nic)
 
@@ -362,25 +360,25 @@ func (d *Dispatcher) findApplianceByID(conf *config.VirtualContainerHostConfigSp
 	moref := new(types.ManagedObjectReference)
 	if ok := moref.FromString(conf.ID); !ok {
 		message := "Failed to get appliance VM mob reference"
-		log.Errorf(message)
+		d.op.Error(message)
 		return nil, errors.New(message)
 	}
-	ref, err := d.session.Finder.ObjectReference(d.ctx, *moref)
+	ref, err := d.session.Finder.ObjectReference(d.op, *moref)
 	if err != nil {
 		if !isManagedObjectNotFoundError(err) {
 			err = errors.Errorf("Failed to query appliance (%q): %s", moref, err)
 			return nil, err
 		}
-		log.Debugf("Appliance is not found")
+		d.op.Debug("Appliance is not found")
 		return nil, nil
 
 	}
 	ovm, ok := ref.(*object.VirtualMachine)
 	if !ok {
-		log.Errorf("Failed to find VM %q: %s", moref, err)
+		d.op.Errorf("Failed to find VM %q: %s", moref, err)
 		return nil, err
 	}
-	vmm = vm.NewVirtualMachine(d.ctx, d.session, ovm.Reference())
+	vmm = vm.NewVirtualMachine(d.op, d.session, ovm.Reference())
 	return vmm, nil
 }
 
@@ -390,19 +388,19 @@ func (d *Dispatcher) configIso(conf *config.VirtualContainerHostConfigSpec, vm *
 	var devices object.VirtualDeviceList
 	var err error
 
-	vmDevices, err := vm.Device(d.ctx)
+	vmDevices, err := vm.Device(d.op)
 	if err != nil {
-		log.Errorf("Failed to get vm devices for appliance: %s", err)
+		d.op.Errorf("Failed to get vm devices for appliance: %s", err)
 		return nil, err
 	}
 	ide, err := vmDevices.FindIDEController("")
 	if err != nil {
-		log.Errorf("Failed to find IDE controller for appliance: %s", err)
+		d.op.Errorf("Failed to find IDE controller for appliance: %s", err)
 		return nil, err
 	}
 	cdrom, err := devices.CreateCdrom(ide)
 	if err != nil {
-		log.Errorf("Failed to create Cdrom device for appliance: %s", err)
+		d.op.Errorf("Failed to create Cdrom device for appliance: %s", err)
 		return nil, err
 	}
 	cdrom = devices.InsertIso(cdrom, fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.ApplianceISO))
@@ -413,9 +411,9 @@ func (d *Dispatcher) configIso(conf *config.VirtualContainerHostConfigSpec, vm *
 func (d *Dispatcher) configLogging(conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine, settings *data.InstallerData) (object.VirtualDeviceList, error) {
 	defer trace.End(trace.Begin(""))
 
-	devices, err := vm.Device(d.ctx)
+	devices, err := vm.Device(d.op)
 	if err != nil {
-		log.Errorf("Failed to get vm devices for appliance: %s", err)
+		d.op.Errorf("Failed to get vm devices for appliance: %s", err)
 		return nil, err
 	}
 
@@ -424,27 +422,27 @@ func (d *Dispatcher) configLogging(conf *config.VirtualContainerHostConfigSpec, 
 		return nil, err
 	}
 
-	err = vm.AddDevice(d.ctx, p)
+	err = vm.AddDevice(d.op, p)
 	if err != nil {
 		return nil, err
 	}
 
-	devices, err = vm.Device(d.ctx)
+	devices, err = vm.Device(d.op)
 	if err != nil {
-		log.Errorf("Failed to get vm devices for appliance: %s", err)
+		d.op.Errorf("Failed to get vm devices for appliance: %s", err)
 		return nil, err
 	}
 
 	serial, err := devices.FindSerialPort("")
 	if err != nil {
-		log.Errorf("Failed to locate serial port for persistent log configuration: %s", err)
+		d.op.Errorf("Failed to locate serial port for persistent log configuration: %s", err)
 		return nil, err
 	}
 
 	// TODO: we need to add an accessor for generating paths within the VM directory
-	vmx, err := vm.VMPathName(d.ctx)
+	vmx, err := vm.VMPathName(d.op)
 	if err != nil {
-		log.Errorf("Unable to determine path of appliance VM: %s", err)
+		d.op.Errorf("Unable to determine path of appliance VM: %s", err)
 		return nil, err
 	}
 
@@ -470,33 +468,33 @@ func (d *Dispatcher) setDockerPort(conf *config.VirtualContainerHostConfigSpec, 
 func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(""))
 
-	log.Infof("Creating appliance on target")
+	d.op.Info("Creating appliance on target")
 
 	spec, err := d.createApplianceSpec(conf, settings)
 	if err != nil {
-		log.Errorf("Unable to create appliance spec: %s", err)
+		d.op.Errorf("Unable to create appliance spec: %s", err)
 		return err
 	}
 
 	var info *types.TaskInfo
 	// create appliance VM
 	if d.isVC && d.vchVapp != nil {
-		info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+		info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
 			return d.vchVapp.CreateChildVM(ctx, *spec, d.session.Host)
 		})
 	} else {
 		// if vapp is not created, fall back to create VM under default resource pool
-		info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+		info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
 			return d.session.VMFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
 		})
 	}
 
 	if err != nil {
-		log.Errorf("Unable to create appliance VM: %s", err)
+		d.op.Errorf("Unable to create appliance VM: %s", err)
 		return err
 	}
 	if info.Error != nil || info.State != types.TaskInfoStateSuccess {
-		log.Errorf("Create appliance reported: %s", info.Error.LocalizedMessage)
+		d.op.Errorf("Create appliance reported: %s", info.Error.LocalizedMessage)
 	}
 
 	if err = d.createVolumeStores(conf); err != nil {
@@ -506,26 +504,26 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	// get VM reference and save it
 	moref := info.Result.(types.ManagedObjectReference)
 	conf.SetMoref(&moref)
-	obj, err := d.session.Finder.ObjectReference(d.ctx, moref)
+	obj, err := d.session.Finder.ObjectReference(d.op, moref)
 	if err != nil {
-		log.Errorf("Failed to reacquire reference to appliance VM after creation: %s", err)
+		d.op.Errorf("Failed to reacquire reference to appliance VM after creation: %s", err)
 		return err
 	}
 	gvm, ok := obj.(*object.VirtualMachine)
 	if !ok {
 		return fmt.Errorf("Required reference after appliance creation was not for a VM: %T", obj)
 	}
-	vm2 := vm.NewVirtualMachineFromVM(d.ctx, d.session, gvm)
+	vm2 := vm.NewVirtualMachineFromVM(d.op, d.session, gvm)
 
-	vm2.DisableDestroy(d.ctx)
+	vm2.DisableDestroy(d.op)
 
 	// update the displayname to the actual folder name used
-	if d.vmPathName, err = vm2.FolderName(d.ctx); err != nil {
-		log.Errorf("Failed to get canonical name for appliance: %s", err)
+	if d.vmPathName, err = vm2.FolderName(d.op); err != nil {
+		d.op.Errorf("Failed to get canonical name for appliance: %s", err)
 		return err
 	}
-	log.Debugf("vm folder name: %q", d.vmPathName)
-	log.Debugf("vm inventory path: %q", vm2.InventoryPath)
+	d.op.Debugf("vm folder name: %q", d.vmPathName)
+	d.op.Debugf("vm inventory path: %q", vm2.InventoryPath)
 
 	vicadmin := executor.Cmd{
 		Path: "/sbin/vicadmin",
@@ -622,21 +620,21 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	// apply the fixed-up configuration
 	spec, err = d.reconfigureApplianceSpec(vm2, conf, settings)
 	if err != nil {
-		log.Errorf("Error while getting appliance reconfig spec: %s", err)
+		d.op.Errorf("Error while getting appliance reconfig spec: %s", err)
 		return err
 	}
 
 	// reconfig
-	info, err = vm2.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	info, err = vm2.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
 		return vm2.Reconfigure(ctx, *spec)
 	})
 
 	if err != nil {
-		log.Errorf("Error while setting component parameters to appliance: %s", err)
+		d.op.Errorf("Error while setting component parameters to appliance: %s", err)
 		return err
 	}
 	if info.State != types.TaskInfoStateSuccess {
-		log.Errorf("Setting parameters to appliance reported: %s", info.Error.LocalizedMessage)
+		d.op.Errorf("Setting parameters to appliance reported: %s", info.Error.LocalizedMessage)
 		return err
 	}
 
@@ -645,7 +643,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 }
 
 func (d *Dispatcher) encodeConfig(conf *config.VirtualContainerHostConfigSpec) (map[string]string, error) {
-	log.Debug("generating new config secret key")
+	d.op.Debug("generating new config secret key")
 
 	s, err := extraconfig.NewSecretKey()
 	if err != nil {
@@ -662,7 +660,7 @@ func (d *Dispatcher) decryptVCHConfig(vm *vm.VirtualMachine, cfg map[string]stri
 	defer trace.End(trace.Begin(""))
 
 	if d.secret == nil {
-		name, err := vm.Name(d.ctx)
+		name, err := vm.Name(d.op)
 		if err != nil {
 			err = errors.Errorf("Failed to get vm name %q: %s", vm.Reference(), err)
 			return nil, err
@@ -673,7 +671,7 @@ func (d *Dispatcher) decryptVCHConfig(vm *vm.VirtualMachine, cfg map[string]stri
 			err = errors.Errorf("Failure finding image store from VCH VM %q: %s", name, err)
 			return nil, err
 		}
-		path, err := vm.FolderName(d.ctx)
+		path, err := vm.FolderName(d.op)
 		if err != nil {
 			err = errors.Errorf("Failed to get VM %q datastore path: %s", name, err)
 			return nil, err
@@ -705,7 +703,7 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *confi
 
 	newDevices, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
 	if err != nil {
-		log.Errorf("Failed to create config spec for appliance: %s", err)
+		d.op.Errorf("Failed to create config spec for appliance: %s", err)
 		return nil, err
 	}
 
@@ -718,7 +716,7 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *confi
 
 	updateDevices, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationEdit)
 	if err != nil {
-		log.Errorf("Failed to create config spec for logging update: %s", err)
+		d.op.Errorf("Failed to create config spec for logging update: %s", err)
 		return nil, err
 	}
 
@@ -738,7 +736,7 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *confi
 func (d *Dispatcher) applianceConfiguration(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 
-	extraConfig, err := d.appliance.FetchExtraConfig(d.ctx)
+	extraConfig, err := d.appliance.FetchExtraConfig(d.op)
 	if err != nil {
 		return err
 	}
@@ -751,22 +749,22 @@ func (d *Dispatcher) applianceConfiguration(conf *config.VirtualContainerHostCon
 func (d *Dispatcher) waitForKey(key string) {
 	defer trace.End(trace.Begin(key))
 
-	d.appliance.WaitForKeyInExtraConfig(d.ctx, key)
+	d.appliance.WaitForKeyInExtraConfig(d.op, key)
 	return
 }
 
 // isPortLayerRunning decodes the `docker info` response to check if the portlayer is running
-func isPortLayerRunning(res *http.Response, conf *config.VirtualContainerHostConfigSpec) bool {
+func isPortLayerRunning(op trace.Operation, res *http.Response, conf *config.VirtualContainerHostConfigSpec) bool {
 	defer res.Body.Close()
 	resBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		log.Debugf("error while reading res body: %s", err.Error())
+		op.Debugf("error while reading res body: %s", err.Error())
 		return false
 	}
 
 	var sysInfo dockertypes.Info
 	if err = json.Unmarshal(resBody, &sysInfo); err != nil {
-		log.Debugf("error while unmarshalling res body: %s", err.Error())
+		op.Debugf("error while unmarshalling res body: %s", err.Error())
 		return false
 	}
 	// At this point the portlayer is up successfully. However, we need to report the Volume Stores that were not created successfully.
@@ -774,15 +772,15 @@ func isPortLayerRunning(res *http.Response, conf *config.VirtualContainerHostCon
 
 	for _, value := range sysInfo.SystemStatus {
 		if value[0] == volumeStoresID {
-			log.Debugf("Portlayer has established volume stores (%s)", value[1])
+			op.Debugf("Portlayer has established volume stores (%s)", value[1])
 			volumeStoresLine = value[1]
 			break
 		}
 	}
 
-	allVolumeStoresPresent := confirmVolumeStores(conf, volumeStoresLine)
+	allVolumeStoresPresent := confirmVolumeStores(op, conf, volumeStoresLine)
 	if !allVolumeStoresPresent {
-		log.Error("Not all configured volume stores are online - check port layer log via vicadmin")
+		op.Error("Not all configured volume stores are online - check port layer log via vicadmin")
 	}
 
 	for _, status := range sysInfo.SystemStatus {
@@ -795,7 +793,7 @@ func isPortLayerRunning(res *http.Response, conf *config.VirtualContainerHostCon
 }
 
 // confirmVolumeStores is a helper function that will log and warn the vic-machine user if some of their volumestores did not present in the portlayer
-func confirmVolumeStores(conf *config.VirtualContainerHostConfigSpec, rawVolumeStores string) bool {
+func confirmVolumeStores(op trace.Operation, conf *config.VirtualContainerHostConfigSpec, rawVolumeStores string) bool {
 	establishedVolumeStores := make(map[string]struct{})
 
 	splitStores := strings.Split(rawVolumeStores, " ")
@@ -806,7 +804,7 @@ func confirmVolumeStores(conf *config.VirtualContainerHostConfigSpec, rawVolumeS
 	result := true
 	for k := range conf.VolumeLocations {
 		if _, ok := establishedVolumeStores[k]; !ok {
-			log.Errorf("VolumeStore (%s) cannot be brought online - check network, nfs server, and --volume-store configurations", k)
+			op.Errorf("VolumeStore (%s) cannot be brought online - check network, nfs server, and --volume-store configurations", k)
 			result = false
 		}
 	}
@@ -848,15 +846,15 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 			tr.TLSClientConfig.InsecureSkipVerify = false
 
 			func() {
-				log.Debug("Loading CAs for client auth")
+				d.op.Debug("Loading CAs for client auth")
 				pool, err := x509.SystemCertPool()
 				if err != nil {
-					log.Warnf("Unable to load system root certificates - continuing with only the provided CA")
+					d.op.Warn("Unable to load system root certificates - continuing with only the provided CA")
 					pool = x509.NewCertPool()
 				}
 
 				if !pool.AppendCertsFromPEM(conf.CertificateAuthorities) {
-					log.Warn("Unable add CAs from config to validation pool")
+					d.op.Warn("Unable add CAs from config to validation pool")
 				}
 
 				// tr.TLSClientConfig.ClientCAs = pool
@@ -866,45 +864,45 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 					// we know this will fail, but we can try to distinguish the expected error vs
 					// unresponsive endpoint
 					tlsErrExpected = true
-					log.Debugf("CA configured on appliance but no client certificate available")
+					d.op.Debug("CA configured on appliance but no client certificate available")
 					return
 				}
 
 				cert, err := conf.HostCertificate.X509Certificate()
 				if err != nil {
-					log.Debugf("Unable to extract host certificate: %s", err)
+					d.op.Debug("Unable to extract host certificate: %s", err)
 					tlsErrExpected = true
 					return
 				}
 
 				cip := net.ParseIP(d.HostIP)
 				if err != nil {
-					log.Debugf("Unable to process Docker API host address from %q: %s", d.HostIP, err)
+					d.op.Debug("Unable to process Docker API host address from %q: %s", d.HostIP, err)
 					tlsErrExpected = true
 					return
 				}
 
 				// find the name to use and override the IP if found
-				addr, err := addrToUse([]net.IP{cip}, cert, conf.CertificateAuthorities)
+				addr, err := addrToUse(d.op, []net.IP{cip}, cert, conf.CertificateAuthorities)
 				if err != nil {
-					log.Debugf("Unable to determine address to use with remote certificate, checking SANs")
-					// #nosec: Errors unhandled.
-					addr, _ = viableHostAddress([]net.IP{cip}, cert, conf.CertificateAuthorities)
-					log.Debugf("Using host address: %s", addr)
+					d.op.Debug("Unable to determine address to use with remote certificate, checking SANs")
+					// #nosec: Errors unhandled .
+					addr, _ = viableHostAddress(d.op, []net.IP{cip}, cert, conf.CertificateAuthorities)
+					d.op.Debugf("Using host address: %s", addr)
 				}
 				if addr != "" {
 					d.HostIP = addr
 				} else {
-					log.Debug("Failed to find a viable address for Docker API from certificates")
+					d.op.Debug("Failed to find a viable address for Docker API from certificates")
 					// Server certificate won't validate since we don't have a hostname
 					tlsErrExpected = true
 				}
-				log.Debugf("Host address set to: %q", d.HostIP)
+				d.op.Debugf("Host address set to: %q", d.HostIP)
 			}()
 		}
 
 		if clientCert != nil {
-			log.Debug("Assigning certificates for client auth")
+			d.op.Debug("Assigning certificates for client auth")
 			tr.TLSClientConfig.Certificates = []tls.Certificate{*clientCert}
 		}
 
@@ -912,12 +910,12 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 	}
 
 	dockerInfoURL := fmt.Sprintf("%s://%s:%s/info", proto, d.HostIP, d.DockerPort)
-	log.Debugf("Docker API endpoint: %s", dockerInfoURL)
+	d.op.Debugf("Docker API endpoint: %s", dockerInfoURL)
 	req, err = http.NewRequest("GET", dockerInfoURL, nil)
 	if err != nil {
 		return errors.New("invalid HTTP request for docker info")
 	}
-	req = req.WithContext(d.ctx)
+	req = req.WithContext(d.op)
 
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
@@ -925,13 +923,13 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 		res, err = client.Do(req)
 		if err == nil {
 			if res.StatusCode == http.StatusOK {
-				if isPortLayerRunning(res, conf) {
-					log.Debug("Confirmed port layer is operational")
+				if isPortLayerRunning(d.op, res, conf) {
+					d.op.Debug("Confirmed port layer is operational")
 					break
 				}
 			}
 
-			log.Debugf("Received HTTP status %d: %s", res.StatusCode, res.Status)
+			d.op.Debugf("Received HTTP status %d: %s", res.StatusCode, res.Status)
 		} else {
 			// DEBU[2016-10-11T22:22:38Z] Error received from endpoint: Get https://192.168.78.127:2376/info: dial tcp 192.168.78.127:2376: getsockopt: connection refused &{%!t(string=Get) %!t(string=https://192.168.78.127:2376/info) %!t(*net.OpError=&{dial tcp <nil> 0xc4204505a0 0xc4203a5e00})}
 			// DEBU[2016-10-11T22:22:39Z] Components not yet initialized, retrying
@@ -977,15 +975,15 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 					case *os.SyscallError:
 						if root.Err == syscall.Errno(syscall.ECONNREFUSED) {
 							// waiting for API server to start
-							log.Debug("connection refused")
+							d.op.Debug("connection refused")
 						} else {
-							log.Debugf("Error was expected to be ECONNREFUSED: %#v", root.Err)
+							d.op.Debugf("Error was expected to be ECONNREFUSED: %#v", root.Err)
 						}
 					default:
 						errmsg := root.Error()
 
 						if tlsErrExpected {
-							log.Warnf("Expected TLS error without access to client certificate, received error: %s", errmsg)
+							d.op.Warnf("Expected TLS error without access to client certificate, received error: %s", errmsg)
 							return nil
 						}
 
@@ -993,9 +991,9 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 						// but we're actually looking for alertBadCertificate (42)
 						if errmsg == badTLSCertificate {
 							// TODO: programmatic check for clock skew on host
-							log.Errorf("Connection failed with TLS error \"bad certificate\" - check for clock skew on the host")
+							d.op.Error("Connection failed with TLS error \"bad certificate\" - check for clock skew on the host")
 						} else {
-							log.Errorf("Connection failed with error: %s", root)
+							d.op.Errorf("Connection failed with error: %s", root)
 						}
 
 						return fmt.Errorf("failed to connect to %s: %s", dockerInfoURL, root)
@@ -1007,39 +1005,39 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 					msg := fmt.Sprintf("Unable to validate server certificate with configured CAs (unknown CA): %s", neterr.Error())
 					if tlsErrExpected {
 						// Legitimate deployment so no error, but definitely requires a warning.
-						log.Warn(msg)
+						d.op.Warn(msg)
 						return nil
 					}
 					// TLS error not expected, the validation failure is a problem
-					log.Error(msg)
+					d.op.Error(msg)
 					return neterr
 
 				case x509.HostnameError:
 					// e.g. "doesn't contain any IP SANs"
 					msg := fmt.Sprintf("Server certificate hostname doesn't match: %s", neterr.Error())
 					if tlsErrExpected {
-						log.Warn(msg)
+						d.op.Warn(msg)
 						return nil
 					}
-					log.Error(msg)
+					d.op.Error(msg)
 					return neterr
 
 				default:
-					log.Debugf("Unhandled net error type: %#v", neterr)
+					d.op.Debugf("Unhandled net error type: %#v", neterr)
 					return neterr
 				}
 			} else {
-				log.Debugf("Error type was expected to be url.Error: %#v", err)
+				d.op.Debugf("Error type was expected to be url.Error: %#v", err)
 			}
 		}
 
 		select {
 		case <-ticker.C:
-		case <-d.ctx.Done():
-			return d.ctx.Err()
+		case <-d.op.Done():
+			return d.op.Err()
 		}
 
-		log.Debug("Components not yet initialized, retrying")
+		d.op.Debug("Components not yet initialized, retrying")
 	}
 
 	return nil
@@ -1053,12 +1051,12 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 		return errors.New("cannot validate appliance due to missing VM reference")
 	}
 
-	log.Infof("Waiting for IP information")
+	d.op.Info("Waiting for IP information")
 	d.waitForKey(extraconfig.CalculateKeys(conf, "ExecutorConfig.Networks.client.Assigned.IP", "")[0])
-	ctxerr := d.ctx.Err()
+	ctxerr := d.op.Err()
 
 	if ctxerr == nil {
-		log.Info("Waiting for major appliance components to launch")
+		d.op.Info("Waiting for major appliance components to launch")
 		for _, k := range extraconfig.CalculateKeys(conf, "ExecutorConfig.Sessions.*.Started", "") {
 			d.waitForKey(k)
 		}
@@ -1069,44 +1067,45 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	updateErr := d.applianceConfiguration(conf)
 
 	// confirm components launched correctly
-	log.Debug("  State of components:")
+	d.op.Debug("  State of components:")
 	for name, session := range conf.ExecutorConfig.Sessions {
 		status := "waiting to launch"
 		if session.Started == "true" {
 			status = "started successfully"
 		} else if session.Started != "" {
 			status = session.Started
-			log.Errorf("  Component did not launch successfully - %s: %s", name, status)
+			d.op.Errorf("  Component did not launch successfully - %s: %s", name, status)
 		}
 
-		log.Debugf("    %q: %q", name, status)
+		d.op.Debugf("    %q: %q", name, status)
 	}
 
 	// TODO: we should call to the general vic-machine inspect implementation here for more detail
 	// but instead...
 	if !ip.IsUnspecifiedIP(conf.ExecutorConfig.Networks["client"].Assigned.IP) {
 		d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.IP.String()
-		log.Infof("Obtained IP address for client interface: %q", d.HostIP)
+		d.op.Infof("Obtained IP address for client interface: %q", d.HostIP)
 		return nil
 	}
 
 	// it's possible we timed out... get updated info having adjusted context to allow it
 	// keeping it short
-	ctxerr = d.ctx.Err()
+	ctxerr = d.op.Err()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	baseOp := trace.NewOperationWithLoggerFrom(context.Background(), d.op, "ensureApplianceInitializes")
+	op, cancel := trace.WithTimeout(&baseOp, 10*time.Second, "ensureApplianceInitializes timeout")
 	defer cancel()
-	d.ctx = ctx
+	d.op = op
 	err := d.applianceConfiguration(conf)
 	if err != nil {
 		return fmt.Errorf("unable to retrieve updated configuration from appliance for diagnostics: %s", err)
 	}
 
 	if ctxerr == context.DeadlineExceeded {
-		log.Info("")
-		log.Error("Failed to obtain IP address for client interface")
-		log.Info("Use vic-machine inspect to see if VCH has received an IP address at a later time")
-		log.Info("  State of all interfaces:")
+		d.op.Info("")
+		d.op.Error("Failed to obtain IP address for client interface")
+		d.op.Info("Use vic-machine inspect to see if VCH has received an IP address at a later time")
+		d.op.Info("  State of all interfaces:")
 
 		// if we timed out, then report status - if cancelled this doesn't need reporting
 		for name, net := range conf.ExecutorConfig.Networks {
@@ -1114,11 +1113,11 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 			if ip.IsUnspecifiedIP(net.Assigned.IP) {
 				addr = "waiting for IP"
 			}
-			log.Infof("    %q IP: %q", name, addr)
+			d.op.Infof("    %q IP: %q", name, addr)
 		}
 
 		// if we timed out, then report status - if cancelled this doesn't need reporting
-		log.Info("  State of components:")
+		d.op.Info("  State of components:")
 		for name, session := range conf.ExecutorConfig.Sessions {
 			status := "waiting to launch"
 			if session.Started == "true" {
@@ -1126,7 +1125,7 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 			} else if session.Started != "" {
 				status = session.Started
 			}
-			log.Infof("    %q: %q", name, status)
+			d.op.Infof("    %q: %q", name, status)
 		}
 
 		return errors.New("Failed to obtain IP address for client interface (timed out)")
@@ -1138,34 +1137,31 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 // CheckServiceReady checks if service is launched correctly, including ip address, service initialization, VC connection and Docker API
 // Should expand this method for any more VCH service checking
 func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, clientCert *tls.Certificate) error {
-	oldCtx := d.ctx
-	d.ctx = ctx
-	defer func() {
-		d.ctx = oldCtx
-	}()
+	defer func(oldOp trace.Operation) { d.op = oldOp }(d.op)
+	d.op = trace.FromContext(ctx, "CheckServiceReady")
 
 	if err := d.ensureApplianceInitializes(conf); err != nil {
 		return err
 	}
 
 	// vic-init will try to reach out to the vSphere target.
-	log.Info("Checking VCH connectivity with vSphere target")
+	d.op.Info("Checking VCH connectivity with vSphere target")
 	// Checking access to vSphere API
-	if cd, err := d.CheckAccessToVCAPI(d.ctx, d.appliance, conf.Target); err == nil {
+	if cd, err := d.CheckAccessToVCAPI(d.appliance, conf.Target); err == nil {
 		code := int(cd)
 		if code > 0 {
-			log.Warningf("vSphere API Test: %s %s", conf.Target, diag.UserReadableVCAPITestDescription(code))
+			d.op.Warnf("vSphere API Test: %s %s", conf.Target, diag.UserReadableVCAPITestDescription(code))
 		} else {
-			log.Infof("vSphere API Test: %s %s", conf.Target, diag.UserReadableVCAPITestDescription(code))
+			d.op.Infof("vSphere API Test: %s %s", conf.Target, diag.UserReadableVCAPITestDescription(code))
 		}
 	} else {
-		log.Warningf("Could not run VCH vSphere API target check due to %v but the VCH may still function normally", err)
+		d.op.Warnf("Could not run VCH vSphere API target check due to %v but the VCH may still function normally", err)
 	}
 
 	if err := d.CheckDockerAPI(conf, clientCert); err != nil {
 		err = errors.Errorf("Docker API endpoint check failed: %s", err)
-		// log with info cause this might not be an error
-		log.Info(err.Error())
+		// log with info because this might not be an error
+		d.op.Info(err)
 		return err
 	}
 	return nil

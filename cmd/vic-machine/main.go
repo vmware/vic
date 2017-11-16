@@ -32,8 +32,8 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/list"
 	"github.com/vmware/vic/cmd/vic-machine/update"
 	"github.com/vmware/vic/cmd/vic-machine/upgrade"
-	"github.com/vmware/vic/lib/install/vchlog"
 	viclog "github.com/vmware/vic/pkg/log"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 )
 
@@ -140,20 +140,22 @@ func main() {
 		logs = append(logs, f)
 	}
 
-	// create the logger for streaming VCH log messages
-	vchlog.Init()
-	logs = append(logs, vchlog.GetPipe())
-	go vchlog.Run()
-	defer vchlog.Close() // close the logger pipe when done
-
 	// Initiliaze logger with default TextFormatter
 	log.SetFormatter(viclog.NewTextFormatter())
 	// SetOutput to io.MultiWriter so that we can log to stdout and a file
 	log.SetOutput(io.MultiWriter(logs...))
+	// Set up the global trace logger to write to the file
+	trace.Logger.Out = f
+
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("--------------------")
-			log.Errorf("%s failed, please check log file %s for details", app.Name, LogFile)
+			// Output instructions to check log file for details to the user, but not the log file
+			logger := log.New()
+			logger.Out = app.Writer
+			logger.Errorf("--------------------")
+			logger.Errorf("%s failed, please check log file %s for details", app.Name, LogFile)
+
+			// Output the stack to the log file, but not the user
 			// #nosec: Errors unhandled.
 			fmt.Fprintf(f, "%s", runtime.Stack())
 		}
