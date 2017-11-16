@@ -168,13 +168,13 @@ var cases = map[string]logrus.Level{
 }
 
 // buildMatcher creates a testify MatchedBy function for the supplied operation
-func buildMatcher(op Operation, shouldContainOpId bool) func(entry *logrus.Entry) bool {
+func buildMatcher(op Operation, shouldContainOpID bool) func(entry *logrus.Entry) bool {
 	return func(entry *logrus.Entry) bool {
-		if shouldContainOpId && !strings.Contains(entry.Message, op.id) {
+		if shouldContainOpID && !strings.Contains(entry.Message, op.id) {
 			return false // Log message should have contained the operation id, but did not
 		}
 
-		if !shouldContainOpId && strings.Contains(entry.Message, op.id) {
+		if !shouldContainOpID && strings.Contains(entry.Message, op.id) {
 			return false // Log message should not have contained the operation id, but did
 		}
 
