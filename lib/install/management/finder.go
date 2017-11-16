@@ -99,10 +99,23 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *v
 		return nil, err
 	}
 	d.vchPoolPath = path.Join(parent.InventoryPath, name)
-	vchPool, err := d.session.Finder.ResourcePool(d.ctx, d.vchPoolPath)
-	if err != nil {
-		log.Errorf("Failed to get VCH resource pool %q: %s", d.vchPoolPath, err)
-		return nil, err
+	var vchPool *object.ResourcePool
+	if d.isVC {
+		vapp, err := d.findVirtualApp(d.vchPoolPath)
+		if err != nil {
+			log.Errorf("Failed to get VCH virtual app %q: %s", d.vchPoolPath, err)
+			return nil, err
+		}
+		if vapp != nil {
+			vchPool = vapp.ResourcePool
+		}
+	}
+	if vchPool == nil {
+		vchPool, err = d.session.Finder.ResourcePool(d.ctx, d.vchPoolPath)
+		if err != nil {
+			log.Errorf("Failed to get VCH resource pool %q: %s", d.vchPoolPath, err)
+			return nil, err
+		}
 	}
 
 	rp := compute.NewResourcePool(d.ctx, d.session, vchPool.Reference())
