@@ -182,7 +182,7 @@ Test
 
     Sleep  2 minutes
 
-    ${output}=  Run  govc vm.info %{VCH-NAME}/%{VCH-NAME}
+    ${output}=  Run  govc vm.info %{VCH-NAME}
     @{output}=  Split To Lines  ${output}
     ${curHost}=  Fetch From Right  @{output}[-1]  ${SPACE}
 
