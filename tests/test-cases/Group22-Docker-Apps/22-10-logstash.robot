@@ -38,7 +38,6 @@ Logstash with mapped volume log file
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --rm -v vol1:/mydata ${busybox} sh -c "echo 'Initial log message' > /mydata/my.log"
     Should Be Equal As Integers  ${rc}  0
 
-    ${log_container}=  Set Variable  log2
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${log_container} -dit -v vol1:/logs logstash -e 'input { file { path => "/logs/my.log" start_position => "beginning" } } output { stdout { } }'
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
