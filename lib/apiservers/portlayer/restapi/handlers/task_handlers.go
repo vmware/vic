@@ -18,7 +18,6 @@ import (
 	"context"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/runtime/middleware"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
