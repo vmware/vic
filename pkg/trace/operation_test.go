@@ -189,8 +189,7 @@ func buildMatcher(op Operation, shouldContainOpId bool) func(entry *logrus.Entry
 
 // TestLogging demonstrates that log messages are relayed from the Operation to the Logger global
 func TestLogging(t *testing.T) {
-	original := Logger
-	defer func() { Logger = original }()
+	defer func(original *logrus.Logger) { Logger = original }(Logger)
 	Logger = logrus.New()
 
 	op := NewOperation(context.Background(), "TestOperation")
@@ -217,8 +216,7 @@ func TestLogging(t *testing.T) {
 // TestLogMuxing verifies that an operation-specific Logger can be configured and that both it and
 // the global Logger receive messages when logging methods are called on Operation
 func TestLogMuxing(t *testing.T) {
-	original := Logger
-	defer func() { Logger = original }()
+	defer func(original *logrus.Logger) { Logger = original }(Logger)
 	Logger = logrus.New()
 
 	op := NewOperation(context.Background(), "TestOperation")
@@ -293,7 +291,7 @@ func TestLogInheritance(t *testing.T) {
 	c1, _ := WithCancel(&op, "CancelChild")
 	c2 := WithValue(&c1, "foo", "bar", "ValueChild")
 	c3 := FromOperation(c2, "NormalChild")
-	c4 := FromContext(c3, "NotAChild")
+	c4 := FromContext(c3, "(Should == c3)")
 
 	lm.On("Fire", mock.MatchedBy(buildMatcher(op, false))).Return(nil)
 

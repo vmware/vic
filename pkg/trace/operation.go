@@ -130,7 +130,11 @@ func (o *Operation) ID() string {
 }
 
 func (o *Operation) Infof(format string, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
+	o.Info(fmt.Sprintf(format, args...))
+}
+
+func (o *Operation) Info(args ...interface{}) {
+	msg := fmt.Sprint(args...)
 
 	Logger.Infof("%s: %s", o.header(), msg)
 
@@ -139,12 +143,12 @@ func (o *Operation) Infof(format string, args ...interface{}) {
 	}
 }
 
-func (o *Operation) Info(args ...interface{}) {
-	o.Infof(fmt.Sprint(args...))
+func (o *Operation) Debugf(format string, args ...interface{}) {
+	o.Debug(fmt.Sprintf(format, args...))
 }
 
-func (o *Operation) Debugf(format string, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
+func (o *Operation) Debug(args ...interface{}) {
+	msg := fmt.Sprint(args...)
 
 	Logger.Debugf("%s: %s", o.header(), msg)
 
@@ -153,12 +157,12 @@ func (o *Operation) Debugf(format string, args ...interface{}) {
 	}
 }
 
-func (o *Operation) Debug(args ...interface{}) {
-	o.Debugf(fmt.Sprint(args...))
+func (o *Operation) Warnf(format string, args ...interface{}) {
+	o.Warn(fmt.Sprintf(format, args...))
 }
 
-func (o *Operation) Warnf(format string, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
+func (o *Operation) Warn(args ...interface{}) {
+	msg := fmt.Sprint(args...)
 
 	Logger.Warnf("%s: %s", o.header(), msg)
 
@@ -167,12 +171,12 @@ func (o *Operation) Warnf(format string, args ...interface{}) {
 	}
 }
 
-func (o *Operation) Warn(args ...interface{}) {
-	o.Warnf(fmt.Sprint(args...))
+func (o *Operation) Errorf(format string, args ...interface{}) {
+	o.Error(fmt.Sprintf(format, args...))
 }
 
-func (o *Operation) Errorf(format string, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
+func (o *Operation) Error(args ...interface{}) {
+	msg := fmt.Sprint(args...)
 
 	Logger.Errorf("%s: %s", o.header(), msg)
 
@@ -181,22 +185,18 @@ func (o *Operation) Errorf(format string, args ...interface{}) {
 	}
 }
 
-func (o *Operation) Error(args ...interface{}) {
-	o.Errorf(fmt.Sprint(args...))
+func (o *Operation) Panicf(format string, args ...interface{}) {
+	o.Panic(fmt.Sprintf(format, args...))
 }
 
-func (o *Operation) Panicf(format string, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
+func (o *Operation) Panic(args ...interface{}) {
+	msg := fmt.Sprint(args...)
 
 	Logger.Panicf("%s: %s", o.header(), msg)
 
 	if o.Logger != nil {
 		o.Logger.Panic(msg)
 	}
-}
-
-func (o *Operation) Panic(args ...interface{}) {
-	o.Panicf(fmt.Sprint(args...))
 }
 
 func (o *Operation) newChild(ctx context.Context, msg string) Operation {
