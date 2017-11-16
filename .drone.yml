@@ -165,39 +165,6 @@ pipeline:
       event: [ push, tag ]
       branch: [ master, releases/*, refs/tags/* ]
 
-  notify-slack-on-fail:
-    image: plugins/slack
-    webhook: ${SLACK_URL}
-    username: drone
-    template: >
-      build https://ci.vcna.io/vmware/vic/{{ build.number }} finished with a {{ build.status }} status, find the logs here: https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/integration_logs_{{ build.number }}_{{ build.commit }}.zip?authuser=1
-    when:
-      repo: vmware/vic
-      branch: [ master, releases/*, refs/tags/* ]
-      status: failure
-
-  notify-slack-on-pass:
-    image: plugins/slack
-    webhook: ${SLACK_URL}
-    username: drone
-    template: >
-      build https://ci.vcna.io/vmware/vic/{{ build.number }} finished with a {{ build.status }} status, find the build here: https://storage.googleapis.com/vic-engine-builds/vic_{{ build.number }}.tar.gz
-    when:
-      repo: vmware/vic
-      branch: [ master, releases/* ]
-      status: success
-
-  notify-slack-on-successful-tag:
-    image: plugins/slack
-    webhook: ${SLACK_URL}
-    username: drone
-    template: >
-      The latest version of VIC engine has been released, find the build here: https://console.cloud.google.com/storage/browser/vic-engine-releases
-    when:
-      repo: vmware/vic
-      branch: [ refs/tags/* ]
-      status: success
-
   publish-gcs-builds-on-pass:
     image: maplain/drone-gcs:latest
     pull: true
@@ -241,17 +208,17 @@ pipeline:
       status: success
 
   trigger-downstream:
-      image: plugins/downstream
-      server: https://ci.vcna.io
-      token: ${DRONE_TOKEN}
-      fork: true
-      repositories:
-        - vmware/vic-product
-      when:
-        repo: vmware/vic
-        event: [ push, tag ]
-        branch: [ master, releases/*, refs/tags/* ]
-        status: success
+    image: plugins/downstream
+    server: https://ci.vcna.io
+    token: ${DRONE_TOKEN}
+    fork: true
+    repositories:
+      - vmware/vic-product
+    when:
+      repo: vmware/vic
+      event: [ push, tag ]
+      branch: [ master, releases/*, refs/tags/* ]
+      status: success
 
   report-coverage:
     image: plugins/coverage
@@ -260,4 +227,37 @@ pipeline:
     when:
       branch: [ master, releases/*, refs/tags/* ]
       repo: vmware/vic
+      status: success
+
+  notify-slack-on-fail:
+    image: plugins/slack
+    webhook: ${SLACK_URL}
+    username: drone
+    template: >
+      build https://ci.vcna.io/vmware/vic/{{ build.number }} finished with a {{ build.status }} status, find the logs here: https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/integration_logs_{{ build.number }}_{{ build.commit }}.zip?authuser=1
+    when:
+      repo: vmware/vic
+      branch: [ master, releases/*, refs/tags/* ]
+      status: failure
+
+  notify-slack-on-pass:
+    image: plugins/slack
+    webhook: ${SLACK_URL}
+    username: drone
+    template: >
+      build https://ci.vcna.io/vmware/vic/{{ build.number }} finished with a {{ build.status }} status, find the build here: https://storage.googleapis.com/vic-engine-builds/vic_{{ build.number }}.tar.gz
+    when:
+      repo: vmware/vic
+      branch: [ master, releases/* ]
+      status: success
+
+  notify-slack-on-successful-tag:
+    image: plugins/slack
+    webhook: ${SLACK_URL}
+    username: drone
+    template: >
+      The latest version of VIC engine has been released, find the build here: https://console.cloud.google.com/storage/browser/vic-engine-releases
+    when:
+      repo: vmware/vic
+      branch: [ refs/tags/* ]
       status: success
