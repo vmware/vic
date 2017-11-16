@@ -91,7 +91,8 @@ echo "Tarball extraction passed, Running nightlies test.."
 echo "Deleting .tar.gz vic file"
 rm $input
 
-DATE=`date +%m_%d_%H_%M_`
+file_prefix=`date +%m_%d_%y_%H:%M%-Z_`
+exec_date=`date +%b-%d-%y`
 
 nightlystatus=()
 count=0
@@ -167,7 +168,7 @@ done
 
 echo "Global Nightly Test Status $buildStatus"
 
-sh tests/nightly/upload-logs.sh $DATE$input
+sh tests/nightly/upload-logs.sh $file_prefix$input
 
 rm nightly_mail.html
 
@@ -175,7 +176,7 @@ nightly_list_var=($nightly_list_var)
 cat <<EOT >> nightly_mail.html
 To: mwilliamson-staff-adl@vmware.com
 To: rashok@vmware.com
-Subject: VIC Engine Nightly Build $buildNumber
+Subject: VIC Engine Nightly($exec_date) Build $buildNumber
 From: VIC Nightly
 MIME-Version: 1.0
 Content-Type: text/html
@@ -221,7 +222,7 @@ Content-Type: text/html
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
-                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$DATE$input.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$DATE$input.zip?authuser=1</a>
+                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$file_prefix$input.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$file_prefix$input.zip?authuser=1</a>
                       </td>
                     </tr>
                   </table>
@@ -255,7 +256,7 @@ Content-Type: text/html
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
-                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$DATE$input.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$DATE$input.zip?authuser=1</a>
+                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$file_prefix$input.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$file_prefix$input.zip?authuser=1</a>
                       </td>
                     </tr>
                   </table>
