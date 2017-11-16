@@ -196,7 +196,7 @@ func TestCreateVCH(t *testing.T) {
 	ca := newCreate()
 	ca.Data = data
 	ca.DisplayName = "test-vch"
-	err = ca.ProcessParams()
+	err = ca.ProcessParams(op)
 	assert.NoError(t, err, "Error while processing params: %s", err)
 	op.Infof("ca EnvFile: %s", ca.Certs.EnvFile)
 

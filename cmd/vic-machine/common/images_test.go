@@ -15,12 +15,15 @@
 package common
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
+
+	"github.com/vmware/vic/pkg/trace"
 )
 
 var (
@@ -36,9 +39,11 @@ func TestImageNotFound(t *testing.T) {
 
 	defer os.Remove(tmpfile.Name()) // clean up
 
+	op := trace.NewOperation(context.Background(), "TestImageNotFound")
+
 	image.ApplianceISO = tmpfile.Name()
 	image.OSType = "linux"
-	if _, err = image.CheckImagesFiles(false); err == nil {
+	if _, err = image.CheckImagesFiles(op, false); err == nil {
 		t.Errorf("Error is expected for boot iso file is not found.")
 	}
 }
@@ -67,6 +72,8 @@ func TestImageChecks(t *testing.T) {
 
 	defer os.Remove(tmpfile.Name()) // clean up
 
+	op := trace.NewOperation(context.Background(), "TestImageChecks")
+
 	_, err = os.Create("appliance.iso")
 	if err != nil {
 		t.Errorf("Failed to create default appliance iso file")
@@ -77,7 +84,7 @@ func TestImageChecks(t *testing.T) {
 	image.BootstrapISO = tmpfile.Name()
 	image.OSType = "linux"
 	var imageFiles map[string]string
-	if _, err = image.CheckImagesFiles(false); err == nil {
+	if _, err = image.CheckImagesFiles(op, false); err == nil {
 		t.Errorf("Error is expected")
 	}
 
@@ -93,12 +100,12 @@ func TestImageChecks(t *testing.T) {
 			Version: "Inconsistent",
 		},
 	}
-	if _, err = image.CheckImagesFiles(false); err == nil {
+	if _, err = image.CheckImagesFiles(op, false); err == nil {
 		t.Errorf("Error is expected")
 	}
 
 	cliContext.App.Version = "0.1-000-abcd"
-	if imageFiles, err = image.CheckImagesFiles(true); err != nil {
+	if imageFiles, err = image.CheckImagesFiles(op, true); err != nil {
 		t.Errorf("Error is returned: %s", err)
 	}
 	found := false

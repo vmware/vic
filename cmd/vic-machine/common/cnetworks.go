@@ -20,11 +20,11 @@ import (
 	"net"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/ip"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // CNetworks holds user input from container network flags
@@ -220,7 +220,7 @@ func (m *ipNetUnmarshaler) UnmarshalText(text []byte) error {
 
 // ProcessContainerNetworks parses container network settings and returns a
 // struct containing all processed container network fields on success.
-func (c *CNetworks) ProcessContainerNetworks() (ContainerNetworks, error) {
+func (c *CNetworks) ProcessContainerNetworks(op trace.Operation) (ContainerNetworks, error) {
 	cNetworks := ContainerNetworks{
 		MappedNetworks:          make(map[string]string),
 		MappedNetworksGateways:  make(map[string]net.IPNet),
@@ -281,31 +281,31 @@ func (c *CNetworks) ProcessContainerNetworks() (ContainerNetworks, error) {
 	var hasError bool
 	fmtMsg := "The following container network %s is set, but CONTAINER-NETWORK cannot be found. Please check the --container-network and %s settings"
 	if len(gws) > 0 {
-		log.Error(fmt.Sprintf(fmtMsg, "gateway", "--container-network-gateway"))
+		op.Errorf(fmtMsg, "gateway", "--container-network-gateway")
 		for key, value := range gws {
 			mask, _ := value.Mask.Size()
-			log.Errorf("\t%s:%s/%d, %q should be a vSphere network name", key, value.IP, mask, key)
+			op.Errorf("\t%s:%s/%d, %q should be a vSphere network name", key, value.IP, mask, key)
 		}
 		hasError = true
 	}
 	if len(pools) > 0 {
-		log.Error(fmt.Sprintf(fmtMsg, "ip range", "--container-network-ip-range"))
+		op.Errorf(fmtMsg, "ip range", "--container-network-ip-range")
 		for key, value := range pools {
-			log.Errorf("\t%s:%s, %q should be a vSphere network name", key, value, key)
+			op.Errorf("\t%s:%s, %q should be a vSphere network name", key, value, key)
 		}
 		hasError = true
 	}
 	if len(dns) > 0 {
-		log.Errorf(fmt.Sprintf(fmtMsg, "dns", "--container-network-dns"))
+		op.Errorf(fmtMsg, "dns", "--container-network-dns")
 		for key, value := range dns {
-			log.Errorf("\t%s:%s, %q should be a vSphere network name", key, value, key)
+			op.Errorf("\t%s:%s, %q should be a vSphere network name", key, value, key)
 		}
 		hasError = true
 	}
 	if len(firewalls) > 0 {
-		log.Error(fmt.Sprintf(fmtMsg, "firewall", "--container-network-firewall"))
+		op.Errorf(fmtMsg, "firewall", "--container-network-firewall")
 		for key := range firewalls {
-			log.Errorf("\t%q should be a vSphere network name", key)
+			op.Errorf("\t%q should be a vSphere network name", key)
 		}
 		hasError = true
 	}

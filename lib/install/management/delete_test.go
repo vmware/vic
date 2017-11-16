@@ -39,6 +39,7 @@ func TestDelete(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	trace.Logger.Level = log.DebugLevel
 	ctx := context.Background()
+	op := trace.NewOperation(ctx, "TestDelete")
 
 	for i, model := range []*simulator.Model{simulator.ESX(), simulator.VPX()} {
 		t.Logf("%d", i)
@@ -79,10 +80,10 @@ func TestDelete(t *testing.T) {
 		conf, err := validator.Validate(ctx, input)
 		if err != nil {
 			log.Errorf("Failed to validate conf: %s", err)
-			validator.ListIssues()
+			validator.ListIssues(op)
 		}
 
-		testCreateNetwork(ctx, validator.Session, conf, t)
+		testCreateNetwork(op, validator.Session, conf, t)
 		createAppliance(ctx, validator.Session, conf, installSettings, false, t)
 
 		testNewVCHFromCompute(input.ComputeResourcePath, input.DisplayName, validator, t)
@@ -97,7 +98,7 @@ func testUpgrade(computePath string, name string, v *validate.Validator, setting
 	// TODO: add tests for rollback after snapshot func is added in vcsim
 	d := &Dispatcher{
 		session: v.Session,
-		ctx:     v.Context,
+		op:      trace.FromContext(v.Context, "testUpgrade"),
 		isVC:    v.Session.IsVC(),
 		force:   false,
 	}
@@ -122,7 +123,7 @@ func createAppliance(ctx context.Context, sess *session.Session, conf *config.Vi
 
 	d := &Dispatcher{
 		session: sess,
-		ctx:     ctx,
+		op:      trace.FromContext(ctx, "createAppliance"),
 		isVC:    sess.IsVC(),
 		force:   false,
 	}
@@ -141,7 +142,7 @@ func createAppliance(ctx context.Context, sess *session.Session, conf *config.Vi
 func testNewVCHFromCompute(computePath string, name string, v *validate.Validator, t *testing.T) {
 	d := &Dispatcher{
 		session: v.Session,
-		ctx:     v.Context,
+		op:      trace.FromContext(v.Context, "testNewVCHFromCompute"),
 		isVC:    v.Session.IsVC(),
 		force:   false,
 	}
@@ -162,7 +163,7 @@ func testNewVCHFromCompute(computePath string, name string, v *validate.Validato
 func testDeleteVCH(v *validate.Validator, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
 	d := &Dispatcher{
 		session: v.Session,
-		ctx:     v.Context,
+		op:      trace.FromContext(v.Context, "testDeleteVCH"),
 		isVC:    v.Session.IsVC(),
 		force:   false,
 	}
@@ -197,7 +198,7 @@ func testDeleteVCH(v *validate.Validator, conf *config.VirtualContainerHostConfi
 func testDeleteDatastoreFiles(v *validate.Validator, t *testing.T) {
 	d := &Dispatcher{
 		session: v.Session,
-		ctx:     v.Context,
+		op:      trace.FromContext(v.Context, "testDeleteDatastoreFiles"),
 		isVC:    v.Session.IsVC(),
 		force:   false,
 	}
@@ -258,11 +259,11 @@ func createDatastoreFiles(d *Dispatcher, ds *object.Datastore, t *testing.T) err
 
 	defer os.Remove(tmpfile.Name()) // clean up
 
-	if err = ds.UploadFile(d.ctx, tmpfile.Name(), "Test/folder/data/temp.vmdk", nil); err != nil {
+	if err = ds.UploadFile(d.op, tmpfile.Name(), "Test/folder/data/temp.vmdk", nil); err != nil {
 		t.Errorf("Failed to upload file %q: %s", "Test/folder/data/temp.vmdk", err)
 		return err
 	}
-	if err = ds.UploadFile(d.ctx, tmpfile.Name(), "Test/folder/tempMetadata", nil); err != nil {
+	if err = ds.UploadFile(d.op, tmpfile.Name(), "Test/folder/tempMetadata", nil); err != nil {
 		t.Errorf("Failed to upload file %q: %s", "Test/folder/tempMetadata", err)
 		return err
 	}

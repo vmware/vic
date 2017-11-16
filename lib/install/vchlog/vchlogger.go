@@ -35,37 +35,45 @@ type DatastoreReadySignal struct {
 	Timestamp  string
 }
 
-// pipe: the streaming readwriter pipe to hold log messages
-var pipe *BufferedPipe
+type VCHLogger struct {
+	// pipe: the streaming readwriter pipe to hold log messages
+	pipe *BufferedPipe
 
-// signalChan: channel for signaling when datastore folder is ready
-var signalChan chan DatastoreReadySignal
+	// signalChan: channel for signaling when datastore folder is ready
+	signalChan chan DatastoreReadySignal
+}
 
-// Init initializes the logger, creates the streaming pipe and makes the singaling channel.
-func Init() {
-	pipe = NewBufferedPipe()
-	signalChan = make(chan DatastoreReadySignal)
+type Receiver interface {
+	Signal(sig DatastoreReadySignal)
+}
+
+// New creates the logger, with the streaming pipe and singaling channel.
+func New() *VCHLogger {
+	return &VCHLogger{
+		pipe:       NewBufferedPipe(),
+		signalChan: make(chan DatastoreReadySignal),
+	}
 }
 
 // Run waits until the signal arrives and uploads the streaming pipe to datastore
-func Run() {
-	sig := <-signalChan
+func (l *VCHLogger) Run() {
+	sig := <-l.signalChan
 	// suffix the log file name with caller operation ID and timestamp
 	logFileName := "vic-machine" + "_" + sig.Timestamp + "_" + sig.Name + "_" + sig.Operation.ID() + ".log"
-	sig.Datastore.Upload(sig.Operation.Context, pipe, path.Join(sig.VMPathName, logFileName), nil)
+	sig.Datastore.Upload(sig.Operation.Context, l.pipe, path.Join(sig.VMPathName, logFileName), nil)
 }
 
 // GetPipe returns the streaming pipe of the vch logger
-func GetPipe() *BufferedPipe {
-	return pipe
+func (l *VCHLogger) GetPipe() *BufferedPipe {
+	return l.pipe
 }
 
 // Signal signals the logger that the datastore folder is ready
-func Signal(sig DatastoreReadySignal) {
-	signalChan <- sig
+func (l *VCHLogger) Signal(sig DatastoreReadySignal) {
+	l.signalChan <- sig
 }
 
 // Close stops the logger by closing the underlying pipe
-func Close() {
-	pipe.Close()
+func (l *VCHLogger) Close() error {
+	return l.pipe.Close()
 }

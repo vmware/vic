@@ -23,8 +23,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/docker/docker/opts"
 
 	"github.com/vmware/govmomi/vim25/types"
@@ -38,15 +36,15 @@ import (
 )
 
 func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, certPath string) error {
-	defer trace.End(trace.Begin(conf.Name))
+	defer trace.End(trace.Begin(conf.Name, d.op))
 
-	state, err := vch.PowerState(d.ctx)
+	state, err := vch.PowerState(d.op)
 	if err != nil {
-		log.Errorf("Failed to get VM power state, service might not be available at this moment.")
+		d.op.Error("Failed to get VM power state, service might not be available at this moment.")
 	}
 	if state != types.VirtualMachinePowerStatePoweredOn {
 		err = errors.Errorf("VCH is not powered on, state %s", state)
-		log.Errorf("%s", err)
+		d.op.Errorf("%s", err)
 		return err
 	}
 
@@ -64,18 +62,18 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 
 	if ip.IsUnspecifiedIP(clientIP) {
 		err = errors.Errorf("No client IP address assigned")
-		log.Errorf("%s", err)
+		d.op.Errorf("%s", err)
 		return err
 	}
 
 	if ip.IsUnspecifiedIP(publicIP) {
 		err = errors.Errorf("No public IP address assigned")
-		log.Errorf("%s", err)
+		d.op.Errorf("%s", err)
 		return err
 	}
 
 	d.HostIP = clientIP.String()
-	log.Debugf("IP address for client interface: %s", d.HostIP)
+	d.op.Debugf("IP address for client interface: %s", d.HostIP)
 	if !conf.HostCertificate.IsNil() {
 		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
 	} else {
@@ -85,26 +83,26 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 	// try looking up preferred name, irrespective of CAs
 	if cert, err := conf.HostCertificate.X509Certificate(); err == nil {
 		// #nosec: Errors unhandled.
-		name, _ := viableHostAddress([]net.IP{clientIP}, cert, conf.CertificateAuthorities)
+		name, _ := viableHostAddress(d.op, []net.IP{clientIP}, cert, conf.CertificateAuthorities)
 		if name != "" {
-			log.Debugf("Retrieved proposed name from host certificate: %q", name)
-			log.Debugf("Assigning first name from set: %s", name)
+			d.op.Debugf("Retrieved proposed name from host certificate: %q", name)
+			d.op.Debugf("Assigning first name from set: %s", name)
 
 			if name != d.HostIP {
-				log.Infof("Using address from host certificate over allocated IP: %s", d.HostIP)
+				d.op.Infof("Using address from host certificate over allocated IP: %s", d.HostIP)
 				// reassign
 				d.HostIP = name
 			}
 		} else {
-			log.Warnf("Unable to identify address acceptable to host certificate")
+			d.op.Warn("Unable to identify address acceptable to host certificate")
 		}
 	} else {
-		log.Debugf("No host certificates provided")
+		d.op.Debug("No host certificates provided")
 	}
 
 	// Check for valid client cert for a tls-verify configuration
 	if len(conf.CertificateAuthorities) > 0 {
-		possibleCertPaths := findCertPaths(conf.Name, certPath)
+		possibleCertPaths := findCertPaths(d.op, conf.Name, certPath)
 
 		// Check if a valid client cert exists in one of possibleCertPaths
 		certPath = ""
@@ -113,12 +111,12 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 			keyFile := filepath.Join(path, certificate.ClientKey)
 			ckp := certificate.NewKeyPair(certFile, keyFile, nil, nil)
 			if err = ckp.LoadCertificate(); err != nil {
-				log.Debugf("Unable to load client cert in %s: %s", path, err)
+				d.op.Debugf("Unable to load client cert in %s: %s", path, err)
 				continue
 			}
 
 			if _, err = certificate.VerifyClientCert(conf.CertificateAuthorities, ckp); err != nil {
-				log.Debugf(err.Error())
+				d.op.Debug(err)
 				continue
 			}
 
@@ -133,11 +131,11 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 
 // findCertPaths returns candidate paths for client certs depending on whether
 // a certPath was specified in the CLI.
-func findCertPaths(vchName, certPath string) []string {
+func findCertPaths(op trace.Operation, vchName, certPath string) []string {
 	var possibleCertPaths []string
 
 	if certPath != "" {
-		log.Infof("--tls-cert-path supplied - only checking for certs in %s/", certPath)
+		op.Infof("--tls-cert-path supplied - only checking for certs in %s/", certPath)
 		possibleCertPaths = append(possibleCertPaths, certPath)
 		return possibleCertPaths
 	}
@@ -152,43 +150,43 @@ func findCertPaths(vchName, certPath string) []string {
 		possibleCertPaths = append(possibleCertPaths, dockerConfPath)
 		logMsg = fmt.Sprintf("%s and %s/", logMsg, dockerConfPath)
 	}
-	log.Infof(logMsg)
+	op.Info(logMsg)
 
 	return possibleCertPaths
 }
 
 func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key string, cert string, cacert string, envfile string, certpath string) {
 	if d.sshEnabled {
-		log.Infof("")
-		log.Infof("SSH to appliance:")
-		log.Infof("ssh root@%s", d.HostIP)
+		d.op.Info("")
+		d.op.Info("SSH to appliance:")
+		d.op.Infof("ssh root@%s", d.HostIP)
 	}
 
-	log.Infof("")
-	log.Infof("VCH Admin Portal:")
-	log.Infof("https://%s:%d", d.HostIP, constants.VchAdminPortalPort)
+	d.op.Info("")
+	d.op.Info("VCH Admin Portal:")
+	d.op.Infof("https://%s:%d", d.HostIP, constants.VchAdminPortalPort)
 
-	log.Infof("")
+	d.op.Info("")
 	publicIP := conf.ExecutorConfig.Networks["public"].Assigned.IP
-	log.Infof("Published ports can be reached at:")
-	log.Infof("%s", publicIP.String())
+	d.op.Info("Published ports can be reached at:")
+	d.op.Infof("%s", publicIP.String())
 
 	cmd, env := d.GetDockerAPICommand(conf, key, cert, cacert, certpath)
 
-	log.Info("")
-	log.Infof("Docker environment variables:")
-	log.Info(env)
+	d.op.Info("")
+	d.op.Info("Docker environment variables:")
+	d.op.Info(env)
 
 	if envfile != "" {
 		if err := ioutil.WriteFile(envfile, []byte(env), 0644); err == nil {
-			log.Infof("")
-			log.Infof("Environment saved in %s", envfile)
+			d.op.Info("")
+			d.op.Infof("Environment saved in %s", envfile)
 		}
 	}
 
-	log.Infof("")
-	log.Infof("Connect to docker:")
-	log.Infof(cmd)
+	d.op.Info("")
+	d.op.Info("Connect to docker:")
+	d.op.Info(cmd)
 }
 
 // GetDockerAPICommand generates values to display for usage of a deployed VCH
@@ -217,9 +215,9 @@ func (d *Dispatcher) GetDockerAPICommand(conf *config.VirtualContainerHostConfig
 					dEnv = append(dEnv, fmt.Sprintf("DOCKER_CERT_PATH=%s", abs))
 				}
 			} else {
-				log.Infof("")
-				log.Warnf("Unable to find valid client certs")
-				log.Warnf("DOCKER_CERT_PATH must be provided in environment or certificates specified individually via CLI arguments")
+				d.op.Info("")
+				d.op.Warn("Unable to find valid client certs")
+				d.op.Warn("DOCKER_CERT_PATH must be provided in environment or certificates specified individually via CLI arguments")
 			}
 		} else {
 			tls = " --tls"

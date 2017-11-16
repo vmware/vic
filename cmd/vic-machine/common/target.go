@@ -19,12 +19,11 @@ import (
 	"net/url"
 	"os"
 
-	log "github.com/Sirupsen/logrus"
+	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/pkg/flags"
-
-	"golang.org/x/crypto/ssh/terminal"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 type Target struct {
@@ -72,7 +71,7 @@ func (t *Target) TargetFlags() []cli.Flag {
 }
 
 // HasCredentials check that the credentials have been supplied by any of the permitted mechanisms
-func (t *Target) HasCredentials() error {
+func (t *Target) HasCredentials(op trace.Operation) error {
 	if t.URL == nil {
 		return cli.NewExitError("--target argument must be specified", 1)
 	}
@@ -100,7 +99,7 @@ func (t *Target) HasCredentials() error {
 
 	//prompt for passwd if not specified
 	if t.Password == nil && urlPassword == nil {
-		log.Printf("vSphere password for %s: ", t.User)
+		op.Infof("vSphere password for %s: ", t.User)
 		b, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			message := fmt.Sprintf("Failed to read password from stdin: %s", err)

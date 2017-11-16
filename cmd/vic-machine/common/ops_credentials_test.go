@@ -15,9 +15,12 @@
 package common
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/vmware/vic/pkg/trace"
 )
 
 func TestProcessOpsCredentials(t *testing.T) {
@@ -26,11 +29,13 @@ func TestProcessOpsCredentials(t *testing.T) {
 	adminUser := "admin"
 	adminPassword := ""
 
+	op := trace.NewOperation(context.Background(), "TestProcessOpsCredentials")
+
 	// There should be an error if the admin password is not specified for a create operation.
-	err := createOps.ProcessOpsCredentials(isCreateOp, adminUser, nil)
+	err := createOps.ProcessOpsCredentials(op, isCreateOp, adminUser, nil)
 	assert.NotNil(t, err)
 
-	err = createOps.ProcessOpsCredentials(isCreateOp, adminUser, &adminPassword)
+	err = createOps.ProcessOpsCredentials(op, isCreateOp, adminUser, &adminPassword)
 	assert.NoError(t, err)
 	assert.Equal(t, *createOps.OpsUser, adminUser)
 	assert.Equal(t, *createOps.OpsPassword, adminPassword)
@@ -39,7 +44,7 @@ func TestProcessOpsCredentials(t *testing.T) {
 	opsPassword := "opPass"
 	createOps.OpsUser = &opsUser
 	createOps.OpsPassword = &opsPassword
-	err = createOps.ProcessOpsCredentials(isCreateOp, adminUser, &adminPassword)
+	err = createOps.ProcessOpsCredentials(op, isCreateOp, adminUser, &adminPassword)
 	assert.NoError(t, err)
 	assert.Equal(t, *createOps.OpsUser, opsUser)
 	assert.Equal(t, *createOps.OpsPassword, opsPassword)
@@ -50,7 +55,7 @@ func TestProcessOpsCredentials(t *testing.T) {
 		OpsPassword: &opsPassword,
 	}
 	isCreateOp = false
-	err = configureOps.ProcessOpsCredentials(isCreateOp, "", nil)
+	err = configureOps.ProcessOpsCredentials(op, isCreateOp, "", nil)
 	assert.NoError(t, err)
 	assert.True(t, configureOps.IsSet)
 	assert.Equal(t, *createOps.OpsUser, opsUser)
@@ -58,6 +63,6 @@ func TestProcessOpsCredentials(t *testing.T) {
 
 	// There should be an error if the ops-password is specified without ops-user.
 	configureOps.OpsUser = nil
-	err = configureOps.ProcessOpsCredentials(isCreateOp, "", nil)
+	err = configureOps.ProcessOpsCredentials(op, isCreateOp, "", nil)
 	assert.NotNil(t, err)
 }

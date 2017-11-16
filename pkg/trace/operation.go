@@ -199,6 +199,20 @@ func (o *Operation) Panic(args ...interface{}) {
 	}
 }
 
+func (o *Operation) Fatalf(format string, args ...interface{}) {
+	o.Fatal(fmt.Sprintf(format, args...))
+}
+
+func (o *Operation) Fatal(args ...interface{}) {
+	msg := fmt.Sprint(args...)
+
+	Logger.Fatalf("%s: %s", o.header(), msg)
+
+	if o.Logger != nil {
+		o.Logger.Fatal(msg)
+	}
+}
+
 func (o *Operation) newChild(ctx context.Context, msg string) Operation {
 	child := newOperation(ctx, o.id, 4, msg)
 	child.t = append(child.t, o.t...)
@@ -213,6 +227,18 @@ func opID(opNum uint64) string {
 // NewOperation will return a new operation with operationID added as a value to the context
 func NewOperation(ctx context.Context, format string, args ...interface{}) Operation {
 	return newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, fmt.Sprintf(format, args...))
+}
+
+// NewOperationWithLoggerFrom will return a new operation with operationID added as a value to the
+// context and logging settings copied from the supplied operation.
+//
+// Deprecated: This method was added to aid in converting old code to use operation-based logging.
+//             Its use almost always indicates a broken context/operation model (e.g., a context
+//             being improperly stored in a struct instead of being passed between functions).
+func NewOperationWithLoggerFrom(ctx context.Context, oldOp Operation, format string, args ...interface{}) Operation {
+	op := NewOperation(ctx, format, args...)
+	op.Logger = oldOp.Logger
+	return op
 }
 
 // WithTimeout creates a new operation from parent with context.WithTimeout

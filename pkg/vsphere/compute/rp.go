@@ -15,8 +15,6 @@
 package compute
 
 import (
-	log "github.com/Sirupsen/logrus"
-
 	"context"
 
 	"github.com/vmware/govmomi/object"
@@ -24,6 +22,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -48,25 +47,29 @@ func NewResourcePool(ctx context.Context, session *session.Session, moref types.
 }
 
 func (rp *ResourcePool) GetChildrenVMs(ctx context.Context, s *session.Session) ([]*vm.VirtualMachine, error) {
+	op := trace.FromContext(ctx, "GetChildrenVMs")
+
 	var err error
 	var mrp mo.ResourcePool
 	var vms []*vm.VirtualMachine
 
-	if err = rp.Properties(ctx, rp.Reference(), []string{"vm"}, &mrp); err != nil {
-		log.Errorf("Unable to get children vm of resource pool %s: %s", rp.Name(), err)
+	if err = rp.Properties(op, rp.Reference(), []string{"vm"}, &mrp); err != nil {
+		op.Errorf("Unable to get children vm of resource pool %s: %s", rp.Name(), err)
 		return vms, err
 	}
 
 	for _, o := range mrp.Vm {
-		v := vm.NewVirtualMachine(ctx, s, o)
+		v := vm.NewVirtualMachine(op, s, o)
 		vms = append(vms, v)
 	}
 	return vms, nil
 }
 
 func (rp *ResourcePool) GetChildVM(ctx context.Context, s *session.Session, name string) (*vm.VirtualMachine, error) {
+	op := trace.FromContext(ctx, "GetChildVM")
+
 	searchIndex := object.NewSearchIndex(s.Client.Client)
-	child, err := searchIndex.FindChild(ctx, rp.Reference(), name)
+	child, err := searchIndex.FindChild(op, rp.Reference(), name)
 	if err != nil {
 		return nil, errors.Errorf("Unable to find VM(%s): %s", name, err.Error())
 	}
@@ -74,15 +77,17 @@ func (rp *ResourcePool) GetChildVM(ctx context.Context, s *session.Session, name
 		return nil, nil
 	}
 	// instantiate the vm object
-	return vm.NewVirtualMachine(ctx, s, child.Reference()), nil
+	return vm.NewVirtualMachine(op, s, child.Reference()), nil
 }
 
 func (rp *ResourcePool) GetCluster(ctx context.Context) (*object.ComputeResource, error) {
+	op := trace.FromContext(ctx, "GetCluster")
+
 	var err error
 	var mrp mo.ResourcePool
 
-	if err = rp.Properties(ctx, rp.Reference(), []string{"owner"}, &mrp); err != nil {
-		log.Errorf("Unable to get cluster of resource pool %s: %s", rp.Name(), err)
+	if err = rp.Properties(op, rp.Reference(), []string{"owner"}, &mrp); err != nil {
+		op.Errorf("Unable to get cluster of resource pool %s: %s", rp.Name(), err)
 		return nil, err
 	}
 
@@ -90,21 +95,23 @@ func (rp *ResourcePool) GetCluster(ctx context.Context) (*object.ComputeResource
 }
 
 func (rp *ResourcePool) GetDatacenter(ctx context.Context) (*object.Datacenter, error) {
-	dcRef, err := rp.getLowestAncestor(ctx, "Datacenter")
+	op := trace.FromContext(ctx, "GetDatacenter")
+
+	dcRef, err := rp.getLowestAncestor(op, "Datacenter")
 	if err != nil || dcRef == nil {
-		log.Errorf("Unable to get datacenter ancestor of rp %s: %s", rp.Name(), err)
+		op.Errorf("Unable to get datacenter ancestor of rp %s: %s", rp.Name(), err)
 		return nil, errors.Errorf("Unable to get datacenter ancestor of rp %s: %s", rp.Name(), err)
 	}
 
 	return object.NewDatacenter(rp.Client.Client, *dcRef), nil
 }
 
-func (rp *ResourcePool) getAncestors(ctx context.Context, inType string) ([]types.ManagedObjectReference, error) {
+func (rp *ResourcePool) getAncestors(op trace.Operation, inType string) ([]types.ManagedObjectReference, error) {
 	client := rp.Session.Vim25()
 
-	ancestors, err := mo.Ancestors(ctx, client, client.ServiceContent.PropertyCollector, rp.Reference())
+	ancestors, err := mo.Ancestors(op, client, client.ServiceContent.PropertyCollector, rp.Reference())
 	if err != nil {
-		log.Errorf("Unable to get ancestors of rp %s: %s", rp.Name(), err)
+		op.Errorf("Unable to get ancestors of rp %s: %s", rp.Name(), err)
 		return nil, err
 	}
 
@@ -119,10 +126,10 @@ func (rp *ResourcePool) getAncestors(ctx context.Context, inType string) ([]type
 	return outAncestors, nil
 }
 
-func (rp *ResourcePool) getLowestAncestor(ctx context.Context, inType string) (*types.ManagedObjectReference, error) {
-	ancestors, err := rp.getAncestors(ctx, inType)
+func (rp *ResourcePool) getLowestAncestor(op trace.Operation, inType string) (*types.ManagedObjectReference, error) {
+	ancestors, err := rp.getAncestors(op, inType)
 	if err != nil {
-		log.Errorf("Unable to get ancestors of rp %s: %s", rp.Name(), err)
+		op.Errorf("Unable to get ancestors of rp %s: %s", rp.Name(), err)
 		return nil, err
 	}
 
