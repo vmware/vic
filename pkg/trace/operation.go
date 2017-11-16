@@ -130,50 +130,73 @@ func (o *Operation) ID() string {
 }
 
 func (o *Operation) Infof(format string, args ...interface{}) {
-	Logger.Infof("%s: %s", o.header(), fmt.Sprintf(format, args...))
+	msg := fmt.Sprintf(format, args...)
+
+	Logger.Infof("%s: %s", o.header(), msg)
 
 	if o.Logger != nil {
-		o.Logger.Infof("%s: %s", o.header(), fmt.Sprintf(format, args...))
+		o.Logger.Info(msg)
 	}
+}
+
+func (o *Operation) Info(args ...interface{}) {
+	o.Infof(fmt.Sprint(args...))
 }
 
 func (o *Operation) Debugf(format string, args ...interface{}) {
-	Logger.Debugf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+	msg := fmt.Sprintf(format, args...)
+
+	Logger.Debugf("%s: %s", o.header(), msg)
 
 	if o.Logger != nil {
-		o.Logger.Debugf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+		o.Logger.Debug(msg)
 	}
+}
+
+func (o *Operation) Debug(args ...interface{}) {
+	o.Debugf(fmt.Sprint(args...))
 }
 
 func (o *Operation) Warnf(format string, args ...interface{}) {
-	Logger.Warnf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+	msg := fmt.Sprintf(format, args...)
+
+	Logger.Warnf("%s: %s", o.header(), msg)
 
 	if o.Logger != nil {
-		o.Logger.Warnf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+		o.Logger.Warn(msg)
 	}
+}
+
+func (o *Operation) Warn(args ...interface{}) {
+	o.Warnf(fmt.Sprint(args...))
 }
 
 func (o *Operation) Errorf(format string, args ...interface{}) {
-	Logger.Errorf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+	msg := fmt.Sprintf(format, args...)
+
+	Logger.Errorf("%s: %s", o.header(), msg)
 
 	if o.Logger != nil {
-		o.Logger.Errorf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+		o.Logger.Error(msg)
 	}
 }
 
-func (o *Operation) Error(err error) {
-	Logger.Errorf("%s: %s", o.header(), err.Error())
-	if o.Logger != nil {
-		o.Logger.Errorf("%s: %s", o.header(), err.Error())
-	}
+func (o *Operation) Error(args ...interface{}) {
+	o.Errorf(fmt.Sprint(args...))
 }
 
 func (o *Operation) Panicf(format string, args ...interface{}) {
-	Logger.Panicf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+	msg := fmt.Sprintf(format, args...)
+
+	Logger.Panicf("%s: %s", o.header(), msg)
 
 	if o.Logger != nil {
-		o.Logger.Panicf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+		o.Logger.Panic(msg)
 	}
+}
+
+func (o *Operation) Panic(args ...interface{}) {
+	o.Panicf(fmt.Sprint(args...))
 }
 
 func (o *Operation) newChild(ctx context.Context, msg string) Operation {

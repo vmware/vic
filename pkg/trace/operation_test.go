@@ -158,17 +158,24 @@ func (m *MockHook) Fire(entry *logrus.Entry) error {
 // cases defines the set of messages we expect to see and the level we expect to see each at
 var cases = map[string]logrus.Level{
 	"DebugfMessage": logrus.DebugLevel,
+	"DebugMessage":  logrus.DebugLevel,
 	"InfofMessage":  logrus.InfoLevel,
+	"InfoMessage":   logrus.InfoLevel,
 	"WarnfMessage":  logrus.WarnLevel,
+	"WarnMessage":   logrus.WarnLevel,
 	"ErrorfMessage": logrus.ErrorLevel,
 	"ErrorMessage":  logrus.ErrorLevel,
 }
 
 // buildMatcher creates a testify MatchedBy function for the supplied operation
-func buildMatcher(op Operation) func(entry *logrus.Entry) bool {
+func buildMatcher(op Operation, shouldContainOpId bool) func(entry *logrus.Entry) bool {
 	return func(entry *logrus.Entry) bool {
-		if !strings.Contains(entry.Message, op.id) {
-			return false // Log messages should always contain the operation id
+		if shouldContainOpId && !strings.Contains(entry.Message, op.id) {
+			return false // Log message should have contained the operation id, but did not
+		}
+
+		if !shouldContainOpId && strings.Contains(entry.Message, op.id) {
+			return false // Log message should not have contained the operation id, but did
 		}
 
 		for message, level := range cases {
@@ -192,16 +199,19 @@ func TestLogging(t *testing.T) {
 	Logger.Hooks.Add(m)
 	Logger.Level = logrus.DebugLevel
 
-	m.On("Fire", mock.MatchedBy(buildMatcher(op))).Return(nil)
+	m.On("Fire", mock.MatchedBy(buildMatcher(op, true))).Return(nil)
 
 	op.Debugf("DebugfMessage")
+	op.Debug("DebugMessage")
 	op.Infof("InfofMessage")
+	op.Info("InfoMessage")
 	op.Warnf("WarnfMessage")
+	op.Warn("WarnMessage")
 	op.Errorf("ErrorfMessage")
 	op.Error(fmt.Errorf("ErrorMessage"))
 
 	m.AssertExpectations(t)
-	m.AssertNumberOfCalls(t, "Fire", 5)
+	m.AssertNumberOfCalls(t, "Fire", 8)
 }
 
 // TestLogMuxing verifies that an operation-specific Logger can be configured and that both it and
@@ -222,20 +232,23 @@ func TestLogMuxing(t *testing.T) {
 	op.Logger.Hooks.Add(lm)
 	op.Logger.Level = logrus.DebugLevel
 
-	gm.On("Fire", mock.MatchedBy(buildMatcher(op))).Return(nil)
-	lm.On("Fire", mock.MatchedBy(buildMatcher(op))).Return(nil)
+	gm.On("Fire", mock.MatchedBy(buildMatcher(op, true))).Return(nil)
+	lm.On("Fire", mock.MatchedBy(buildMatcher(op, false))).Return(nil)
 
 	op.Debugf("DebugfMessage")
+	op.Debug("DebugMessage")
 	op.Infof("InfofMessage")
+	op.Info("InfoMessage")
 	op.Warnf("WarnfMessage")
+	op.Warn("WarnMessage")
 	op.Errorf("ErrorfMessage")
 	op.Error(fmt.Errorf("ErrorMessage"))
 
 	gm.AssertExpectations(t)
-	gm.AssertNumberOfCalls(t, "Fire", 5)
+	gm.AssertNumberOfCalls(t, "Fire", 8)
 
 	lm.AssertExpectations(t)
-	lm.AssertNumberOfCalls(t, "Fire", 5)
+	lm.AssertNumberOfCalls(t, "Fire", 8)
 }
 
 // TestLogIsolation verifies that an operation-specific Loggers are actually operation-specific
@@ -253,10 +266,10 @@ func TestLogIsolation(t *testing.T) {
 	op2.Logger.Hooks.Add(lm2)
 	op2.Logger.Level = logrus.DebugLevel
 
-	lm1.On("Fire", mock.MatchedBy(buildMatcher(op1))).Return(nil)
+	lm1.On("Fire", mock.MatchedBy(buildMatcher(op1, false))).Return(nil)
 
 	op1.Debugf("DebugfMessage")
-	op1.Infof("InfofMessage")
+	op1.Info("InfoMessage")
 	op1.Warnf("WarnfMessage")
 	op1.Errorf("ErrorfMessage")
 	op1.Error(fmt.Errorf("ErrorMessage"))
@@ -282,13 +295,13 @@ func TestLogInheritance(t *testing.T) {
 	c3 := FromOperation(c2, "NormalChild")
 	c4 := FromContext(c3, "NotAChild")
 
-	lm.On("Fire", mock.MatchedBy(buildMatcher(op))).Return(nil)
+	lm.On("Fire", mock.MatchedBy(buildMatcher(op, false))).Return(nil)
 
 	op.Debugf("DebugfMessage")
 	c1.Infof("InfofMessage")
 	c2.Warnf("WarnfMessage")
 	c3.Errorf("ErrorfMessage")
-	c4.Error(fmt.Errorf("ErrorMessage"))
+	c4.Error("ErrorMessage")
 
 	lm.AssertExpectations(t)
 	lm.AssertNumberOfCalls(t, "Fire", 5)
