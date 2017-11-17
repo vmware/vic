@@ -17,7 +17,7 @@ package task
 import (
 	"fmt"
 
-	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
@@ -31,41 +31,38 @@ func toggleActive(op *trace.Operation, h interface{}, id string, active bool) (i
 	if !ok {
 		return nil, fmt.Errorf("Type assertion failed for %#+v", handle)
 	}
+	taskS, okS := handle.ExecConfig.Sessions[id]
+	taskE, okE := handle.ExecConfig.Execs[id]
 
-	stasks := handle.ExecConfig.Sessions
-	etasks := handle.ExecConfig.Execs
+	op.Debugf("target task ID: %s", id)
+	op.Debugf("session tasks during inspect: %s", handle.ExecConfig.Sessions)
+	// print all of them, otherwise we will have to assemble the id list regardless of
+	// the log level at the moment. If there is a way to check the log level we should
+	// do that. since the other approach will slow down all calls to toggleActive.
+	op.Debugf("exec tasks during inspect: %s", handle.ExecConfig.Execs)
 
-	taskS, okS := stasks[id]
-	taskE, okE := etasks[id]
-
-	if !okS && !okE {
-
-		// in this case we must look at whether the container was turned off. I posit that we should check this after the runtime and state...
-		if handle.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff {
-			// we are now assuming that the task supplied was an etask that no longer exists... this is not necessarily a valid assumption.
-			// but since we never know which type of task was intended and it is in neither list we can only every assume here with current information.
-			powerStateError := TaskPowerStateError{
-				msg: fmt.Sprintf("the operation cannot be completed, container(%s) has been shut down during the operations execution.", handle.ExecConfig.ID),
-			}
-			return nil, powerStateError
-		}
-
-		return nil, fmt.Errorf("unknown task ID: %s", id)
+	var task *executor.SessionConfig
+	if okS {
+		task = taskS
 	}
 
-	task := taskS
-	if handle.Runtime != nil && handle.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
-		op.Debugf("Task bind configuration applies to ephemeral set")
+	if okE {
 		task = taskE
-
-		if err := compatible(handle); err != nil {
-			return nil, err
-		}
 	}
 
 	// if no task has been joined that can be manipulated in the container's current state
 	if task == nil {
-		return nil, fmt.Errorf("Cannot modify task %s in current state", id)
+		// FIXME return a compatibility style error here. Propagate it back to the user.
+		if err := compatible(handle); err != nil {
+			return nil, err
+		}
+
+		// NOTE: this was the previous error, before merging we need to decide which one to use.
+		// return nil, fmt.Errorf("Cannot modify task %s in current state", id)
+		return nil, TaskNotFoundError{msg: fmt.Sprintf("Cannot find task %s", id)}
+	}
+
+	if task == nil {
 	}
 
 	op.Debugf("Toggling active state of task %s (%s): %t", id, task.Cmd.Path, active)

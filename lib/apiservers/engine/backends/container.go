@@ -207,13 +207,17 @@ func (c *Container) Handle(id, name string) (string, error) {
 
 // docker's container.execBackend
 
+// FIXME: this returns a docker model, we should avoid this. This is what should be in the container proxy... But we need to confirm that it is not a public endpoint. its return hints that it is not... or that the actual return might be different
 func (c *Container) TaskInspect(cid, cname, eid string) (*models.TaskInspectResponse, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("cid(%s), cname(%s), eid(%s)", cid, cname, eid)))
+	op := trace.NewOperation(context.Background(), "")
+
 	handle, err := c.Handle(cid, cname)
 	if err != nil {
 		return nil, err
 	}
 
-	return c.containerProxy.TaskInspect(handle, eid)
+	return c.containerProxy.InspectTask(op, handle, eid, cid)
 }
 
 func (c *Container) TaskWaitToStart(cid, cname, eid string) error {
@@ -417,28 +421,16 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 			return InternalServerError(err.Error())
 		}
 
-		ec, err := c.containerProxy.TaskInspect(handle, eid)
+		ec, err := c.containerProxy.InspectTask(op, handle, eid, id)
 		if err != nil {
 			return err
 		}
 
-		bindconfig := &models.TaskBindConfig{
-			Handle: handle,
-			ID:     eid,
-		}
-
-		// obtain a portlayer client
-		client := c.containerProxy.Client()
-
-		// call Bind with bindparams
-		bindparams := tasks.NewBindParamsWithContext(ctx).WithConfig(bindconfig)
-		// FIXME: NEEDS CONTAINER PROXY AND NEW ERROR HANDLING IN THE PROXY
-		resp, err := client.Tasks.Bind(bindparams)
+		resp, err := c.containerProxy.BindTask(op, handle, eid)
 		if err != nil {
-			op.Errorf("Failed to bind parameters during exec start for container(%s) due to error: %s", id, err)
-			return InternalServerError(err.Error())
+			return err
 		}
-		handle = resp.Payload.Handle.(string)
+		handle = resp.Handle.(string)
 
 		// exec doesn't have separate attach path so we will decide whether we need interaction/runblocking or not
 		attach := ec.OpenStdin || ec.OpenStdout || ec.OpenStderr

@@ -89,7 +89,8 @@ type VicContainerProxy interface {
 
 	CreateContainerTask(handle string, id string, config types.ContainerCreateConfig) (string, error)
 	CreateExecTask(handle string, config *types.ExecConfig) (string, string, error)
-	TaskInspect(handle string, eid string) (*models.TaskInspectConfig, error)
+	InspectTask(op trace.Operation, handle string, eid string, cid string) (*models.TaskInspectResponse, error)
+	BindTask(op trace.Operation, handle string, eid string) (*models.TaskBindResponse, error)
 
 	BindInteraction(handle string, name string, id string) (string, error)
 	UnbindInteraction(handle string, name string, id string) (string, error)
@@ -319,7 +320,8 @@ func (c *ContainerProxy) CreateExecTask(handle string, config *types.ExecConfig)
 	return handleprime, eid, nil
 }
 
-func (c *ContainerProxy) TaskInspect(handle string, eid string) (*models.TaskInspectConfig, error) {
+func (c *ContainerProxy) InspectTask(op trace.Operation, handle string, eid string, cid string) (*models.TaskInspectResponse, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s), eid(%s), cid(%s)", handle, eid, cid)))
 
 	// inspect the Task to obtain ProcessConfig
 	config := &models.TaskInspectConfig{
@@ -327,18 +329,54 @@ func (c *ContainerProxy) TaskInspect(handle string, eid string) (*models.TaskIns
 		ID:     eid,
 	}
 
+	// FIXME: right now we are only using this path for exec targets. But later the error messages may need to be changed
+	// to be more accurate.
 	params := tasks.NewInspectParamsWithContext(ctx).WithConfig(config)
-	resp, err := client.Tasks.Inspect(params)
-	// FIXME: ERROR NEEDS INSPECTION HERE
-	switch err := err.(type) {
-	case *tasks.InspectInternalServerError:
-		op.Debugf("received an internal server error during task inspect: %s", err.Payload.Message)
-		return nil, InternalServerError(err.Payload.Message)
-	case *tasks.InspectConflict:
-		op.Debugf("received a conflict error during task inspect: %s", err.Payload.Message)
-		return nil, ConflictError(fmt.Sprintf("Cannot complete the operation, container %s has been powered off during execution", id))
-	default:
-		return nil, InternalServerError(err.Error())
+	resp, err := c.client.Tasks.Inspect(params)
+	if err != nil {
+		switch err := err.(type) {
+		case *tasks.InspectNotFound:
+			// These error types may need to be expanded. NotFoundError does not fit here.
+			op.Errorf("received a TaskNotFound error during task inspect: %s", err.Payload.Message)
+			return nil, ConflictError("container (%s) has been poweredoff")
+		case *tasks.InspectInternalServerError:
+			op.Errorf("received an internal server error during task inspect: %s", err.Payload.Message)
+			return nil, InternalServerError(err.Payload.Message)
+		case *tasks.InspectConflict:
+			op.Errorf("received a conflict error during task inspect: %s", err.Payload.Message)
+			return nil, ConflictError(fmt.Sprintf("Cannot complete the operation, container %s has been powered off during execution", cid))
+		default:
+			return nil, InternalServerError(err.Error())
+		}
+	}
+	return resp.Payload, nil
+}
+
+func (c *ContainerProxy) BindTask(op trace.Operation, handle string, eid string) (*models.TaskBindResponse, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s), eid(%s)", handle, eid)))
+
+	bindconfig := &models.TaskBindConfig{
+		Handle: handle,
+		ID:     eid,
+	}
+	bindparams := tasks.NewBindParamsWithContext(ctx).WithConfig(bindconfig)
+
+	// call Bind with bindparams
+	resp, err := c.client.Tasks.Bind(bindparams)
+	if err != nil {
+		switch err := err.(type) {
+		case *tasks.BindNotFound:
+			op.Errorf("received TaskNotFound error during task bind: %s", err.Payload.Message)
+			return nil, NotFoundError("container (%s) has been poweredoff")
+		case *tasks.BindInternalServerError:
+
+			op.Errorf("received unexpected error attempting to bind task(%s) for handle(%s): %s", eid, handle, err.Payload.Message)
+			return nil, InternalServerError(err.Payload.Message)
+		default:
+			op.Errorf("received unexpected error attempting to bind task(%s) for handle(%s): %s", eid, handle, err.Error())
+			return nil, InternalServerError(err.Error())
+		}
+
 	}
 
 	return resp.Payload, nil
