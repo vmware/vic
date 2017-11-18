@@ -37,11 +37,14 @@ Setup ESX And NFS Suite
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     Log To Console  \nStarting test...
 
-    ${esx1}  ${esx1_ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${esx_name}=  Evaluate  'ESX-' + str(time.clock())  modules=time
+    ${esx1}  ${esx1_ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  name=${esx_name}
+    ${esx1_name}=  Fetch From Right  ${esx_name}  -
+    ${POD}=  Fetch POD  ${esx_name}
 
-    ${nfs}  ${nfs_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${nfs}  ${nfs_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--nimbus ${POD}
 
-    ${nfs_readonly}  ${nfs_readonly_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--disk 5000000 --disk 5000000 --mountOpt ro --nfsOpt ro --mountPoint=storage1 --mountPoint=storage2
+    ${nfs_readonly}  ${nfs_readonly_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--disk 5000000 --disk 5000000 --mountOpt ro --nfsOpt ro --mountPoint=storage1 --mountPoint=storage2 --nimbus ${POD}
 
     Set Suite Variable  @{list}  ${esx1}  ${nfs}  ${nfs_readonly}
     Set Suite Variable  ${ESX1}  ${esx1}
