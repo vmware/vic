@@ -110,34 +110,40 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 		return err
 	}
 
-	if err = d.update(conf, settings, isConfigureOp); err == nil {
-		if conf.ShouldGrantPerms() {
-			err = GrantOpsUserPerms(d.ctx, d.session.Vim25(), conf)
-			if err != nil {
-				return errors.Errorf("Cannot init ops-user permissions, failure: %s. Exiting...", err)
-			}
+	err = d.update(conf, settings, isConfigureOp)
+
+	// If successful try to grant permissions to the ops-user
+	if err == nil && conf.ShouldGrantPerms() {
+		err = GrantOpsUserPerms(d.ctx, d.session.Vim25(), conf)
+		if err != nil {
+			// Update error message and fall through to roll back
+			err = errors.Errorf("Cannot setup ops-user permissions, failure: %s", err)
 		}
-		// compatible with old version's upgrade snapshot name
-		if oldSnapshot != nil && (vm.IsConfigureSnapshot(oldSnapshot, ConfigurePrefix) || vm.IsConfigureSnapshot(oldSnapshot, UpgradePrefix)) {
-			d.retryDeleteSnapshotByRef(&oldSnapshot.Snapshot, oldSnapshot.Name, conf.Name)
-		}
-		return nil
 	}
 
-	log.Errorf("Failed to upgrade: %s", err)
-	log.Infof("Rolling back upgrade")
+	if err != nil {
+		// Roll back
+		log.Errorf("Failed to upgrade: %s", err)
+		log.Infof("Rolling back upgrade")
 
-	if rerr := d.rollback(conf, snapshotName, settings); rerr != nil {
-		log.Errorf("Failed to revert appliance to snapshot: %s", rerr)
+		if rerr := d.rollback(conf, snapshotName, settings); rerr != nil {
+			log.Errorf("Failed to revert appliance to snapshot: %s", rerr)
+			return err
+		}
+		log.Infof("Appliance is rolled back to old version")
+
+		d.deleteUpgradeImages(ds, settings)
+		d.retryDeleteSnapshotByRef(newSnapshotRef, snapshotName, conf.Name)
+
+		// return the error message for upgrade
 		return err
 	}
-	log.Infof("Appliance is rolled back to old version")
 
-	d.deleteUpgradeImages(ds, settings)
-	d.retryDeleteSnapshotByRef(newSnapshotRef, snapshotName, conf.Name)
-
-	// return the error message for upgrade
-	return err
+	// compatible with old version's upgrade snapshot name
+	if oldSnapshot != nil && (vm.IsConfigureSnapshot(oldSnapshot, ConfigurePrefix) || vm.IsConfigureSnapshot(oldSnapshot, UpgradePrefix)) {
+		d.retryDeleteSnapshotByRef(&oldSnapshot.Snapshot, oldSnapshot.Name, conf.Name)
+	}
+	return nil
 }
 
 func (d *Dispatcher) rollbackResourceSettings(poolName string, settings *data.InstallerData) error {

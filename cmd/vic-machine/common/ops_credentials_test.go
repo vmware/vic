@@ -60,4 +60,45 @@ func TestProcessOpsCredentials(t *testing.T) {
 	configureOps.OpsUser = nil
 	err = configureOps.ProcessOpsCredentials(isCreateOp, "", nil)
 	assert.NotNil(t, err)
+
+	// Test correct grant permissions
+	createOps = &OpsCredentials{}
+	createOps.OpsUser = &opsUser
+	createOps.OpsPassword = &opsPassword
+	grantPerms := true
+	createOps.GrantPerms = &grantPerms
+	err = createOps.ProcessOpsCredentials(true, adminUser, &adminPassword)
+	assert.NoError(t, err)
+	assert.Equal(t, *createOps.OpsUser, opsUser)
+	assert.Equal(t, *createOps.OpsPassword, opsPassword)
+	assert.True(t, *createOps.GrantPerms)
+
+	// Create Negative test: grantPerms is set to true but there is no ops-user,
+	// grantPerms should be reset to false
+	createOps = &OpsCredentials{}
+	createOps.OpsUser = nil
+	createOps.OpsPassword = nil
+	grantPerms = true
+	createOps.GrantPerms = &grantPerms
+	err = createOps.ProcessOpsCredentials(true, adminUser, &adminPassword)
+	assert.Error(t, err)
+
+	// Create Negative test: grantPerms is set to true but there is no ops-user,
+	// grantPerms should be reset to false
+	createOps = &OpsCredentials{}
+	createOps.OpsUser = nil
+	createOps.OpsPassword = nil
+	grantPerms = false
+	createOps.GrantPerms = &grantPerms
+	err = createOps.ProcessOpsCredentials(true, adminUser, &adminPassword)
+	assert.NoError(t, err)
+	assert.Nil(t, createOps.GrantPerms)
+
+	// Configure test: grantPerms is set to true but there is no ops-user,
+	// grantPerms should be true as the ops-user may come from the config
+	grantPerms = true
+	createOps.GrantPerms = &grantPerms
+	err = createOps.ProcessOpsCredentials(false, adminUser, &adminPassword)
+	assert.NoError(t, err)
+	assert.True(t, *createOps.GrantPerms)
 }
