@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
+
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -65,7 +66,7 @@ type Create struct {
 	*data.Data
 	Certs             common.CertFactory
 	containerNetworks common.CNetworks
-	registries        common.Registries
+	Registries        common.Registries
 
 	volumeStores common.VolumeStores
 
@@ -243,17 +244,17 @@ func (c *Create) Flags() []cli.Flag {
 		Hidden:      true,
 	})
 
-	registries := c.registries.Flags()
+	registries := c.Registries.Flags()
 	registries = append(registries,
 		cli.StringSliceFlag{
 			Name:  "insecure-registry, dir",
-			Value: &c.registries.InsecureRegistriesArg,
+			Value: &c.Registries.InsecureRegistriesArg,
 			Usage: "Specify a list of permitted insecure registry server addresses",
 		})
 	registries = append(registries,
 		cli.StringSliceFlag{
 			Name:  "whitelist-registry, wr",
-			Value: &c.registries.WhitelistRegistriesArg,
+			Value: &c.Registries.WhitelistRegistriesArg,
 			Usage: "Specify a list of permitted whitelist registry server addresses (insecure addresses still require the --insecure-registry option in addition)",
 		})
 
@@ -317,7 +318,7 @@ func (c *Create) Flags() []cli.Flag {
 	return flags
 }
 
-func (c *Create) processParams() error {
+func (c *Create) ProcessParams() error {
 	defer trace.End(trace.Begin(""))
 
 	if err := c.HasCredentials(); err != nil {
@@ -348,21 +349,21 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if err := c.ProcessBridgeNetwork(); err != nil {
+	if err = c.ProcessBridgeNetwork(); err != nil {
 		return err
 	}
 
-	if err := c.ProcessNetwork(&c.Data.ClientNetwork, "client", c.ClientNetworkName,
+	if err = c.ProcessNetwork(&c.Data.ClientNetwork, "client", c.ClientNetworkName,
 		c.ClientNetworkIP, c.ClientNetworkGateway); err != nil {
 		return err
 	}
 
-	if err := c.ProcessNetwork(&c.Data.PublicNetwork, "public", c.PublicNetworkName,
+	if err = c.ProcessNetwork(&c.Data.PublicNetwork, "public", c.PublicNetworkName,
 		c.PublicNetworkIP, c.PublicNetworkGateway); err != nil {
 		return err
 	}
 
-	if err := c.ProcessNetwork(&c.Data.ManagementNetwork, "management", c.ManagementNetworkName,
+	if err = c.ProcessNetwork(&c.Data.ManagementNetwork, "management", c.ManagementNetworkName,
 		c.ManagementNetworkIP, c.ManagementNetworkGateway); err != nil {
 		return err
 	}
@@ -372,11 +373,11 @@ func (c *Create) processParams() error {
 	}
 
 	// must come after client network processing as it checks for static IP on that interface
-	if err := c.processCertificates(); err != nil {
+	if err = c.processCertificates(); err != nil {
 		return err
 	}
 
-	if err := common.CheckUnsupportedCharsDatastore(c.ImageDatastorePath); err != nil {
+	if err = common.CheckUnsupportedCharsDatastore(c.ImageDatastorePath); err != nil {
 		return cli.NewExitError(fmt.Sprintf("--image-store contains unsupported characters: %s Allowed characters are alphanumeric, space and symbols - _ ( ) / :", err), 1)
 	}
 
@@ -385,13 +386,13 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if err := c.registries.ProcessRegistries(); err != nil {
+	if err = c.Registries.ProcessRegistries(); err != nil {
 		return err
 	}
 
-	c.InsecureRegistries = c.registries.InsecureRegistries
-	c.WhitelistRegistries = c.registries.WhitelistRegistries
-	c.RegistryCAs = c.registries.RegistryCAs
+	c.InsecureRegistries = c.Registries.InsecureRegistries
+	c.WhitelistRegistries = c.Registries.WhitelistRegistries
+	c.RegistryCAs = c.Registries.RegistryCAs
 
 	hproxy, sproxy, err := c.Proxies.ProcessProxies()
 	if err != nil {
@@ -400,7 +401,7 @@ func (c *Create) processParams() error {
 	c.HTTPProxy = hproxy
 	c.HTTPSProxy = sproxy
 
-	if err := c.ProcessSyslog(); err != nil {
+	if err = c.ProcessSyslog(); err != nil {
 		return err
 	}
 
@@ -677,7 +678,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 		err = common.LogErrorIfAny(clic, err)
 	}()
 
-	if err = c.processParams(); err != nil {
+	if err = c.ProcessParams(); err != nil {
 		return err
 	}
 
