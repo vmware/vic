@@ -15,6 +15,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"math"
@@ -30,7 +31,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/vmware/govmomi/find"
+	"github.com/vmware/govmomi/list"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/cmd/vic-machine/create"
@@ -52,14 +53,21 @@ const (
 	logFile = "vic-machine.log" // name of local log file
 )
 
+// This interface is declared so that we can enable mocking finder in tests
+// as the govmomi types do not use interfaces themselves.
+type finder interface {
+	Element(context.Context, types.ManagedObjectReference) (*list.Element, error)
+}
+
 // VCHCreate is the handler for creating a VCH
 type VCHCreate struct {
 }
 
-// VCHCreate is the handler for creating a VCH within a Datacenter
+// VCHDatacenterCreate is the handler for creating a VCH within a Datacenter
 type VCHDatacenterCreate struct {
 }
 
+// Handle is the handler implementation for VCH creation without a datacenter
 func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principal interface{}) middleware.Responder {
 	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHCreate")
 
@@ -84,7 +92,7 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 		return operations.NewPostTargetTargetVchDefault(http.StatusBadRequest).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	c, err := buildCreate(op, d, validator.Session.Finder, params.Vch)
+	c, err := buildCreate(op, d, finder(validator.Session.Finder), params.Vch)
 	if err != nil {
 		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -97,6 +105,7 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 	return operations.NewPostTargetTargetVchCreated().WithPayload(operations.PostTargetTargetVchCreatedBody{Task: task})
 }
 
+// Handle is the handler implementation for VCH creation with a datacenter
 func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacenterDatacenterVchParams, principal interface{}) middleware.Responder {
 	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHDatacenterCreate")
 
@@ -161,7 +170,7 @@ func setUpLogger() *os.File {
 	return localLogFile
 }
 
-func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *models.VCH) (*create.Create, error) {
+func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VCH) (*create.Create, error) {
 	c := &create.Create{Data: d}
 
 	// TODO (#6032): deduplicate with create.processParams
@@ -384,7 +393,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 					c.Certs.KeySize = fromValueBits(vch.Auth.Server.Generate.Size)
 
 					c.Certs.NoSaveToDisk = true
-
+					c.Certs.Networks = c.Networks
 					if err := c.Certs.ProcessCertificates(c.DisplayName, c.Force, 0); err != nil {
 						return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error generating certificates: %s", err))
 					}
@@ -393,8 +402,9 @@ func buildCreate(op trace.Operation, d *data.Data, finder *find.Finder, vch *mod
 					c.Certs.KeyPEM = []byte(vch.Auth.Server.PrivateKey.Pem)
 				}
 
-				c.CertPEM = c.Certs.CertPEM
 				c.KeyPEM = c.Certs.KeyPEM
+				c.CertPEM = c.Certs.CertPEM
+				c.ClientCAs = c.Certs.ClientCAs
 			}
 		}
 
@@ -484,7 +494,7 @@ func handleCreate(op trace.Operation, c *create.Create, validator *validate.Vali
 	return nil, nil
 }
 
-func fromManagedObject(op trace.Operation, finder *find.Finder, t string, m *models.ManagedObject) (string, error) {
+func fromManagedObject(op trace.Operation, finder finder, t string, m *models.ManagedObject) (string, error) {
 	if m == nil {
 		return "", nil
 	}
