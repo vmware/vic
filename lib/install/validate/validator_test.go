@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
 
@@ -152,7 +153,6 @@ func TestMain(t *testing.T) {
 		opsPassword := "ops-user-password"
 		input.OpsCredentials.OpsUser = &opsUser
 		input.OpsCredentials.OpsPassword = &opsPassword
-		input.OpsCredentials.GrantPerms = true
 
 		validator, err := NewValidator(ctx, input)
 		if err != nil {
@@ -172,6 +172,121 @@ func TestMain(t *testing.T) {
 		conf := testCompute(validator, input, t)
 		testTargets(validator, input, conf, t)
 		testStorage(validator, input, conf, t)
+	}
+}
+
+func TestGrantPerms(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+	trace.Logger.Level = log.DebugLevel
+	ctx := context.Background()
+
+	for i, model := range []*simulator.Model{simulator.ESX(), simulator.VPX()} {
+		t.Logf("%d", i)
+		model.Datastore = 3
+		defer model.Remove()
+		err := model.Create()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		s := model.Service.NewServer()
+		defer s.Close()
+
+		s.URL.User = url.UserPassword("user", "pass")
+		s.URL.Path = ""
+		t.Logf("server URL: %s", s.URL)
+
+		var input *data.Data
+		if i == 0 {
+			input = getESXData(s.URL)
+		} else {
+			input = getVPXData(s.URL)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		conf := &config.VirtualContainerHostConfigSpec{}
+		opsUser := "ops-user-name"
+		opsPassword := "ops-user-password"
+		opsGrantPermissions := true
+		input.OpsCredentials.OpsUser = &opsUser
+		input.OpsCredentials.OpsPassword = &opsPassword
+
+		// Test 1: current value in conf is the empty string,
+		// input is true, after validation
+		// the new GrantPerms value in conf should be
+		// "config.AddPerms"
+		conf.GrantPermsLevel = ""
+		input.OpsCredentials.GrantPerms = &opsGrantPermissions
+		validator, err := NewValidator(ctx, input)
+		require.NoError(t, err, "Failed to create validator")
+
+		validator.credentials(validator.Context, input, conf)
+		assert.Equal(t, conf.GrantPermsLevel, config.AddPerms)
+
+		// Test 2: current value in conf is the empty string,
+		// input is nil, after validation
+		// the new GrantPerms value in conf should be
+		// the empty string
+		conf.GrantPermsLevel = ""
+		input.OpsCredentials.GrantPerms = nil
+		validator, err = NewValidator(ctx, input)
+		require.NoError(t, err, "Failed to create validator")
+
+		validator.credentials(validator.Context, input, conf)
+		assert.Equal(t, conf.GrantPermsLevel, "")
+
+		// Test 3: current value in conf is the empty string,
+		// input is false, after validation
+		// the new GrantPerms value in conf should be
+		// the empty string
+		conf.GrantPermsLevel = ""
+		opsGrantPermissions = false
+		input.OpsCredentials.GrantPerms = &opsGrantPermissions
+		validator, err = NewValidator(ctx, input)
+		require.NoError(t, err, "Failed to create validator")
+
+		validator.credentials(validator.Context, input, conf)
+		assert.Equal(t, conf.GrantPermsLevel, "")
+
+		// Test 4: current value in conf is "config.AddPerms",
+		// input is true, after validation
+		// the new GrantPerms value in conf should be
+		// "config.AddPerms"
+		conf.GrantPermsLevel = config.AddPerms
+		opsGrantPermissions = true
+		input.OpsCredentials.GrantPerms = &opsGrantPermissions
+		validator, err = NewValidator(ctx, input)
+		require.NoError(t, err, "Failed to create validator")
+
+		validator.credentials(validator.Context, input, conf)
+		assert.Equal(t, conf.GrantPermsLevel, config.AddPerms)
+
+		// Test 5: current value in conf is "config.AddPerms",
+		// input is nil, after validation
+		// the new GrantPerms value in conf should be
+		// "config.AddPerms"
+		conf.GrantPermsLevel = config.AddPerms
+		input.OpsCredentials.GrantPerms = nil
+		validator, err = NewValidator(ctx, input)
+		require.NoError(t, err, "Failed to create validator")
+
+		validator.credentials(validator.Context, input, conf)
+		assert.Equal(t, conf.GrantPermsLevel, config.AddPerms)
+
+		// Test 6: current value in conf is "config.AddPerms",
+		// input is false, after validation
+		// the new GrantPerms value in conf should be
+		// the empty string
+		conf.GrantPermsLevel = config.AddPerms
+		opsGrantPermissions = false
+		input.OpsCredentials.GrantPerms = &opsGrantPermissions
+		validator, err = NewValidator(ctx, input)
+		require.NoError(t, err, "Failed to create validator")
+
+		validator.credentials(validator.Context, input, conf)
+		assert.Equal(t, conf.GrantPermsLevel, "")
 	}
 }
 
@@ -293,7 +408,7 @@ func testTargets(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 	assert.Nil(t, u.User)
 	assert.NotEmpty(t, conf.Token)
 	assert.NotEmpty(t, conf.Username)
-	assert.Equal(t, conf.GrantPermsLevel, config.AddPerms)
+
 }
 
 func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {

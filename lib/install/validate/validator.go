@@ -440,9 +440,15 @@ func (v *Validator) credentials(ctx context.Context, input *data.Data, conf *con
 	conf.Token = *input.OpsCredentials.OpsPassword
 	conf.TargetThumbprint = input.Thumbprint
 
-	if input.OpsCredentials.GrantPerms {
-		// Set Grant Permissions level
-		conf.SetGrantPerms()
+	// If Grant Perms has  been explicitly requested (either true or false)
+	// set it to the new value. Otherwise leave the value in conf as it is
+	if input.OpsCredentials.GrantPerms != nil {
+		if *input.OpsCredentials.GrantPerms {
+			// Set Grant Permissions level
+			conf.SetGrantPerms()
+		} else {
+			conf.ClearGrantPerms()
+		}
 	}
 
 	// Discard anything other than these URL fields for the target

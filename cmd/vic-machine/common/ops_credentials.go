@@ -30,8 +30,8 @@ import (
 type OpsCredentials struct {
 	OpsUser     *string `cmd:"ops-user"`
 	OpsPassword *string
+	GrantPerms  *bool
 	IsSet       bool
-	GrantPerms  bool
 }
 
 func (o *OpsCredentials) Flags(hidden bool) []cli.Flag {
@@ -48,6 +48,12 @@ func (o *OpsCredentials) Flags(hidden bool) []cli.Flag {
 			Usage:  "Password or token for the operations user. Defaults to the credential supplied with target",
 			Hidden: hidden,
 		},
+		cli.GenericFlag{
+			Name:   "ops-grant-perms",
+			Value:  flags.NewOptionalBool(&o.GrantPerms),
+			Usage:  "Create roles and grant required permissions to the specified ops-use",
+			Hidden: hidden,
+		},
 	}
 }
 
@@ -62,22 +68,26 @@ func (o *OpsCredentials) ProcessOpsCredentials(isCreateOp bool, adminUser string
 
 	if isCreateOp {
 		if o.OpsUser == nil {
+			// Check if there was a request to setup ops-user Roles and Permissions
+			if o.GrantPerms != nil {
+				// If true return error
+				if *o.GrantPerms {
+					return errors.Errorf("Invalid use of flag: --ops-grant-perms. Cannot setup Roles and Permissions for administrative user.")
+				}
+				// If false ignore
+				o.GrantPerms = nil
+			}
 			log.Warn("Using administrative user for VCH operation - use --ops-user to improve security (see -x for advanced help)")
 			o.OpsUser = &adminUser
 			if adminPassword == nil {
 				return errors.New("Unable to use nil password from administrative user for operations user")
 			}
 			o.OpsPassword = adminPassword
-			// If using the admin user don't init roles and Permissions
-			o.GrantPerms = false
 			return nil
 		}
 	} else {
 		if o.OpsUser != nil {
 			o.IsSet = true
-		} else {
-			// If using the admin user don't init roles and Permissions
-			o.GrantPerms = false
 		}
 	}
 
