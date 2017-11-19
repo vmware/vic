@@ -155,9 +155,6 @@ Delete VCH moved from its RP
     Log  ${output}
     Should Contain  ${output}  ${dummyvm}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  govc version
-    Log To Console  ${output}
-
     # Create temp RP
     ${rc}  ${output}=  Run And Return Rc And Output  govc pool.create "%{TEST_RESOURCE}/rp-${rand}"
     Should Be Equal As Integers  ${rc}  0
