@@ -29,7 +29,10 @@ import (
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/optmanager"
 )
+
+const persistNetworkBackingKey = "config.vpxd.SerialPort.PersistNetworkBacking"
 
 type FirewallStatus struct {
 	Rule                          types.HostFirewallRule
@@ -561,4 +564,35 @@ func (v *Validator) CheckDrs(ctx context.Context) {
 	}
 	op.Info("DRS check OK on:")
 	op.Infof("  %q", v.Session.Cluster.InventoryPath)
+}
+
+// check that PersistNetworkBacking is set
+func (v *Validator) CheckPersistNetworkBacking(ctx context.Context, quiet bool) bool {
+	op := trace.FromContext(ctx, "Check vCenter serial port backing")
+	defer trace.End(trace.Begin("", op))
+
+	errMsg := "vCenter settings check SKIPPED"
+	if !v.sessionValid(op, errMsg) {
+		return false
+	}
+	if !v.IsVC() {
+		op.Info(errMsg)
+		return true
+	}
+
+	val, err := optmanager.QueryOptionValue(ctx, v.Session, persistNetworkBackingKey)
+	if err != nil {
+		// the key is not set
+		val = "false"
+	}
+	if val != "true" {
+		if !quiet {
+			op.Errorf("vCenter settings check FAILED")
+			msg := fmt.Sprintf("vCenter advanced option %s=true must be set", persistNetworkBackingKey)
+			v.NoteIssue(errors.New(msg))
+		}
+		return false
+	}
+	op.Infof("vCenter settings check OK")
+	return true
 }
