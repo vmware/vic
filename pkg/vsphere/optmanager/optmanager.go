@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -38,4 +39,20 @@ func QueryOptionValue(ctx context.Context, s *session.Session, option string) (s
 	}
 
 	return "", fmt.Errorf("%d values querying option %q", len(opts), option)
+}
+
+// UpdateOptionValue uses the session client and OptionManager to set the input option
+func UpdateOptionValue(ctx context.Context, s *session.Session, option string, value string) error {
+	client := s.Vim25()
+	optMgr := object.NewOptionManager(client, *client.ServiceContent.Setting)
+	var opts []types.BaseOptionValue
+	opts = append(opts, &types.OptionValue{
+		Key:   option,
+		Value: value,
+	})
+	err := optMgr.Update(ctx, opts)
+	if err != nil {
+		return fmt.Errorf("error setting option %q: %s", option, err)
+	}
+	return nil
 }
