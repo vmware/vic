@@ -18,12 +18,16 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	gvsession "github.com/vmware/govmomi/session"
 	"github.com/vmware/govmomi/vim25"
+	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/errors"
@@ -110,7 +114,16 @@ func (am *AuthzManager) RoleList(ctx context.Context) (object.AuthorizationRoleL
 }
 
 func (am *AuthzManager) SetupRolesAndPermissions(ctx context.Context) ([]RBACResourcePermission, error) {
-	if _, err := am.CreateRoles(ctx); err != nil {
+	res, err := am.isPrincipalAnAdministrator(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if res {
+		log.Warnf("Skipping ops-user Role/Permissions initialization. The current ops-user (%s) has administrative privileges.", am.principal)
+		log.Warnf("This occurs when \"%s\" is a member of the \"Administrators\" group or has been granted \"Admin\" role to any of the resources in the system.", am.principal)
+		return nil, nil
+	}
+	if _, err = am.CreateRoles(ctx); err != nil {
 		return nil, err
 	}
 	return am.SetupPermissions(ctx)
@@ -205,6 +218,91 @@ func (am *AuthzManager) setupPermissions(ctx context.Context) ([]RBACResourcePer
 	}
 
 	return resourcePermissions, nil
+}
+
+func (am *AuthzManager) isPrincipalAnAdministrator(ctx context.Context) (bool, error) {
+	// Check if the principal belongs to the Administrators group
+	res, err := am.principalBelongsToGroup(ctx, "Administrators")
+	if err != nil {
+		return false, err
+	}
+
+	if res {
+		return res, nil
+	}
+
+	// Check if the principal has an Admin Role
+	res, err = am.principalHasRole(ctx, "Admin")
+	if err != nil {
+		return false, err
+	}
+
+	return res, nil
+}
+
+func (am *AuthzManager) principalBelongsToGroup(ctx context.Context, group string) (bool, error) {
+	ref := *am.client.ServiceContent.UserDirectory
+
+	components := strings.Split(am.principal, "@")
+	var domain string
+	name := components[0]
+	if len(components) < 2 {
+		domain = ""
+	} else {
+		domain = components[1]
+	}
+
+	req := types.RetrieveUserGroups{
+		This:           ref,
+		Domain:         domain,
+		SearchStr:      name,
+		ExactMatch:     true,
+		BelongsToGroup: group,
+		FindUsers:      true,
+		FindGroups:     false,
+	}
+
+	results, err := methods.RetrieveUserGroups(ctx, am.client, &req)
+	if err != nil {
+		return false, err
+	}
+
+	if len(results.Returnval) > 0 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (am *AuthzManager) principalHasRole(ctx context.Context, roleName string) (bool, error) {
+	// Build expected representation of the ops-user
+	principal := strings.ToLower(am.principal)
+
+	// Get role id for admin Role
+	roleList, err := am.RoleList(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	role := roleList.ByName(roleName)
+
+	allPerms, err := am.authzManager.RetrieveAllPermissions(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	for _, perm := range allPerms {
+		if perm.RoleId != role.RoleId {
+			continue
+		}
+
+		fPrincipal := am.formatPrincipal(perm.Principal)
+		if fPrincipal == principal {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func (am *AuthzManager) getPermissions(ctx context.Context,
@@ -415,4 +513,13 @@ func (am *AuthzManager) getResource(resourceType int8) *RBACResource {
 		panic(errors.Errorf("Cannot find RBAC resource type: %d", resourceType))
 	}
 	return resource
+}
+
+func (am *AuthzManager) formatPrincipal(principal string) string {
+	components := strings.Split(principal, "\\")
+	if len(components) != 2 {
+		return strings.ToLower(principal)
+	}
+	ret := strings.ToLower(components[1]) + "@" + strings.ToLower(components[0])
+	return ret
 }

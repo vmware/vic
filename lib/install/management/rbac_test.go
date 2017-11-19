@@ -32,9 +32,9 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 )
 
-func newOpsUserAuthzManager(ctx context.Context, client *vim25.Client, configSpec *config.VirtualContainerHostConfigSpec) *AuthzManager {
+func newOpsUserAuthzManager(ctx context.Context, client *vim25.Client, configSpec *config.VirtualContainerHostConfigSpec, opsUser string) *AuthzManager {
 	am := NewAuthzManager(ctx, client, configSpec)
-	am.InitRBACConfig("ops-user@vsphere.local", &OpsUserRBACConf)
+	am.InitRBACConfig(opsUser, &OpsUserRBACConf)
 	return am
 }
 
@@ -58,7 +58,7 @@ func TestOpsUserRolesSimulatorVPX(t *testing.T) {
 	sess, err := session.NewSession(config).Connect(ctx)
 	require.NoError(t, err, "Cannot connect to VPX Simulator")
 
-	am := newOpsUserAuthzManager(ctx, sess.Vim25(), nil)
+	am := newOpsUserAuthzManager(ctx, sess.Vim25(), nil, "ops-user@vsphere.local")
 
 	doTestRoles(ctx, t, am)
 }
@@ -77,9 +77,97 @@ func TestOpsUserRolesVCenter(t *testing.T) {
 		t.SkipNow()
 	}
 
-	am := newOpsUserAuthzManager(ctx, sess.Vim25(), nil)
+	am := newOpsUserAuthzManager(ctx, sess.Vim25(), nil, "ops-user@vsphere.local")
 
 	doTestRoles(ctx, t, am)
+}
+
+func TestOpsUserAdminSimulatorVPX(t *testing.T) {
+	ctx := context.Background()
+	m := simulator.VPX()
+	defer m.Remove()
+
+	err := m.Create()
+	require.NoError(t, err, "Cannot create VPX Simulator")
+
+	s := m.Service.NewServer()
+	defer s.Close()
+
+	config := &session.Config{
+		Service:   s.URL.String(),
+		Insecure:  true,
+		Keepalive: time.Duration(5) * time.Minute,
+	}
+
+	sess, err := session.NewSession(config).Connect(ctx)
+	require.NoError(t, err, "Cannot connect to VPX Simulator")
+
+	am := newOpsUserAuthzManager(ctx, sess.Vim25(), nil, "admin")
+
+	// Unfortunately the Sim does not have support for looking up group membership
+	// therefore we can only test the presence of the Admin role
+
+	res, err := am.principalHasRole(ctx, "Admin")
+	require.NoError(t, err, "Failed to verify Admin Privileges")
+	require.True(t, res, "User Administrator@vsphere.local should have an Admin role")
+
+	// Negative test, principal does not have that role
+	res, err = am.principalHasRole(ctx, "NoAccess")
+	require.NoError(t, err, "Failed to verify Admin Privileges")
+	require.False(t, res, "User Administrator@vsphere.local should have an NoAccess role")
+
+	// Check regular user
+	am.principal = "nouser@vshpere.local"
+	res, err = am.principalHasRole(ctx, "Admin")
+	require.NoError(t, err, "Failed to verify Admin Privileges")
+	require.False(t, res, "User nouser@vsphere.local should not have an Admin role")
+}
+
+func TestOpsUserAdminVCenter(t *testing.T) {
+	ctx := context.Background()
+
+	config := &session.Config{
+		Service:   env.URL(t),
+		Insecure:  true,
+		Keepalive: time.Duration(5) * time.Minute,
+	}
+
+	sess, err := session.NewSession(config).Connect(ctx)
+	if err != nil {
+		t.SkipNow()
+	}
+
+	am := newOpsUserAuthzManager(ctx, sess.Vim25(), nil, "Administrator@vsphere.local")
+
+	res, err := am.principalBelongsToGroup(ctx, "Administrators")
+	require.NoError(t, err, "Failed to verify Admin Privileges")
+	require.True(t, res, "User Administrator@vsphere.local should be a member of Administrators")
+
+	res, err = am.principalHasRole(ctx, "Admin")
+	require.NoError(t, err, "Failed to verify Admin Privileges")
+	require.True(t, res, "User Administrator@vsphere.local should have an Admin role")
+
+	// Negative test, principal does not belong
+	res, err = am.principalBelongsToGroup(ctx, "TestUsers")
+	require.NoError(t, err, "Failed to verify Admin Privileges")
+	require.False(t, res, "User Administrator@vsphere.local should not be a member of TestUsers")
+
+	// Negative test, principal does not have that role
+	res, err = am.principalHasRole(ctx, "NoAccess")
+	require.NoError(t, err, "Failed to verify Admin Privileges")
+	require.False(t, res, "User Administrator@vsphere.local should have an NoAccess role")
+
+	// Check regular user
+	am.principal = "nouser@vshpere.local"
+	res, err = am.principalHasRole(ctx, "Admin")
+	require.NoError(t, err, "Failed to verify Admin Privileges")
+	require.False(t, res, "User nouser@vsphere.local should not have an Admin role")
+
+	// Check regular user
+	am.principal = "nouser"
+	res, err = am.principalHasRole(ctx, "Admin")
+	require.NoError(t, err, "Failed to verify Admin Privileges")
+	require.False(t, res, "User nouser@vsphere.local should not have an Admin role")
 }
 
 func TestOpsUserPermsSimulatorVPX(t *testing.T) {
@@ -105,7 +193,7 @@ func TestOpsUserPermsSimulatorVPX(t *testing.T) {
 	sess, err := session.NewSession(config).Connect(ctx)
 	require.NoError(t, err)
 
-	am := newOpsUserAuthzManager(ctx, sess.Vim25(), nil)
+	am := newOpsUserAuthzManager(ctx, sess.Vim25(), nil, "ops-user@vsphere.local")
 
 	var roleCount = len(am.targetRoles)
 	count := initRoles(ctx, t, am)
@@ -179,7 +267,7 @@ func TestOpsUserPermsFromConfigSimulatorVPX(t *testing.T) {
 	require.NoError(t, err)
 
 	// Set up the Authz Manager
-	am := newOpsUserAuthzManager(ctx, sess.Vim25(), configSpec)
+	am := newOpsUserAuthzManager(ctx, sess.Vim25(), configSpec, "ops-user@vsphere.local")
 
 	resourcePermissions, err := am.SetupRolesAndPermissions(ctx)
 	require.NoError(t, err)
