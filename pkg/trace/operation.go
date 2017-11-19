@@ -259,7 +259,7 @@ func FromOperation(parent Operation, format string, args ...interface{}) Operati
 //   The operation in the context value
 //   The operation passed as the context param
 //   A new operation
-func FromContext(ctx context.Context, message string) Operation {
+func FromContext(ctx context.Context, message string, args ...interface{}) Operation {
 
 	// do we have an operation
 	if op, ok := ctx.(Operation); ok {
@@ -270,7 +270,7 @@ func FromContext(ctx context.Context, message string) Operation {
 	if op, ok := ctx.Value(OpTraceKey).(operation); ok {
 		// ensure we have an initialized operation
 		if op.id == "" {
-			return NewOperation(ctx, message)
+			return NewOperation(ctx, message, args...)
 		}
 		// return an operation based off the context value
 		return Operation{
@@ -279,7 +279,7 @@ func FromContext(ctx context.Context, message string) Operation {
 		}
 	}
 
-	op := newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, message)
+	op := newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, fmt.Sprintf(message, args...))
 	frame := op.t[0]
 	Logger.Debugf("%s: [OperationFromContext] [%s:%d]", op.id, frame.funcName, frame.lineNo)
 

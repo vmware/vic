@@ -40,7 +40,7 @@ type VCHDatacenterListGet struct {
 }
 
 func (h *VCHListGet) Handle(params operations.GetTargetTargetVchParams, principal interface{}) middleware.Responder {
-	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHListGet")
+	op := trace.FromContext(params.HTTPRequest.Context(), "VCHListGet")
 
 	b := buildDataParams{
 		target:          params.Target,
@@ -62,7 +62,7 @@ func (h *VCHListGet) Handle(params operations.GetTargetTargetVchParams, principa
 }
 
 func (h *VCHDatacenterListGet) Handle(params operations.GetTargetTargetDatacenterDatacenterVchParams, principal interface{}) middleware.Responder {
-	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHDatacenterListGet")
+	op := trace.FromContext(params.HTTPRequest.Context(), "VCHDatacenterListGet")
 
 	b := buildDataParams{
 		target:          params.Target,

@@ -50,7 +50,7 @@ type VCHDatacenterGet struct {
 }
 
 func (h *VCHGet) Handle(params operations.GetTargetTargetVchVchIDParams, principal interface{}) middleware.Responder {
-	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHGet: %s", params.VchID)
+	op := trace.FromContext(params.HTTPRequest.Context(), "VCHGet: %s", params.VchID)
 
 	b := buildDataParams{
 		target:     params.Target,
@@ -73,7 +73,7 @@ func (h *VCHGet) Handle(params operations.GetTargetTargetVchVchIDParams, princip
 }
 
 func (h *VCHDatacenterGet) Handle(params operations.GetTargetTargetDatacenterDatacenterVchVchIDParams, principal interface{}) middleware.Responder {
-	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHDatacenterGet: %s", params.VchID)
+	op := trace.FromContext(params.HTTPRequest.Context(), "VCHDatacenterGet: %s", params.VchID)
 
 	b := buildDataParams{
 		target:     params.Target,

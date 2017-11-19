@@ -34,7 +34,7 @@ type VCHCertGet struct{}
 type VCHDatacenterCertGet struct{}
 
 func (h *VCHCertGet) Handle(params operations.GetTargetTargetVchVchIDCertificateParams, principal interface{}) middleware.Responder {
-	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHCertGet: %s", params.VchID)
+	op := trace.FromContext(params.HTTPRequest.Context(), "VCHCertGet: %s", params.VchID)
 
 	b := buildDataParams{
 		target:     params.Target,
@@ -60,7 +60,7 @@ func (h *VCHCertGet) Handle(params operations.GetTargetTargetVchVchIDCertificate
 }
 
 func (h *VCHDatacenterCertGet) Handle(params operations.GetTargetTargetDatacenterDatacenterVchVchIDCertificateParams, principal interface{}) middleware.Responder {
-	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHDatacenterCertGet: %s", params.VchID)
+	op := trace.FromContext(params.HTTPRequest.Context(), "VCHDatacenterCertGet: %s", params.VchID)
 
 	b := buildDataParams{
 		target:     params.Target,

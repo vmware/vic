@@ -69,7 +69,7 @@ type VCHDatacenterCreate struct {
 
 // Handle is the handler implementation for VCH creation without a datacenter
 func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principal interface{}) middleware.Responder {
-	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHCreate")
+	op := trace.FromContext(params.HTTPRequest.Context(), "VCHCreate")
 
 	// Set up VCH create logger
 	localLogFile := setUpLogger()
@@ -107,7 +107,7 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 
 // Handle is the handler implementation for VCH creation with a datacenter
 func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacenterDatacenterVchParams, principal interface{}) middleware.Responder {
-	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHDatacenterCreate")
+	op := trace.FromContext(params.HTTPRequest.Context(), "VCHDatacenterCreate")
 
 	// Set up VCH create logger
 	localLogFile := setUpLogger()
