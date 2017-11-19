@@ -46,7 +46,7 @@ type VCHDatacenterLogGet struct {
 }
 
 func (h *VCHLogGet) Handle(params operations.GetTargetTargetVchVchIDLogParams, principal interface{}) middleware.Responder {
-	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHLogGet: %s", params.VchID)
+	op := trace.FromContext(params.HTTPRequest.Context(), "VCHLogGet: %s", params.VchID)
 
 	b := buildDataParams{
 		target:     params.Target,
@@ -79,7 +79,7 @@ func (h *VCHLogGet) Handle(params operations.GetTargetTargetVchVchIDLogParams, p
 }
 
 func (h *VCHDatacenterLogGet) Handle(params operations.GetTargetTargetDatacenterDatacenterVchVchIDLogParams, principal interface{}) middleware.Responder {
-	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHDatacenterLogGet: %s", params.VchID)
+	op := trace.FromContext(params.HTTPRequest.Context(), "VCHDatacenterLogGet: %s", params.VchID)
 
 	b := buildDataParams{
 		target:     params.Target,

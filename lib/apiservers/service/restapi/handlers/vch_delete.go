@@ -39,7 +39,7 @@ type VCHDatacenterDelete struct {
 }
 
 func (h *VCHDelete) Handle(params operations.DeleteTargetTargetVchVchIDParams, principal interface{}) middleware.Responder {
-	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHDelete: %s", params.VchID)
+	op := trace.FromContext(params.HTTPRequest.Context(), "VCHDelete: %s", params.VchID)
 
 	b := buildDataParams{
 		target:     params.Target,
@@ -62,7 +62,7 @@ func (h *VCHDelete) Handle(params operations.DeleteTargetTargetVchVchIDParams, p
 }
 
 func (h *VCHDatacenterDelete) Handle(params operations.DeleteTargetTargetDatacenterDatacenterVchVchIDParams, principal interface{}) middleware.Responder {
-	op := trace.NewOperation(params.HTTPRequest.Context(), "VCHDelete: %s", params.VchID)
+	op := trace.FromContext(params.HTTPRequest.Context(), "VCHDelete: %s", params.VchID)
 
 	b := buildDataParams{
 		target:     params.Target,
