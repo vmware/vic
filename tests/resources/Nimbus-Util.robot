@@ -37,15 +37,16 @@ Get IP
 
 Fetch POD
       [Arguments]  ${name}
-      ${out}=  Wait Until Keyword Succeeds  10x  1 minute  Fetch IP  ${name}
+      ${out}=  Execute Command  nimbus-ctl list | grep ${name}
+      Should Not Be Empty  ${out}
+      ${len}=  Get Line Count  ${out}
+      Should Be Equal As Integers  ${len}  1
       ${pod}=  Fetch From Left  ${out}  :
       [return]  ${pod}
 
-
 Deploy Nimbus ESXi Server
-    [Arguments]  ${user}  ${password}  ${name}=  ${version}=${ESX_VERSION}  ${tls_disabled}=True
-    ${default_name}=  Evaluate  'ESX-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
-    Run Keyword Unless  '${name}'  Set Variable  ${name}  ${default_name}
+    [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}  ${tls_disabled}=True
+    ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
