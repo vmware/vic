@@ -41,6 +41,7 @@ Setup ESX And NFS Suite
     Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     ${POD}=  Fetch POD  ${esx1}
     Log To Console  ${POD}
+    Close Connection
 
     ${nfs}  ${nfs_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--nimbus ${POD}
 
