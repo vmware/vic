@@ -205,6 +205,41 @@ func TestPipeWriteClose(t *testing.T) {
 	assert.Equal(t, 0, n, "write on closed pipe returned %d bytes", n)
 }
 
+// Test read left-over data after pipe is closed
+func TestPipeReadAfterWriteClose(t *testing.T) {
+	testByte := []byte("hello world")
+	toRead := make([]byte, 64)
+	bp := NewBufferedPipe()
+	writeDone := make(chan int)
+
+	go write(t, bp, testByte, len(testByte), writeDone)
+	<-writeDone
+	go bp.Close()
+
+	// wait for write end to close
+	// closing of read end is expected to block until data is drained from the pipe
+	time.Sleep(1 * time.Millisecond)
+
+	// subsequent write to closed pipe fails
+	buf := make([]byte, 64)
+	n, err := bp.Write(buf)
+	assert.Equal(t, ErrUnexpectedEOF, err, "write to closed pipe: %v want %v", err, ErrUnexpectedEOF)
+	assert.Equal(t, 0, n, "write on closed pipe returned %d bytes", n)
+
+	// read on the left-over data succeeds
+	read(t, bp, toRead, len(testByte), nil)
+	assert.Equal(t, string(testByte), string(toRead[0:len(testByte)]), "expected %s, read %s", string(testByte), string(toRead[0:len(testByte)]))
+
+	// wait for close to unblock
+	time.Sleep(1 * time.Millisecond)
+
+	// subsequent read fails since data is drained
+	readBuf := make([]byte, 16)
+	n, err = bp.Read(readBuf)
+	assert.Equal(t, EOF, err, "read from closed pipe: %v want %v", err, EOF)
+	assert.Equal(t, 0, n, "read on closed pipe returned %d bytes", n)
+}
+
 // Helper Functions
 
 // write writes the data and report any error
