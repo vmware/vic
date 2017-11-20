@@ -97,7 +97,7 @@ func (d *Dispatcher) isContainerVM(vm *vm.VirtualMachine) (bool, error) {
 	}
 	defer trace.End(trace.Begin(vm.InventoryPath))
 	var cspec executor.ExecutorConfig
-	info, err := vm.FetchExtraConfig(d.ctx)
+	info, err := vm.FetchExtraConfig(d.op)
 	if err != nil {
 		err = errors.Errorf("Failed to fetch guest info of appliance vm: %s", err)
 		return false, err

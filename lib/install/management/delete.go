@@ -60,7 +60,7 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 
 	d.parentResourcepool, err = d.getComputeResource(vmm, conf)
 	if err != nil {
-		log.Error(err)
+		d.op.Error(err)
 		if !d.force {
 			d.op.Infof("Specify --force to force delete")
 			return err
@@ -71,7 +71,7 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 	}
 	if d.parentResourcepool != nil {
 		if err = d.DeleteVCHInstances(vmm, conf, containers); err != nil {
-			log.Error(err)
+			d.op.Error(err)
 			if !d.force {
 				// if container delete failed, do not remove anything else
 				d.op.Infof("Specify --force to force delete")
@@ -105,13 +105,13 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 		return err
 	}
 
-	defaultrp, err := d.session.Cluster.ResourcePool(d.ctx)
+	defaultrp, err := d.session.Cluster.ResourcePool(d.op)
 	if err != nil {
 		return err
 	}
 
 	if d.parentResourcepool != nil && d.parentResourcepool.Reference() == defaultrp.Reference() {
-		log.Warnf("VCH resource pool is cluster default pool - skipping delete")
+		d.op.Warnf("VCH resource pool is cluster default pool - skipping delete")
 		return nil
 	}
 
@@ -124,8 +124,6 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 func (d *Dispatcher) getComputeResource(vmm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) (*compute.ResourcePool, error) {
 	var rpRef types.ManagedObjectReference
 	var err error
-
-	ignoreFailureToFindComputeResources := d.force
 
 	if len(conf.ComputeResources) == 0 {
 		err = errors.Errorf("Cannot find compute resource from configuration")
@@ -252,7 +250,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 		if ok {
 			// Do not delete a VCH in the target RP if it is not the target VCH
 			if child.Reference() != vmm.Reference() {
-				log.Debugf("Skipping VCH in the resource pool that is not the targeted VCH: %s", child)
+				d.op.Debugf("Skipping VCH in the resource pool that is not the targeted VCH: %s", child)
 				continue
 			}
 
@@ -269,7 +267,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 			continue
 		}
 		if !ok {
-			log.Debugf("Skipping VM in the resource pool that is not a container VM: %s", child)
+			d.op.Debugf("Skipping VM in the resource pool that is not a container VM: %s", child)
 			continue
 		}
 
