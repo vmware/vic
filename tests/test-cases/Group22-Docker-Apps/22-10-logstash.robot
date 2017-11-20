@@ -38,11 +38,11 @@ Logstash with mapped volume log file
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --rm -v vol1:/mydata ${busybox} sh -c "echo 'Initial log message' > /mydata/my.log"
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${log_container} -dit -v vol1:/logs logstash -e 'input { file { path => "/logs/my.log" start_position => "beginning" } } output { stdout { } }'
-    Log  ${output}
+    ${rc}  ${logstash_container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit -v vol1:/logs logstash -e 'input { file { path => "/logs/my.log" start_position => "beginning" } } output { stdout { } }'
+    Log  ${logstash_container}
     Should Be Equal As Integers  ${rc}  0
-    Wait Until Keyword Succeeds  10x  6s  Check logstash logs  log2  Initial log message
+    Wait Until Keyword Succeeds  10x  6s  Check logstash logs  ${logstash_container}  Initial log message
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${log_container} sh -c "echo 'Another exciting log message' >> /logs/my.log"
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${logstash_container} sh -c "echo 'Another exciting log message' >> /logs/my.log"
     Should Be Equal As Integers  ${rc}  0
-    Wait Until Keyword Succeeds  10x  6s  Check logstash logs  log2  Another exciting log message
+    Wait Until Keyword Succeeds  10x  6s  Check logstash logs  ${logstash_container}  Another exciting log message
