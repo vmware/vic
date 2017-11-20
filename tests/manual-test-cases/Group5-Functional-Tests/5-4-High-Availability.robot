@@ -180,6 +180,8 @@ Test
     \     Should Be Equal As Integers  ${rc}  0
     \     Append To List  ${stopped}  ${c}
 
+    # Speculating that this is here to add some stability if VMs vmotion immediately after power on
+    # If so it should be replaced with a check for active tasks running against the VM or a DRS rule to avoid it completely
     Sleep  2 minutes
 
     ${output}=  Run  govc vm.info %{VCH-NAME}
@@ -204,17 +206,15 @@ Test
 
     # Abruptly power off the host
     Open Connection  ${curHost}  prompt=:~]
-    Login  root  e2eFunctionalTest
+    Login  root  ${NIMBUS_ESX_PASSWORD}
     ${out}=  Execute Command  poweroff -d 0 -f
     Close connection
 
     ${info}=  Run  govc vm.info \\*
     Log  ${info}
 
-    # Really not sure what better to do here?  Otherwise, vic-machine-inspect returns the old IP address... maybe some sort of power monitoring? Can I pull uptime of the system?
-    Sleep  4 minutes
-    Run VIC Machine Inspect Command
-    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+    # Wait for the VCH to come back up fully - if it's not completely reinitialized it will still report the old IP address 
+    Wait For VCH Initialization
 
     ${info}=  Run  govc vm.info \\*
     Log  ${info}
