@@ -92,10 +92,10 @@ Management network - none
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --insecure-registry harbor.ci.drone.local
     Should Contain  ${output}  Installer completed successfully
-    ${status}=  Run Keyword And Return Status  Should Contain  ${output}  Network role "management" is sharing NIC with "public"
-    ${status2}=  Run Keyword And Return Status  Should Contain  ${output}  Network role "public" is sharing NIC with "management"
-    ${status3}=  Run Keyword And Return Status  Should Contain  ${output}  Network role "public" is sharing NIC with "client"
-    ${status4}=  Run Keyword And Return Status  Should Contain  ${output}  Network role "management" is sharing NIC with "client"
+    ${status}=  Run Keyword And Return Status  Should Contain  ${output}  Network role \\"management\\" is sharing NIC with \\"public\\"
+    ${status2}=  Run Keyword And Return Status  Should Contain  ${output}  Network role \\"public\\" is sharing NIC with \\"management\\"
+    ${status3}=  Run Keyword And Return Status  Should Contain  ${output}  Network role \\"public\\" is sharing NIC with \\"client\\"
+    ${status4}=  Run Keyword And Return Status  Should Contain  ${output}  Network role \\"management\\" is sharing NIC with \\"client\\"
     Should Be True  ${status} | ${status2} | ${status3} | ${status4}
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
@@ -382,15 +382,15 @@ Container network - space in network name invalid
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network 'VM Network With Spaces' ${vicmachinetls}
-    Should Contain  ${output}  A network alias must be supplied when network name "VM Network With Spaces" contains spaces.
+    Should Contain  ${output}  A network alias must be supplied when network name \\"VM Network With Spaces\\" contains spaces.
     Should Contain  ${output}  vic-machine-linux create failed
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network 'VM Network With Spaces': ${vicmachinetls}
-    Should Contain  ${output}  A network alias must be supplied when network name "VM Network With Spaces:" contains spaces.
+    Should Contain  ${output}  A network alias must be supplied when network name \\"VM Network With Spaces:\\" contains spaces.
     Should Contain  ${output}  vic-machine-linux create failed
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network 'vm-network':'vm network' ${vicmachinetls}
-    Should Contain  ${output}  The network alias supplied in "vm-network:vm network" cannot contain spaces.
+    Should Contain  ${output}  The network alias supplied in \\"vm-network:vm network\\" cannot contain spaces.
     Should Contain  ${output}  vic-machine-linux create failed
 
     # Delete the portgroup added by env vars keyword

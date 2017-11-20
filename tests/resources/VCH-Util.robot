@@ -92,6 +92,12 @@ Set List Of Env Variables
 
 Parse Environment Variables
     [Arguments]  ${line}
+    # If using the default logrus format
+    ${status}=  Run Keyword And Return Status  Should Match Regexp  ${line}  msg\="([^"]*)"
+    ${match}  ${vars}=  Run Keyword If  ${status}  Should Match Regexp  ${line}  msg\="([^"]*)"
+    Run Keyword If  ${status}  Set List Of Env Variables  ${vars}
+    Return From Keyword If  ${status}
+
     #  If using the old logging format
     ${status}=  Run Keyword And Return Status  Should Contain  ${line}  mINFO
     ${logdeco}  ${vars}=  Run Keyword If  ${status}  Split String  ${line}  ${SPACE}  1
@@ -130,11 +136,17 @@ Get Docker Params
     \   ${idx} =  Evaluate  ${index} + 1
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${ext-ip}  @{output}[${idx}]
 
-    ${rest}  ${ext-ip} =  Split String From Right  ${ext-ip}  ${SPACE}  1
-    ${ext-ip} =  Strip String  ${ext-ip}
+
+    ${status}=             Run Keyword And Return Status  Should Match Regexp  ${ext-ip}  msg\=([^"]*)
+    ${ignore}  ${ext-ip}=  Run Keyword If      ${status}  Should Match Regexp  ${ext-ip}  msg\=([^"]*)
+                           ...  ELSE                      Split String From Right  ${ext-ip}  ${SPACE}  1
+    ${ext-ip}=  Strip String  ${ext-ip}
     Set Environment Variable  EXT-IP  ${ext-ip}
 
-    ${rest}  ${vic-admin}=  Split String From Right  ${line}  ${SPACE}  1
+
+    ${status}=                Run Keyword And Return Status  Should Match Regexp  ${line}  msg\="([^"]*)"
+    ${ignore}  ${vic-admin}=  Run Keyword If      ${status}  Should Match Regexp  ${line}  msg\="([^"]*)"
+                              ...  ELSE                      Split String From Right  ${line}  ${SPACE}  1
     Set Environment Variable  VIC-ADMIN  ${vic-admin}
 
     Run Keyword If  ${port} == 2376  Set Environment Variable  VCH-PARAMS  -H ${dockerHost} --tls
@@ -258,6 +270,11 @@ Conditional Install VIC Appliance To Test Server
 Install VIC Appliance To Test Server
     [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${additional-args}=${EMPTY}
     Set Test Environment Variables
+    ${output}=  Install VIC Appliance To Test Server With Current Environment Variables  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${cleanup}  ${debug}  ${additional-args}
+    [Return]  ${output}
+
+Install VIC Appliance To Test Server With Current Environment Variables
+    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${additional-args}=${EMPTY}
     # disable firewall
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
     # Attempt to cleanup old/canceled tests

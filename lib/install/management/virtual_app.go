@@ -15,8 +15,6 @@
 package management
 
 import (
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
@@ -28,9 +26,9 @@ import (
 )
 
 func (d *Dispatcher) createVApp(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*object.VirtualApp, error) {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin("", d.op))
 	var err error
-	log.Infof("Creating virtual app %q", conf.Name)
+	d.op.Infof("Creating virtual app %q", conf.Name)
 
 	resSpec := types.DefaultResourceConfigSpec()
 
@@ -77,9 +75,9 @@ func (d *Dispatcher) createVApp(conf *config.VirtualContainerHostConfigSpec, set
 		},
 	}
 
-	app, err := d.session.Pool.CreateVApp(d.ctx, conf.Name, resSpec, configSpec, d.session.VMFolder)
+	app, err := d.session.Pool.CreateVApp(d.op, conf.Name, resSpec, configSpec, d.session.VMFolder)
 	if err != nil {
-		log.Debugf("Failed to create virtual app %q: %s", conf.Name, err)
+		d.op.Debugf("Failed to create virtual app %q: %s", conf.Name, err)
 		return nil, err
 	}
 	conf.ComputeResources = append(conf.ComputeResources, app.Reference())
@@ -87,8 +85,8 @@ func (d *Dispatcher) createVApp(conf *config.VirtualContainerHostConfigSpec, set
 }
 
 func (d *Dispatcher) findVirtualApp(path string) (*object.VirtualApp, error) {
-	defer trace.End(trace.Begin(path))
-	vapp, err := d.session.Finder.VirtualApp(d.ctx, path)
+	defer trace.End(trace.Begin(path, d.op))
+	vapp, err := d.session.Finder.VirtualApp(d.op, path)
 	if err != nil {
 		_, ok := err.(*find.NotFoundError)
 		if !ok {
