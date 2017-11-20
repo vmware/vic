@@ -37,7 +37,7 @@ Setup ESX And NFS Suite
     Log To Console  \nStarting test...
 
     ${esx_name}=  Evaluate  'ESX-' + str(time.clock())  modules=time
-    ${esx1}  ${esx1_ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  name=${esx_name}
+    ${esx1}  ${esx1_ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
 
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
