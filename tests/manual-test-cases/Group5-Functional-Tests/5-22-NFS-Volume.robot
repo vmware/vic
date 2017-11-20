@@ -39,8 +39,11 @@ Setup ESX And NFS Suite
 
     ${esx_name}=  Evaluate  'ESX-' + str(time.clock())  modules=time
     ${esx1}  ${esx1_ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  name=${esx_name}
-    ${esx1_name}=  Fetch From Right  ${esx_name}  -
+
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
     ${POD}=  Fetch POD  ${esx_name}
+    Log To Console  ${POD}
 
     ${nfs}  ${nfs_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--nimbus ${POD}
 
