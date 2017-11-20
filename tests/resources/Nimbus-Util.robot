@@ -39,7 +39,7 @@ Fetch POD
       [Arguments]  ${name}
       ${out}=  Wait Until Keyword Succeeds  10x  1 minute  Fetch IP  ${name}
       ${pod}=  Fetch From Left  ${out}  :
-      [return]  ${out}
+      [return]  ${pod}
 
 
 Deploy Nimbus ESXi Server
@@ -392,7 +392,7 @@ Get Vsphere Version
 
 Deploy Nimbus NFS Datastore
     [Arguments]  ${user}  ${password}  ${additional-args}=
-    ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999)) + str(time.c  lock())  modules=random,time
+    ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     Log To Console  \nDeploying Nimbus NFS server: ${name}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
