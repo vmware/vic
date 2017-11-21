@@ -576,7 +576,7 @@ func (v *Validator) CheckPersistNetworkBacking(ctx context.Context, quiet bool) 
 		return false
 	}
 	if !v.IsVC() {
-		op.Info(errMsg)
+		op.Debug(errMsg)
 		return true
 	}
 

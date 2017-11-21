@@ -927,7 +927,7 @@ func (v *Validator) ConfigureVCenter(ctx context.Context) error {
 		return nil
 	}
 	if !v.IsVC() {
-		op.Info(errMsg)
+		op.Debug(errMsg)
 		return nil
 	}
 
