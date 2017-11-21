@@ -45,7 +45,7 @@ const (
 // the pathSpec will include the following elements
 // - include : any tar entry that has a path below(after stripping) the include path will be written
 // - strip : The strip string will indicate the
-// - exlude : marks paths that are to be excluded from the write operation
+// - exlude : marks paths that are to be excluded from the write
 // - rebase : marks the the write path that will be tacked onto (appended or prepended? TODO improve this comment) the "root". e.g /tmp/unpack + /my/target/path = /tmp/unpack/my/target/path
 func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec) error {
 	// op.Debugf("unpacking archive to root: %s, filter: %+v", root, filter)
@@ -130,83 +130,12 @@ func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec) e
 	return nil
 }
 
-func simpleCopy(src, dst string) error {
-
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-
-	defer in.Close()
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		closeErr := out.Close()
-		if err == nil {
-			err = closeErr
-		}
-	}()
-
-	if _, err = io.Copy(out, in); err != nil {
-		return err
-	}
-
-	err = out.Sync()
-	return err
-
-}
-
 func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string) error {
-	// p := fmt.Sprintf("%s%sunpack", filter.RebasePath, string(os.PathSeparator))
-	// op.Infof("XXX %s", p)
-
-	// op.Infof("XXX copying unpack to %s", root)
-	// dest := fmt.Sprintf("%s%sunpack", root, string(os.PathSeparator))
-
-	// op.Infof("XXX dest is %s", dest)
-
-	// if err := simpleCopy("/bin/unpack", dest); err != nil {
-	// 	op.Errorf("XXX Couldn't copy because %s", err.Error())
-	// 	return err
-	// }
-
-	// defer os.Remove(dest)
-
-	// op.Infof("XXX has root changed for some reason?? %s", root)
-	// files, err := ioutil.ReadDir("/bin")
-	// if err != nil {
-	// 	op.Error(err)
-	// }
-	// op.Infof("contents of /bin")
-	// for _, f := range files {
-	// 	op.Infof("XXX file %s", f.Name())
-	// }
-	// files, err = ioutil.ReadDir("/sbin")
-	// if err != nil {
-	// 	op.Error(err)
-	// }
-
-	// op.Infof("contents of /sbin")
-	// for _, f := range files {
-	// 	op.Infof("XXX file %s", f.Name())
-	// }
-
-	// #nosec: executable is allowed
-	// if err := os.Chmod(dest, 0755); err != nil {
-	// 	op.Errorf("XXX Couldn't chmod because %s", err.Error())
-	// 	return err
-	// }
-
 	// execute the unpack binary
 	cmd := exec.Cmd{
 		Path: "/bin/unpack",
-		Dir:  root,
+		Dir:  "/",
 		Args: []string{"/bin/unpack", op.ID(), root},
-		// SysProcAttr: &syscall.SysProcAttr{
-		// 	Chroot: root,
-		// },
 	}
 
 	encFilter, err := EncodeFilterSpec(op, filter)
@@ -214,6 +143,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		return err
 	}
 
+	//stdin
 	op.Infof("XXX Creating stdinpipe")
 	stdin, err := cmd.StdinPipe()
 
@@ -229,62 +159,24 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		return err
 	}
 
-	op.Infof("XXX Creating stdoutpipe")
-	stdout, err := cmd.StdoutPipe()
+	op.Infof("XXX Wait for process")
 
-	if err != nil {
-		op.Error(err)
-		return err
-	}
-	if stdout == nil {
-		err = errors.New("stdout was nil")
-		op.Error(err)
-		return err
-	}
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go func(stdout io.ReadCloser, wg *sync.WaitGroup) {
+	go func() {
 		defer wg.Done()
-		op.Infof("XXX Running stdout reader")
-		output := []byte{}
-		for {
-			if stdout == nil {
-				op.Infof("XXX done")
-				break
-			}
-			op.Infof("XXX repeat read")
-			n, err := stdout.Read(output)
-			if n > 0 && err != nil {
-				op.Infof("XXX %s", string(output))
-				output = []byte{}
-			}
-			if err != nil {
-				op.Errorf("XXX %s", err.Error())
-				break
-			}
-			if n <= 0 {
-				op.Infof("XXX End of stream")
-				break
-			}
+		out, err := cmd.Output()
+		if err != nil {
+			op.Errorf("XXX Command returned error %s", err.Error())
+			return
 		}
-	}(stdout, &wg)
+		if len(out) == 0 {
+			op.Infof("XXX No output from command")
+		} else {
+			op.Infof("XXX %s", string(out))
+		}
+	}()
 
-	// op.Infof("stdin ok but need to defer closing it")
-	// defer func() {
-	// 	if stdin == nil {
-	// 		op.Errorf("stdin was nil at callback time")
-	// 		return
-	// 	}
-	// 	if err := stdin.Close(); err != nil {
-	// 		op.Error(err)
-	// 	}
-	// }()
-
-	op.Infof("XXX running command %+v", cmd)
-	if err := cmd.Start(); err != nil {
-		op.Errorf("Couldn't start archive binary: %s", err.Error())
-		return err
-	}
 	op.Infof("XXX filterspec stuff, write that to stdin")
 
 	bencFilter := []byte(*encFilter)
@@ -298,37 +190,14 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 	}
 
 	op.Infof("XXX Insert the field sep")
-	stdin.Write([]byte("\n"))
-
-	op.Infof("XXX Write the tarstream to the binary")
-	oneByte := *new([]byte)
-	for n, err := tarStream.Read(oneByte); err == nil; {
-		if n > 0 {
-			o, er := stdin.Write(oneByte)
-			if err != nil {
-				return er
-			}
-			if o != n {
-				op.Errorf("didnt read and write the same stuff")
-				return errors.New("didn't read and write the same stuff")
-			}
-			op.Infof("XXX wrote %d bytes", o)
-		} else {
-			break
-		}
-	}
-
+	_, err = stdin.Write([]byte("\n"))
 	if err != nil {
+		op.Errorf("XXX %s", err.Error())
 		return err
 	}
 
-	op.Infof("XXX process completed, waiting on gofunc")
-	wg.Wait()
-
-	op.Infof("XXX Wait for process")
-	// go func read from stdout for logging
-	if err := cmd.Wait(); err != nil {
-		op.Errorf("XXX Got %s while waiting for process", err.Error())
+	if _, err := io.Copy(stdin, tarStream); err != nil {
+		op.Errorf("XXX %s", err.Error())
 		return err
 	}
 
