@@ -7,9 +7,9 @@
 
 FROM vmware/photon:1.0
 
-RUN set -eux && \
-    tdnf distro-sync --refresh -y && \
-    tdnf info installed && \
+RUN set -eux; \
+    tdnf distro-sync --refresh -y; \
+    tdnf info installed; \
     tdnf clean all
 
 ENV HOST 0.0.0.0
