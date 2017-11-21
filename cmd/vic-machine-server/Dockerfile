@@ -7,7 +7,8 @@
 
 FROM vmware/photon:1.0
 
-RUN tdnf distro-sync --refresh -y && \
+RUN set -eux && \
+    tdnf distro-sync --refresh -y && \
     tdnf info installed && \
     tdnf clean all
 
