@@ -495,7 +495,7 @@ func updateDefaultRoute(newIP *net.IPNet, t Netlink, link netlink.Link, endpoint
 		// Gateway IP may not container network mask, so it is taken from the assigned interface configuration
 		// where network mask has to be defined.
 		gwNet := &net.IPNet{
-			IP:   newIP.IP.Mask(newIP.Mask),
+			IP:   gw.IP.Mask(newIP.Mask),
 			Mask: newIP.Mask,
 		}
 
