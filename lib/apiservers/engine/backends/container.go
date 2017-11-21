@@ -797,7 +797,7 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 	// Use the force and stop the container first
 	secs := 0
 	if config.ForceRemove {
-		c.containerProxy.Stop(vc, name, &secs, true)
+		c.ContainerStop(name, &secs)
 	} else {
 		state, err := c.containerProxy.State(vc)
 		if err != nil {
@@ -828,11 +828,11 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		}
 	}
 
-	if err := c.containerProxy.Remove(vc, config); err != nil {
-		return err
+	operation := func() error {
+		return c.containerProxy.Remove(vc, config)
 	}
 
-	return nil
+	return retry.Do(operation, IsConflictError)
 }
 
 // cleanupPortBindings gets port bindings for the container and

@@ -338,6 +338,15 @@ Inspect VCH
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${expected}
 
+Wait For VCH Initialization
+    [Arguments]  ${attempts}=12x  ${interval}=10 seconds
+    Wait Until Keyword Succeeds  ${attempts}  ${interval}  VCH Docker Info
+
+VCH Docker Info
+    Run VIC Machine Inspect Command
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} info
+    Should Be Equal As Integers  ${rc}  0
+
 Check UpdateInProgress
     [Arguments]  ${expected}
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep UpdateInProgress
