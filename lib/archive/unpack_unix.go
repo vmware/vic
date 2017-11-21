@@ -18,6 +18,7 @@ package archive
 
 import (
 	"archive/tar"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -58,19 +59,6 @@ func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec) e
 	} else {
 		tr = tar.NewReader(tarStream)
 	}
-
-	// fi, err := os.Stat(root)
-	// if err != nil {
-	// 	// the target unpack path does not exist. We should not get here.
-	// 	op.Errorf("tar unpack target does not exist: %s", root)
-	// 	return err
-	// }
-
-	// if !fi.IsDir() {
-	// 	err := fmt.Errorf("unpack root target is not a directory: %s", root)
-	// 	op.Error(err)
-	// 	return err
-	// }
 
 	op.Debugf("using FilterSpec : (%#v)", *filter)
 	// process the tarball onto the filesystem
@@ -132,11 +120,29 @@ func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec) e
 
 func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string) error {
 	// execute the unpack binary
-	cmd := exec.Cmd{
-		Path: "/bin/unpack",
-		Dir:  "/",
-		Args: []string{"/bin/unpack", op.ID(), root},
+	// cmd := exec.Cmd{
+	// 	Path: "/bin/unpack",
+	// 	Dir:  "/",
+	// 	Args: []string{"/bin/unpack", op.ID(), root},
+	// }
+
+	fi, err := os.Stat(root)
+	if err != nil {
+		// the target unpack path does not exist. We should not get here.
+		op.Errorf("tar unpack target does not exist: %s", root)
+		return err
 	}
+
+	if !fi.IsDir() {
+		err := fmt.Errorf("unpack root target is not a directory: %s", root)
+		op.Error(err)
+		return err
+	}
+
+	op.Infof("XXX %s seems to exist", root)
+
+	// #nosec: Subprocess launching with variable. -- neither variable is user input & both are bounded inputs so this is fine
+	cmd := exec.Command("/bin/unpack", op.ID(), root)
 
 	encFilter, err := EncodeFilterSpec(op, filter)
 	if err != nil {
@@ -165,15 +171,15 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		out, err := cmd.Output()
-		if err != nil {
-			op.Errorf("XXX Command returned error %s", err.Error())
-			return
-		}
+		out, err := cmd.CombinedOutput()
 		if len(out) == 0 {
 			op.Infof("XXX No output from command")
 		} else {
 			op.Infof("XXX %s", string(out))
+		}
+		if err != nil {
+			op.Errorf("XXX Command returned error %s", err.Error())
+			return
 		}
 	}()
 

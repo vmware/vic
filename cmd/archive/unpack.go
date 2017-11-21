@@ -19,6 +19,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"os"
 	"syscall"
 
@@ -32,14 +33,32 @@ func main() {
 	op.Infof("XXX New unpack operation created")
 
 	if len(os.Args) < 3 {
-		op.Errorf("XXX Not enough arguments passed")
+		var args []string
+		for _, arg := range os.Args {
+			args = append(args, fmt.Sprintf("%s, ", arg))
+		}
+		op.Errorf("XXX Not enough arguments passed. Arguments were: %s", args)
 		os.Exit(5)
 	}
 
 	root := os.Args[2]
 	op.Infof("XXX root inside binary %s", root)
 
-	err := os.Chdir(root)
+	fi, err := os.Stat(root)
+	if err != nil {
+		// the target unpack path does not exist. We should not get here.
+		op.Errorf("tar unpack target does not exist: %s", root)
+		os.Exit(9)
+	}
+
+	if !fi.IsDir() {
+		err := fmt.Errorf("unpack root target is not a directory: %s", root)
+		op.Error(err)
+		os.Exit(10)
+	}
+	op.Infof("XXX root exists", root)
+
+	err = os.Chdir(root)
 	if err != nil {
 		op.Errorf("XXX error while chdir outside chroot: %s", err.Error())
 		os.Exit(4)
