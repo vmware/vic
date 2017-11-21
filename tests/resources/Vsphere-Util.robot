@@ -113,6 +113,19 @@ vMotion A VM
     Run Keyword If  ${status}  Run  govc vm.migrate -host cls/${esx2-ip} -pool cls/Resources ${vm}
     Run Keyword Unless  ${status}  Run  govc vm.migrate -host cls/${esx1-ip} -pool cls/Resources ${vm}
 
+vMotion A VM And Wait
+    [Arguments]  ${vm}  ${attempts}  ${interval}
+    ${host}=  Get VM Host Name  ${vm}
+    ${status}=  Run Keyword And Return Status  Should Contain  ${host}  ${esx1-ip}
+    Run Keyword If  ${status}  Run  govc vm.migrate -host cls/${esx2-ip} -pool cls/Resources ${vm}
+    Run Keyword Unless  ${status}  Run  govc vm.migrate -host cls/${esx1-ip} -pool cls/Resources ${vm}
+    Wait Until Keyword Succeeds  ${attempts}  ${interval}  VM Host Has Changed  ${host}  ${vm}
+
+VM Host Has Changed
+    [Arguments]  ${oldHost}  ${vm}
+    ${curHost}=  Get VM Host Name  ${vm}
+    Should Not Be Equal  ${oldHost}  ${curHost}
+
 Create Test Server Snapshot
     [Arguments]  ${vm}  ${snapshot}
     Set Environment Variable  GOVC_URL  %{BUILD_SERVER}

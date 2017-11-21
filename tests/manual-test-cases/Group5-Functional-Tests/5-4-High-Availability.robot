@@ -183,10 +183,7 @@ Test
     # Speculating that this is here to add some stability if VMs vmotion immediately after power on
     # If so it should be replaced with a check for active tasks running against the VM or a DRS rule to avoid it completely
     Sleep  2 minutes
-
-    ${output}=  Run  govc vm.info %{VCH-NAME}
-    @{output}=  Split To Lines  ${output}
-    ${curHost}=  Fetch From Right  @{output}[-1]  ${SPACE}
+    ${curHost}=  Get VM Host Name  %{VCH-NAME}
 
     ${info}=  Run  govc vm.info \\*
     Log  ${info}
@@ -201,17 +198,15 @@ Test
 
     # Create check list for Volume Inspect
     @{checkList}=  Create List  ${mntTest}  ${mntNamed}  ${namedVolume}
-
     Verify Volume Inspect Info  Before Host Power OFF  ${containerMountDataTestID}  ${checkList}
 
-    # Abruptly power off the host
-    Open Connection  ${curHost}  prompt=:~]
-    Login  root  ${NIMBUS_ESX_PASSWORD}
-    ${out}=  Execute Command  poweroff -d 0 -f
-    Close connection
+    Power Off Host  ${curHost}
 
     ${info}=  Run  govc vm.info \\*
     Log  ${info}
+
+    # It can take a while for the host to power down and for HA to kick in
+    Wait Until Keyword Succeeds  24x  10s  VM Host Has Changed  ${curHost}  %{VCH-NAME}
 
     # Wait for the VCH to come back up fully - if it's not completely reinitialized it will still report the old IP address 
     Wait For VCH Initialization
