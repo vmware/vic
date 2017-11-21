@@ -505,7 +505,8 @@ func updateDefaultRoute(newIP *net.IPNet, t Netlink, link netlink.Link, endpoint
 		if err := t.RouteAdd(route); err != nil {
 			// if IP address has changed and it stays within the same subnet it will cause already exists error,
 			// so we can safely ignore it.
-			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
+			errno, ok := err.(syscall.Errno)
+			if !ok || errno != syscall.EEXIST {
 				return fmt.Errorf(
 					"failed to add gateway network route for table bridge.out for endpoint %s: %s",
 					endpoint.Network.Name, err)
