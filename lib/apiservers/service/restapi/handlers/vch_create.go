@@ -144,6 +144,8 @@ func setUpLogger(op *trace.Operation) *vchlog.VCHLogger {
 	op.Logger.Level = logrus.DebugLevel
 	op.Logger.Formatter = viclog.NewTextFormatter()
 
+	op.Logger.Infof("Starting API-based VCH Creation. Version: %q", version.GetBuild())
+
 	go log.Run()
 
 	return log
