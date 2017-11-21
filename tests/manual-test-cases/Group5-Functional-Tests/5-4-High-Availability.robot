@@ -80,7 +80,7 @@ Run Regression Test With More Log Information
     Should Be Equal As Integers  ${rc}  0
     Check ImageStore
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi -f busybox
     Should Be Equal As Integers  ${rc}  0
     Check ImageStore
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
@@ -97,7 +97,6 @@ High Availability Setup
 
     Log To Console  \nStarting test...
     &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  3  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-
     @{esx_names}=  Get Dictionary Keys  ${esxes}
     @{esx_ips}=  Get Dictionary Values  ${esxes}
 
