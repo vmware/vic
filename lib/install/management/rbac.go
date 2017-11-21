@@ -209,7 +209,7 @@ func (am *AuthzManager) setupPermissions(ctx context.Context) ([]RBACResourcePer
 	for _, desc := range resourceDescs {
 		resourcePermission, err := am.addPermission(ctx, desc.ref, desc.rType, false)
 		if err != nil {
-			return nil, errors.Errorf("Ops-User: AuthzManager, Unable to set permissions on %s, error: %s",
+			return nil, errors.Errorf("Ops-User: AuthzManager, Unable to grant permissions on %s, error: %s",
 				desc.ref.String(), err.Error())
 		}
 		if resourcePermission != nil {
