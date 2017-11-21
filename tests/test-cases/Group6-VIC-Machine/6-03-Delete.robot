@@ -115,7 +115,7 @@ Delete VCH with non-cVM in same RP
     Should Be Equal As Integers  ${rc}  0
 
     # Verify VM exists
-    ${rc}  ${output}=  Run And Return Rc And Output  govc ls /ha-datacenter/vm/${dummyvm}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc ls vm/${dummyvm}
     Log  ${output}
     Should Contain  ${output}  ${dummyvm}
 
@@ -125,7 +125,7 @@ Delete VCH with non-cVM in same RP
     Should Contain  ${output}  Completed successfully
 
     # Verify VM exists
-    ${rc}  ${output}=  Run And Return Rc And Output  govc ls /ha-datacenter/vm/${dummyvm}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc ls vm/${dummyvm}
     Log  ${output}
     Should Contain  ${output}  ${dummyvm}
 
@@ -151,7 +151,7 @@ Delete VCH moved from its RP
     Should Be Equal As Integers  ${rc}  0
 
     # Verify VM exists
-    ${rc}  ${output}=  Run And Return Rc And Output  govc ls /ha-datacenter/vm/${dummyvm}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc ls vm/${dummyvm}
     Log  ${output}
     Should Contain  ${output}  ${dummyvm}
 
@@ -170,7 +170,7 @@ Delete VCH moved from its RP
     Should Contain  ${output}  Completed successfully
 
     # Verify VM exists
-    ${rc}  ${output}=  Run And Return Rc And Output  govc ls /ha-datacenter/vm/${dummyvm}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc ls vm/${dummyvm}
     Log  ${output}
     Should Contain  ${output}  ${dummyvm}
 
@@ -200,7 +200,7 @@ Delete VCH moved to root RP and original RP deleted
     Should Be Equal As Integers  ${rc}  0
 
     # Verify VM exists
-    ${rc}  ${output}=  Run And Return Rc And Output  govc ls /ha-datacenter/vm/${dummyvm}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc ls vm/${dummyvm}
     Log  ${output}
     Should Contain  ${output}  ${dummyvm}
 
@@ -215,7 +215,7 @@ Delete VCH moved to root RP and original RP deleted
     Should Contain  ${output}  Completed successfully
 
     # Verify VM exists
-    ${rc}  ${output}=  Run And Return Rc And Output  govc ls /ha-datacenter/vm/${dummyvm}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc ls vm/${dummyvm}
     Log  ${output}
     Should Contain  ${output}  ${dummyvm}
 
