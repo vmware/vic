@@ -18,7 +18,6 @@ Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  Setup ESX And NFS Suite
 Suite Teardown  Run Keyword And Ignore Error  NFS Volume Cleanup
 
-
 *** Variables ***
 ${nfsVolumeStore}=  nfsVolumeStore
 ${nfsFakeVolumeStore}=  nfsFakeVolumeStore
@@ -38,10 +37,15 @@ Setup ESX And NFS Suite
     Log To Console  \nStarting test...
 
     ${esx1}  ${esx1_ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${POD}=  Fetch POD  ${esx1}
+    Log To Console  ${POD}
+    Close Connection
 
-    ${nfs}  ${nfs_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${nfs}  ${nfs_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--nimbus ${POD}
 
-    ${nfs_readonly}  ${nfs_readonly_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--disk 5000000 --disk 5000000 --mountOpt ro --nfsOpt ro --mountPoint=storage1 --mountPoint=storage2
+    ${nfs_readonly}  ${nfs_readonly_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--disk 5000000 --disk 5000000 --mountOpt ro --nfsOpt ro --mountPoint=storage1 --mountPoint=storage2 --nimbus ${POD}
 
     Set Suite Variable  @{list}  ${esx1}  ${nfs}  ${nfs_readonly}
     Set Suite Variable  ${ESX1}  ${esx1}

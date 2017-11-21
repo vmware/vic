@@ -146,6 +146,40 @@ Create Container with Named Volume
     Should Be Equal As Integers  ${rc}  0
     Set Suite Variable  ${TestContainerVolume}  ${output}
 
+Check Container Create Timestamps
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${newc}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Container created with the older VCH should have timestamp in seconds
+    ${rc}  ${oldoutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${TestContainerVolume} | jq -r '.[0].Created'
+    Should Be Equal As Integers  ${rc}  0
+    ${rest}  ${oldtstamp}=  Split String From Right  ${oldoutput}  :  1
+    ${oldlen}=  Get Length  ${oldtstamp}
+    Should Be Equal As Integers  ${oldlen}  3
+
+    # Container created with the upgraded VCH should have timestamp in nanoseconds
+    ${rc}  ${newoutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${newc} | jq -r '.[0].Created'
+    Should Be Equal As Integers  ${rc}  0
+    ${rest}  ${newtstamp}=  Split String From Right  ${newoutput}  :  1
+    ${newlen}=  Get Length  ${newtstamp}
+    Should Be True  ${newlen} >= 3
+
+    # Containers should show a valid human-readable duration in ps output. This tests the
+    # data migration plugin - the timestamp should be converted correctly to seconds
+    # before sending the ps response to the docker client.
+
+    # Pause for 2 seconds to allow for the time check below
+    Sleep  2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    Should Be Equal As Integers  ${rc}  0
+    ${oldcshortID}=  Get container shortID  ${TestContainerVolume}
+    ${lines}=  Get Lines Containing String  ${output}  ${oldcshortID}
+    Should Not Contain  ${lines}  years ago
+    ${newcshortID}=  Get container shortID  ${newc}
+    ${lines}=  Get Lines Containing String  ${output}  ${newcshortID}
+    Should Not Contain  ${lines}  Less than a second ago
 
 *** Test Cases ***
 Upgrade Present in vic-machine
@@ -173,6 +207,7 @@ Upgrade VCH
 
     Upgrade
     Check Upgraded Version
+    Check Container Create Timestamps
 
     Verify Volume Inspect Info  After Upgrade and Before Rollback  ${TestContainerVolume}  ${checkList}
 
