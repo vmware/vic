@@ -111,6 +111,11 @@ func (d *Dispatcher) deleteParent(ds *object.Datastore, root string) (bool, erro
 func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, force bool) (bool, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("path %q, force %t", path, force), d.op))
 
+	if ds == nil {
+		err := errors.Errorf("No datastore")
+		return false, err
+	}
+
 	// refuse to delete everything on the datstore, ignore force
 	if path == "" {
 		// #nosec: Errors unhandled.

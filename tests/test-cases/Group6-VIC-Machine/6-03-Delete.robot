@@ -16,7 +16,7 @@
 Documentation  Test 6-03 - Verify delete clean up all resources
 Resource  ../../resources/Util.robot
 Test Setup  Install VIC Appliance To Test Server
-Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
+Test Teardown  Run Keyword If Test Failed  Cleanup Delete Tests
 Test Timeout  20 minutes
 
 *** Keywords ***
@@ -35,6 +35,14 @@ Initial load
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
     Set Suite Variable  ${containerName}  ${name}
+
+Cleanup Delete Tests
+    Cleanup VIC Appliance On Test Server
+
+    ${rc}  ${output}=  Run Keyword If  '${tempvm}'!='${EMPTY}'  Run And Return Rc And Output  govc vm.destroy ${tempvm}
+    Run Keyword If  '${tempvm}'!='${EMPTY}'  Log  ${output}
+    Run Keyword If  '${tempvm}'!='${EMPTY}'  Should Be Equal As Integers  ${rc}  0
+
 
 *** Test Cases ***
 Delete VCH and verify
@@ -69,6 +77,7 @@ Delete VCH and verify
     ${ret}=  Run  govc pool.info -json=true host/*/Resources/%{VCH-NAME}
     Should Contain  ${ret}  {"ResourcePools":null}
 
+
 Attach Disks and Delete VCH
     # VCH should delete normally during commit/pull/cp/push operations
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${ubuntu}
@@ -95,3 +104,125 @@ Attach Disks and Delete VCH
 
     ${rc}=  Run And Return Rc  govc datastore.ls -dc=%{TEST_DATACENTER} %{VCH-NAME}/VIC/
     Should Be Equal As Integers  ${rc}  1
+
+
+Delete VCH with non-cVM in same RP
+    ${rand}=  Generate Random String  15
+    ${dummyvm}=  Set Variable  anothervm-${rand}
+    Set Suite Variable  ${tempvm}  ${dummyvm}
+    Log To Console  Create VM ${dummyvm} in %{TEST_RESOURCE}/%{VCH-NAME} net %{PUBLIC_NETWORK}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool="%{TEST_RESOURCE}/%{VCH-NAME}" -net=%{PUBLIC_NETWORK} -on=false ${dummyvm}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Verify VM exists
+    ${rc}  ${output}=  Run And Return Rc And Output  govc ls /ha-datacenter/vm/${dummyvm}
+    Log  ${output}
+    Should Contain  ${output}  ${dummyvm}
+
+    # Delete with force
+    ${ret}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --force
+    Log  ${output}
+    Should Contain  ${output}  Completed successfully
+
+    # Verify VM exists
+    ${rc}  ${output}=  Run And Return Rc And Output  govc ls /ha-datacenter/vm/${dummyvm}
+    Log  ${output}
+    Should Contain  ${output}  ${dummyvm}
+
+    # Delete VM and RP
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy ${dummyvm}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "%{TEST_RESOURCE}/%{VCH-NAME}"
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
+
+
+Delete VCH moved from its RP
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESX due to unable to move into RP
+    ${rand}=  Generate Random String  15
+    ${dummyvm}=  Set Variable  anothervm-${rand}
+    Set Suite Variable  ${tempvm}  ${dummyvm}
+    Log To Console  Create VM ${dummyvm} in %{TEST_RESOURCE}/%{VCH-NAME} net %{PUBLIC_NETWORK}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool="%{TEST_RESOURCE}/%{VCH-NAME}" -net=%{PUBLIC_NETWORK} -on=false ${dummyvm}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Verify VM exists
+    ${rc}  ${output}=  Run And Return Rc And Output  govc ls /ha-datacenter/vm/${dummyvm}
+    Log  ${output}
+    Should Contain  ${output}  ${dummyvm}
+
+    # Create temp RP
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.create "%{TEST_RESOURCE}/rp-${rand}"
+    Should Be Equal As Integers  ${rc}  0
+
+    # Move VCH to temp RP
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.migrate -pool "%{TEST_RESOURCE}/rp-${rand}" %{VCH-NAME}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Delete with force
+    ${moid}=  Get VM Moid  %{VCH-NAME}
+    ${ret}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --id ${moid} --force
+    Log  ${output}
+    Should Contain  ${output}  Completed successfully
+
+    # Verify VM exists
+    ${rc}  ${output}=  Run And Return Rc And Output  govc ls /ha-datacenter/vm/${dummyvm}
+    Log  ${output}
+    Should Contain  ${output}  ${dummyvm}
+
+    # Delete VM and RP
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy ${dummyvm}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "%{TEST_RESOURCE}/%{VCH-NAME}"
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "%{TEST_RESOURCE}/temp-%{VCH-NAME}"
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
+
+
+Delete VCH moved to root RP and original RP deleted
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESX due to unable to move into RP
+    ${rand}=  Generate Random String  15
+    ${dummyvm}=  Set Variable  anothervm-${rand}
+    Set Suite Variable  ${tempvm}  ${dummyvm}
+    Log To Console  Create VM ${dummyvm} in %{TEST_RESOURCE}/%{VCH-NAME} net %{PUBLIC_NETWORK}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool="%{TEST_RESOURCE}" -net=%{PUBLIC_NETWORK} -on=false ${dummyvm}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Verify VM exists
+    ${rc}  ${output}=  Run And Return Rc And Output  govc ls /ha-datacenter/vm/${dummyvm}
+    Log  ${output}
+    Should Contain  ${output}  ${dummyvm}
+
+    # Move VCH to root RP
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.migrate -pool %{TEST_RESOURCE} %{VCH-NAME}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Delete with force
+    ${moid}=  Get VM Moid  %{VCH-NAME}
+    ${ret}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --id ${moid} --force
+    Log  ${output}
+    Should Contain  ${output}  Completed successfully
+
+    # Verify VM exists
+    ${rc}  ${output}=  Run And Return Rc And Output  govc ls /ha-datacenter/vm/${dummyvm}
+    Log  ${output}
+    Should Contain  ${output}  ${dummyvm}
+
+    # Delete VM and RP
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy ${dummyvm}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
+
