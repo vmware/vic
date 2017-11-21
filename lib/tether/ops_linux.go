@@ -33,6 +33,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/d2g/dhcp4"
 	"github.com/docker/docker/pkg/archive"
+
 	// need to use libcontainer for user validation, for os/user package cannot find user here if container image is busybox
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/vishvananda/netlink"
@@ -416,14 +417,14 @@ func linkAddrUpdate(old, new *net.IPNet, t Netlink, link netlink.Link) error {
 	return nil
 }
 
-func updateRoutes(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error {
+func updateRoutes(newIP *net.IPNet, t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error {
 	gw := endpoint.Network.Assigned.Gateway
 	if ip.IsUnspecifiedIP(gw.IP) {
 		return nil
 	}
 
 	if endpoint.Network.Default {
-		return updateDefaultRoute(t, link, endpoint)
+		return updateDefaultRoute(newIP, t, link, endpoint)
 	}
 
 	for _, d := range endpoint.Network.Destinations {
@@ -456,8 +457,9 @@ func bridgeTableExists(t Netlink) bool {
 	return false
 }
 
-func updateDefaultRoute(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error {
+func updateDefaultRoute(newIP *net.IPNet, t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error {
 	gw := endpoint.Network.Assigned.Gateway
+
 	// Add routes
 	if !endpoint.Network.Default || ip.IsUnspecifiedIP(gw.IP) {
 		log.Debugf("not setting route for network: default=%v gateway=%s", endpoint.Network.Default, gw.IP)
@@ -490,6 +492,20 @@ func updateDefaultRoute(t Netlink, link netlink.Link, endpoint *NetworkEndpoint)
 	}
 
 	if bTablePresent {
+		// Gateway IP may not container network mask, so it is taken from the assigned interface configuration
+		// where network mask has to be defined.
+		gwNet := &net.IPNet{
+			IP:   newIP.IP.Mask(newIP.Mask),
+			Mask: newIP.Mask,
+		}
+		log.Debugf("Adding route to default gateway network: %s/%s", gwNet.IP, gwNet.Mask)
+		route = &netlink.Route{LinkIndex: link.Attrs().Index, Dst: gwNet, Table: bridgeTableNumber}
+		if err := t.RouteAdd(route); err != nil {
+			return fmt.Errorf(
+				"failed to add gateway network route for table bridge.out for endpoint %s: %s",
+				endpoint.Network.Name, err)
+		}
+
 		route = &netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Gw: gw.IP, Table: bridgeTableNumber}
 		if err := t.RouteAdd(route); err != nil {
 			return fmt.Errorf("failed to add gateway route for table bridge.out for endpoint %s: %s", endpoint.Network.Name, err)
@@ -633,7 +649,7 @@ func ApplyEndpoint(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) err
 
 	updateEndpoint(newIP, endpoint)
 
-	if err = updateRoutes(nl, link, endpoint); err != nil {
+	if err = updateRoutes(newIP, nl, link, endpoint); err != nil {
 		return err
 	}
 
