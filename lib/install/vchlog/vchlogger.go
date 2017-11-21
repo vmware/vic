@@ -15,9 +15,11 @@
 package vchlog
 
 import (
+	"io/ioutil"
 	"path"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -60,7 +62,9 @@ func (l *VCHLogger) Run() {
 	sig := <-l.signalChan
 	// suffix the log file name with caller operation ID and timestamp
 	logFileName := "vic-machine" + "_" + sig.Timestamp + "_" + sig.Name + "_" + sig.Operation.ID() + ".log"
-	sig.Datastore.Upload(sig.Operation.Context, l.pipe, path.Join(sig.VMPathName, logFileName), nil)
+	param := soap.DefaultUpload
+	param.ContentLength = -1
+	sig.Datastore.Upload(sig.Operation.Context, ioutil.NopCloser(l.pipe), path.Join(sig.VMPathName, logFileName), &param)
 }
 
 // GetPipe returns the streaming pipe of the vch logger
