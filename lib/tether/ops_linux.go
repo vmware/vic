@@ -498,7 +498,9 @@ func updateDefaultRoute(newIP *net.IPNet, t Netlink, link netlink.Link, endpoint
 			IP:   newIP.IP.Mask(newIP.Mask),
 			Mask: newIP.Mask,
 		}
+
 		log.Debugf("Adding route to default gateway network: %s/%s", gwNet.IP, gwNet.Mask)
+
 		route = &netlink.Route{LinkIndex: link.Attrs().Index, Dst: gwNet, Table: bridgeTableNumber}
 		if err := t.RouteAdd(route); err != nil {
 			return fmt.Errorf(
@@ -508,7 +510,9 @@ func updateDefaultRoute(newIP *net.IPNet, t Netlink, link netlink.Link, endpoint
 
 		route = &netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Gw: gw.IP, Table: bridgeTableNumber}
 		if err := t.RouteAdd(route); err != nil {
-			return fmt.Errorf("failed to add gateway route for table bridge.out for endpoint %s: %s", endpoint.Network.Name, err)
+			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
+				return fmt.Errorf("failed to add gateway route for table bridge.out for endpoint %s: %s", endpoint.Network.Name, err)
+			}
 		}
 	}
 
