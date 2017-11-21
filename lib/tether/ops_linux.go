@@ -492,7 +492,7 @@ func updateDefaultRoute(newIP *net.IPNet, t Netlink, link netlink.Link, endpoint
 	}
 
 	if bTablePresent {
-		// Gateway IP may not container network mask, so it is taken from the assigned interface configuration
+		// Gateway IP may not contain a network mask, so it is taken from the assigned interface configuration
 		// where network mask has to be defined.
 		gwNet := &net.IPNet{
 			IP:   gw.IP.Mask(newIP.Mask),
@@ -503,6 +503,8 @@ func updateDefaultRoute(newIP *net.IPNet, t Netlink, link netlink.Link, endpoint
 
 		route = &netlink.Route{LinkIndex: link.Attrs().Index, Dst: gwNet, Table: bridgeTableNumber}
 		if err := t.RouteAdd(route); err != nil {
+			// if IP address has changed and it stays within the same subnet it will cause already exists error,
+			// so we can safely ignore it.
 			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
 				return fmt.Errorf(
 					"failed to add gateway network route for table bridge.out for endpoint %s: %s",
