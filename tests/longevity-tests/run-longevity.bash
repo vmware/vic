@@ -84,8 +84,8 @@ testsContainer=$(docker create -it\
                  mv VCH-*-vmware.log /tmp/ 2>/dev/null; \
                  mv vic-machine.log /tmp/ 2>/dev/null; \
                  mv index.html* /tmp/ 2>/dev/null; \
-                 mv VCH-* /tmp/ 2>/dev/null"); \
-                 exit $rc;
+                 mv VCH-* /tmp/ 2>/dev/null; \
+                 exit $rc")
 
 echo "Copying code and binaries into container...."
 docker cp /home/$USER/vic $testsContainer:/go/src/github.com/vmware/
