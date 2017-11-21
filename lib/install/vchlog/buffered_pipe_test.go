@@ -207,23 +207,25 @@ func TestPipeWriteClose(t *testing.T) {
 
 // Test read left-over data after pipe is closed
 func TestPipeReadAfterWriteClose(t *testing.T) {
-	testByte := []byte("hello world")
-	//toRead := make([]byte, 64)
+	testByte := make([]byte, 128)
 	bp := NewBufferedPipe()
 	writeDone := make(chan int)
 
 	go write(t, bp, testByte, len(testByte), writeDone)
 	<-writeDone
 
-	// Close the pipe in the background
-	// it only closes the write end, closing on read end is expected to block due to left-over data
+	// read only a portion of the data written
+	buf := make([]byte, 64)
+	read(t, bp, buf, len(buf), nil)
+
+	// close the pipe
 	go bp.Close()
 
 	// write until it fails due to closed write end
-	written := len(testByte)
-	buf := make([]byte, 16)
+	written := len(testByte) - len(buf)
+	writeBuf := make([]byte, 16)
 	for {
-		n, err := bp.Write(buf)
+		n, err := bp.Write(writeBuf)
 		written += n
 		if err != nil {
 			assert.Equal(t, ErrUnexpectedEOF, err, "write to closed pipe: %v want %v", err, ErrUnexpectedEOF)
@@ -235,34 +237,11 @@ func TestPipeReadAfterWriteClose(t *testing.T) {
 	readBuf := make([]byte, written)
 	read(t, bp, readBuf, written, nil) // this should not fail due to the read end is not closed until data is drained
 
-	// subsequent read fails due to closed read pipe
+	// subsequent read fails due to closed read end
 	buf = make([]byte, 16)
 	n, err := bp.Read(buf)
 	assert.Equal(t, EOF, err, "read from closed pipe: %v want %v", err, EOF)
 	assert.Equal(t, 0, n, "read on closed pipe returned %d bytes", n)
-
-	//// wait for write end to close
-	//// closing of read end is expected to block until data is drained from the pipe
-	//time.Sleep(1 * time.Millisecond)
-	//
-	//// subsequent write to closed pipe fails
-	//buf := make([]byte, 64)
-	//n, err := bp.Write(buf)
-	//assert.Equal(t, ErrUnexpectedEOF, err, "write to closed pipe: %v want %v", err, ErrUnexpectedEOF)
-	//assert.Equal(t, 0, n, "write on closed pipe returned %d bytes", n)
-	//
-	//// read on the left-over data succeeds
-	//read(t, bp, toRead, len(testByte), nil)
-	//assert.Equal(t, string(testByte), string(toRead[0:len(testByte)]), "expected %s, read %s", string(testByte), string(toRead[0:len(testByte)]))
-	//
-	//// wait for close to unblock
-	//time.Sleep(1 * time.Millisecond)
-	//
-	//// subsequent read fails since data is drained
-	//readBuf := make([]byte, 16)
-	//n, err = bp.Read(readBuf)
-	//assert.Equal(t, EOF, err, "read from closed pipe: %v want %v", err, EOF)
-	//assert.Equal(t, 0, n, "read on closed pipe returned %d bytes", n)
 }
 
 // Helper Functions

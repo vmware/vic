@@ -25,11 +25,13 @@ import (
 // c: the sync locker to manage concurrent reads and writes
 // readClosed: boolean indicating if read end of the pipe is closed
 // writeClosed: boolean indicating if write end of the pipe is closed
+// readerReady: boolean indicating if the reader is ready
 type BufferedPipe struct {
 	buffer      *bytes.Buffer
 	c           *sync.Cond
 	readClosed  bool
 	writeClosed bool
+	readerReady bool
 }
 
 // NewBufferedPipe returns a new buffered pipe instance
@@ -43,6 +45,7 @@ func NewBufferedPipe() *BufferedPipe {
 		c:           c,
 		readClosed:  false,
 		writeClosed: false,
+		readerReady: false,
 	}
 }
 
@@ -51,6 +54,8 @@ func (bp *BufferedPipe) Read(data []byte) (n int, err error) {
 	bp.c.L.Lock()
 	defer bp.c.L.Unlock()
 	defer bp.c.Broadcast()
+
+	bp.readerReady = true // the reader is ready to read
 
 	for bp.buffer.Len() == 0 && !bp.readClosed {
 		bp.c.Wait()
@@ -82,8 +87,10 @@ func (bp *BufferedPipe) Close() (err error) {
 	defer bp.c.Broadcast()
 
 	bp.writeClosed = true
-	for bp.buffer.Len() > 0 {
-		bp.c.Wait()
+	if bp.readerReady {
+		for bp.buffer.Len() > 0 {
+			bp.c.Wait() // only wait when the read end is ready
+		}
 	}
 	bp.readClosed = true
 
