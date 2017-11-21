@@ -79,7 +79,7 @@ testsContainer=$(docker create -it\
                         -v "$odir":/tmp/ -e GOVC_URL="$ip" \
                         tests-"$target" \
                         bash -c \
-                        ". secrets && rc= pybot -d /tmp/ /go/src/github.com/vmware/vic/tests/manual-test-cases/Group14-Longevity/14-1-Longevity.robot;\
+                        ". secrets && pybot -d /tmp/ /go/src/github.com/vmware/vic/tests/manual-test-cases/Group14-Longevity/14-1-Longevity.robot; rc=$?;\
                  mv *-container-logs.zip /tmp/ 2>/dev/null; \
                  mv VCH-*-vmware.log /tmp/ 2>/dev/null; \
                  mv vic-machine.log /tmp/ 2>/dev/null; \
