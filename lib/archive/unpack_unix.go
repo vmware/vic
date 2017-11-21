@@ -141,13 +141,15 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 
 	op.Infof("XXX %s seems to exist", root)
 
-	// #nosec: Subprocess launching with variable. -- neither variable is user input & both are bounded inputs so this is fine
-	cmd := exec.Command("/bin/unpack", op.ID(), root)
-
-	encFilter, err := EncodeFilterSpec(op, filter)
+	encodedFilter, err := EncodeFilterSpec(op, filter)
 	if err != nil {
+		op.Error(err)
 		return err
 	}
+
+	op.Infof("XXX filterSpec in portlayer %s", *encodedFilter)
+	// #nosec: Subprocess launching with variable. -- neither variable is user input & both are bounded inputs so this is fine
+	cmd := exec.Command("/bin/unpack", op.ID(), root, *encodedFilter)
 
 	//stdin
 	op.Infof("XXX Creating stdinpipe")
@@ -183,29 +185,13 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		}
 	}()
 
-	op.Infof("XXX filterspec stuff, write that to stdin")
-
-	bencFilter := []byte(*encFilter)
-	o, err := stdin.Write(bencFilter)
-
-	if o != len(bencFilter) {
-		return errors.New("XXX Fucked up trying to send the filterspec over")
-	}
-	if err != nil {
-		return err
-	}
-
-	op.Infof("XXX Insert the field sep")
-	_, err = stdin.Write([]byte("\n"))
-	if err != nil {
-		op.Errorf("XXX %s", err.Error())
-		return err
-	}
-
 	if _, err := io.Copy(stdin, tarStream); err != nil {
 		op.Errorf("XXX %s", err.Error())
 		return err
 	}
 
+	op.Infof("XXX Waiting..")
+	wg.Wait()
+	op.Infof("XXX Done waiting..")
 	return nil
 }

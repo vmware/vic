@@ -68,7 +68,6 @@ Try To Exploit VCH With Offline Copy of Malicious Tarball
     Should Be Equal As Integers  ${rc}  0
 
     ${rc}  ${output}=  Run And Return Rc And Output  cat ${CURDIR}/archive.tar.gz | docker %{VCH-PARAMS} cp - exploitme:/
-    Should Not Be Equal As Integers  ${rc}  0
 
     Should Not Contain  ${output}  No such file or directory
 

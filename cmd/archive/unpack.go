@@ -17,7 +17,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"os"
@@ -32,17 +31,27 @@ func main() {
 	op := trace.NewOperation(ctx, "Unpack") // TODO op ID?
 	op.Infof("XXX New unpack operation created")
 
-	if len(os.Args) < 3 {
-		var args []string
-		for _, arg := range os.Args {
-			args = append(args, fmt.Sprintf("%s, ", arg))
-		}
+	var args []string
+	for _, arg := range os.Args {
+		args = append(args, fmt.Sprintf("%s, ", arg))
+	}
+
+	if len(os.Args) < 4 {
 		op.Errorf("XXX Not enough arguments passed. Arguments were: %s", args)
 		os.Exit(5)
 	}
 
 	root := os.Args[2]
 	op.Infof("XXX root inside binary %s", root)
+
+	filterSpec, err := archive.DecodeFilterSpec(op, &os.Args[3])
+	if err != nil {
+		// the target unpack path does not exist. We should not get here.
+		op.Errorf("Couldn't deserialize filterspec %s", os.Args[3])
+		os.Exit(11)
+	}
+
+	op.Infof("XXX filterSpec decoded %s", filterSpec)
 
 	fi, err := os.Stat(root)
 	if err != nil {
@@ -56,7 +65,7 @@ func main() {
 		op.Error(err)
 		os.Exit(10)
 	}
-	op.Infof("XXX root exists", root)
+	op.Infof("XXX root exists: %s", root)
 
 	err = os.Chdir(root)
 	if err != nil {
@@ -64,42 +73,20 @@ func main() {
 		os.Exit(4)
 	}
 
+	op.Infof("XXX chdir'd")
 	err = syscall.Chroot(root)
 	if err != nil {
 		op.Errorf("XXX error while chrootin': %s", err.Error())
 		os.Exit(3)
 	}
+	op.Infof("XXX chrooted")
 
 	err = os.Chdir("/")
 	if err != nil {
 		op.Errorf("XXX error while chdir inside chroot: %s", err.Error())
 		os.Exit(2)
 	}
-
-	r := bufio.NewReader(os.Stdin)
-
-	filterSpecBytes := []byte{}
-FilterSpec:
-	f, isPrefix, err := r.ReadLine()
-	if err != nil {
-		op.Error(err)
-		os.Exit(6)
-	}
-
-	filterSpecBytes = append(filterSpecBytes, f...)
-	if isPrefix {
-		op.Infof("XXX Continuing to read encoded FilterSpec..")
-		// this is a goto because it was easier to reason about than a loop. fight me.
-		goto FilterSpec
-	}
-
-	// everything after the FilterSpec is the tarstream
-	filterSpecString := string(filterSpecBytes)
-	filterSpec, err := archive.DecodeFilterSpec(op, &filterSpecString)
-	if err != nil {
-		op.Error(err)
-		os.Exit(7)
-	}
+	op.Infof("XXX chdir'd")
 
 	if err = archive.InvokeUnpack(op, os.Stdin, filterSpec); err != nil {
 		op.Error(err)
