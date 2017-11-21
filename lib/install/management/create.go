@@ -64,7 +64,7 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 	datastoreReadySignal := vchlog.DatastoreReadySignal{
 		Datastore:  d.session.Datastore,
 		Name:       "create",
-		Operation:  trace.NewOperation(d.op, "create"),
+		Operation:  d.op,
 		VMPathName: d.vmPathName,
 		Timestamp:  time.Now().UTC().Format(timeFormat),
 	}
