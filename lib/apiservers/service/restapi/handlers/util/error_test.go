@@ -16,6 +16,7 @@ package util
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
 )
 
@@ -58,7 +59,7 @@ func TestStatusCodeFallback(t *testing.T) {
 	e := fmt.Errorf("fmt error")
 	c := StatusCode(e)
 
-	if c != 500 {
+	if c != http.StatusInternalServerError {
 		t.Errorf("Default status code was %d, not 500.", c)
 	}
 }
