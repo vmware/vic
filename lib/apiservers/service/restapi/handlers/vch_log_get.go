@@ -130,23 +130,20 @@ func getDatastoreHelper(op trace.Operation, d *data.Data) (*datastore.Helper, er
 		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
 	}
 
-	// Get VCH configuration
-	vchConfig, err := executor.GetNoSecretVCHConfig(vch)
+	// Relative path of datastore folder
+	vmPath, err := vch.VMPathNameAsURL(op)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to retrieve VCH information: %s", err)
+		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Unable to retrieve VCH datastore information: %s", err))
 	}
 
-	// Relative path of datastore folder
-	vmPath := vchConfig.ImageStores[0].Path
-
 	// Get VCH datastore object
-	ds, err := validator.Session.Finder.Datastore(validator.Context, vchConfig.ImageStores[0].Host)
+	ds, err := validator.Session.Finder.Datastore(validator.Context, vmPath.Host)
 	if err != nil {
 		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Datastore folder not found for VCH %s: %s", d.ID, err))
 	}
 
 	// Create a new datastore helper for file finding
-	helper, err := datastore.NewHelper(op, validator.Session, ds, vmPath)
+	helper, err := datastore.NewHelper(op, validator.Session, ds, vmPath.Path)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get datastore helper: %s", err)
 	}
