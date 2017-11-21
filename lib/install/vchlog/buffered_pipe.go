@@ -21,16 +21,16 @@ import (
 )
 
 // BufferedPipe struct implements a pipe readwriter with buffer
-// buffer: the internal buffer to hold data
-// c: the sync locker to manage concurrent reads and writes
-// readClosed: boolean indicating if read end of the pipe is closed
-// writeClosed: boolean indicating if write end of the pipe is closed
-// readerReady: boolean indicating if the reader is ready
 type BufferedPipe struct {
-	buffer      *bytes.Buffer
-	c           *sync.Cond
-	readClosed  bool
+	// buffer: the internal buffer to hold data
+	buffer *bytes.Buffer
+	// c: the sync locker to manage concurrent reads and writes
+	c *sync.Cond
+	// readClosed: boolean indicating if read end of the pipe is closed
+	readClosed bool
+	// writeClosed: boolean indicating if write end of the pipe is closed
 	writeClosed bool
+	// readerReady: boolean indicating if the reader is ready
 	readerReady bool
 }
 

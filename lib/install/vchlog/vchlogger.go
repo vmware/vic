@@ -22,17 +22,17 @@ import (
 )
 
 // DatastoreReadySignal serves as a signal struct indicating datastore folder path is available
-// Datastore: the govmomi datastore object
-// Name: the name of the vic-machine process that sends the signal (e.g. "create", "inspect")
-// LogFileName: the filename of the destination path on datastore
-// Context: the caller context when sending the signal
-// VMPathName: the datastore path
 type DatastoreReadySignal struct {
-	Datastore  *object.Datastore
-	Name       string
-	Operation  trace.Operation
+	// Datastore: the govmomi datastore object
+	Datastore *object.Datastore
+	// Name: vic-machine process name (e.g. "create", "inspect")
+	Name string
+	// Operation: the operation from which the signal is sent
+	Operation trace.Operation
+	// VMPathName: the datastore path
 	VMPathName string
-	Timestamp  string
+	// Timestamp: timestamp at which the signal is sent
+	Timestamp string
 }
 
 type VCHLogger struct {
