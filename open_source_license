@@ -1,6 +1,6 @@
-LICENSE
+open_source_licenses.txt
 
-vSphere Integrated Containers Engine
+vSphere Integrated Containers Engine v1.3.0 GA
 
 Copyright (c) 2016-2017 VMware, Inc.  All rights reserved.
 
@@ -8186,7 +8186,6 @@ Creative Commons may be contacted at creativecommons.org.
 
 
 ======================================================================
-
 
 To the extent any open source components are licensed under the GPL and/or
 LGPL, or other similar licenses that require the source code and/or
