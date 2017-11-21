@@ -793,11 +793,14 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		return NotFoundError(name)
 	}
 	id := vc.ContainerID
+	secs := 0
+	running := false
 
 	// Use the force and stop the container first
-	secs := 0
 	if config.ForceRemove {
-		c.containerProxy.Stop(vc, name, &secs, true)
+		if err := c.ContainerStop(name, &secs); err != nil {
+			return err
+		}
 	} else {
 		state, err := c.containerProxy.State(vc)
 		if err != nil {
@@ -808,13 +811,16 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 			}
 			return InternalServerError(err.Error())
 		}
-		// force stop if container state is error to make sure container is deletable later
-		if state.Status == ContainerError {
+
+		switch state.Status {
+		case ContainerError:
+			// force stop if container state is error to make sure container is deletable later
 			c.containerProxy.Stop(vc, name, &secs, true)
-		}
-		// if we are starting let the user know they must use the force
-		if state.Status == "Starting" {
+		case "Starting":
+			// if we are starting let the user know they must use the force
 			return derr.NewRequestConflictError(fmt.Errorf("The container is starting.  To remove use -f"))
+		case ContainerRunning:
+			running = true
 		}
 
 		handle, err := c.Handle(id, name)
@@ -828,11 +834,17 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		}
 	}
 
-	if err := c.containerProxy.Remove(vc, config); err != nil {
-		return err
+	// Retry remove operation if container is not in running state.  If in running state, we only try
+	// once to prevent retries from degrading performance.
+	if !running {
+		operation := func() error {
+			return c.containerProxy.Remove(vc, config)
+		}
+
+		return retry.Do(operation, IsConflictError)
 	}
 
-	return nil
+	return c.containerProxy.Remove(vc, config)
 }
 
 // cleanupPortBindings gets port bindings for the container and
