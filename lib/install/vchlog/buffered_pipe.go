@@ -55,7 +55,7 @@ func (bp *BufferedPipe) Read(data []byte) (n int, err error) {
 	defer bp.c.L.Unlock()
 	defer bp.c.Broadcast()
 
-	bp.readerReady = true // the reader is ready to read
+	bp.readerReady = true // now we have a valid consumer to switch to flushing in Close
 
 	for bp.buffer.Len() == 0 && !bp.readClosed {
 		bp.c.Wait()
@@ -87,9 +87,10 @@ func (bp *BufferedPipe) Close() (err error) {
 	defer bp.c.Broadcast()
 
 	bp.writeClosed = true
+	// only flush when there is consumer
 	if bp.readerReady {
 		for bp.buffer.Len() > 0 {
-			bp.c.Wait() // only wait when the read end is ready
+			bp.c.Wait()
 		}
 	}
 	bp.readClosed = true
