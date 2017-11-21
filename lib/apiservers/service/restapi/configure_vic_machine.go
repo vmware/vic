@@ -82,6 +82,9 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 		return middleware.NotImplemented("operation .Get has not yet been implemented")
 	})
 
+	// GET /container/hello
+	api.GetHelloHandler = &handlers.HelloGet{}
+
 	// GET /container/version
 	api.GetVersionHandler = &handlers.VersionGet{}
 
