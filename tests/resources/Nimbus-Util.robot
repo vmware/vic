@@ -35,6 +35,15 @@ Get IP
     ${ip}=  Fetch From Right  ${out}  ${SPACE}
     [Return]  ${ip}
 
+Fetch POD
+      [Arguments]  ${name}
+      ${out}=  Execute Command  nimbus-ctl list | grep ${name}
+      Should Not Be Empty  ${out}
+      ${len}=  Get Line Count  ${out}
+      Should Be Equal As Integers  ${len}  1
+      ${pod}=  Fetch From Left  ${out}  :
+      [return]  ${pod}
+
 Deploy Nimbus ESXi Server
     [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}  ${tls_disabled}=True
     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
