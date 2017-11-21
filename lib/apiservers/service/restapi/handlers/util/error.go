@@ -14,10 +14,12 @@
 
 package util
 
+import "net/http"
+
 func StatusCode(err error) int {
 	e, ok := err.(statusCode)
 	if !ok {
-		return 500
+		return http.StatusInternalServerError
 	}
 
 	return e.Code()
