@@ -36,3 +36,40 @@ This test requires that a vSphere server is running and available
 ### Expected Outcome:
 1. All steps should succeed
 2. govc should return 1 when not finding images in step 6
+
+
+## Delete VCH with non-cVM in same RP
+1. Create VCH though vic-machine create
+2. Create VM in the VCH's resource pool
+3. Delete VCH
+4. Check vSphere through govc to make sure the VM was not deleted
+5. Delete the VM and RP to cleanup
+
+### Expected Outcome:
+1. All steps should succeed
+
+
+## Delete VCH moved from its RP
+1. Create VCH though vic-machine create
+2. Create VM in the VCH's resource pool
+3. Create another RP
+4. Move VCH to the new RP
+5. Delete VCH
+6. Check vSphere through govc to make sure the VM and containerVM were not deleted
+7. Delete the VM, containerVM, and RP to cleanup
+
+### Expected Outcome:
+1. All steps should succeed
+
+
+## Delete VCH moved to root RP and original RP deleted
+1. Create VCH though vic-machine create
+2. Create VM in the root RP
+3. Move VCH to root RP
+4. Delete the VCH created RP
+5. Delete VCH
+6. Check vSphere through govc to make sure the VM in the root RP was not deleted
+7. Delete the VM to cleanup
+
+### Expected Outcome:
+1. All steps should succeed
