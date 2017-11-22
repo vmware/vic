@@ -91,6 +91,24 @@ func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
 	return false, nil
 }
 
+func (d *Dispatcher) isContainerVM(vm *vm.VirtualMachine) (bool, error) {
+	if vm == nil {
+		return false, errors.New("nil parameter")
+	}
+	defer trace.End(trace.Begin(vm.InventoryPath))
+	var cspec executor.ExecutorConfig
+	info, err := vm.FetchExtraConfig(d.op)
+	if err != nil {
+		err = errors.Errorf("Failed to fetch guest info of appliance vm: %s", err)
+		return false, err
+	}
+	extraconfig.Decode(extraconfig.MapSource(info), &cspec)
+	if cspec.Version == nil {
+		return false, nil
+	}
+	return true, nil
+}
+
 func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(""))
 
