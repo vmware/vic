@@ -35,7 +35,6 @@ import (
 	"github.com/vmware/vic/lib/install/vchlog"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/govmomi/vim25/methods"
 )
 
 const (
