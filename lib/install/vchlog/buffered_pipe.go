@@ -18,6 +18,9 @@ import (
 	"bytes"
 	"io"
 	"sync"
+	"time"
+
+	"github.com/vmware/vic/pkg/errors"
 )
 
 // BufferedPipe struct implements a pipe readwriter with buffer
@@ -87,13 +90,23 @@ func (bp *BufferedPipe) Close() (err error) {
 	defer bp.c.Broadcast()
 
 	bp.writeClosed = true
-	// only flush when there is consumer
-	if bp.readerReady {
+
+	if bp.readerReady { // flush only if there is a valid consumer
+		done := make(chan bool)
 		for bp.buffer.Len() > 0 {
-			bp.c.Wait()
+			go func() {
+				bp.c.Wait()
+				done <- true
+			}()
+			select {
+			case <-time.After(time.Minute * 30): // timeout if consumer inactive for 30 minutes
+				err = errors.New("buffered data left in pipe; consumer inactive for 30 minutes")
+				break
+			case <-done:
+			}
 		}
 	}
-	bp.readClosed = true
 
-	return nil
+	bp.readClosed = true
+	return err
 }

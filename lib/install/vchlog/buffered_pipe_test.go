@@ -16,6 +16,7 @@ package vchlog
 
 import (
 	. "io"
+	"math/rand"
 	"strconv"
 	"testing"
 	"time"
@@ -234,8 +235,14 @@ func TestPipeReadAfterWriteClose(t *testing.T) {
 	}
 
 	// read the left-over data
-	readBuf := make([]byte, written)
-	read(t, bp, readBuf, written, nil) // this should not fail due to the read end is not closed until data is drained
+	// both reads should not be blocked due to remaining data
+	firstChunk := rand.Intn(written)
+	secondChunk := written - firstChunk
+
+	firstbuf := make([]byte, firstChunk)
+	read(t, bp, firstbuf, firstChunk, nil)
+	secondbuf := make([]byte, secondChunk)
+	read(t, bp, secondbuf, secondChunk, nil)
 
 	// subsequent read fails due to closed read end
 	buf = make([]byte, 16)
