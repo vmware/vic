@@ -141,6 +141,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/codegangsta/inject",
+			"repository": "https://github.com/codegangsta/inject",
+			"vcs": "git",
+			"revision": "33e0aa1cb7c019ccc3fbe049a8262a6403d30504",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/codegangsta/negroni",
 			"repository": "https://github.com/codegangsta/negroni",
 			"vcs": "",
@@ -390,6 +398,14 @@
 			"branch": "v1"
 		},
 		{
+			"importpath": "github.com/go-martini/martini",
+			"repository": "https://github.com/go-martini/martini",
+			"vcs": "git",
+			"revision": "22fa46961aabd2665cf3f1343b146d20028f5071",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/go-openapi/analysis",
 			"repository": "https://github.com/go-openapi/analysis",
 			"vcs": "git",
@@ -534,6 +550,14 @@
 			"revision": "6a92c871a8f5333cf106b2cdf937567208dbb2b7",
 			"branch": "master",
 			"path": "types",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/goji/param",
+			"repository": "https://github.com/goji/param",
+			"vcs": "git",
+			"revision": "d7f49fd7d1ed53fd562e737a8b5bbcc7e3d925e2",
+			"branch": "master",
 			"notests": true
 		},
 		{
@@ -707,6 +731,22 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/julienschmidt/httprouter",
+			"repository": "https://github.com/julienschmidt/httprouter",
+			"vcs": "git",
+			"revision": "975b5c4c7c21c0e3d2764200bf2aa8e34657ae6e",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/justinas/alice",
+			"repository": "https://github.com/justinas/alice",
+			"vcs": "git",
+			"revision": "1051eaf52fcafdd87ead59d28b065f1fcb8274ec",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/kr/pty",
 			"repository": "https://github.com/kr/pty",
 			"vcs": "",
@@ -718,6 +758,14 @@
 			"repository": "https://github.com/mailru/easyjson",
 			"vcs": "git",
 			"revision": "99e922cf9de1bc0ab38310c277cff32c2147e747",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/martini-contrib/render",
+			"repository": "https://github.com/martini-contrib/render",
+			"vcs": "git",
+			"revision": "ec18f8345a1181146728238980606fb1d6f40e8c",
 			"branch": "master",
 			"notests": true
 		},
@@ -816,6 +864,14 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/oxtoacart/bpool",
+			"repository": "https://github.com/oxtoacart/bpool",
+			"vcs": "git",
+			"revision": "4e1c5567d7c2dd59fa4c7c83d34c2f3528b025d6",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/pkg/errors",
 			"repository": "https://github.com/pkg/errors",
 			"vcs": "git",
@@ -837,6 +893,14 @@
 			"revision": "792786c7400a136282c1664665ae0a8db921c6c2",
 			"branch": "master",
 			"path": "/difflib"
+		},
+		{
+			"importpath": "github.com/rs/cors",
+			"repository": "https://github.com/rs/cors",
+			"vcs": "git",
+			"revision": "8dd4211afb5d08dbb39a533b9bb9e4b486351df6",
+			"branch": "HEAD",
+			"notests": true
 		},
 		{
 			"importpath": "github.com/ryanuber/go-glob",
@@ -999,8 +1063,9 @@
 			"importpath": "github.com/tylerb/graceful",
 			"repository": "https://github.com/tylerb/graceful",
 			"vcs": "git",
-			"revision": "d7d7a205e779a4738d38eda0671fff8bfc965f14",
-			"branch": "master"
+			"revision": "4654dfbb6ad53cb5e27f37d99b02e16c1872fbbb",
+			"branch": "HEAD",
+			"notests": true
 		},
 		{
 			"importpath": "github.com/ugorji/go/codec",
@@ -1009,6 +1074,14 @@
 			"revision": "708a42d246822952f38190a8d8c4e6b16a0e600c",
 			"branch": "master",
 			"path": "/codec",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/urfave/negroni",
+			"repository": "https://github.com/urfave/negroni",
+			"vcs": "git",
+			"revision": "ccc4a14984828dcb944e6f17fa4a967b18624f2b",
+			"branch": "master",
 			"notests": true
 		},
 		{
@@ -1070,7 +1143,7 @@
 			"importpath": "github.com/vmware/govmomi",
 			"repository": "https://github.com/vmware/govmomi",
 			"vcs": "git",
-			"revision": "b729d2e8e0270dea62f10a63be34c021d123e41b",
+			"revision": "7d879bac14d09f2f2a45a0477c1e45fbf52240f5",
 			"branch": "master",
 			"notests": true
 		},
@@ -1080,6 +1153,14 @@
 			"vcs": "git",
 			"revision": "0b8dbcdd226303bf776dcac49c2d5f3b8a8190fd",
 			"branch": "master"
+		},
+		{
+			"importpath": "github.com/zenazn/goji",
+			"repository": "https://github.com/zenazn/goji",
+			"vcs": "git",
+			"revision": "c05078ca81941f8e801bba3ddc0e6b86b7fdc893",
+			"branch": "master",
+			"notests": true
 		},
 		{
 			"importpath": "go4.org/syncutil/singleflight",
@@ -1415,6 +1496,14 @@
 			"vcs": "",
 			"revision": "dd632973f1e7218eb1089048e0798ec9ae7dceb8",
 			"branch": "v1"
+		},
+		{
+			"importpath": "gopkg.in/tylerb/graceful.v1",
+			"repository": "https://gopkg.in/tylerb/graceful.v1",
+			"vcs": "git",
+			"revision": "4654dfbb6ad53cb5e27f37d99b02e16c1872fbbb",
+			"branch": "master",
+			"notests": true
 		},
 		{
 			"importpath": "gopkg.in/urfave/cli.v1",

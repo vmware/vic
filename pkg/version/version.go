@@ -101,6 +101,10 @@ func (v *Build) String() string {
 }
 
 func (v *Build) ShortVersion() string {
+	if v == nil {
+		return "unknown"
+	}
+
 	return fmt.Sprintf("%s-%s-%s", v.Version, v.BuildNumber, v.GitCommit)
 }
 

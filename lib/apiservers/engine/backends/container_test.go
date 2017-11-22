@@ -16,13 +16,12 @@ package backends
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"testing"
 	"time"
-
-	"context"
 
 	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
@@ -31,9 +30,8 @@ import (
 	dnetwork "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/reference"
 	"github.com/docker/go-connections/nat"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/go-openapi/runtime"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
@@ -111,6 +109,18 @@ const (
 	dummyContainerIDTTY = "tty123"
 	fakeContainerID     = ""
 )
+
+var randomNames = []string{
+	"hello_world",
+	"hello_world",
+	"goodbye_world",
+	"goodbye_world",
+	"cruel_world",
+}
+
+func mockRandomName(retry int) string {
+	return randomNames[retry%len(randomNames)]
+}
 
 var dummyContainers = []string{dummyContainerID, dummyContainerIDTTY}
 
@@ -477,6 +487,12 @@ func TestCreateHandle(t *testing.T) {
 	}
 
 	AddMockImageToCache()
+
+	// configure mock naming for just this test
+	defer func(fn func(int) string) {
+		randomName = fn
+	}(randomName)
+	randomName = mockRandomName
 
 	// mock a container create config
 	var config types.ContainerCreateConfig

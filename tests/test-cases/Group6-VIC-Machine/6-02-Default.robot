@@ -28,7 +28,8 @@ Get Thumbprint From Log
     [Arguments]  ${output}
     ${logline}=  Get Lines Containing String  ${output}  Creating VMOMI session with thumbprint
     Should Not Be Equal As Strings  ${logline}  ${EMPTY}
-    ${thumbprint}=  Evaluate  "${logline}".split()[-1]
+    ${match}  ${msg}=  Should Match Regexp  ${logline}  msg\="([^"]*)"
+    ${rest}  ${thumbprint}=  Split String From Right  ${msg}  ${SPACE}  1
     [Return]  ${thumbprint}
 
 *** Test Cases ***

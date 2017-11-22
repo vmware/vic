@@ -1556,7 +1556,7 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 		inspectJSON.LogPath = info.ContainerConfig.LogPath
 		inspectJSON.RestartCount = int(info.ContainerConfig.RestartCount)
 		inspectJSON.ID = info.ContainerConfig.ContainerID
-		inspectJSON.Created = time.Unix(info.ContainerConfig.CreateTime, 0).Format(time.RFC3339Nano)
+		inspectJSON.Created = time.Unix(0, info.ContainerConfig.CreateTime).Format(time.RFC3339Nano)
 		if len(info.ContainerConfig.Names) > 0 {
 			inspectJSON.Name = fmt.Sprintf("/%s", info.ContainerConfig.Names[0])
 		}

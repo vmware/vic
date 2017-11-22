@@ -18,7 +18,6 @@ import (
 	"context"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/cmd/vic-machine/common"
@@ -79,10 +78,10 @@ func (i *UpdateFw) Flags() []cli.Flag {
 	return flags
 }
 
-func (i *UpdateFw) processParams() error {
-	defer trace.End(trace.Begin(""))
+func (i *UpdateFw) processParams(op trace.Operation) error {
+	defer trace.End(trace.Begin("", op))
 
-	if err := i.HasCredentials(); err != nil {
+	if err := i.HasCredentials(op); err != nil {
 		return err
 	}
 
@@ -98,94 +97,89 @@ func (i *UpdateFw) processParams() error {
 }
 
 func (i *UpdateFw) Run(clic *cli.Context) (err error) {
-	// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
+	op := common.NewOperation(clic, i.Debug.Debug)
 	defer func() {
-		err = common.LogErrorIfAny(clic, err)
+		// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
+		err = common.LogErrorIfAny(op, clic, err)
 	}()
-
-	if err = i.processParams(); err != nil {
-		return err
-	}
-
-	if i.Debug.Debug != nil && *i.Debug.Debug > 0 {
-		log.SetLevel(log.DebugLevel)
-		trace.Logger.Level = log.DebugLevel
-	}
-
-	if len(clic.Args()) > 0 {
-		log.Errorf("Unknown argument: %s", clic.Args()[0])
-		return errors.New("invalid CLI arguments")
-	}
-
-	log.Infof("### Updating Firewall ####")
-
-	ctx, cancel := context.WithTimeout(context.Background(), i.Timeout)
+	op, cancel := trace.WithTimeout(&op, i.Timeout, clic.App.Name)
 	defer cancel()
 	defer func() {
-		if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
+		if op.Err() != nil && op.Err() == context.DeadlineExceeded {
 			//context deadline exceeded, replace returned error message
 			err = errors.Errorf("Update timed out: use --timeout to add more time")
 		}
 	}()
 
-	var validator *validate.Validator
-	if validator, err = validate.NewValidator(ctx, i.Data); err != nil {
-		log.Errorf("Update cannot continue - failed to create validator: %s", err)
-		return errors.New("update firewall failed")
+	if err = i.processParams(op); err != nil {
+		return err
 	}
-	defer validator.Session.Logout(ctx)
 
-	_, err = validator.ValidateTarget(ctx, i.Data)
-	if err != nil {
-		log.Errorf("Update cannot continue - target validation failed: %s", err)
+	if len(clic.Args()) > 0 {
+		op.Errorf("Unknown argument: %s", clic.Args()[0])
+		return errors.New("invalid CLI arguments")
+	}
+
+	op.Infof("### Updating Firewall ####")
+
+	var validator *validate.Validator
+	if validator, err = validate.NewValidator(op, i.Data); err != nil {
+		op.Errorf("Update cannot continue - failed to create validator: %s", err)
 		return errors.New("update firewall failed")
 	}
-	_, err = validator.ValidateCompute(ctx, i.Data, true)
+	defer validator.Session.Logout(op)
+
+	_, err = validator.ValidateTarget(op, i.Data)
 	if err != nil {
-		log.Errorf("Update cannot continue - compute resource validation failed: %s", err)
+		op.Errorf("Update cannot continue - target validation failed: %s", err)
+		return errors.New("update firewall failed")
+	}
+	_, err = validator.ValidateCompute(op, i.Data, true)
+	if err != nil {
+		op.Errorf("Update cannot continue - compute resource validation failed: %s", err)
 		return errors.New("update firewall failed")
 	}
 
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 
 	if i.enableFw {
-		log.Info("")
-		log.Warn("### WARNING ###")
-		log.Warn("\tThis command modifies the host firewall on the target machine or cluster")
-		log.Warnf("\tThe ruleset %q will be enabled", management.RulesetID)
-		log.Warn("\tThis allows all outbound TCP traffic from the target")
-		log.Warn("\tTo undo this modification use --deny")
-		log.Info("")
+		op.Info("")
+		op.Warn("### WARNING ###")
+		op.Warn("\tThis command modifies the host firewall on the target machine or cluster")
+		op.Warnf("\tThe ruleset %q will be enabled", management.RulesetID)
+		op.Warn("\tThis allows all outbound TCP traffic from the target")
+		op.Warn("\tTo undo this modification use --deny")
+		op.Info("")
 
 		err := executor.EnableFirewallRuleset()
 		if err != nil {
-			log.Errorf("Failed to enable VIC firewall rule: %s", err)
+			op.Errorf("Failed to enable VIC firewall rule: %s", err)
 			return errors.New("failed to enable firewall rule")
 		}
 	}
 
 	if i.disableFw {
-		log.Info("")
-		log.Warn("### WARNING ###")
-		log.Warn("\tThis command modifies the host firewall on the target machine or cluster")
-		log.Warnf("\tThe ruleset %q will be disabled", management.RulesetID)
-		log.Warn("\tThis disables the ruleset that allows all outbound TCP traffic from the target")
-		log.Warn("\tVIC Engine will not function unless 2377/tcp outbound is allowed")
-		log.Warn("\tTo undo this modification use --allow")
-		log.Info("")
+		op.Info("")
+		op.Warn("### WARNING ###")
+		op.Warn("\tThis command modifies the host firewall on the target machine or cluster")
+		op.Warnf("\tThe ruleset %q will be disabled", management.RulesetID)
+		op.Warn("\tThis disables the ruleset that allows all outbound TCP traffic from the target")
+		op.Warn("\tVIC Engine will not function unless 2377/tcp outbound is allowed")
+		op.Warn("\tTo undo this modification use --allow")
+		op.Info("")
 
 		err := executor.DisableFirewallRuleset()
 		if err != nil {
-			log.Errorf("Failed to disable VIC firewall rule: %s", err)
+			op.Errorf("Failed to disable VIC firewall rule: %s", err)
 			return errors.New("failed to disable firewall rule")
 		}
 	}
-	log.Info("")
+	op.Info("")
 
 	if i.enableFw || i.disableFw {
-		log.Infof("Firewall changes complete")
+		op.Infof("Firewall changes complete")
 	}
 
-	log.Infof("Command completed successfully")
+	op.Infof("Command completed successfully")
 	return nil
 }

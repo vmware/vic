@@ -101,6 +101,12 @@ Get VM Info
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${out}
 
+Get VM Moid
+    [Arguments]  ${vm}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -dump -json ${vm} | jq -c '.VirtualMachines[] | .Self.Value'
+    Should Be Equal As Integers  ${rc}  0
+    [Return]  ${output}
+
 Check ImageStore
     ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls -R -ds=%{TEST_DATASTORE} %{VCH-NAME}/VIC
     Should Be Equal As Integers  ${rc}  0
@@ -112,6 +118,19 @@ vMotion A VM
     ${status}=  Run Keyword And Return Status  Should Contain  ${host}  ${esx1-ip}
     Run Keyword If  ${status}  Run  govc vm.migrate -host cls/${esx2-ip} -pool cls/Resources ${vm}
     Run Keyword Unless  ${status}  Run  govc vm.migrate -host cls/${esx1-ip} -pool cls/Resources ${vm}
+
+vMotion A VM And Wait
+    [Arguments]  ${vm}  ${attempts}  ${interval}
+    ${host}=  Get VM Host Name  ${vm}
+    ${status}=  Run Keyword And Return Status  Should Contain  ${host}  ${esx1-ip}
+    Run Keyword If  ${status}  Run  govc vm.migrate -host cls/${esx2-ip} -pool cls/Resources ${vm}
+    Run Keyword Unless  ${status}  Run  govc vm.migrate -host cls/${esx1-ip} -pool cls/Resources ${vm}
+    Wait Until Keyword Succeeds  ${attempts}  ${interval}  VM Host Has Changed  ${host}  ${vm}
+
+VM Host Has Changed
+    [Arguments]  ${oldHost}  ${vm}
+    ${curHost}=  Get VM Host Name  ${vm}
+    Should Not Be Equal  ${oldHost}  ${curHost}
 
 Create Test Server Snapshot
     [Arguments]  ${vm}  ${snapshot}
@@ -148,6 +167,11 @@ Get Datacenter Name
     ${out}=  Split To Lines  ${out}
     ${name}=  Fetch From Right  @{out}[0]  ${SPACE}
     [Return]  ${name}
+
+Get Datacenter ID
+    ${name}=  Get Datacenter Name
+    ${id}=  Run  govc datacenter.info -k --json -dc ${name} | jq .Datacenters[0].Self.Value
+    [Return]  ${id}
 
 Get Test Server Hostname
     [Tags]  secret

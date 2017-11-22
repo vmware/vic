@@ -3307,7 +3307,8 @@
 					"type": "string"
 				},
 				"createTime": {
-					"type": "integer"
+					"type": "integer",
+					"format": "int64"
 				},
 				"names": {
 					"type": "array",

@@ -92,8 +92,7 @@ var testInputConfigVPX = data.Data{
 			Fragment:   "",
 		},
 	},
-	ContainerDatastoreName: "",
-	BridgeNetworkName:      "DC0_DVPG0",
+	BridgeNetworkName: "DC0_DVPG0",
 	ClientNetwork: data.NetworkConfig{
 		Name:         "VM Network",
 		Destinations: nil,
@@ -163,52 +162,53 @@ func TestValidateForSim(ctx context.Context, URL *url.URL) (*config.VirtualConta
 // that otherwise would fail (e.g. Firewall)
 func (v *Validator) validateForSim(ctx context.Context, input *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
+	op := trace.FromContext(ctx, "validateForSim")
 	log.Infof("Validating supplied configuration")
 
 	conf := &config.VirtualContainerHostConfigSpec{}
 
-	if err := v.datacenter(); err != nil {
+	if err := v.datacenter(op); err != nil {
 		return conf, err
 	}
 
-	v.basics(ctx, input, conf)
+	v.basics(op, input, conf)
 
-	v.target(ctx, input, conf)
-	v.credentials(ctx, input, conf)
-	v.compute(ctx, input, conf)
-	v.storage(ctx, input, conf)
-	v.network(ctx, input, conf)
-	v.CheckLicense(ctx)
-	v.CheckDrs(ctx)
+	v.target(op, input, conf)
+	v.credentials(op, input, conf)
+	v.compute(op, input, conf)
+	v.storage(op, input, conf)
+	v.network(op, input, conf)
+	v.CheckLicense(op)
+	v.CheckDrs(op)
 
 	// fmt.Printf("Config: %# v\n", pretty.Formatter(conf))
 
 	// Perform the higher level compatibility and consistency checks
-	v.compatibility(ctx, conf)
+	v.compatibility(op, conf)
 
-	v.syslog(conf, input)
+	v.syslog(op, conf, input)
 
-	pool, err := v.ResourcePoolHelper(ctx, input.ComputeResourcePath)
+	pool, err := v.ResourcePoolHelper(op, input.ComputeResourcePath)
 	v.NoteIssue(err)
 
 	if pool == nil {
-		return conf, v.ListIssues()
+		return conf, v.ListIssues(op)
 	}
 
 	// Add the resource pool
 	conf.ComputeResources = append(conf.ComputeResources, pool.Reference())
 
 	// Add the VM
-	vm, err := v.Session.Finder.VirtualMachine(ctx, "/DC0/vm/DC0_C0_RP0_VM0")
+	vm, err := v.Session.Finder.VirtualMachine(op, "/DC0/vm/DC0_C0_RP0_VM0")
 	v.NoteIssue(err)
 
 	if vm == nil {
-		return conf, v.ListIssues()
+		return conf, v.ListIssues(op)
 	}
 
 	vmRef := vm.Reference()
 	conf.SetMoref(&vmRef)
 
 	// TODO: determine if this is where we should turn the noted issues into message
-	return conf, v.ListIssues()
+	return conf, v.ListIssues(op)
 }
