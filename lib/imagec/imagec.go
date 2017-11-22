@@ -583,7 +583,7 @@ func (ic *ImageC) prepareTransfer(ctx context.Context) error {
 	// Get the URL of the OAuth endpoint
 	url, err := LearnAuthURL(ic.Options)
 	if err != nil {
-		log.Infof(err.Error())
+		log.Warnf("LearnAuthURL returned %s", err.Error())
 		switch err := err.(type) {
 		case urlfetcher.ImageNotFoundError:
 			return fmt.Errorf("Error: image %s not found", ic.Reference)

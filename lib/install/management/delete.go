@@ -58,10 +58,28 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 		return nil
 	}
 
-	if err = d.DeleteVCHInstances(vmm, conf, containers); err != nil {
-		// if container delete failed, do not remove anything else
-		d.op.Info("Specify --force to force delete")
-		return err
+	d.parentResourcepool, err = d.getComputeResource(vmm, conf)
+	if err != nil {
+		d.op.Error(err)
+		if !d.force {
+			d.op.Infof("Specify --force to force delete")
+			return err
+		}
+		// Can't find the RP VCH was created in to delete cVMs, continue anyway
+		d.op.Warnf("No container VMs found, but proceeding with delete of VCH due to --force")
+		err = nil
+	}
+	if d.parentResourcepool != nil {
+		if err = d.DeleteVCHInstances(vmm, conf, containers); err != nil {
+			d.op.Error(err)
+			if !d.force {
+				// if container delete failed, do not remove anything else
+				d.op.Infof("Specify --force to force delete")
+				return err
+			}
+			d.op.Warnf("Proceeding with delete of VCH due to --force")
+			err = nil
+		}
 	}
 
 	if err = d.deleteImages(conf); err != nil {
@@ -86,6 +104,17 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 		d.op.Debugf("Error deleting appliance VM %s", err)
 		return err
 	}
+
+	defaultrp, err := d.session.Cluster.ResourcePool(d.op)
+	if err != nil {
+		return err
+	}
+
+	if d.parentResourcepool != nil && d.parentResourcepool.Reference() == defaultrp.Reference() {
+		d.op.Warnf("VCH resource pool is cluster default pool - skipping delete")
+		return nil
+	}
+
 	if err = d.destroyResourcePoolIfEmpty(conf); err != nil {
 		d.op.Warnf("VCH resource pool is not removed: %s", err)
 	}
@@ -96,26 +125,11 @@ func (d *Dispatcher) getComputeResource(vmm *vm.VirtualMachine, conf *config.Vir
 	var rpRef types.ManagedObjectReference
 	var err error
 
-	ignoreFailureToFindComputeResources := d.force
-
 	if len(conf.ComputeResources) == 0 {
-		if !ignoreFailureToFindComputeResources {
-			err = errors.Errorf("Cannot find compute resources from configuration")
-			return nil, err
-		}
-		d.op.Warn("Cannot find compute resources from configuration, attempting to delete under parent resource pool")
-		parent, err := vmm.Parent(d.op)
-		if err != nil {
-			return nil, err
-		}
-		if parent == nil {
-			err = errors.Errorf("Cannot find VCH parent resource pool")
-			return nil, err
-		}
-		rpRef = *parent
-	} else {
-		rpRef = conf.ComputeResources[len(conf.ComputeResources)-1]
+		err = errors.Errorf("Cannot find compute resource from configuration")
+		return nil, err
 	}
+	rpRef = conf.ComputeResources[len(conf.ComputeResources)-1]
 
 	ref, err := d.session.Finder.ObjectReference(d.op, rpRef)
 	if err != nil {
@@ -216,11 +230,6 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 
 	var err error
 	var children []*vm.VirtualMachine
-	d.parentResourcepool, err = d.getComputeResource(vmm, conf)
-	if err != nil {
-		return err
-	}
-
 	if children, err = d.parentResourcepool.GetChildrenVMs(d.op, d.session); err != nil {
 		return err
 	}
@@ -239,10 +248,26 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 		}
 
 		if ok {
-			// child is vch; detach all attached disks so later removal of images is successful
+			// Do not delete a VCH in the target RP if it is not the target VCH
+			if child.Reference() != vmm.Reference() {
+				d.op.Debugf("Skipping VCH in the resource pool that is not the targeted VCH: %s", child)
+				continue
+			}
+
+			// child is the target vch; detach all attached disks so later removal of images is successful
 			if err = d.detachAttachedDisks(child); err != nil {
 				errs = append(errs, err.Error())
 			}
+			continue
+		}
+
+		ok, err = d.isContainerVM(child)
+		if err != nil {
+			errs = append(errs, err.Error())
+			continue
+		}
+		if !ok {
+			d.op.Debugf("Skipping VM in the resource pool that is not a container VM: %s", child)
 			continue
 		}
 
