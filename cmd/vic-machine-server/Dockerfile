@@ -21,13 +21,15 @@ ENV TLS_PORT 443
 ENV TLS_CERTIFICATE=/certs/server.cert.pem
 ENV TLS_PRIVATE_KEY=/certs/server.key.pem
 
-EXPOSE 80
-EXPOSE 443
+EXPOSE $PORT
+EXPOSE $TLS_PORT
 
 WORKDIR /opt/vmware/vsphere-integrated-containers/
 
 COPY bin/vic-machine-server bin/
 COPY bin/appliance.iso .
 COPY bin/bootstrap.iso .
+
+RUN setcap cap_net_bind_service=+ep bin/vic-machine-server
 
 ENTRYPOINT bin/vic-machine-server
