@@ -34,6 +34,7 @@ import (
 	"github.com/vmware/govmomi/simulator/esx"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
@@ -584,6 +585,19 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 	}
 }
 
+// TODO: vcsim should support UpdateOptions
+type testOptionManager struct {
+	*simulator.OptionManager
+}
+
+func (m *testOptionManager) UpdateOptions(req *types.UpdateOptions) soap.HasFault {
+	m.Setting = append(req.ChangedValue, m.Setting...)
+
+	return &methods.UpdateOptionsBody{
+		Res: new(types.UpdateOptionsResponse),
+	}
+}
+
 func TestValidateWithFolders(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
 	op := trace.NewOperation(context.Background(), "TestValidateWithFolders")
@@ -605,6 +619,9 @@ func TestValidateWithFolders(t *testing.T) {
 	m.Service.TLS = new(tls.Config)
 	s := m.Service.NewServer()
 	defer s.Close()
+
+	om := simulator.Map.Get(*m.ServiceContent.Setting).(*simulator.OptionManager)
+	simulator.Map.Put(&testOptionManager{om})
 
 	input := data.NewData()
 	input.URL = &url.URL{

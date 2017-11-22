@@ -772,6 +772,9 @@
                 },
                 "user": {
                   "type": "string"
+                },
+                "grant_permissions": {
+                  "type": "boolean"
                 }
               }
             }
