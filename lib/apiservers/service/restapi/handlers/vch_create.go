@@ -138,7 +138,7 @@ func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacente
 }
 
 func setUpLogger(op *trace.Operation) *vchlog.VCHLogger {
-	log := vchlog. New()
+	log := vchlog.New()
 
 	op.Logger = logrus.New()
 	op.Logger.Out = log.GetPipe()
