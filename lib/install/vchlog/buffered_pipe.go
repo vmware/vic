@@ -83,7 +83,8 @@ func (bp *BufferedPipe) Write(data []byte) (n int, err error) {
 	return bp.buffer.Write(data)
 }
 
-// Close closes the pipe.
+// Close closes the pipe, flushes remaining data or drops if consumer times out (30 minutes).
+// timeout implementation reference: https://github.com/golang/go/issues/9578
 func (bp *BufferedPipe) Close() (err error) {
 	bp.c.L.Lock()
 	defer bp.c.L.Unlock()
