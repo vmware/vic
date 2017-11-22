@@ -767,14 +767,13 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	executor.ShowVCH(vchConfig, c.Certs.Ckey, c.Certs.Ccert, c.Certs.Cacert, c.Certs.EnvFile, c.Certs.CertPath)
 	op.Info("Installer completed successfully")
 
-	// wait on the logger to finish streaming
 	go func() {
-		select {
-		case <-time.After(time.Second * 3):
-			op.Infof("Waiting for log upload to complete")
-		}
+		// let the user know why they're waiting if it causes a noticeable delay
+		time.Sleep(3 * time.Second)
+		op.Infof("Waiting for log upload to complete")
 	}()
 
+	// wait on the logger to finish streaming
 	datastoreLog.Close()
 	datastoreLog.Wait(op)
 
