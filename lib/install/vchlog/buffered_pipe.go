@@ -78,5 +78,5 @@ func (bp *BufferedPipe) Close() (err error) {
 	defer bp.c.L.Unlock()
 	defer bp.c.Broadcast()
 	bp.writeClosed = true
-	return err
+	return nil
 }
