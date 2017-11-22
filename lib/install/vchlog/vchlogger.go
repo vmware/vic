@@ -41,7 +41,7 @@ type DatastoreReadySignal struct {
 	// VMPathName: the datastore path
 	VMPathName string
 	// Timestamp: timestamp at which the signal is sent
-	Timestamp  time.Time
+	Timestamp time.Time
 }
 
 type VCHLogger struct {
