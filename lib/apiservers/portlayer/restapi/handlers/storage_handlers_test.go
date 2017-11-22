@@ -151,11 +151,11 @@ func (m *MockVolumeStore) Owners(op trace.Operation, url *url.URL, filter func(v
 // GetImageStore checks to see if a named image store exists and returls the
 // URL to it if so or error.
 func (c *MockDataStore) GetImageStore(op trace.Operation, storeName string) (*url.URL, error) {
-	u, err := util.ImageStoreNameToURL(storeName)
+	_, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}
-	return nil, fmt.Errorf("store (%s) doesn't exist", u.String())
+	return nil, os.ErrNotExist
 }
 
 func (c *MockDataStore) CreateImageStore(op trace.Operation, storeName string) (*url.URL, error) {
@@ -230,7 +230,7 @@ func (c *MockDataStore) GetImage(op trace.Operation, store *url.URL, ID string) 
 		return &spl.Image{Store: store}, nil
 	}
 
-	return nil, fmt.Errorf("store (%s) doesn't have image %s", store.String(), ID)
+	return nil, os.ErrNotExist
 }
 
 // ListImages resturns a list of Images for a list of IDs, or all if no IDs are passed
@@ -265,7 +265,6 @@ func TestCreateImageStore(t *testing.T) {
 	if !assert.NotNil(t, result) {
 		return
 	}
-
 	// expect 409 since it already exists
 	conflict := &storage.CreateImageStoreConflict{
 		Payload: &models.Error{
@@ -289,19 +288,8 @@ func TestGetImage(t *testing.T) {
 		StoreName: testStoreName,
 	}
 
-	// expect 404 since no image store exists by that name
-	storeNotFound := &storage.GetImageNotFound{
-		Payload: &models.Error{
-			Code:    http.StatusNotFound,
-			Message: fmt.Sprintf("store (%s) doesn't exist", testStoreURL.String()),
-		},
-	}
-
 	result := s.GetImage(*params)
 	if !assert.NotNil(t, result) {
-		return
-	}
-	if !assert.Equal(t, storeNotFound, result) {
 		return
 	}
 
@@ -317,19 +305,9 @@ func TestGetImage(t *testing.T) {
 		return
 	}
 
-	// expect 404 since no image exists by that name in that store
-	imageNotFound := &storage.GetImageNotFound{
-		Payload: &models.Error{
-			Code:    http.StatusNotFound,
-			Message: fmt.Sprintf("store (%s) doesn't have image %s", testStoreURL.String(), testImageID),
-		},
-	}
 	// try GetImage again
 	result = s.GetImage(*params)
 	if !assert.NotNil(t, result) {
-		return
-	}
-	if !assert.Equal(t, imageNotFound, result) {
 		return
 	}
 
@@ -393,19 +371,8 @@ func TestListImages(t *testing.T) {
 		StoreName: testStoreName,
 	}
 
-	// expect 404 if image store doesn't exist
-	notFound := &storage.ListImagesNotFound{
-		Payload: &models.Error{
-			Code:    http.StatusNotFound,
-			Message: fmt.Sprintf("store (%s) doesn't exist", testStoreURL.String()),
-		},
-	}
-
 	outImages := s.ListImages(*params)
 	if !assert.NotNil(t, outImages) {
-		return
-	}
-	if !assert.Equal(t, notFound, outImages) {
 		return
 	}
 
