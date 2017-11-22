@@ -404,6 +404,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				c.OpsCredentials = common.OpsCredentials{
 					OpsUser:     &vch.Endpoint.OperationsCredentials.User,
 					OpsPassword: &opsPassword,
+					GrantPerms:  &vch.Endpoint.OperationsCredentials.GrantPermissions,
 				}
 			}
 		}
