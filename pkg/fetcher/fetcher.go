@@ -453,7 +453,12 @@ func (u *URLFetcher) buildRegistryErrMsg(url *url.URL, respBody io.ReadCloser) s
 		return errMsg
 	}
 
-	errMsg += fmt.Sprintf(", Message: %s", errDetail)
+	if strings.Contains(errDetail, "does not have permission") {
+		errMsg = fmt.Sprintf("unauthorized: %s", errDetail)
+	} else {
+		errMsg += fmt.Sprintf("Message: %s", errDetail)
+	}
+
 	return errMsg
 }
 
