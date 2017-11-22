@@ -33,6 +33,8 @@ import (
 )
 
 type Info struct {
+	*ManagedEntityInfo
+
 	Company               string
 	Key                   string
 	Name                  string
@@ -42,6 +44,13 @@ type Info struct {
 	Type                  string
 	URL                   string
 	Version               string
+}
+
+type ManagedEntityInfo struct {
+	Description  string
+	IconURL      string
+	SmallIconURL string
+	EntityType   string
 }
 
 type Pluginator struct {
@@ -150,6 +159,10 @@ func (p *Pluginator) Register() error {
 		Description: &desc,
 	}
 
+	if p.info.ManagedEntityInfo != nil {
+		e.Type = p.info.EntityType
+	}
+
 	eci := types.ExtensionClientInfo{
 		Version:     p.info.Version,
 		Company:     p.info.Company,
@@ -167,6 +180,14 @@ func (p *Pluginator) Register() error {
 	eri := types.ExtensionResourceInfo{
 		Locale: "en_US",
 		Module: "name",
+	}
+
+	if p.info.ManagedEntityInfo != nil {
+		mei := types.ExtManagedEntityInfo{
+			Description: p.info.ManagedEntityInfo.Description,
+			Type:        p.info.ManagedEntityInfo.EntityType,
+		}
+		e.ManagedEntityInfo = append(e.ManagedEntityInfo, mei)
 	}
 
 	eri.Data = append(eri.Data, d)
