@@ -29,29 +29,20 @@ import (
 func main() {
 	ctx := context.Background()
 	op := trace.NewOperation(ctx, "Unpack") // TODO op ID?
-	op.Infof("XXX New unpack operation created")
+	op.Debugf("New unpack operation created")
 
-	var args []string
-	for _, arg := range os.Args {
-		args = append(args, fmt.Sprintf("%s, ", arg))
-	}
-	op.Infof("%s", args)
-
-	if len(os.Args) < 4 {
-		op.Errorf("XXX Not enough arguments passed. Arguments were: %s", args)
+	if len(os.Args) != 4 {
+		op.Errorf("Wrong number of arguments passed to unpack binary")
 		os.Exit(5)
 	}
 
 	root := os.Args[2]
-	op.Infof("XXX root inside binary %s", root)
 
 	filterSpec, err := archive.DecodeFilterSpec(op, &os.Args[3])
 	if err != nil {
 		op.Errorf("Couldn't deserialize filterspec %s", os.Args[3])
 		os.Exit(11)
 	}
-
-	op.Infof("XXX filterSpec decoded %s", filterSpec)
 
 	fi, err := os.Stat(root)
 	if err != nil {
@@ -65,34 +56,30 @@ func main() {
 		op.Error(err)
 		os.Exit(10)
 	}
-	op.Infof("XXX root exists: %s", root)
+	op.Debugf("root exists: %s", root)
 
 	err = os.Chdir(root)
 	if err != nil {
-		op.Errorf("XXX error while chdir outside chroot: %s", err.Error())
+		op.Errorf("error while chdir outside chroot: %s", err.Error())
 		os.Exit(4)
 	}
 
-	op.Infof("XXX chdir'd")
 	err = syscall.Chroot(root)
 	if err != nil {
-		op.Errorf("XXX error while chrootin': %s", err.Error())
+		op.Errorf("error while chrootin': %s", err.Error())
 		os.Exit(3)
 	}
-	op.Infof("XXX chrooted")
 
 	err = os.Chdir("/")
 	if err != nil {
-		op.Errorf("XXX error while chdir inside chroot: %s", err.Error())
+		op.Errorf("error while chdir inside chroot: %s", err.Error())
 		os.Exit(2)
 	}
-	op.Infof("XXX chdir'd")
 
 	if err = archive.InvokeUnpack(op, os.Stdin, filterSpec, "/"); err != nil {
 		op.Error(err)
 		os.Exit(8)
 	}
 
-	op.Infof("XXX success!")
 	os.Exit(0)
 }

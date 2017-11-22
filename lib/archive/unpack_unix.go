@@ -152,25 +152,19 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		return err
 	}
 
-	op.Infof("XXX %s seems to exist", root)
-	op.Infof("XXX %+v", filter)
-
 	encodedFilter, err := EncodeFilterSpec(op, filter)
 	if err != nil {
 		op.Error(err)
 		return err
 	}
 
-	op.Infof("XXX filterSpec in portlayer %s", *encodedFilter)
 	// #nosec: Subprocess launching with variable. -- neither variable is user input & both are bounded inputs so this is fine
 	cmd := exec.Command("/bin/unpack", op.ID(), root, *encodedFilter)
 
 	//stdin
-	op.Infof("XXX Creating stdinpipe")
 	stdin, err := cmd.StdinPipe()
 
 	if err != nil {
-		op.Infof("XXX err non-nil")
 		op.Error(err)
 		return err
 	}
@@ -181,30 +175,26 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		return err
 	}
 
-	op.Infof("XXX Wait for process")
-
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		out, err := cmd.CombinedOutput()
 		if len(out) == 0 {
-			op.Infof("XXX No output from command")
+			op.Debug("No output from command")
 		} else {
-			op.Infof("XXX %s", string(out))
+			op.Debugf("%s", string(out))
 		}
 		if err != nil {
-			op.Errorf("XXX Command returned error %s", err.Error())
+			op.Errorf("Command returned error %s", err.Error())
 		}
 	}()
 
 	if _, err := io.Copy(stdin, tarStream); err != nil {
-		op.Errorf("XXX %s", err.Error())
+		op.Errorf("Error copying tarStream: %s", err.Error())
 		return err
 	}
 
-	op.Infof("XXX Waiting..")
 	wg.Wait()
-	op.Infof("XXX Done waiting..")
 	return err
 }
