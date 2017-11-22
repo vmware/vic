@@ -35,6 +35,7 @@ import (
 	"github.com/vmware/vic/lib/install/vchlog"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/govmomi/vim25/methods"
 )
 
 const (
@@ -768,9 +769,12 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	op.Info("Installer completed successfully")
 
 	go func() {
-		// let the user know why they're waiting if it causes a noticeable delay
-		time.Sleep(3 * time.Second)
-		op.Infof("Waiting for log upload to complete")
+		select {
+		case <-time.After(3 * time.Second):
+			op.Infof("Waiting for log upload to complete") // tell the user if the wait causes noticeable delay
+		case <-op.Done():
+			return
+		}
 	}()
 
 	// wait on the logger to finish streaming
