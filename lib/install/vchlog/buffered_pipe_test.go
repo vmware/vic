@@ -16,7 +16,6 @@ package vchlog
 
 import (
 	. "io"
-	"math/rand"
 	"strconv"
 	"testing"
 	"time"
@@ -204,51 +203,6 @@ func TestPipeWriteClose(t *testing.T) {
 
 	assert.Equal(t, ErrUnexpectedEOF, err, "write to closed pipe: %v want %v", err, ErrUnexpectedEOF)
 	assert.Equal(t, 0, n, "write on closed pipe returned %d bytes", n)
-}
-
-// Test read left-over data after pipe is closed
-func TestPipeReadAfterWriteClose(t *testing.T) {
-	testByte := make([]byte, 128)
-	bp := NewBufferedPipe()
-	writeDone := make(chan int)
-
-	go write(t, bp, testByte, len(testByte), writeDone)
-	<-writeDone
-
-	// read only a portion of the data written
-	buf := make([]byte, 64)
-	read(t, bp, buf, len(buf), nil)
-
-	// close the pipe
-	go bp.Close()
-
-	// write until it fails due to closed write end
-	written := len(testByte) - len(buf)
-	writeBuf := make([]byte, 16)
-	for {
-		n, err := bp.Write(writeBuf)
-		written += n
-		if err != nil {
-			assert.Equal(t, ErrUnexpectedEOF, err, "write to closed pipe: %v want %v", err, ErrUnexpectedEOF)
-			break
-		}
-	}
-
-	// read the left-over data
-	// both reads should not be blocked due to remaining data
-	firstChunk := rand.Intn(written)
-	secondChunk := written - firstChunk
-
-	firstbuf := make([]byte, firstChunk)
-	read(t, bp, firstbuf, firstChunk, nil)
-	secondbuf := make([]byte, secondChunk)
-	read(t, bp, secondbuf, secondChunk, nil)
-
-	// subsequent read fails due to closed read end
-	buf = make([]byte, 16)
-	n, err := bp.Read(buf)
-	assert.Equal(t, EOF, err, "read from closed pipe: %v want %v", err, EOF)
-	assert.Equal(t, 0, n, "read on closed pipe returned %d bytes", n)
 }
 
 // Helper Functions

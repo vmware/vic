@@ -50,6 +50,9 @@ type VCHLogger struct {
 
 	// signalChan: channel for signaling when datastore folder is ready
 	signalChan chan DatastoreReadySignal
+
+	// done: channel indicating if streaming to datastore is finished
+	done chan struct{}
 }
 
 type Receiver interface {
@@ -61,6 +64,7 @@ func New() *VCHLogger {
 	return &VCHLogger{
 		pipe:       NewBufferedPipe(),
 		signalChan: make(chan DatastoreReadySignal),
+		done:       make(chan struct{}),
 	}
 }
 
@@ -72,6 +76,15 @@ func (l *VCHLogger) Run() {
 	param := soap.DefaultUpload
 	param.ContentLength = -1
 	sig.Datastore.Upload(sig.Operation.Context, ioutil.NopCloser(l.pipe), path.Join(sig.VMPathName, logFileName), &param)
+	close(l.done)
+}
+
+// Wait waits for the streaming to VCH datastore to finish, or context times out
+func (l *VCHLogger) Wait(op trace.Operation) {
+	select {
+	case <-l.done: // done uploading to datastore (possibly error out)
+	case <-op.Done(): // context cancel, timeout
+	}
 }
 
 // GetPipe returns the streaming pipe of the vch logger

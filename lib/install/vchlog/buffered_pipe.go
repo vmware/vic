@@ -18,9 +18,6 @@ import (
 	"bytes"
 	"io"
 	"sync"
-	"time"
-
-	"github.com/vmware/vic/pkg/errors"
 )
 
 // BufferedPipe struct implements a pipe readwriter with buffer
@@ -29,12 +26,8 @@ type BufferedPipe struct {
 	buffer *bytes.Buffer
 	// c: the sync locker to manage concurrent reads and writes
 	c *sync.Cond
-	// readClosed: boolean indicating if read end of the pipe is closed
-	readClosed bool
 	// writeClosed: boolean indicating if write end of the pipe is closed
 	writeClosed bool
-	// readerReady: boolean indicating if the reader is ready
-	readerReady bool
 }
 
 // NewBufferedPipe returns a new buffered pipe instance
@@ -46,9 +39,7 @@ func NewBufferedPipe() *BufferedPipe {
 	return &BufferedPipe{
 		buffer:      bytes.NewBuffer(nil),
 		c:           c,
-		readClosed:  false,
 		writeClosed: false,
-		readerReady: false,
 	}
 }
 
@@ -58,12 +49,10 @@ func (bp *BufferedPipe) Read(data []byte) (n int, err error) {
 	defer bp.c.L.Unlock()
 	defer bp.c.Broadcast()
 
-	bp.readerReady = true // now we have a valid consumer to switch to flushing in Close
-
-	for bp.buffer.Len() == 0 && !bp.readClosed {
+	for bp.buffer.Len() == 0 && !bp.writeClosed {
 		bp.c.Wait()
 	}
-	if bp.readClosed {
+	if bp.buffer.Len() == 0 && bp.writeClosed {
 		return 0, io.EOF
 	}
 
@@ -83,31 +72,11 @@ func (bp *BufferedPipe) Write(data []byte) (n int, err error) {
 	return bp.buffer.Write(data)
 }
 
-// Close closes the pipe, flushes remaining data or drops if consumer times out (30 minutes).
-// timeout implementation reference: https://github.com/golang/go/issues/9578
+// Close closes the pipe
 func (bp *BufferedPipe) Close() (err error) {
 	bp.c.L.Lock()
 	defer bp.c.L.Unlock()
 	defer bp.c.Broadcast()
-
 	bp.writeClosed = true
-
-	if bp.readerReady { // flush only if there is a valid consumer
-		done := make(chan bool)
-		for bp.buffer.Len() > 0 {
-			go func() {
-				bp.c.Wait()
-				done <- true
-			}()
-			select {
-			case <-time.After(time.Minute * 30): // timeout if consumer inactive for 30 minutes
-				err = errors.New("buffered data left in pipe; consumer inactive for 30 minutes")
-				break
-			case <-done:
-			}
-		}
-	}
-
-	bp.readClosed = true
 	return err
 }
