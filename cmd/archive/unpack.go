@@ -35,6 +35,7 @@ func main() {
 	for _, arg := range os.Args {
 		args = append(args, fmt.Sprintf("%s, ", arg))
 	}
+	op.Infof("%s", args)
 
 	if len(os.Args) < 4 {
 		op.Errorf("XXX Not enough arguments passed. Arguments were: %s", args)
@@ -46,7 +47,6 @@ func main() {
 
 	filterSpec, err := archive.DecodeFilterSpec(op, &os.Args[3])
 	if err != nil {
-		// the target unpack path does not exist. We should not get here.
 		op.Errorf("Couldn't deserialize filterspec %s", os.Args[3])
 		os.Exit(11)
 	}
@@ -88,9 +88,11 @@ func main() {
 	}
 	op.Infof("XXX chdir'd")
 
-	if err = archive.InvokeUnpack(op, os.Stdin, filterSpec); err != nil {
+	if err = archive.InvokeUnpack(op, os.Stdin, filterSpec, "/"); err != nil {
 		op.Error(err)
 		os.Exit(8)
 	}
+
+	op.Infof("XXX success!")
 	os.Exit(0)
 }

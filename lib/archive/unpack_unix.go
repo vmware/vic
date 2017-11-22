@@ -48,8 +48,8 @@ const (
 // - strip : The strip string will indicate the
 // - exlude : marks paths that are to be excluded from the write
 // - rebase : marks the the write path that will be tacked onto (appended or prepended? TODO improve this comment) the "root". e.g /tmp/unpack + /my/target/path = /tmp/unpack/my/target/path
-func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec) error {
-	// op.Debugf("unpacking archive to root: %s, filter: %+v", root, filter)
+func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string) error {
+	op.Debugf("unpacking archive to root: %s, filter: %+v", root, filter)
 
 	// Online datasource is sending a tar reader instead of an io reader.
 	// Type check here to see if we actually need to create a tar reader.
@@ -58,6 +58,19 @@ func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec) e
 		tr = trCheck
 	} else {
 		tr = tar.NewReader(tarStream)
+	}
+
+	fi, err := os.Stat(root)
+	if err != nil {
+		// the target unpack path does not exist. We should not get here.
+		op.Errorf("tar unpack target does not exist: %s", root)
+		return err
+	}
+
+	if !fi.IsDir() {
+		err := fmt.Errorf("unpack root target is not a directory: %s", root)
+		op.Error(err)
+		return err
 	}
 
 	op.Debugf("using FilterSpec : (%#v)", *filter)
@@ -83,25 +96,25 @@ func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec) e
 		// fix up path
 		stripped := strings.TrimPrefix(header.Name, filter.StripPath)
 		rebased := filepath.Join(filter.RebasePath, stripped)
-		// absPath := filepath.Join(root, rebased)
+		absPath := filepath.Join(root, rebased)
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			err = os.MkdirAll(rebased, header.FileInfo().Mode())
+			err = os.MkdirAll(absPath, header.FileInfo().Mode())
 			if err != nil {
-				op.Errorf("Failed to create directory%s: %s", rebased, err)
+				op.Errorf("Failed to create directory%s: %s", absPath, err)
 				return err
 			}
 		case tar.TypeSymlink:
-			err := os.Symlink(header.Linkname, rebased)
+			err := os.Symlink(header.Linkname, absPath)
 			if err != nil {
-				op.Errorf("Failed to create symlink %s->%s: %s", rebased, header.Linkname, err)
+				op.Errorf("Failed to create symlink %s->%s: %s", absPath, header.Linkname, err)
 				return err
 			}
 		case tar.TypeReg:
-			f, err := os.OpenFile(rebased, fileWriteFlags, header.FileInfo().Mode())
+			f, err := os.OpenFile(absPath, fileWriteFlags, header.FileInfo().Mode())
 			if err != nil {
-				op.Errorf("Failed to open file %s: %s", rebased, err)
+				op.Errorf("Failed to open file %s: %s", absPath, err)
 				return err
 			}
 			_, err = io.Copy(f, tr)
@@ -113,7 +126,7 @@ func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec) e
 		default:
 			// TODO: add support for special file types - otherwise we will do absurd things such as read infinitely from /dev/random
 		}
-		op.Debugf("Finished writing to: %s", rebased)
+		op.Debugf("Finished writing to: %s", absPath)
 	}
 	return nil
 }
@@ -140,6 +153,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 	}
 
 	op.Infof("XXX %s seems to exist", root)
+	op.Infof("XXX %+v", filter)
 
 	encodedFilter, err := EncodeFilterSpec(op, filter)
 	if err != nil {
@@ -156,7 +170,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 	stdin, err := cmd.StdinPipe()
 
 	if err != nil {
-		op.Infof("XXX err non-nill")
+		op.Infof("XXX err non-nil")
 		op.Error(err)
 		return err
 	}
@@ -181,7 +195,6 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		}
 		if err != nil {
 			op.Errorf("XXX Command returned error %s", err.Error())
-			return
 		}
 	}()
 
@@ -193,5 +206,5 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 	op.Infof("XXX Waiting..")
 	wg.Wait()
 	op.Infof("XXX Done waiting..")
-	return nil
+	return err
 }
