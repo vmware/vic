@@ -71,9 +71,12 @@ Try To Exploit VCH With Offline Copy of Malicious Tarball
 
     Should Not Contain  ${output}  No such file or directory
 
-    ${rc}  ${output}=  Run And Return Rc And Output  govc guest.ls -vm %{VCH-NAME} /tmp | grep pingme
+    Enable VCH SSH
+
+    ${rc}  ${output}=  Run And Return Rc And Output  sshpass -ppassword ssh %{VCH-IP} -lroot -C -oStrictHostKeyChecking=no --password=password "ls /tmp | grep pingme"
     Log  ${output}
     Should Not Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  pingme
 
 Copy a file from host to offline container root dir
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
