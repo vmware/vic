@@ -35,6 +35,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/target"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/operations/not_yet_implemented"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 )
@@ -82,92 +83,92 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 
 	api.SessionAuth = target.SessionAuth
 
-	// GET /container
-	api.GetHandler = operations.GetHandlerFunc(func(params operations.GetParams) middleware.Responder {
+	// GET    /container
+	api.NotYetImplementedGetHandler = not_yet_implemented.GetHandlerFunc(func(params not_yet_implemented.GetParams) middleware.Responder {
 		return middleware.NotImplemented("operation .Get has not yet been implemented")
 	})
 
-	// GET /container/hello
+	// GET    /container/hello
 	api.GetHelloHandler = &handlers.HelloGet{}
 
-	// GET /container/version
+	// GET    /container/version
 	api.GetVersionHandler = &handlers.VersionGet{}
 
-	// POST /container/target/{target}
-	api.PostTargetTargetHandler = operations.PostTargetTargetHandlerFunc(func(params operations.PostTargetTargetParams, principal interface{}) middleware.Responder {
+	// POST   /container/target/{target}
+	api.NotYetImplementedPostTargetTargetHandler = not_yet_implemented.PostTargetTargetHandlerFunc(func(params not_yet_implemented.PostTargetTargetParams, principal interface{}) middleware.Responder {
 		return middleware.NotImplemented("operation .PostTargetTarget has not yet been implemented")
 	})
 
-	// GET /container/target/{target}/vch
+	// GET    /container/target/{target}/vch
 	api.GetTargetTargetVchHandler = &handlers.VCHListGet{}
 
-	// POST /container/target/{target}/vch
+	// POST   /container/target/{target}/vch
 	api.PostTargetTargetVchHandler = &handlers.VCHCreate{}
 
-	// GET /container/target/{target}/vch/{vch-id}
+	// GET    /container/target/{target}/vch/{vch-id}
 	api.GetTargetTargetVchVchIDHandler = &handlers.VCHGet{}
 
-	// GET /container/target/{target}/vch/{vch-id}/certificate
-	api.GetTargetTargetVchVchIDCertificateHandler = &handlers.VCHCertGet{}
-
-	// GET /container/target/{target}/vch/{vch-id}/log
-	api.GetTargetTargetVchVchIDLogHandler = &handlers.VCHLogGet{}
-
-	// GET /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}/certificate
-	api.GetTargetTargetDatacenterDatacenterVchVchIDCertificateHandler = &handlers.VCHDatacenterCertGet{}
-
-	// GET /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}/log
-	api.GetTargetTargetDatacenterDatacenterVchVchIDLogHandler = &handlers.VCHDatacenterLogGet{}
-
-	// PUT /container/target/{target}/vch/{vch-id}
-	api.PutTargetTargetVchVchIDHandler = operations.PutTargetTargetVchVchIDHandlerFunc(func(params operations.PutTargetTargetVchVchIDParams, principal interface{}) middleware.Responder {
+	// PUT    /container/target/{target}/vch/{vch-id}
+	api.NotYetImplementedPutTargetTargetVchVchIDHandler = not_yet_implemented.PutTargetTargetVchVchIDHandlerFunc(func(params not_yet_implemented.PutTargetTargetVchVchIDParams, principal interface{}) middleware.Responder {
 		return middleware.NotImplemented("operation .PutTargetTargetVchVchID has not yet been implemented")
 	})
 
-	// PATCH /container/target/{target}/vch/{vch-id}
-	api.PatchTargetTargetVchVchIDHandler = operations.PatchTargetTargetVchVchIDHandlerFunc(func(params operations.PatchTargetTargetVchVchIDParams, principal interface{}) middleware.Responder {
+	// PATCH  /container/target/{target}/vch/{vch-id}
+	api.NotYetImplementedPatchTargetTargetVchVchIDHandler = not_yet_implemented.PatchTargetTargetVchVchIDHandlerFunc(func(params not_yet_implemented.PatchTargetTargetVchVchIDParams, principal interface{}) middleware.Responder {
 		return middleware.NotImplemented("operation .PatchTargetTargetVchVchID has not yet been implemented")
 	})
 
-	// POST /container/target/{target}/vch/{vch-id}
-	api.PostTargetTargetVchVchIDHandler = operations.PostTargetTargetVchVchIDHandlerFunc(func(params operations.PostTargetTargetVchVchIDParams, principal interface{}) middleware.Responder {
+	// POST   /container/target/{target}/vch/{vch-id}
+	api.NotYetImplementedPostTargetTargetVchVchIDHandler = not_yet_implemented.PostTargetTargetVchVchIDHandlerFunc(func(params not_yet_implemented.PostTargetTargetVchVchIDParams, principal interface{}) middleware.Responder {
 		return middleware.NotImplemented("operation .PostTargetTargetVchVchID has not yet been implemented")
 	})
 
 	// DELETE /container/target/{target}/vch/{vch-id}
 	api.DeleteTargetTargetVchVchIDHandler = &handlers.VCHDelete{}
 
-	// POST /container/target/{target}/datacenter/{datacenter}
-	api.PostTargetTargetDatacenterDatacenterHandler = operations.PostTargetTargetDatacenterDatacenterHandlerFunc(func(params operations.PostTargetTargetDatacenterDatacenterParams, principal interface{}) middleware.Responder {
+	// GET    /container/target/{target}/vch/{vch-id}/certificate
+	api.GetTargetTargetVchVchIDCertificateHandler = &handlers.VCHCertGet{}
+
+	// GET    /container/target/{target}/vch/{vch-id}/log
+	api.GetTargetTargetVchVchIDLogHandler = &handlers.VCHLogGet{}
+
+	// POST   /container/target/{target}/datacenter/{datacenter}
+	api.NotYetImplementedPostTargetTargetDatacenterDatacenterHandler = not_yet_implemented.PostTargetTargetDatacenterDatacenterHandlerFunc(func(params not_yet_implemented.PostTargetTargetDatacenterDatacenterParams, principal interface{}) middleware.Responder {
 		return middleware.NotImplemented("operation .PostTargetTargetDatacenterDatacenter has not yet been implemented")
 	})
 
-	// GET /container/target/{target}/datacenter/{datacenter}/vch
+	// GET    /container/target/{target}/datacenter/{datacenter}/vch
 	api.GetTargetTargetDatacenterDatacenterVchHandler = &handlers.VCHDatacenterListGet{}
 
-	// POST /container/target/{target}/datacenter/{datacenter}/vch
+	// POST   /container/target/{target}/datacenter/{datacenter}/vch
 	api.PostTargetTargetDatacenterDatacenterVchHandler = &handlers.VCHDatacenterCreate{}
 
-	// GET /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}
+	// GET    /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}
 	api.GetTargetTargetDatacenterDatacenterVchVchIDHandler = &handlers.VCHDatacenterGet{}
 
-	// PUT /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}
-	api.PutTargetTargetDatacenterDatacenterVchVchIDHandler = operations.PutTargetTargetDatacenterDatacenterVchVchIDHandlerFunc(func(params operations.PutTargetTargetDatacenterDatacenterVchVchIDParams, principal interface{}) middleware.Responder {
+	// PUT    /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}
+	api.NotYetImplementedPutTargetTargetDatacenterDatacenterVchVchIDHandler = not_yet_implemented.PutTargetTargetDatacenterDatacenterVchVchIDHandlerFunc(func(params not_yet_implemented.PutTargetTargetDatacenterDatacenterVchVchIDParams, principal interface{}) middleware.Responder {
 		return middleware.NotImplemented("operation .PutTargetTargetDatacenterDatacenterVchVchID has not yet been implemented")
 	})
 
 	// PATCH /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}
-	api.PatchTargetTargetDatacenterDatacenterVchVchIDHandler = operations.PatchTargetTargetDatacenterDatacenterVchVchIDHandlerFunc(func(params operations.PatchTargetTargetDatacenterDatacenterVchVchIDParams, principal interface{}) middleware.Responder {
+	api.NotYetImplementedPatchTargetTargetDatacenterDatacenterVchVchIDHandler = not_yet_implemented.PatchTargetTargetDatacenterDatacenterVchVchIDHandlerFunc(func(params not_yet_implemented.PatchTargetTargetDatacenterDatacenterVchVchIDParams, principal interface{}) middleware.Responder {
 		return middleware.NotImplemented("operation .PatchTargetTargetDatacenterDatacenterVchVchID has not yet been implemented")
 	})
 
 	// POST /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}
-	api.PostTargetTargetDatacenterDatacenterVchVchIDHandler = operations.PostTargetTargetDatacenterDatacenterVchVchIDHandlerFunc(func(params operations.PostTargetTargetDatacenterDatacenterVchVchIDParams, principal interface{}) middleware.Responder {
+	api.NotYetImplementedPostTargetTargetDatacenterDatacenterVchVchIDHandler = not_yet_implemented.PostTargetTargetDatacenterDatacenterVchVchIDHandlerFunc(func(params not_yet_implemented.PostTargetTargetDatacenterDatacenterVchVchIDParams, principal interface{}) middleware.Responder {
 		return middleware.NotImplemented("operation .PostTargetTargetDatacenterDatacenterVchVchID has not yet been implemented")
 	})
 
 	// DELETE /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}
 	api.DeleteTargetTargetDatacenterDatacenterVchVchIDHandler = &handlers.VCHDatacenterDelete{}
+
+	// GET /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}/certificate
+	api.GetTargetTargetDatacenterDatacenterVchVchIDCertificateHandler = &handlers.VCHDatacenterCertGet{}
+
+	// GET /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}/log
+	api.GetTargetTargetDatacenterDatacenterVchVchIDLogHandler = &handlers.VCHDatacenterLogGet{}
 
 	api.ServerShutdown = func() {}
 
