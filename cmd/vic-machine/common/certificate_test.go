@@ -15,6 +15,7 @@
 package common
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -22,6 +23,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/vmware/vic/pkg/trace"
 )
 
 var (
@@ -37,7 +40,9 @@ func TestGenKey(t *testing.T) {
 	cs.Cname = "common name"
 	cs.KeySize = 1024
 
-	ca, kp, err := cs.generateCertificates(true, true)
+	op := trace.NewOperation(context.Background(), "TestGenKey")
+
+	ca, kp, err := cs.generateCertificates(op, true, true)
 	defer os.RemoveAll(fmt.Sprintf("./%s", cs.CertPath))
 
 	assert.NoError(t, err, "Expected to cleanly generate certificates")
@@ -46,7 +51,7 @@ func TestGenKey(t *testing.T) {
 	assert.NotEmpty(t, kp.CertPEM, "Expected certificate to contain data")
 	assert.NotEmpty(t, kp.CertPEM, "Expected key to contain data")
 
-	ca, kp, err = cs.loadCertificates(2)
+	ca, kp, err = cs.loadCertificates(op, 2)
 	assert.NoError(t, err, "Expected to cleanly load certificates")
 	assert.NotEmpty(t, ca, "Expected CA to contain data")
 	assert.NotNil(t, kp, "Expected keypair to contain data")

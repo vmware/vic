@@ -24,6 +24,7 @@ import (
 /* VCH constants */
 const (
 	SerialOverLANPort  = 2377
+	VchAdminPortalPort = 2378
 	AttachServerPort   = 2379
 	ManagementHostName = "management.localhost"
 	ClientHostName     = "client.localhost"

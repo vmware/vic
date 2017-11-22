@@ -16,8 +16,7 @@
 Documentation  Test 5-22 - NFS Volume
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  Setup ESX And NFS Suite
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
-
+Suite Teardown  Run Keyword And Ignore Error  NFS Volume Cleanup
 
 *** Variables ***
 ${nfsVolumeStore}=  nfsVolumeStore
@@ -38,10 +37,15 @@ Setup ESX And NFS Suite
     Log To Console  \nStarting test...
 
     ${esx1}  ${esx1_ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${POD}=  Fetch POD  ${esx1}
+    Log To Console  ${POD}
+    Close Connection
 
-    ${nfs}  ${nfs_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${nfs}  ${nfs_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--nimbus ${POD}
 
-    ${nfs_readonly}  ${nfs_readonly_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--disk 5000000 --disk 5000000 --mountOpt ro --nfsOpt ro --mountPoint=storage1 --mountPoint=storage2
+    ${nfs_readonly}  ${nfs_readonly_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--disk 5000000 --disk 5000000 --mountOpt ro --nfsOpt ro --mountPoint=storage1 --mountPoint=storage2 --nimbus ${POD}
 
     Set Suite Variable  @{list}  ${esx1}  ${nfs}  ${nfs_readonly}
     Set Suite Variable  ${ESX1}  ${esx1}
@@ -49,6 +53,10 @@ Setup ESX And NFS Suite
     Set Suite Variable  ${NFS_IP}  ${nfs_ip}
     Set Suite Variable  ${NFS}  ${nfs}
     Set Suite Variable  ${NFS_READONLY_IP}  ${nfs_readonly_ip}
+
+    # Enable logging on the nfs servers
+    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} rpcdebug -m nfsd -s proc
+    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} rpcdebug -m nfsd -s proc
 
 Setup ENV Variables for VIC Appliance Install
     Log To Console  \nSetup Environment Variables for VIC Appliance To ESX\n
@@ -104,6 +112,12 @@ Reboot VM and Verify Basic VCH Info
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${busybox}
 
+NFS Volume Cleanup
+    ${out}=  Run Keyword And Continue On Failure  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} dmesg
+    Log  ${out}
+    ${out}=  Run Keyword And Continue On Failure  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} dmesg
+    Log  ${out}
+    Nimbus Cleanup  ${list}
 
 *** Test Cases ***
 VIC Appliance Install with Read Only NFS Volume

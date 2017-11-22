@@ -18,12 +18,16 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	gvsession "github.com/vmware/govmomi/session"
 	"github.com/vmware/govmomi/vim25"
+	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/errors"
@@ -72,111 +76,6 @@ type RBACResourcePermission struct {
 	permission types.Permission
 }
 
-var rolePrefix = "vic-vch-"
-
-var RoleVCenter = types.AuthorizationRole{
-	Name: "vcenter",
-	Privilege: []string{
-		"Datastore.Config",
-	},
-}
-
-var RoleDataCenter = types.AuthorizationRole{
-	Name: "datacenter",
-	Privilege: []string{
-		"Datastore.Config",
-		"Datastore.FileManagement",
-	},
-}
-
-var RoleDataStore = types.AuthorizationRole{
-	Name: "datastore",
-	Privilege: []string{
-		"Datastore.AllocateSpace",
-		"Datastore.Browse",
-		"Datastore.Config",
-		"Datastore.DeleteFile",
-		"Datastore.FileManagement",
-		"Host.Config.SystemManagement",
-	},
-}
-
-var RoleNetwork = types.AuthorizationRole{
-	Name: "network",
-	Privilege: []string{
-		"Network.Assign",
-	},
-}
-
-var RoleEndpoint = types.AuthorizationRole{
-	Name: "endpoint",
-	Privilege: []string{
-		"DVPortgroup.Create",
-		"DVPortgroup.Delete",
-		"DVPortgroup.Modify",
-		"DVPortgroup.PolicyOp",
-		"DVPortgroup.ScopeOp",
-		"Resource.AssignVMToPool",
-		"VirtualMachine.Config.AddNewDisk",
-		"VirtualMachine.Config.AdvancedConfig",
-		"VirtualMachine.Config.EditDevice",
-		"VirtualMachine.Config.RemoveDisk",
-		"VirtualMachine.GuestOperations.Execute",
-		"VirtualMachine.Interact.DeviceConnection",
-		"VirtualMachine.Interact.PowerOff",
-		"VirtualMachine.Interact.PowerOn",
-		"VirtualMachine.Inventory.Create",
-		"VirtualMachine.Inventory.Delete",
-		"VirtualMachine.Inventory.Register",
-		"VirtualMachine.Inventory.Unregister",
-	},
-}
-
-var OpsUserRBACConf = RBACConfig{
-	Resources: []RBACResource{
-		{
-			Type:      VCenter,
-			Propagate: false,
-			Role:      RoleVCenter,
-		},
-		{
-			Type:      Datacenter,
-			Propagate: false,
-			Role:      RoleDataCenter,
-		},
-		{
-			Type:      Cluster,
-			Propagate: true,
-			Role:      RoleDataStore,
-		},
-		{
-			Type:      DatastoreFolder,
-			Propagate: true,
-			Role:      RoleDataStore,
-		},
-		{
-			Type:      Datastore,
-			Propagate: true,
-			Role:      RoleDataStore,
-		},
-		{
-			Type:      VSANDatastore,
-			Propagate: false,
-			Role:      RoleDataStore,
-		},
-		{
-			Type:      Network,
-			Propagate: false,
-			Role:      RoleNetwork,
-		},
-		{
-			Type:      Endpoint,
-			Propagate: true,
-			Role:      RoleEndpoint,
-		},
-	},
-}
-
 func NewAuthzManager(ctx context.Context, client *vim25.Client, configSpec *config.VirtualContainerHostConfigSpec) *AuthzManager {
 	authManager := object.NewAuthorizationManager(client)
 	mgr := &AuthzManager{
@@ -187,10 +86,10 @@ func NewAuthzManager(ctx context.Context, client *vim25.Client, configSpec *conf
 	return mgr
 }
 
-func ProcessOpsUser(ctx context.Context, client *vim25.Client, principal string, configSpec *config.VirtualContainerHostConfigSpec) error {
+func GrantOpsUserPerms(ctx context.Context, client *vim25.Client, configSpec *config.VirtualContainerHostConfigSpec) error {
 	am := NewAuthzManager(ctx, client, configSpec)
 	am.configSpec = configSpec
-	am.InitRBACConfig(principal, &OpsUserRBACConf)
+	am.InitRBACConfig(configSpec.Connection.Username, &OpsUserRBACConf)
 	_, err := am.SetupRolesAndPermissions(ctx)
 	return err
 }
@@ -215,7 +114,16 @@ func (am *AuthzManager) RoleList(ctx context.Context) (object.AuthorizationRoleL
 }
 
 func (am *AuthzManager) SetupRolesAndPermissions(ctx context.Context) ([]RBACResourcePermission, error) {
-	if _, err := am.CreateRoles(ctx); err != nil {
+	res, err := am.isPrincipalAnAdministrator(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if res {
+		log.Warnf("Skipping ops-user Role/Permissions initialization. The current ops-user (%s) has administrative privileges.", am.principal)
+		log.Warnf("This occurs when \"%s\" is a member of the \"Administrators\" group or has been granted \"Admin\" role to any of the resources in the system.", am.principal)
+		return nil, nil
+	}
+	if _, err = am.CreateRoles(ctx); err != nil {
 		return nil, err
 	}
 	return am.SetupPermissions(ctx)
@@ -276,34 +184,32 @@ func (am *AuthzManager) setupPermissions(ctx context.Context) ([]RBACResourcePer
 		return nil, errors.Errorf("Ops-User: AuthzManager, Unable to find Datastores: %s", err.Error())
 	}
 
+	// Loop over Datastores
 	for _, ref := range dsNameToRef {
 		resourceDescs = append(resourceDescs, ResourceDesc{Datastore, ref})
 	}
 
-	// Find bridged networks
-	bridgeNet, ok := am.configSpec.Networks["bridge"]
-	if !ok {
-		return nil, errors.Errorf("Ops-User: AuthzManager, Unable to find Bridged Network: %s", err.Error())
+	// Loop over Networks
+	for _, network := range am.configSpec.Network.ContainerNetworks {
+		netRef := &types.ManagedObjectReference{}
+		netRef.FromString(network.ID)
+		if netRef.Type == "" || netRef.Value == "" {
+			return nil, errors.Errorf("Ops-User: AuthzManager, Unable to build Bridged Network MoRef: %s", network.ID)
+		}
+		resourceDescs = append(resourceDescs, ResourceDesc{Network, *netRef})
 	}
 
-	bridgeNetRef := &types.ManagedObjectReference{}
-	bridgeNetRef.FromString(bridgeNet.ID)
-	if bridgeNetRef.Type == "" || bridgeNetRef.Value == "" {
-		return nil, errors.Errorf("Ops-User: AuthzManager, Unable to build Bridged Network MoRef: %s", bridgeNet.ID)
+	// Loop over Resource Pools
+	for _, rPoolRef := range am.configSpec.ComputeResources {
+		resourceDescs = append(resourceDescs, ResourceDesc{Endpoint, rPoolRef})
 	}
-	resourceDescs = append(resourceDescs, ResourceDesc{Network, *bridgeNetRef})
-
-	// Get VM MoRef
-	vmRef := &types.ManagedObjectReference{}
-	vmRef.FromString(am.configSpec.ID)
-	resourceDescs = append(resourceDescs, ResourceDesc{Endpoint, *vmRef})
 
 	resourcePermissions := make([]RBACResourcePermission, 0, len(am.rbacConfig.Resources))
 	// Apply permissions
 	for _, desc := range resourceDescs {
 		resourcePermission, err := am.addPermission(ctx, desc.ref, desc.rType, false)
 		if err != nil {
-			return nil, errors.Errorf("Ops-User: AuthzManager, Unable to set permissions on %s, error: %s",
+			return nil, errors.Errorf("Ops-User: AuthzManager, Unable to grant permissions on %s, error: %s",
 				desc.ref.String(), err.Error())
 		}
 		if resourcePermission != nil {
@@ -312,6 +218,91 @@ func (am *AuthzManager) setupPermissions(ctx context.Context) ([]RBACResourcePer
 	}
 
 	return resourcePermissions, nil
+}
+
+func (am *AuthzManager) isPrincipalAnAdministrator(ctx context.Context) (bool, error) {
+	// Check if the principal belongs to the Administrators group
+	res, err := am.principalBelongsToGroup(ctx, "Administrators")
+	if err != nil {
+		return false, err
+	}
+
+	if res {
+		return res, nil
+	}
+
+	// Check if the principal has an Admin Role
+	res, err = am.principalHasRole(ctx, "Admin")
+	if err != nil {
+		return false, err
+	}
+
+	return res, nil
+}
+
+func (am *AuthzManager) principalBelongsToGroup(ctx context.Context, group string) (bool, error) {
+	ref := *am.client.ServiceContent.UserDirectory
+
+	components := strings.Split(am.principal, "@")
+	var domain string
+	name := components[0]
+	if len(components) < 2 {
+		domain = ""
+	} else {
+		domain = components[1]
+	}
+
+	req := types.RetrieveUserGroups{
+		This:           ref,
+		Domain:         domain,
+		SearchStr:      name,
+		ExactMatch:     true,
+		BelongsToGroup: group,
+		FindUsers:      true,
+		FindGroups:     false,
+	}
+
+	results, err := methods.RetrieveUserGroups(ctx, am.client, &req)
+	if err != nil {
+		return false, err
+	}
+
+	if len(results.Returnval) > 0 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (am *AuthzManager) principalHasRole(ctx context.Context, roleName string) (bool, error) {
+	// Build expected representation of the ops-user
+	principal := strings.ToLower(am.principal)
+
+	// Get role id for admin Role
+	roleList, err := am.RoleList(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	role := roleList.ByName(roleName)
+
+	allPerms, err := am.authzManager.RetrieveAllPermissions(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	for _, perm := range allPerms {
+		if perm.RoleId != role.RoleId {
+			continue
+		}
+
+		fPrincipal := am.formatPrincipal(perm.Principal)
+		if fPrincipal == principal {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func (am *AuthzManager) getPermissions(ctx context.Context,
@@ -511,8 +502,8 @@ func (am *AuthzManager) initTargetRoles() {
 
 func (am *AuthzManager) initResourceMap() {
 	am.resources = make(map[int8]*RBACResource)
-	for _, resource := range am.rbacConfig.Resources {
-		am.resources[resource.Type] = &resource
+	for i, resource := range am.rbacConfig.Resources {
+		am.resources[resource.Type] = &am.rbacConfig.Resources[i]
 	}
 }
 
@@ -522,4 +513,13 @@ func (am *AuthzManager) getResource(resourceType int8) *RBACResource {
 		panic(errors.Errorf("Cannot find RBAC resource type: %d", resourceType))
 	}
 	return resource
+}
+
+func (am *AuthzManager) formatPrincipal(principal string) string {
+	components := strings.Split(principal, "\\")
+	if len(components) != 2 {
+		return strings.ToLower(principal)
+	}
+	ret := strings.ToLower(components[1]) + "@" + strings.ToLower(components[0])
+	return ret
 }

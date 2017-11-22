@@ -17,8 +17,6 @@ package management
 import (
 	"context"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/errors"
@@ -27,9 +25,9 @@ import (
 )
 
 func (d *Dispatcher) DebugVCH(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, password, authorizedKey string) error {
-	defer trace.End(trace.Begin(conf.Name))
+	defer trace.End(trace.Begin(conf.Name, d.op))
 
-	op := trace.FromContext(d.ctx, "enable appliance debug")
+	op := trace.FromContext(d.op, "enable appliance debug")
 
 	err := d.enableSSH(op, vch, password, authorizedKey)
 	if err != nil {
@@ -47,7 +45,7 @@ func (d *Dispatcher) enableSSH(ctx context.Context, vch *vm.VirtualMachine, pass
 
 	state, err := vch.PowerState(op)
 	if err != nil {
-		log.Errorf("Failed to get appliance power state, service might not be available at this moment.")
+		op.Error("Failed to get appliance power state, service might not be available at this moment.")
 	}
 	if state != types.VirtualMachinePowerStatePoweredOn {
 		err = errors.Errorf("VCH appliance is not powered on, state %s", state)
@@ -62,7 +60,7 @@ func (d *Dispatcher) enableSSH(ctx context.Context, vch *vm.VirtualMachine, pass
 		return err
 	}
 
-	pm, err := d.opManager(op, vch)
+	pm, err := d.opManager(vch)
 	if err != nil {
 		err = errors.Errorf("Unable to manage processes in appliance VM: %s", err)
 		op.Errorf("%s", err)

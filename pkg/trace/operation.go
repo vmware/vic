@@ -22,6 +22,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Sirupsen/logrus"
+
 	"github.com/vmware/govmomi/vim25/types"
 )
 
@@ -31,12 +33,16 @@ const OpTraceKey OperationKey = "traceKey"
 
 var opIDPrefix = os.Getpid()
 
-// monotonic counter which inrements on Start()
+// opCount is a monotonic counter which increments on Start()
 var opCount uint64
 
 type Operation struct {
 	context.Context
 	operation
+
+	// Logger is used to configure an Operation-specific destination for log messages, in addition
+	// to the global logger. This logger is passed to any children which are created.
+	Logger *logrus.Logger
 }
 
 type operation struct {
@@ -124,32 +130,93 @@ func (o *Operation) ID() string {
 }
 
 func (o *Operation) Infof(format string, args ...interface{}) {
-	Logger.Infof("%s: %s", o.header(), fmt.Sprintf(format, args...))
+	o.Info(fmt.Sprintf(format, args...))
+}
+
+func (o *Operation) Info(args ...interface{}) {
+	msg := fmt.Sprint(args...)
+
+	Logger.Infof("%s: %s", o.header(), msg)
+
+	if o.Logger != nil {
+		o.Logger.Info(msg)
+	}
 }
 
 func (o *Operation) Debugf(format string, args ...interface{}) {
-	Logger.Debugf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+	o.Debug(fmt.Sprintf(format, args...))
+}
+
+func (o *Operation) Debug(args ...interface{}) {
+	msg := fmt.Sprint(args...)
+
+	Logger.Debugf("%s: %s", o.header(), msg)
+
+	if o.Logger != nil {
+		o.Logger.Debug(msg)
+	}
 }
 
 func (o *Operation) Warnf(format string, args ...interface{}) {
-	Logger.Warnf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+	o.Warn(fmt.Sprintf(format, args...))
+}
+
+func (o *Operation) Warn(args ...interface{}) {
+	msg := fmt.Sprint(args...)
+
+	Logger.Warnf("%s: %s", o.header(), msg)
+
+	if o.Logger != nil {
+		o.Logger.Warn(msg)
+	}
 }
 
 func (o *Operation) Errorf(format string, args ...interface{}) {
-	Logger.Errorf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+	o.Error(fmt.Sprintf(format, args...))
 }
 
-func (o *Operation) Error(err error) {
-	Logger.Errorf("%s: %s", o.header(), err.Error())
+func (o *Operation) Error(args ...interface{}) {
+	msg := fmt.Sprint(args...)
+
+	Logger.Errorf("%s: %s", o.header(), msg)
+
+	if o.Logger != nil {
+		o.Logger.Error(msg)
+	}
 }
 
 func (o *Operation) Panicf(format string, args ...interface{}) {
-	Logger.Panicf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+	o.Panic(fmt.Sprintf(format, args...))
+}
+
+func (o *Operation) Panic(args ...interface{}) {
+	msg := fmt.Sprint(args...)
+
+	Logger.Panicf("%s: %s", o.header(), msg)
+
+	if o.Logger != nil {
+		o.Logger.Panic(msg)
+	}
+}
+
+func (o *Operation) Fatalf(format string, args ...interface{}) {
+	o.Fatal(fmt.Sprintf(format, args...))
+}
+
+func (o *Operation) Fatal(args ...interface{}) {
+	msg := fmt.Sprint(args...)
+
+	Logger.Fatalf("%s: %s", o.header(), msg)
+
+	if o.Logger != nil {
+		o.Logger.Fatal(msg)
+	}
 }
 
 func (o *Operation) newChild(ctx context.Context, msg string) Operation {
 	child := newOperation(ctx, o.id, 4, msg)
 	child.t = append(child.t, o.t...)
+	child.Logger = o.Logger
 	return child
 }
 
@@ -160,6 +227,18 @@ func opID(opNum uint64) string {
 // NewOperation will return a new operation with operationID added as a value to the context
 func NewOperation(ctx context.Context, format string, args ...interface{}) Operation {
 	return newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, fmt.Sprintf(format, args...))
+}
+
+// NewOperationWithLoggerFrom will return a new operation with operationID added as a value to the
+// context and logging settings copied from the supplied operation.
+//
+// Deprecated: This method was added to aid in converting old code to use operation-based logging.
+//             Its use almost always indicates a broken context/operation model (e.g., a context
+//             being improperly stored in a struct instead of being passed between functions).
+func NewOperationWithLoggerFrom(ctx context.Context, oldOp Operation, format string, args ...interface{}) Operation {
+	op := NewOperation(ctx, format, args...)
+	op.Logger = oldOp.Logger
+	return op
 }
 
 // WithTimeout creates a new operation from parent with context.WithTimeout
@@ -206,13 +285,18 @@ func FromOperation(parent Operation, format string, args ...interface{}) Operati
 //   The operation in the context value
 //   The operation passed as the context param
 //   A new operation
-func FromContext(ctx context.Context, message string) Operation {
+func FromContext(ctx context.Context, message string, args ...interface{}) Operation {
+
+	// do we have an operation
+	if op, ok := ctx.(Operation); ok {
+		return op
+	}
 
 	// do we have a context w/the op added as a value
 	if op, ok := ctx.Value(OpTraceKey).(operation); ok {
 		// ensure we have an initialized operation
 		if op.id == "" {
-			return NewOperation(ctx, message)
+			return NewOperation(ctx, message, args...)
 		}
 		// return an operation based off the context value
 		return Operation{
@@ -220,13 +304,11 @@ func FromContext(ctx context.Context, message string) Operation {
 			operation: op,
 		}
 	}
-	// do we have an operation
-	op, ok := ctx.(Operation)
-	if !ok {
-		op = newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, message)
-		frame := op.t[0]
-		Logger.Debugf("%s: [OperationFromContext] [%s:%d]", op.id, frame.funcName, frame.lineNo)
-	}
-	// return the new or existing operation
+
+	op := newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, fmt.Sprintf(message, args...))
+	frame := op.t[0]
+	Logger.Debugf("%s: [OperationFromContext] [%s:%d]", op.id, frame.funcName, frame.lineNo)
+
+	// return the new operation
 	return op
 }

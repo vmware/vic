@@ -15,10 +15,10 @@
 package debug
 
 import (
+	"context"
 	"io/ioutil"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/cmd/vic-machine/common"
@@ -29,8 +29,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	"context"
 )
 
 // Debug has all input parameters for vic-machine Debug command
@@ -98,10 +96,10 @@ func (d *Debug) Flags() []cli.Flag {
 	return flags
 }
 
-func (d *Debug) processParams() error {
-	defer trace.End(trace.Begin(""))
+func (d *Debug) processParams(op trace.Operation) error {
+	defer trace.End(trace.Begin("", op))
 
-	if err := d.HasCredentials(); err != nil {
+	if err := d.HasCredentials(op); err != nil {
 		return err
 	}
 
@@ -109,41 +107,42 @@ func (d *Debug) processParams() error {
 }
 
 func (d *Debug) Run(clic *cli.Context) (err error) {
-	// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
+	op := common.NewOperation(clic, d.Debug.Debug)
 	defer func() {
-		err = common.LogErrorIfAny(clic, err)
+		// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
+		err = common.LogErrorIfAny(op, clic, err)
+	}()
+	op, cancel := trace.WithTimeout(&op, d.Timeout, clic.App.Name)
+	defer cancel()
+	defer func() {
+		if op.Err() != nil && op.Err() == context.DeadlineExceeded {
+			//context deadline exceeded, replace returned error message
+			err = errors.Errorf("Debug timed out: use --timeout to add more time")
+		}
 	}()
 
-	if err = d.processParams(); err != nil {
+	if err = d.processParams(op); err != nil {
 		return err
 	}
 
-	if d.Debug.Debug != nil && *d.Debug.Debug > 0 {
-		log.SetLevel(log.DebugLevel)
-		trace.Logger.Level = log.DebugLevel
-	}
-
 	if len(clic.Args()) > 0 {
-		log.Errorf("Unknown argument: %s", clic.Args()[0])
+		op.Errorf("Unknown argument: %s", clic.Args()[0])
 		return errors.New("invalid CLI arguments")
 	}
 
-	log.Infof("### Configuring VCH for debug ####")
+	op.Info("### Configuring VCH for debug ####")
 
-	ctx, cancel := context.WithTimeout(context.Background(), d.Timeout)
-	defer cancel()
-
-	validator, err := validate.NewValidator(ctx, d.Data)
+	validator, err := validate.NewValidator(op, d.Data)
 
 	if err != nil {
-		log.Errorf("Debug cannot continue - failed to create validator: %s", err)
+		op.Errorf("Debug cannot continue - failed to create validator: %s", err)
 		return errors.New("debug failed")
 	}
-	defer validator.Session.Logout(ctx)
+	defer validator.Session.Logout(op)
 
-	_, err = validator.ValidateTarget(ctx, d.Data)
+	_, err = validator.ValidateTarget(op, d.Data)
 	if err != nil {
-		log.Errorf("Debug cannot continue - target validation failed: %s", err)
+		op.Errorf("Debug cannot continue - target validation failed: %s", err)
 		return errors.New("debug failed")
 	}
 
@@ -156,51 +155,51 @@ func (d *Debug) Run(clic *cli.Context) (err error) {
 		vch, err = executor.NewVCHFromComputePath(d.Data.ComputeResourcePath, d.Data.DisplayName, validator)
 	}
 	if err != nil {
-		log.Errorf("Failed to get Virtual Container Host %s", d.DisplayName)
-		log.Error(err)
+		op.Errorf("Failed to get Virtual Container Host %s", d.DisplayName)
+		op.Error(err)
 		return errors.New("debug failed")
 	}
 
-	log.Infof("")
-	log.Infof("VCH ID: %s", vch.Reference().String())
+	op.Infof("")
+	op.Infof("VCH ID: %s", vch.Reference().String())
 
 	vchConfig, err := executor.GetVCHConfig(vch)
 	if err != nil {
-		log.Error("Failed to get Virtual Container Host configuration")
-		log.Error(err)
+		op.Error("Failed to get Virtual Container Host configuration")
+		op.Error(err)
 		return errors.New("debug failed")
 	}
 
 	installerVer := version.GetBuild()
 
-	log.Info("")
-	log.Infof("Installer version: %s", installerVer.ShortVersion())
-	log.Infof("VCH version: %s", vchConfig.Version.ShortVersion())
+	op.Info("")
+	op.Infof("Installer version: %s", installerVer.ShortVersion())
+	op.Infof("VCH version: %s", vchConfig.Version.ShortVersion())
 
 	// load the key file if set
 	var key []byte
 	if d.authorizedKey != "" {
 		key, err = ioutil.ReadFile(d.authorizedKey)
 		if err != nil {
-			log.Errorf("Unable to read public key from %s: %s", d.authorizedKey, err)
+			op.Errorf("Unable to read public key from %s: %s", d.authorizedKey, err)
 			return errors.New("unable to load public key")
 		}
 	}
 
 	if err = executor.DebugVCH(vch, vchConfig, d.password, string(key)); err != nil {
 		executor.CollectDiagnosticLogs()
-		log.Errorf("%s", err)
+		op.Errorf("%s", err)
 		return errors.New("debug failed")
 	}
 
 	// display the VCH endpoints again for convenience
 	if err = executor.InspectVCH(vch, vchConfig, ""); err != nil {
 		executor.CollectDiagnosticLogs()
-		log.Errorf("%s", err)
+		op.Errorf("%s", err)
 		return errors.New("debug failed")
 	}
 
-	log.Infof("Completed successfully")
+	op.Infof("Completed successfully")
 
 	return nil
 }

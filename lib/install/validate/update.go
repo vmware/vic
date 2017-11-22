@@ -25,12 +25,12 @@ import (
 
 // MigrateConfig migrate old VCH configuration to new version. Currently check required fields only
 func (v *Validator) ValidateMigratedConfig(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) (*config.VirtualContainerHostConfigSpec, error) {
-	defer trace.End(trace.Begin(conf.Name))
+	defer trace.End(trace.Begin(conf.Name, ctx))
 
-	v.assertTarget(conf)
-	v.assertDatastore(conf)
-	v.assertNetwork(conf)
-	if err := v.ListIssues(); err != nil {
+	v.assertTarget(ctx, conf)
+	v.assertDatastore(ctx, conf)
+	v.assertNetwork(ctx, conf)
+	if err := v.ListIssues(ctx); err != nil {
 		return conf, err
 	}
 	return v.migrateData(ctx, conf)
@@ -41,20 +41,20 @@ func (v *Validator) migrateData(ctx context.Context, conf *config.VirtualContain
 	return conf, nil
 }
 
-func (v *Validator) assertNetwork(conf *config.VirtualContainerHostConfigSpec) {
+func (v *Validator) assertNetwork(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) {
 	// minimum network configuration check
 }
 
 // assertDatastore check required datastore configuration only
-func (v *Validator) assertDatastore(conf *config.VirtualContainerHostConfigSpec) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) assertDatastore(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin("", ctx))
 	if len(conf.ImageStores) == 0 {
 		v.NoteIssue(errors.New("Image store is not set"))
 	}
 }
 
-func (v *Validator) assertTarget(conf *config.VirtualContainerHostConfigSpec) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) assertTarget(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin("", ctx))
 
 	if conf.Target == "" {
 		v.NoteIssue(errors.New("target is not set"))
@@ -69,10 +69,10 @@ func (v *Validator) assertTarget(conf *config.VirtualContainerHostConfigSpec) {
 	}
 }
 
-func (v *Validator) AssertVersion(conf *config.VirtualContainerHostConfigSpec) (err error) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) AssertVersion(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) (err error) {
+	defer trace.End(trace.Begin("", ctx))
 	defer func() {
-		err = v.ListIssues()
+		err = v.ListIssues(ctx)
 	}()
 
 	if conf.Version == nil {

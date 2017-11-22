@@ -18,7 +18,7 @@ pipeline:
     recursive: false
 
   display-status:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.36
+    image: harbor.ci.drone.local/library/vic-integration-test:1.38
     pull: true
     environment:
       BIN: bin
@@ -30,7 +30,7 @@ pipeline:
       - git log -1 --pretty=oneline | grep "^${DRONE_COMMIT}" > /dev/null && echo 'Build matches' || (git log -1 --pretty=oneline | grep "Merge ${DRONE_COMMIT}" > /dev/null && echo 'Build is of a merge commit' || (echo 'Build does not match!' && exit 1))
 
   wait-for-build:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.36
+    image: harbor.ci.drone.local/library/vic-integration-test:1.38
     pull: true
     environment:
       BIN: bin
@@ -43,7 +43,7 @@ pipeline:
       - tests/wait_until_previous_builds_complete.sh
 
   vic-engine:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.36
+    image: harbor.ci.drone.local/library/vic-integration-test:1.38
     pull: true
     environment:
       BIN: bin
@@ -70,7 +70,7 @@ pipeline:
       status:  success
 
   vic-integration-test-on-pr:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.36
+    image: harbor.ci.drone.local/library/vic-integration-test:1.38
     pull: true
     privileged: true
     environment:
@@ -112,7 +112,7 @@ pipeline:
       status:  success
 
   vic-ui:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.36
+    image: harbor.ci.drone.local/library/vic-integration-test:1.38
     pull: true
     environment:
       BUILD_NUMBER: ${DRONE_BUILD_NUMBER}
@@ -165,39 +165,6 @@ pipeline:
       event: [ push, tag ]
       branch: [ master, releases/*, refs/tags/* ]
 
-  notify-slack-on-fail:
-    image: plugins/slack
-    webhook: ${SLACK_URL}
-    username: drone
-    template: >
-      build https://ci.vcna.io/vmware/vic/{{ build.number }} finished with a {{ build.status }} status, find the logs here: https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/integration_logs_{{ build.number }}_{{ build.commit }}.zip?authuser=1
-    when:
-      repo: vmware/vic
-      branch: [ master, releases/*, refs/tags/* ]
-      status: failure
-
-  notify-slack-on-pass:
-    image: plugins/slack
-    webhook: ${SLACK_URL}
-    username: drone
-    template: >
-      build https://ci.vcna.io/vmware/vic/{{ build.number }} finished with a {{ build.status }} status, find the build here: https://storage.googleapis.com/vic-engine-builds/vic_{{ build.number }}.tar.gz
-    when:
-      repo: vmware/vic
-      branch: [ master, releases/* ]
-      status: success
-
-  notify-slack-on-successful-tag:
-    image: plugins/slack
-    webhook: ${SLACK_URL}
-    username: drone
-    template: >
-      The latest version of VIC engine has been released, find the build here: https://console.cloud.google.com/storage/browser/vic-engine-releases
-    when:
-      repo: vmware/vic
-      branch: [ refs/tags/* ]
-      status: success
-
   publish-gcs-builds-on-pass:
     image: maplain/drone-gcs:latest
     pull: true
@@ -206,6 +173,31 @@ pipeline:
     acl:
       - allUsers:READER
     cache_control: public,max-age=3600
+    when:
+      repo: vmware/vic
+      event: [ push ]
+      branch: [ master, releases/* ]
+      status: success
+
+  publish-vic-machine-server-on-pass:
+    image: plugins/gcr
+    repo: eminent-nation-87317/vic-machine-server
+    dockerfile: cmd/vic-machine-server/Dockerfile
+    tags:
+      - latest
+    json_key: >
+      {
+        "type": "service_account",
+        "project_id": "${GS_PROJECT_ID}",
+        "private_key_id": "${GS_PRIVATE_KEY_ID}",
+        "private_key": "${GS_PRIVATE_KEY}",
+        "client_email": "${GS_CLIENT_EMAIL}",
+        "client_id": "${GS_PROJECT_ID}",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://accounts.google.com/o/oauth2/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": ""
+      }
     when:
       repo: vmware/vic
       event: [ push ]
@@ -240,18 +232,31 @@ pipeline:
       branch: [ refs/tags/* ]
       status: success
 
+  #  publish-vic-machine-server-releases:
+  #    image: plugins/gcr
+  #    repo: eminent-nation-87317/vic-machine-server
+  #    dockerfile: cmd/vic-machine-server/Dockerfile
+  #    tags:
+  #      - latest
+  #      - TODO GIT TAG VER
+  #    when:
+  #      repo: vmware/vic
+  #      event: [ push, tag ]
+  #      branch: [ refs/tags/* ]
+  #      status: success
+
   trigger-downstream:
-      image: plugins/downstream
-      server: https://ci.vcna.io
-      token: ${DRONE_TOKEN}
-      fork: true
-      repositories:
-        - vmware/vic-product
-      when:
-        repo: vmware/vic
-        event: [ push, tag ]
-        branch: [ master, releases/*, refs/tags/* ]
-        status: success
+    image: plugins/downstream
+    server: https://ci.vcna.io
+    token: ${DRONE_TOKEN}
+    fork: true
+    repositories:
+      - vmware/vic-product
+    when:
+      repo: vmware/vic
+      event: [ push, tag ]
+      branch: [ master, releases/*, refs/tags/* ]
+      status: success
 
   report-coverage:
     image: plugins/coverage
@@ -260,4 +265,37 @@ pipeline:
     when:
       branch: [ master, releases/*, refs/tags/* ]
       repo: vmware/vic
+      status: success
+
+  notify-slack-on-fail:
+    image: plugins/slack
+    webhook: ${SLACK_URL}
+    username: drone
+    template: >
+      build https://ci.vcna.io/vmware/vic/{{ build.number }} finished with a {{ build.status }} status, find the logs here: https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/integration_logs_{{ build.number }}_{{ build.commit }}.zip?authuser=1
+    when:
+      repo: vmware/vic
+      branch: [ master, releases/*, refs/tags/* ]
+      status: failure
+
+  notify-slack-on-pass:
+    image: plugins/slack
+    webhook: ${SLACK_URL}
+    username: drone
+    template: >
+      build https://ci.vcna.io/vmware/vic/{{ build.number }} finished with a {{ build.status }} status, find the build here: https://storage.googleapis.com/vic-engine-builds/vic_{{ build.number }}.tar.gz
+    when:
+      repo: vmware/vic
+      branch: [ master, releases/* ]
+      status: success
+
+  notify-slack-on-successful-tag:
+    image: plugins/slack
+    webhook: ${SLACK_URL}
+    username: drone
+    template: >
+      The latest version of VIC engine has been released, find the build here: https://console.cloud.google.com/storage/browser/vic-engine-releases
+    when:
+      repo: vmware/vic
+      branch: [ refs/tags/* ]
       status: success

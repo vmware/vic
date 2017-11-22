@@ -24,3 +24,5 @@ VIC Integration Test Suite
 -
 [Group 22 - Docker-Apps](Group22-Docker-Apps/TestCases.md)
 -
+[Group 23 - VIC Machine Service](Group23-VIC-Machine-Service/TestCases.md)
+-
