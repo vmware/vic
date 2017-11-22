@@ -21,12 +21,15 @@ import (
 	"net/url"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/index"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
@@ -153,15 +156,35 @@ func (c *NameLookupCache) CreateImageStore(op trace.Operation, storeName string)
 		return nil, err
 	}
 
-	// Check for existence and rehydrate the cache if it exists on disk.
-	_, err = c.GetImageStore(op, storeName)
-	// we expect this not to exist.
-	if err == nil {
-		return nil, os.ErrExist
+	// GetImageStore Operation is able to be retried...
+	getStore := func() error {
+		// Check for existence and rehydrate the cache if it exists on disk.
+		_, err = c.GetImageStore(op, storeName)
+		return err
+	}
+	// isRetry will reuse the tasks.IsRetryError and will
+	// retry when appropriate
+	isRetry := func(err error) bool {
+		return tasks.IsRetryError(op, err)
 	}
 
-	if !os.IsNotExist(err) {
-		op.Warnf("Error getting image store %s: %s", storeName, err)
+	config := retry.NewBackoffConfig()
+	config.InitialInterval = time.Second * 30
+	config.MaxInterval = time.Minute
+	config.MaxElapsedTime = time.Minute * 3
+
+	// attempt to get the image store
+	err = retry.DoWithConfig(getStore, isRetry, config)
+	if err == nil {
+		// no error means that the image store exists and we can
+		// safely return
+		return nil, os.ErrExist
+	}
+	// if the image store doesn't exist or is corrupt we will continue,
+	// otherwise fail here
+	if err != os.ErrNotExist && err != ErrCorruptImageStore {
+		op.Errorf("Error getting image store %s: %s", storeName, err)
+		return nil, err
 	}
 
 	c.storeCacheLock.Lock()

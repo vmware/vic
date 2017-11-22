@@ -17,10 +17,17 @@ package vchlog
 import (
 	"io/ioutil"
 	"path"
+	"time"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/vic/pkg/trace"
+)
+
+// Reminder: When changing these, consider the impact to backwards compatibility.
+const (
+	LogFilePrefix = "vic-machine" // logFilePrefix is the prefix for file names of all vic-machine log files
+	LogFileSuffix = ".log"        // logFileSuffix is the suffix for file names of all vic-machine log files
 )
 
 // DatastoreReadySignal serves as a signal struct indicating datastore folder path is available
@@ -34,7 +41,7 @@ type DatastoreReadySignal struct {
 	// VMPathName: the datastore path
 	VMPathName string
 	// Timestamp: timestamp at which the signal is sent
-	Timestamp string
+	Timestamp  time.Time
 }
 
 type VCHLogger struct {
@@ -61,7 +68,7 @@ func New() *VCHLogger {
 func (l *VCHLogger) Run() {
 	sig := <-l.signalChan
 	// suffix the log file name with caller operation ID and timestamp
-	logFileName := "vic-machine" + "_" + sig.Timestamp + "_" + sig.Name + "_" + sig.Operation.ID() + ".log"
+	logFileName := LogFilePrefix + "_" + sig.Timestamp.UTC().Format(time.RFC3339) + "_" + sig.Name + "_" + sig.Operation.ID() + LogFileSuffix
 	param := soap.DefaultUpload
 	param.ContentLength = -1
 	sig.Datastore.Upload(sig.Operation.Context, ioutil.NopCloser(l.pipe), path.Join(sig.VMPathName, logFileName), &param)
