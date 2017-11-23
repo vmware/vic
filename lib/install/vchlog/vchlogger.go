@@ -31,17 +31,17 @@ const (
 )
 
 // DatastoreReadySignal serves as a signal struct indicating datastore folder path is available
-// Datastore: the govmomi datastore object
-// Name: the name of the vic-machine process that sends the signal (e.g. "create", "inspect")
-// LogFileName: the filename of the destination path on datastore
-// Context: the caller context when sending the signal
-// VMPathName: the datastore path
 type DatastoreReadySignal struct {
-	Datastore  *object.Datastore
-	Name       string
-	Operation  trace.Operation
+	// Datastore: the govmomi datastore object
+	Datastore *object.Datastore
+	// Name: vic-machine process name (e.g. "create", "inspect")
+	Name string
+	// Operation: the operation from which the signal is sent
+	Operation trace.Operation
+	// VMPathName: the datastore path
 	VMPathName string
-	Timestamp  time.Time
+	// Timestamp: timestamp at which the signal is sent
+	Timestamp time.Time
 }
 
 type VCHLogger struct {
@@ -50,6 +50,9 @@ type VCHLogger struct {
 
 	// signalChan: channel for signaling when datastore folder is ready
 	signalChan chan DatastoreReadySignal
+
+	// done: channel indicating if streaming to datastore is finished
+	done chan struct{}
 }
 
 type Receiver interface {
@@ -61,6 +64,7 @@ func New() *VCHLogger {
 	return &VCHLogger{
 		pipe:       NewBufferedPipe(),
 		signalChan: make(chan DatastoreReadySignal),
+		done:       make(chan struct{}),
 	}
 }
 
@@ -72,6 +76,15 @@ func (l *VCHLogger) Run() {
 	param := soap.DefaultUpload
 	param.ContentLength = -1
 	sig.Datastore.Upload(sig.Operation.Context, ioutil.NopCloser(l.pipe), path.Join(sig.VMPathName, logFileName), &param)
+	close(l.done)
+}
+
+// Wait waits for the streaming to VCH datastore to finish, or context times out
+func (l *VCHLogger) Wait(op trace.Operation) {
+	select {
+	case <-l.done: // done uploading to datastore (possibly error out)
+	case <-op.Done(): // context cancel, timeout
+	}
 }
 
 // GetPipe returns the streaming pipe of the vch logger
