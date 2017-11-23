@@ -66,7 +66,7 @@ Verify VCH remote syslog
 
     ${syslog-conn}=  Open Connection  %{SYSLOG_SERVER}
     Login  %{SYSLOG_USER}  %{SYSLOG_PASSWD}
-    ${out}=  Execute Command  cat ${SYSLOG_FILE}
+    ${out}=  Wait Until Keyword Succeeds  10x  3s  Execute Command  cat ${SYSLOG_FILE}
     Close Connection
     Log  ${out}
 
