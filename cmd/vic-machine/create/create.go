@@ -28,6 +28,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/cmd/vic-machine/common"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
@@ -126,7 +127,7 @@ func (c *Create) Flags() []cli.Flag {
 		},
 		cli.StringFlag{
 			Name:        "base-image-size",
-			Value:       "8GB",
+			Value:       constants.DefaultBaseImageScratchSize,
 			Usage:       "Specify the size of the base image from which all other images are created e.g. 8GB/8000MB",
 			Destination: &c.ScratchSize,
 			Hidden:      true,
@@ -220,7 +221,7 @@ func (c *Create) Flags() []cli.Flag {
 	memory = append(memory,
 		cli.IntFlag{
 			Name:        "endpoint-memory",
-			Value:       2048,
+			Value:       constants.DefaultEndpointMemoryMB,
 			Usage:       "Memory for the VCH endpoint VM, in MB. Does not impact resources allocated per container.",
 			Hidden:      true,
 			Destination: &c.MemoryMB,
@@ -765,6 +766,19 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 
 	executor.ShowVCH(vchConfig, c.Certs.Ckey, c.Certs.Ccert, c.Certs.Cacert, c.Certs.EnvFile, c.Certs.CertPath)
 	op.Info("Installer completed successfully")
+
+	go func() {
+		select {
+		case <-time.After(3 * time.Second):
+			op.Infof("Waiting for log upload to complete") // tell the user if the wait causes noticeable delay
+		case <-op.Done():
+			return
+		}
+	}()
+
+	// wait on the logger to finish streaming
+	datastoreLog.Close()
+	datastoreLog.Wait(op)
 
 	return nil
 }

@@ -32,6 +32,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 )
 
 // This file is safe to edit. Once it exists it will not be overwritten
@@ -63,6 +64,7 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 	// configure logging to user specified directory
 	logger = configureLogger()
 	api.Logger = logger.Infof
+	api.Logger("Starting Service. Version: %q", version.GetBuild())
 
 	api.JSONConsumer = runtime.JSONConsumer()
 
@@ -79,6 +81,9 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 	api.GetHandler = operations.GetHandlerFunc(func(params operations.GetParams) middleware.Responder {
 		return middleware.NotImplemented("operation .Get has not yet been implemented")
 	})
+
+	// GET /container/hello
+	api.GetHelloHandler = &handlers.HelloGet{}
 
 	// GET /container/version
 	api.GetVersionHandler = &handlers.VersionGet{}

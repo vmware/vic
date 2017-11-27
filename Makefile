@@ -417,15 +417,15 @@ $(vic-machine-darwin): $$(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine darwin...
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
-$(vic-ui-linux): $$(call godeps,cmd/vic-ui/*.go)
+$(vic-ui-linux): $$(call godeps,cmd/vic-ui/*.go) $(admiralapi-client)
 	@echo building vic-ui linux...
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
 
-$(vic-ui-windows): $$(call godeps,cmd/vic-ui/*.go)
+$(vic-ui-windows): $$(call godeps,cmd/vic-ui/*.go) $(admiralapi-client)
 	@echo building vic-ui windows...
 	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
 
-$(vic-ui-darwin): $$(call godeps,cmd/vic-ui/*.go)
+$(vic-ui-darwin): $$(call godeps,cmd/vic-ui/*.go) $(admiralapi-client)
 	@echo building vic-ui darwin...
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
 

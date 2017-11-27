@@ -36,7 +36,6 @@ const (
 	uploadMaxElapsedTime  = 30 * time.Minute
 	uploadMaxInterval     = 1 * time.Minute
 	uploadInitialInterval = 10 * time.Second
-	timeFormat            = "2006-01-02T15:04:05-0700"
 )
 
 func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData, receiver vchlog.Receiver) error {
@@ -64,9 +63,9 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 	datastoreReadySignal := vchlog.DatastoreReadySignal{
 		Datastore:  d.session.Datastore,
 		Name:       "create",
-		Operation:  trace.NewOperation(d.op, "create"),
+		Operation:  d.op,
 		VMPathName: d.vmPathName,
-		Timestamp:  time.Now().UTC().Format(timeFormat),
+		Timestamp:  time.Now(),
 	}
 	receiver.Signal(datastoreReadySignal)
 

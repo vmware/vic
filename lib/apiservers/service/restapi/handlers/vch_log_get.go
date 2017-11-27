@@ -28,13 +28,9 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/lib/install/vchlog"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
-)
-
-const (
-	logFilePrefix = "vic-machine" // logFilePrefix is the prefix for file names of all vic-machine log files
-	logFileSuffix = ".log"        // logFileSuffix is the suffix for file names of all vic-machine log files
 )
 
 // VCHLogGet is the handler for getting the log messages for a VCH
@@ -161,7 +157,7 @@ func getAllLogFilePaths(op trace.Operation, helper *datastore.Helper) ([]string,
 	var paths []string
 	for _, f := range res.File {
 		path := f.GetFileInfo().Path
-		if strings.HasPrefix(path, logFilePrefix) && strings.HasSuffix(path, logFileSuffix) {
+		if strings.HasPrefix(path, vchlog.LogFilePrefix) && strings.HasSuffix(path, vchlog.LogFileSuffix) {
 			paths = append(paths, path)
 		}
 	}
