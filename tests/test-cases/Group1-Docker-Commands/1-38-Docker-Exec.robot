@@ -125,24 +125,22 @@ Exec NonExisting
     #\   Should Contain  ${output}  no such file or directory
 
 Exec During PowerOff
-     ${status}=  Get State Of Github Issue  6744
-     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-38-Docker-Exec.robot needs to be updated now that Issue #6744 has been resolved
-     #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
-     #Should Be Equal As Integers  ${rc}  0
-     #Should Not Contain  ${output}  Error
-     #${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
-     #Should Be Equal As Integers  ${rc}  0
-     #:FOR  ${idx}  IN RANGE  1  10
-     #\   Start Process  docker %{VCH-PARAMS} exec ${id} /bin/top  alias=exec-%{VCH-NAME}-${idx}  shell=true
-     #
-     #Start Process  docker %{VCH-PARAMS} stop ${id}  alias=stop-%{VCH-NAME}-${id}  shell=true
-     #${stopResult}=  Wait For Process  stop-%{VCH-NAME}-${id}
-     #Should Be Equal As Integers  ${stopResult.rc}  0
-     #
-     #${combinedoutput}=  Set Variable
-     #
-     #:FOR  ${idx}  IN RANGE  1  10
-     #\   ${result}=  Wait For Process  exec-%{VCH-NAME}-${idx}  timeout=2 mins
-     #\   ${combinedOutput}=  Catenate  ${combinedOutput}  ${result.stderr}${\n}
-     #
-     #Should Contain  ${combinedOutput}  Cannot complete the operation, container ${id} has been powered off during execution
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+     Should Be Equal As Integers  ${rc}  0
+     Should Not Contain  ${output}  Error
+     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
+     Should Be Equal As Integers  ${rc}  0
+     :FOR  ${idx}  IN RANGE  1  10
+     \   Start Process  docker %{VCH-PARAMS} exec ${id} /bin/top  alias=exec-%{VCH-NAME}-${idx}  shell=true
+ 
+     Start Process  docker %{VCH-PARAMS} stop ${id}  alias=stop-%{VCH-NAME}-${id}  shell=true
+     ${stopResult}=  Wait For Process  stop-%{VCH-NAME}-${id}
+     Should Be Equal As Integers  ${stopResult.rc}  0
+
+     ${combinedoutput}=  Set Variable
+
+     :FOR  ${idx}  IN RANGE  1  10
+     \   ${result}=  Wait For Process  exec-%{VCH-NAME}-${idx}  timeout=2 mins
+     \   ${combinedOutput}=  Catenate  ${combinedOutput}  ${result.stderr}${\n}
+
+     Should Contain  ${combinedOutput}  container (${id}) has been powered off

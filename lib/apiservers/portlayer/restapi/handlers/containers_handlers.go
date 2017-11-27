@@ -169,30 +169,20 @@ func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.Stat
 func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStateParams) middleware.Responder {
 	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", params.Handle)))
 
-	// NOTE: I've no idea why GetStateHandler takes a handle instead of an ID - hopefully there was a reason for an inspection
-	// operation to take this path
 	h := exec.GetHandle(params.Handle)
 	if h == nil || h.ExecConfig == nil {
 		return containers.NewGetStateNotFound()
 	}
 
-	container := exec.Containers.Container(h.ExecConfig.ID)
-	if container == nil {
-		return containers.NewGetStateNotFound()
-	}
-
 	var state string
-	switch container.CurrentState() {
-	case exec.StateRunning:
+	switch h.Runtime.PowerState {
+	case types.VirtualMachinePowerStatePoweredOn:
 		state = "RUNNING"
 
-	case exec.StateStopped:
+	case types.VirtualMachinePowerStatePoweredOff:
 		state = "STOPPED"
-
-	case exec.StateCreated:
-		state = "CREATED"
-
 	default:
+		// This will occur if the container is suspended... Those are the only types covered in the runtime types right now.
 		return containers.NewGetStateDefault(http.StatusServiceUnavailable)
 	}
 

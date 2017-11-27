@@ -104,6 +104,7 @@ type VicContainerProxy interface {
 
 	Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error
 	State(vc *viccontainer.VicContainer) (*types.ContainerState, error)
+	GetStateFromHandle(op trace.Operation, handle string) (string, string, error)
 	Wait(vc *viccontainer.VicContainer, timeout time.Duration) (*types.ContainerState, error)
 	Signal(vc *viccontainer.VicContainer, sig uint64) error
 	Resize(id string, height, width int32) error
@@ -338,14 +339,12 @@ func (c *ContainerProxy) InspectTask(op trace.Operation, handle string, eid stri
 		case *tasks.InspectNotFound:
 			// These error types may need to be expanded. NotFoundError does not fit here.
 			op.Errorf("received a TaskNotFound error during task inspect: %s", err.Payload.Message)
-			return nil, ConflictError("container (%s) has been poweredoff")
+			return nil, ConflictError(fmt.Sprintf("container (%s) has been poweredoff", cid))
 		case *tasks.InspectInternalServerError:
 			op.Errorf("received an internal server error during task inspect: %s", err.Payload.Message)
 			return nil, InternalServerError(err.Payload.Message)
-		case *tasks.InspectConflict:
-			op.Errorf("received a conflict error during task inspect: %s", err.Payload.Message)
-			return nil, ConflictError(fmt.Sprintf("Cannot complete the operation, container %s has been powered off during execution", cid))
 		default:
+			// right now Task inspection in the portlayer does not return a conflict error
 			return nil, InternalServerError(err.Error())
 		}
 	}
@@ -910,6 +909,26 @@ func (c *ContainerProxy) UnbindContainerFromNetwork(vc *viccontainer.VicContaine
 	}
 
 	return ub.Payload.Handle, nil
+}
+
+// GetStateFromHandle takes a handle and returns the state of the container based on that handle. Also returns handle that comes back with the response.
+func (c *ContainerProxy) GetStateFromHandle(op trace.Operation, handle string) (string, string, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", handle), op))
+
+	params := &containers.GetStateParams{
+		Handle: handle,
+	}
+
+	resp, err := c.client.Containers.GetState(params)
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.GetStateNotFound:
+			return handle, "", NotFoundError(err.Payload.Message)
+		default:
+			return handle, "", InternalServerError(err.Error())
+		}
+	}
+	return resp.Payload.Handle, resp.Payload.State, nil
 }
 
 // State returns container state

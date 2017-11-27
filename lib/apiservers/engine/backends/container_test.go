@@ -344,6 +344,17 @@ func (m *MockContainerProxy) State(vc *viccontainer.VicContainer) (*types.Contai
 	return state, nil
 }
 
+func (m *MockContainerProxy) GetStateFromHandle(op trace.Operation, handle string) (string, string, error) {
+	return "", "", nil
+}
+
+func (m *MockContainerProxy) InspectTask(op trace.Operation, handle string, eid string, cid string) (*models.TaskInspectResponse, error) {
+	return nil, nil
+}
+func (m *MockContainerProxy) BindTask(op trace.Operation, handle string, eid string) (*models.TaskBindResponse, error) {
+	return nil, nil
+}
+
 func (m *MockContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (*types.ContainerState, error) {
 	dockerState := &types.ContainerState{ExitCode: 0}
 	return dockerState, nil

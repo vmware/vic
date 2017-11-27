@@ -22,7 +22,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-// Insepct the given task id and returns it's config
+// Inspect the given task id and returns it's config
 func Inspect(op *trace.Operation, h interface{}, id string) (*executor.SessionConfig, error) {
 	defer trace.End(trace.Begin(id))
 
