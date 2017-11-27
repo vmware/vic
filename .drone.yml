@@ -130,6 +130,28 @@ pipeline:
       - rm $BIN/vic_ui_*.tar.gz
     when:
       status:  success
+      branch: [ master ]
+
+  vic-ui-release:
+    image: harbor.ci.drone.local/library/vic-integration-test:1.38
+    pull: true
+    environment:
+      BUILD_NUMBER: ${DRONE_BUILD_NUMBER}
+      BIN: bin
+      GS_PROJECT_ID: ${GS_PROJECT_ID}
+      GS_CLIENT_EMAIL: ${GS_CLIENT_EMAIL}
+      GS_PRIVATE_KEY: ${GS_PRIVATE_KEY}
+    commands:
+      - mkdir -p $BIN/ui
+      - export LATEST_VIC_UI_RELEASE="$(gsutil ls -l 'gs://vic-ui-releases' | grep -v TOTAL | grep vic_ | sort -k2 -r | (trap ' ' PIPE; head -1))"
+      - export VIC_UI_URL=$(echo $LATEST_VIC_UI_RELEASE | xargs | cut -d " " -f 3 | sed "s/gs:\/\//https:\/\/storage.googleapis.com\//")
+      - wget -nv $VIC_UI_URL -P $BIN
+      - tar -xvzf $BIN/vic_ui_*.tar.gz
+      - ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1
+      - rm $BIN/vic_ui_*.tar.gz
+    when:
+      status:  success
+      branch: [ releases/*, refs/tags/* ]
 
   bundle:
     image: harbor.ci.drone.local/library/golang:1.8
