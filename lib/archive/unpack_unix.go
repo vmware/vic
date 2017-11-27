@@ -40,7 +40,7 @@ const (
 	fileWriteFlags = os.O_CREATE | os.O_TRUNC | os.O_WRONLY
 )
 
-// unpack will unpack the given tarstream(if it is a tar stream) on the local filesystem based on the specified root
+// InvokeUnpack will unpack the given tarstream(if it is a tar stream) on the local filesystem based on the specified root
 // combined with any rebase from the path spec
 //
 // the pathSpec will include the following elements
@@ -131,13 +131,8 @@ func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, r
 	return nil
 }
 
+// Unpack hooks into a binary present in the appliance vm called unpack in order to execute InvokeUnpack inside of a chroot. This method works identically to InvokeUnpack, except that it will not function in areas where the binary is not present at /bin/unpack
 func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string) error {
-	// execute the unpack binary
-	// cmd := exec.Cmd{
-	// 	Path: "/bin/unpack",
-	// 	Dir:  "/",
-	// 	Args: []string{"/bin/unpack", op.ID(), root},
-	// }
 
 	fi, err := os.Stat(root)
 	if err != nil {
@@ -158,6 +153,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		return err
 	}
 
+	// Prepare to launch the binary, which will create a chroot at root and then invoke InvokeUnpack
 	// #nosec: Subprocess launching with variable. -- neither variable is user input & both are bounded inputs so this is fine
 	cmd := exec.Command("/bin/unpack", op.ID(), root, *encodedFilter)
 
@@ -179,6 +175,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		// output should just be trace messages
 		out, err := cmd.CombinedOutput()
 		if len(out) == 0 {
 			op.Debug("No output from command")
@@ -190,6 +187,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		}
 	}()
 
+	// copy the tarStream to the binary via stdin; the binary will stream it to InvokeUnpack unchanged
 	if _, err := io.Copy(stdin, tarStream); err != nil {
 		op.Errorf("Error copying tarStream: %s", err.Error())
 		return err

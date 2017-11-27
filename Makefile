@@ -394,7 +394,7 @@ $(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(
 	@$(TIME) $< -p $(appliance-staging) -b $(BIN)
 
 # main bootstrap target
-$(bootstrap): isos/bootstrap.sh $(archive) $(tether-linux) $(bootstrap-staging) isos/bootstrap/*
+$(bootstrap): isos/bootstrap.sh $(tether-linux) $(bootstrap-staging) isos/bootstrap/*
 	@echo "Making bootstrap iso"
 	@$(TIME) $< -p $(bootstrap-staging) -b $(BIN)
 

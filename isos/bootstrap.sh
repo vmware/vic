@@ -82,7 +82,6 @@ fi
 
 # copy in our components
 cp ${BIN}/tether-linux $(rootfs_dir $PKGDIR)/bin/tether
-cp ${BIN}/unpack $(rootfs_dir $PKGDIR)/bin/unpack
 
 # kick off our components at boot time
 mkdir -p $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants
