@@ -111,7 +111,6 @@ func newHandle(con *Container) *Handle {
 	h := &Handle{
 		key:           newHandleKey(),
 		targetState:   StateUnknown,
-		State:         con.State(),
 		containerBase: *newBase(con.vm, con.Config, con.Runtime),
 		// currently every operation has a spec, because even the power operations
 		// make changes to extraconfig for timestamps and session status
