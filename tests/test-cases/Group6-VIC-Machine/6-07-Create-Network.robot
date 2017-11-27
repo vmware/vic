@@ -36,12 +36,7 @@ Cleanup Container Firewalls Test Networks
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  peers-net-1
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  peers-net-2
 
-Cleanup Container Firewalls Test
-    Cleanup VIC Appliance On Test Server
-    Cleanup Container Firewalls Test Networks
-
-*** Test Cases ***
-Connectivity Bridge to Public
+Main Test
     Set Test Environment Variables
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
@@ -96,3 +91,35 @@ Connectivity Bridge to Public
 
     Cleanup VIC Appliance On Test Server
 
+
+Cleanup Container Firewalls Test
+    Cleanup VIC Appliance On Test Server
+    Cleanup Container Firewalls Test Networks
+
+*** Test Cases ***
+Connectivity Bridge to Public1
+    Main Test
+
+
+Connectivity Bridge to Public2
+    Main Test
+
+
+Connectivity Bridge to Public3
+    Main Test
+
+
+Connectivity Bridge to Public4
+    Main Test
+
+
+Connectivity Bridge to Public5
+    Main Test
+
+
+Connectivity Bridge to Public6
+    Main Test
+
+
+Connectivity Bridge to Public7
+    Main Test
