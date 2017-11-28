@@ -24,7 +24,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"errors"
 
@@ -171,10 +170,8 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		return err
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(1)
+	done := make(chan error)
 	go func() {
-		defer wg.Done()
 		// output should just be trace messages
 		out, err := cmd.CombinedOutput()
 		if len(out) == 0 {
@@ -185,6 +182,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		if err != nil {
 			op.Errorf("Command returned error %s", err.Error())
 		}
+		done <- err
 	}()
 
 	// copy the tarStream to the binary via stdin; the binary will stream it to InvokeUnpack unchanged
@@ -193,6 +191,6 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		return err
 	}
 
-	wg.Wait()
+	err = <-done
 	return err
 }
