@@ -26,6 +26,18 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
+const (
+	success = iota
+	wrongArgumentCount
+	invalidFilterSpec
+	noTarUnpackTarget
+	unpackTargetNotDirectory
+	failedChdirBeforeChroot
+	failedChroot
+	failedChdirAfterChroot
+	failedInvokeUnpack
+)
+
 func main() {
 	ctx := context.Background()
 	op := trace.NewOperation(ctx, "Unpack") // TODO op ID?
@@ -33,7 +45,7 @@ func main() {
 
 	if len(os.Args) != 4 {
 		op.Errorf("Wrong number of arguments passed to unpack binary")
-		os.Exit(5)
+		os.Exit(wrongArgumentCount)
 	}
 
 	root := os.Args[2]
@@ -41,45 +53,45 @@ func main() {
 	filterSpec, err := archive.DecodeFilterSpec(op, &os.Args[3])
 	if err != nil {
 		op.Errorf("Couldn't deserialize filterspec %s", os.Args[3])
-		os.Exit(11)
+		os.Exit(invalidFilterSpec)
 	}
 
 	fi, err := os.Stat(root)
 	if err != nil {
 		// the target unpack path does not exist. We should not get here.
 		op.Errorf("tar unpack target does not exist: %s", root)
-		os.Exit(9)
+		os.Exit(noTarUnpackTarget)
 	}
 
 	if !fi.IsDir() {
 		err := fmt.Errorf("unpack root target is not a directory: %s", root)
 		op.Error(err)
-		os.Exit(10)
+		os.Exit(unpackTargetNotDirectory)
 	}
 	op.Debugf("root exists: %s", root)
 
 	err = os.Chdir(root)
 	if err != nil {
 		op.Errorf("error while chdir outside chroot: %s", err.Error())
-		os.Exit(4)
+		os.Exit(failedChdirBeforeChroot)
 	}
 
 	err = syscall.Chroot(root)
 	if err != nil {
 		op.Errorf("error while chrootin': %s", err.Error())
-		os.Exit(3)
+		os.Exit(failedChroot)
 	}
 
 	err = os.Chdir("/")
 	if err != nil {
 		op.Errorf("error while chdir inside chroot: %s", err.Error())
-		os.Exit(2)
+		os.Exit(failedChdirAfterChroot)
 	}
 
 	if err = archive.InvokeUnpack(op, os.Stdin, filterSpec, "/"); err != nil {
 		op.Error(err)
-		os.Exit(8)
+		os.Exit(failedInvokeUnpack)
 	}
 
-	os.Exit(0)
+	os.Exit(success)
 }
