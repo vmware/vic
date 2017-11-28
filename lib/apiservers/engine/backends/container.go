@@ -416,11 +416,10 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 			return err
 		}
 
-		resp, err := c.containerProxy.BindTask(op, handle, eid)
+		handle, err = c.containerProxy.BindTask(op, handle, eid)
 		if err != nil {
 			return err
 		}
-		handle = resp.Handle.(string)
 
 		// exec doesn't have separate attach path so we will decide whether we need interaction/runblocking or not
 		attach := ec.OpenStdin || ec.OpenStdout || ec.OpenStderr

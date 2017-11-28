@@ -89,8 +89,10 @@ type VicContainerProxy interface {
 
 	CreateContainerTask(handle string, id string, config types.ContainerCreateConfig) (string, error)
 	CreateExecTask(handle string, config *types.ExecConfig) (string, string, error)
+
+	// TODO: we should not be returning a swagger model here, however we do not have a solid architected return for this yet.
 	InspectTask(op trace.Operation, handle string, eid string, cid string) (*models.TaskInspectResponse, error)
-	BindTask(op trace.Operation, handle string, eid string) (*models.TaskBindResponse, error)
+	BindTask(op trace.Operation, handle string, eid string) (string, error)
 
 	BindInteraction(handle string, name string, id string) (string, error)
 	UnbindInteraction(handle string, name string, id string) (string, error)
@@ -351,7 +353,7 @@ func (c *ContainerProxy) InspectTask(op trace.Operation, handle string, eid stri
 	return resp.Payload, nil
 }
 
-func (c *ContainerProxy) BindTask(op trace.Operation, handle string, eid string) (*models.TaskBindResponse, error) {
+func (c *ContainerProxy) BindTask(op trace.Operation, handle string, eid string) (string, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s), eid(%s)", handle, eid)))
 
 	bindconfig := &models.TaskBindConfig{
@@ -366,19 +368,26 @@ func (c *ContainerProxy) BindTask(op trace.Operation, handle string, eid string)
 		switch err := err.(type) {
 		case *tasks.BindNotFound:
 			op.Errorf("received TaskNotFound error during task bind: %s", err.Payload.Message)
-			return nil, NotFoundError("container (%s) has been poweredoff")
+			return "", NotFoundError("container (%s) has been poweredoff")
 		case *tasks.BindInternalServerError:
 
 			op.Errorf("received unexpected error attempting to bind task(%s) for handle(%s): %s", eid, handle, err.Payload.Message)
-			return nil, InternalServerError(err.Payload.Message)
+			return "", InternalServerError(err.Payload.Message)
 		default:
 			op.Errorf("received unexpected error attempting to bind task(%s) for handle(%s): %s", eid, handle, err.Error())
-			return nil, InternalServerError(err.Error())
+			return "", InternalServerError(err.Error())
 		}
 
 	}
 
-	return resp.Payload, nil
+	respHandle, ok := resp.Payload.Handle.(string)
+	if !ok {
+		op.Errorf("Unable to marshal string object from BindTask response for handle(%s) on eid(%s)", handle, eid)
+		// TODO: perhaps a better error message here?
+		return "", InternalServerError("An unknown error occurred during the handling of this request")
+	}
+
+	return respHandle, nil
 }
 
 // AddContainerToScope adds a container, referenced by handle, to a scope.
