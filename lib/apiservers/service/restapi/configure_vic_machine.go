@@ -16,10 +16,12 @@ package restapi
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	goruntime "runtime"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/go-openapi/errors"
@@ -29,6 +31,7 @@ import (
 	"github.com/rs/cors"
 	"github.com/tylerb/graceful"
 
+	"github.com/vmware/vic/lib/apiservers/service/models"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/pkg/trace"
@@ -201,7 +204,7 @@ func setupGlobalMiddleware(handler http.Handler) http.Handler {
 		AllowCredentials: false,
 	})
 
-	return addLogging(c.Handler(handler))
+	return addLogging(addPanicRecovery(c.Handler(handler)))
 }
 
 func addLogging(next http.Handler) http.Handler {
@@ -243,6 +246,28 @@ func configureLogger() *logrus.Logger {
 	logrus.SetOutput(file)
 
 	return l
+}
+
+// addPanicRecovery middleware logs the panic err message and stack trace, and returns a json http response
+func addPanicRecovery(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				op := trace.FromContext(r.Context(), "Panic Recovery")
+				buf := make([]byte, 4096)
+				bytes := goruntime.Stack(buf, false)
+				stack := string(buf[:bytes])
+
+				op.Errorf("PANIC: %s\n%s", err, stack)
+
+				w.WriteHeader(http.StatusInternalServerError)
+				e := models.Error{Message: fmt.Sprint(err)}
+				json.NewEncoder(w).Encode(e)
+			}
+		}()
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 // Reference for LoggingResponseWriter struct:
