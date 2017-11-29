@@ -169,26 +169,24 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		op.Error(err)
 		return err
 	}
-
 	done := make(chan error)
 	go func() {
-		// output should just be trace messages
-		out, err := cmd.CombinedOutput()
-		if len(out) == 0 {
-			op.Debug("No output from command")
-		} else {
-			op.Debugf("%s", string(out))
-		}
-		if err != nil {
-			op.Errorf("Command returned error %s", err.Error())
+		// copy the tarStream to the binary via stdin; the binary will stream it to InvokeUnpack unchanged
+		if _, err := io.Copy(stdin, tarStream); err != nil {
+			op.Errorf("Error copying tarStream: %s", err.Error())
 		}
 		done <- err
 	}()
 
-	// copy the tarStream to the binary via stdin; the binary will stream it to InvokeUnpack unchanged
-	if _, err := io.Copy(stdin, tarStream); err != nil {
-		op.Errorf("Error copying tarStream: %s", err.Error())
-		return err
+	out, err := cmd.CombinedOutput()
+	if len(out) == 0 {
+		op.Debug("No output from command")
+	} else {
+		// output should just be trace messages
+		op.Debugf("%s", string(out))
+	}
+	if err != nil {
+		op.Errorf("Command returned error %s", err.Error())
 	}
 
 	err = <-done
