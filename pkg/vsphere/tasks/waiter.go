@@ -166,6 +166,9 @@ func IsRetryError(op trace.Operation, err error) bool {
 		case *types.InvalidArgument:
 			logExpectedFault(op, taskFault, f)
 			return true
+		case *types.HostCommunication:
+			logExpectedFault(op, taskFault, f)
+			return true
 		default:
 			logFault(op, err.Fault())
 			return false
