@@ -27,15 +27,15 @@ import (
 )
 
 const (
-	success = iota
-	wrongArgumentCount
-	invalidFilterSpec
-	noTarUnpackTarget
-	unpackTargetNotDirectory
-	failedChdirBeforeChroot
-	failedChroot
-	failedChdirAfterChroot
-	failedInvokeUnpack
+	Success = iota
+	WrongArgumentCount
+	InvalidFilterSpec
+	NoTarUnpackTarget
+	UnpackTargetNotDirectory
+	FailedChdirBeforeChroot
+	FailedChroot
+	FailedChdirAfterChroot
+	FailedInvokeUnpack
 )
 
 func main() {
@@ -45,7 +45,7 @@ func main() {
 
 	if len(os.Args) != 4 {
 		op.Errorf("Wrong number of arguments passed to unpack binary")
-		os.Exit(wrongArgumentCount)
+		os.Exit(WrongArgumentCount)
 	}
 
 	root := os.Args[2]
@@ -53,45 +53,45 @@ func main() {
 	filterSpec, err := archive.DecodeFilterSpec(op, &os.Args[3])
 	if err != nil {
 		op.Errorf("Couldn't deserialize filterspec %s", os.Args[3])
-		os.Exit(invalidFilterSpec)
+		os.Exit(InvalidFilterSpec)
 	}
 
 	fi, err := os.Stat(root)
 	if err != nil {
 		// the target unpack path does not exist. We should not get here.
 		op.Errorf("tar unpack target does not exist: %s", root)
-		os.Exit(noTarUnpackTarget)
+		os.Exit(NoTarUnpackTarget)
 	}
 
 	if !fi.IsDir() {
 		err := fmt.Errorf("unpack root target is not a directory: %s", root)
 		op.Error(err)
-		os.Exit(unpackTargetNotDirectory)
+		os.Exit(UnpackTargetNotDirectory)
 	}
 	op.Debugf("root exists: %s", root)
 
 	err = os.Chdir(root)
 	if err != nil {
 		op.Errorf("error while chdir outside chroot: %s", err.Error())
-		os.Exit(failedChdirBeforeChroot)
+		os.Exit(FailedChdirBeforeChroot)
 	}
 
 	err = syscall.Chroot(root)
 	if err != nil {
 		op.Errorf("error while chrootin': %s", err.Error())
-		os.Exit(failedChroot)
+		os.Exit(FailedChroot)
 	}
 
 	err = os.Chdir("/")
 	if err != nil {
 		op.Errorf("error while chdir inside chroot: %s", err.Error())
-		os.Exit(failedChdirAfterChroot)
+		os.Exit(FailedChdirAfterChroot)
 	}
 
 	if err = archive.InvokeUnpack(op, os.Stdin, filterSpec, "/"); err != nil {
 		op.Error(err)
-		os.Exit(failedInvokeUnpack)
+		os.Exit(FailedInvokeUnpack)
 	}
 
-	os.Exit(success)
+	os.Exit(Success)
 }
