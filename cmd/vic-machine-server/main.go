@@ -58,7 +58,10 @@ func main() {
 		Host string `long:"pprof-host" description:"the IP to listen on for pprof connections" default:"localhost" env:"PPROF_HOST"`
 		Port int    `long:"pprof-port" description:"the port to listen on for pprof connections" default:"6060" env:"PPROF_PORT"`
 	}{}
-	parser.AddGroup("Profiling Options", "", &pprofFlags)
+	_, err = parser.AddGroup("Profiling Options", "", &pprofFlags)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	if _, err := parser.Parse(); err != nil {
 		code := 1
