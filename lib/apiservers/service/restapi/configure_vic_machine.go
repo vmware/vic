@@ -67,7 +67,7 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 	// configure logging to user specified directory
 	logger = configureLogger()
 	api.Logger = logger.Infof
-	api.Logger("Starting Service. Version: %q", version.GetBuild())
+	api.Logger("Starting Service. Version: %q", version.GetBuild().ShortVersion())
 
 	api.JSONConsumer = runtime.JSONConsumer()
 
