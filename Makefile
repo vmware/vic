@@ -446,7 +446,7 @@ $(gandalf):  $$(call godeps,cmd/gandalf/*.go)
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
 distro: all
-	@tar czvf $(REV).tar.gz bin/*.iso bin/vic-machine-*
+	@tar czvf $(REV).tar.gz bin/*.iso bin/vic-machine-* --exclude=bin/vic-machine-server
 
 mrrobot:
 	@rm -rf *.xml *.html *.log *.zip VCH-0-*
