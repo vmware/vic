@@ -172,6 +172,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 	done := make(chan error)
 	go func() {
 		// copy the tarStream to the binary via stdin; the binary will stream it to InvokeUnpack unchanged
+		defer stdin.Close()
 		if _, err := io.Copy(stdin, tarStream); err != nil {
 			op.Errorf("Error copying tarStream: %s", err.Error())
 		}
