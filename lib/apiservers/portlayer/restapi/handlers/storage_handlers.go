@@ -57,8 +57,7 @@ const (
 func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx *HandlerContext) {
 	var err error
 
-	ctx := context.Background()
-	op := trace.NewOperation(ctx, "configure")
+	op := trace.NewOperation(context.Background(), "configure storage layer")
 
 	if len(spl.Config.ImageStores) == 0 {
 		op.Panicf("No image stores provided; unable to instantiate storage layer")
@@ -165,6 +164,7 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 func (h *StorageHandlersImpl) CreateImageStore(params storage.CreateImageStoreParams) middleware.Responder {
 	op := trace.NewOperation(context.Background(), fmt.Sprintf("CreateImageStore(%s)", params.Body.Name))
 	name := params.Body.Name
+	defer trace.End(trace.Begin(fmt.Sprintf("CreateImageStore: %s", name), op))
 
 	registerImageStore := func(h *StorageHandlersImpl, name string) {
 		// register image store importer/export
