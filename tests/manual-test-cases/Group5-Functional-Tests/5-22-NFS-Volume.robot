@@ -98,15 +98,7 @@ Reboot VM and Verify Basic VCH Info
     Log To Console  Rebooting VCH\n - %{VCH-NAME}
     Reboot VM  %{VCH-NAME}
 
-    Log To Console  Getting VCH IP ...
-    ${new_vch_ip}=  Get VM IP  %{VCH-NAME}
-    Log To Console  New VCH IP is ${new_vch_ip}
-    ${updated_vch_ip}=  Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new_vch_ip}
-    Should Contain  %{VCH-PARAMS}  ${new_vch_ip}
-    Should Be Equal  ${updated_vch_ip}  %{VCH-PARAMS}
-
-    # wait for docker info to succeed
-    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+    Wait For VCH Initialization
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
     Should Be Equal As Integers  ${rc}  0
