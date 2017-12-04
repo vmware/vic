@@ -3,18 +3,21 @@
 3. [Implementation Decisions](#implementation-decisions)
      1. [Technology Choices](#technology-choices)
      2. [Delivery](#delivery)
-     3. [Service Upgrade](#service-upgrade)
-     4. [Compatibility](#compatibility)
-     5. [Authentication](#authentication)
-     6. [Certificate Management](#certificate-management)
+     3. [Cardinality](#cardinality)
+     4. [Service Upgrade](#service-upgrade)
+     5. [Compatibility](#compatibility)
+     6. [Authentication](#authentication)
+     7. [Certificate Management](#certificate-management)
           1. [Host Certificates](#host-certificates)
           2. [Client Certificates](#client-certificates)
-     7. [Log Management](#log-management)
-     8. [Cross-Origin Requests &amp; Cross-Site Request Forgery](#cross-origin-requests--cross-site-request-forgery)
-     9. [ISO Management](#iso-management)
-    10. [Communicating modifiability](#communicating-modifiability)
-    11. [Use of a query parameter for compute-resource](#use-of-a-query-parameter-for-compute-resource)
-    12. [Use of a request body for delete](#use-of-a-request-body-for-delete)
+     8. [Log Management](#log-management)
+          1. [Operation logs](#operation-logs)
+          2. [Server logs](#server-logs)
+     9. [Cross-Origin Requests &amp; Cross-Site Request Forgery](#cross-origin-requests--cross-site-request-forgery)
+    10. [ISO Management](#iso-management)
+    11. [Communicating modifiability](#communicating-modifiability)
+    12. [Use of a query parameter for compute-resource](#use-of-a-query-parameter-for-compute-resource)
+    13. [Use of a request body for delete](#use-of-a-request-body-for-delete)
 4. [The REST API](#the-rest-api)
      1. [API Versioning](#api-versioning)
      2. [Headers](#headers)
@@ -48,13 +51,13 @@
 
 ## Overview
 
-The `vic-machine-{darwin,linux,windows}` command line utilities are used to perform VCH lifecycle operations.
+The `vic-machine-{darwin,linux,windows}` command line utilities are used to perform Virtual Container Host (VCH) lifecycle operations.
 
-It is desirable to expose this same functionality via a network protocol to allow for a wider range of interaction models, such as the integration of VCH management functionality into web interfaces (includeing the vSphere H5 client). A REST API (and, more specifically, an OpenAPI) would be the natural way to do so.
+The `vic-machine-server` exposes similar functionality via a REST API to allow for a wider range of interaction models, such as the integration of VCH management into web interfaces (including the vSphere H5 client).
 
 ## Design goals and project scope
 
-It is expected that this API will become a public, documented API at some point in the future (and, to some extent, all APIs are public), but functionality will be delivered incrementally and the first versions will be versioned in a way that communicates breaking changes are expected and backwards compatibility may not be maintained.
+This API will become a public, documented API at some point in the future (and, to some extent, all APIs are public), but functionality will be delivered incrementally and the first versions will be versioned in a way that communicates breaking changes are expected and backwards compatibility may not be maintained.
 
 The initial priority is for this API to implement sufficient functionality to enable development of a vSphere plugin, as described here: https://vmware.invisionapp.com/share/GDC9QEDAZ. This may require functionality which is _not_ currently implemented by the `vic-machine` command line utilities.
 
@@ -76,17 +79,25 @@ The service will be built in Go, using `go-swagger`. This allows any developer o
 
 WebSockets will be used to provide streaming information about the status on long-running operations so that sophisticated clients do not need to poll for updates. See "[The WebSockets API](#the-websockets-api)" for more information.
 
+Unit tests will be defined using the Testify libraries.
+
 End-to-end tests will be defined using the Robot Framework.
 
 ### Delivery
 
-The new service will be implemented as an additional flavor of `vic-machine`: `vic-machine-server`. This standalone linux binary (a swagger server) will be invoked with port and certificate information to serve the REST API on all interfaces.
+The new service is implemented as an additional flavor of `vic-machine`: `vic-machine-server`. This standalone linux binary (a swagger server) is invoked with port and certificate information to serve the REST API on one or more interfaces.
 
-This service will be packaged as a container and included in the VIC OVA, following existing best practices.
+This service is packaged as a container and included in the VIC OVA, following existing best practices.
 
-The service will not require a access to a persistent data directory.
+The service does not require a access to a persistent data directory, but it useful to provide one as a destination for log files.
 
-A configuration file (stored on the OVA's data directory) will be used to provide the service with high-level configuration information, such as a syslog server, addresses of interfaces that should be permitted to make cross-origin requests (such as the address of the H5 UI and perhaps the admiral CA certificate (see "[Client certificate management using Admiral](#client-certificate-management-using-admiral)").
+A configuration file (stored on the OVA's data directory) may eventually be used to provide the service with high-level configuration information, such as a syslog server and perhaps the admiral CA certificate (see "[Client certificate management using Admiral](#client-certificate-management-using-admiral)".
+
+### Cardinality
+
+It is not assumed that a single instance of `vic-machine-server` will run in a given environment or which manage a given vSphere resource. It is also expected that one or more instances of `vic-machine-server` and the `vic-machine` CLI will be used side-by-side. This means that in-process locking will not be sufficient to protect resources from concurrent access or modification.
+
+In the future, specific use cases may be identified for multiple instances of `vic-machine-server` around availability, scalability, or isolation.
 
 ### Service Upgrade
 
@@ -113,7 +124,7 @@ We expect the compatibility between `vic-machine-server` and VCHs to be similar 
 
 We expect the vSphere H5 client plugin to support a single version of `vic-machine-server` and be upgraded in lock-step.
 
- - [ ] Do we need the plugin to provide at least basic support the "N+1" version of `vic-machine-server` as well so that it remains functional between when the OVA is upgraded and when the plugin is upgraded?
+ - [ ] Do we need the plugin to provide at least basic support for the "N+1" version of `vic-machine-server` as well so that it remains functional between when the OVA is upgraded and when the plugin is upgraded?
 
 ### Authentication
 
@@ -129,7 +140,7 @@ With the REST API, these workflows need to be handled explicitly: the REST API m
 
 #### Host Certificates
 
-Host certificates are persisted in the VCH's guest info and are available via the vSphere API today. `vic-machine-server` will allow users to access them via its API.
+Host certificates are persisted in the VCH's guest info and are available via the vSphere API today. `vic-machine-server` allows users to access them via its API, regardless of how the VCH was created.
 
 #### Client Certificates
 
@@ -139,9 +150,17 @@ For an alternative approach that allows for creation of VCHs without requiring u
 
 ### Log Management
 
+#### Operation logs
+
 When invoking the `vic-machine` CLI, real-time information is provided to stdout and log files can be persisted on the filesystem. The REST API needs to provide equivalent functionality.
 
 Logs will be streamed to the VCH's datastore folder as `vic-machine-server` executes. Access to logs is then restricted to those vSphere users who can read those files from the datastore.
+
+#### Server logs
+
+Logs for the server itself are written to a configurable directory. These logs include server lifecycle information as well as information about each request. Operation IDs are used to associate a request with the log messages related to the handling of that request.
+
+Logs are not rotated by the server. When deployed as a part of the OVA, `logrotate` is used to provide this functionality.
 
 ### Cross-Origin Requests & Cross-Site Request Forgery
 
@@ -149,7 +168,7 @@ Because the vSphere H5 client plugin and the `vic-machine-server` will be served
 
 The same-origin policy is intended to prevent cross-origin requests because the browser might inadvertently provide credentials on behalf of the user. Given that each individual request to the API must include credentials, and that we won't be using cookies or persisting those credentials in any other way, the same-origin policy does not provide protection in our case.
 
-To avoid additional configuration complexity, we will use a combination of `Access-Control-Allow-Origin: *`, ` Access-Control-Allow-Credentials: false` (the default value), and `Access-Control-Allow-Headers: Authorization` to express that cross-origin requests are allowed from any origin, and that an `Authorization` header may be included, but that the user-agent should not include cookies or HTTP authentication information based on the user agent's previous interactions with the API. This `Access-Control-Allow-Credentials` restriction will not affect the H5 client plugin, as it will be _explicitly_ including credentials by setting the `Authorization` header, not relying on `XMLHttpRequest.withCredentials`.
+To avoid additional configuration complexity, we will use a combination of `Access-Control-Allow-Origin: *`, ` Access-Control-Allow-Credentials: false` (the default value), and `Access-Control-Allow-Headers: Authorization, X-VMWARE-TICKET` to express that cross-origin requests are allowed from any origin, and that an `Authorization` or `X-VMWARE-TICKET` header may be included, but that the user-agent should not include cookies or HTTP authentication information based on the user agent's previous interactions with the API. This `Access-Control-Allow-Credentials` restriction will not affect the H5 client plugin, as it will be _explicitly_ including credentials by setting an `Authorization` or `X-VMWARE-TICKET` header, not relying on `XMLHttpRequest.withCredentials`.
 
 ### ISO Management
 
@@ -179,7 +198,7 @@ A variety of approaches exist for this:
 
 With each of these approaches, it is also possible for the client or sever to express a level of intrusiveness. For example, a server might communicate "the VCH must be restarted to modify this" instead of simply "this cannot be modified in the current state." Similarly, a client might communicate "I want to make this change, even if it requires restarting the VCH" or "I want to make this change, even if it requires powering off all containers."
 
-More complex logic can be introduced in the future, but in the interest of simplicity of the API and ease of implementation, it seems desirable to start simply with documenting the mutability rules in a human-readable way. Time permitting, it may be useful to allow clients to communicate "I want to make this change, even if it requires restarting the VCH."
+More complex logic can be introduced in the future, but in the interest of simplicity of the API and ease of implementation, it seems desirable to start simply with documenting the mutability rules in a human-readable way. As a next step, it may be useful to allow clients to communicate "I want to make this change, even if it requires restarting the VCH."
 
 ### Use of a query parameter for compute-resource
 
@@ -201,14 +220,17 @@ An alternative approach would be to model deletion as an action, but that may no
 
 ### Headers
 
-The standard Authorization header will be used for authentication.
+Where possible, the standard `Authorization` header will be used for authentication.
 
-Two schemes will be supported:
+Currently, only one scheme is supported:
 
  * "basic", which will allow direct authentication with username and password
- * "Bearer", which will allow authentication via SAML, including from the H5 client plugin. (Alternatively, if supporting this is hard, a scheme that accepts a session key or session cookie would make sense.)
 
-Additional scheme(s) could be adopted as necessary.
+Eventually, another may be added:
+
+ * "Bearer", which will allow authentication via SAML, including from the H5 client plugin. 
+
+Additionally, a session ticket may be specified using the `X-VMWARE-TICKET` header.
 
 ### Resources
 
@@ -250,13 +272,22 @@ GET /container
 GET /container/version
 ```
 
-A `GET` request on the base resource will return a JSON object containing metadata. Initially, the only pieces of metadata included will be the version number and a list of known appliance ISOs.
+A `GET` request on the base resource will return a JSON object containing metadata. Initially, the only piece of metadata included will be the version number. Eventually, this may include a list of known appliance ISOs.
 
 A `GET` request on the `version` sub-resource will return just the version.
 
  - [ ] Should this also capture the required vSphere permissions for various operations? (If so, how?)
 
 Corresponding CLI: `vic-machine-{darwin,linux,windows} version`
+
+#### Display static message
+```
+GET /container/hello
+```
+
+A `GET` request on the `hello` resource will return a static "welcome" message for users who have been redirected to the server to accept SSL/TLS certificates..
+
+Corresponding CLI: N/A
 
 #### List VCHs
 ```
@@ -265,7 +296,7 @@ GET /container/target/{target-network-address}/[datacenter/{datacenter-id}]/vch?
 
 Making a `GET` request on `/vch` under a target and optionally a datacenter will return information about the VCHs on that target, in that datacenter.
 
- - [ ] Pagination?
+ - [ ] Pagination
 
 Corresponding CLI: `vic-machine-{darwin,linux,windows} ls`
 
@@ -276,7 +307,7 @@ POST /container/target/{target-network-address}/[datacenter/{datacenter-id}]/vch
 
 Making a `POST` request on `/vch` under a target and optionally a datacenter will create a VCH on that target, in that datacenter. Information about the VCH will be provided in the body of the request in a format similar to this.
 
-Note that validation of the request would occur synchronously, with any errors being returned using an appropriate response code and status. The rest of creation would proceed asynchronously, with errors being reported via a vSphere task that is returned once the synchronous validation is complete. (See "[VCH creation spawns a custom task](#vch-creation-spawns-a-custom-task)".)
+Note that validation of the request occurs synchronously, with any errors being returned using an appropriate response code and status. Eventually, portions of the creation will proceed asynchronously, with errors being reported via a vSphere task that is returned once the synchronous validation is complete. (See "[VCH creation spawns a custom task](#vch-creation-spawns-a-custom-task)".)
 
 Corresponding CLI: `vic-machine-{darwin,linux,windows} create`
 
@@ -379,12 +410,6 @@ A WebSockets-based API will be used to provide streaming access to log data.
 
 ## Proposed changes to existing functionality
 
-### Support for authenticating via SAML or with a session key in `vic-machine`
-
-As expected, raw user credentials are not available to H5 client plugins. To perform operations on behalf of the authenticated user, `vic-machine` will need to support being invoked with information that is available to the client plugin, such as a SAML token or a session key.
-
-This may require changes to core `vic-machine` code and underlying code, such as `govmomi`.
-
 ### VCH creation spawns a custom task
 
 Currently, VCH creation consists of three main steps:
@@ -481,9 +506,3 @@ The service will require two types of tests:
 2. End-to-end tests to verify the API functionality from a client's point of view (and to serve as the first "client", and as a secondary form of documentation).
 
 Additionally, appropriate testing will be needed for each of the items in the "proposed changes to existing VIC functionality" section.
-
-## See Also
-
- * The GitHub Epic for the entirety of this work: https://github.com/vmware/vic/issues/6116
- * The GitHub Epic for the initial "MVP": https://github.com/vmware/vic/issues/5721
- * The GitHub Epic for the corresponding UI work: https://github.com/vmware/vic/issues/5150
