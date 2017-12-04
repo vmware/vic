@@ -258,11 +258,8 @@ pipeline:
     image: plugins/gcr
     repo: eminent-nation-87317/vic-machine-server
     dockerfile: cmd/vic-machine-server/Dockerfile
-    environment:
-      DRONE_TAG: ${DRONE_TAG}
     tags:
       - latest
-      - ${DRONE_TAG}
     json_key: >
       {
         "type": "service_account",
