@@ -60,9 +60,20 @@ func NewLookupCache(ds ImageStorer) *NameLookupCache {
 	}
 }
 
+// isRetry will check the error for retryability - if so reset the cache
+func (c *NameLookupCache) isRetry(op trace.Operation, err error) bool {
+	if tasks.IsRetryError(op, err) {
+		op.Debugf("%s is retryable, resetting store cache", err)
+		c.storeCache = make(map[url.URL]*index.Index)
+		return true
+	}
+	return false
+}
+
 // GetImageStore checks to see if a named image store exists and returns the
 // URL to it if so or error.
 func (c *NameLookupCache) GetImageStore(op trace.Operation, storeName string) (*url.URL, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("StoreName: %s", storeName), op))
 	store, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
@@ -96,6 +107,10 @@ func (c *NameLookupCache) GetImageStore(op trace.Operation, storeName string) (*
 		scratch, err := c.DataStore.GetImage(op, store, Scratch.ID)
 		if err != nil {
 			op.Errorf("ImageCache Error: looking up scratch on %s: %s", store.String(), err)
+			if c.isRetry(op, err) {
+				return nil, err
+			}
+			// potentially a recoverable error
 			return nil, ErrCorruptImageStore
 		}
 
@@ -107,6 +122,8 @@ func (c *NameLookupCache) GetImageStore(op trace.Operation, storeName string) (*
 
 		images, err := c.DataStore.ListImages(op, store, nil)
 		if err != nil {
+			// if error is retryable we'll reset the cache
+			c.isRetry(op, err)
 			return nil, err
 		}
 
@@ -162,15 +179,14 @@ func (c *NameLookupCache) CreateImageStore(op trace.Operation, storeName string)
 		_, err = c.GetImageStore(op, storeName)
 		return err
 	}
-	// isRetry will reuse the tasks.IsRetryError and will
-	// retry when appropriate
+	// is the error retryable
 	isRetry := func(err error) bool {
 		return tasks.IsRetryError(op, err)
 	}
 
 	config := retry.NewBackoffConfig()
-	config.InitialInterval = time.Second * 30
-	config.MaxInterval = time.Minute
+	config.InitialInterval = time.Second * 15
+	config.MaxInterval = time.Second * 30
 	config.MaxElapsedTime = time.Minute * 3
 
 	// attempt to get the image store
