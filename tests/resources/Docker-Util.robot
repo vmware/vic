@@ -226,7 +226,7 @@ Do Volumes Exist
     [Return]  ${true}
 
 Do Networks Exist
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} networks ls -q
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network ls -q
     ${len}=  Get Length  ${output}
     Return From Keyword If  ${len} == 0  ${false}
     [Return]  ${true}
