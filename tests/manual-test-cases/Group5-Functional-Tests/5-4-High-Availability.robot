@@ -16,7 +16,7 @@
 Documentation  Test 5-4 - High Availability
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  High Availability Setup
-Suite Teardown  Nimbus Cleanup  ${list}
+#Suite Teardown  Nimbus Cleanup  ${list}
 Test Teardown  Run Keyword If Test Failed  Gather Logs From Test Server
 
 *** Variables ***
@@ -209,7 +209,7 @@ Test
     Wait Until Keyword Succeeds  24x  10s  VM Host Has Changed  ${curHost}  %{VCH-NAME}
 
     # Wait for the VCH to come back up fully - if it's not completely reinitialized it will still report the old IP address 
-    Wait For VCH Initialization
+    Wait For VCH Initialization  12x  20 seconds
 
     ${info}=  Run  govc vm.info \\*
     Log  ${info}
