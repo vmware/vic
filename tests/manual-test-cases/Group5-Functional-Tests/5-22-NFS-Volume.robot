@@ -17,6 +17,7 @@ Documentation  Test 5-22 - NFS Volume
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  Setup ESX And NFS Suite
 Suite Teardown  Run Keyword And Ignore Error  NFS Volume Cleanup
+Test Teardown  Gather NFS Logs
 
 *** Variables ***
 ${nfsVolumeStore}=  nfsVolumeStore
@@ -104,11 +105,14 @@ Reboot VM and Verify Basic VCH Info
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${busybox}
 
-NFS Volume Cleanup
+Gather NFS Logs
     ${out}=  Run Keyword And Continue On Failure  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} dmesg
     Log  ${out}
     ${out}=  Run Keyword And Continue On Failure  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} dmesg
     Log  ${out}
+
+NFS Volume Cleanup
+    Gather NFS Logs
     Nimbus Cleanup  ${list}
 
 *** Test Cases ***
