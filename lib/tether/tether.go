@@ -165,7 +165,7 @@ func (t *tether) setup() error {
 		}
 	}
 
-	pidDir := shared.PIDFileDir()
+	pidDir := shared.PIDFileDir(&Sys)
 
 	// #nosec: Expect directory permissions to be 0700 or less
 	if err = os.MkdirAll(pidDir, 0755); err != nil {
@@ -718,7 +718,7 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 	// Remove associated PID file
 	cmdname := path.Base(session.Cmd.Path)
 
-	_ = os.Remove(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(), cmdname)))
+	_ = os.Remove(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(&Sys), cmdname)))
 
 	// set the stop time
 	session.StopTime = time.Now().UTC().Unix()
@@ -879,7 +879,7 @@ func (t *tether) launch(session *SessionConfig) error {
 
 	// Write the PID to the associated PID file
 	cmdname := path.Base(session.Cmd.Path)
-	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(), cmdname)),
+	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(&Sys), cmdname)),
 		[]byte(fmt.Sprintf("%d", pid)),
 		0644)
 	if err != nil {
