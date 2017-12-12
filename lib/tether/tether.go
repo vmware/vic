@@ -434,9 +434,10 @@ func (t *tether) processSessions() error {
 				// check if session is alive and well
 				if proc != nil && proc.Signal(syscall.Signal(0)) == nil {
 					log.Debugf("Process for session %s is running (pid: %d)", id, proc.Pid)
-					if !session.Active {
+
+					if !session.Active || t.ctx.Err() != nil {
 						// stop process - for now this doesn't do any staged levels of aggression
-						log.Infof("Running session %s has been deactivated (pid: %d)", id, proc.Pid)
+						log.Infof("Running session %s has been deactivated (pid: %d, system status: %s)", id, proc.Pid, t.ctx.Err())
 
 						killHelper(session)
 					}
@@ -532,6 +533,8 @@ func (t *tether) Start() error {
 		select {
 		case <-t.ctx.Done():
 			log.Warnf("Someone called shutdown, returning from start")
+			// clean up child processes
+			t.processSessions()
 			return nil
 		default:
 		}
@@ -601,11 +604,27 @@ func (t *tether) Start() error {
 func (t *tether) Stop() error {
 	defer trace.End(trace.Begin(""))
 
-	// cancel the context to signal waiters
+	// cancel the context to signal waiters and indicate shutdown
 	t.cancel()
 
-	// TODO: kill all the children
+	// trigger a reload - this should deliver the stopsignal to the children
+	t.reload <- struct{}{}
+
 	close(t.reload)
+
+	// wait for child processes to exit
+	for id, session := range t.config.Sessions {
+		var proc = session.Cmd.Process
+
+		if proc == nil {
+			continue
+		}
+
+		// wait for session to exit
+		log.Debugf("Waiting for session %s to exit (pid: %d)", id, proc.Pid)
+		for proc.Signal(syscall.Signal(0)) == nil {
+		}
+	}
 
 	return nil
 }

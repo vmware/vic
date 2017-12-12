@@ -123,7 +123,7 @@ func halt() {
 
 func startSignalHandler() {
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGHUP)
+	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGUSR1, syscall.SIGUSR2, syscall.SIGPWR, syscall.SIGTERM, syscall.SIGINT)
 
 	go func() {
 		for s := range sigs {
@@ -131,6 +131,14 @@ func startSignalHandler() {
 			case syscall.SIGHUP:
 				log.Infof("Reloading tether configuration")
 				tthr.Reload()
+			case syscall.SIGUSR1, syscall.SIGUSR2, syscall.SIGPWR:
+				log.Infof("Stopping tether via signal %s", s.String())
+				tthr.Stop()
+			case syscall.SIGTERM, syscall.SIGINT:
+				log.Infof("Stopping system in lieu of restart handling via signal %s", s.String())
+				// TODO: update this to adjust power off handling for reboot
+				// this should be in guest reboot rather than power cycle
+				tthr.Stop()
 			default:
 				log.Infof("%s signal not defined", s.String())
 			}

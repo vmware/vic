@@ -15,7 +15,9 @@
 package main
 
 import (
+	"errors"
 	"os"
+	"os/signal"
 	"runtime/debug"
 	"syscall"
 	"time"
@@ -79,6 +81,8 @@ func main() {
 	extraconfig.Decode(src, &config)
 	debugLevel = config.Diagnostics.DebugLevel
 
+	startSignalHandler()
+
 	logcfg := viclog.NewLoggingConfig()
 	if debugLevel > 0 {
 		logcfg.Level = log.DebugLevel
@@ -136,32 +140,71 @@ func main() {
 	log.Info("Clean exit from init")
 }
 
+// exitTether signals the current process, which triggers tether.Stop and the killing of its children.
+// NOTE: I don't like having this here and it really needs to be moved into an interface that
+// can be provided to toolbox for system callbacks. While this could be part of the Operations
+// interface I think I'd rather have a separate one specifically for the possible toolbox interactions.
+func exitTether() error {
+	defer trace.End(trace.Begin(""))
+
+	p, err := os.FindProcess(os.Getpid())
+	if err != nil {
+		return err
+	}
+
+	if err = p.Signal(syscall.SIGUSR2); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // exit cleanly shuts down the system
-func halt() {
+func halt() error {
 	log.Infof("Powering off the system")
+
+	err := exitTether()
+	if err != nil {
+		log.Warn(err)
+	}
+
 	if debugLevel > 0 {
 		log.Info("Squashing power off for debug init")
-		return
+		return errors.New("debug config suppresses shutdown")
 	}
 
 	syscall.Sync()
 	syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
+
+	return nil
 }
 
-func reboot() {
+func reboot() error {
 	log.Infof("Rebooting the system")
+
+	err := exitTether()
+	if err != nil {
+		log.Warn(err)
+	}
+
 	if debugLevel > 0 {
 		log.Info("Squashing reboot for debug init")
-		return
+		return errors.New("debug config suppresses reboot")
 	}
 
 	syscall.Sync()
 	syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
+
+	return nil
 }
 
 func configureToolbox(t *tether.Toolbox) *tether.Toolbox {
 	cmd := t.Service.Command
 	cmd.ProcessStartCommand = startCommand
+
+	t.Power.Halt.Handler = halt
+	t.Power.Reboot.Handler = reboot
+	t.Power.Suspend.Handler = exitTether
 
 	return t
 }
@@ -200,4 +243,29 @@ func defaultIP() string {
 	}
 
 	return toolbox.DefaultIP()
+}
+
+func startSignalHandler() {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGUSR1, syscall.SIGUSR2, syscall.SIGPWR, syscall.SIGTERM, syscall.SIGINT)
+
+	go func() {
+		for s := range sigs {
+			switch s {
+			case syscall.SIGHUP:
+				log.Infof("Reloading tether configuration")
+				tthr.Reload()
+			case syscall.SIGUSR1, syscall.SIGUSR2, syscall.SIGPWR:
+				log.Infof("Stopping tether via signal %s", s.String())
+				tthr.Stop()
+			case syscall.SIGTERM, syscall.SIGINT:
+				log.Infof("Stopping system in lieu of restart handling via signal %s", s.String())
+				// TODO: update this to adjust power off handling for reboot
+				// this should be in guest reboot rather than power cycle
+				tthr.Stop()
+			default:
+				log.Infof("%s signal not defined", s.String())
+			}
+		}
+	}()
 }

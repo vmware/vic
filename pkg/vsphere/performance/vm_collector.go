@@ -127,6 +127,14 @@ func NewVMCollector(session *session.Session) *VMCollector {
 	}
 }
 
+// Destroy exposes the Destroy method for the underlying performance manager
+func (vmc *VMCollector) Destroy(ctx context.Context) error {
+	// TODO: use retry/waitFor?
+	vmc.perfMgr.Destroy(ctx)
+
+	return nil
+}
+
 // Start will begin the collection polling process
 func (vmc *VMCollector) Start() {
 	// create timer with sampleInterval alignment

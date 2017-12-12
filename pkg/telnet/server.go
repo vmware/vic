@@ -99,7 +99,11 @@ func NewServer(opts ServerOpts) *Server {
 // Accept accepts a connection and returns the Telnet connection
 func (ts *Server) Accept() (*Conn, error) {
 	// #nosec: Errors unhandled.
-	conn, _ := ts.ln.Accept()
+	conn, err := ts.ln.Accept()
+	if err != nil {
+		return nil, err
+	}
+
 	log.Info("connection received")
 	opts := connOpts{
 		conn:       conn,
@@ -113,4 +117,15 @@ func (ts *Server) Accept() (*Conn, error) {
 	go tc.fsm.start()
 	go tc.startNegotiation()
 	return tc, nil
+}
+
+// Close call close on the underlying net.Listener and ensures
+// go routines are stopped
+func (ts *Server) Close() error {
+	err := ts.ln.Close()
+
+	// so far I have not identified any routines that need to be
+	// explicitly stopped after the underlying connection is closed.
+
+	return err
 }
