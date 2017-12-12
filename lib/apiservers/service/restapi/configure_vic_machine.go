@@ -44,7 +44,7 @@ import (
 
 var loggingOption = struct {
 	Directory string `long:"log-directory" description:"the directory where vic-machine-server log is stored" default:"/var/log/vic-machine-server" env:"LOG_DIRECTORY"`
-	Level     string `long:"log-level" description:"the minimum log level for vic-machine-server log messages" default:"info" env:"LOG_LEVEL" choice:"debug" choice:"info" choice:"warning" choice:"error"`
+	Level     string `long:"log-level" description:"the minimum log level for vic-machine-server log messages" default:"debug" env:"LOG_LEVEL" choice:"debug" choice:"info" choice:"warning" choice:"error"`
 }{}
 
 // logger is a workaround used to pass the logger instance from configureAPI to setupGlobalMiddleware
@@ -246,7 +246,7 @@ func configureLogger() *logrus.Logger {
 	level, err := logrus.ParseLevel(loggingOption.Level)
 	if err != nil {
 		log.Printf("Error parsing log level %s: %s", loggingOption.Level, err)
-		level = logrus.InfoLevel
+		level = logrus.DebugLevel
 	}
 	l.Level = level
 
