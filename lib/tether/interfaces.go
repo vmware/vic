@@ -60,6 +60,7 @@ type Operations interface {
 type Tether interface {
 	Start() error
 	Stop() error
+	Wait(ctx context.Context) error
 	Reload()
 	Register(name string, ext Extension)
 }
