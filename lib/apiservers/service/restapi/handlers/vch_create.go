@@ -78,14 +78,9 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 		thumbprint: params.Thumbprint,
 	}
 
-	d, err := buildData(op, b, principal)
+	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
 		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
-	}
-
-	validator, err := validateTarget(op, d)
-	if err != nil {
-		return operations.NewPostTargetTargetVchDefault(http.StatusBadRequest).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	c, err := buildCreate(op, d, finder(validator.Session.Finder), params.Vch)
@@ -114,14 +109,9 @@ func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacente
 		datacenter: &params.Datacenter,
 	}
 
-	d, err := buildData(op, b, principal)
+	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
-	}
-
-	validator, err := validateTarget(op, d)
-	if err != nil {
-		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(http.StatusBadRequest).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	c, err := buildCreate(op, d, validator.Session.Finder, params.Vch)
