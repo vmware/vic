@@ -295,6 +295,7 @@ Docker Inspect Mount Data after Reboot
 
 
 Kill NFS Server
+    Sleep  5 minutes
     ${rc}  ${runningContainer}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo 'Still here...\n' >> /mydata/test_nfs_kill.txt; sleep 2; done"
     Should Be Equal As Integers  ${rc}  0
 
