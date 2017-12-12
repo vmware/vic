@@ -69,6 +69,14 @@ func Init(ctx context.Context, session *session.Session) error {
 
 }
 
+func Finalize(ctx context.Context) error {
+	if Supervisor != nil && Supervisor.vms != nil {
+		Supervisor.vms.Destroy(ctx)
+	}
+
+	return nil
+}
+
 func newSupervisor(session *session.Session) *super {
 	defer trace.End(trace.Begin(""))
 	// create the vm metric collector

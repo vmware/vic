@@ -23,7 +23,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/pkg/telnet"
 	"github.com/vmware/vic/pkg/trace"
@@ -119,7 +118,6 @@ type Vspc struct {
 func NewVspc() *Vspc {
 	defer trace.End(trace.Begin("new vspc"))
 
-	var vchconfig config.VirtualContainerHostConfigSpec
 	vchIP, err := lookupVCHIP()
 	if err != nil {
 		log.Fatalf("cannot retrieve vch-endpoint ip: %v", err)
@@ -151,8 +149,8 @@ func NewVspc() *Vspc {
 
 	// load the vchconfig to get debug level
 	if src, err := extraconfig.GuestInfoSource(); err == nil {
-		extraconfig.Decode(src, &vchconfig)
-		if vchconfig.Diagnostics.DebugLevel > 2 {
+		extraconfig.Decode(src, &Config)
+		if Config.DebugLevel > 2 {
 			vspc.verbose = true
 		}
 	}
@@ -166,10 +164,18 @@ func (vspc *Vspc) Start() {
 
 	go func() {
 		for {
+
+			select {
+			case <-vspc.doneCh:
+				log.Infof("vSPC exiting...")
+				return
+			default:
+			}
+
 			_, err := vspc.Accept()
 			if err != nil {
 				log.Errorf("vSPC cannot accept connections: %v", err)
-				log.Errorf("vSPC exiting...")
+				log.Infof("vSPC exiting...")
 				return
 			}
 		}
@@ -181,7 +187,9 @@ func (vspc *Vspc) Start() {
 func (vspc *Vspc) Stop() {
 	defer trace.End(trace.Begin("stop vspc"))
 
-	vspc.doneCh <- true
+	vspc.Server.Close()
+
+	close(vspc.doneCh)
 }
 
 // cVM returns the VM struct from its uuid
