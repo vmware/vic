@@ -135,6 +135,10 @@ func (m *mockery) Stop() error {
 	return nil
 }
 
+func (m *mockery) Wait(ctx context.Context) error {
+	return nil
+}
+
 func (m *mockery) Register(name string, config tether.Extension) {
 }
 

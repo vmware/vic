@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/signal"
@@ -27,6 +28,7 @@ import (
 
 	"github.com/vmware/govmomi/toolbox"
 	"github.com/vmware/vic/lib/tether"
+	"github.com/vmware/vic/lib/tether/shared"
 	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/logmgr"
@@ -156,7 +158,7 @@ func exitTether() error {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 // exit cleanly shuts down the system
@@ -168,15 +170,19 @@ func halt() error {
 		log.Warn(err)
 	}
 
-	if debugLevel > 0 {
+	if debugLevel > 2 {
 		log.Info("Squashing power off for debug init")
 		return errors.New("debug config suppresses shutdown")
 	}
 
+	timeout, cancel := context.WithTimeout(context.Background(), shared.GuestShutdownTimeout)
+	err = tthr.Wait(timeout)
+	cancel()
+
 	syscall.Sync()
 	syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
 
-	return nil
+	return err
 }
 
 func reboot() error {
@@ -187,15 +193,19 @@ func reboot() error {
 		log.Warn(err)
 	}
 
-	if debugLevel > 0 {
+	if debugLevel > 2 {
 		log.Info("Squashing reboot for debug init")
 		return errors.New("debug config suppresses reboot")
 	}
 
+	timeout, cancel := context.WithTimeout(context.Background(), shared.GuestRebootTimeout)
+	err = tthr.Wait(timeout)
+	cancel()
+
 	syscall.Sync()
 	syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
 
-	return nil
+	return err
 }
 
 func configureToolbox(t *tether.Toolbox) *tether.Toolbox {

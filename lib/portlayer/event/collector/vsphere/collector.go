@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/vmware/vic/lib/portlayer/event/events"
 
@@ -36,6 +37,7 @@ type EventCollector struct {
 	vmwManager *vmwEvents.Manager
 	mos        monitoredCache
 	callback   func(events.Event)
+	cancel     context.CancelFunc
 
 	lastProcessedID int32
 }
@@ -101,10 +103,17 @@ func (ec *EventCollector) monitoredObjects() []types.ManagedObjectReference {
 	return refs
 }
 func (ec *EventCollector) Stop() {
-	_, err := ec.vmwManager.Destroy(context.Background())
-	if err != nil {
-		log.Warnf("%s failed to destroy the govmomi manager: %s", name, err.Error())
-	}
+	// End the event collection
+	ec.cancel()
+
+	// The EventManager cannot be destroyed like this as it isn't a ManagedEntity.
+	// TODO: we do need to ensure the EventHistoryCollector is destroyed, but that's a specific call
+	// and requires a govmomi change. At least it is lifecycle coupled with the session.
+
+	// _, err := ec.vmwManager.Destroy(context.Background())
+	// if err != nil {
+	// 	log.Warnf("%s failed to destroy the govmomi manager: %s", name, err.Error())
+	// }
 }
 
 // Start the event collector
@@ -120,7 +129,8 @@ func (ec *EventCollector) Start() error {
 	log.Debugf("%s starting collection for %d managed objects", name, len(refs))
 
 	// we don't want the event listener to timeout
-	ctx := context.Background()
+	controlContext, cancel := context.WithCancel(context.Background())
+	ec.cancel = cancel
 
 	// pageSize is the number of events on the last page of the eventCollector
 	// as new events are added the oldest are removed.  Originally this value
@@ -139,8 +149,8 @@ func (ec *EventCollector) Start() error {
 		//
 		// the manager will be closed with the session
 
-		for {
-			err := ec.vmwManager.Events(ctx, refs, pageSize, followStream, force, func(_ types.ManagedObjectReference, page []types.BaseEvent) error {
+		for controlContext.Err() == nil {
+			err := ec.vmwManager.Events(controlContext, refs, pageSize, followStream, force, func(_ types.ManagedObjectReference, page []types.BaseEvent) error {
 				evented(ec, page)
 				return nil
 			})
@@ -148,7 +158,13 @@ func (ec *EventCollector) Start() error {
 			if err != nil {
 				log.Debugf("Error configuring %s: %s", name, err.Error())
 			}
+
+			// this is a VERY basic throttle so that we don't DoS the remote when the client is NotAuthenticated.
+			// this should be removed/replaced once there is structured connection management in place to trigger re-authentication as required.
+			time.Sleep(2 * time.Second)
 		}
+
+		return nil
 	}(pageSize, followStream, force, refs, ec)
 
 	return nil

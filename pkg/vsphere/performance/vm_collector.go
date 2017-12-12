@@ -129,8 +129,10 @@ func NewVMCollector(session *session.Session) *VMCollector {
 
 // Destroy exposes the Destroy method for the underlying performance manager
 func (vmc *VMCollector) Destroy(ctx context.Context) error {
-	// TODO: use retry/waitFor?
-	vmc.perfMgr.Destroy(ctx)
+	vmc.Stop()
+
+	// Perform any additional cleanup needed.
+	// PerformanceManager isn't a ManagedEntity so nothing else known at this time
 
 	return nil
 }

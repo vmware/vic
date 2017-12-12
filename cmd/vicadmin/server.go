@@ -429,6 +429,8 @@ func (s *server) serve() error {
 func (s *server) stop() error {
 	defer trace.End(trace.Begin(""))
 
+	s.uss.Destroy()
+
 	if s.l != nil {
 		err := s.l.Close()
 		s.l = nil
