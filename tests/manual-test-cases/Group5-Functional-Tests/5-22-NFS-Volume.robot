@@ -111,6 +111,14 @@ Gather NFS Logs
     ${out}=  Run Keyword And Continue On Failure  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} dmesg
     Log  ${out}
 
+Check NFS Connection
+    ${tmpdir1}= Run And Return Output  "mktemp -d"
+    ${rc}=  Run And Return Rc mount ${NFS_IP}:/exports/storage1 $tmpdir1
+    Should Be Equal  ${rc}  0
+    ${tmpdir2}= Run And Return Output  "mktemp -d"
+    ${rc}=  Run And Return Rc mount ${NFS_READONLY_IP}:/exports/storage1 $tmpdir2
+    Should Be Equal  ${rc}  0
+
 NFS Volume Cleanup
     Gather NFS Logs
     Nimbus Cleanup  ${list}
@@ -295,6 +303,8 @@ Docker Inspect Mount Data after Reboot
 
 
 Kill NFS Server
+     Wait Until Keyword Succeeeds  10 min  Check NFS Connection
+
     ${rc}  ${runningContainer}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo 'Still here...\n' >> /mydata/test_nfs_kill.txt; sleep 2; done"
     Should Be Equal As Integers  ${rc}  0
 
