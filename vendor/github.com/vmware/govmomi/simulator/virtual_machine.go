@@ -57,9 +57,12 @@ func NewVirtualMachine(parent types.ManagedObjectReference, spec *types.VirtualM
 		return nil, &types.InvalidVmConfig{Property: "configSpec.files.vmPathName"}
 	}
 
+	rspec := types.DefaultResourceConfigSpec()
 	vm.Config = &types.VirtualMachineConfigInfo{
-		ExtraConfig: []types.BaseOptionValue{&types.OptionValue{Key: "govcsim", Value: "TRUE"}},
-		Tools:       &types.ToolsConfigInfo{},
+		ExtraConfig:      []types.BaseOptionValue{&types.OptionValue{Key: "govcsim", Value: "TRUE"}},
+		Tools:            &types.ToolsConfigInfo{},
+		MemoryAllocation: &rspec.MemoryAllocation,
+		CpuAllocation:    &rspec.CpuAllocation,
 	}
 	vm.Summary.Guest = &types.VirtualMachineGuestSummary{}
 	vm.Summary.Storage = &types.VirtualMachineStorageSummary{}
@@ -149,6 +152,10 @@ func (vm *VirtualMachine) apply(spec *types.VirtualMachineConfigSpec) {
 		vm.Summary.Config.NumCpu = vm.Config.Hardware.NumCPU
 	}
 
+	if spec.NumCoresPerSocket != 0 {
+		vm.Config.Hardware.NumCoresPerSocket = spec.NumCoresPerSocket
+	}
+
 	vm.Config.ExtraConfig = append(vm.Config.ExtraConfig, spec.ExtraConfig...)
 
 	vm.Config.Modified = time.Now()
@@ -156,8 +163,36 @@ func (vm *VirtualMachine) apply(spec *types.VirtualMachineConfigSpec) {
 	vm.Summary.Config.Uuid = vm.Config.Uuid
 }
 
+func validateGuestID(id string) types.BaseMethodFault {
+	for _, x := range GuestID {
+		if id == string(x) {
+			return nil
+		}
+	}
+
+	return &types.InvalidArgument{InvalidProperty: "configSpec.guestId"}
+}
+
 func (vm *VirtualMachine) configure(spec *types.VirtualMachineConfigSpec) types.BaseMethodFault {
 	vm.apply(spec)
+
+	if spec.MemoryAllocation != nil {
+		if err := updateResourceAllocation("memory", spec.MemoryAllocation, vm.Config.MemoryAllocation); err != nil {
+			return err
+		}
+	}
+
+	if spec.CpuAllocation != nil {
+		if err := updateResourceAllocation("cpu", spec.CpuAllocation, vm.Config.CpuAllocation); err != nil {
+			return err
+		}
+	}
+
+	if spec.GuestId != "" {
+		if err := validateGuestID(spec.GuestId); err != nil {
+			return err
+		}
+	}
 
 	return vm.configureDevices(spec)
 }
