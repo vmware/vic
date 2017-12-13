@@ -515,7 +515,6 @@ func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.
 // utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)
 func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 	container := c.Info()
-	defer trace.End(trace.Begin(container.ExecConfig.ID))
 
 	// ensure we have probably up-to-date info
 	for _, endpoint := range container.ExecConfig.Networks {

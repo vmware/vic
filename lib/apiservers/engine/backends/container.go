@@ -752,7 +752,8 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 // stop. Returns an error if the container cannot be found, or if
 // there is an underlying error at any stage of the restart.
 func (c *Container) ContainerRestart(name string, seconds *int) error {
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "ContainerRestart - %s", name)
+	defer trace.End(trace.Begin(name, op))
 
 	// Look up the container name in the metadata cache ot get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -768,7 +769,7 @@ func (c *Container) ContainerRestart(name string, seconds *int) error {
 	}
 
 	operation = func() error {
-		return c.containerStart(name, nil, true)
+		return c.containerStart(op, name, nil, true)
 	}
 	if err := retry.Do(operation, IsConflictError); err != nil {
 		return InternalServerError(fmt.Sprintf("Start failed with: %s", err))
@@ -902,19 +903,21 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 
 // ContainerStart starts a container.
 func (c *Container) ContainerStart(name string, hostConfig *containertypes.HostConfig, checkpoint string, checkpointDir string) error {
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "ContainerStart - %s", name)
+	defer trace.End(trace.Begin(name, op))
 
 	operation := func() error {
-		return c.containerStart(name, hostConfig, true)
+		return c.containerStart(op, name, hostConfig, true)
 	}
 	if err := retry.Do(operation, IsConflictError); err != nil {
+		op.Debugf("Container start failed due to error - %s", err.Error())
 		return err
 	}
 
 	return nil
 }
 
-func (c *Container) containerStart(name string, hostConfig *containertypes.HostConfig, bind bool) error {
+func (c *Container) containerStart(op trace.Operation, name string, hostConfig *containertypes.HostConfig, bind bool) error {
 	var err error
 
 	// Get an API client to the portlayer
@@ -925,7 +928,12 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 	if vc == nil {
 		return NotFoundError(name)
 	}
+	if !vc.TryLock(APITimeout) {
+		return ConcurrentAPIError(name, "ContainerStart")
+	}
+	defer vc.Unlock()
 	id := vc.ContainerID
+	op.Debugf("Obtained container lock for %s", id)
 
 	// handle legacy hostConfig
 	if hostConfig != nil {
@@ -948,6 +956,8 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 	var endpoints []*models.EndpointConfig
 	// bind network
 	if bind {
+		op.Debugf("Binding network to container %s", id)
+
 		var bindRes *scopes.BindContainerOK
 		bindRes, err = client.Scopes.BindContainer(scopes.NewBindContainerParamsWithContext(ctx).WithHandle(handle))
 		if err != nil {
@@ -968,6 +978,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 		// unbind in case we fail later
 		defer func() {
 			if err != nil {
+				op.Debugf("Unbinding %s due to error - %s", id, err.Error())
 				client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle))
 			}
 		}()
@@ -981,6 +992,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 
 	// change the state of the container
 	// TODO: We need a resolved ID from the name
+	op.Debugf("Setting container %s state to running", id)
 	var stateChangeRes *containers.StateChangeOK
 	stateChangeRes, err = client.Containers.StateChange(containers.NewStateChangeParamsWithContext(ctx).WithHandle(handle).WithState("RUNNING"))
 	if err != nil {
@@ -1007,6 +1019,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 
 			defer func() {
 				if err != nil {
+					op.Debugf("Unbinding ports for %s due to error - %s", id, err.Error())
 					UnmapPorts(id, hostConfig)
 				}
 			}()
@@ -1014,6 +1027,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 	}
 
 	// commit the handle; this will reconfigure and start the vm
+	op.Debugf("Commit container %s", id)
 	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
 	if err != nil {
 		switch err := err.(type) {
