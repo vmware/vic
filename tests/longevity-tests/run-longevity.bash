@@ -74,7 +74,7 @@ popd
 
 
 echo "Creating container..."
-testsContainer=$(docker create -it\
+testsContainer=$(docker create --rm -it\
                         -w /go/src/github.com/vmware/vic/ \
                         -v "$odir":/tmp/ -e GOVC_URL="$ip" \
                         tests-"$target" \
