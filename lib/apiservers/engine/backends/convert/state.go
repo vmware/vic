@@ -23,14 +23,11 @@ import (
 	"github.com/docker/go-units"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
-	"github.com/vmware/vic/pkg/trace"
 )
 
 // State will create and return a docker ContainerState object
 // from the passed vic ContainerInfo object
 func State(info *models.ContainerInfo) *types.ContainerState {
-	defer trace.End(trace.Begin(""))
-
 	// ensure we have the data we need
 	if info == nil || info.ProcessConfig == nil || info.ContainerConfig == nil {
 		return nil

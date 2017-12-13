@@ -57,6 +57,7 @@ const (
 	// RetryTimeSeconds defines how many seconds to wait between retries
 	RetryTimeSeconds        = 2
 	defaultSessionKeepAlive = 20 * time.Second
+	APITimeout              = constants.PropertyCollectorTimeout + 3*time.Second
 )
 
 var (

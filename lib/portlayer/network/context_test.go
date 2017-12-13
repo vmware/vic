@@ -717,6 +717,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
+	op := trace.NewOperation(context.Background(), "TestContextBindUnbindContainer")
 
 	scopeData := &ScopeData{
 		ScopeType: constants.BridgeScopeType,
@@ -789,7 +790,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 	}
 
 	for i, te := range tests {
-		eps, err := ctx.BindContainer(te.h)
+		eps, err := ctx.BindContainer(op, te.h)
 		if te.err != nil {
 			// expect an error
 			if err == nil || eps != nil {
@@ -928,6 +929,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 
 func TestContextRemoveContainer(t *testing.T) {
 
+	op := trace.NewOperation(context.Background(), "TestContextRemoveContainer")
 	hFoo := newContainer("foo")
 
 	ctx, err := NewContext(testConfig(), nil)
@@ -948,7 +950,7 @@ func TestContextRemoveContainer(t *testing.T) {
 		Scope: scope.Name(),
 	}
 	ctx.AddContainer(hFoo, options)
-	ctx.BindContainer(hFoo)
+	ctx.BindContainer(op, hFoo)
 
 	// container that is added to multiple bridge scopes
 	hBar := newContainer("bar")
@@ -1046,6 +1048,7 @@ func TestDeleteScope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
+	op := trace.NewOperation(context.Background(), "TestDeleteScope")
 
 	scopeData := &ScopeData{
 		ScopeType: constants.BridgeScopeType,
@@ -1074,7 +1077,7 @@ func TestDeleteScope(t *testing.T) {
 	h = newContainer("container2")
 	options.Scope = bar.Name()
 	ctx.AddContainer(h, options)
-	ctx.BindContainer(h)
+	ctx.BindContainer(op, h)
 
 	scopeData = &ScopeData{
 		ScopeType: constants.BridgeScopeType,
@@ -1139,6 +1142,7 @@ func TestAliases(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, ctx)
 
+	op := trace.NewOperation(context.Background(), "TestAliases")
 	scope := ctx.DefaultScope()
 
 	var tests = []struct {
@@ -1169,7 +1173,7 @@ func TestAliases(t *testing.T) {
 		assert.NoError(t, err)
 		assert.EqualValues(t, opts.Aliases, c.ExecConfig.Networks[scope.Name()].Network.Aliases)
 
-		eps, err := ctx.BindContainer(c)
+		eps, err := ctx.BindContainer(op, c)
 		if te.err != nil {
 			assert.Error(t, err)
 			assert.Empty(t, eps)
@@ -1226,7 +1230,6 @@ func TestAliases(t *testing.T) {
 	t.Logf("containers: %#v", ctx.containers)
 
 	c := containers["c2"]
-	op := trace.NewOperation(context.Background(), "unbind")
 	_, err = ctx.UnbindContainer(op, c)
 	assert.NoError(t, err)
 	// verify aliases are gone
