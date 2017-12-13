@@ -178,6 +178,7 @@ func (d *Dispatcher) deleteFilesIteratively(m *object.DatastoreFileManager, ds *
 			}
 		}
 	}
+
 	return d.deleteVMFSFiles(m, ds, dsPath)
 }
 
