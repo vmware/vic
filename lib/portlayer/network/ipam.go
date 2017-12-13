@@ -30,6 +30,8 @@ import (
 	"fmt"
 	"net"
 
+	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/pkg/ip"
 )
 
@@ -281,13 +283,25 @@ func (s *AddressSpace) ReserveIP4Range(firstIP net.IP, lastIP net.IP) (*AddressS
 		}
 
 		// found range
+		log.Infof("Reserving IP range [%s, %s]", firstIP.String(), lastIP.String())
 		s.reserveSubRange(firstIP, lastIP, i)
 		subSpace := NewAddressSpaceFromRange(firstIP, lastIP)
 		subSpace.Parent = s
 		return subSpace, nil
 	}
 
-	return nil, fmt.Errorf("could not find IP range")
+	var err error
+	if compareIP4(firstIP, s.Pool.FirstIP) > 0 && compareIP4(lastIP, s.Pool.LastIP) < 0 {
+		// IP range is within the pool but not found available
+		err = fmt.Errorf("Cannot reserve IP range %s - %s.  Already in use", firstIP.String(), lastIP.String())
+	} else {
+		err = fmt.Errorf("Cannot reserve IP range %s - %s.  Not within pool's range %s - %s",
+			firstIP.String(), lastIP.String(), s.Pool.FirstIP, s.Pool.LastIP)
+	}
+
+	log.Errorf(err.Error())
+
+	return nil, err
 }
 
 func insertAddressRanges(r []*ip.Range, index int, ranges ...*ip.Range) []*ip.Range {
@@ -368,6 +382,8 @@ func (s *AddressSpace) ReleaseIP4Range(space *AddressSpace) error {
 	s.availableRanges = insertAddressRanges(s.availableRanges, i, space.availableRanges...)
 	// #nosec: Errors unhandled.
 	s.Defragment()
+
+	log.Infof("Released IP range [%s, %s]", firstIP, lastIP)
 	return nil
 }
 
