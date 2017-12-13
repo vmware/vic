@@ -100,6 +100,7 @@ pipeline:
       SYSLOG_SERVER: ${SYSLOG_SERVER}
       SYSLOG_USER: ${SYSLOG_USER}
       SYSLOG_PASSWD: ${SYSLOG_PASSWD}
+      MULTI_VCH: 1
     commands:
       - . ./tests/ci-env.sh # set CI env variable values
       - make mark
