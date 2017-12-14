@@ -48,6 +48,16 @@ Get Path Under Target
     Set Test Variable    ${OUTPUT}
     Set Test Variable    ${STATUS}
 
+Get Path Under Target Using Session
+    [Arguments]    ${path}    @{query}
+    ${fullQuery}=    Catenate    SEPARATOR=&    thumbprint=%{TEST_THUMBPRINT}    @{query}
+    ${ticket}=    Run    govc vm.console %{VCH-NAME} | awk -F'[:@]' '{print $3}'
+    ${RC}  ${OUTPUT}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X GET "http://127.0.0.1:${HTTP_PORT}/container/target/%{TEST_URL}/${path}?${fullQuery}" -H "Accept: application/json" -H "X-VMWARE-TICKET: ${ticket}"
+    ${OUTPUT}    ${STATUS}=    Split String From Right    ${OUTPUT}    \n    1
+    Set Test Variable    ${RC}
+    Set Test Variable    ${OUTPUT}
+    Set Test Variable    ${STATUS}
+
 Post Path Under Target
     [Arguments]    ${path}    ${data}    @{query}
     ${fullQuery}=    Catenate    SEPARATOR=&    thumbprint=%{TEST_THUMBPRINT}    @{query}

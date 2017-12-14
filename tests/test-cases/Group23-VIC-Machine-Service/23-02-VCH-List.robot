@@ -52,6 +52,14 @@ Verify VCH List
     Property Should Not Be Empty    .vchs[] | select(.name=="%{VCH-NAME}").version
 
 
+Get VCH List Using Session
+    Get Path Under Target Using Session    vch
+
+Get VCH List Within Datacenter Using Session
+    ${dcID}=    Get Datacenter ID
+    Get Path Under Target Using Session    datacenter/${dcID}/vch
+
+
 *** Test Cases ***
 Get VCH List
     Get VCH List
@@ -60,9 +68,22 @@ Get VCH List
     Verify Status Ok
     Verify VCH List
 
+Get VCH List Using Session
+    Get VCH List Using Session
+
+    Verify Return Code
+    Verify Status Ok
+    Verify VCH List
 
 Get VCH List Within Datacenter
     Get VCH List Within Datacenter
+
+    Verify Return Code
+    Verify Status Ok
+    Verify VCH List
+
+Get VCH List Within Datacenter Using Session
+    Get VCH List Within Datacenter Using Session
 
     Verify Return Code
     Verify Status Ok
