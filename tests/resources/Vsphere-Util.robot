@@ -250,7 +250,8 @@ Check VM Guestinfo
     [Return]  ${output}
 
 Get Session List
-    ${sessions}=  Run  govc session.ls
+    ${rc}  ${sessions}=  Run And Return Rc And Output  govc session.ls
+    Run Keyword If  ${rc} != 0  Fatal Error  The host appears to be in an unrecoverable state
     [Return]  ${sessions}
 
 Get Hostd ID
