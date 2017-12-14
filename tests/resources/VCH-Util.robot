@@ -398,6 +398,10 @@ Scrape Logs For the Password
     Remove File  /tmp/cookies-%{VCH-NAME}
 
 Cleanup VIC Appliance On Test Server
+    ${sessions}=  Run Keyword And Ignore Error  Get Session List
+    Log  ${sessions}
+    ${memory}=  Run Keyword And Ignore Error  Get HostD Memory Consumption
+    Log  ${memory}
     Log To Console  Gathering logs from the test server %{VCH-NAME}
     Gather Logs From Test Server
     Wait Until Keyword Succeeds  3x  5 seconds  Remove All Containers
