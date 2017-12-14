@@ -255,7 +255,7 @@ Get Session List
     [Return]  ${sessions}
 
 Get Hostd ID
-    ${out}=  Run  sshpass -p $TEST_PASSWORD ssh $TEST_USERNAME@$TEST_URL "memstats -r group-stats | grep 'hostd '"
+    ${out}=  Run  sshpass -p %{TEST_PASSWORD} ssh %{TEST_USERNAME}@%{TEST_URL} "memstats -r group-stats | grep 'hostd '"
     ${out}=  Strip String  ${out}
     ${id}=  Fetch From Left  ${out}  ${SPACE}
     [Return]  ${id}
@@ -263,6 +263,6 @@ Get Hostd ID
 Get HostD Memory Consumption
     ${id}=  Get Hostd ID
     Log to console  ${id}
-    ${out}=  Run  sshpass -p $TEST_PASSWORD ssh $TEST_USERNAME@$TEST_URL "memstats -r group-stats -v -g ${id} -s name:min:max:consumed -l 2"
+    ${out}=  Run  sshpass -p %{TEST_PASSWORD} ssh %{TEST_USERNAME}@%{TEST_URL} "memstats -r group-stats -v -g ${id} -s name:min:max:consumed -l 2"
     Log to console  ${out}
     [Return]  ${out}
