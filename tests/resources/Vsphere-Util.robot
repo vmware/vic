@@ -248,3 +248,21 @@ Check VM Guestinfo
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e ${vm} | grep ${str}
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${output}
+
+Get Session List
+    ${rc}  ${sessions}=  Run And Return Rc And Output  govc session.ls
+    Run Keyword If  ${rc} != 0  Fatal Error  The host appears to be in an unrecoverable state
+    [Return]  ${sessions}
+
+Get Hostd ID
+    [Tags]  secret
+    ${out}=  Run  sshpass -p $TEST_PASSWORD ssh $TEST_USERNAME@$TEST_URL "memstats -r group-stats | grep 'hostd '"
+    ${out}=  Strip String  ${out}
+    ${id}=  Fetch From Left  ${out}  ${SPACE}
+    [Return]  ${id}
+
+Get HostD Memory Consumption
+    [Tags]  secret
+    ${id}=  Get Hostd ID
+    ${out}=  Run  sshpass -p $TEST_PASSWORD ssh $TEST_USERNAME@$TEST_URL "memstats -r group-stats -v -g ${id} -s name:min:max:consumed -l 2"
+    [Return]  ${out}
