@@ -766,12 +766,13 @@ func (c *Container) OnEvent(e events.Event) {
 			return
 		}
 
+		log.Debugf("Container (%s) publishing event %s from event %s", c, newState, e.String())
 		// regardless of state update success or failure publish the container event
 		publishContainerEvent(op, c.ExecConfig.ID, e.Created(), e.String())
 		return
 	}
 
-	op.Debugf("Container(%s) state(%s) didn't change", c, newState)
+	op.Debugf("Container(%s) state(%s) didn't change after event %s", c, newState, e.String())
 
 	switch e.String() {
 	case events.ContainerRelocated:
