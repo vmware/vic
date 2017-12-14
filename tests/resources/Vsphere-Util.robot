@@ -264,5 +264,7 @@ Get Hostd ID
 Get HostD Memory Consumption
     [Tags]  secret
     ${id}=  Get Hostd ID
+    Log to console  ${id}
     ${out}=  Run  sshpass -p $TEST_PASSWORD ssh $TEST_USERNAME@$TEST_URL "memstats -r group-stats -v -g ${id} -s name:min:max:consumed -l 2"
+    Log to console  ${out}
     [Return]  ${out}
