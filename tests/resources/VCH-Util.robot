@@ -252,7 +252,8 @@ Use Target VIC Appliance
 Conditional Install VIC Appliance To Test Server
     [Arguments]  ${certs}=${true}  ${init}=${False}
     ${target-vch}=  Get Environment Variable  TARGET_VCH  ${EMPTY}
-    ${multi-vch}=  Get Environment Variable  MULTI_VCH  ${EMPTY}
+    ${multi-vch}=  1
+    #${multi-vch}=  Get Environment Variable  MULTI_VCH  ${EMPTY}
 
     # If TARGET_VCH was defined, use that VCH for tests and exit
     Run Keyword If  '${target-vch}' != '${EMPTY}'  Use Target VIC Appliance  target-vch=${target-vch}
