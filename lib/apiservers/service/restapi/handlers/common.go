@@ -40,71 +40,88 @@ type buildDataParams struct {
 	thumbprint      *string
 	datacenter      *string
 	computeResource *string
+	vchID           *string
 }
 
-func buildData(op trace.Operation, params buildDataParams, principal interface{}) (*data.Data, error) {
-	d := data.Data{
+func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, principal interface{}) (*data.Data, *validate.Validator, error) {
+	data := &data.Data{
 		Target: &common.Target{
 			URL: &url.URL{Host: params.target},
 		},
 	}
 
 	if c, ok := principal.(Credentials); ok {
-		d.Target.User = c.user
-		d.Target.Password = &c.pass
+		data.Target.User = c.user
+		data.Target.Password = &c.pass
 	} else {
-		d.Target.CloneTicket = principal.(Session).ticket
+		data.Target.CloneTicket = principal.(Session).ticket
+	}
+
+	if err := data.HasCredentials(op); err != nil {
+		return data, nil, util.NewError(http.StatusUnauthorized, "Invalid Credentials: %s", err)
 	}
 
 	if params.thumbprint != nil {
-		d.Thumbprint = *params.thumbprint
+		data.Thumbprint = *params.thumbprint
 	}
 
+	if params.computeResource != nil {
+		data.ComputeResourcePath = *params.computeResource
+	}
+
+	if params.vchID != nil {
+		data.ID = *params.vchID
+	}
+
+	// TODO (#6032): clean this up
+	var validator *validate.Validator
 	if params.datacenter != nil {
-		validator, err := validateTarget(op, &d)
+		v, err := validate.NewValidator(op, data)
 		if err != nil {
-			return nil, util.WrapError(http.StatusInternalServerError, err)
+			return data, nil, util.NewError(http.StatusBadRequest, "Validation Error: %s", err)
 		}
 
 		datacenterManagedObjectReference := types.ManagedObjectReference{Type: "Datacenter", Value: *params.datacenter}
 
-		datacenterObject, err := validator.Session.Finder.ObjectReference(op, datacenterManagedObjectReference)
+		datacenterObject, err := v.Session.Finder.ObjectReference(op, datacenterManagedObjectReference)
 		if err != nil {
-			return nil, util.WrapError(http.StatusNotFound, err)
+			return nil, nil, util.WrapError(http.StatusNotFound, err)
 		}
 
-		d.Target.URL.Path = datacenterObject.(*object.Datacenter).InventoryPath
+		dc, ok := datacenterObject.(*object.Datacenter)
+		if !ok {
+			return data, nil, util.NewError(http.StatusBadRequest, "Validation Error: datacenter parameter is not a datacenter moref")
+		}
+
+		data.Target.URL.Path = dc.InventoryPath
+
+		// Do what NewValidator would have done if a Datacenter had been set
+		v.DatacenterPath = dc.Name()
+		v.Session.DatastorePath = v.DatacenterPath
+		v.Session.Finder.SetDatacenter(dc)
+
+		validator = v
+	} else {
+		v, err := validate.NewValidator(op, data)
+		if err != nil {
+			return data, nil, util.NewError(http.StatusBadRequest, "Validation Error: %s", err)
+		}
+
+		// If dc is not set, and multiple datacenters are available, operate on all datacenters.
+		v.AllowEmptyDC()
+
+		validator = v
 	}
 
-	if params.computeResource != nil {
-		d.ComputeResourcePath = *params.computeResource
+	if _, err := validator.ValidateTarget(op, data); err != nil {
+		return data, nil, util.NewError(http.StatusBadRequest, "Target validation failed: %s", err)
 	}
 
-	return &d, nil
-}
-
-func validateTarget(op trace.Operation, d *data.Data) (*validate.Validator, error) {
-	if err := d.HasCredentials(op); err != nil {
-		return nil, fmt.Errorf("Invalid Credentials: %s", err)
+	if _, err := validator.ValidateCompute(op, data, false); err != nil {
+		return data, nil, util.NewError(http.StatusBadRequest, "Compute resource validation failed: %s", err)
 	}
 
-	validator, err := validate.NewValidator(op, d)
-	if err != nil {
-		return nil, fmt.Errorf("Validation Error: %s", err)
-	}
-
-	// If dc is not set, and multiple datacenters are available, operate on all datacenters.
-	validator.AllowEmptyDC()
-
-	if _, err = validator.ValidateTarget(op, d); err != nil {
-		return nil, fmt.Errorf("Target validation failed: %s", err)
-	}
-
-	if _, err = validator.ValidateCompute(op, d, false); err != nil {
-		return nil, fmt.Errorf("Compute resource validation failed: %s", err)
-	}
-
-	return validator, nil
+	return data, validator, nil
 }
 
 // Copied from list.go, and appears to be present other places. TODO (#6032): deduplicate
@@ -141,13 +158,7 @@ func upgradeStatusMessage(op trace.Operation, vch *vm.VirtualMachine, installerV
 	return "Invalid upgrade status"
 }
 
-func getVCHConfig(op trace.Operation, d *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
-	// TODO (#6032): abstract some of this boilerplate into helpers
-	validator, err := validateTarget(op, d)
-	if err != nil {
-		return nil, util.WrapError(http.StatusBadRequest, err)
-	}
-
+func getVCHConfig(op trace.Operation, d *data.Data, validator *validate.Validator) (*config.VirtualContainerHostConfigSpec, error) {
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {

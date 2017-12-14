@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -39,17 +40,16 @@ func (h *VCHCertGet) Handle(params operations.GetTargetTargetVchVchIDCertificate
 	b := buildDataParams{
 		target:     params.Target,
 		thumbprint: params.Thumbprint,
+		vchID:      &params.VchID,
 	}
 
-	d, err := buildData(op, b, principal)
+	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDCertificateDefault(
 			util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	d.ID = params.VchID
-
-	c, err := getVCHCert(op, d)
+	c, err := getVCHCert(op, d, validator)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDCertificateDefault(
 			util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
@@ -66,17 +66,16 @@ func (h *VCHDatacenterCertGet) Handle(params operations.GetTargetTargetDatacente
 		target:     params.Target,
 		thumbprint: params.Thumbprint,
 		datacenter: &params.Datacenter,
+		vchID:      &params.VchID,
 	}
 
-	d, err := buildData(op, b, principal)
+	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDCertificateDefault(
 			util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	d.ID = params.VchID
-
-	c, err := getVCHCert(op, d)
+	c, err := getVCHCert(op, d, validator)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDCertificateDefault(
 			util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
@@ -86,8 +85,8 @@ func (h *VCHDatacenterCertGet) Handle(params operations.GetTargetTargetDatacente
 	return NewGetTargetTargetDatacenterDatacenterVchVchIDCertificateOK(cert.Pem)
 }
 
-func getVCHCert(op trace.Operation, d *data.Data) (*config.RawCertificate, error) {
-	vchConfig, err := getVCHConfig(op, d)
+func getVCHCert(op trace.Operation, d *data.Data, validator *validate.Validator) (*config.RawCertificate, error) {
+	vchConfig, err := getVCHConfig(op, d, validator)
 	if err != nil {
 		return nil, err
 	}
