@@ -177,6 +177,7 @@ func engageContext(ctx context.Context, netctx *Context, em event.EventManager) 
 		}
 	}()
 
+	op := trace.NewOperation(context.Background(), "engageContext")
 	s.Suspend(true)
 	defer s.Resume()
 	for _, c := range exec.Containers.Containers(nil) {
@@ -219,7 +220,7 @@ func engageContext(ctx context.Context, netctx *Context, em event.EventManager) 
 		}
 
 		if c.CurrentState() == exec.StateRunning {
-			if _, err = netctx.bindContainer(h); err != nil {
+			if _, err = netctx.bindContainer(op, h); err != nil {
 				return err
 			}
 		}
