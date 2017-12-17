@@ -38,6 +38,7 @@ type EventCollector struct {
 	mos        monitoredCache
 	callback   func(events.Event)
 	cancel     context.CancelFunc
+	stopped    chan bool
 
 	lastProcessedID int32
 }
@@ -54,6 +55,7 @@ func NewCollector(client *vim25.Client, objects ...string) *EventCollector {
 		mos:        monitoredCache{mos: make(map[string]types.ManagedObjectReference)},
 		// initialize to an index that will not be present in a page
 		lastProcessedID: -1,
+		stopped:         make(chan bool),
 	}
 
 	for i := range objects {
@@ -105,6 +107,8 @@ func (ec *EventCollector) monitoredObjects() []types.ManagedObjectReference {
 func (ec *EventCollector) Stop() {
 	// End the event collection
 	ec.cancel()
+	// allow time for the event collector to be destroyed
+	<-ec.stopped
 
 	// The EventManager cannot be destroyed like this as it isn't a ManagedEntity.
 	// TODO: we do need to ensure the EventHistoryCollector is destroyed, but that's a specific call
@@ -148,6 +152,7 @@ func (ec *EventCollector) Start() error {
 		// will be replaced
 		//
 		// the manager will be closed with the session
+		defer close(ec.stopped)
 
 		for controlContext.Err() == nil {
 			err := ec.vmwManager.Events(controlContext, refs, pageSize, followStream, force, func(_ types.ManagedObjectReference, page []types.BaseEvent) error {
