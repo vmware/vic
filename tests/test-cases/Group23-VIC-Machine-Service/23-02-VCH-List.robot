@@ -69,11 +69,13 @@ Get VCH List
     Verify VCH List
 
 Get VCH List Using Session
-    Get VCH List Using Session
+    # conditionally running based on if 6976 is closed
+    ${status}=  Get State Of Github Issue  6976
+    Run Keyword If  '${status}' == 'closed'  Get VCH List Using Session
 
-    Verify Return Code
-    Verify Status Ok
-    Verify VCH List
+    Run Keyword If  '${status}' == 'closed'  Verify Return Code
+    Run Keyword If  '${status}' == 'closed'  Verify Status Ok
+    Run Keyword If  '${status}' == 'closed'  Verify VCH List
 
 Get VCH List Within Datacenter
     Get VCH List Within Datacenter
@@ -83,11 +85,13 @@ Get VCH List Within Datacenter
     Verify VCH List
 
 Get VCH List Within Datacenter Using Session
-    Get VCH List Within Datacenter Using Session
+    # conditionally running based on if 6976 is closed
+    ${status}=  Get State Of Github Issue  6976
+    Run Keyword If  '${status}' == 'closed'  Get VCH List Within Datacenter Using Session
 
-    Verify Return Code
-    Verify Status Ok
-    Verify VCH List
+    Run Keyword If  '${status}' == 'closed'  Verify Return Code
+    Run Keyword If  '${status}' == 'closed'  Verify Status Ok
+    Run Keyword If  '${status}' == 'closed'  Verify VCH List
 
 # TODO: Add test for compute resource (once relevant code is updated to use ID instead of name)
 # TODO: Add test for compute resource within datacenter (once relevant code is updated to use ID instead of name)
