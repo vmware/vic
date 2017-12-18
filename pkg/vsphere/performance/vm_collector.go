@@ -165,8 +165,14 @@ func (vmc *VMCollector) Start() {
 
 // Stop will stop the collection polling process
 func (vmc *VMCollector) Stop() {
-	vmc.timer.Stop()
-	close(vmc.stopper)
+	if vmc.timer != nil {
+		vmc.timer.Stop()
+	}
+
+	if vmc.stopper != nil {
+		close(vmc.stopper)
+		vmc.stopper = nil
+	}
 }
 
 // collect will query vSphere for VM metrics and return to the subscribers

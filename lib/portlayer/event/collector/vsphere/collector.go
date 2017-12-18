@@ -161,13 +161,17 @@ func (ec *EventCollector) Start() error {
 			})
 			// TODO: this will disappear in the ether
 			if err != nil {
-				log.Debugf("Error configuring %s: %s", name, err.Error())
+				log.Debugf("Interruption collecting events for %s: %s", name, err.Error())
 			}
 
 			// this is a VERY basic throttle so that we don't DoS the remote when the client is NotAuthenticated.
 			// this should be removed/replaced once there is structured connection management in place to trigger re-authentication as required.
-			time.Sleep(2 * time.Second)
+			if controlContext.Err() == nil {
+				time.Sleep(2 * time.Second)
+			}
 		}
+
+		log.Infof("Stopped collecting events for %s", name)
 
 		return nil
 	}(pageSize, followStream, force, refs, ec)

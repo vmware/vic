@@ -25,8 +25,8 @@ const (
 	SkipRecurseQueryName = "skip-recurse"
 	SkipDataQueryName    = "skip-data"
 
-	GuestShutdownTimeout = 20 * time.Second
-	GuestRebootTimeout   = 20 * time.Second
+	GuestShutdownTimeout = 60 * time.Second
+	GuestRebootTimeout   = 60 * time.Second
 
-	WaitForSessionExitTimeout = 20 * time.Second
+	WaitForSessionExitTimeout = 60 * time.Second
 )

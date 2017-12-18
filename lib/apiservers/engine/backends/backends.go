@@ -153,9 +153,21 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 func Finalize(ctx context.Context) error {
 	log.Info("Shutting down docker API server backend")
 
-	if vchConfig != nil && vchConfig.sess != nil {
-		vchConfig.sess.Logout(ctx)
+	vchConfig.Lock()
+	defer vchConfig.Unlock()
+
+	if vchConfig == nil {
+		log.Debug("vchConfig is nil so not logging out")
+		return nil
 	}
+
+	if vchConfig.sess == nil {
+		log.Debug("session is nil so not logging out")
+		return nil
+	}
+
+	vchConfig.sess.Logout(ctx)
+	log.Info("Docker personality vSphere session logged out")
 
 	return nil
 }

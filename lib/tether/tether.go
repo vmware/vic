@@ -635,10 +635,12 @@ func (t *tether) Stop() error {
 	//   extensions
 	// probably should wait for the long overdue tether rewrite
 	// instead we're going to rely on the outstanding pid count via tether.Wait
-	timeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	timeout, cancel := context.WithTimeout(context.Background(), shared.WaitForSessionExitTimeout)
 	err := t.Wait(timeout)
 	cancel()
 
+	// calling t.cancel will cause the childReaper to exit so at that point no further
+	// updates to process state will be made
 	t.cancel()
 
 	return err
