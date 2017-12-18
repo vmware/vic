@@ -44,6 +44,8 @@ func (h *VCHCertGet) Handle(params operations.GetTargetTargetVchVchIDCertificate
 	}
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
+	defer validator.Session.Logout(op)
+
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDCertificateDefault(
 			util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
@@ -70,6 +72,8 @@ func (h *VCHDatacenterCertGet) Handle(params operations.GetTargetTargetDatacente
 	}
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
+	defer validator.Session.Logout(op)
+
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDCertificateDefault(
 			util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
