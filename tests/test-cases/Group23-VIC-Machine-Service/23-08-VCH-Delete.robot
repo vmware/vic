@@ -201,12 +201,26 @@ Verify Volume Exists
     ${ds}=  Run                       govc datastore.ls ${volume}/volumes/${name}
     Should Not Contain                ${ds}    was not found
 
+
+Verify Volume Exists Docker
+    [Arguments]    ${volume}    ${name}
+
+    ${ds}=  Run                       govc datastore.ls ${volume}/volumes/${name}
+    Should Not Contain                ${ds}    was not found
+
     Run Docker Command                volume ls -q -f name=${name}
     Verify Return Code
     Output Should Contain             ${name}
 
 
 Verify Volume Not Exists
+    [Arguments]    ${volume}    ${name}
+
+    ${ds}=  Run                       govc datastore.ls ${volume}/volumes/${name}
+    Should Contain                    ${ds}    was not found
+
+
+Verify Volume Not Exists Docker
     [Arguments]    ${volume}    ${name}
 
     ${ds}=  Run                       govc datastore.ls ${volume}/volumes/${name}
@@ -453,6 +467,10 @@ Delete VCH and delete powered on container
     Verify Container Not Exists       ${POWERED_ON_CONTAINER_NAME}
     Verify Container Not Exists       ${POWERED_OFF_CONTAINER_NAME}
 
+    # should this delete volume stores?
+    # if it should then we should check they're gone, if it shouldn't we should check they're not
+    # if not then we should clean up volume stores in teardown
+
     # No VCH to delete
     [Teardown]                        NONE
 
@@ -564,21 +582,25 @@ Delete VCH and powered off container and preserve volumes
 
     Verify VCH Exists                 vch/${id}
 
+    # volume should already exist even before use
+    Verify Container Exists           ${OFF_NV_DVS_CONTAINER_NAME}
+    Verify Volume Store Exists        %{VCH-NAME}-VOL
+    Verify Volume Exists Docker       %{VCH-NAME}-VOL                ${OFF_NV_DVS_VOLUME_NAME}
+
+    # confirm volume can be referenced
     Run Docker Command                create --name ${OFF_NV_DVS_CONTAINER_NAME} -v ${OFF_NV_DVS_VOLUME_NAME}:/volume ${busybox} /bin/top
     Verify Return Code
     Output Should Not Contain         Error
 
-    Verify Container Exists           ${OFF_NV_DVS_CONTAINER_NAME}
-    Verify Volume Store Exists        %{VCH-NAME}-VOL
-    Verify Volume Exists              %{VCH-NAME}-VOL                ${OFF_NV_DVS_VOLUME_NAME}
+    # volume should already exist even before use
+    Verify Container Exists           ${OFF_NV_NVS_CONTAINER_NAME}
+    Verify Volume Store Exists        ${VOLUME_STORE_PATH}
+    Verify Volume Exists Docker       ${VOLUME_STORE_PATH}           ${OFF_NV_NVS_VOLUME_NAME}
 
+    # confirm volume can be referenced
     Run Docker Command                create --name ${OFF_NV_NVS_CONTAINER_NAME} -v ${OFF_NV_NVS_VOLUME_NAME}:/volume ${busybox} /bin/top
     Verify Return Code
     Output Should Not Contain         Error
-
-    Verify Container Exists           ${OFF_NV_NVS_CONTAINER_NAME}
-    Verify Volume Store Exists        ${VOLUME_STORE_PATH}
-    Verify Volume Exists              ${VOLUME_STORE_PATH}           ${OFF_NV_NVS_VOLUME_NAME}
 
     [Teardown]                        Cleanup VIC Appliance On Test Server
 
@@ -611,13 +633,15 @@ Delete VCH and powered on container but preserve volume
 
     Verify VCH Exists                 vch/${id}
 
-    Run Docker Command                create --name ${ON_NV_DVS_CONTAINER_NAME} -v ${ON_NV_DVS_VOLUME_NAME}:/volume ${busybox} /bin/top
-    Verify Return Code
-    Output Should Not Contain         Error
-
+    # volume should already exist even before use
     Verify Container Exists           ${ON_NV_DVS_CONTAINER_NAME}
     Verify Volume Store Exists        %{VCH-NAME}-VOL
-    Verify Volume Exists              %{VCH-NAME}-VOL                ${ON_NV_DVS_VOLUME_NAME}
+    Verify Volume Exists Docker       %{VCH-NAME}-VOL                ${ON_NV_DVS_VOLUME_NAME}
+
+    # confirm volume can be referenced AND USED - confirms the disk is healthy
+    Run Docker Command                run --name ${ON_NV_DVS_CONTAINER_NAME} -v ${ON_NV_DVS_VOLUME_NAME}:/volume ${busybox} /bin/touch /volume/hello
+    Verify Return Code
+    Output Should Not Contain         Error
 
     [Teardown]                        Cleanup VIC Appliance On Test Server
 
