@@ -6,7 +6,7 @@ git fetch https://github.com/vmware/vic master
 git pull
 
 cp ~/secrets .
-tests/longevity-tests/run-longevity.bash 6.0
+tests/longevity-tests/run-longevity.bash $1
 id=`docker ps -lq`
 echo $id
 
