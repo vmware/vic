@@ -142,7 +142,13 @@ Delete VCH with non-cVM in same RP
 
 
 Delete VCH moved from its RP
+    # Don't perform unconditional setup as we skip the test on ESX
+    [Setup]     NONE
+
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESX due to unable to move into RP
+
+    Install VIC Appliance To Test Server
+
     ${rand}=  Generate Random String  15
     ${dummyvm}=  Set Variable  anothervm-${rand}
     Set Suite Variable  ${tempvm}  ${dummyvm}
@@ -191,6 +197,13 @@ Delete VCH moved from its RP
 
 
 Delete VCH moved to root RP and original RP deleted
+    # Don't perform unconditional setup as we skip the test on ESX
+    [Setup]     NONE
+
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESX due to unable to move into RP
+
+    Install VIC Appliance To Test Server
+
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESX due to unable to move into RP
     ${rand}=  Generate Random String  15
     ${dummyvm}=  Set Variable  anothervm-${rand}
