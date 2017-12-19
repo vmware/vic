@@ -292,6 +292,8 @@ Delete the correct VCH
     Verify VCH Not Exists             vch/${one}    ${old}
     Verify VCH Exists                 vch/${two}
 
+    [Teardown]                        Cleanup VIC Appliance On Test Server
+
 
 Delete invalid VCH
     ${id}=    Get VCH ID %{VCH-NAME}
