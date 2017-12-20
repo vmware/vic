@@ -18,11 +18,10 @@ import (
 	"fmt"
 	"regexp"
 
-	log "github.com/Sirupsen/logrus"
-
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 const (
@@ -46,13 +45,13 @@ const unsuppCharsDatastoreRegex = `%|&|\*|\$|#|@|!|\\|\?|"|<|>|;|'|\|`
 var reUnsupp = regexp.MustCompile(unsuppCharsRegex)
 var reUnsuppDatastore = regexp.MustCompile(unsuppCharsDatastoreRegex)
 
-func LogErrorIfAny(clic *cli.Context, err error) error {
+func LogErrorIfAny(op trace.Operation, clic *cli.Context, err error) error {
 	if err == nil {
 		return nil
 	}
 
-	log.Errorf("--------------------")
-	log.Errorf("%s %s failed: %s\n", clic.App.Name, clic.Command.Name, errors.ErrorStack(err))
+	op.Errorf("--------------------")
+	op.Errorf("%s %s failed: %s\n", clic.App.Name, clic.Command.Name, errors.ErrorStack(err))
 	return cli.NewExitError("", 1)
 }
 

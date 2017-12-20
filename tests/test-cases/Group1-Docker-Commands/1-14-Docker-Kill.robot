@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 1-14 - Docker Kill
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Conditional Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
@@ -24,6 +24,12 @@ Trap Signal Command
     # Container command runs an infinite loop, trapping and logging the given signal name
     [Arguments]  ${sig}
     [Return]  ${busybox} sh -c "trap 'echo KillSignal${sig}' ${sig}; echo READY; while true; do date && sleep 1; done"
+
+Nested Trap Signal Command
+    # Container command runs an infinite loop, trapping and logging the given signal name in a nested shell
+    # This is to test process group behaviours - same command as above, but nested in another shell
+    [Arguments]  ${sig}
+    [Return]  ${busybox} sh -c "trap 'echo KillSignalParent${sig}' ${sig}; sh -c \\"trap 'echo KillSignalChild${sig}' ${sig}; echo READY; while true; do date && sleep 1; done\\""
 
 Assert Container Output
     [Arguments]  ${id}  ${match}
@@ -72,6 +78,25 @@ Signal a container with SIGHUP
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill -s HUP ${id}
     Should Be Equal As Integers  ${rc}  0
     Wait Until Keyword Succeeds  20x  200 milliseconds  Assert Container Output  ${id}  KillSignalHUP
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill -s TERM ${id}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow ${id}
+
+Confirm signal delivered to entire process group
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${trap}=  Nested Trap Signal Command  HUP
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${trap}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${id}
+    Should Be Equal As Integers  ${rc}  0
+    Wait Until Keyword Succeeds  20x  200 milliseconds  Assert Container Output  ${id}  READY
+    # Expect failure with unknown signal name
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill -s NOPE ${id}
+    Should Be Equal As Integers  ${rc}  1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill -s HUP ${id}
+    Should Be Equal As Integers  ${rc}  0
+    Wait Until Keyword Succeeds  20x  200 milliseconds  Assert Container Output  ${id}  KillSignalChildHUP
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill -s TERM ${id}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow ${id}

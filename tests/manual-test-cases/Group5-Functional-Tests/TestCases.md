@@ -43,3 +43,6 @@ Group 5 - Functional Tests
 [Test 5-21 - Datastore Path](5-21-Datastore-Path.md)
 -
 [Test 5-22 - NFS Volume](5-22-NFS-Volume.md)
+-
+[Test 5-24 - Non vSphere Local Cluster](5-24-Non-vSphere-Local-Cluster.md)
+-

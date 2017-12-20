@@ -25,10 +25,12 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/vmware/govmomi/session"
 	"github.com/vmware/govmomi/vim25"
@@ -70,9 +72,7 @@ type ClientFlag struct {
 	vimVersion    string
 	tlsCaCerts    string
 	tlsKnownHosts string
-	tlsHostHash   string
-
-	client *vim25.Client
+	client        *vim25.Client
 }
 
 var (
@@ -275,6 +275,18 @@ func (flag *ClientFlag) configure(sc *soap.Client) (soap.RoundTripper, error) {
 		return nil, err
 	}
 
+	if t, ok := sc.Transport.(*http.Transport); ok {
+		var err error
+
+		value := os.Getenv("GOVC_TLS_HANDSHAKE_TIMEOUT")
+		if value != "" {
+			t.TLSHandshakeTimeout, err = time.ParseDuration(value)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	// Retry twice when a temporary I/O error occurs.
 	// This means a maximum of 3 attempts.
 	return vim25.Retry(sc, vim25.TemporaryNetworkError(3)), nil
@@ -458,6 +470,11 @@ func (flag *ClientFlag) localTicket(ctx context.Context, m *session.Manager) (*u
 	return url.UserPassword(ticket.UserName, string(password)), nil
 }
 
+func isDevelopmentVersion(apiVersion string) bool {
+	// Skip version check for development builds which can be in the form of "r4A70F" or "6.5.x"
+	return strings.Count(apiVersion, ".") == 0 || strings.HasSuffix(apiVersion, ".x")
+}
+
 // apiVersionValid returns whether or not the API version supported by the
 // server the client is connected to is not recent enough.
 func apiVersionValid(c *vim25.Client, minVersionString string) error {
@@ -467,23 +484,22 @@ func apiVersionValid(c *vim25.Client, minVersionString string) error {
 	}
 
 	apiVersion := c.ServiceContent.About.ApiVersion
-	if strings.HasSuffix(apiVersion, ".x") {
-		// Skip version check for development builds
+	if isDevelopmentVersion(apiVersion) {
 		return nil
 	}
 
 	realVersion, err := ParseVersion(apiVersion)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error parsing API version %q: %s", apiVersion, err)
 	}
 
 	minVersion, err := ParseVersion(minVersionString)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error parsing %s=%q: %s", envMinAPIVersion, minVersionString, err)
 	}
 
 	if !minVersion.Lte(realVersion) {
-		err = fmt.Errorf("Require API version %s, connected to API version %s (set %s to override)",
+		err = fmt.Errorf("Require API version %q, connected to API version %q (set %s to override)",
 			minVersionString,
 			c.ServiceContent.About.ApiVersion,
 			envMinAPIVersion)

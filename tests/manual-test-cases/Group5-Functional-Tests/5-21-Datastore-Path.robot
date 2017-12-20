@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation    Test 5-21 - Datastore-Path
 Resource  ../../resources/Util.robot
-Suite Setup  Setup Suite ESX
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Setup Suite ESX
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Variables ***
@@ -24,9 +24,10 @@ ${dsScheme}=  ds://
 
 *** Keywords ***
 Setup Suite ESX
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Global Variable  ${ESX1}  ${esx1}
-    Set Global Variable  @{list}  ${esx1}
+    Set Suite Variable  ${ESX1}  ${esx1}
+    Set Suite Variable  @{list}  ${esx1}
 
     Log To Console  Deploy VIC Appliance To ESX
     Set Environment Variable  TEST_URL_ARRAY  ${esx1-ip}

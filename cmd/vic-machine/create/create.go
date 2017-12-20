@@ -17,6 +17,7 @@ package create
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/url"
 	"path"
@@ -24,13 +25,14 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/cmd/vic-machine/common"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/lib/install/vchlog"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -63,9 +65,9 @@ OPTIONS:
 type Create struct {
 	common.Networks
 	*data.Data
-	certs             common.CertFactory
+	Certs             common.CertFactory
 	containerNetworks common.CNetworks
-	registries        common.Registries
+	Registries        common.Registries
 
 	volumeStores common.VolumeStores
 
@@ -77,9 +79,9 @@ type Create struct {
 	advancedOptions bool
 	BridgeIPRange   string
 
-	proxies common.Proxies
+	Proxies common.Proxies
 
-	syslogAddr string
+	SyslogAddr string
 
 	executor *management.Dispatcher
 }
@@ -125,18 +127,9 @@ func (c *Create) Flags() []cli.Flag {
 		},
 		cli.StringFlag{
 			Name:        "base-image-size",
-			Value:       "8GB",
+			Value:       constants.DefaultBaseImageScratchSize,
 			Usage:       "Specify the size of the base image from which all other images are created e.g. 8GB/8000MB",
 			Destination: &c.ScratchSize,
-			Hidden:      true,
-		},
-
-		// container disk
-		cli.StringFlag{
-			Name:        "container-store, cs",
-			Value:       "",
-			Usage:       "Container datastore path - not supported yet, defaults to image datastore",
-			Destination: &c.ContainerDatastoreName,
 			Hidden:      true,
 		},
 	}
@@ -228,7 +221,7 @@ func (c *Create) Flags() []cli.Flag {
 	memory = append(memory,
 		cli.IntFlag{
 			Name:        "endpoint-memory",
-			Value:       2048,
+			Value:       constants.DefaultEndpointMemoryMB,
 			Usage:       "Memory for the VCH endpoint VM, in MB. Does not impact resources allocated per container.",
 			Hidden:      true,
 			Destination: &c.MemoryMB,
@@ -243,26 +236,26 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.NumCPUs,
 		})
 
-	tls := c.certs.CertFlags()
+	tls := c.Certs.CertFlags()
 
 	tls = append(tls, cli.BoolFlag{
 		Name:        "no-tls, k",
 		Usage:       "Disable TLS support completely",
-		Destination: &c.certs.NoTLS,
+		Destination: &c.Certs.NoTLS,
 		Hidden:      true,
 	})
 
-	registries := c.registries.Flags()
+	registries := c.Registries.Flags()
 	registries = append(registries,
 		cli.StringSliceFlag{
 			Name:  "insecure-registry, dir",
-			Value: &c.registries.InsecureRegistriesArg,
+			Value: &c.Registries.InsecureRegistriesArg,
 			Usage: "Specify a list of permitted insecure registry server addresses",
 		})
 	registries = append(registries,
 		cli.StringSliceFlag{
 			Name:  "whitelist-registry, wr",
-			Value: &c.registries.WhitelistRegistriesArg,
+			Value: &c.Registries.WhitelistRegistriesArg,
 			Usage: "Specify a list of permitted whitelist registry server addresses (insecure addresses still require the --insecure-registry option in addition)",
 		})
 
@@ -271,20 +264,13 @@ func (c *Create) Flags() []cli.Flag {
 			Name:        "syslog-address",
 			Value:       "",
 			Usage:       "Address of the syslog server to send Virtual Container Host logs to. Must be in the format transport://host[:port], where transport is udp or tcp. port defaults to 514 if not specified",
-			Destination: &c.syslogAddr,
+			Destination: &c.SyslogAddr,
 			Hidden:      true,
 		},
 	}
 
 	util := []cli.Flag{
 		// miscellaneous
-		cli.BoolFlag{
-			Name:        "use-rp",
-			Usage:       "Use resource pool for vch parent in VC instead of a vApp",
-			Destination: &c.UseRP,
-			Hidden:      true,
-		},
-
 		cli.BoolFlag{
 			Name:        "force, f",
 			Usage:       "Ignore error messages and proceed",
@@ -321,7 +307,7 @@ func (c *Create) Flags() []cli.Flag {
 	iso := c.ImageFlags(true)
 	cNetwork := c.containerNetworks.CNetworkFlags(true)
 	dns := c.dns.DNSFlags(true)
-	proxies := c.proxies.ProxyFlags(true)
+	proxies := c.Proxies.ProxyFlags(true)
 	debug := c.DebugFlags(true)
 
 	// flag arrays are declared, now combined
@@ -333,10 +319,10 @@ func (c *Create) Flags() []cli.Flag {
 	return flags
 }
 
-func (c *Create) processParams() error {
-	defer trace.End(trace.Begin(""))
+func (c *Create) ProcessParams(op trace.Operation) error {
+	defer trace.End(trace.Begin("", op))
 
-	if err := c.HasCredentials(); err != nil {
+	if err := c.HasCredentials(op); err != nil {
 		return err
 	}
 
@@ -354,45 +340,45 @@ func (c *Create) processParams() error {
 	}
 
 	// Pass admin credentials for use as ops credentials if ops credentials are not supplied.
-	if err := c.OpsCredentials.ProcessOpsCredentials(true, c.Target.User, c.Target.Password); err != nil {
+	if err := c.OpsCredentials.ProcessOpsCredentials(op, true, c.Target.User, c.Target.Password); err != nil {
 		return err
 	}
 
 	var err error
-	c.ContainerNetworks, err = c.containerNetworks.ProcessContainerNetworks()
+	c.ContainerNetworks, err = c.containerNetworks.ProcessContainerNetworks(op)
 	if err != nil {
 		return err
 	}
 
-	if err := c.processBridgeNetwork(); err != nil {
+	if err = c.ProcessBridgeNetwork(); err != nil {
 		return err
 	}
 
-	if err := c.processNetwork(&c.Data.ClientNetwork, "client", c.ClientNetworkName,
+	if err = c.ProcessNetwork(op, &c.Data.ClientNetwork, "client", c.ClientNetworkName,
 		c.ClientNetworkIP, c.ClientNetworkGateway); err != nil {
 		return err
 	}
 
-	if err := c.processNetwork(&c.Data.PublicNetwork, "public", c.PublicNetworkName,
+	if err = c.ProcessNetwork(op, &c.Data.PublicNetwork, "public", c.PublicNetworkName,
 		c.PublicNetworkIP, c.PublicNetworkGateway); err != nil {
 		return err
 	}
 
-	if err := c.processNetwork(&c.Data.ManagementNetwork, "management", c.ManagementNetworkName,
+	if err = c.ProcessNetwork(op, &c.Data.ManagementNetwork, "management", c.ManagementNetworkName,
 		c.ManagementNetworkIP, c.ManagementNetworkGateway); err != nil {
 		return err
 	}
 
-	if c.DNS, err = c.dns.ProcessDNSServers(); err != nil {
+	if c.DNS, err = c.dns.ProcessDNSServers(op); err != nil {
 		return err
 	}
 
 	// must come after client network processing as it checks for static IP on that interface
-	if err := c.processCertificates(); err != nil {
+	if err = c.processCertificates(op); err != nil {
 		return err
 	}
 
-	if err := common.CheckUnsupportedCharsDatastore(c.ImageDatastorePath); err != nil {
+	if err = common.CheckUnsupportedCharsDatastore(c.ImageDatastorePath); err != nil {
 		return cli.NewExitError(fmt.Sprintf("--image-store contains unsupported characters: %s Allowed characters are alphanumeric, space and symbols - _ ( ) / :", err), 1)
 	}
 
@@ -401,29 +387,29 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if err := c.registries.ProcessRegistries(); err != nil {
+	if err = c.Registries.ProcessRegistries(op); err != nil {
 		return err
 	}
 
-	c.InsecureRegistries = c.registries.InsecureRegistries
-	c.WhitelistRegistries = c.registries.WhitelistRegistries
-	c.RegistryCAs = c.registries.RegistryCAs
+	c.InsecureRegistries = c.Registries.InsecureRegistries
+	c.WhitelistRegistries = c.Registries.WhitelistRegistries
+	c.RegistryCAs = c.Registries.RegistryCAs
 
-	hproxy, sproxy, err := c.proxies.ProcessProxies()
+	hproxy, sproxy, err := c.Proxies.ProcessProxies()
 	if err != nil {
 		return err
 	}
 	c.HTTPProxy = hproxy
 	c.HTTPSProxy = sproxy
 
-	if err := c.processSyslog(); err != nil {
+	if err = c.ProcessSyslog(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (c *Create) processCertificates() error {
+func (c *Create) processCertificates(op trace.Operation) error {
 
 	// debuglevel is a pointer now so we have to do this song and dance
 	var debug int
@@ -433,21 +419,21 @@ func (c *Create) processCertificates() error {
 		debug = *c.Debug.Debug
 	}
 
-	c.certs.Networks = c.Networks
+	c.Certs.Networks = c.Networks
 
-	if err := c.certs.ProcessCertificates(c.DisplayName, c.Force, debug); err != nil {
+	if err := c.Certs.ProcessCertificates(op, c.DisplayName, c.Force, debug); err != nil {
 		return err
 	}
 
 	// copy a few things out of seed because ProcessCertificates has side effects
-	c.KeyPEM = c.certs.KeyPEM
-	c.CertPEM = c.certs.CertPEM
-	c.ClientCAs = c.certs.ClientCAs
+	c.KeyPEM = c.Certs.KeyPEM
+	c.CertPEM = c.Certs.CertPEM
+	c.ClientCAs = c.Certs.ClientCAs
 
 	return nil
 }
 
-func (c *Create) processBridgeNetwork() error {
+func (c *Create) ProcessBridgeNetwork() error {
 	// bridge network params
 	var err error
 
@@ -495,8 +481,8 @@ func parseGatewaySpec(gw string) (cidrs []net.IPNet, gwIP net.IPNet, err error) 
 	return
 }
 
-// processNetwork parses network args if present
-func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, staticIP, gateway string) error {
+// ProcessNetwork parses network args if present
+func (c *Create) ProcessNetwork(op trace.Operation, network *data.NetworkConfig, netName, pgName, staticIP, gateway string) error {
 	var err error
 
 	network.Name = pgName
@@ -507,7 +493,7 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 
 	defer func(net *data.NetworkConfig) {
 		if err == nil {
-			log.Debugf("%s network: IP %s gateway %s dest: %s", netName, net.IP, net.Gateway.IP, net.Destinations)
+			op.Debugf("%s network: IP %s gateway %s dest: %s", netName, net.IP, net.Gateway.IP, net.Destinations)
 		}
 	}(network)
 
@@ -543,12 +529,12 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 	return nil
 }
 
-func (c *Create) processSyslog() error {
-	if len(c.syslogAddr) == 0 {
+func (c *Create) ProcessSyslog() error {
+	if len(c.SyslogAddr) == 0 {
 		return nil
 	}
 
-	u, err := url.Parse(c.syslogAddr)
+	u, err := url.Parse(c.SyslogAddr)
 	if err != nil {
 		return err
 	}
@@ -557,7 +543,7 @@ func (c *Create) processSyslog() error {
 	return nil
 }
 
-func (c *Create) logArguments(cliContext *cli.Context) []string {
+func (c *Create) logArguments(op trace.Operation, cliContext *cli.Context) []string {
 	args := []string{}
 	sf := c.SetFields() // StringSlice options set by the user
 	for _, f := range cliContext.FlagNames() {
@@ -568,7 +554,7 @@ func (c *Create) logArguments(cliContext *cli.Context) []string {
 
 		// avoid logging sensitive data
 		if f == "user" || f == "password" || f == "ops-password" {
-			log.Debugf("--%s=<censored>", f)
+			op.Debugf("--%s=<censored>", f)
 			continue
 		}
 
@@ -579,12 +565,12 @@ func (c *Create) logArguments(cliContext *cli.Context) []string {
 		if f == "target" {
 			url, err := url.Parse(cliContext.String(f))
 			if err != nil {
-				log.Debugf("Unable to re-parse target url for logging")
+				op.Debugf("Unable to re-parse target url for logging")
 				continue
 			}
 			url.User = nil
 			flag := fmt.Sprintf("--target=%s", url.String())
-			log.Debug(flag)
+			op.Debug(flag)
 			args = append(args, flag)
 			continue
 		}
@@ -592,21 +578,21 @@ func (c *Create) logArguments(cliContext *cli.Context) []string {
 		i := cliContext.Int(f)
 		if i != 0 {
 			flag := fmt.Sprintf("--%s=%d", f, i)
-			log.Debug(flag)
+			op.Debug(flag)
 			args = append(args, flag)
 			continue
 		}
 		d := cliContext.Duration(f)
 		if d != 0 {
 			flag := fmt.Sprintf("--%s=%s", f, d.String())
-			log.Debug(flag)
+			op.Debug(flag)
 			args = append(args, flag)
 			continue
 		}
 		x := cliContext.Float64(f)
 		if x != 0 {
 			flag := fmt.Sprintf("--%s=%f", f, x)
-			log.Debug(flag)
+			op.Debug(flag)
 			args = append(args, flag)
 			continue
 		}
@@ -620,7 +606,7 @@ func (c *Create) logArguments(cliContext *cli.Context) []string {
 			if ss != nil {
 				for _, o := range ss {
 					flag := fmt.Sprintf("--%s=%s", f, o)
-					log.Debug(flag)
+					op.Debug(flag)
 					args = append(args, flag)
 				}
 			}
@@ -633,7 +619,7 @@ func (c *Create) logArguments(cliContext *cli.Context) []string {
 		s := cliContext.String(f)
 		if s != "" {
 			flag := fmt.Sprintf("--%s=%s", f, s)
-			log.Debug(flag)
+			op.Debug(flag)
 			args = append(args, flag)
 			continue
 		}
@@ -642,7 +628,7 @@ func (c *Create) logArguments(cliContext *cli.Context) []string {
 		bT := cliContext.BoolT(f)
 		if b && !bT {
 			flag := fmt.Sprintf("--%s=%t", f, true)
-			log.Debug(flag)
+			op.Debug(flag)
 			args = append(args, flag)
 			continue
 		}
@@ -653,7 +639,7 @@ func (c *Create) logArguments(cliContext *cli.Context) []string {
 			is := cliContext.IntSlice(f)
 			if is != nil {
 				flag := fmt.Sprintf("--%s=%#v", f, is)
-				log.Debug(flag)
+				op.Debug(flag)
 				args = append(args, flag)
 			}
 			return is != nil
@@ -666,7 +652,7 @@ func (c *Create) logArguments(cliContext *cli.Context) []string {
 		g := cliContext.Generic(f)
 		if g != nil {
 			flag := fmt.Sprintf("--%s=%#v", f, g)
-			log.Debug(flag)
+			op.Debug(flag)
 			args = append(args, flag)
 		}
 	}
@@ -681,53 +667,57 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 		return nil
 	}
 
-	log.Infof("### Installing VCH ####")
+	// create the logger for streaming VCH log messages
+	datastoreLog := vchlog.New()
+	defer func(old io.Writer) {
+		trace.Logger.Out = old
+		datastoreLog.Close()
+	}(trace.Logger.Out)
+	trace.Logger.Out = io.MultiWriter(trace.Logger.Out, datastoreLog.GetPipe())
+	go datastoreLog.Run()
 
-	if c.Debug.Debug != nil && *c.Debug.Debug > 0 {
-		log.SetLevel(log.DebugLevel)
-		trace.Logger.Level = log.DebugLevel
-	}
+	// These operations will be executed without timeout
+	op := common.NewOperation(clic, c.Debug.Debug)
+	op.Infof("### Installing VCH ####")
 
-	// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
 	defer func() {
-		err = common.LogErrorIfAny(clic, err)
+		// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
+		err = common.LogErrorIfAny(op, clic, err)
 	}()
 
-	if err = c.processParams(); err != nil {
+	if err = c.ProcessParams(op); err != nil {
 		return err
 	}
 
-	args := c.logArguments(clic)
+	args := c.logArguments(op, clic)
 
 	var images map[string]string
-	if images, err = c.CheckImagesFiles(c.Force); err != nil {
+	if images, err = c.CheckImagesFiles(op, c.Force); err != nil {
 		return err
 	}
 
 	if len(clic.Args()) > 0 {
-		log.Errorf("Unknown argument: %s", clic.Args()[0])
+		op.Errorf("Unknown argument: %s", clic.Args()[0])
 		return errors.New("invalid CLI arguments")
 	}
 
-	// all these operations will be executed without timeout
-	ctx := context.Background()
-	validator, err := validate.NewValidator(ctx, c.Data)
+	validator, err := validate.NewValidator(op, c.Data)
 	if err != nil {
-		log.Error("Create cannot continue: failed to create validator")
+		op.Error("Create cannot continue: failed to create validator")
 		return err
 	}
-	defer validator.Session.Logout(ctx)
+	defer validator.Session.Logout(op)
 
-	vchConfig, err := validator.Validate(ctx, c.Data)
+	vchConfig, err := validator.Validate(op, c.Data)
 	if err != nil {
-		log.Error("Create cannot continue: configuration validation failed")
+		op.Error("Create cannot continue: configuration validation failed")
 		return err
 	}
 
 	// persist cli args used to create the VCH
 	vchConfig.VicMachineCreateOptions = args
 
-	vConfig := validator.AddDeprecatedFields(ctx, vchConfig, c.Data)
+	vConfig := validator.AddDeprecatedFields(op, vchConfig, c.Data)
 	vConfig.ImageFiles = images
 	vConfig.ApplianceISO = path.Base(c.ApplianceISO)
 	vConfig.BootstrapISO = path.Base(c.BootstrapISO)
@@ -738,44 +728,44 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	vConfig.Timeout = c.Data.Timeout
 
 	// separate initial validation from dispatch of creation task
-	log.Info("")
+	op.Info("")
 
-	executor := management.NewDispatcher(ctx, validator.Session, vchConfig, c.Force)
-	if err = executor.CreateVCH(vchConfig, vConfig); err != nil {
+	executor := management.NewDispatcher(op, validator.Session, vchConfig, c.Force)
+	if err = executor.CreateVCH(vchConfig, vConfig, datastoreLog); err != nil {
 		executor.CollectDiagnosticLogs()
-		log.Error(err)
+		op.Error(err)
 		return err
 	}
 
-	// timeoout start to work from here, to make sure user does not wait forever
-	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+	// Perform the remaining work using a context with a timeout to ensure the user does not wait forever
+	op, cancel := trace.WithTimeout(&op, c.Timeout, "Create")
 	defer cancel()
 	defer func() {
-		if ctx.Err() == context.DeadlineExceeded {
+		if op.Err() == context.DeadlineExceeded {
 			//context deadline exceeded, replace returned error message
 			err = errors.Errorf("Creating VCH exceeded time limit of %s. Please increase the timeout using --timeout to accommodate for a busy vSphere target", c.Timeout)
 		}
 	}()
 
-	if err = executor.CheckServiceReady(ctx, vchConfig, c.certs.ClientCert); err != nil {
+	if err = executor.CheckServiceReady(op, vchConfig, c.Certs.ClientCert); err != nil {
 		executor.CollectDiagnosticLogs()
-		cmd, _ := executor.GetDockerAPICommand(vchConfig, c.certs.Ckey, c.certs.Ccert, c.certs.Cacert, c.certs.CertPath)
-		log.Info("\tAPI may be slow to start - try to connect to API after a few minutes:")
+		cmd, _ := executor.GetDockerAPICommand(vchConfig, c.Certs.Ckey, c.Certs.Ccert, c.Certs.Cacert, c.Certs.CertPath)
+		op.Info("\tAPI may be slow to start - try to connect to API after a few minutes:")
 		if cmd != "" {
-			log.Infof("\t\tRun command: %s", cmd)
+			op.Infof("\t\tRun command: %s", cmd)
 		} else {
-			log.Infof("\t\tRun %s inspect to find API connection command and run the command if ip address is ready", clic.App.Name)
+			op.Infof("\t\tRun %s inspect to find API connection command and run the command if ip address is ready", clic.App.Name)
 		}
-		log.Info("\t\tIf command succeeds, VCH is started. If command fails, VCH failed to install - see documentation for troubleshooting.")
+		op.Info("\t\tIf command succeeds, VCH is started. If command fails, VCH failed to install - see documentation for troubleshooting.")
 		return err
 	}
 
-	log.Infof("Initialization of appliance successful")
+	op.Info("Initialization of appliance successful")
 
 	// We must check for the volume stores that are present after the portlayer presents.
 
-	executor.ShowVCH(vchConfig, c.certs.Ckey, c.certs.Ccert, c.certs.Cacert, c.certs.EnvFile, c.certs.CertPath)
-	log.Infof("Installer completed successfully")
+	executor.ShowVCH(vchConfig, c.Certs.Ckey, c.Certs.Ccert, c.Certs.Cacert, c.Certs.EnvFile, c.Certs.CertPath)
+	op.Info("Installer completed successfully")
 
 	return nil
 }

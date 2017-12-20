@@ -18,11 +18,11 @@ import (
 	"fmt"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/vic/lib/portlayer/event/collector"
 	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/trace"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type Manager struct {
@@ -69,10 +69,10 @@ func NewEventManager(collectors ...collector.Collector) *Manager {
 			subs := mgr.subs.subscribers[e.Topic()]
 			mgr.subs.mu.RUnlock()
 
-			log.Debugf("Found %d subscribers to id: %d - %s: %s", len(subs), e.EventID(), e.Topic(), e.Message())
+			log.Debugf("Found %d subscribers to %s: %s - %s", len(subs), e.EventID(), e.Topic(), e.Message())
 
 			for sub, s := range subs {
-				log.Debugf("Event manager calling back to %s", sub)
+				log.Debugf("Event manager calling back to %s for Event(%s): %s", sub, e.EventID(), e.Topic())
 				s.onEvent(e)
 			}
 		}

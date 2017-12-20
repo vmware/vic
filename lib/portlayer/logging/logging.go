@@ -41,32 +41,33 @@ func Init(ctx context.Context) error {
 			events.NewEventType(vsphere.VMEvent{}).Topic(),
 			"logging",
 			func(ie events.Event) {
-				eventCallback(ctx, ie)
+				eventCallback(ie)
 			})
 	})
 	return nil
 }
 
 // listens migrated events and connects the file backed serial ports
-func eventCallback(ctx context.Context, ie events.Event) {
+func eventCallback(ie events.Event) {
 	defer trace.End(trace.Begin(""))
 
 	switch ie.String() {
 	case events.ContainerMigrated,
 		events.ContainerMigratedByDrs:
-		log.Debugf("Received %s event", ie)
+		op := trace.NewOperation(context.Background(), "LoggingEvent")
+		op.Debugf("Logging processing eventID(%s): %s", ie.EventID(), ie)
 
 		// grab the container from the cache
 		container := exec.Containers.Container(ie.Reference())
 		if container == nil {
-			log.Errorf("Container %s not found", ie.Reference())
+			op.Errorf("Container %s not found. Dropping the event %s from Logging subsystem.", ie.Reference(), ie)
 			return
 		}
 
 		operation := func() error {
 			var err error
 
-			handle := container.NewHandle(ctx)
+			handle := container.NewHandle(op)
 			if handle == nil {
 				err = fmt.Errorf("Handle for %s cannot be created", ie.Reference())
 				log.Error(err)
@@ -76,19 +77,19 @@ func eventCallback(ctx context.Context, ie events.Event) {
 
 			// set them to true
 			if handle, err = toggle(handle, true); err != nil {
-				log.Errorf("Failed to toggle logging after %s event for container %s: %s", ie, ie.Reference(), err)
+				op.Errorf("Failed to toggle logging after %s event for container %s: %s", ie, ie.Reference(), err)
 				return err
 			}
 
-			if err = handle.Commit(ctx, nil, nil); err != nil {
-				log.Errorf("Failed to commit handle after getting %s event for container %s: %s", ie, ie.Reference(), err)
+			if err = handle.Commit(op, nil, nil); err != nil {
+				op.Errorf("Failed to commit handle after getting %s event for container %s: %s", ie, ie.Reference(), err)
 				return err
 			}
 			return nil
 		}
 
 		if err := retry.Do(operation, exec.IsConcurrentAccessError); err != nil {
-			log.Errorf("Multiple attempts failed to commit handle after getting %s event for container %s: %s", ie, ie.Reference(), err)
+			op.Errorf("Multiple attempts failed to commit handle after getting %s event for container %s: %s", ie, ie.Reference(), err)
 		}
 	}
 

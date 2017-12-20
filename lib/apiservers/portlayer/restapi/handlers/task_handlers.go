@@ -18,7 +18,6 @@ import (
 	"context"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/runtime/middleware"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -99,7 +98,7 @@ func (handler *TaskHandlersImpl) JoinHandler(params tasks.JoinParams) middleware
 
 	handleprime, err := task.Join(&op, handle, sessionConfig)
 	if err != nil {
-		log.Errorf("%s", err.Error())
+		op.Errorf("%s", err.Error())
 
 		return tasks.NewJoinInternalServerError().WithPayload(
 			&models.Error{Message: err.Error()},
@@ -125,7 +124,7 @@ func (handler *TaskHandlersImpl) BindHandler(params tasks.BindParams) middleware
 
 	handleprime, err := task.Bind(&op, handle, params.Config.ID)
 	if err != nil {
-		log.Errorf("%s", err.Error())
+		op.Errorf("%s", err.Error())
 
 		return tasks.NewBindInternalServerError().WithPayload(
 			&models.Error{Message: err.Error()},
@@ -152,7 +151,7 @@ func (handler *TaskHandlersImpl) UnbindHandler(params tasks.UnbindParams) middle
 
 	handleprime, err := task.Unbind(&op, handle, params.Config.ID)
 	if err != nil {
-		log.Errorf("%s", err.Error())
+		op.Errorf("%s", err.Error())
 
 		return tasks.NewUnbindInternalServerError().WithPayload(
 			&models.Error{Message: err.Error()},
@@ -178,7 +177,7 @@ func (handler *TaskHandlersImpl) RemoveHandler(params tasks.RemoveParams) middle
 
 	handleprime, err := task.Remove(&op, handle, params.Config.ID)
 	if err != nil {
-		log.Errorf("%s", err.Error())
+		op.Errorf("%s", err.Error())
 
 		return tasks.NewRemoveInternalServerError().WithPayload(
 			&models.Error{Message: err.Error()},
@@ -204,7 +203,13 @@ func (handler *TaskHandlersImpl) InspectHandler(params tasks.InspectParams) midd
 
 	t, err := task.Inspect(&op, handle, params.Config.ID)
 	if err != nil {
-		log.Errorf("%s", err.Error())
+		op.Errorf("%s", err.Error())
+
+		if _, ok := err.(task.TaskPowerStateError); ok {
+			return tasks.NewInspectConflict().WithPayload(
+				&models.Error{Message: err.Error()},
+			)
+		}
 
 		return tasks.NewInspectInternalServerError().WithPayload(
 			&models.Error{Message: err.Error()},
@@ -255,7 +260,7 @@ func (handler *TaskHandlersImpl) WaitHandler(params tasks.WaitParams) middleware
 	// wait task to set started field to something
 	err := task.Wait(&op, handle, params.Config.ID)
 	if err != nil {
-		log.Errorf("%s", err.Error())
+		op.Errorf("%s", err.Error())
 
 		return tasks.NewWaitInternalServerError().WithPayload(
 			&models.Error{Message: err.Error()},

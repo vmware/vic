@@ -15,6 +15,7 @@
 package exec
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/vmware/vic/lib/portlayer/event"
 	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
 	"github.com/vmware/vic/lib/portlayer/event/events"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 var containerEvents []events.Event
@@ -75,7 +77,7 @@ func TestPublishContainerEvent(t *testing.T) {
 	container.SetState(StateRunning)
 	Containers.Put(container)
 
-	publishContainerEvent(id, time.Now().UTC(), events.ContainerPoweredOff)
+	publishContainerEvent(trace.NewOperation(context.Background(), "container"), id, time.Now().UTC(), events.ContainerPoweredOff)
 	time.Sleep(time.Millisecond * 30)
 
 	assert.Equal(t, 1, len(containerEvents))

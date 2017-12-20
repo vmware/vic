@@ -34,10 +34,7 @@ func (f *File) Read(p []byte) (int, error) {
 	}
 
 	type ReadRes struct {
-		Follows uint32
-		Attrs   struct {
-			Attrs Fattr
-		}
+		Attr  PostOpAttr
 		Count uint32
 		EOF   uint32
 		Data  struct {
@@ -45,7 +42,7 @@ func (f *File) Read(p []byte) (int, error) {
 		}
 	}
 
-	readSize := uint32(min(uint64(f.fsinfo.RTPref), uint64(len(p))))
+	readSize := min(f.fsinfo.RTPref, uint32(len(p)))
 	util.Debugf("read(%x) len=%d offset=%d", f.fh, readSize, f.curr)
 
 	r, err := f.call(&ReadArgs{
@@ -97,36 +94,58 @@ func (f *File) Write(p []byte) (int, error) {
 		Contents []byte
 	}
 
-	totalToWrite := len(p)
-	writeSize := uint64(min(uint64(f.fsinfo.WTPref), uint64(totalToWrite)))
-
-	_, err := f.call(&WriteArgs{
-		Header: rpc.Header{
-			Rpcvers: 2,
-			Prog:    Nfs3Prog,
-			Vers:    Nfs3Vers,
-			Proc:    NFSProc3Write,
-			Cred:    f.auth,
-			Verf:    rpc.AuthNull,
-		},
-		FH:       f.fh,
-		Offset:   f.curr,
-		Count:    uint32(writeSize),
-		How:      2,
-		Contents: p[:writeSize],
-	})
-
-	if err != nil {
-		util.Debugf("write(%x): %s", f.fh, err.Error())
-		return int(writeSize), err
+	type WriteRes struct {
+		Wcc       WccData
+		Count     uint32
+		How       uint32
+		WriteVerf uint64
 	}
 
-	util.Debugf("write(%x) len=%d offset=%d written=%d total=%d",
-		f.fh, writeSize, f.curr, writeSize, totalToWrite)
+	totalToWrite := uint32(len(p))
+	written := uint32(0)
 
-	f.curr = f.curr + writeSize
+	for written = 0; written < totalToWrite; {
+		writeSize := min(f.fsinfo.WTPref, totalToWrite-written)
 
-	return int(writeSize), nil
+		res, err := f.call(&WriteArgs{
+			Header: rpc.Header{
+				Rpcvers: 2,
+				Prog:    Nfs3Prog,
+				Vers:    Nfs3Vers,
+				Proc:    NFSProc3Write,
+				Cred:    f.auth,
+				Verf:    rpc.AuthNull,
+			},
+			FH:       f.fh,
+			Offset:   f.curr,
+			Count:    writeSize,
+			How:      2,
+			Contents: p[written : written+writeSize],
+		})
+
+		if err != nil {
+			util.Errorf("write(%x): %s", f.fh, err.Error())
+			return int(written), err
+		}
+
+		writeres := &WriteRes{}
+		if err = xdr.Read(res, writeres); err != nil {
+			util.Errorf("write(%x) failed to parse result: %s", f.fh, err.Error())
+			util.Debugf("write(%x) partial result: %+v", f.fh, writeres)
+			return int(written), err
+		}
+
+		if writeres.Count != writeSize {
+			util.Debugf("write(%x) did not write full data payload: sent: %d, written: %d", writeSize, writeres.Count)
+		}
+
+		f.curr += uint64(writeres.Count)
+		written += writeres.Count
+
+		util.Debugf("write(%x) len=%d new_offset=%d written=%d total=%d", f.fh, totalToWrite, f.curr, writeres.Count, written)
+	}
+
+	return int(written), nil
 }
 
 // Close commits the file
@@ -197,7 +216,7 @@ func (v *Target) Open(path string) (io.ReadCloser, error) {
 	return f, nil
 }
 
-func min(x, y uint64) uint64 {
+func min(x, y uint32) uint32 {
 	if x > y {
 		return y
 	}
