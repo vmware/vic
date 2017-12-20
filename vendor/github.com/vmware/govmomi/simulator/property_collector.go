@@ -115,7 +115,16 @@ func fieldValue(rval reflect.Value, p string) (interface{}, error) {
 
 	for i, name := range fields {
 		kind := rval.Type().Kind()
-		if kind == reflect.Ptr || kind == reflect.Interface {
+
+		if kind == reflect.Interface {
+			if rval.IsNil() {
+				continue
+			}
+			rval = rval.Elem()
+			kind = rval.Type().Kind()
+		}
+
+		if kind == reflect.Ptr {
 			if rval.IsNil() {
 				continue
 			}

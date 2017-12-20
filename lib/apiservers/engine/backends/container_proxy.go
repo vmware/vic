@@ -104,6 +104,7 @@ type VicContainerProxy interface {
 	Signal(vc *viccontainer.VicContainer, sig uint64) error
 	Resize(id string, height, width int32) error
 	Rename(vc *viccontainer.VicContainer, newName string) error
+	Remove(vc *viccontainer.VicContainer, config *types.ContainerRmConfig) error
 
 	GetContainerChanges(op trace.Operation, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error)
 
@@ -371,9 +372,9 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 		return "", InternalServerError("ContainerProxy.AddVolumesToContainer failed to create a portlayer client")
 	}
 
-	//Volume Attachment Section
+	// Volume Attachment Section
 	log.Debugf("ContainerProxy.AddVolumesToContainer - VolumeSection")
-	log.Debugf("Raw Volume arguments : binds:  %#v : volumes : %#v", config.HostConfig.Binds, config.Config.Volumes)
+	log.Debugf("Raw volume arguments: binds:  %#v, volumes: %#v", config.HostConfig.Binds, config.Config.Volumes)
 
 	// Collect all volume mappings. In a docker create/run, they
 	// can be anonymous (-v /dir) or specific (-v vol-name:/dir).
@@ -388,8 +389,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 	if err != nil {
 		return handle, BadRequestError(err.Error())
 	}
-
-	log.Infof("Finalized Volume list : %#v", volList)
+	log.Infof("Finalized volume list: %#v", volList)
 
 	if len(config.Config.Volumes) > 0 {
 		// override anonymous volume list with generated volume id
@@ -405,8 +405,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 
 	// Create and join volumes.
 	for _, fields := range volList {
-
-		//we only set these here for volumes made on a docker create
+		// We only set these here for volumes made on a docker create
 		volumeData := make(map[string]string)
 		volumeData[DriverArgFlagKey] = fields.Flags
 		volumeData[DriverArgContainerKey] = config.Name
@@ -1196,9 +1195,71 @@ func (c *ContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) e
 	return nil
 }
 
+// Remove calls the portlayer's ContainerRemove handler to remove the container and its
+// anonymous volumes if the remove flag is set.
+func (c *ContainerProxy) Remove(vc *viccontainer.VicContainer, config *types.ContainerRmConfig) error {
+	if c.client == nil {
+		return InternalServerError("ContainerProxy.Remove failed to get a portlayer client")
+	}
+
+	id := vc.ContainerID
+	_, err := c.client.Containers.ContainerRemove(containers.NewContainerRemoveParamsWithContext(ctx).WithID(id))
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.ContainerRemoveNotFound:
+			// Remove container from persona cache, but don't return error to the user.
+			cache.ContainerCache().DeleteContainer(id)
+			return nil
+		case *containers.ContainerRemoveDefault:
+			return InternalServerError(err.Payload.Message)
+		case *containers.ContainerRemoveConflict:
+			return derr.NewRequestConflictError(fmt.Errorf("You cannot remove a running container. Stop the container before attempting removal or use -f"))
+		case *containers.ContainerRemoveInternalServerError:
+			if err.Payload == nil || err.Payload.Message == "" {
+				return InternalServerError(err.Error())
+			}
+			return InternalServerError(err.Payload.Message)
+		default:
+			return InternalServerError(err.Error())
+		}
+	}
+
+	// Once the container is removed, remove anonymous volumes (vc.Config.Volumes) if
+	// the remove flag is set.
+	if config.RemoveVolume && len(vc.Config.Volumes) > 0 {
+		removeAnonContainerVols(c.client, id, vc.Config.Volumes)
+	}
+
+	return nil
+}
+
 //----------
 // Utility Functions
 //----------
+
+// removeAnonContainerVols removes anonymous volumes joined to a container. It is invoked
+// once the said container has been removed. It fetches a list of volumes that are joined
+// to at least one other container, and calls the portlayer to remove this container's
+// anonymous volumes if they are dangling. Errors, if any, are only logged.
+func removeAnonContainerVols(pl *client.PortLayer, cID string, volumes map[string]struct{}) {
+	joinedVols, err := fetchJoinedVolumes()
+	if err != nil {
+		log.Warnf("Unable to obtain joined volumes from portlayer, skipping removing anonymous volumes for %s: %s", cID, err.Error())
+		return
+	}
+
+	for vol := range volumes {
+		// Extract the volume ID from the full mount path, which is of form "id:mountpath:flags" - see getMountString().
+		volFields := strings.SplitN(vol, ":", 2)
+		volName := volFields[0]
+		if _, joined := joinedVols[volName]; !joined {
+			_, err := pl.Storage.RemoveVolume(storage.NewRemoveVolumeParamsWithContext(ctx).WithName(volName))
+			if err != nil {
+				log.Debugf("Unable to remove anonymous volume %s in container %s: %s", volName, cID, err.Error())
+			}
+		}
+	}
+}
 
 func dockerContainerCreateParamsToTask(id string, cc types.ContainerCreateConfig) *tasks.JoinParams {
 	config := &models.TaskJoinConfig{}
@@ -1495,7 +1556,7 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 		inspectJSON.LogPath = info.ContainerConfig.LogPath
 		inspectJSON.RestartCount = int(info.ContainerConfig.RestartCount)
 		inspectJSON.ID = info.ContainerConfig.ContainerID
-		inspectJSON.Created = time.Unix(info.ContainerConfig.CreateTime, 0).Format(time.RFC3339Nano)
+		inspectJSON.Created = time.Unix(0, info.ContainerConfig.CreateTime).Format(time.RFC3339Nano)
 		if len(info.ContainerConfig.Names) > 0 {
 			inspectJSON.Name = fmt.Sprintf("/%s", info.ContainerConfig.Names[0])
 		}
@@ -1841,6 +1902,8 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 	return vc
 }
 
+// getMountString returns a colon-delimited string containing a volume's name/ID, mount
+// point and flags.
 func getMountString(mounts ...string) string {
 	return strings.Join(mounts, ":")
 }

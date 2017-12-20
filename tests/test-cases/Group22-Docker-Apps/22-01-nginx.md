@@ -13,7 +13,7 @@ This test requires that a vSphere server is running and available
 # Test Steps:
 1. Deploy VIC appliance to the vSphere server
 2. Run an nginx container in the background and verify the server is up and running:  
-``docker run --name nginx1 -d nginx``
+`docker run --name nginx1 -d nginx`
 3. Run an nginx container in the background with a mapped port:  
 `docker run --name nginx2 -d -p 8080:80 nginx`
 4. Run an nginx container in the background with a mapped content folder from a volume:  

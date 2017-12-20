@@ -15,9 +15,9 @@
 package delete
 
 import (
+	"context"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/cmd/vic-machine/common"
@@ -28,8 +28,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	"context"
 )
 
 // Delete has all input parameters for vic-machine delete command
@@ -75,10 +73,10 @@ func (d *Uninstall) Flags() []cli.Flag {
 	return flags
 }
 
-func (d *Uninstall) processParams() error {
-	defer trace.End(trace.Begin(""))
+func (d *Uninstall) processParams(op trace.Operation) error {
+	defer trace.End(trace.Begin("", op))
 
-	if err := d.HasCredentials(); err != nil {
+	if err := d.HasCredentials(op); err != nil {
 		return err
 	}
 
@@ -86,45 +84,40 @@ func (d *Uninstall) processParams() error {
 }
 
 func (d *Uninstall) Run(clic *cli.Context) (err error) {
-	// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
+	op := common.NewOperation(clic, d.Debug.Debug)
 	defer func() {
-		err = common.LogErrorIfAny(clic, err)
+		// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
+		err = common.LogErrorIfAny(op, clic, err)
 	}()
-
-	if err = d.processParams(); err != nil {
-		return err
-	}
-
-	if d.Debug.Debug != nil && *d.Debug.Debug > 0 {
-		log.SetLevel(log.DebugLevel)
-		trace.Logger.Level = log.DebugLevel
-	}
-
-	if len(clic.Args()) > 0 {
-		log.Errorf("Unknown argument: %s", clic.Args()[0])
-		return errors.New("invalid CLI arguments")
-	}
-
-	log.Infof("### Removing VCH ####")
-
-	ctx, cancel := context.WithTimeout(context.Background(), d.Timeout)
+	op, cancel := trace.WithTimeout(&op, d.Timeout, clic.App.Name)
 	defer cancel()
 	defer func() {
-		if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
+		if op.Err() != nil && op.Err() == context.DeadlineExceeded {
 			//context deadline exceeded, replace returned error message
 			err = errors.Errorf("Delete timed out: use --timeout to add more time")
 		}
 	}()
 
-	validator, err := validate.NewValidator(ctx, d.Data)
+	if err = d.processParams(op); err != nil {
+		return err
+	}
+
+	if len(clic.Args()) > 0 {
+		op.Errorf("Unknown argument: %s", clic.Args()[0])
+		return errors.New("invalid CLI arguments")
+	}
+
+	op.Infof("### Removing VCH ####")
+
+	validator, err := validate.NewValidator(op, d.Data)
 	if err != nil {
-		log.Errorf("Delete cannot continue - failed to create validator: %s", err)
+		op.Errorf("Delete cannot continue - failed to create validator: %s", err)
 		return errors.New("delete failed")
 	}
-	defer validator.Session.Logout(ctx)
-	_, err = validator.ValidateTarget(ctx, d.Data)
+	defer validator.Session.Logout(op)
+	_, err = validator.ValidateTarget(op, d.Data)
 	if err != nil {
-		log.Errorf("Delete cannot continue - target validation failed: %s", err)
+		op.Errorf("Delete cannot continue - target validation failed: %s", err)
 		return errors.New("delete failed")
 	}
 
@@ -137,18 +130,18 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 		vch, err = executor.NewVCHFromComputePath(d.Data.ComputeResourcePath, d.Data.DisplayName, validator)
 	}
 	if err != nil {
-		log.Errorf("Failed to get Virtual Container Host %s", d.DisplayName)
-		log.Error(err)
+		op.Errorf("Failed to get Virtual Container Host %s", d.DisplayName)
+		op.Error(err)
 		return errors.New("delete failed")
 	}
 
-	log.Infof("")
-	log.Infof("VCH ID: %s", vch.Reference().String())
+	op.Infof("")
+	op.Infof("VCH ID: %s", vch.Reference().String())
 
 	vchConfig, err := executor.GetNoSecretVCHConfig(vch)
 	if err != nil {
-		log.Error("Failed to get Virtual Container Host configuration")
-		log.Error(err)
+		op.Error("Failed to get Virtual Container Host configuration")
+		op.Error(err)
 		return errors.New("delete failed")
 	}
 
@@ -156,24 +149,24 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 	installerBuild := version.GetBuild()
 	if vchConfig.Version == nil || !installerBuild.Equal(vchConfig.Version) {
 		if !d.Data.Force {
-			log.Errorf("VCH version %q is different than installer version %s. Upgrade VCH before deleting or specify --force to force delete", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
+			op.Errorf("VCH version %q is different than installer version %s. Upgrade VCH before deleting or specify --force to force delete", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
 			return errors.New("delete failed")
 		}
 
-		log.Warnf("VCH version %q is different than installer version %s. Force delete will attempt to remove everything related to the installed VCH", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
+		op.Warnf("VCH version %q is different than installer version %s. Force delete will attempt to remove everything related to the installed VCH", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
 	}
 
-	if err = executor.DeleteVCH(vchConfig); err != nil {
+	if err = executor.DeleteVCH(vchConfig, nil, nil); err != nil {
 		executor.CollectDiagnosticLogs()
-		log.Errorf("%s", err)
+		op.Errorf("%s", err)
 		return errors.New("delete failed")
 	}
 
-	log.Info("----------")
-	log.Info("If firewall changes were made for VIC during install, they were not reverted during delete")
-	log.Info("To modify firewall rules see vic-machine update firewall --help")
-	log.Info("----------")
-	log.Info("Completed successfully")
+	op.Info("----------")
+	op.Info("If firewall changes were made for VIC during install, they were not reverted during delete")
+	op.Info("To modify firewall rules see vic-machine update firewall --help")
+	op.Info("----------")
+	op.Info("Completed successfully")
 
 	return nil
 }

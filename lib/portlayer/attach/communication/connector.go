@@ -32,6 +32,11 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
+const (
+	VersionString = "SSH-2.0-VIC"
+	ClientTimeout = 10 * time.Second
+)
+
 // Connector defines the connection and interactions
 type Connector struct {
 	mutex        sync.RWMutex
@@ -208,7 +213,7 @@ func (c *Connector) RemoveInteraction(id string) error {
 		return nil
 	}
 
-	conn, err := v.Cleanup()
+	conn := v.SessionInteractor()
 	if conn != nil {
 		err = conn.Close()
 	}
@@ -326,6 +331,8 @@ func (c *Connector) processIncoming(conn net.Conn) {
 	config := &ssh.ClientConfig{
 		User:            "daemon",
 		HostKeyCallback: callback,
+		ClientVersion:   VersionString,
+		Timeout:         ClientTimeout,
 	}
 
 	// create the SSH connection
@@ -404,7 +411,7 @@ func (c *Connector) ids(conn ssh.Conn, ids []string) {
 }
 
 // reqs is the global request channel of the portlayer side of the connection
-// we keep a list of  sessions assosiacated with this connection and drop them from the map when the global mux exits
+// we keep a list of sessions associated with this connection and drop them from the map when the global mux exits
 func (c *Connector) reqs(reqs <-chan *ssh.Request, conn ssh.Conn, ids []string) {
 	defer trace.End(trace.Begin(""))
 
@@ -431,6 +438,9 @@ func (c *Connector) reqs(reqs <-chan *ssh.Request, conn ssh.Conn, ids []string) 
 					return
 				}
 				c.ids(conn, ids.IDs)
+
+				// drop the drop list to clear no longer active sessions from the map
+				droplist = make(map[string]struct{})
 
 				// fill the droplist with the latest info
 				for _, id := range ids.IDs {

@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation   Test 1-39 - Docker Stats
 Resource        ../../resources/Util.robot
-Suite Setup     Install VIC Appliance To Test Server
+Suite Setup  Conditional Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
@@ -42,8 +42,7 @@ Create test containers
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  STOPPER  ${output}
     ${stress}=  Get Container ShortID  %{STRESSED}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  VM-PATH  vm/*${stress}
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Environment Variable  VM-PATH  */%{VCH-NAME}/*${stress}
+    Set Environment Variable  VM-PATH  vm/*${stress}
 
 Check Memory Usage
     ${vmomiMemory}=  Get Average Active Memory  %{VM-PATH}

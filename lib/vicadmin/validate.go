@@ -141,7 +141,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		mgmtIP := GetMgmtIP()
 		log.Infof("Using management IP %s for firewall check", mgmtIP)
 		fwStatus := v2.CheckFirewallForTether(ctx, mgmtIP)
-		v2.FirewallCheckOutput(fwStatus)
+		v2.FirewallCheckOutput(ctx, fwStatus)
 
 		firewallIssues := v2.GetIssues()
 

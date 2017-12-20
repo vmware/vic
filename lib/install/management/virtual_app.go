@@ -15,8 +15,6 @@
 package management
 
 import (
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
@@ -28,51 +26,34 @@ import (
 )
 
 func (d *Dispatcher) createVApp(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*object.VirtualApp, error) {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin("", d.op))
 	var err error
+	d.op.Infof("Creating virtual app %q", conf.Name)
 
-	log.Infof("Creating virtual app %q", conf.Name)
+	resSpec := types.DefaultResourceConfigSpec()
 
-	resSpec := types.ResourceConfigSpec{
-		CpuAllocation: &types.ResourceAllocationInfo{
-			Shares: &types.SharesInfo{
-				Level: types.SharesLevelNormal,
-			},
-			ExpandableReservation: types.NewBool(true),
-		},
-		MemoryAllocation: &types.ResourceAllocationInfo{
-			Shares: &types.SharesInfo{
-				Level: types.SharesLevelNormal,
-			},
-			ExpandableReservation: types.NewBool(true),
-		},
+	if settings.VCHSize.CPU.Limit != nil && *settings.VCHSize.CPU.Limit != 0 {
+		resSpec.CpuAllocation.Limit = settings.VCHSize.CPU.Limit
 	}
-	cpu := resSpec.CpuAllocation.GetResourceAllocationInfo()
-	cpu.Limit = -1
-	if settings.VCHSize.CPU.Limit != 0 {
-		cpu.Limit = settings.VCHSize.CPU.Limit
+
+	if settings.VCHSize.CPU.Reservation != nil && *settings.VCHSize.CPU.Reservation != 0 {
+		resSpec.CpuAllocation.Reservation = settings.VCHSize.CPU.Reservation
 	}
-	// FIXME: govmomi omitempty
-	cpu.Reservation = 1
-	if settings.VCHSize.CPU.Reservation != 0 {
-		cpu.Reservation = settings.VCHSize.CPU.Reservation
-	}
+
 	if settings.VCHSize.CPU.Shares != nil {
-		cpu.Shares = settings.VCHSize.CPU.Shares
+		resSpec.CpuAllocation.Shares = settings.VCHSize.CPU.Shares
 	}
 
-	memory := resSpec.MemoryAllocation.GetResourceAllocationInfo()
-	memory.Limit = -1
-	if settings.VCHSize.Memory.Limit != 0 {
-		memory.Limit = settings.VCHSize.Memory.Limit
+	if settings.VCHSize.Memory.Limit != nil && *settings.VCHSize.Memory.Limit != 0 {
+		resSpec.MemoryAllocation.Limit = settings.VCHSize.Memory.Limit
 	}
-	// FIXME: govmomi omitempty
-	memory.Reservation = 1
-	if settings.VCHSize.Memory.Reservation != 0 {
-		memory.Reservation = settings.VCHSize.Memory.Reservation
+
+	if settings.VCHSize.Memory.Reservation != nil && *settings.VCHSize.Memory.Reservation != 0 {
+		resSpec.MemoryAllocation.Reservation = settings.VCHSize.Memory.Reservation
 	}
+
 	if settings.VCHSize.Memory.Shares != nil {
-		memory.Shares = settings.VCHSize.Memory.Shares
+		resSpec.MemoryAllocation.Shares = settings.VCHSize.Memory.Shares
 	}
 
 	prodSpec := types.VAppProductSpec{
@@ -94,9 +75,9 @@ func (d *Dispatcher) createVApp(conf *config.VirtualContainerHostConfigSpec, set
 		},
 	}
 
-	app, err := d.session.Pool.CreateVApp(d.ctx, conf.Name, resSpec, configSpec, d.session.VMFolder)
+	app, err := d.session.Pool.CreateVApp(d.op, conf.Name, resSpec, configSpec, d.session.VMFolder)
 	if err != nil {
-		log.Debugf("Failed to create virtual app %q: %s", conf.Name, err)
+		d.op.Debugf("Failed to create virtual app %q: %s", conf.Name, err)
 		return nil, err
 	}
 	conf.ComputeResources = append(conf.ComputeResources, app.Reference())
@@ -104,8 +85,8 @@ func (d *Dispatcher) createVApp(conf *config.VirtualContainerHostConfigSpec, set
 }
 
 func (d *Dispatcher) findVirtualApp(path string) (*object.VirtualApp, error) {
-	defer trace.End(trace.Begin(path))
-	vapp, err := d.session.Finder.VirtualApp(d.ctx, path)
+	defer trace.End(trace.Begin(path, d.op))
+	vapp, err := d.session.Finder.VirtualApp(d.op, path)
 	if err != nil {
 		_, ok := err.(*find.NotFoundError)
 		if !ok {

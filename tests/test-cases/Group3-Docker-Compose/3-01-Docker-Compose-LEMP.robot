@@ -28,7 +28,7 @@ Compose LEMP Server
     ${vch_ip}=  Get Environment Variable  VCH_IP  %{VCH-IP}
     Log To Console  \nThe VCH IP is %{VCH-IP}
 
-    Run  cat %{GOPATH}/src/github.com/vmware/vic/demos/compose/webserving-app/docker-compose.yml | sed -e "s/192.168.60.130/${vch_ip}/g" > lemp-compose.yml
+    Run  cat ${CURDIR}/../../../demos/compose/webserving-app/docker-compose.yml | sed -e "s/192.168.60.130/${vch_ip}/g" > lemp-compose.yml
     ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file lemp-compose.yml up -d
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0

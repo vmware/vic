@@ -39,6 +39,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/events"
 	plevents "github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/uid"
 )
 
 const (
@@ -211,41 +212,39 @@ func (m *PortlayerEventMonitor) monitor() error {
 	return nil
 }
 
-// publishEvent() translate a portlayer event into a Docker event if the event is for a
-// known container and publishes them to Docker event subscribers.
+// PublishEvent translates select portlayer container events into Docker events
+// and publishes to subscribers
 func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
-	defer trace.End(trace.Begin(""))
+	// create a shortID for the container for logging purposes
+	containerShortID := uid.Parse(event.Ref).Truncate()
+	defer trace.End(trace.Begin(fmt.Sprintf("Event Monitor received eventID(%s) for container(%s) - %s", event.ID, containerShortID, event.Event)))
 
 	vc := cache.ContainerCache().GetContainer(event.Ref)
 	if vc == nil {
-		log.Warnf("Portlayer event for container %s but not found in cache", event.Ref)
+		log.Warnf("Event Monitor received eventID(%s) but container(%s) not in cache", event.ID, containerShortID)
 		return
 	}
 
+	// docker event attributes
 	var attrs map[string]string
-	// TODO: move to a container.OnEvent() so that container drives the necessary changes
-	// based on event activity
+
 	switch event.Event {
 	case plevents.ContainerStopped,
-		plevents.ContainerPoweredOff:
-		// since we are going to make a call to the portLayer lets execute this in a
-		// go routine
+		plevents.ContainerPoweredOff,
+		plevents.ContainerFailed:
+		// since we are going to make a call to the portLayer lets execute this in a go routine
 		go func() {
 			attrs := make(map[string]string)
 			// get the containerEngine
-			code, err := NewContainerBackend().containerProxy.exitCode(vc)
-			if err != nil {
-				// log the error, but continue
-				log.Errorf("unable to get exitCode for die event: %s", err)
-			}
-			// if the docker client is unable to convert the code to an int then
-			// then the client will return 125
+			code, _ := NewContainerBackend().containerProxy.exitCode(vc)
+
+			log.Infof("Sending die event for container(%s) with exitCode[%s] - eventID(%s)", containerShortID, code, event.ID)
+			// if the docker client is unable to convert the code to an int the client will return 125
 			attrs["exitCode"] = code
-			log.Infof("Sending die event for container %s - code: %s", vc.ContainerID, code)
 			actor := CreateContainerEventActorWithAttributes(vc, attrs)
 			EventService().Log(containerDieEvent, eventtypes.ContainerEventType, actor)
 			if err := UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
-				log.Warn(err)
+				log.Errorf("Event Monitor failed to unmap ports for container(%s): %s - eventID(%s)", containerShortID, err, event.ID)
 			}
 
 			// auto-remove if required
@@ -257,18 +256,17 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 
 				err := NewContainerBackend().ContainerRm(vc.Name, config)
 				if err != nil {
-					log.Warnf("failed to auto remove container: %s", err.Error())
+					log.Errorf("Event Monitor failed to remove container(%s) - eventID(%s): %s", containerShortID, event.ID, err)
 				}
 			}
-
 		}()
 	case plevents.ContainerRemoved:
 		attrs = make(map[string]string)
-		//pop the destroy event...
+		// pop the destroy event...
 		actor := CreateContainerEventActorWithAttributes(vc, attrs)
 		EventService().Log(containerDestroyEvent, eventtypes.ContainerEventType, actor)
 		if err := UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
-			log.Warn(err)
+			log.Errorf("Event Monitor failed to unmap ports for container(%s): %s - eventID(%s)", containerShortID, err, event.ID)
 		}
 		// remove from the container cache...
 		cache.ContainerCache().DeleteContainer(vc.ContainerID)

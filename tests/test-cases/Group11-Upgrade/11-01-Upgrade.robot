@@ -80,12 +80,9 @@ Run Docker Checks
     Verify Container Rename  new-vch-cont1  new-vch-cont2  ${contID}
 
     # check the display name and datastore folder name of an existing container
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/*-%{ID1}
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should contain  ${output}  vch-restart-tes-%{ID1}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info *-%{ID1}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  vch-restart-tes-%{ID1}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info *-%{ID1}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  vch-restart-tes-%{ID1}
     ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls | grep vch-restart-tes-%{ID1}
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${output}  vch-restart-tes-%{ID1}
@@ -94,12 +91,9 @@ Run Docker Checks
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${vmName}=  Get VM Display Name  ${id}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/${vmName}
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should contain  ${output}  ${vmName}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info ${vmName}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  ${vmName}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info ${vmName}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${vmName}
     ${rc}  ${output}=  Run Keyword If  '%{DATASTORE_TYPE}' == 'VSAN'  Run And Return Rc And Output  govc datastore.ls | grep ${vmName}
     Run Keyword If  '%{DATASTORE_TYPE}' == 'VSAN'  Should Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{DATASTORE_TYPE}' == 'VSAN'  Should contain  ${output}  ${vmName}
@@ -152,6 +146,40 @@ Create Container with Named Volume
     Should Be Equal As Integers  ${rc}  0
     Set Suite Variable  ${TestContainerVolume}  ${output}
 
+Check Container Create Timestamps
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${newc}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Container created with the older VCH should have timestamp in seconds
+    ${rc}  ${oldoutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${TestContainerVolume} | jq -r '.[0].Created'
+    Should Be Equal As Integers  ${rc}  0
+    ${rest}  ${oldtstamp}=  Split String From Right  ${oldoutput}  :  1
+    ${oldlen}=  Get Length  ${oldtstamp}
+    Should Be Equal As Integers  ${oldlen}  3
+
+    # Container created with the upgraded VCH should have timestamp in nanoseconds
+    ${rc}  ${newoutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${newc} | jq -r '.[0].Created'
+    Should Be Equal As Integers  ${rc}  0
+    ${rest}  ${newtstamp}=  Split String From Right  ${newoutput}  :  1
+    ${newlen}=  Get Length  ${newtstamp}
+    Should Be True  ${newlen} >= 3
+
+    # Containers should show a valid human-readable duration in ps output. This tests the
+    # data migration plugin - the timestamp should be converted correctly to seconds
+    # before sending the ps response to the docker client.
+
+    # Pause for 2 seconds to allow for the time check below
+    Sleep  2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    Should Be Equal As Integers  ${rc}  0
+    ${oldcshortID}=  Get container shortID  ${TestContainerVolume}
+    ${lines}=  Get Lines Containing String  ${output}  ${oldcshortID}
+    Should Not Contain  ${lines}  years ago
+    ${newcshortID}=  Get container shortID  ${newc}
+    ${lines}=  Get Lines Containing String  ${output}  ${newcshortID}
+    Should Not Contain  ${lines}  Less than a second ago
 
 *** Test Cases ***
 Upgrade Present in vic-machine
@@ -163,10 +191,8 @@ Upgrade VCH with unreasonably short timeout and automatic rollback after failure
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout 1s
     Should Contain  ${output}  Upgrading VCH exceeded time limit
     Should Not Contain  ${output}  Completed successfully
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc snapshot.tree -vm=%{VCH-NAME}/%{VCH-NAME}
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${output}  upgrade
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc snapshot.tree -vm=%{VCH-NAME}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${output}  upgrade
+    ${rc}  ${output}=  Run And Return Rc And Output  govc snapshot.tree -vm=%{VCH-NAME}
+    Should Not Contain  ${output}  upgrade
 
     # confirm that the rollback took effect
     Check Original Version
@@ -181,6 +207,7 @@ Upgrade VCH
 
     Upgrade
     Check Upgraded Version
+    Check Container Create Timestamps
 
     Verify Volume Inspect Info  After Upgrade and Before Rollback  ${TestContainerVolume}  ${checkList}
 

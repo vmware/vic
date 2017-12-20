@@ -31,6 +31,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/runtime/middleware"
 
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/containers"
@@ -40,6 +41,7 @@ import (
 	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/metrics"
+	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/version"
@@ -75,15 +77,13 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 
 // CreateHandler creates a new container
 func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreateParams) middleware.Responder {
-	defer trace.End(trace.Begin(""))
+	id := uid.New().String()
+	defer trace.End(trace.Begin(id))
 
 	var err error
 
 	session := handler.handlerCtx.Session
-
 	ctx := context.Background()
-
-	id := uid.New().String()
 
 	// Init key for tether
 	// #nosec: RSA keys should be at least 2048 bits
@@ -103,7 +103,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 			ID:   id,
 			Name: params.CreateConfig.Name,
 		},
-		CreateTime: time.Now().UTC().Unix(),
+		CreateTime: time.Now().UTC().UnixNano(),
 		Version:    version.GetBuild(),
 		Key:        pem.EncodeToMemory(&privateKeyBlock),
 		LayerID:    params.CreateConfig.Layer,
@@ -215,15 +215,16 @@ func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) m
 }
 
 func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitParams) middleware.Responder {
-	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", params.Handle)))
+	op := trace.NewOperation(context.Background(), fmt.Sprintf("commit handle(%s)", params.Handle))
+	defer trace.End(trace.Begin(fmt.Sprintf("commit handle(%s)", params.Handle), op))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
 		return containers.NewCommitNotFound().WithPayload(&models.Error{Message: "container not found"})
 	}
 
-	if err := h.Commit(context.Background(), handler.handlerCtx.Session, params.WaitTime); err != nil {
-		log.Errorf("CommitHandler error on handle(%s) for %s: %#v", h.String(), h.ExecConfig.ID, err)
+	if err := h.Commit(op, handler.handlerCtx.Session, params.WaitTime); err != nil {
+		op.Errorf("CommitHandler error on handle(%s) for %s: %s", h, h.ExecConfig.ID, err)
 		switch err := err.(type) {
 		case exec.ConcurrentAccessError:
 			return containers.NewCommitConflict().WithPayload(&models.Error{Message: err.Error()})
@@ -238,7 +239,8 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 }
 
 func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.ContainerRemoveParams) middleware.Responder {
-	defer trace.End(trace.Begin(params.ID))
+	op := trace.NewOperation(context.Background(), params.ID)
+	defer trace.End(trace.Begin(params.ID, op))
 
 	// get the indicated container for removal
 	container := exec.Containers.Container(params.ID)
@@ -247,7 +249,7 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 	}
 
 	// NOTE: this should allowing batching of operations, as with Create, Start, Stop, et al
-	err := container.Remove(context.Background(), handler.handlerCtx.Session)
+	err := container.Remove(op, handler.handlerCtx.Session)
 	if err != nil {
 		switch err := err.(type) {
 		case exec.NotFoundError:
@@ -255,6 +257,13 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 		case exec.RemovePowerError:
 			return containers.NewContainerRemoveConflict().WithPayload(&models.Error{Message: err.Error()})
 		default:
+			if f, ok := err.(types.HasFault); ok {
+				switch f.Fault().(type) {
+				case *types.HostNotConnected:
+					p := &models.Error{Message: "Couldn't remove container. The ESX host is temporarily disconnected. Please try again later."}
+					return containers.NewContainerRemoveInternalServerError().WithPayload(p)
+				}
+			}
 			return containers.NewContainerRemoveInternalServerError()
 		}
 	}
@@ -263,17 +272,18 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 }
 
 func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers.GetContainerInfoParams) middleware.Responder {
-	defer trace.End(trace.Begin(params.ID))
+	op := trace.NewOperation(context.Background(), params.ID)
+	defer trace.End(trace.Begin(params.ID, op))
 
 	container := exec.Containers.Container(params.ID)
 	if container == nil {
 		info := fmt.Sprintf("GetContainerInfoHandler ContainerCache miss for container(%s)", params.ID)
-		log.Error(info)
+		op.Errorf(info)
 		return containers.NewGetContainerInfoNotFound().WithPayload(&models.Error{Message: info})
 	}
 
 	// Refresh to get up to date network info
-	container.Refresh(context.Background())
+	container.Refresh(op)
 	containerInfo := convertContainerToContainerInfo(container)
 	return containers.NewGetContainerInfoOK().WithPayload(containerInfo)
 }
@@ -310,7 +320,8 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 }
 
 func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
-	defer trace.End(trace.Begin(params.ID))
+	op := trace.NewOperation(context.Background(), params.ID)
+	defer trace.End(trace.Begin(params.ID, op))
 
 	// NOTE: I feel that this should be in a Commit path for consistency
 	// it would allow phrasings such as:
@@ -322,7 +333,7 @@ func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.
 		return containers.NewContainerSignalNotFound().WithPayload(&models.Error{Message: fmt.Sprintf("container %s not found", params.ID)})
 	}
 
-	err := container.Signal(context.Background(), params.Signal)
+	err := container.Signal(op, params.Signal)
 	if err != nil {
 		return containers.NewContainerSignalInternalServerError().WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -385,7 +396,8 @@ func (handler *ContainersHandlersImpl) GetContainerStatsHandler(params container
 }
 
 func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers.GetContainerLogsParams) middleware.Responder {
-	defer trace.End(trace.Begin(params.ID))
+	op := trace.NewOperation(context.Background(), params.ID)
+	defer trace.End(trace.Begin(params.ID, op))
 
 	container := exec.Containers.Container(params.ID)
 	if container == nil {
@@ -408,7 +420,7 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 		since = *params.Since
 	}
 
-	reader, err := container.LogReader(context.Background(), tail, follow, since)
+	reader, err := container.LogReader(op, tail, follow, since)
 	if err != nil {
 		// Do not return an error here.  It's a workaround for a panic similar to #2594
 		return containers.NewGetContainerLogsInternalServerError()
@@ -505,6 +517,18 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 	container := c.Info()
 	defer trace.End(trace.Begin(container.ExecConfig.ID))
 
+	// ensure we have probably up-to-date info
+	for _, endpoint := range container.ExecConfig.Networks {
+		if !endpoint.Static && (endpoint.IP == nil || ip.IsUnspecifiedIP(endpoint.IP.IP)) {
+			// container has dynamic IP but we do not have a reported address
+			op := trace.NewOperation(context.Background(), "state refresh triggered by missing DHCP data")
+			c.Refresh(op)
+			container = c.Info()
+			// shouldn't need multiple refreshes if multiple dhcps
+			break
+		}
+	}
+
 	// convert the container type to the required model
 	info := &models.ContainerInfo{
 		ContainerConfig: &models.ContainerConfig{},
@@ -592,6 +616,15 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 
 	info.HostConfig = &models.HostConfig{}
 	for _, endpoint := range container.ExecConfig.Networks {
+		// if an external type this will be the endpoint used to publish ports
+		if endpoint.Network.Type == constants.ExternalScopeType && !ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
+			info.HostConfig.Address = endpoint.Assigned.IP.String()
+			if endpoint.Network.TrustLevel == executor.Open {
+				// add all ports as port range
+				info.HostConfig.Ports = append(info.HostConfig.Ports, constants.PortsOpenNetwork)
+			}
+		}
+
 		ep := &models.EndpointConfig{
 			Address:     "",
 			Container:   ccid,

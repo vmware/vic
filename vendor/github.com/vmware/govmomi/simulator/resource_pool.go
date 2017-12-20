@@ -17,6 +17,7 @@ limitations under the License.
 package simulator
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/vmware/govmomi/simulator/esx"
@@ -42,29 +43,39 @@ func NewResourcePool() *ResourcePool {
 	return pool
 }
 
-func NewResourceConfigSpec() types.ResourceConfigSpec {
-	spec := types.ResourceConfigSpec{
-		CpuAllocation:    new(types.ResourceAllocationInfo),
-		MemoryAllocation: new(types.ResourceAllocationInfo),
-	}
-
-	return spec
+func (p *ResourcePool) allFieldsSet(info types.ResourceAllocationInfo) bool {
+	return info.Reservation != nil &&
+		info.Limit != nil &&
+		info.ExpandableReservation != nil &&
+		info.Shares != nil
 }
 
-func (p *ResourcePool) setDefaultConfig(c types.BaseResourceAllocationInfo) {
-	info := c.GetResourceAllocationInfo()
-
-	if info.Shares == nil {
-		info.Shares = new(types.SharesInfo)
+func (p *ResourcePool) allFieldsValid(info types.ResourceAllocationInfo) bool {
+	if info.Reservation != nil {
+		if *info.Reservation < 0 {
+			return false
+		}
 	}
 
-	if info.Shares.Level == "" {
-		info.Shares.Level = types.SharesLevelNormal
+	if info.Limit != nil {
+		if *info.Limit < -1 {
+			return false
+		}
 	}
 
-	if info.ExpandableReservation == nil {
-		info.ExpandableReservation = types.NewBool(false)
+	if info.Shares != nil {
+		if info.Shares.Level == types.SharesLevelCustom {
+			if info.Shares.Shares < 0 {
+				return false
+			}
+		}
 	}
+
+	if info.OverheadLimit != nil {
+		return false
+	}
+
+	return true
 }
 
 func (p *ResourcePool) createChild(name string, spec types.ResourceConfigSpec) (*ResourcePool, *soap.Fault) {
@@ -72,6 +83,18 @@ func (p *ResourcePool) createChild(name string, spec types.ResourceConfigSpec) (
 		return nil, Fault("", &types.DuplicateName{
 			Name:   e.Entity().Name,
 			Object: e.Reference(),
+		})
+	}
+
+	if !(p.allFieldsSet(spec.CpuAllocation) && p.allFieldsValid(spec.CpuAllocation)) {
+		return nil, Fault("", &types.InvalidArgument{
+			InvalidProperty: "spec.cpuAllocation",
+		})
+	}
+
+	if !(p.allFieldsSet(spec.MemoryAllocation) && p.allFieldsValid(spec.MemoryAllocation)) {
+		return nil, Fault("", &types.InvalidArgument{
+			InvalidProperty: "spec.memoryAllocation",
 		})
 	}
 
@@ -83,9 +106,6 @@ func (p *ResourcePool) createChild(name string, spec types.ResourceConfigSpec) (
 	child.Config.CpuAllocation = spec.CpuAllocation
 	child.Config.MemoryAllocation = spec.MemoryAllocation
 	child.Config.Entity = spec.Entity
-
-	p.setDefaultConfig(child.Config.CpuAllocation)
-	p.setDefaultConfig(child.Config.MemoryAllocation)
 
 	return child, nil
 }
@@ -106,6 +126,62 @@ func (p *ResourcePool) CreateResourcePool(c *types.CreateResourcePool) soap.HasF
 	body.Res = &types.CreateResourcePoolResponse{
 		Returnval: child.Reference(),
 	}
+
+	return body
+}
+
+func (p *ResourcePool) updateAllocation(kind string, src types.ResourceAllocationInfo, dst *types.ResourceAllocationInfo) *soap.Fault {
+	if !p.allFieldsValid(src) {
+		return Fault("", &types.InvalidArgument{
+			InvalidProperty: fmt.Sprintf("spec.%sAllocation", kind),
+		})
+	}
+
+	if src.Reservation != nil {
+		dst.Reservation = src.Reservation
+	}
+
+	if src.Limit != nil {
+		dst.Limit = src.Limit
+	}
+
+	if src.Shares != nil {
+		dst.Shares = src.Shares
+	}
+
+	return nil
+}
+
+func (p *ResourcePool) UpdateConfig(c *types.UpdateConfig) soap.HasFault {
+	body := &methods.UpdateConfigBody{}
+
+	if c.Name != "" {
+		if e := Map.FindByName(c.Name, p.ResourcePool.ResourcePool); e != nil {
+			body.Fault_ = Fault("", &types.DuplicateName{
+				Name:   e.Entity().Name,
+				Object: e.Reference(),
+			})
+			return body
+		}
+
+		p.Name = c.Name
+	}
+
+	spec := c.Config
+
+	if spec != nil {
+		if err := p.updateAllocation("memory", spec.MemoryAllocation, &p.Config.MemoryAllocation); err != nil {
+			body.Fault_ = err
+			return body
+		}
+
+		if err := p.updateAllocation("cpu", spec.CpuAllocation, &p.Config.CpuAllocation); err != nil {
+			body.Fault_ = err
+			return body
+		}
+	}
+
+	body.Res = &types.UpdateConfigResponse{}
 
 	return body
 }
@@ -228,11 +304,9 @@ func (p *ResourcePool) DestroyTask(req *types.Destroy_Task) soap.HasFault {
 		return nil, nil
 	})
 
-	task.Run()
-
 	return &methods.Destroy_TaskBody{
 		Res: &types.Destroy_TaskResponse{
-			Returnval: task.Self,
+			Returnval: task.Run(),
 		},
 	}
 }

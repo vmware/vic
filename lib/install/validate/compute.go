@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -30,12 +28,12 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-func (v *Validator) compute(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) compute(op trace.Operation, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin("", op))
 
 	// ComputeResourcePath should resolve to a ComputeResource, ClusterComputeResource or ResourcePool
 
-	pool, err := v.ResourcePoolHelper(ctx, input.ComputeResourcePath)
+	pool, err := v.ResourcePoolHelper(op, input.ComputeResourcePath)
 	v.NoteIssue(err)
 	if pool == nil {
 		return
@@ -45,10 +43,10 @@ func (v *Validator) compute(ctx context.Context, input *data.Data, conf *config.
 	// TODO: for RP creation assert whatever we decide about the pool - most likely that it's empty
 }
 
-func (v *Validator) inventoryPath(obj object.Reference) string {
-	elt, err := v.Session.Finder.Element(v.Context, obj.Reference())
+func (v *Validator) inventoryPath(op trace.Operation, obj object.Reference) string {
+	elt, err := v.Session.Finder.Element(op, obj.Reference())
 	if err != nil {
-		log.Warnf("failed to get inventory path for %s: %s", obj.Reference(), err)
+		op.Warnf("failed to get inventory path for %s: %s", obj.Reference(), err)
 		return ""
 	}
 
@@ -58,28 +56,29 @@ func (v *Validator) inventoryPath(obj object.Reference) string {
 // ResourcePoolHelper finds a resource pool from the input compute path and shows
 // suggestions if unable to do so when the path is ambiguous.
 func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*object.ResourcePool, error) {
-	defer trace.End(trace.Begin(path))
+	op := trace.FromContext(ctx, "DatastoreHelper")
+	defer trace.End(trace.Begin(path, op))
 
 	// if compute-resource is unspecified is there a default
 	if path == "" {
 		if v.Session.Pool != nil {
-			log.Debugf("Using default resource pool for compute resource: %q", v.Session.Pool.InventoryPath)
+			op.Debugf("Using default resource pool for compute resource: %q", v.Session.Pool.InventoryPath)
 			return v.Session.Pool, nil
 		}
 
 		// if no path specified and no default available the show all
-		v.suggestComputeResource()
+		v.suggestComputeResource(op)
 		return nil, errors.New("No unambiguous default compute resource available: --compute-resource must be specified")
 	}
 
-	pool, err := v.Session.Finder.ResourcePool(ctx, path)
+	pool, err := v.Session.Finder.ResourcePool(op, path)
 	if err != nil {
 		switch err.(type) {
 		case *find.NotFoundError:
 			// fall through to ComputeResource check
 		case *find.MultipleFoundError:
-			log.Errorf("Failed to use --compute-resource=%q as resource pool: %s", path, err)
-			v.suggestResourcePool(path)
+			op.Errorf("Failed to use --compute-resource=%q as resource pool: %s", path, err)
+			v.suggestResourcePool(op, path)
 			return nil, err
 		default:
 			return nil, err
@@ -90,33 +89,33 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 
 	if pool == nil {
 		// check if its a ComputeResource or ClusterComputeResource
-		compute, err = v.Session.Finder.ComputeResource(ctx, path)
+		compute, err = v.Session.Finder.ComputeResource(op, path)
 		if err != nil {
 			switch err.(type) {
 			case *find.NotFoundError, *find.MultipleFoundError:
-				v.suggestComputeResource()
+				v.suggestComputeResource(op)
 			}
 
 			return nil, err
 		}
 
 		// Use the default pool
-		pool, err = compute.ResourcePool(ctx)
+		pool, err = compute.ResourcePool(op)
 		if err != nil {
 			return nil, err
 		}
-		pool.InventoryPath = v.inventoryPath(pool.Reference())
+		pool.InventoryPath = v.inventoryPath(op, pool.Reference())
 	} else {
 		// TODO: add an object.ResourcePool.Owner method (see compute.ResourcePool.GetCluster)
 		var p mo.ResourcePool
 
-		if err = pool.Properties(ctx, pool.Reference(), []string{"owner"}, &p); err != nil {
-			log.Errorf("unable to get cluster of resource pool %s: %s", pool.Name(), err)
+		if err = pool.Properties(op, pool.Reference(), []string{"owner"}, &p); err != nil {
+			op.Errorf("unable to get cluster of resource pool %s: %s", pool.Name(), err)
 			return nil, err
 		}
 
 		compute = object.NewComputeResource(pool.Client(), p.Owner)
-		compute.InventoryPath = v.inventoryPath(compute.Reference())
+		compute.InventoryPath = v.inventoryPath(op, compute.Reference())
 	}
 
 	// stash the pool for later use
@@ -149,18 +148,18 @@ func (v *Validator) ListComputeResource() ([]string, error) {
 	return matches, nil
 }
 
-func (v *Validator) suggestComputeResource() {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) suggestComputeResource(op trace.Operation) {
+	defer trace.End(trace.Begin("", op))
 
 	compute, err := v.ListComputeResource()
 	if err != nil {
-		log.Error(err)
+		op.Error(err)
 		return
 	}
 
-	log.Info("Suggested values for --compute-resource:")
+	op.Info("Suggested values for --compute-resource:")
 	for _, c := range compute {
-		log.Infof("  %q", c)
+		op.Infof("  %q", c)
 	}
 }
 
@@ -181,31 +180,33 @@ func (v *Validator) ListResourcePool(path string) ([]string, error) {
 	return matches, nil
 }
 
-func (v *Validator) suggestResourcePool(path string) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) suggestResourcePool(op trace.Operation, path string) {
+	defer trace.End(trace.Begin("", op))
 
 	pools, err := v.ListResourcePool(path)
 	if err != nil {
-		log.Error(err)
+		op.Error(err)
 		return
 	}
 
-	log.Info("Suggested resource pool values for --compute-resource:")
+	op.Info("Suggested resource pool values for --compute-resource:")
 	for _, c := range pools {
 		p := strings.TrimPrefix(c, v.DatacenterPath+"/host/")
-		log.Infof("  %q", p)
+		op.Infof("  %q", p)
 	}
 }
 
 func (v *Validator) ValidateCompute(ctx context.Context, input *data.Data, computeRequired bool) (*config.VirtualContainerHostConfigSpec, error) {
-	defer trace.End(trace.Begin(""))
+	op := trace.FromContext(ctx, "ValidateCompute")
+	defer trace.End(trace.Begin("", op))
+
 	conf := &config.VirtualContainerHostConfigSpec{}
 
 	if input.ComputeResourcePath == "" && !computeRequired {
 		return conf, nil
 	}
 
-	log.Infof("Validating compute resource")
-	v.compute(ctx, input, conf)
-	return conf, v.ListIssues()
+	op.Info("Validating compute resource")
+	v.compute(op, input, conf)
+	return conf, v.ListIssues(ctx)
 }

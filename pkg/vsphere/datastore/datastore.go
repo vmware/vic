@@ -25,13 +25,13 @@ import (
 	"regexp"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/google/uuid"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
@@ -58,6 +58,7 @@ type Helper struct {
 // rootdir is the top level directory to root all data.  If root does not exist,
 // it will be created.  If it already exists, NOOP. This cannot be empty.
 func NewHelper(ctx context.Context, s *session.Session, ds *object.Datastore, rootdir string) (*Helper, error) {
+	op := trace.FromContext(ctx, "NewHelper")
 
 	d := &Helper{
 		ds: ds,
@@ -69,8 +70,8 @@ func NewHelper(ctx context.Context, s *session.Session, ds *object.Datastore, ro
 		rootdir = rootdir[1:]
 	}
 
-	if err := d.mkRootDir(ctx, rootdir); err != nil {
-		log.Infof("error creating root directory %s: %s", rootdir, err)
+	if err := d.mkRootDir(op, rootdir); err != nil {
+		op.Infof("error creating root directory %s: %s", rootdir, err)
 		return nil, err
 	}
 
@@ -78,7 +79,7 @@ func NewHelper(ctx context.Context, s *session.Session, ds *object.Datastore, ro
 		return nil, fmt.Errorf("failed to create root directory")
 	}
 
-	log.Infof("Datastore path is %s", d.RootURL.String())
+	op.Infof("Datastore path is %s", d.RootURL.String())
 	return d, nil
 }
 
@@ -134,18 +135,18 @@ func (d *Helper) Summary(ctx context.Context) (*types.DatastoreSummary, error) {
 	return &mds.Summary, nil
 }
 
-func mkdir(ctx context.Context, sess *session.Session, fm *object.FileManager, createParentDirectories bool, path string) (string, error) {
-	log.Infof("Creating directory %s", path)
+func mkdir(op trace.Operation, sess *session.Session, fm *object.FileManager, createParentDirectories bool, path string) (string, error) {
+	op.Infof("Creating directory %s", path)
 
-	if err := fm.MakeDirectory(ctx, path, sess.Datacenter, createParentDirectories); err != nil {
+	if err := fm.MakeDirectory(op, path, sess.Datacenter, createParentDirectories); err != nil {
 		if soap.IsSoapFault(err) {
 			soapFault := soap.ToSoapFault(err)
 			if _, ok := soapFault.VimFault().(types.FileAlreadyExists); ok {
-				log.Debugf("File already exists: %s", path)
+				op.Debugf("File already exists: %s", path)
 				return "", os.ErrExist
 			}
 		}
-		log.Debugf("Creating %s error: %s", path, err)
+		op.Debugf("Creating %s error: %s", path, err)
 		return "", err
 	}
 
@@ -154,7 +155,9 @@ func mkdir(ctx context.Context, sess *session.Session, fm *object.FileManager, c
 
 // Mkdir creates directories.
 func (d *Helper) Mkdir(ctx context.Context, createParentDirectories bool, dirs ...string) (string, error) {
-	return mkdir(ctx, d.s, d.fm, createParentDirectories, path.Join(d.RootURL.String(), path.Join(dirs...)))
+	op := trace.FromContext(ctx, "Mkdir")
+
+	return mkdir(op, d.s, d.fm, createParentDirectories, path.Join(d.RootURL.String(), path.Join(dirs...)))
 }
 
 // Ls returns a list of dirents at the given path (relative to root)
@@ -257,9 +260,11 @@ func (d *Helper) Stat(ctx context.Context, pth string) (types.BaseFileInfo, erro
 }
 
 func (d *Helper) Mv(ctx context.Context, fromPath, toPath string) error {
+	op := trace.FromContext(ctx, "Mv")
+
 	from := path.Join(d.RootURL.String(), fromPath)
 	to := path.Join(d.RootURL.String(), toPath)
-	log.Infof("Moving %s to %s", from, to)
+	op.Infof("Moving %s to %s", from, to)
 	err := tasks.Wait(ctx, func(context.Context) (tasks.Task, error) {
 		return d.fm.MoveDatastoreFile(ctx, from, d.s.Datacenter, to, d.s.Datacenter, true)
 	})
@@ -268,8 +273,10 @@ func (d *Helper) Mv(ctx context.Context, fromPath, toPath string) error {
 }
 
 func (d *Helper) Rm(ctx context.Context, pth string) error {
+	op := trace.FromContext(ctx, "Rm")
+
 	f := path.Join(d.RootURL.String(), pth)
-	log.Infof("Removing %s", pth)
+	op.Infof("Removing %s", pth)
 	return d.ds.NewFileManager(d.s.Datacenter, true).Delete(ctx, f) // TODO: NewHelper should create the DatastoreFileManager
 }
 
@@ -285,7 +292,7 @@ func (d *Helper) IsVSAN(ctx context.Context) bool {
 // same for each and this tries to create the directory and stash the relevant
 // result so the URI doesn't need to be recomputed for every datastore
 // operation.
-func (d *Helper) mkRootDir(ctx context.Context, rootdir string) error {
+func (d *Helper) mkRootDir(op trace.Operation, rootdir string) error {
 	if rootdir == "" {
 		return fmt.Errorf("root directory is empty")
 	}
@@ -297,7 +304,7 @@ func (d *Helper) mkRootDir(ctx context.Context, rootdir string) error {
 	// Handle vsan
 	// Vsan will complain if the root dir exists.  Just call it directly and
 	// swallow the error if it's already there.
-	if d.IsVSAN(ctx) {
+	if d.IsVSAN(op) {
 		comps := strings.Split(rootdir, "/")
 
 		nm := object.NewDatastoreNamespaceManager(d.s.Vim25())
@@ -305,7 +312,7 @@ func (d *Helper) mkRootDir(ctx context.Context, rootdir string) error {
 		// This returns the vmfs path (including the datastore and directory
 		// UUIDs).  Use the directory UUID in future operations because it is
 		// the stable path which we can use regardless of vsan state.
-		uuid, err := nm.CreateDirectory(ctx, d.ds, comps[0], "")
+		uuid, err := nm.CreateDirectory(op, d.ds, comps[0], "")
 		if err != nil {
 			if !soap.IsSoapFault(err) {
 				return err
@@ -330,12 +337,12 @@ func (d *Helper) mkRootDir(ctx context.Context, rootdir string) error {
 
 	// create the rest of the root dir in case of vSAN, otherwise
 	// create the full path
-	if _, err := mkdir(ctx, d.s, d.fm, true, rooturl); err != nil {
+	if _, err := mkdir(op, d.s, d.fm, true, rooturl); err != nil {
 		if !os.IsExist(err) {
 			return err
 		}
 
-		log.Infof("datastore root %s already exists", rooturl)
+		op.Infof("datastore root %s already exists", rooturl)
 	}
 
 	d.RootURL.FromString(rooturl)

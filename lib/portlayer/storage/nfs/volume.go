@@ -76,6 +76,7 @@ func NewVolumeStore(op trace.Operation, storeName string, mount MountServer) (*V
 
 	selfLink, err := util.VolumeStoreNameToURL(storeName)
 	if err != nil {
+		op.Errorf("Failed to construct URL for volume store %s: %s", storeName, err)
 		return nil, err
 	}
 
@@ -88,11 +89,13 @@ func NewVolumeStore(op trace.Operation, storeName string, mount MountServer) (*V
 	// we assume that nfsTargetURL.path already exists.
 	// make volumes directory
 	if _, err := target.Mkdir(volumesDir, defaultPermissions); err != nil && !os.IsExist(err) {
+		op.Errorf("Failed to create volumes directory '%s': %s", volumesDir, err)
 		return nil, err
 	}
 
 	// make metadata directory
 	if _, err := target.Mkdir(metadataDir, defaultPermissions); err != nil && !os.IsExist(err) {
+		op.Errorf("Failed to create metadata directory '%s': %s", metadataDir, err)
 		return nil, err
 	}
 
@@ -118,7 +121,9 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 	}
 	defer v.Service.Unmount(op)
 
-	if _, err := target.Mkdir(v.volDirPath(ID), defaultPermissions); err != nil {
+	dir := v.volDirPath(ID)
+	if _, err := target.Mkdir(dir, defaultPermissions); err != nil {
+		op.Errorf("Failed to create volume path '%s' on store %s: %s", dir, v.Name, err)
 		return nil, err
 	}
 
@@ -131,6 +136,7 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 
 	vol, err := storage.NewVolume(v.SelfLink, ID, info, NewVolume(u, v.volDirPath(ID)), executor.CopyNew)
 	if err != nil {
+		op.Errorf("Created volume directory but failed to create volume: %s", err)
 		return nil, err
 	}
 
@@ -248,6 +254,7 @@ func (v *VolumeStore) writeMetadata(op trace.Operation, ID string, info map[stri
 
 	_, err := target.Mkdir(metadataPath, defaultPermissions)
 	if err != nil {
+		op.Errorf("Failed to create metadata directory '%s': %s", metadataPath, err)
 		return err
 	}
 
@@ -263,6 +270,7 @@ func (v *VolumeStore) writeMetadata(op trace.Operation, ID string, info map[stri
 
 		_, err = blobFile.Write(data)
 		if err != nil {
+			op.Errorf("failed to write metadata to '%s': %s", targetPath, err.Error())
 			return err
 		}
 		defer blobFile.Close()

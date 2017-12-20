@@ -24,6 +24,7 @@ import (
 /* VCH constants */
 const (
 	SerialOverLANPort  = 2377
+	VchAdminPortalPort = 2378
 	AttachServerPort   = 2379
 	ManagementHostName = "management.localhost"
 	ClientHostName     = "client.localhost"
@@ -37,6 +38,8 @@ const (
 	ExternalScopeType = "external"
 	// DefaultBridgeRange is the default pool for bridge networks
 	DefaultBridgeRange = "172.16.0.0/12"
+	// PortsOpenNetwork indicates no port blocking
+	PortsOpenNetwork = "0-65535"
 	// Constants for assemble the VM display name on vSphere
 	MaxVMNameLength = 80
 	ShortIDLen      = 12
