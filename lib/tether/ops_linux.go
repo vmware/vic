@@ -211,10 +211,15 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 		return err
 	}
 
+	if err := BindSys.Hosts.Load(); err != nil {
+		log.Errorf("Unable to load existing /etc/hosts file - modifications since last load will be overwritten: %s", err)
+	}
+
 	// add entry to hosts for resolution without nameservers
 	lo4 := net.IPv4(127, 0, 1, 1)
 	for _, a := range append(aliases, hostname) {
 		BindSys.Hosts.SetHost(a, lo4)
+		BindSys.Hosts.SetHost(a, net.IPv6loopback)
 	}
 
 	if err = bindMountAndSave(Sys.Hosts, BindSys.Hosts); err != nil {
@@ -502,6 +507,10 @@ func (t *BaseOperations) updateHosts(endpoint *NetworkEndpoint) error {
 		return nil
 	}
 
+	if err := BindSys.Hosts.Load(); err != nil {
+		log.Errorf("Unable to load existing /etc/hosts file - modifications since last load will be overwritten: %s", err)
+	}
+
 	BindSys.Hosts.SetHost(fmt.Sprintf("%s.localhost", endpoint.Network.Name), endpoint.Assigned.IP)
 
 	if err := bindMountAndSave(Sys.Hosts, BindSys.Hosts); err != nil {
@@ -670,6 +679,7 @@ func ApplyEndpoint(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) err
 }
 
 func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc client.Client) {
+	divisor := time.Duration(2)
 	exp := time.After(dc.LastAck().LeaseTime() / 2)
 	for {
 		select {
@@ -684,6 +694,18 @@ func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc cli
 			err := dc.Renew()
 			if err != nil {
 				log.Errorf("failed to renew ip address for network %s: %s", e.Name, err)
+
+				// wait half of the remaining lease time before trying again
+				divisor *= 2
+				duration := dc.LastAck().LeaseTime() / divisor
+
+				// for now go with a minimum retry of 1min
+				if duration < time.Minute {
+					duration = time.Minute
+				}
+
+				exp = time.After(duration)
+
 				continue
 			}
 
@@ -696,6 +718,7 @@ func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc cli
 				Nameservers: ack.DNS(),
 			}
 
+			// TODO: determine if there are actually any changes to apply before performing updates
 			e.configured = false
 			t.Apply(e)
 			if err = t.config.UpdateNetworkEndpoint(e); err != nil {
@@ -970,13 +993,22 @@ func (t *BaseOperations) Setup(config Config) error {
 		return err
 	}
 
+	// Seed the working copy of the hosts file with that from the image
+	BindSys.Hosts.Copy(Sys.Hosts)
+
 	// make sure localhost entries are present
 	entries := []struct {
 		hostname string
 		addr     net.IP
 	}{
 		{"localhost", net.ParseIP("127.0.0.1")},
+		{"localhost4", net.ParseIP("127.0.0.1")},
+		{"localhost.localdomain", net.ParseIP("127.0.0.1")},
+		{"localhost4.localdomain4", net.ParseIP("127.0.0.1")},
 		{"ip6-localhost", net.ParseIP("::1")},
+		{"localhost", net.ParseIP("::1")},
+		{"localhost.localdomain", net.ParseIP("::1")},
+		{"localhost6.localdomain6", net.ParseIP("::1")},
 		{"ip6-loopback", net.ParseIP("::1")},
 		{"ip6-localnet", net.ParseIP("fe00::0")},
 		{"ip6-mcastprefix", net.ParseIP("ff00::0")},
@@ -1084,13 +1116,19 @@ func bindMount(src, target string) error {
 	// no need to return if unmount fails; it's possible that the target is not mounted previously
 	log.Infof("unmounting %s", target)
 	if err := Sys.Syscall.Unmount(target, syscall.MNT_DETACH); err != nil {
-		log.Errorf("failed to unmount %s: %s", target, err)
+		if err.Error() == os.ErrInvalid.Error() {
+			log.Debug("path is not currently a bindmount target")
+		} else {
+			log.Errorf("failed to unmount %s: %s", target, err)
+		}
 	}
 
 	// bind mount src to target
 	log.Infof("bind-mounting %s on %s", src, target)
 	if err := Sys.Syscall.Mount(src, target, "bind", syscall.MS_BIND, ""); err != nil {
-		return fmt.Errorf("faild to mount %s to %s: %s", src, target, err)
+		detail := fmt.Errorf("failed to mount %s to %s: %s", src, target, err)
+		log.Error(detail)
+		return detail
 	}
 
 	// make sure the file is readable

@@ -186,15 +186,6 @@ vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} \
 * Regression tests pass
 
 
-## Create VCH - Existing vApp on vCenter
-1. Create vApp on vCenter
-2. Create VCH with the same (already existing) name
-
-### Expected Outcome
-* Command fails
-
-
-
 Image files
 =======
 
@@ -203,6 +194,25 @@ Image files
 
 ### Expected Outcome
 * Command failed for no iso files found
+
+
+Creation log file
+======
+
+## Creation log file uploaded to datastore
+1. Issue the following commands:
+```
+vic-machine create --name=<VCH_NAME> --target=<TEST_URL> \
+    --user=<TEST_USERNAME> --image-store=<TEST_DATASTORE> --password=<TEST_PASSWORD> \
+    --bridge-network=<NETWORK> --compute-resource=<TEST_RESOURCE>
+```
+2. Verified that the creation log file prefixed by `vic-machine-create` is uploaded to datastore folder
+3. Verified that the creation log file is complete
+
+## Expected Outcome
+* Deployment succeeds
+* The creation log file is uploaded to datastore folder
+* The creation log file is complete
 
 
 
@@ -276,7 +286,7 @@ Appliance size
 
 ### Expected Outcome
 * Deployed successfully
-* Check vApp or rp resource settings is correct through govc
+* Check rp resource settings are correct through govc
 * Integration test passed
 
 
@@ -313,5 +323,5 @@ Appliance size
 
 ### Expected Outcome
 * Deployed successfully
-* Check vApp or rp resource settings is correct through govc
+* Check rp resource settings are correct through govc
 * Integration test passed

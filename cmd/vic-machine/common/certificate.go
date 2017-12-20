@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/pkg/certificate"
@@ -55,6 +54,7 @@ type CertFactory struct {
 	NoTLSverify  bool
 	KeyPEM       []byte
 	CertPEM      []byte
+	NoSaveToDisk bool
 }
 
 func (c *CertFactory) CertFlags() []cli.Flag {
@@ -110,7 +110,7 @@ func (c *CertFactory) CertFlags() []cli.Flag {
 	}
 }
 
-func (c *CertFactory) ProcessCertificates(displayName string, force bool, debug int) error {
+func (c *CertFactory) ProcessCertificates(op trace.Operation, displayName string, force bool, debug int) error {
 	// set up the locations for the certificates and env file
 	if c.CertPath == "" {
 		c.CertPath = displayName
@@ -119,7 +119,7 @@ func (c *CertFactory) ProcessCertificates(displayName string, force bool, debug 
 
 	// check for insecure case
 	if c.NoTLS {
-		log.Warn("Configuring without TLS - all communications will be insecure")
+		op.Warn("Configuring without TLS - all communications will be insecure")
 		return nil
 	}
 
@@ -134,13 +134,13 @@ func (c *CertFactory) ProcessCertificates(displayName string, force bool, debug 
 	if c.Cname == "" {
 		if c.ClientNetworkIP != "" {
 			c.Cname = c.ClientNetworkIP
-			log.Infof("Using client-network-ip as cname where needed - use --tls-cname to override: %s", c.Cname)
+			op.Infof("Using client-network-ip as cname where needed - use --tls-cname to override: %s", c.Cname)
 		} else if c.PublicNetworkIP != "" && (c.PublicNetworkName == c.ClientNetworkName || c.ClientNetworkName == "") {
 			c.Cname = c.PublicNetworkIP
-			log.Infof("Using public-network-ip as cname where needed - use --tls-cname to override: %s", c.Cname)
+			op.Infof("Using public-network-ip as cname where needed - use --tls-cname to override: %s", c.Cname)
 		} else if c.ManagementNetworkIP != "" && (c.ManagementNetworkName == c.ClientNetworkName || (c.ClientNetworkName == "" && c.ManagementNetworkName == c.PublicNetworkName)) {
 			c.Cname = c.ManagementNetworkIP
-			log.Infof("Using management-network-ip as cname where needed - use --tls-cname to override: %s", c.Cname)
+			op.Infof("Using management-network-ip as cname where needed - use --tls-cname to override: %s", c.Cname)
 		}
 
 		if c.Cname != "" {
@@ -153,23 +153,23 @@ func (c *CertFactory) ProcessCertificates(displayName string, force bool, debug 
 	}
 
 	// load what certificates we can
-	cas, keypair, err := c.loadCertificates(debug)
+	cas, keypair, err := c.loadCertificates(op, debug)
 	if err != nil {
-		log.Errorf("Unable to load certificates: %s", err)
+		op.Errorf("Unable to load certificates: %s", err)
 		if !force {
 			return err
 		}
 
-		log.Warnf("Ignoring error loading certificates due to --force")
+		op.Warnf("Ignoring error loading certificates due to --force")
 		cas = nil
 		keypair = nil
 		err = nil
 	}
 
 	// we need to generate some part of the certificate configuration
-	gcas, gkeypair, err := c.generateCertificates(keypair == nil, !c.NoTLSverify && len(cas) == 0)
+	gcas, gkeypair, err := c.generateCertificates(op, keypair == nil, !c.NoTLSverify && len(cas) == 0)
 	if err != nil {
-		log.Error("cannot continue: unable to generate certificates")
+		op.Error("cannot continue: unable to generate certificates")
 		return err
 	}
 
@@ -195,7 +195,7 @@ func (c *CertFactory) ProcessCertificates(displayName string, force bool, debug 
 
 	// do we have key, cert, and --no-tlsverify
 	if c.NoTLSverify || len(cas) == 0 {
-		log.Warnf("Configuring without TLS verify - certificate-based authentication disabled")
+		op.Warnf("Configuring without TLS verify - certificate-based authentication disabled")
 		return nil
 	}
 
@@ -204,8 +204,8 @@ func (c *CertFactory) ProcessCertificates(displayName string, force bool, debug 
 }
 
 // loadCertificates returns the client CA pool and the keypair for server certificates on success
-func (c *CertFactory) loadCertificates(debug int) ([]byte, *certificate.KeyPair, error) {
-	defer trace.End(trace.Begin(""))
+func (c *CertFactory) loadCertificates(op trace.Operation, debug int) ([]byte, *certificate.KeyPair, error) {
+	defer trace.End(trace.Begin("", op))
 
 	// reads each of the files specified, assuming that they are PEM encoded certs,
 	// and constructs a byte array suitable for passing to CertPool.AppendCertsFromPEM
@@ -218,7 +218,7 @@ func (c *CertFactory) loadCertificates(debug int) ([]byte, *certificate.KeyPair,
 		}
 
 		certs = append(certs, b...)
-		log.Infof("Loaded CA from %s", f)
+		op.Infof("Loaded CA from %s", f)
 	}
 
 	var keypair *certificate.KeyPair
@@ -242,36 +242,36 @@ func (c *CertFactory) loadCertificates(debug int) ([]byte, *certificate.KeyPair,
 	if err := keypair.LoadCertificate(); err != nil {
 		if explicit || !os.IsNotExist(err) {
 			// if these files were explicit paths, or anything other than not found, fail
-			log.Errorf("Failed to load certificate: %s", err)
+			op.Errorf("Failed to load certificate: %s", err)
 			return certs, nil, err
 		}
 
-		log.Debugf("Unable to locate existing server certificate in cert path")
+		op.Debugf("Unable to locate existing server certificate in cert path")
 		return nil, nil, nil
 	}
 
 	// check that any supplied cname matches the server cert CN
 	cert, err := keypair.Certificate()
 	if err != nil {
-		log.Errorf("Failed to parse certificate: %s", err)
+		op.Errorf("Failed to parse certificate: %s", err)
 		return certs, nil, err
 	}
 
 	if cert.Leaf == nil {
-		log.Warnf("Failed to load x509 leaf: Unable to confirm server certificate cname matches provided cname %q. Continuing...", c.Cname)
+		op.Warnf("Failed to load x509 leaf: Unable to confirm server certificate cname matches provided cname %q. Continuing...", c.Cname)
 	} else {
 		// We just do a direct equality check here - trying to be clever is liable to lead to hard
 		// to diagnose errors
 		if cert.Leaf.Subject.CommonName != c.Cname {
-			log.Errorf("Provided cname does not match that in existing server certificate: %s", cert.Leaf.Subject.CommonName)
+			op.Errorf("Provided cname does not match that in existing server certificate: %s", cert.Leaf.Subject.CommonName)
 			if debug > 2 {
-				log.Debugf("Certificate does not match provided cname: %#+v", cert.Leaf)
+				op.Debugf("Certificate does not match provided cname: %#+v", cert.Leaf)
 			}
 			return certs, nil, fmt.Errorf("cname option doesn't match existing server certificate in certificate path %s", c.CertPath)
 		}
 	}
 
-	log.Infof("Loaded server certificate %s", scert)
+	op.Infof("Loaded server certificate %s", scert)
 	c.Skey = skey
 	c.Scert = scert
 
@@ -280,33 +280,33 @@ func (c *CertFactory) loadCertificates(debug int) ([]byte, *certificate.KeyPair,
 		b, err := ioutil.ReadFile(ca)
 		if err != nil {
 			if os.IsNotExist(err) {
-				log.Debugf("Unable to locate existing CA in cert path")
+				op.Debugf("Unable to locate existing CA in cert path")
 				return certs, keypair, nil
 			}
 
 			// if the CA exists but cannot be loaded then it's an error
-			log.Errorf("Failed to load authority from certificate path %s: %s", c.CertPath, err)
+			op.Errorf("Failed to load authority from certificate path %s: %s", c.CertPath, err)
 			return certs, keypair, errors.New("failed to load certificate authority")
 		}
 
 		c.Cacert = ca
 
-		log.Infof("Loaded CA with default name from certificate path %s", c.CertPath)
+		op.Infof("Loaded CA with default name from certificate path %s", c.CertPath)
 		certs = b
 
 		// load client certs - we ensure the client certs validate with the provided CA or ignore any we find
 		cpair := certificate.NewKeyPair(ccert, ckey, nil, nil)
 		if err := cpair.LoadCertificate(); err != nil {
-			log.Warnf("Unable to load client certificate - validation of API endpoint will be best effort only: %s", err)
+			op.Warnf("Unable to load client certificate - validation of API endpoint will be best effort only: %s", err)
 		}
 
 		clientCert, err := certificate.VerifyClientCert(certs, cpair)
 		if err != nil {
 			switch err.(type) {
 			case certificate.CertParseError, certificate.CreateCAPoolError:
-				log.Debugf(err.Error())
+				op.Debug(err)
 			case certificate.CertVerifyError:
-				log.Warnf("%s - continuing without client certificate", err.Error())
+				op.Warnf("%s - continuing without client certificate", err)
 			}
 
 			return certs, keypair, nil
@@ -316,17 +316,17 @@ func (c *CertFactory) loadCertificates(debug int) ([]byte, *certificate.KeyPair,
 		c.Ccert = ccert
 		c.ClientCert = clientCert
 
-		log.Infof("Loaded client certificate with default name from certificate path %s", c.CertPath)
+		op.Infof("Loaded client certificate with default name from certificate path %s", c.CertPath)
 	}
 
 	return certs, keypair, nil
 }
 
-func (c *CertFactory) generateCertificates(server bool, client bool) ([]byte, *certificate.KeyPair, error) {
-	defer trace.End(trace.Begin(""))
+func (c *CertFactory) generateCertificates(op trace.Operation, server bool, client bool) ([]byte, *certificate.KeyPair, error) {
+	defer trace.End(trace.Begin("", op))
 
 	if !server && !client {
-		log.Debugf("Not generating server or client certs, nothing for generateCertificates to do")
+		op.Debug("Not generating server or client certs, nothing for generateCertificates to do")
 		return nil, nil, nil
 	}
 
@@ -337,10 +337,12 @@ func (c *CertFactory) generateCertificates(server bool, client bool) ([]byte, *c
 		return nil, nil, fmt.Errorf("Specified directory to store certificates is not empty. Specify a new path in which to store generated certificates using --tls-cert-path or remove the contents of \"%s\" and run vic-machine again.", c.CertPath)
 	}
 
-	err = os.MkdirAll(c.CertPath, 0700)
-	if err != nil {
-		log.Errorf("Unable to make directory \"%s\" to hold certificates (set via --tls-cert-path)", c.CertPath)
-		return nil, nil, err
+	if !c.NoSaveToDisk {
+		err = os.MkdirAll(c.CertPath, 0700)
+		if err != nil {
+			op.Errorf("Unable to make directory \"%s\" to hold certificates (set via --tls-cert-path)", c.CertPath)
+			return nil, nil, err
+		}
 	}
 
 	c.Skey = filepath.Join(c.CertPath, certificate.ServerKey)
@@ -353,16 +355,18 @@ func (c *CertFactory) generateCertificates(server bool, client bool) ([]byte, *c
 	c.Cacert = filepath.Join(c.CertPath, certificate.CACert)
 
 	if server && !client {
-		log.Infof("Generating self-signed certificate/key pair - private key in %s", c.Skey)
+		op.Infof("Generating self-signed certificate/key pair - private key in %s", c.Skey)
 		keypair := certificate.NewKeyPair(c.Scert, c.Skey, nil, nil)
 		err := keypair.CreateSelfSigned(c.Cname, nil, c.KeySize)
 		if err != nil {
-			log.Errorf("Failed to generate self-signed certificate: %s", err)
+			op.Errorf("Failed to generate self-signed certificate: %s", err)
 			return nil, nil, err
 		}
-		if err = keypair.SaveCertificate(); err != nil {
-			log.Errorf("Failed to save server certificates: %s", err)
-			return nil, nil, err
+		if !c.NoSaveToDisk {
+			if err = keypair.SaveCertificate(); err != nil {
+				op.Errorf("Failed to save server certificates: %s", err)
+				return nil, nil, err
+			}
 		}
 
 		return certs, keypair, nil
@@ -370,12 +374,12 @@ func (c *CertFactory) generateCertificates(server bool, client bool) ([]byte, *c
 
 	// client auth path
 	if c.Cname == "" {
-		log.Error("Common Name must be provided when generating certificates for client authentication:")
-		log.Info("  --tls-cname=<FQDN or static IP> # for the appliance VM")
-		log.Info("  --tls-cname=<*.yourdomain.com>  # if DNS has entries in that form for DHCP addresses (less secure)")
-		log.Info("  --no-tlsverify                  # disables client authentication (anyone can connect to the VCH)")
-		log.Info("  --no-tls                        # disables TLS entirely")
-		log.Info("")
+		op.Error("Common Name must be provided when generating certificates for client authentication:")
+		op.Info("  --tls-cname=<FQDN or static IP> # for the appliance VM")
+		op.Info("  --tls-cname=<*.yourdomain.com>  # if DNS has entries in that form for DHCP addresses (less secure)")
+		op.Info("  --no-tlsverify                  # disables client authentication (anyone can connect to the VCH)")
+		op.Info("  --no-tls                        # disables TLS entirely")
+		op.Info("")
 
 		return certs, nil, errors.New("provide Common Name for server certificate")
 	}
@@ -390,51 +394,57 @@ func (c *CertFactory) generateCertificates(server bool, client bool) ([]byte, *c
 	}
 
 	// Certificate authority
-	log.Infof("Generating CA certificate/key pair - private key in %s", cakey)
+	op.Infof("Generating CA certificate/key pair - private key in %s", cakey)
 	cakp := certificate.NewKeyPair(c.Cacert, cakey, nil, nil)
 	err = cakp.CreateRootCA(c.Cname, c.Org, c.KeySize)
 	if err != nil {
-		log.Errorf("Failed to generate CA: %s", err)
+		op.Errorf("Failed to generate CA: %s", err)
 		return nil, nil, err
 	}
-	if err = cakp.SaveCertificate(); err != nil {
-		log.Errorf("Failed to save CA certificates: %s", err)
-		return nil, nil, err
+	if !c.NoSaveToDisk {
+		if err = cakp.SaveCertificate(); err != nil {
+			op.Errorf("Failed to save CA certificates: %s", err)
+			return nil, nil, err
+		}
 	}
 
 	// Server certificates
 	var skp *certificate.KeyPair
 	if server {
-		log.Infof("Generating server certificate/key pair - private key in %s", c.Skey)
+		op.Infof("Generating server certificate/key pair - private key in %s", c.Skey)
 		skp = certificate.NewKeyPair(c.Scert, c.Skey, nil, nil)
 		err = skp.CreateServerCertificate(c.Cname, c.Org, c.KeySize, cakp)
 		if err != nil {
-			log.Errorf("Failed to generate server certificates: %s", err)
+			op.Errorf("Failed to generate server certificates: %s", err)
 			return nil, nil, err
 		}
-		if err = skp.SaveCertificate(); err != nil {
-			log.Errorf("Failed to save server certificates: %s", err)
-			return nil, nil, err
+		if !c.NoSaveToDisk {
+			if err = skp.SaveCertificate(); err != nil {
+				op.Errorf("Failed to save server certificates: %s", err)
+				return nil, nil, err
+			}
 		}
 	}
 
 	// Client certificates
 	if client {
-		log.Infof("Generating client certificate/key pair - private key in %s", c.Ckey)
+		op.Infof("Generating client certificate/key pair - private key in %s", c.Ckey)
 		ckp := certificate.NewKeyPair(c.Ccert, c.Ckey, nil, nil)
 		err = ckp.CreateClientCertificate(c.Cname, c.Org, c.KeySize, cakp)
 		if err != nil {
-			log.Errorf("Failed to generate client certificates: %s", err)
+			op.Errorf("Failed to generate client certificates: %s", err)
 			return nil, nil, err
 		}
-		if err = ckp.SaveCertificate(); err != nil {
-			log.Errorf("Failed to save client certificates: %s", err)
-			return nil, nil, err
+		if !c.NoSaveToDisk {
+			if err = ckp.SaveCertificate(); err != nil {
+				op.Errorf("Failed to save client certificates: %s", err)
+				return nil, nil, err
+			}
 		}
 
 		c.ClientCert, err = ckp.Certificate()
 		if err != nil {
-			log.Warnf("Failed to stash client certificate for later application level validation: %s", err)
+			op.Warnf("Failed to stash client certificate for later application level validation: %s", err)
 		}
 
 		// If openssl is present, try to generate a browser friendly pfx file (a bundle of the public certificate AND the private key)
@@ -445,10 +455,10 @@ func (c *CertFactory) generateCertificates(server bool, client bool) ([]byte, *c
 		pfx := exec.Command("openssl", args...)
 		out, err := pfx.CombinedOutput()
 		if err != nil {
-			log.Debug(out)
-			log.Warnf("Failed to generate browser friendly PFX client certificate: %s", err)
+			op.Debug(out)
+			op.Warnf("Failed to generate browser friendly PFX client certificate: %s", err)
 		} else {
-			log.Infof("Generated browser friendly PFX client certificate - certificate in %s/cert.pfx", certPath)
+			op.Infof("Generated browser friendly PFX client certificate - certificate in %s/cert.pfx", certPath)
 		}
 	}
 

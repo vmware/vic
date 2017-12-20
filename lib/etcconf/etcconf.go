@@ -35,6 +35,7 @@ type EntryWalker interface {
 }
 
 type Conf interface {
+	Copy(Conf) error
 	Load() error
 	Save() error
 	Path() string
@@ -95,14 +96,17 @@ func save(filePath string, walker EntryWalker) error {
 	if err = w.Flush(); err != nil {
 		// #nosec: Errors unhandled
 		_ = f.Close()
+		log.Errorf("Unable to flush file content to %s: %s", f.Name(), err)
 		return err
 	}
 
 	if err = f.Close(); err != nil {
+		log.Errorf("Error closing file %s: %s", f.Name(), err)
 		return err
 	}
 
 	if err = os.Rename(f.Name(), filePath); err != nil {
+		log.Errorf("Unable to rename tempory file into final location %s->%s: %s", f.Name(), filePath, err)
 		return err
 	}
 

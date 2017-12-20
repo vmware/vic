@@ -41,7 +41,7 @@ func TestArgs(t *testing.T) {
 			&Rule{
 				Chain:     Input,
 				Protocol:  TCP,
-				FromPort:  7,
+				FromPort:  "7",
 				Interface: "external",
 				Target:    Accept,
 			},
@@ -57,13 +57,13 @@ func TestArgs(t *testing.T) {
 		},
 		{
 			&Rule{
-				Table:     NAT,
+				Table:     Nat,
 				Chain:     Prerouting,
 				Interface: "external",
 				Protocol:  TCP,
-				FromPort:  80,
+				FromPort:  "80",
 				Target:    Redirect,
-				ToPort:    8080,
+				ToPort:    "8080",
 			},
 			"-t nat -A PREROUTING -p tcp --dport 80 -i external -j REDIRECT --to-port 8080",
 		},

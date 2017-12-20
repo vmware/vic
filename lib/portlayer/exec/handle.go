@@ -201,7 +201,8 @@ func (h *Handle) String() string {
 	return h.key
 }
 
-func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *int32) error {
+func (h *Handle) Commit(op trace.Operation, sess *session.Session, waitTime *int32) error {
+
 	cfg := make(map[string]string)
 
 	// Set timestamps based on target state
@@ -243,7 +244,7 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 	}
 	s.ExtraConfig = h.changes
 
-	if err := Commit(ctx, sess, h, waitTime); err != nil {
+	if err := Commit(op, sess, h, waitTime); err != nil {
 		return err
 	}
 
@@ -253,27 +254,15 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 
 // refresh is for internal use only - it's sole purpose at this time is to allow the stop path to update ChangeVersion
 // and corresponding state before performing any associated reconfigure
-func (h *Handle) refresh(ctx context.Context) {
+func (h *Handle) refresh(op trace.Operation) {
 	// update Config and Runtime to reflect current state
-	h.containerBase.refresh(ctx)
+	h.containerBase.refresh(op)
 
 	// reapply extraconfig changes
 	s := h.Spec.Spec()
 
 	s.ExtraConfig = h.changes
 	s.ChangeVersion = h.Config.ChangeVersion
-}
-
-// CommitWithoutSpec sets the handle's spec to nil so that Commit operation only does a state change and won't touch the extraconfig
-func (h *Handle) CommitWithoutSpec(ctx context.Context, sess *session.Session, waitTime *int32) error {
-	h.Spec = nil
-
-	if err := Commit(ctx, sess, h, waitTime); err != nil {
-		return err
-	}
-
-	h.Close()
-	return nil
 }
 
 func (h *Handle) Close() {

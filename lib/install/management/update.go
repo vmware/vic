@@ -15,8 +15,6 @@
 package management
 
 import (
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -42,52 +40,52 @@ func (s State) String() string {
 
 // EnableFirewallRuleset enables the ruleset on the target, allowing VIC backchannel traffic
 func (d *Dispatcher) EnableFirewallRuleset() error {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin("", d.op))
 	return d.modifyFirewall(enable)
 }
 
 // DisableFirewallRuleset disables the ruleset on the target, denying VIC backchannel traffic
 func (d *Dispatcher) DisableFirewallRuleset() error {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin("", d.op))
 	return d.modifyFirewall(disable)
 }
 
 // modifyFirewall sets the state of the firewall ruleset specified by RulesetID
 func (d *Dispatcher) modifyFirewall(state State) error {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin("", d.op))
 	var err error
 	var hosts []*object.HostSystem
 
-	log.Debugf("cluster: %s", d.session.Cluster)
+	d.op.Debugf("cluster: %s", d.session.Cluster)
 
-	hosts, err = d.session.Cluster.Hosts(d.ctx)
+	hosts, err = d.session.Cluster.Hosts(d.op)
 	if err != nil {
 		return err
 	}
 
 	if len(hosts) == 0 {
-		log.Infof("No hosts to modify")
+		d.op.Infof("No hosts to modify")
 		return nil
 	}
 
 	for _, host := range hosts {
-		fs, err := host.ConfigManager().FirewallSystem(d.ctx)
+		fs, err := host.ConfigManager().FirewallSystem(d.op)
 		if err != nil {
-			log.Errorf("Failed to get firewall system for host %q: %s", host.Name(), err)
+			d.op.Errorf("Failed to get firewall system for host %q: %s", host.Name(), err)
 			return err
 		}
 
 		switch state {
 		case enable:
-			err = fs.EnableRuleset(d.ctx, RulesetID)
+			err = fs.EnableRuleset(d.op, RulesetID)
 		case disable:
-			err = fs.DisableRuleset(d.ctx, RulesetID)
+			err = fs.DisableRuleset(d.op, RulesetID)
 		}
 		if err != nil {
-			log.Errorf("Failed to %s ruleset %q on host %q: %s", state.String(), RulesetID, host.Name(), err)
+			d.op.Errorf("Failed to %s ruleset %q on host %q: %s", state.String(), RulesetID, host.Name(), err)
 			return err
 		}
-		log.Infof("Ruleset %q %sd on host %q", RulesetID, state.String(), host)
+		d.op.Infof("Ruleset %q %sd on host %q", RulesetID, state.String(), host)
 	}
 	return nil
 }

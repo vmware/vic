@@ -148,8 +148,8 @@ func (cc *CCache) GetContainerFromExec(eid string) *container.VicContainer {
 	return nil
 }
 
-// here we assume that the newName is already reserved by Reservename
-// so no need to check the existence of a container with the new name
+// UpdateContainerName assumes that the newName is already reserved by ReserveName
+// so no need to check the existence of a container with the new name.
 func (cc *CCache) UpdateContainerName(oldName, newName string) error {
 	cc.m.Lock()
 	defer cc.m.Unlock()
@@ -168,7 +168,7 @@ func (cc *CCache) UpdateContainerName(oldName, newName string) error {
 	return nil
 }
 
-// ReserveName is used during a container rename operation to prevent concurrent
+// ReserveName is used during a container create/rename operation to prevent concurrent
 // container create/rename operations from grabbing the new name.
 func (cc *CCache) ReserveName(container *container.VicContainer, name string) error {
 	cc.m.Lock()
@@ -183,8 +183,9 @@ func (cc *CCache) ReserveName(container *container.VicContainer, name string) er
 	return nil
 }
 
-// ReleaseName is used during a container rename operation to allow concurrent
-// container create/rename operations to use the name.
+// ReleaseName is used during a container rename operation to allow concurrent container
+// create/rename operations to use the name. It is also used during a failed create
+// operation to allow subsequent create operations to use that name.
 func (cc *CCache) ReleaseName(name string) {
 	cc.m.Lock()
 	defer cc.m.Unlock()

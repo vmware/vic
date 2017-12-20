@@ -16,7 +16,6 @@ package exec
 
 import (
 	"context"
-	"fmt"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -24,13 +23,21 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-func GetVCHstats(ctx context.Context, moref ...types.ManagedObjectReference) (*mo.ResourcePool, error) {
+type VCHStats struct {
+	CPULimit    int64 // resource pool CPU limit
+	CPUUsage    int64 // resource pool CPU usage in MhZ
+	MemoryLimit int64 // resource pool Memory limit
+	MemoryUsage int64 // resource pool Memory Usage
+}
+
+func GetVCHstats(ctx context.Context, moref ...types.ManagedObjectReference) VCHStats {
+	var p mo.ResourcePool
+	var vch VCHStats
 
 	if Config.ResourcePool == nil {
-		return nil, fmt.Errorf("Config.ResourcePool is nil")
+		log.Errorf("Unable to retrieve VCHstats: Config.ResourcePool is nil")
+		return vch
 	}
-
-	var p mo.ResourcePool
 
 	r := Config.ResourcePool.Reference()
 	if len(moref) > 0 {
@@ -40,12 +47,25 @@ func GetVCHstats(ctx context.Context, moref ...types.ManagedObjectReference) (*m
 	ps := []string{"config.cpuAllocation", "config.memoryAllocation", "runtime.cpu", "runtime.memory", "parent"}
 
 	if err := Config.ResourcePool.Properties(ctx, r, ps, &p); err != nil {
-		return &p, fmt.Errorf("VCH stats error: %s", err)
+		log.Errorf("VCH stats error: %s", err)
+		return vch
 	}
-	stats := []int64{p.Config.CpuAllocation.GetResourceAllocationInfo().Limit,
-		p.Config.MemoryAllocation.GetResourceAllocationInfo().Limit,
-		p.Runtime.Cpu.OverallUsage,
-		p.Runtime.Memory.OverallUsage}
+
+	vch.CPUUsage = p.Runtime.Cpu.OverallUsage
+	vch.MemoryUsage = p.Runtime.Memory.OverallUsage
+
+	if p.Config.CpuAllocation.Limit != nil {
+		vch.CPULimit = *p.Config.CpuAllocation.Limit
+	}
+
+	if p.Config.MemoryAllocation.Limit != nil {
+		vch.MemoryLimit = *p.Config.MemoryAllocation.Limit
+	}
+
+	stats := []int64{vch.CPULimit,
+		vch.MemoryLimit,
+		vch.CPUUsage,
+		vch.MemoryUsage}
 
 	log.Debugf("The VCH stats are: %+v", stats)
 
@@ -56,5 +76,5 @@ func GetVCHstats(ctx context.Context, moref ...types.ManagedObjectReference) (*m
 		}
 	}
 
-	return &p, nil
+	return vch
 }

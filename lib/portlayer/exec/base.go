@@ -33,8 +33,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 // NotYetExistError is returned when a call that requires a VM exist is made
@@ -89,6 +87,11 @@ func newBase(vm *vm.VirtualMachine, c *types.VirtualMachineConfigInfo, r *types.
 	return base
 }
 
+// String returns the string representation of ContainerBase
+func (c *containerBase) String() string {
+	return c.ExecConfig.ID
+}
+
 // VMReference will provide the vSphere vm managed object reference
 func (c *containerBase) VMReference() types.ManagedObjectReference {
 	var moref types.ManagedObjectReference
@@ -99,10 +102,10 @@ func (c *containerBase) VMReference() types.ManagedObjectReference {
 }
 
 // unlocked refresh of container state
-func (c *containerBase) refresh(ctx context.Context) error {
-	base, err := c.updates(ctx)
+func (c *containerBase) refresh(op trace.Operation) error {
+	base, err := c.updates(op)
 	if err != nil {
-		log.Errorf("Update: unable to update container %s", c.ExecConfig.ID)
+		op.Errorf("Update: unable to update container %s: %s", c, err)
 		return err
 	}
 
@@ -112,8 +115,8 @@ func (c *containerBase) refresh(ctx context.Context) error {
 }
 
 // updates acquires updates from the infrastructure without holding a lock
-func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
+func (c *containerBase) updates(op trace.Operation) (*containerBase, error) {
+	defer trace.End(trace.Begin(c.ExecConfig.ID, op))
 
 	var o mo.VirtualMachine
 
@@ -123,10 +126,10 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 	}
 
 	if c.Config != nil {
-		log.Debugf("Update: refreshing from change version %s", c.Config.ChangeVersion)
+		op.Debugf("Update: for %s, refreshing from change version %s", c, c.Config.ChangeVersion)
 	}
 
-	if err := c.vm.Properties(ctx, c.vm.Reference(), []string{"config", "runtime"}, &o); err != nil {
+	if err := c.vm.Properties(op, c.vm.Reference(), []string{"config", "runtime"}, &o); err != nil {
 		return nil, err
 	}
 
@@ -144,7 +147,7 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 		return nil, fmt.Errorf("Update: change version %s failed assertion extraconfig id != nil", o.Config.ChangeVersion)
 	}
 
-	log.Debugf("Update: change version %s, extraconfig id: %+v", o.Config.ChangeVersion, containerExecKeyValues["guestinfo.vice./common/id"])
+	op.Debugf("Update: for %s, change version %s, extraconfig id: %+v", c, o.Config.ChangeVersion, containerExecKeyValues["guestinfo.vice./common/id"])
 	// #nosec: Errors unhandled.
 	base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
 	migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
@@ -153,35 +156,35 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 	return base, nil
 }
 
-func (c *containerBase) ReloadConfig(ctx context.Context) error {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
+func (c *containerBase) ReloadConfig(op trace.Operation) error {
+	defer trace.End(trace.Begin(c.ExecConfig.ID, op))
 
-	return c.startGuestProgram(ctx, "reload", "")
+	return c.startGuestProgram(op, "reload", "")
 }
 
 // WaitForExec waits exec'ed task to set started field or timeout
-func (c *containerBase) WaitForExec(ctx context.Context, id string) error {
-	defer trace.End(trace.Begin(id))
+func (c *containerBase) WaitForExec(op trace.Operation, id string) error {
+	defer trace.End(trace.Begin(id, op))
 
-	return c.waitForExec(ctx, id)
+	return c.waitForExec(op, id)
 }
 
 // WaitForSession waits non-exec'ed task to set started field or timeout
 func (c *containerBase) WaitForSession(ctx context.Context, id string) error {
-	defer trace.End(trace.Begin(id))
+	defer trace.End(trace.Begin(id, ctx))
 
 	return c.waitForSession(ctx, id)
 }
 
-func (c *containerBase) startGuestProgram(ctx context.Context, name string, args string) error {
+func (c *containerBase) startGuestProgram(op trace.Operation, name string, args string) error {
 	// make sure we have vm
 	if c.vm == nil {
 		return NotYetExistError{c.ExecConfig.ID}
 	}
 
-	defer trace.End(trace.Begin(c.ExecConfig.ID + ":" + name))
+	defer trace.End(trace.Begin(c.ExecConfig.ID+":"+name, op))
 	o := guest.NewOperationsManager(c.vm.Client.Client, c.vm.Reference())
-	m, err := o.ProcessManager(ctx)
+	m, err := o.ProcessManager(op)
 	if err != nil {
 		return err
 	}
@@ -195,13 +198,13 @@ func (c *containerBase) startGuestProgram(ctx context.Context, name string, args
 		Username: c.ExecConfig.ID,
 	}
 
-	_, err = m.StartProgram(ctx, &auth, &spec)
+	_, err = m.StartProgram(op, &auth, &spec)
 
 	return err
 }
 
-func (c *containerBase) start(ctx context.Context) error {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
+func (c *containerBase) start(op trace.Operation) error {
+	defer trace.End(trace.Begin(c.ExecConfig.ID, op))
 
 	// make sure we have vm
 	if c.vm == nil {
@@ -209,14 +212,14 @@ func (c *containerBase) start(ctx context.Context) error {
 	}
 
 	// Power on
-	_, err := c.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-		return c.vm.PowerOn(ctx)
+	_, err := c.vm.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
+		return c.vm.PowerOn(op)
 	})
 
 	return err
 }
 
-func (c *containerBase) stop(ctx context.Context, waitTime *int32) error {
+func (c *containerBase) stop(op trace.Operation, waitTime *int32) error {
 	// make sure we have vm
 	if c.vm == nil {
 		return NotYetExistError{c.ExecConfig.ID}
@@ -225,35 +228,35 @@ func (c *containerBase) stop(ctx context.Context, waitTime *int32) error {
 	// get existing state and set to stopping
 	// if there's a failure we'll revert to existing
 
-	err := c.shutdown(ctx, waitTime)
+	err := c.shutdown(op, waitTime)
 	if err == nil {
 		return nil
 	}
 
-	log.Warnf("stopping %s via hard power off due to: %s", c.ExecConfig.ID, err)
+	op.Warnf("stopping %s via hard power off due to: %s", c, err.Error())
 
-	return c.poweroff(ctx)
+	return c.poweroff(op)
 }
 
-func (c *containerBase) kill(ctx context.Context) error {
+func (c *containerBase) kill(op trace.Operation) error {
 	// make sure we have vm
 	if c.vm == nil {
 		return NotYetExistError{c.ExecConfig.ID}
 	}
 
 	wait := 10 * time.Second // default
-	timeout, cancel := context.WithTimeout(ctx, wait)
+	timeout, cancel := trace.WithTimeout(&op, wait, "kill")
 	defer cancel()
 
 	sig := string(ssh.SIGKILL)
-	log.Infof("sending kill -%s %s", sig, c.ExecConfig.ID)
+	timeout.Infof("sending kill -%s %s", sig, c)
 
 	err := c.startGuestProgram(timeout, "kill", sig)
 	if err == nil && timeout.Err() != nil {
-		log.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c.ExecConfig.ID, sig)
+		timeout.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c, sig)
 	}
 	if err != nil {
-		log.Warnf("killing %s attempt resulted in: %s", c.ExecConfig.ID, err)
+		timeout.Warnf("killing %s attempt resulted in: %s", c, err.Error())
 
 		if isInvalidPowerStateError(err) {
 			return nil
@@ -266,19 +269,19 @@ func (c *containerBase) kill(ctx context.Context) error {
 	// into an invalid transition and will need to recover.  If we try to grab properties at this time, the
 	// power state may be incorrect.  We work around this by waiting on the power state, regardless of error
 	// from startGuestProgram. https://github.com/vmware/vic/issues/5803
-	log.Infof("waiting %s for %s to power off", wait, c.ExecConfig.ID)
+	timeout.Infof("waiting %s for %s to power off", wait, c)
 	err = c.vm.WaitForPowerState(timeout, types.VirtualMachinePowerStatePoweredOff)
 	if err == nil {
 		return nil // VM has powered off
 	}
 
-	log.Warnf("killing %s via hard power off", c.ExecConfig.ID)
+	timeout.Warnf("killing %s via hard power off", c)
 
 	// stop wait time is not applied for the hard kill
-	return c.poweroff(ctx)
+	return c.poweroff(op)
 }
 
-func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
+func (c *containerBase) shutdown(op trace.Operation, waitTime *int32) error {
 	// make sure we have vm
 	if c.vm == nil {
 		return NotYetExistError{c.ExecConfig.ID}
@@ -298,17 +301,17 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 	var killed bool
 
 	for _, sig := range stop {
-		msg := fmt.Sprintf("sending kill -%s %s", sig, c.ExecConfig.ID)
-		log.Info(msg)
+		msg := fmt.Sprintf("sending kill -%s %s", sig, c)
+		op.Infof(msg)
 
-		timeout, cancel := context.WithTimeout(ctx, wait)
+		timeout, cancel := trace.WithTimeout(&op, wait, "shutdown")
 		defer cancel()
 
 		err := c.startGuestProgram(timeout, "kill", sig)
 		if err != nil {
 			// Just warn and proceed to waiting for power state per issue https://github.com/vmware/vic/issues/5803
 			// Description above in function kill()
-			log.Warnf("%s: %s", msg, err)
+			timeout.Warnf("%s: %s", msg, err)
 
 			// If the error tells us "The attempted operation cannot be performed in the current state (Powered off)" (InvalidPowerState),
 			// we can avoid hard poweroff (issues #6236 and #6252). Here we wait for the power state changes instead of return
@@ -318,7 +321,7 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 			}
 		}
 
-		log.Infof("waiting %s for %s to power off", wait, c.ExecConfig.ID)
+		timeout.Infof("waiting %s for %s to power off", wait, c)
 		err = c.vm.WaitForPowerState(timeout, types.VirtualMachinePowerStatePoweredOff)
 		if err == nil {
 			return nil // VM has powered off
@@ -328,24 +331,24 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 			return err // error other than timeout
 		}
 
-		log.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c.ExecConfig.ID, sig)
+		timeout.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c, sig)
 
 		if killed {
 			return nil
 		}
 	}
 
-	return fmt.Errorf("failed to shutdown %s via kill signals %s", c.ExecConfig.ID, stop)
+	return fmt.Errorf("failed to shutdown %s via kill signals %s", c, stop)
 }
 
-func (c *containerBase) poweroff(ctx context.Context) error {
+func (c *containerBase) poweroff(op trace.Operation) error {
 	// make sure we have vm
 	if c.vm == nil {
 		return NotYetExistError{c.ExecConfig.ID}
 	}
 
-	_, err := c.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-		return c.vm.PowerOff(ctx)
+	_, err := c.vm.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
+		return c.vm.PowerOff(op)
 	})
 
 	if err != nil {
@@ -355,10 +358,10 @@ func (c *containerBase) poweroff(ctx context.Context) error {
 			switch terr := terr.Fault().(type) {
 			case *types.InvalidPowerState:
 				if terr.ExistingState == types.VirtualMachinePowerStatePoweredOff {
-					log.Warnf("power off %s task skipped (state was already %s)", c.ExecConfig.ID, terr.ExistingState)
+					op.Warnf("power off %s task skipped (state was already %s)", c, terr.ExistingState)
 					return nil
 				}
-				log.Warnf("invalid power state during power off: %s", terr.ExistingState)
+				op.Warnf("invalid power state during power off: %s", terr.ExistingState)
 
 			case *types.GenericVmConfigFault:
 
@@ -366,14 +369,14 @@ func (c *containerBase) poweroff(ctx context.Context) error {
 				if len(terr.FaultMessage) > 0 {
 					k := terr.FaultMessage[0].Key
 					if k == vmNotSuspendedKey || k == vmPoweringOffKey {
-						log.Infof("power off %s task skipped due to guest shutdown", c.ExecConfig.ID)
+						op.Infof("power off %s task skipped due to guest shutdown", c)
 						return nil
 					}
 				}
-				log.Warnf("generic vm config fault during power off: %#v", terr)
+				op.Warnf("generic vm config fault during power off: %#v", terr)
 
 			default:
-				log.Warnf("hard power off failed due to: %#v", terr)
+				op.Warnf("hard power off failed due to: %#v", terr)
 			}
 		}
 
@@ -384,7 +387,7 @@ func (c *containerBase) poweroff(ctx context.Context) error {
 }
 
 func (c *containerBase) waitForPowerState(ctx context.Context, max time.Duration, state types.VirtualMachinePowerState) (bool, error) {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
+	defer trace.End(trace.Begin(c.ExecConfig.ID, ctx))
 
 	timeout, cancel := context.WithTimeout(ctx, max)
 	defer cancel()
@@ -398,19 +401,19 @@ func (c *containerBase) waitForPowerState(ctx context.Context, max time.Duration
 }
 
 func (c *containerBase) waitForSession(ctx context.Context, id string) error {
-	defer trace.End(trace.Begin(id))
+	defer trace.End(trace.Begin(id, ctx))
 
 	// guestinfo key that we want to wait for
 	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", id), "")[0]
 	return c.waitFor(ctx, key)
 }
 
-func (c *containerBase) waitForExec(ctx context.Context, id string) error {
-	defer trace.End(trace.Begin(id))
+func (c *containerBase) waitForExec(op trace.Operation, id string) error {
+	defer trace.End(trace.Begin(id, op))
 
 	// guestinfo key that we want to wait for
 	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Execs.%s.Started", id), "")[0]
-	return c.waitFor(ctx, key)
+	return c.waitFor(op, key)
 }
 
 func (c *containerBase) waitFor(ctx context.Context, key string) error {

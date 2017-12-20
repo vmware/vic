@@ -127,7 +127,7 @@ func (v *Target) Lookup(p string) (os.FileInfo, []byte, error) {
 			return nil, nil, err
 		}
 
-		//	util.Debugf("%s -> 0x%x", dirent, fh)
+		//util.Debugf("%s -> 0x%x", dirent, fh)
 	}
 
 	return fattr, fh, nil
@@ -138,6 +138,12 @@ func (v *Target) lookup(fh []byte, name string) (*Fattr, []byte, error) {
 	type Lookup3Args struct {
 		rpc.Header
 		What Diropargs3
+	}
+
+	type LookupOk struct {
+		FH      []byte
+		Attr    PostOpAttr
+		DirAttr PostOpAttr
 	}
 
 	res, err := v.call(&Lookup3Args{
@@ -160,27 +166,15 @@ func (v *Target) lookup(fh []byte, name string) (*Fattr, []byte, error) {
 		return nil, nil, err
 	}
 
-	fh, err = xdr.ReadOpaque(res)
-	if err != nil {
+	lookupres := new(LookupOk)
+	if err := xdr.Read(res, lookupres); err != nil {
+		util.Errorf("lookup(%s) failed to parse return: %s", name, err)
+		util.Debugf("lookup partial decode: %+v", *lookupres)
 		return nil, nil, err
 	}
 
-	util.Debugf("lookup(%s): FH 0x%x", name, fh)
-
-	var fattrs *Fattr
-	attrFollows, err := xdr.ReadUint32(res)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if attrFollows != 0 {
-		fattrs = new(Fattr)
-		if err = xdr.Read(res, fattrs); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	return fattrs, fh, nil
+	util.Debugf("lookup(%s): FH 0x%x, attr: %+v", name, lookupres.FH, lookupres.Attr.Attr)
+	return &lookupres.Attr.Attr, lookupres.FH, nil
 }
 
 func (v *Target) ReadDirPlus(dir string) ([]*EntryPlus, error) {
@@ -193,6 +187,10 @@ func (v *Target) ReadDirPlus(dir string) ([]*EntryPlus, error) {
 }
 
 func (v *Target) readDirPlus(fh []byte) ([]*EntryPlus, error) {
+	cookie := uint64(0)
+	cookieVerf := uint64(0)
+	eof := false
+
 	type ReadDirPlus3Args struct {
 		rpc.Header
 		FH         []byte
@@ -202,67 +200,74 @@ func (v *Target) readDirPlus(fh []byte) ([]*EntryPlus, error) {
 		MaxCount   uint32
 	}
 
+	type DirListPlus3 struct {
+		IsSet bool      `xdr:"union"`
+		Entry EntryPlus `xdr:"unioncase=1"`
+	}
+
 	type DirListOK struct {
-		DirAttrs struct {
-			Follows  uint32
-			DirAttrs Fattr
-		}
+		DirAttrs   PostOpAttr
 		CookieVerf uint64
-		Follows    uint32
-	}
-
-	res, err := v.call(&ReadDirPlus3Args{
-		Header: rpc.Header{
-			Rpcvers: 2,
-			Prog:    Nfs3Prog,
-			Vers:    Nfs3Vers,
-			Proc:    NFSProc3ReadDirPlus,
-			Cred:    v.auth,
-			Verf:    rpc.AuthNull,
-		},
-		FH:       fh,
-		DirCount: 512,
-		MaxCount: 4096,
-	})
-
-	if err != nil {
-		util.Debugf("readdir(%x): %s", fh, err.Error())
-		return nil, err
-	}
-
-	// The dir list entries are so-called "optional-data".  We need to check
-	// the Follows fields before continuing down the array.  Effectively, it's
-	// an encoding used to flatten a linked list into an array where the
-	// Follows field is set when the next idx has data. See
-	// https://tools.ietf.org/html/rfc4506.html#section-4.19 for details.
-	dirlistOK := new(DirListOK)
-	if err = xdr.Read(res, dirlistOK); err != nil {
-		return nil, err
-	}
-
-	if dirlistOK.Follows == 0 {
-		return nil, nil
 	}
 
 	var entries []*EntryPlus
-	for {
-		var entry EntryPlus
+	for !eof {
+		res, err := v.call(&ReadDirPlus3Args{
+			Header: rpc.Header{
+				Rpcvers: 2,
+				Prog:    Nfs3Prog,
+				Vers:    Nfs3Vers,
+				Proc:    NFSProc3ReadDirPlus,
+				Cred:    v.auth,
+				Verf:    rpc.AuthNull,
+			},
+			FH:         fh,
+			Cookie:     cookie,
+			CookieVerf: cookieVerf,
+			DirCount:   512,
+			MaxCount:   4096,
+		})
 
-		if err = xdr.Read(res, &entry); err != nil {
+		if err != nil {
+			util.Debugf("readdir(%x): %s", fh, err.Error())
 			return nil, err
 		}
 
-		entries = append(entries, &entry)
-
-		if entry.ValueFollows == 0 {
-			break
+		// The dir list entries are so-called "optional-data".  We need to check
+		// the Follows fields before continuing down the array.  Effectively, it's
+		// an encoding used to flatten a linked list into an array where the
+		// Follows field is set when the next idx has data. See
+		// https://tools.ietf.org/html/rfc4506.html#section-4.19 for details.
+		dirlistOK := new(DirListOK)
+		if err = xdr.Read(res, dirlistOK); err != nil {
+			util.Errorf("readdir failed to parse result (%x): %s", fh, err.Error())
+			util.Debugf("partial dirlist: %+v", dirlistOK)
+			return nil, err
 		}
-	}
 
-	// The last byte is EOF
-	var eof uint32
-	if err = xdr.Read(res, &eof); err != nil {
-		util.Debugf("ReadDirPlus(0x%x): expected EOF", fh)
+		for {
+			var item DirListPlus3
+			if err = xdr.Read(res, &item); err != nil {
+				util.Errorf("readdir failed to parse directory entry, aborting")
+				util.Debugf("partial dirent: %+v", item)
+				return nil, err
+			}
+
+			if !item.IsSet {
+				break
+			}
+
+			cookie = item.Entry.Cookie
+			entries = append(entries, &item.Entry)
+		}
+
+		if err = xdr.Read(res, &eof); err != nil {
+			util.Errorf("readdir failed to determine presence of more data to read, aborting")
+			return nil, err
+		}
+
+		util.Debugf("No EOF for dirents so calling back for more")
+		cookieVerf = dirlistOK.CookieVerf
 	}
 
 	return entries, nil
@@ -282,7 +287,13 @@ func (v *Target) Mkdir(path string, perm os.FileMode) ([]byte, error) {
 		Attrs Sattr3
 	}
 
-	res, err := v.call(&MkdirArgs{
+	type MkdirOk struct {
+		FH     PostOpFH3
+		Attr   PostOpAttr
+		DirWcc WccData
+	}
+
+	args := &MkdirArgs{
 		Header: rpc.Header{
 			Rpcvers: 2,
 			Prog:    Nfs3Prog,
@@ -297,31 +308,28 @@ func (v *Target) Mkdir(path string, perm os.FileMode) ([]byte, error) {
 		},
 		Attrs: Sattr3{
 			Mode: SetMode{
-				Set:  uint32(1),
-				Mode: uint32(perm.Perm()),
+				SetIt: true,
+				Mode:  uint32(perm.Perm()),
 			},
 		},
-	})
+	}
+	res, err := v.call(args)
 
 	if err != nil {
 		util.Debugf("mkdir(%s): %s", path, err.Error())
+		util.Debugf("mkdir args (%+v)", args)
 		return nil, err
 	}
 
-	follows, err := xdr.ReadUint32(res)
-	if err != nil {
+	mkdirres := new(MkdirOk)
+	if err := xdr.Read(res, mkdirres); err != nil {
+		util.Errorf("mkdir(%s) failed to parse return: %s", path, err)
+		util.Debugf("mkdir(%s) partial response: %+v", mkdirres)
 		return nil, err
-	}
-
-	if follows != 0 {
-		fh, err = xdr.ReadOpaque(res)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	util.Debugf("mkdir(%s): created successfully (0x%x)", path, fh)
-	return fh, nil
+	return mkdirres.FH.FH, nil
 }
 
 // Create a file with name the given mode
@@ -346,8 +354,9 @@ func (v *Target) Create(path string, perm os.FileMode) ([]byte, error) {
 	}
 
 	type Create3Res struct {
-		Follows uint32
-		FH      []byte
+		FH     PostOpFH3
+		Attr   PostOpAttr
+		DirWcc WccData
 	}
 
 	res, err := v.call(&Create3Args{
@@ -366,8 +375,8 @@ func (v *Target) Create(path string, perm os.FileMode) ([]byte, error) {
 		HW: How{
 			Attr: Sattr3{
 				Mode: SetMode{
-					Set:  uint32(1),
-					Mode: uint32(perm.Perm()),
+					SetIt: true,
+					Mode:  uint32(perm.Perm()),
 				},
 			},
 		},
@@ -384,7 +393,7 @@ func (v *Target) Create(path string, perm os.FileMode) ([]byte, error) {
 	}
 
 	util.Debugf("create(%s): created successfully", path)
-	return status.FH, nil
+	return status.FH.FH, nil
 }
 
 // Remove a file
@@ -527,8 +536,10 @@ func (v *Target) removeAll(deleteDirfh []byte) error {
 		// If directory, recurse, then nuke it.  It should be empty when we get
 		// back.
 		if entry.Attr.Attr.Type == NF3Dir {
-			if err = v.removeAll(entry.FH); err != nil {
-				return err
+			if entry.Handle.IsSet {
+				if err = v.removeAll(entry.Handle.FH); err != nil {
+					return err
+				}
 			}
 
 			err = v.rmDir(deleteDirfh, entry.FileName)

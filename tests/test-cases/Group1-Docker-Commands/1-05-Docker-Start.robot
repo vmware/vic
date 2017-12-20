@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 1-05 - Docker Start
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Conditional Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
@@ -52,10 +52,8 @@ Start with no ethernet card
     ${name}=  Generate Random String  15
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${name} ${busybox} date
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc device.remove -vm %{VCH-NAME}/${name}-* ethernet-0
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc device.remove -vm ${name}-* ethernet-0
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  govc device.remove -vm ${name}-* ethernet-0
+    Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${name}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  unable to wait for process launch status

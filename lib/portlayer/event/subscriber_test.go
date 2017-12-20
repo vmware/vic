@@ -15,7 +15,7 @@
 package event
 
 import (
-	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -61,17 +61,17 @@ func (m *mockCollector) Name() string {
 }
 
 type mockEvent struct {
-	id int
+	id string
 }
 
 // id of event
-func (e *mockEvent) EventID() int {
+func (e *mockEvent) EventID() string {
 	return e.id
 }
 
 // event (PowerOn, PowerOff, etc)
 func (e *mockEvent) String() string {
-	return fmt.Sprintf("%d", e.id)
+	return e.id
 }
 
 // reference evented object
@@ -111,7 +111,7 @@ func TestSuspendQueue(t *testing.T) {
 			assert.True(t, s.IsSuspended())
 			suspended = true
 		}
-		c.c(&mockEvent{id: i})
+		c.c(&mockEvent{id: strconv.Itoa(i)})
 	}
 
 	select {
@@ -155,7 +155,7 @@ func TestSuspendDiscard(t *testing.T) {
 	s.Suspend(false)
 	assert.True(t, s.IsSuspended())
 	for i := 0; i < 50; i++ {
-		c.c(&mockEvent{id: i})
+		c.c(&mockEvent{id: strconv.Itoa(i)})
 	}
 
 	<-time.After(5 * time.Second)
@@ -180,7 +180,7 @@ func TestSuspendOverflow(t *testing.T) {
 	s.Suspend(true)
 	assert.True(t, s.IsSuspended())
 	for i := 0; i < maxEventQueueSize+1; i++ {
-		c.c(&mockEvent{id: i})
+		c.c(&mockEvent{id: strconv.Itoa(i)})
 	}
 
 	select {

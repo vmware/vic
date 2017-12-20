@@ -17,7 +17,6 @@ groups:
 
   tether:
     users:
-      - caglar10ur
       - hickeng
     conditions:
       files:
@@ -71,7 +70,7 @@ groups:
 
   log:
     users:
-      - hmahmood
+      - cgtexmex
     conditions:
       files:
         include:
@@ -92,8 +91,8 @@ groups:
 
   install:
     users:
-      - emlin
       - andrewtchin
+      - zjs
     conditions:
       files:
         include:
@@ -101,7 +100,8 @@ groups:
           - "lib/install/*"
   upgrade:
     users:
-      - emlin
+      - andrewtchin
+      - zjs
     conditions:
       files:
         include:
@@ -109,7 +109,6 @@ groups:
 
   config:
     users:
-      - emlin
       - hickeng
     conditions:
       files:
@@ -131,7 +130,7 @@ groups:
 
   port-layer-exec-interaction:
     users:
-      - caglar10ur
+      - sflxn
       - hickeng
     conditions:
       files:
@@ -171,7 +170,6 @@ groups:
     users:
       - hmahmood
       - andrewtchin
-      - caglar10ur
     conditions:
       files:
         include:

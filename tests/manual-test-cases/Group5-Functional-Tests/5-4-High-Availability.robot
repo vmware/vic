@@ -15,6 +15,7 @@
 *** Settings ***
 Documentation  Test 5-4 - High Availability
 Resource  ../../resources/Util.robot
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  High Availability Setup
 Suite Teardown  Nimbus Cleanup  ${list}
 Test Teardown  Run Keyword If Test Failed  Gather Logs From Test Server
 
@@ -88,20 +89,19 @@ Run Regression Test With More Log Information
 
     Scrape Logs For The Password
 
-*** Test Cases ***
-Test
+High Availability Setup
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     ${pid}=  Deploy Nimbus vCenter Server Async  ${vc}
     Set Suite Variable  ${VC}  ${vc}
 
     Log To Console  \nStarting test...
-    # Let's make 5 because it is free and in parallel, but only use 3 of them
-    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  5  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  3  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
 
     @{esx_names}=  Get Dictionary Keys  ${esxes}
     @{esx_ips}=  Get Dictionary Values  ${esxes}
 
-    Set Global Variable  @{list}  ${esx_names}  ${vc}
+    Set Suite Variable  @{list}  @{esx_names}[0]  @{esx_names}[1]  @{esx_names}[2]  %{NIMBUS_USER}-${vc}
 
     # Finish vCenter deploy
     ${output}=  Wait For Process  ${pid}
@@ -154,11 +154,13 @@ Test
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
     Set Environment Variable  TEST_RESOURCE  cls
+    Remove Environment Variable  TEST_DATACENTER
     Set Environment Variable  TEST_DATASTORE  nfsDatastore
     Set Environment Variable  TEST_TIMEOUT  30m
 
+*** Test Cases ***
+Test
     Install VIC Appliance To Test Server  certs=${false}  vol=default
-
     Run Regression Tests
 
     # have a few containers running and stopped for when we
@@ -180,7 +182,7 @@ Test
 
     Sleep  2 minutes
 
-    ${output}=  Run  govc vm.info %{VCH-NAME}/%{VCH-NAME}
+    ${output}=  Run  govc vm.info %{VCH-NAME}
     @{output}=  Split To Lines  ${output}
     ${curHost}=  Fetch From Right  @{output}[-1]  ${SPACE}
 

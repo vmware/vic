@@ -1570,7 +1570,10 @@
 						}
 					},
 					"500": {
-						"description": "server error"
+						"description": "server error",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
 					},
 					"default": {
 						"description": "Error",
@@ -1814,6 +1817,12 @@
 							"$ref": "#/definitions/Error"
 						}
 					},
+            "409": {
+              "description": "Task failed due to power state change",
+              "schema": {
+                  "$ref": "#/definitions/Error"
+              }
+            },
 					"500": {
 						"description": "Inspect of task failed",
 						"schema": {
@@ -3390,6 +3399,9 @@
 				},
 				"reservation": {
 					"$ref": "#/definitions/ReservationConfig"
+				},
+				"address": {
+					"type": "string"
 				},
 				"ports": {
 					"type": "array",
