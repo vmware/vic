@@ -60,6 +60,7 @@ const (
 
 type header struct {
 	Cookie string `xml:"vcSessionCookie,omitempty"`
+	ID     string `xml:"operationID,omitempty"`
 }
 
 type Client struct {
@@ -78,7 +79,7 @@ type Client struct {
 	Version   string // Vim version
 	UserAgent string
 
-	header *header
+	cookie string
 }
 
 var schemeMatch = regexp.MustCompile(`^\w+://`)
@@ -168,10 +169,7 @@ func (c *Client) NewServiceClient(path string, namespace string) *Client {
 	// Set SOAP Header cookie
 	for _, cookie := range client.Jar.Cookies(u) {
 		if cookie.Name == "vmware_soap_session" {
-			client.header = &header{
-				Cookie: cookie.Value,
-			}
-
+			client.cookie = cookie.Value
 			break
 		}
 	}
@@ -433,7 +431,15 @@ func (c *Client) RoundTrip(ctx context.Context, reqBody, resBody HasFault) error
 	reqEnv := Envelope{Body: reqBody}
 	resEnv := Envelope{Body: resBody}
 
-	reqEnv.Header = c.header
+	h := &header{
+		Cookie: c.cookie,
+	}
+
+	if id, ok := ctx.Value(types.ID{}).(string); ok {
+		h.ID = id
+	}
+
+	reqEnv.Header = h
 
 	// Create debugging context for this round trip
 	d := c.d.newRoundTrip()
@@ -614,6 +620,7 @@ type Download struct {
 	Headers  map[string]string
 	Ticket   *http.Cookie
 	Progress progress.Sinker
+	Writer   io.Writer
 }
 
 var DefaultDownload = Download{
@@ -660,7 +667,7 @@ func (c *Client) Download(u *url.URL, param *Download) (io.ReadCloser, int64, er
 	return r, res.ContentLength, nil
 }
 
-func (c *Client) WriteFile(file string, src io.Reader, size int64, s progress.Sinker) error {
+func (c *Client) WriteFile(file string, src io.Reader, size int64, s progress.Sinker, w io.Writer) error {
 	var err error
 
 	r := src
@@ -680,7 +687,13 @@ func (c *Client) WriteFile(file string, src io.Reader, size int64, s progress.Si
 		}()
 	}
 
-	_, err = io.Copy(fh, r)
+	if w == nil {
+		w = fh
+	} else {
+		w = io.MultiWriter(w, fh)
+	}
+
+	_, err = io.Copy(w, r)
 
 	cerr := fh.Close()
 
@@ -703,5 +716,5 @@ func (c *Client) DownloadFile(file string, u *url.URL, param *Download) error {
 		return err
 	}
 
-	return c.WriteFile(file, rc, contentLength, param.Progress)
+	return c.WriteFile(file, rc, contentLength, param.Progress, param.Writer)
 }

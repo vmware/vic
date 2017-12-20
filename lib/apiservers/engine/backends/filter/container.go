@@ -69,7 +69,7 @@ func IncludeContainer(listContext *ContainerListContext, container *models.Conta
 		// Is the containers exitCode in the validatedList?
 		_, ok := listContext.exitAllowed[listContext.ExitCode]
 
-		// only include conainter whose exit code is in the list and that's
+		// only include container whose exit code is in the list and that's
 		// not currently running and has been started previously
 		// note "Running" state is congruent with PortLayer and not docker
 		if !ok || container.ContainerConfig.State == "Running" || container.ProcessConfig.StartTime == 0 {

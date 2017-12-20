@@ -25,14 +25,13 @@ import (
 	"strings"
 	"sync/atomic"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -81,10 +80,12 @@ func NewVirtualMachineFromVM(ctx context.Context, session *session.Session, vm *
 // VMPathNameAsURL returns the full datastore path of the VM as a url. The datastore name is in the host
 // portion, the path is in the Path field, the scheme is set to "ds"
 func (vm *VirtualMachine) VMPathNameAsURL(ctx context.Context) (url.URL, error) {
+	op := trace.FromContext(ctx, "VMPathNameAsURL")
+
 	var mvm mo.VirtualMachine
 
-	if err := vm.Properties(ctx, vm.Reference(), []string{"config.files.vmPathName"}, &mvm); err != nil {
-		log.Errorf("Unable to get managed config for VM: %s", err)
+	if err := vm.Properties(op, vm.Reference(), []string{"config.files.vmPathName"}, &mvm); err != nil {
+		op.Errorf("Unable to get managed config for VM: %s", err)
 		return url.URL{}, err
 	}
 
@@ -109,7 +110,9 @@ func (vm *VirtualMachine) VMPathNameAsURL(ctx context.Context) (url.URL, error) 
 // FolderName returns the name of the namespace(vsan) or directory(vmfs) that holds the VM
 // this equates to the normal directory that contains the vmx file, stripped of any parent path
 func (vm *VirtualMachine) FolderName(ctx context.Context) (string, error) {
-	u, err := vm.VMPathNameAsURL(ctx)
+	op := trace.FromContext(ctx, "FolderName")
+
+	u, err := vm.VMPathNameAsURL(op)
 	if err != nil {
 		return "", err
 	}
@@ -117,7 +120,7 @@ func (vm *VirtualMachine) FolderName(ctx context.Context) (string, error) {
 	return path.Base(u.Path), nil
 }
 
-func (vm *VirtualMachine) getNetworkName(ctx context.Context, nic types.BaseVirtualEthernetCard) (string, error) {
+func (vm *VirtualMachine) getNetworkName(op trace.Operation, nic types.BaseVirtualEthernetCard) (string, error) {
 	if card, ok := nic.GetVirtualEthernetCard().Backing.(*types.VirtualEthernetCardDistributedVirtualPortBackingInfo); ok {
 		pg := card.Port.PortgroupKey
 		pgref := object.NewDistributedVirtualPortgroup(vm.Session.Vim25(), types.ManagedObjectReference{
@@ -126,9 +129,9 @@ func (vm *VirtualMachine) getNetworkName(ctx context.Context, nic types.BaseVirt
 		})
 
 		var pgo mo.DistributedVirtualPortgroup
-		err := pgref.Properties(ctx, pgref.Reference(), []string{"config"}, &pgo)
+		err := pgref.Properties(op, pgref.Reference(), []string{"config"}, &pgo)
 		if err != nil {
-			log.Errorf("Failed to query portgroup %s for %s", pg, err)
+			op.Errorf("Failed to query portgroup %s for %s", pg, err)
 			return "", err
 		}
 		return pgo.Config.Name, nil
@@ -137,12 +140,14 @@ func (vm *VirtualMachine) getNetworkName(ctx context.Context, nic types.BaseVirt
 }
 
 func (vm *VirtualMachine) FetchExtraConfigBaseOptions(ctx context.Context) ([]types.BaseOptionValue, error) {
+	op := trace.FromContext(ctx, "FetchExtraConfigBaseOptions")
+
 	var err error
 
 	var mvm mo.VirtualMachine
 
-	if err = vm.Properties(ctx, vm.Reference(), []string{"config.extraConfig"}, &mvm); err != nil {
-		log.Errorf("Unable to get vm config: %s", err)
+	if err = vm.Properties(op, vm.Reference(), []string{"config.extraConfig"}, &mvm); err != nil {
+		op.Errorf("Unable to get vm config: %s", err)
 		return nil, err
 	}
 
@@ -150,9 +155,11 @@ func (vm *VirtualMachine) FetchExtraConfigBaseOptions(ctx context.Context) ([]ty
 }
 
 func (vm *VirtualMachine) FetchExtraConfig(ctx context.Context) (map[string]string, error) {
+	op := trace.FromContext(ctx, "FetchExtraConfig")
+
 	info := make(map[string]string)
 
-	v, err := vm.FetchExtraConfigBaseOptions(ctx)
+	v, err := vm.FetchExtraConfigBaseOptions(op)
 	if err != nil {
 		return nil, err
 	}
@@ -167,20 +174,19 @@ func (vm *VirtualMachine) FetchExtraConfig(ctx context.Context) (map[string]stri
 
 // WaitForExtraConfig waits until key shows up with the expected value inside the ExtraConfig
 func (vm *VirtualMachine) WaitForExtraConfig(ctx context.Context, waitFunc func(pc []types.PropertyChange) bool) error {
+	op := trace.FromContext(ctx, "WaitForExtraConfig")
+
 	// Get the default collector
 	p := property.DefaultCollector(vm.Vim25())
 
 	// Wait on config.extraConfig
 	// https://www.vmware.com/support/developer/vc-sdk/visdk2xpubs/ReferenceGuide/vim.vm.ConfigInfo.html
-	err := property.Wait(ctx, p, vm.Reference(), []string{"config.extraConfig", object.PropRuntimePowerState}, waitFunc)
-	if err != nil {
-		log.Errorf("Property collector error: %s", err)
-		return err
-	}
-	return nil
+	return property.Wait(op, p, vm.Reference(), []string{"config.extraConfig", object.PropRuntimePowerState}, waitFunc)
 }
 
 func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key string) (string, error) {
+	op := trace.FromContext(ctx, "WaitForKeyInExtraConfig")
+
 	var detail string
 	var poweredOff error
 
@@ -197,6 +203,9 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 					if key == value.GetOptionValue().Key {
 						detail = value.GetOptionValue().Value.(string)
 						if detail != "" && detail != "<nil>" {
+							// ensure we clear any tentative error
+							poweredOff = nil
+
 							return true
 						}
 						break // continue the outer loop as we may have a powerState change too
@@ -211,31 +220,32 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 						msg = string(v)
 					}
 					poweredOff = fmt.Errorf("container VM has unexpectedly %s", msg)
-					return true
 				}
 			}
 		}
-		return false
+
+		return poweredOff != nil
 	}
 
-	err := vm.WaitForExtraConfig(ctx, waitFunc)
+	err := vm.WaitForExtraConfig(op, waitFunc)
 	if err == nil && poweredOff != nil {
 		err = poweredOff
 	}
 
 	if err != nil {
-		log.Errorf("Unable to wait for extra config property %s: %s", key, err.Error())
 		return "", err
 	}
 	return detail, nil
 }
 
 func (vm *VirtualMachine) Name(ctx context.Context) (string, error) {
+	op := trace.FromContext(ctx, "Name")
+
 	var err error
 	var mvm mo.VirtualMachine
 
-	if err = vm.Properties(ctx, vm.Reference(), []string{"summary.config"}, &mvm); err != nil {
-		log.Errorf("Unable to get vm summary.config property: %s", err)
+	if err = vm.Properties(op, vm.Reference(), []string{"summary.config"}, &mvm); err != nil {
+		op.Errorf("Unable to get vm summary.config property: %s", err)
 		return "", err
 	}
 
@@ -243,11 +253,13 @@ func (vm *VirtualMachine) Name(ctx context.Context) (string, error) {
 }
 
 func (vm *VirtualMachine) UUID(ctx context.Context) (string, error) {
+	op := trace.FromContext(ctx, "UUID")
+
 	var err error
 	var mvm mo.VirtualMachine
 
-	if err = vm.Properties(ctx, vm.Reference(), []string{"summary.config"}, &mvm); err != nil {
-		log.Errorf("Unable to get vm summary.config property: %s", err)
+	if err = vm.Properties(op, vm.Reference(), []string{"summary.config"}, &mvm); err != nil {
+		op.Errorf("Unable to get vm summary.config property: %s", err)
 		return "", err
 	}
 
@@ -256,26 +268,30 @@ func (vm *VirtualMachine) UUID(ctx context.Context) (string, error) {
 
 // DeleteExceptDisks destroys the VM after detaching all virtual disks
 func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*object.Task, error) {
-	devices, err := vm.Device(ctx)
+	op := trace.FromContext(ctx, "DeleteExceptDisks")
+
+	devices, err := vm.Device(op)
 	if err != nil {
 		return nil, err
 	}
 
 	disks := devices.SelectByType(&types.VirtualDisk{})
-	err = vm.RemoveDevice(ctx, true, disks...)
+	err = vm.RemoveDevice(op, true, disks...)
 	if err != nil {
 		return nil, err
 	}
 
-	return vm.Destroy(ctx)
+	return vm.Destroy(op)
 }
 
 func (vm *VirtualMachine) VMPathName(ctx context.Context) (string, error) {
+	op := trace.FromContext(ctx, "VMPathName")
+
 	var err error
 	var mvm mo.VirtualMachine
 
-	if err = vm.Properties(ctx, vm.Reference(), []string{"config.files.vmPathName"}, &mvm); err != nil {
-		log.Errorf("Unable to get vm config.files property: %s", err)
+	if err = vm.Properties(op, vm.Reference(), []string{"config.files.vmPathName"}, &mvm); err != nil {
+		op.Errorf("Unable to get vm config.files property: %s", err)
 		return "", err
 	}
 	return mvm.Config.Files.VmPathName, nil
@@ -283,12 +299,13 @@ func (vm *VirtualMachine) VMPathName(ctx context.Context) (string, error) {
 
 // GetCurrentSnapshotTree returns current snapshot, with tree information
 func (vm *VirtualMachine) GetCurrentSnapshotTree(ctx context.Context) (*types.VirtualMachineSnapshotTree, error) {
-	var err error
+	op := trace.FromContext(ctx, "GetCurrentSnapshotTree")
 
+	var err error
 	var mvm mo.VirtualMachine
 
-	if err = vm.Properties(ctx, vm.Reference(), []string{"snapshot"}, &mvm); err != nil {
-		log.Infof("Unable to get vm properties: %s", err)
+	if err = vm.Properties(op, vm.Reference(), []string{"snapshot"}, &mvm); err != nil {
+		op.Infof("Unable to get vm properties: %s", err)
 		return nil, err
 	}
 	if mvm.Snapshot == nil {
@@ -313,12 +330,13 @@ func (vm *VirtualMachine) GetCurrentSnapshotTree(ctx context.Context) (*types.Vi
 
 // GetCurrentSnapshotTreeByName returns current snapshot, with tree information
 func (vm *VirtualMachine) GetSnapshotTreeByName(ctx context.Context, name string) (*types.VirtualMachineSnapshotTree, error) {
-	var err error
+	op := trace.FromContext(ctx, "GetSnapshotTreeByName")
 
+	var err error
 	var mvm mo.VirtualMachine
 
-	if err = vm.Properties(ctx, vm.Reference(), []string{"snapshot"}, &mvm); err != nil {
-		log.Infof("Unable to get vm properties: %s", err)
+	if err = vm.Properties(op, vm.Reference(), []string{"snapshot"}, &mvm); err != nil {
+		op.Infof("Unable to get vm properties: %s", err)
 		return nil, err
 	}
 	if mvm.Snapshot == nil {
@@ -362,9 +380,9 @@ func IsConfigureSnapshot(node *types.VirtualMachineSnapshotTree, prefix string) 
 	return node != nil && strings.HasPrefix(node.Name, prefix)
 }
 
-func (vm *VirtualMachine) registerVM(ctx context.Context, path, name string,
+func (vm *VirtualMachine) registerVM(op trace.Operation, path, name string,
 	vapp, pool, host *types.ManagedObjectReference, vmfolder *object.Folder) (*object.Task, error) {
-	log.Debugf("Register VM %s", name)
+	op.Debugf("Register VM %s", name)
 
 	if vapp == nil {
 		var hostObject *object.HostSystem
@@ -372,7 +390,7 @@ func (vm *VirtualMachine) registerVM(ctx context.Context, path, name string,
 			hostObject = object.NewHostSystem(vm.Vim25(), *host)
 		}
 		poolObject := object.NewResourcePool(vm.Vim25(), *pool)
-		return vmfolder.RegisterVM(ctx, path, name, false, poolObject, hostObject)
+		return vmfolder.RegisterVM(op, path, name, false, poolObject, hostObject)
 	}
 
 	req := types.RegisterChildVM_Task{
@@ -385,7 +403,7 @@ func (vm *VirtualMachine) registerVM(ctx context.Context, path, name string,
 		req.Name = name
 	}
 
-	res, err := methods.RegisterChildVM_Task(ctx, vm.Vim25(), &req)
+	res, err := methods.RegisterChildVM_Task(op, vm.Vim25(), &req)
 	if err != nil {
 		return nil, err
 	}
@@ -406,34 +424,34 @@ func (vm *VirtualMachine) LeaveFixingState() {
 }
 
 // FixInvalidState fix vm invalid state issue through unregister & register
-func (vm *VirtualMachine) fixVM(ctx context.Context) error {
-	log.Debugf("Fix invalid state VM: %s", vm.Reference())
+func (vm *VirtualMachine) fixVM(op trace.Operation) error {
+	op.Debugf("Fix invalid state VM: %s", vm.Reference())
 
 	properties := []string{"summary.config", "summary.runtime.host", "resourcePool", "parentVApp"}
-	log.Debugf("Get vm properties %s", properties)
+	op.Debugf("Get vm properties %s", properties)
 	var mvm mo.VirtualMachine
-	if err := vm.VirtualMachine.Properties(ctx, vm.Reference(), properties, &mvm); err != nil {
-		log.Errorf("Unable to get vm properties: %s", err)
+	if err := vm.VirtualMachine.Properties(op, vm.Reference(), properties, &mvm); err != nil {
+		op.Errorf("Unable to get vm properties: %s", err)
 		return err
 	}
 
 	name := mvm.Summary.Config.Name
-	log.Debugf("Unregister VM %s", name)
+	op.Debugf("Unregister VM %s", name)
 	vm.EnterFixingState()
-	if err := vm.Unregister(ctx); err != nil {
-		log.Errorf("Unable to unregister vm %q: %s", name, err)
+	if err := vm.Unregister(op); err != nil {
+		op.Errorf("Unable to unregister vm %q: %s", name, err)
 
 		// Leave fixing state since it will not be reset in the remove event handler
 		vm.LeaveFixingState()
 		return err
 	}
 
-	task, err := vm.registerVM(ctx, mvm.Summary.Config.VmPathName, name, mvm.ParentVApp, mvm.ResourcePool, mvm.Summary.Runtime.Host, vm.Session.VMFolder)
+	task, err := vm.registerVM(op, mvm.Summary.Config.VmPathName, name, mvm.ParentVApp, mvm.ResourcePool, mvm.Summary.Runtime.Host, vm.Session.VMFolder)
 	if err != nil {
-		log.Errorf("Unable to register VM %q back: %s", name, err)
+		op.Errorf("Unable to register VM %q back: %s", name, err)
 		return err
 	}
-	info, err := task.WaitForResult(ctx, nil)
+	info, err := task.WaitForResult(op, nil)
 	if err != nil {
 		return err
 	}
@@ -450,12 +468,12 @@ func (vm *VirtualMachine) fixVM(ctx context.Context) error {
 	return nil
 }
 
-func (vm *VirtualMachine) needsFix(ctx context.Context, err error) bool {
+func (vm *VirtualMachine) needsFix(op trace.Operation, err error) bool {
 	if err == nil {
 		return false
 	}
-	if vm.IsInvalidState(ctx) {
-		log.Debugf("vm %s is invalid", vm.Reference())
+	if vm.IsInvalidState(op) {
+		op.Debugf("vm %s is invalid", vm.Reference())
 		return true
 	}
 
@@ -463,9 +481,11 @@ func (vm *VirtualMachine) needsFix(ctx context.Context, err error) bool {
 }
 
 func (vm *VirtualMachine) IsInvalidState(ctx context.Context) bool {
+	op := trace.FromContext(ctx, "IsInvalidState")
+
 	var o mo.VirtualMachine
-	if err := vm.VirtualMachine.Properties(ctx, vm.Reference(), []string{"summary.runtime.connectionState"}, &o); err != nil {
-		log.Debugf("Failed to get vm properties: %s", err)
+	if err := vm.VirtualMachine.Properties(op, vm.Reference(), []string{"summary.runtime.connectionState"}, &o); err != nil {
+		op.Debugf("Failed to get vm properties: %s", err)
 		return false
 	}
 	if o.Summary.Runtime.ConnectionState == types.VirtualMachineConnectionStateInvalid {
@@ -477,22 +497,27 @@ func (vm *VirtualMachine) IsInvalidState(ctx context.Context) bool {
 // WaitForResult is designed to handle VM invalid state error for any VM operations.
 // It will call tasks.WaitForResult to retry if there is task in progress error.
 func (vm *VirtualMachine) WaitForResult(ctx context.Context, f func(context.Context) (tasks.Task, error)) (*types.TaskInfo, error) {
-	info, err := tasks.WaitForResult(ctx, f)
-	if err == nil || !vm.needsFix(ctx, err) {
+	op := trace.FromContext(ctx, "WaitForResult")
+
+	info, err := tasks.WaitForResult(op, f)
+	if err == nil || !vm.needsFix(op, err) {
 		return info, err
 	}
 
-	log.Debugf("Try to fix task failure %s", err)
-	if nerr := vm.fixVM(ctx); nerr != nil {
-		log.Errorf("Failed to fix task failure: %s", nerr)
+	op.Debugf("Try to fix task failure %s", err)
+	if nerr := vm.fixVM(op); nerr != nil {
+		op.Errorf("Failed to fix task failure: %s", nerr)
 		return info, err
 	}
-	log.Debugf("Fixed")
-	return tasks.WaitForResult(ctx, f)
+	op.Debug("Fixed")
+	return tasks.WaitForResult(op, f)
 }
 
 func (vm *VirtualMachine) Properties(ctx context.Context, r types.ManagedObjectReference, ps []string, o *mo.VirtualMachine) error {
-	log.Debugf("get vm properties %s of vm %s", ps, r)
+	// lets ensure we have an operation
+	op := trace.FromContext(ctx, "VM Properties")
+	defer trace.End(trace.Begin(fmt.Sprintf("VM(%s) Properties(%s)", r, ps), op))
+
 	contains := false
 	for i := range ps {
 		if ps[i] == "summary" || ps[i] == "summary.runtime" {
@@ -506,27 +531,29 @@ func (vm *VirtualMachine) Properties(ctx context.Context, r types.ManagedObjectR
 	} else {
 		newps = append(newps, ps...)
 	}
-	log.Debugf("properties: %s", newps)
-	if err := vm.VirtualMachine.Properties(ctx, r, newps, o); err != nil {
+	op.Debugf("properties: %s", newps)
+	if err := vm.VirtualMachine.Properties(op, r, newps, o); err != nil {
 		return err
 	}
 	if o.Summary.Runtime.ConnectionState != types.VirtualMachineConnectionStateInvalid {
 		return nil
 	}
-	log.Infof("vm %s is in invalid state", r)
-	if err := vm.fixVM(ctx); err != nil {
-		log.Errorf("Failed to fix vm %s: %s", vm.Reference(), err)
+	op.Infof("vm %s is in invalid state", r)
+	if err := vm.fixVM(op); err != nil {
+		op.Errorf("Failed to fix vm %s: %s", vm.Reference(), err)
 		return &InvalidState{r: vm.Reference()}
 	}
-	log.Debugf("Retry properties query %s of vm %s", ps, vm.Reference())
-	return vm.VirtualMachine.Properties(ctx, vm.Reference(), ps, o)
+
+	return vm.VirtualMachine.Properties(op, vm.Reference(), ps, o)
 }
 
 func (vm *VirtualMachine) Parent(ctx context.Context) (*types.ManagedObjectReference, error) {
+	op := trace.FromContext(ctx, "Parent")
+
 	var mvm mo.VirtualMachine
 
-	if err := vm.Properties(ctx, vm.Reference(), []string{"parentVApp", "resourcePool"}, &mvm); err != nil {
-		log.Errorf("Unable to get VM parent: %s", err)
+	if err := vm.Properties(op, vm.Reference(), []string{"parentVApp", "resourcePool"}, &mvm); err != nil {
+		op.Errorf("Unable to get VM parent: %s", err)
 		return nil, err
 	}
 	if mvm.ParentVApp != nil {
@@ -536,10 +563,12 @@ func (vm *VirtualMachine) Parent(ctx context.Context) (*types.ManagedObjectRefer
 }
 
 func (vm *VirtualMachine) DatastoreReference(ctx context.Context) ([]types.ManagedObjectReference, error) {
+	op := trace.FromContext(ctx, "DatastoreReference")
+
 	var mvm mo.VirtualMachine
 
-	if err := vm.Properties(ctx, vm.Reference(), []string{"datastore"}, &mvm); err != nil {
-		log.Errorf("Unable to get VM datastore: %s", err)
+	if err := vm.Properties(op, vm.Reference(), []string{"datastore"}, &mvm); err != nil {
+		op.Errorf("Unable to get VM datastore: %s", err)
 		return nil, err
 	}
 	return mvm.Datastore, nil
@@ -548,9 +577,11 @@ func (vm *VirtualMachine) DatastoreReference(ctx context.Context) ([]types.Manag
 // VCHUpdateStatus tells if an upgrade/configure has already been started based on the UpdateInProgress flag in ExtraConfig
 // It returns the error if the vm operation does not succeed
 func (vm *VirtualMachine) VCHUpdateStatus(ctx context.Context) (bool, error) {
-	info, err := vm.FetchExtraConfig(ctx)
+	op := trace.FromContext(ctx, "VCHUpdateStatus")
+
+	info, err := vm.FetchExtraConfig(op)
 	if err != nil {
-		log.Errorf("Unable to get vm ExtraConfig: %s", err)
+		op.Errorf("Unable to get vm ExtraConfig: %s", err)
 		return false, err
 	}
 
@@ -569,6 +600,8 @@ func (vm *VirtualMachine) VCHUpdateStatus(ctx context.Context) (bool, error) {
 
 // SetVCHUpdateStatus sets the VCH update status in ExtraConfig
 func (vm *VirtualMachine) SetVCHUpdateStatus(ctx context.Context, status bool) error {
+	op := trace.FromContext(ctx, "SetVCHUpdateStatus")
+
 	info := make(map[string]string)
 	info[UpdateStatus] = strconv.FormatBool(status)
 
@@ -576,8 +609,8 @@ func (vm *VirtualMachine) SetVCHUpdateStatus(ctx context.Context, status bool) e
 		ExtraConfig: vmomi.OptionValueFromMap(info, true),
 	}
 
-	_, err := vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-		return vm.Reconfigure(ctx, *s)
+	_, err := vm.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
+		return vm.Reconfigure(op, *s)
 	})
 
 	return err
@@ -592,6 +625,8 @@ func (vm *VirtualMachine) DisableDestroy(ctx context.Context) {
 		return
 	}
 
+	op := trace.FromContext(ctx, "DisableDestroy")
+
 	m := object.NewAuthorizationManager(vm.Vim25())
 
 	method := []object.DisabledMethodRequest{
@@ -603,9 +638,9 @@ func (vm *VirtualMachine) DisableDestroy(ctx context.Context) {
 
 	obj := []types.ManagedObjectReference{vm.Reference()}
 
-	err := m.DisableMethods(ctx, obj, method, "VIC")
+	err := m.DisableMethods(op, obj, method, "VIC")
 	if err != nil {
-		log.Warnf("Failed to disable method %s for %s: %s", method[0].Method, obj[0], err)
+		op.Warnf("Failed to disable method %s for %s: %s", method[0].Method, obj[0], err)
 	}
 }
 
@@ -616,13 +651,15 @@ func (vm *VirtualMachine) EnableDestroy(ctx context.Context) {
 		return
 	}
 
+	op := trace.FromContext(ctx, "EnableDestroy")
+
 	m := object.NewAuthorizationManager(vm.Vim25())
 
 	obj := []types.ManagedObjectReference{vm.Reference()}
 
-	err := m.EnableMethods(ctx, obj, []string{DestroyTask}, "VIC")
+	err := m.EnableMethods(op, obj, []string{DestroyTask}, "VIC")
 	if err != nil {
-		log.Warnf("Failed to enable Destroy_Task for %s: %s", obj[0], err)
+		op.Warnf("Failed to enable Destroy_Task for %s: %s", obj[0], err)
 	}
 }
 

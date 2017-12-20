@@ -63,6 +63,7 @@ import (
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
@@ -132,6 +133,9 @@ var (
 	containerByPort map[string]string // port:containerID
 
 	ctx = context.TODO()
+
+	// allow mocking
+	randomName = namesgenerator.GetRandomName
 )
 
 func init() {
@@ -257,7 +261,8 @@ func (c *Container) TaskWaitToStart(cid, cname, eid string) error {
 
 // ContainerExecCreate sets up an exec in a running container.
 func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (string, error) {
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.TODO(), "")
+	defer trace.End(trace.Begin(fmt.Sprintf("%s: name=(%s)", op, name)))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -271,6 +276,7 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 	if err != nil {
 		return "", InternalServerError(err.Error())
 	}
+
 	if state.Restarting {
 		return "", ConflictError(fmt.Sprintf("Container %s is restarting, wait until the container is running", id))
 	}
@@ -278,8 +284,10 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 		return "", ConflictError(fmt.Sprintf("Container %s is not running", id))
 	}
 
+	op.Debugf("State checks succeeded for exec operation on cotnainer(%s)", id)
 	handle, err := c.Handle(id, name)
 	if err != nil {
+		op.Error(err)
 		return "", InternalServerError(err.Error())
 	}
 
@@ -288,11 +296,13 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 
 	handleprime, eid, err := c.containerProxy.CreateExecTask(handle, config)
 	if err != nil {
+		op.Errorf("Failed to create exec task for container(%s) due to error(%s)", id, err)
 		return "", InternalServerError(err.Error())
 	}
 
 	err = c.containerProxy.CommitContainerHandle(handleprime, id, 0)
 	if err != nil {
+		op.Errorf("Failed to commit exec handle for container(%s) due to error(%s)", id, err)
 		return "", err
 	}
 
@@ -301,7 +311,16 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 
 	ec, err := c.TaskInspect(id, name, eid)
 	if err != nil {
-		return "", InternalServerError(err.Error())
+		switch err := err.(type) {
+		case *tasks.InspectInternalServerError:
+			op.Debugf("received an internal server error during task inspect: %s", err.Payload.Message)
+			return "", InternalServerError(err.Payload.Message)
+		case *tasks.InspectConflict:
+			op.Debugf("received a conflict error during task inspect: %s", err.Payload.Message)
+			return "", ConflictError(fmt.Sprintf("Cannot complete the operation, container %s has been powered off during execution", id))
+		default:
+			return "", InternalServerError(err.Error())
+		}
 	}
 
 	// exec_create event
@@ -315,7 +334,8 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 // ContainerExecInspect returns low-level information about the exec
 // command. An error is returned if the exec cannot be found.
 func (c *Container) ContainerExecInspect(eid string) (*backend.ExecInspect, error) {
-	defer trace.End(trace.Begin(eid))
+	op := trace.NewOperation(context.TODO(), "")
+	defer trace.End(trace.Begin(fmt.Sprintf("opID=(%s) eid=(%s)", op, eid)))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainerFromExec(eid)
@@ -327,7 +347,16 @@ func (c *Container) ContainerExecInspect(eid string) (*backend.ExecInspect, erro
 
 	ec, err := c.TaskInspect(id, name, eid)
 	if err != nil {
-		return nil, InternalServerError(err.Error())
+		switch err := err.(type) {
+		case *tasks.InspectInternalServerError:
+			op.Debugf("received an internal server error during task inspect: %s", err.Payload.Message)
+			return nil, InternalServerError(err.Payload.Message)
+		case *tasks.InspectConflict:
+			op.Debugf("received a conflict error during task inspect: %s", err.Payload.Message)
+			return nil, ConflictError(fmt.Sprintf("Cannot complete the operation, container %s has been powered off during execution", id))
+		default:
+			return nil, InternalServerError(err.Error())
+		}
 	}
 
 	exit := int(ec.ExitCode)
@@ -381,7 +410,8 @@ func (c *Container) ContainerExecResize(eid string, height, width int) error {
 // ContainerExecStart starts a previously set up exec instance. The
 // std streams are set up.
 func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error {
-	defer trace.End(trace.Begin(eid))
+	op := trace.NewOperation(ctx, "")
+	defer trace.End(trace.Begin(fmt.Sprintf("opID=(%s) eid=(%s)", op, eid)))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainerFromExec(eid)
@@ -394,11 +424,21 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	// grab the task details
 	ec, err := c.TaskInspect(id, name, eid)
 	if err != nil {
-		return InternalServerError(err.Error())
+		switch err := err.(type) {
+		case *tasks.InspectInternalServerError:
+			op.Debugf("received an internal server error during task inspect: %s", err.Payload.Message)
+			return InternalServerError(err.Payload.Message)
+		case *tasks.InspectConflict:
+			op.Debugf("received a conflict error during task inspect: %s", err.Payload.Message)
+			return ConflictError(fmt.Sprintf("Cannot complete the operation, container %s has been powered off during execution", id))
+		default:
+			return InternalServerError(err.Error())
+		}
 	}
 
 	handle, err := c.Handle(id, name)
 	if err != nil {
+		op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
 		return InternalServerError(err.Error())
 	}
 
@@ -414,6 +454,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	bindparams := tasks.NewBindParamsWithContext(ctx).WithConfig(bindconfig)
 	resp, err := client.Tasks.Bind(bindparams)
 	if err != nil {
+		op.Errorf("Failed to bind parameters during exec start for container(%s) due to error: %s", id, err)
 		return InternalServerError(err.Error())
 	}
 	handle = resp.Payload.Handle.(string)
@@ -424,11 +465,13 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		if attach {
 			handle, err = c.containerProxy.BindInteraction(handle, name, eid)
 			if err != nil {
+				op.Errorf("Failed to initiate interactivity during exec start for container(%s) due to error: %s", id, err)
 				return err
 			}
 		}
 
 		if err := c.containerProxy.CommitContainerHandle(handle, name, 0); err != nil {
+			op.Errorf("Failed to commit handle for container(%s) due to error: %s", id, err)
 			return err
 		}
 
@@ -436,11 +479,12 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
+		// we do not return an error here if this fails. TODO: Investigate what exactly happens on error here...
 		go func() {
 			defer trace.End(trace.Begin(eid))
 			// wait property collector
 			if err := c.TaskWaitToStart(id, name, eid); err != nil {
-				log.Errorf("Task wait returned %s, canceling the context", err)
+				op.Errorf("Task wait returned %s, canceling the context", err)
 
 				// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly
 				// https://github.com/docker/docker/blob/a039ca9affe5fa40c4e029d7aae399b26d433fe9/api/server/router/container/exec.go#L114
@@ -459,11 +503,10 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 
 		// no need to attach for detached case
 		if !attach {
-			log.Debugf("Detached mode. Returning early.")
+			op.Debugf("Detached mode. Returning early.")
 			return nil
 		}
 		EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
-
 		ca := &backend.ContainerAttachConfig{
 			UseStdin:  ec.OpenStdin,
 			UseStdout: ec.OpenStdout,
@@ -485,7 +528,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		err = c.containerProxy.AttachStreams(ctx, ac, stdin, stdout, stderr)
 		if err != nil {
 			if _, ok := err.(DetachError); ok {
-				log.Infof("Detach detected, tearing down connection")
+				op.Infof("Detach detected, tearing down connection")
 
 				// QUESTION: why are we returning DetachError? It doesn't seem like an error
 				// fire detach event
@@ -503,6 +546,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		return nil
 	}
 	if err := retry.Do(operation, IsConflictError); err != nil {
+		op.Errorf("Failed to start Exec task for container(%s) due to error (%s)", id, err)
 		return err
 	}
 	return nil
@@ -528,13 +572,6 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (contain
 
 	var err error
 
-	// bail early if container name already exists
-	if exists := cache.ContainerCache().GetContainerByName(config.Name); exists != nil {
-		err := fmt.Errorf("Conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", config.Name, exists.ContainerID)
-		log.Errorf("%s", err.Error())
-		return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestConflictError(err)
-	}
-
 	// get the image from the cache
 	image, err := cache.ImageCache().Get(config.Config.Image)
 	if err != nil {
@@ -558,9 +595,30 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (contain
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
 
+	// Reserve the container name to prevent duplicates during a parallel operation.
+	if config.Name != "" {
+		err := cache.ContainerCache().ReserveName(container, config.Name)
+		if err != nil {
+			return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestConflictError(err)
+		}
+	} else {
+		for i := 0; i < 5; i++ {
+			generated := randomName(i)
+			if cache.ContainerCache().ReserveName(container, generated) == nil {
+				config.Name = generated
+				break
+			}
+		}
+
+		if config.Name == "" {
+			return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestConflictError(errors.New("attempted random names conflicted with existing containers"))
+		}
+	}
+
 	// Create an actualized container in the VIC port layer
 	id, err := c.containerCreate(container, config)
 	if err != nil {
+		cache.ContainerCache().ReleaseName(config.Name)
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
 
@@ -735,17 +793,14 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		return NotFoundError(name)
 	}
 	id := vc.ContainerID
-	// Get the portlayer Client API
-	client := c.containerProxy.Client()
-
-	// TODO: Pass this RemoveVolume flag to somewhere
-	_ = &config.RemoveVolume
+	secs := 0
+	running := false
 
 	// Use the force and stop the container first
-	secs := 0
-
 	if config.ForceRemove {
-		c.containerProxy.Stop(vc, name, &secs, true)
+		if err := c.ContainerStop(name, &secs); err != nil {
+			return err
+		}
 	} else {
 		state, err := c.containerProxy.State(vc)
 		if err != nil {
@@ -756,13 +811,16 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 			}
 			return InternalServerError(err.Error())
 		}
-		// force stop if container state is error to make sure container is deletable later
-		if state.Status == ContainerError {
+
+		switch state.Status {
+		case ContainerError:
+			// force stop if container state is error to make sure container is deletable later
 			c.containerProxy.Stop(vc, name, &secs, true)
-		}
-		// if we are starting let the user know they must use the force
-		if state.Status == "Starting" {
+		case "Starting":
+			// if we are starting let the user know they must use the force
 			return derr.NewRequestConflictError(fmt.Errorf("The container is starting.  To remove use -f"))
+		case ContainerRunning:
+			running = true
 		}
 
 		handle, err := c.Handle(id, name)
@@ -776,24 +834,17 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		}
 	}
 
-	//call the remove directly on the name. No need for using a handle.
-	_, err := client.Containers.ContainerRemove(containers.NewContainerRemoveParamsWithContext(ctx).WithID(id))
-	if err != nil {
-		switch err := err.(type) {
-		case *containers.ContainerRemoveNotFound:
-			// remove container from persona cache, but don't return error to the user
-			cache.ContainerCache().DeleteContainer(id)
-			return nil
-		case *containers.ContainerRemoveDefault:
-			return InternalServerError(err.Payload.Message)
-		case *containers.ContainerRemoveConflict:
-			return derr.NewRequestConflictError(fmt.Errorf("You cannot remove a running container. Stop the container before attempting removal or use -f"))
-		default:
-			return InternalServerError(err.Error())
+	// Retry remove operation if container is not in running state.  If in running state, we only try
+	// once to prevent retries from degrading performance.
+	if !running {
+		operation := func() error {
+			return c.containerProxy.Remove(vc, config)
 		}
+
+		return retry.Do(operation, IsConflictError)
 	}
 
-	return nil
+	return c.containerProxy.Remove(vc, config)
 }
 
 // cleanupPortBindings gets port bindings for the container and
@@ -1560,13 +1611,18 @@ payloadLoop:
 			names = append(names, clientFriendlyContainerName(t.ContainerConfig.Names[i]))
 		}
 
-		ips, err := publicIPv4Addrs()
 		var ports []types.Port
-		if err != nil {
-			log.Errorf("Could not get IP information for reporting port bindings.")
-		} else {
-			ports = portInformation(t, ips)
+		if t.HostConfig.Address != "" {
+			ports = directPortInformation(t)
 		}
+
+		ips, err := publicIPv4Addrs()
+		if err != nil {
+			log.Errorf("Could not get IP information for reporting port bindings: %s", err)
+			// display port mappings without IP data if we cannot get it
+			ips = []string{""}
+		}
+		ports = append(ports, portForwardingInformation(t, ips)...)
 
 		// verify that the repo:tag exists for the container -- if it doesn't then we should present the
 		// truncated imageID -- if we have a failure determining then we'll show the data we have
@@ -1588,7 +1644,7 @@ payloadLoop:
 		c := &types.Container{
 			ID:      t.ContainerConfig.ContainerID,
 			Image:   repo,
-			Created: t.ContainerConfig.CreateTime,
+			Created: time.Unix(0, t.ContainerConfig.CreateTime).Unix(),
 			Status:  dockerState.Status,
 			Names:   names,
 			Command: cmd,
@@ -1950,7 +2006,7 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	} else {
 		ips = make([]string, len(addrs))
 		for i := range addrs {
-			ips[i] = addrs[i].IP.String()
+			ips[i] = addrs[i]
 		}
 	}
 
@@ -1983,14 +2039,6 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 		return derr.NewRequestNotFoundError(fmt.Errorf("No command specified"))
 	}
 
-	// Was a name provided - if not create a friendly name
-	generatedName := namesgenerator.GetRandomName(0)
-	if config.Name == "" {
-		//TODO: Assume we could have a name collison here : need to
-		// provide validation / retry CDG June 9th 2016
-		config.Name = generatedName
-	}
-
 	return nil
 }
 
@@ -2012,43 +2060,108 @@ func copyConfigOverrides(vc *viccontainer.VicContainer, config types.ContainerCr
 	vc.HostConfig = config.HostConfig
 }
 
-func publicIPv4Addrs() ([]netlink.Addr, error) {
+func publicIPv4Addrs() ([]string, error) {
 	l, err := netlink.LinkByName(publicIfaceName)
 	if err != nil {
-		return nil, fmt.Errorf("Could not look up link from public interface name %s due to error %s",
-			publicIfaceName, err.Error())
+		return nil, fmt.Errorf("could not look up link from interface name %s: %s", publicIfaceName, err.Error())
 	}
-	ips, err := netlink.AddrList(l, netlink.FAMILY_V4)
+
+	addrs, err := netlink.AddrList(l, netlink.FAMILY_V4)
 	if err != nil {
-		return nil, fmt.Errorf("Could not get IP addresses of link due to error %s", err.Error())
+		return nil, fmt.Errorf("could not get addresses from public link: %s", err.Error())
+	}
+
+	ips := make([]string, len(addrs))
+	for i := range addrs {
+		ips[i] = addrs[i].IP.String()
 	}
 
 	return ips, nil
 }
 
+func directPortInformation(t *models.ContainerInfo) []types.Port {
+	var redirectPorts []types.Port
+	var directPorts []types.Port
+
+	ip := t.HostConfig.Address
+
+	openNetwork := false
+	for _, p := range t.HostConfig.Ports {
+		port := types.Port{IP: ip}
+
+		// see if it's an open network
+		if p == constants.PortsOpenNetwork {
+			openNetwork = true
+			port.Type = "*"
+			// we're presenting this in redirect ports as that's assured to be returned
+			redirectPorts = append(redirectPorts, port)
+			continue
+		}
+
+		portsAndType := strings.SplitN(p, "/", 2)
+		port.Type = portsAndType[1]
+
+		mapping := strings.Split(portsAndType[0], ":")
+		// if no mapping is supplied then there's only one and that's public. If there is a mapping then the first
+		// entry is the public
+		public, err := strconv.Atoi(mapping[0])
+		if err != nil {
+			log.Errorf("Got an error trying to convert public port number \"%s\" to an int: %s", mapping[0], err)
+			continue
+		}
+		port.PublicPort = uint16(public)
+
+		// If port is on container network then a different container could be forwarding the same port via the endpoint
+		// so must check for explicit ID match. If no match, definitely not forwarded via endpoint.
+		if containerByPort[mapping[0]] == t.ContainerConfig.ContainerID {
+			continue
+		}
+
+		// did not find a way to have the client not render both ports so setting them the same even if there's not
+		// redirect occurring
+		port.PrivatePort = port.PublicPort
+
+		if len(mapping) == 1 {
+			directPorts = append(directPorts, port)
+			continue
+		}
+
+		private, err := strconv.Atoi(mapping[1])
+		if err != nil {
+			log.Errorf("Got an error trying to convert private port number \"%s\" to an int: %s", mapping[1], err)
+			continue
+		}
+		port.PrivatePort = uint16(private)
+		redirectPorts = append(redirectPorts, port)
+	}
+
+	// if it's an open network then don't bother detailing ports without a redirection as all ports are exposed
+	if !openNetwork {
+		redirectPorts = append(redirectPorts, directPorts...)
+	}
+
+	return redirectPorts
+}
+
 // returns port bindings as a slice of Docker Ports for return to the client
 // returns empty slice on error
-func portInformation(t *models.ContainerInfo, ips []netlink.Addr) []types.Port {
-	// create a port for each IP on the interface (usually only 1, but could be more)
-	// (works with both IPv4 and IPv6 addresses)
-	var ports []types.Port
-
+func portForwardingInformation(t *models.ContainerInfo, ips []string) []types.Port {
 	cid := t.ContainerConfig.ContainerID
 	c := cache.ContainerCache().GetContainer(cid)
 
 	if c == nil {
 		log.Errorf("Could not find container with ID %s", cid)
-		return ports
-	}
-
-	for _, ip := range ips {
-		ports = append(ports, types.Port{IP: ip.IP.String()})
+		return nil
 	}
 
 	portBindings := c.HostConfig.PortBindings
 	var resultPorts []types.Port
 
-	for _, port := range ports {
+	// create a port for each IP on the interface (usually only 1, but could be more)
+	// (works with both IPv4 and IPv6 addresses)
+	for _, ip := range ips {
+		port := types.Port{IP: ip}
+
 		for portBindingPrivatePort, hostPortBindings := range portBindings {
 			portAndType := strings.SplitN(string(portBindingPrivatePort), "/", 2)
 			portNum, err := strconv.Atoi(portAndType[0])
@@ -2066,6 +2179,13 @@ func portInformation(t *models.ContainerInfo, ips []netlink.Addr) []types.Port {
 					log.Infof("Got an error trying to convert public port number to an int")
 					continue
 				}
+
+				// If port is on container network then a different container could be forwarding the same port via the endpoint
+				// so must check for explicit ID match. If no match, definitely not forwarded via endpoint.
+				if containerByPort[hostPortBindings[i].HostPort] != t.ContainerConfig.ContainerID {
+					continue
+				}
+
 				newport.PublicPort = uint16(publicPort)
 				// sanity check -- sometimes these come back as 0 when no binding actually exists
 				// that doesn't make sense, so in that case we don't want to report these bindings

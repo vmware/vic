@@ -15,15 +15,19 @@
 package management
 
 import (
+	"context"
 	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 func TestConfirmVolumeStores(t *testing.T) {
+	op := trace.NewOperation(context.Background(), "TestConfirmVolumeStores")
+
 	testVolumeLocations := map[string]*url.URL{
 		"test1":        {},
 		"test2":        {},
@@ -39,18 +43,18 @@ func TestConfirmVolumeStores(t *testing.T) {
 	testconf := &config.VirtualContainerHostConfigSpec{}
 	testconf.VolumeLocations = testVolumeLocations
 
-	result1 := confirmVolumeStores(testconf, plVolumeStores1)
+	result1 := confirmVolumeStores(op, testconf, plVolumeStores1)
 	assert.False(t, result1, "Failed first confirmVolumeStores check")
 
-	result2 := confirmVolumeStores(testconf, plVolumeStores2)
+	result2 := confirmVolumeStores(op, testconf, plVolumeStores2)
 	assert.False(t, result2, "Failed second confirmVolumeStores check")
 
-	result3 := confirmVolumeStores(testconf, plVolumeStores3)
+	result3 := confirmVolumeStores(op, testconf, plVolumeStores3)
 	assert.False(t, result3, "Failed third confirmVolumeStores check")
 
-	result4 := confirmVolumeStores(testconf, plVolumeStores4)
+	result4 := confirmVolumeStores(op, testconf, plVolumeStores4)
 	assert.True(t, result4, "Failed fourth confirmVolumeStores check")
 
-	result5 := confirmVolumeStores(testconf, plVolumeStores5)
+	result5 := confirmVolumeStores(op, testconf, plVolumeStores5)
 	assert.False(t, result5, "Failed fifth confirmVolumeStores check")
 }

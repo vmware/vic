@@ -858,64 +858,33 @@ func (c *Context) container(h *exec.Handle) (*Container, error) {
 	return nil, ResourceNotFoundError{error: fmt.Errorf("container %s not found", id.String())}
 }
 
-func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
-	defer trace.End(trace.Begin(""))
-	c.Lock()
-	defer c.Unlock()
-
-	con, err := c.container(h)
-	if err != nil {
-		if _, ok := err.(ResourceNotFoundError); ok {
-			return nil, nil // not bound
-		}
-
-		return nil, err
-	}
+func (c *Context) populateAliases(con *Container, s *Scope, e *Endpoint) []string {
+	var aliases []string
 
 	// aliases to remove
-	var aliases []string
-	var endpoints []*Endpoint
-	for _, ne := range h.ExecConfig.Networks {
-		var s *Scope
-		s, ok := c.scopes[ne.Network.Name]
-		if !ok {
-			return nil, &ResourceNotFoundError{}
+	// name for dns lookup
+	aliases = append(aliases, fmt.Sprintf("%s:%s", s.Name(), con.name))
+	aliases = append(aliases, fmt.Sprintf("%s:%s", s.Name(), con.id.Truncate()))
+	for _, as := range e.aliases {
+		for _, a := range as {
+			aliases = append(aliases, a.scopedName())
 		}
-
-		// save the endpoint info
-		e := con.Endpoint(s).copy()
-
-		if err = s.RemoveContainer(con); err != nil {
-			return nil, err
-		}
-
-		// clear out assigned ip
-		ne.Assigned.IP = net.IPv4zero
-
-		// aliases to remove
-		// name for dns lookup
-		aliases = append(aliases, fmt.Sprintf("%s:%s", s.Name(), con.name))
-		aliases = append(aliases, fmt.Sprintf("%s:%s", s.Name(), con.id.Truncate()))
-		for _, as := range e.aliases {
-			for _, a := range as {
-				aliases = append(aliases, a.scopedName())
-			}
-		}
-
-		// aliases from other containers
-		for _, e := range s.Endpoints() {
-			if e.Container() == con {
-				continue
-			}
-
-			for _, a := range e.getAliases(con.name) {
-				aliases = append(aliases, a.scopedName())
-			}
-		}
-
-		endpoints = append(endpoints, e)
 	}
 
+	// aliases from other containers
+	for _, e := range s.Endpoints() {
+		if e.Container() == con {
+			continue
+		}
+
+		for _, a := range e.getAliases(con.name) {
+			aliases = append(aliases, a.scopedName())
+		}
+	}
+	return aliases
+}
+
+func (c *Context) removeAliases(aliases []string, con *Container) {
 	// remove aliases
 	for _, a := range aliases {
 		as := c.aliases[a]
@@ -932,13 +901,94 @@ func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			}
 		}
 	}
-
 	// long id
 	delete(c.containers, con.ID().String())
 	// short id
 	delete(c.containers, con.ID().Truncate().String())
 	// name
 	delete(c.containers, con.Name())
+}
+
+// RemoveIDFromScopes removes the container from the scopes but doesn't touch the runtime state
+// Because of that it requires an id
+func (c *Context) RemoveIDFromScopes(op trace.Operation, id string) ([]*Endpoint, error) {
+	defer trace.End(trace.Begin("", op))
+
+	c.Lock()
+	defer c.Unlock()
+
+	uuid := uid.Parse(id)
+	if uuid == uid.NilUID {
+		return nil, fmt.Errorf("invalid container id %s", id)
+	}
+
+	con, ok := c.containers[uuid.String()]
+	if !ok || con == nil {
+		return nil, nil // not bound
+	}
+
+	// aliases to remove
+	var aliases []string
+	var endpoints []*Endpoint
+	for _, ne := range con.endpoints {
+		s := ne.scope
+
+		// save the endpoint info
+		e := con.Endpoint(s).copy()
+
+		if err := s.RemoveContainer(con); err != nil {
+			return nil, err
+		}
+
+		aliases = append(aliases, c.populateAliases(con, s, e)...)
+		endpoints = append(endpoints, e)
+	}
+
+	c.removeAliases(aliases, con)
+
+	return endpoints, nil
+}
+
+// UnbindContainer removes the container from the scopes and clears out the assigned IP
+// Because of that, it requires a handle
+func (c *Context) UnbindContainer(op trace.Operation, h *exec.Handle) ([]*Endpoint, error) {
+	defer trace.End(trace.Begin("", op))
+	c.Lock()
+	defer c.Unlock()
+
+	con, err := c.container(h)
+	if err != nil {
+		if _, ok := err.(ResourceNotFoundError); ok {
+			return nil, nil // not bound
+		}
+
+		return nil, err
+	}
+
+	// aliases to remove
+	var aliases []string
+	var endpoints []*Endpoint
+	for _, ne := range h.ExecConfig.Networks {
+		s, ok := c.scopes[ne.Network.Name]
+		if !ok {
+			return nil, &ResourceNotFoundError{}
+		}
+
+		// save the endpoint info
+		e := con.Endpoint(s).copy()
+
+		if err = s.RemoveContainer(con); err != nil {
+			return nil, err
+		}
+
+		// clear out assigned ip
+		ne.Assigned.IP = net.IPv4zero
+
+		aliases = append(aliases, c.populateAliases(con, s, e)...)
+		endpoints = append(endpoints, e)
+	}
+
+	c.removeAliases(aliases, con)
 
 	return endpoints, nil
 }
@@ -1050,21 +1100,28 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 	}
 
 	if s.Type() == constants.ExternalScopeType {
-		// Check this isn't a port mapping.  On an external network, we
-		// aren't doing any PAT'ing.  We're simply unblocking that port on
-		// the cVM.
-		for _, p := range options.Ports {
-			if strings.Contains(p, ":") {
-				err = fmt.Errorf("external scope includes a port mapping (%s)", p)
+		// Check that ports are only opened on published network firewall configuration.
+		// Redirects are allow for all network types other than Closed and Outbound
+		if len(options.Ports) > 0 {
+			if s.TrustLevel() == executor.Closed || s.TrustLevel() == executor.Outbound {
+				err = fmt.Errorf("ports cannot be published via container network %s (firewall configured as either \"closed\" or \"outbound\")", s.Name())
 				log.Errorln(err)
 				return err
 			}
-		}
-		// Check that ports are only opened on published network firewall configuration.
-		if len(options.Ports) > 0 && s.TrustLevel() == executor.Closed {
-			err = fmt.Errorf("Ports cannot be published via the \"closed\" container network firewall.")
-			log.Errorln(err)
-			return err
+
+			for _, p := range options.Ports {
+				if strings.Contains(p, ":") {
+					if strings.Contains(p, "-") {
+						err = fmt.Errorf("ports published on external networks cannot include both a redirect and a range (%s)", p)
+						log.Errorln(err)
+						return err
+					}
+				} else if s.TrustLevel() == executor.Peers {
+					err = fmt.Errorf("ports published via container network %s must specify a mapping (firewall configured for \"peers\" - no need for publishing unless redirecting)", s.Name())
+					log.Errorln(err)
+					return err
+				}
+			}
 		}
 	}
 

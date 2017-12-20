@@ -33,6 +33,7 @@ This test requires that a vSphere server is running and available
 20. Issue docker inspect test-with-volume | jq '.[]|.["Config"]|.["Volumes"]|keys[0]' and docker volume ls
 21. Issue docker inspect busybox -f '{{.RepoDigest}}'
 22. Issue docker inspect on container with both an anonymous and named volume bound to mount points
+23. Issue docker inspect container status across container lifecycle (created, running, exited)
 
 # Expected Outcome:
 * Step 3,4,7,8 should result in success and a properly formatted JSON response
@@ -54,6 +55,7 @@ Error: No such image or container: fake
 * Step 20 should find matching volume ID matching in docker inspect in volume ls
 * Step 21 should result in a valid digest, previously cached
 * Step 22 should result in valid Mounts data
+* Step 23 should result in correct container status values (created, running, exited)
 
 # Possible Problems:
 None

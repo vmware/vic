@@ -20,10 +20,6 @@ import (
 	"path"
 	"strings"
 
-	"context"
-
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -36,20 +32,20 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-func (v *Validator) getEndpoint(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, network data.NetworkConfig, epName, contNetName string, def bool, ns []net.IP) (*executor.NetworkEndpoint, error) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) getEndpoint(op trace.Operation, conf *config.VirtualContainerHostConfigSpec, network data.NetworkConfig, epName, contNetName string, def bool, ns []net.IP) (*executor.NetworkEndpoint, error) {
+	defer trace.End(trace.Begin("", op))
 	var gw net.IPNet
 	var dest []net.IPNet
 	var staticIP *net.IPNet
 
 	if !network.Empty() {
-		log.Debugf("Setting static IP for %q on port group %q", contNetName, network.Name)
+		op.Debugf("Setting static IP for %q on port group %q", contNetName, network.Name)
 		gw = network.Gateway
 		dest = network.Destinations
 		staticIP = &network.IP
 	}
 
-	moid, err := v.networkHelper(ctx, network.Name)
+	moid, err := v.networkHelper(op, network.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -85,8 +81,8 @@ func (v *Validator) checkNetworkConflict(bridgeNetName, otherNetName, otherNetTy
 
 // portGroupConfig gets the input config for all networks
 // for use in checking that the config is valid
-func (v *Validator) portGroupConfig(input *data.Data, ips map[string][]data.NetworkConfig) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) portGroupConfig(op trace.Operation, input *data.Data, ips map[string][]data.NetworkConfig) {
+	defer trace.End(trace.Begin("", op))
 
 	if input.ManagementNetwork.Name != "" {
 		if !input.ManagementNetwork.Empty() {
@@ -109,8 +105,8 @@ func (v *Validator) portGroupConfig(input *data.Data, ips map[string][]data.Netw
 // enforce that networks that share a port group with public are configured via the pubic args
 // prevent assigning > 1 static IP to the same port group
 // warn if assigning addresses in the same subnet to > 1 port group
-func (v *Validator) checkPortGroups(input *data.Data, ips map[string][]data.NetworkConfig) error {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) checkPortGroups(op trace.Operation, input *data.Data, ips map[string][]data.NetworkConfig) error {
+	defer trace.End(trace.Begin("", op))
 
 	networks := make(map[string]string)
 
@@ -121,9 +117,9 @@ func (v *Validator) checkPortGroups(input *data.Data, ips map[string][]data.Netw
 		config.ManagementNetworkName: &input.ManagementNetwork,
 	} {
 		if n.Name == input.PublicNetwork.Name && !n.Empty() {
-			log.Errorf("%s network shares port group with public network, but has static IP configuration", nn)
-			log.Errorf("To resolve this, configure static IP for public network and assign %s network to same port group", nn)
-			log.Error("The static IP will be automatically configured for networks sharing the port group")
+			op.Errorf("%s network shares port group with public network, but has static IP configuration", nn)
+			op.Errorf("To resolve this, configure static IP for public network and assign %s network to same port group", nn)
+			op.Error("The static IP will be automatically configured for networks sharing the port group")
 			shared = true
 		}
 	}
@@ -138,10 +134,10 @@ func (v *Validator) checkPortGroups(input *data.Data, ips map[string][]data.Netw
 			for _, v := range config {
 				msgIPs = append(msgIPs, v.IP.IP.String())
 			}
-			log.Errorf("Port group %q is configured for networks with more than one static IP: %s", pg, msgIPs)
-			log.Error("All VCH networks on the same port group must have the same IP address")
-			log.Error("To resolve this, configure static IP for one network and assign other networks to same port group")
-			log.Error("The static IP will be automatically configured for networks sharing the port group")
+			op.Errorf("Port group %q is configured for networks with more than one static IP: %s", pg, msgIPs)
+			op.Error("All VCH networks on the same port group must have the same IP address")
+			op.Error("To resolve this, configure static IP for one network and assign other networks to same port group")
+			op.Error("The static IP will be automatically configured for networks sharing the port group")
 			return fmt.Errorf("Incorrect static IP configuration for networks on port group %q", pg)
 		}
 
@@ -150,7 +146,7 @@ func (v *Validator) checkPortGroups(input *data.Data, ips map[string][]data.Netw
 		_, net, _ := net.ParseCIDR(config[0].IP.String())
 		netAddr := net.String()
 		if networks[netAddr] != "" {
-			log.Warnf("Unsupported static IP configuration: Same subnet %q is assigned to multiple port groups %q and %q", netAddr, networks[netAddr], pg)
+			op.Warnf("Unsupported static IP configuration: Same subnet %q is assigned to multiple port groups %q and %q", netAddr, networks[netAddr], pg)
 		} else {
 			networks[netAddr] = pg
 		}
@@ -161,15 +157,15 @@ func (v *Validator) checkPortGroups(input *data.Data, ips map[string][]data.Netw
 
 // configureSharedPortGroups sets VCH static IP for networks that share a
 // portgroup with another network that has a configured static IP
-func (v *Validator) configureSharedPortGroups(input *data.Data, ips map[string][]data.NetworkConfig) error {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) configureSharedPortGroups(op trace.Operation, input *data.Data, ips map[string][]data.NetworkConfig) error {
+	defer trace.End(trace.Begin("", op))
 
 	// find other networks using same portgroup and copy the NetworkConfig to them
 	for name, config := range ips {
 		if len(config) != 1 {
 			return fmt.Errorf("Failed to configure static IP for additional networks using port group %q", name)
 		}
-		log.Infof("Configuring static IP for additional networks using port group %q", name)
+		op.Infof("Configuring static IP for additional networks using port group %q", name)
 		if input.ClientNetwork.Name == name && input.ClientNetwork.Empty() {
 			input.ClientNetwork = config[0]
 		}
@@ -184,8 +180,8 @@ func (v *Validator) configureSharedPortGroups(input *data.Data, ips map[string][
 	return nil
 }
 
-func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) network(op trace.Operation, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin("", op))
 
 	var e *executor.NetworkEndpoint
 	var err error
@@ -199,12 +195,12 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	}
 
 	i := make(map[string][]data.NetworkConfig) // user configured IPs for portgroup
-	v.portGroupConfig(input, i)
+	v.portGroupConfig(op, input, i)
 
-	err = v.checkPortGroups(input, i)
+	err = v.checkPortGroups(op, input, i)
 	v.NoteIssue(err)
 
-	err = v.configureSharedPortGroups(input, i)
+	err = v.configureSharedPortGroups(op, input, i)
 	v.NoteIssue(err)
 
 	// client and management networks need to have at least one
@@ -238,35 +234,35 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	usingDHCP := ip.IsUnspecifiedIP(input.ClientNetwork.IP.IP) || ip.IsUnspecifiedIP(input.PublicNetwork.IP.IP) || ip.IsUnspecifiedIP(input.ManagementNetwork.IP.IP)
 
 	if !usingDHCP && !specifiedDNS { // Set default DNS servers
-		log.Debug("Setting default DNS servers 8.8.8.8 and 8.8.4.4")
+		op.Debugf("Setting default DNS servers 8.8.8.8 and 8.8.4.4")
 		input.DNS = []net.IP{net.ParseIP("8.8.8.8"), net.ParseIP("8.8.4.4")}
 	}
 
 	// Public net
 	// public network is default for appliance
-	e, err = v.getEndpoint(ctx, conf, input.PublicNetwork, config.PublicNetworkName, config.PublicNetworkName, true, input.DNS)
+	e, err = v.getEndpoint(op, conf, input.PublicNetwork, config.PublicNetworkName, config.PublicNetworkName, true, input.DNS)
 	if err != nil {
 		v.NoteIssue(fmt.Errorf("Error checking network for --public-network: %s", err))
-		v.suggestNetwork("--public-network", true)
+		v.suggestNetwork(op, "--public-network", true)
 	}
 	// Bridge network should be different than all other networks
 	v.checkNetworkConflict(input.BridgeNetworkName, input.PublicNetwork.Name, config.PublicNetworkName)
 	conf.AddNetwork(e)
 
 	// Client net - defaults to connect to same portgroup as public
-	e, err = v.getEndpoint(ctx, conf, input.ClientNetwork, config.ClientNetworkName, config.ClientNetworkName, false, input.DNS)
+	e, err = v.getEndpoint(op, conf, input.ClientNetwork, config.ClientNetworkName, config.ClientNetworkName, false, input.DNS)
 	if err != nil {
 		v.NoteIssue(fmt.Errorf("Error checking network for --client-network: %s", err))
-		v.suggestNetwork("--client-network", true)
+		v.suggestNetwork(op, "--client-network", true)
 	}
 	v.checkNetworkConflict(input.BridgeNetworkName, input.ClientNetwork.Name, config.ClientNetworkName)
 	conf.AddNetwork(e)
 
 	// Management net - defaults to connect to the same portgroup as client
-	e, err = v.getEndpoint(ctx, conf, input.ManagementNetwork, "", config.ManagementNetworkName, false, input.DNS)
+	e, err = v.getEndpoint(op, conf, input.ManagementNetwork, "", config.ManagementNetworkName, false, input.DNS)
 	if err != nil {
 		v.NoteIssue(fmt.Errorf("Error checking network for --management-network: %s", err))
-		v.suggestNetwork("--management-network", true)
+		v.suggestNetwork(op, "--management-network", true)
 	}
 	v.checkNetworkConflict(input.BridgeNetworkName, input.ManagementNetwork.Name, config.ManagementNetworkName)
 	conf.AddNetwork(e)
@@ -277,7 +273,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	//
 	// for now we're hardcoded to "bridge" for the container host name
 	conf.BridgeNetwork = "bridge"
-	endpointMoref, err := v.dpgHelper(ctx, input.BridgeNetworkName)
+	endpointMoref, err := v.dpgHelper(op, input.BridgeNetworkName)
 
 	var bridgeID, netMoid string
 	if err != nil {
@@ -292,7 +288,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	if err != nil {
 		if _, ok := err.(*find.NotFoundError); !ok || v.IsVC() {
 			v.NoteIssue(fmt.Errorf("An existing distributed port group must be specified for bridge network on vCenter: %s", err))
-			v.suggestNetwork("--bridge-network", false)
+			v.suggestNetwork(op, "--bridge-network", false)
 			checkBridgeVDS = false // prevent duplicate error output
 		}
 
@@ -330,12 +326,12 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	}
 	conf.BridgeIPRange = input.BridgeIPRange
 
-	log.Debug("Network configuration:")
+	op.Debug("Network configuration:")
 	for net, val := range conf.ExecutorConfig.Networks {
-		log.Debugf("\tNetwork: %s NetworkEndpoint: %v", net, val)
+		op.Debugf("\tNetwork: %s NetworkEndpoint: %v", net, val)
 	}
 
-	err = v.checkVDSMembership(ctx, endpointMoref, input.BridgeNetworkName)
+	err = v.checkVDSMembership(op, endpointMoref, input.BridgeNetworkName)
 	if err != nil && checkBridgeVDS {
 		v.NoteIssue(fmt.Errorf("Unable to check hosts in vDS for %q: %s", input.BridgeNetworkName, err))
 	}
@@ -392,12 +388,12 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 			continue
 		}
 
-		moref, err := v.dpgHelper(ctx, net)
+		moref, err := v.dpgHelper(op, net)
 		if err != nil {
 			v.NoteIssue(fmt.Errorf("Error adding container network %q: %s", name, err))
 			checkMappedVDS = false
 			if !suggestedMapped {
-				v.suggestNetwork("--container-network", true)
+				v.suggestNetwork(op, "--container-network", true)
 				suggestedMapped = true
 			}
 		}
@@ -416,7 +412,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 			v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - %q also mapped as container network %q", input.BridgeNetworkName, name))
 		}
 
-		err = v.checkVDSMembership(ctx, moref, net)
+		err = v.checkVDSMembership(op, moref, net)
 		if err != nil && checkMappedVDS {
 			v.NoteIssue(fmt.Errorf("Unable to check hosts in vDS for %q: %s", net, err))
 		}
@@ -428,8 +424,8 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 }
 
 // generateBridgeName returns a name that can be used to create a switch/pg pair on ESX
-func (v *Validator) generateBridgeName(ctx, input *data.Data, conf *config.VirtualContainerHostConfigSpec) string {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) generateBridgeName(op trace.Operation, input *data.Data, conf *config.VirtualContainerHostConfigSpec) string {
+	defer trace.End(trace.Begin("", op))
 
 	return input.DisplayName
 }
@@ -448,12 +444,12 @@ func (v *Validator) checkBridgeIPRange(bridgeIPRange *net.IPNet) error {
 }
 
 // getNetwork gets a moref based on the network name
-func (v *Validator) getNetwork(ctx context.Context, name string) (object.NetworkReference, error) {
-	defer trace.End(trace.Begin(name))
+func (v *Validator) getNetwork(op trace.Operation, name string) (object.NetworkReference, error) {
+	defer trace.End(trace.Begin(name, op))
 
-	nets, err := v.Session.Finder.NetworkList(ctx, name)
+	nets, err := v.Session.Finder.NetworkList(op, name)
 	if err != nil {
-		log.Debugf("no such network %q", name)
+		op.Debugf("no such network %q", name)
 		// TODO: error message about no such match and how to get a network list
 		// we return err directly here so we can check the type
 		return nil, err
@@ -466,10 +462,10 @@ func (v *Validator) getNetwork(ctx context.Context, name string) (object.Network
 }
 
 // networkHelper gets a moid based on the network name
-func (v *Validator) networkHelper(ctx context.Context, name string) (string, error) {
-	defer trace.End(trace.Begin(name))
+func (v *Validator) networkHelper(op trace.Operation, name string) (string, error) {
+	defer trace.End(trace.Begin(name, op))
 
-	net, err := v.getNetwork(ctx, name)
+	net, err := v.getNetwork(op, name)
 	if err != nil {
 		return "", err
 	}
@@ -477,8 +473,8 @@ func (v *Validator) networkHelper(ctx context.Context, name string) (string, err
 	return moref.String(), nil
 }
 
-func (v *Validator) dpgMorefHelper(ctx context.Context, ref string) (string, error) {
-	defer trace.End(trace.Begin(ref))
+func (v *Validator) dpgMorefHelper(op trace.Operation, ref string) (string, error) {
+	defer trace.End(trace.Begin(ref, op))
 
 	moref := new(types.ManagedObjectReference)
 	ok := moref.FromString(ref)
@@ -487,7 +483,7 @@ func (v *Validator) dpgMorefHelper(ctx context.Context, ref string) (string, err
 		return "", errors.New("could not restore serialized managed object reference: " + ref)
 	}
 
-	net, err := v.Session.Finder.ObjectReference(ctx, *moref)
+	net, err := v.Session.Finder.ObjectReference(op, *moref)
 	if err != nil {
 		// TODO: error message about no such match and how to get a network list
 		return "", errors.New("unable to locate network from moref: " + ref)
@@ -505,10 +501,10 @@ func (v *Validator) dpgMorefHelper(ctx context.Context, ref string) (string, err
 	return ref, nil
 }
 
-func (v *Validator) dpgHelper(ctx context.Context, path string) (types.ManagedObjectReference, error) {
-	defer trace.End(trace.Begin(path))
+func (v *Validator) dpgHelper(op trace.Operation, path string) (types.ManagedObjectReference, error) {
+	defer trace.End(trace.Begin(path, op))
 
-	net, err := v.getNetwork(ctx, path)
+	net, err := v.getNetwork(op, path)
 	if err != nil {
 		return types.ManagedObjectReference{}, err
 	}
@@ -526,8 +522,8 @@ func (v *Validator) dpgHelper(ctx context.Context, path string) (types.ManagedOb
 }
 
 // inDVP checks if the host is in the distributed virtual portgroup (dvpHosts)
-func (v *Validator) inDVP(host types.ManagedObjectReference, dvpHosts []types.ManagedObjectReference) bool {
-	defer trace.End(trace.Begin(""))
+func (v *Validator) inDVP(op trace.Operation, host types.ManagedObjectReference, dvpHosts []types.ManagedObjectReference) bool {
+	defer trace.End(trace.Begin("", op))
 
 	for _, h := range dvpHosts {
 		if host == h {
@@ -538,8 +534,8 @@ func (v *Validator) inDVP(host types.ManagedObjectReference, dvpHosts []types.Ma
 }
 
 // checkVDSMembership verifes all hosts in the vCenter are connected to the vDS
-func (v *Validator) checkVDSMembership(ctx context.Context, network types.ManagedObjectReference, netName string) error {
-	defer trace.End(trace.Begin(network.Value))
+func (v *Validator) checkVDSMembership(op trace.Operation, network types.ManagedObjectReference, netName string) error {
+	defer trace.End(trace.Begin(network.Value, op))
 
 	var dvp mo.DistributedVirtualPortgroup
 	var nonMembers []string
@@ -552,40 +548,40 @@ func (v *Validator) checkVDSMembership(ctx context.Context, network types.Manage
 		return errors.New("Invalid cluster. Check --compute-resource")
 	}
 
-	clusterHosts, err := v.Session.Cluster.Hosts(ctx)
+	clusterHosts, err := v.Session.Cluster.Hosts(op)
 	if err != nil {
 		return err
 	}
 
 	r := object.NewDistributedVirtualPortgroup(v.Session.Client.Client, network)
-	if err := r.Properties(ctx, r.Reference(), []string{"name", "host"}, &dvp); err != nil {
+	if err := r.Properties(op, r.Reference(), []string{"name", "host"}, &dvp); err != nil {
 		return err
 	}
 
 	for _, h := range clusterHosts {
-		if !v.inDVP(h.Reference(), dvp.Host) {
+		if !v.inDVP(op, h.Reference(), dvp.Host) {
 			nonMembers = append(nonMembers, h.InventoryPath)
 		}
 	}
 
 	if len(nonMembers) > 0 {
-		log.Errorf("vDS configuration incorrect on %q. All cluster hosts must be in the vDS.", netName)
-		log.Errorf("  %q is missing hosts:", netName)
+		op.Errorf("vDS configuration incorrect on %q. All cluster hosts must be in the vDS.", netName)
+		op.Errorf("  %q is missing hosts:", netName)
 		for _, hs := range nonMembers {
-			log.Errorf("    %q", hs)
+			op.Errorf("    %q", hs)
 		}
 
 		errMsg := fmt.Sprintf("All cluster hosts must be in the vDS. %q is missing hosts: %s", netName, nonMembers)
 		v.NoteIssue(errors.New(errMsg))
 	} else {
-		log.Infof("vDS configuration OK on %q", netName)
+		op.Infof("vDS configuration OK on %q", netName)
 	}
 	return nil
 }
 
 // ListNetworks returns the InventoryPath of all networks (excluding DVS uplinks) or
 // all networks excluding standard networks
-func (v *Validator) ListNetworks(incStdNets bool) ([]string, error) {
+func (v *Validator) listNetworks(op trace.Operation, incStdNets bool) ([]string, error) {
 	var selectedNets []string
 
 	nets, err := v.Session.Finder.NetworkList(v.Context, "*")
@@ -601,7 +597,7 @@ func (v *Validator) ListNetworks(incStdNets bool) ([]string, error) {
 		switch o := net.(type) {
 		case *object.DistributedVirtualPortgroup:
 			// Filter out DVS uplink
-			if !v.isDVSUplink(net.Reference()) {
+			if !v.isDVSUplink(op, net.Reference()) {
 				selectedNets = append(selectedNets, o.InventoryPath)
 			}
 		case *object.Network:
@@ -616,37 +612,37 @@ func (v *Validator) ListNetworks(incStdNets bool) ([]string, error) {
 
 // suggestNetwork suggests all networks
 // incStdNets includes standard Networks in addition to DPGs
-func (v *Validator) suggestNetwork(flag string, incStdNets bool) {
-	defer trace.End(trace.Begin(flag))
+func (v *Validator) suggestNetwork(op trace.Operation, flag string, incStdNets bool) {
+	defer trace.End(trace.Begin(flag, op))
 
-	nets, err := v.ListNetworks(incStdNets)
+	nets, err := v.listNetworks(op, incStdNets)
 	if err != nil {
-		log.Error(err)
+		op.Error(err)
 		return
 	}
 
 	if len(nets) == 0 {
-		log.Info("No networks found")
+		op.Info("No networks found")
 		return
 	}
 
-	log.Infof("Suggested values for %s:", flag)
+	op.Infof("Suggested values for %s:", flag)
 	for _, n := range nets {
 		if v.isNetworkNameValid(n, flag) {
-			log.Infof("  %q", path.Base(n))
+			op.Infof("  %q", path.Base(n))
 		}
 	}
 }
 
 // isDVSUplink determines if the DVP is an uplink
-func (v *Validator) isDVSUplink(ref types.ManagedObjectReference) bool {
-	defer trace.End(trace.Begin(ref.Value))
+func (v *Validator) isDVSUplink(op trace.Operation, ref types.ManagedObjectReference) bool {
+	defer trace.End(trace.Begin(ref.Value, op))
 
 	var dvp mo.DistributedVirtualPortgroup
 
 	r := object.NewDistributedVirtualPortgroup(v.Session.Client.Client, ref)
 	if err := r.Properties(v.Context, r.Reference(), []string{"tag"}, &dvp); err != nil {
-		log.Errorf("Unable to check tags on %q: %s", ref, err)
+		op.Errorf("Unable to check tags on %q: %s", ref, err)
 		return false
 	}
 	for _, t := range dvp.Tag {

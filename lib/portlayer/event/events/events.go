@@ -21,7 +21,7 @@ import (
 type Event interface {
 	EventTopic
 	// id of event
-	EventID() int
+	EventID() string
 	// event (PowerOn, PowerOff, etc)
 	String() string
 	// reference evented object

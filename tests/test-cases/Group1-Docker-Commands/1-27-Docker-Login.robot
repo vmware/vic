@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 1-27 - Docker Login
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server  certs=${false}
+Suite Setup  Conditional Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
@@ -35,5 +35,4 @@ Docker login and pull from docker.io
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logout
     Should Be Equal As Integers  ${rc}  0
-	
-	
+

@@ -38,7 +38,18 @@ func Inspect(op *trace.Operation, h interface{}, id string) (*executor.SessionCo
 	_, okS := stasks[id]
 	_, okE := etasks[id]
 
+	op.Debugf("target task ID: %s", id)
+	op.Debugf("session tasks during inspect: %s", stasks)
+	op.Debugf("exec tasks during inspect: %s", etasks)
+
 	if !okS && !okE {
+		if handle.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff {
+			powerStateError := TaskPowerStateError{
+				msg: fmt.Sprintf("the operation cannot be completed, container(%s) has been shut down during the operations execution.", handle.ExecConfig.ID),
+			}
+			return nil, powerStateError
+		}
+
 		return nil, fmt.Errorf("unknown task ID: %s", id)
 	}
 
@@ -53,4 +64,13 @@ func Inspect(op *trace.Operation, h interface{}, id string) (*executor.SessionCo
 	}
 
 	return tasks[id], nil
+}
+
+// Special Error types for a task inspect
+type TaskPowerStateError struct {
+	msg string
+}
+
+func (e TaskPowerStateError) Error() string {
+	return e.msg
 }

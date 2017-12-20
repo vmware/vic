@@ -87,6 +87,8 @@ portlayerapi := $(BIN)/port-layer-server
 portlayerapi-test := $(BIN)/port-layer-server-test
 portlayerapi-client := lib/apiservers/portlayer/client/port_layer_client.go
 portlayerapi-server := lib/apiservers/portlayer/restapi/server.go
+serviceapi := $(BIN)/vic-machine-server
+serviceapi-server := lib/apiservers/service/restapi/server.go
 
 imagec := $(BIN)/imagec
 vicadmin := $(BIN)/vicadmin
@@ -123,6 +125,8 @@ portlayerapi: $(portlayerapi)
 portlayerapi-test: $(portlayerapi-test)
 portlayerapi-client: $(portlayerapi-client)
 portlayerapi-server: $(portlayerapi-server)
+serviceapi: $(serviceapi)
+serviceapi-server: $(serviceapi-server)
 admiralapi-client: $(admiralapi-client)
 
 imagec: $(imagec)
@@ -156,12 +160,12 @@ misspell: $(MISSPELL)
 all: components tethers isos vic-machine imagec vic-ui
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) $(MISSPELL) goversion
 check: goversion goimports gofmt misspell govet golint copyright whitespace gas
-apiservers: $(portlayerapi) $(docker-engine-api)
+apiservers: $(portlayerapi) $(docker-engine-api) $(serviceapi)
 components: check apiservers $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
 tethers: $(tether-linux)
 
-most: $(portlayerapi) $(docker-engine-api) $(vicadmin) $(tether-linux) $(appliance) $(bootstrap) $(vic-machine-linux)
+most: $(portlayerapi) $(docker-engine-api) $(vicadmin) $(tether-linux) $(appliance) $(bootstrap) $(vic-machine-linux) $(serviceapi)
 
 # utility targets
 goversion:
@@ -355,6 +359,21 @@ $(portlayerapi-test): $$(call godeps,cmd/port-layer-server/*.go) $(portlayerapi-
 	@echo building Portlayer API server for test...
 	@$(TIME) $(GO) test -c -coverpkg github.com/vmware/vic/lib/...,github.com/vmware/vic/pkg/... -coverprofile port-layer-server.cov -outputdir /tmp -o $@ ./cmd/port-layer-server
 
+# Common service dependencies between client and server
+SERVICE_DEPS ?= lib/apiservers/service/swagger.json \
+				  lib/apiservers/service/restapi/configure_vic_machine.go \
+				  lib/apiservers/service/restapi/handlers/*.go
+
+$(serviceapi-server): $(SERVICE_DEPS) $(SWAGGER)
+	@echo regenerating swagger models and operations for vic-machine-as-a-service API server...
+	@$(SWAGGER) generate server --exclude-main --target lib/apiservers/service -f lib/apiservers/service/swagger.json 2>>service-swagger-gen.log
+	@echo done regenerating swagger models and operations for vic-machine-as-a-service API server...
+
+$(serviceapi): $$(call godeps,cmd/vic-machine-server/*.go) $(serviceapi-server)
+	@echo building vic-machine-as-a-service API server...
+	@$(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o $@ ./cmd/vic-machine-server
+
+
 $(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo building iso-base docker image
 	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $@
@@ -398,52 +417,17 @@ $(vic-machine-darwin): $$(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine darwin...
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
-$(vic-ui-linux): $$(call godeps,cmd/vic-ui/*.go)
+$(vic-ui-linux): $$(call godeps,cmd/vic-ui/*.go) $(admiralapi-client)
 	@echo building vic-ui linux...
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
 
-$(vic-ui-windows): $$(call godeps,cmd/vic-ui/*.go)
+$(vic-ui-windows): $$(call godeps,cmd/vic-ui/*.go) $(admiralapi-client)
 	@echo building vic-ui windows...
 	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
 
-$(vic-ui-darwin): $$(call godeps,cmd/vic-ui/*.go)
+$(vic-ui-darwin): $$(call godeps,cmd/vic-ui/*.go) $(admiralapi-client)
 	@echo building vic-ui darwin...
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
-
-VICUI_SOURCE_PATH = "ui/vic-ui"
-VICUI_H5_UI_PATH = "ui/vic-ui-h5c/vic"
-VICUI_H5_SERVICE_PATH = "ui/vic-ui-h5c/vic-service"
-GCP_DOWNLOAD_PATH = "https://storage.googleapis.com/vic-engine-builds/"
-SDK_PACKAGE_ARCHIVE = "vic-ui-sdk.tar.gz"
-UI_INSTALLER_WIN_UTILS_ARCHIVE = "vic-installation-utils-win.tgz"
-UI_INSTALLER_WIN_PATH = "ui/installer/vCenterForWindows"
-ENV_VSPHERE_SDK_HOME = "/tmp/sdk/vc_sdk_min"
-ENV_FLEX_SDK_HOME = "/tmp/sdk/flex_sdk_min"
-ENV_HTML_SDK_HOME = "/tmp/sdk/html-client-sdk"
-
-vic-ui-plugins:
-	@npm install -g yarn@0.24.6 > /dev/null
-	sed -e "s/0.0.1/$(shell printf %s ${TAG_NUM}.${BUILD_NUMBER})/" -e "s/\-rc[[:digit:]]//g" ./$(VICUI_H5_UI_PATH)/plugin-package.xml > ./$(VICUI_H5_UI_PATH)/new_plugin-package.xml
-	sed -e "s/0.0.1/$(shell printf %s ${TAG_NUM}.${BUILD_NUMBER})/" -e "s/\-rc[[:digit:]]//g" ./$(VICUI_SOURCE_PATH)/plugin-package.xml > ./$(VICUI_SOURCE_PATH)/new_plugin-package.xml
-	sed "s/UI_VERSION_PLACEHOLDER/$(shell printf %s ${TAG}.${BUILD_NUMBER})/" ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/configs.properties > ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/new_configs.properties
-	rm ./$(VICUI_SOURCE_PATH)/plugin-package.xml ./$(VICUI_H5_UI_PATH)/plugin-package.xml ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/configs.properties
-	mv ./$(VICUI_SOURCE_PATH)/new_plugin-package.xml ./$(VICUI_SOURCE_PATH)/plugin-package.xml
-	mv ./$(VICUI_H5_UI_PATH)/new_plugin-package.xml ./$(VICUI_H5_UI_PATH)/plugin-package.xml
-	mv ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/new_configs.properties ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/configs.properties
-	wget -nv $(GCP_DOWNLOAD_PATH)$(SDK_PACKAGE_ARCHIVE) -O /tmp/$(SDK_PACKAGE_ARCHIVE)
-	wget -nv $(GCP_DOWNLOAD_PATH)$(UI_INSTALLER_WIN_UTILS_ARCHIVE) -O /tmp/$(UI_INSTALLER_WIN_UTILS_ARCHIVE)
-	tar --warning=no-unknown-keyword -xzf /tmp/$(SDK_PACKAGE_ARCHIVE) -C /tmp/
-	ant -f ui/vic-ui/build-deployable.xml -Denv.VSPHERE_SDK_HOME=$(ENV_VSPHERE_SDK_HOME) -Denv.FLEX_HOME=$(ENV_FLEX_SDK_HOME) > vic_ui_build.log 2>&1
-	tar --warning=no-unknown-keyword -xzf /tmp/$(UI_INSTALLER_WIN_UTILS_ARCHIVE) -C $(UI_INSTALLER_WIN_PATH)
-	ant -f ui/vic-ui-h5c/build-deployable.xml -Denv.VSPHERE_SDK_HOME=$(ENV_VSPHERE_SDK_HOME) -Denv.FLEX_HOME=$(ENV_FLEX_SDK_HOME) -Denv.VSPHERE_H5C_SDK_HOME=$(ENV_HTML_SDK_HOME) -Denv.BUILD_MODE=prod >> vic_ui_build.log 2>&1
-	mkdir -p $(BIN)/ui
-	cp -rf ui/installer/* $(BIN)/ui
-	# cleanup
-	rm -rf $(VICUI_H5_UI_PATH)/src/vic-app/aot
-	rm -f $(VICUI_H5_UI_PATH)/src/vic-app/yarn.lock
-	rm -rf $(UI_INSTALLER_WIN_PATH)/utils
-	rm -f $(UI_INSTALLER_WIN_PATH)/._utils
-	rm -rf ui/vic-ui-h5c/vic/src/vic-app/node_modules
 
 $(vic-dns-linux): $$(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns linux...
@@ -485,11 +469,15 @@ clean:
 	@rm -rf ./lib/config/dynamic/admiral/models
 	@rm -rf ./lib/config/dynamic/admiral/operations
 
+	@rm -f ./lib/apiservers/service/restapi/doc.go
+	@rm -f ./lib/apiservers/service/restapi/embedded_spec.go
+	@rm -f ./lib/apiservers/service/restapi/server.go
+	@rm -rf ./lib/apiservers/service/restapi/cmd/
+	@rm -rf ./lib/apiservers/service/restapi/models/
+	@rm -rf ./lib/apiservers/service/restapi/operations/
+
 	@rm -f *.log
 	@rm -f *.pem
-
-	@rm -rf ui/vic-ui-h5c/vic/src/vic-app/node_modules
-	@rm -f $(VICUI_H5_UI_PATH)/src/vic-app/yarn.lock
 
 # removes the yum cache as well as the generated binaries
 distclean: clean
