@@ -117,7 +117,6 @@ func InitializeImageCache(client *client.PortLayer) error {
 
 // GetImages returns a slice containing metadata for all cached images
 func (ic *ICache) GetImages() []*metadata.ImageConfig {
-	defer trace.End(trace.Begin(""))
 	ic.m.RLock()
 	defer ic.m.RUnlock()
 
@@ -143,7 +142,6 @@ func (ic *ICache) IsImageID(id string) bool {
 
 // Get parses input to retrieve a cached image
 func (ic *ICache) Get(idOrRef string) (*metadata.ImageConfig, error) {
-	defer trace.End(trace.Begin(idOrRef))
 	ic.m.RLock()
 	defer ic.m.RUnlock()
 
@@ -183,7 +181,6 @@ func (ic *ICache) Get(idOrRef string) (*metadata.ImageConfig, error) {
 }
 
 func (ic *ICache) getImageByDigest(digest digest.Digest) *metadata.ImageConfig {
-	defer trace.End(trace.Begin(digest.String()))
 	var config *metadata.ImageConfig
 	config, ok := ic.cacheByID[string(digest)]
 	if !ok {
@@ -194,7 +191,6 @@ func (ic *ICache) getImageByDigest(digest digest.Digest) *metadata.ImageConfig {
 
 // Looks up image by reference.Named
 func (ic *ICache) getImageByNamed(named reference.Named) *metadata.ImageConfig {
-	defer trace.End(trace.Begin(""))
 	// get the imageID from the repoCache
 	// #nosec: Errors unhandled.
 	id, _ := RepositoryCache().Get(named)
@@ -213,8 +209,6 @@ func prefixImageID(imageID string) string {
 
 // Add adds an image to the image cache
 func (ic *ICache) Add(imageConfig *metadata.ImageConfig) error {
-	defer trace.End(trace.Begin(""))
-
 	ic.m.Lock()
 	defer ic.m.Unlock()
 
@@ -257,8 +251,6 @@ func (ic *ICache) Add(imageConfig *metadata.ImageConfig) error {
 
 // RemoveImageByConfig removes image from the cache.
 func (ic *ICache) RemoveImageByConfig(imageConfig *metadata.ImageConfig) {
-	defer trace.End(trace.Begin(""))
-
 	ic.m.Lock()
 	defer ic.m.Unlock()
 

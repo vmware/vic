@@ -150,6 +150,7 @@ func (s *Scope) reserveEndpointIP(e *Endpoint) error {
 	var err error
 	for _, p := range s.spaces {
 		if !ip.IsUnspecifiedIP(e.ip) {
+			//If an IP was specified, try to reserve it
 			if err = p.ReserveIP4(e.ip); err == nil {
 				return nil
 			}

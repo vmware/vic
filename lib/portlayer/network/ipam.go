@@ -293,7 +293,7 @@ func (s *AddressSpace) ReserveIP4Range(firstIP net.IP, lastIP net.IP) (*AddressS
 	var err error
 	if compareIP4(firstIP, s.Pool.FirstIP) > 0 && compareIP4(lastIP, s.Pool.LastIP) < 0 {
 		// IP range is within the pool but not found available
-		err = fmt.Errorf("Cannot reserve IP range %s - %s.  Already in use", firstIP.String(), lastIP.String())
+		err = ConcurrentResourceError{fmt.Errorf("Cannot reserve IP range %s - %s.  Already in use", firstIP.String(), lastIP.String())}
 	} else {
 		err = fmt.Errorf("Cannot reserve IP range %s - %s.  Not within pool's range %s - %s",
 			firstIP.String(), lastIP.String(), s.Pool.FirstIP, s.Pool.LastIP)

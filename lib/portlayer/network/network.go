@@ -33,6 +33,7 @@ import (
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/retry"
 )
 
 var (
@@ -49,6 +50,10 @@ type DuplicateResourceError struct {
 }
 
 type ResourceNotFoundError struct {
+	error
+}
+
+type ConcurrentResourceError struct {
 	error
 }
 
@@ -138,7 +143,19 @@ func handleEvent(netctx *Context, ie events.Event) {
 			return
 		}
 
-		if err := handle.Commit(op, nil, nil); err != nil {
+		// Retry the commit if we get concurrent access error.  If we fail to unbind here, the
+		// container will continually ask for the same IP address and may never restart on a
+		// heavily loaded system again.  https://github.com/vmware/vic/issues/6851
+		operation := func() error {
+			return handle.Commit(op, nil, nil)
+		}
+
+		retryCondtion := func(err error) bool {
+			_, ok := err.(types.ConcurrentAccess)
+			return ok
+		}
+
+		if err := retry.Do(operation, retryCondition); err != nil {
 			op.Warnf("Failed to commit handle after network unbind for container %s: %s", ie.Reference(), err)
 		}
 
