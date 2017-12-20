@@ -25,7 +25,7 @@ Compose Voting App
 
     Set Environment Variable  COMPOSE_HTTP_TIMEOUT  300
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --skip-hostname-check -f %{GOPATH}/src/github.com/vmware/vic/demos/compose/voting-app/docker-compose.yml up -d
+    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --skip-hostname-check -f ${CURDIR}/../../../demos/compose/voting-app/docker-compose.yml up -d
     Log  ${out}
     Should Be Equal As Integers  ${rc}  0
 

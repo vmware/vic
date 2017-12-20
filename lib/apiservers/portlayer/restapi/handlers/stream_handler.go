@@ -81,9 +81,9 @@ func (s *StreamOutputHandler) WriteResponse(rw http.ResponseWriter, producer run
 
 	_, err := io.Copy(rw, s.outputStream)
 	if err != nil {
-		log.Errorf("Error streaming %s for %s: %s", s.outputName, s.id, err)
+		log.Errorf("Error streaming %s for %s, total unwrapped bytes: %d, %s", s.outputName, s.id, s.outputStream.totalBytes, err)
 	} else {
-		log.Debugf("Finished streaming %s for %s", s.outputName, s.id)
+		log.Debugf("Finished streaming %s for %s (unwrapped bytes: %d)", s.outputName, s.id, s.outputStream.totalBytes)
 	}
 }
 
@@ -108,6 +108,8 @@ type FlushingReader struct {
 
 	flusher   GenericFlusher
 	initBytes []byte
+
+	totalBytes uint64
 }
 
 func NewFlushingReader(rdr io.Reader) *FlushingReader {
@@ -183,6 +185,17 @@ func (d *FlushingReader) readDetectInit(buf []byte) (int, error) {
 // issue.
 func (d *FlushingReader) WriteTo(w io.Writer) (written int64, err error) {
 	buf := make([]byte, ioCopyBufferSize)
+
+	defer func() {
+		total := d.totalBytes + uint64(written)
+		if total >= d.totalBytes {
+			d.totalBytes = total
+			return
+		}
+
+		log.Debug("Restarting total byte record for %p from zero, current total: %d", d, d.totalBytes)
+		d.totalBytes = uint64(written)
+	}()
 
 	nr, er := d.readDetectInit(buf)
 	for {

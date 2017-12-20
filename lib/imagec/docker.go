@@ -105,8 +105,10 @@ func LearnAuthURL(options Options) (*url.URL, error) {
 	}
 
 	tagOrDigest := tagOrDigest(options.Reference, options.Tag)
-	url.Path = path.Join(url.Path, options.Image, "manifests", tagOrDigest)
-	log.Debugf("URL: %s", url)
+	manifestURL, err := url.Parse(path.Join(url.Path, options.Image, "manifests", tagOrDigest))
+	if err != nil {
+		return nil, err
+	}
 
 	fetcher := urlfetcher.NewURLFetcher(urlfetcher.Options{
 		Timeout:            options.Timeout,
@@ -118,9 +120,20 @@ func LearnAuthURL(options Options) (*url.URL, error) {
 
 	// We expect docker registry to return a 401 to us - with a WWW-Authenticate header
 	// We parse that header and learn the OAuth endpoint to fetch OAuth token.
-	hdr, err := fetcher.Head(url)
+	log.Debugf("Pinging %s", manifestURL.String())
+	hdr, err := fetcher.Ping(manifestURL)
 	if err == nil && fetcher.IsStatusUnauthorized() {
-		return fetcher.ExtractOAuthURL(hdr.Get("www-authenticate"), url)
+		return fetcher.ExtractOAuthURL(hdr.Get("www-authenticate"), nil)
+	}
+
+	if !fetcher.IsStatusOK() {
+		// Try with just the registry url.  This works better with some registries (e.g.
+		// Artifactory)
+		log.Debugf("Pinging %s", url.String())
+		hdr, err = fetcher.Ping(url)
+		if err == nil && fetcher.IsStatusUnauthorized() {
+			return fetcher.ExtractOAuthURL(hdr.Get("www-authenticate"), nil)
+		}
 	}
 
 	// Private registry returned the manifest directly as auth option is optional.

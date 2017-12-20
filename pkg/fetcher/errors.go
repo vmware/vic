@@ -14,7 +14,10 @@
 
 package fetcher
 
-import "fmt"
+import (
+	"fmt"
+	"net/url"
+)
 
 // DoNotRetry is an error wrapper indicating that the error cannot be resolved with a retry.
 type DoNotRetry struct {
@@ -42,4 +45,14 @@ type TagNotFoundError struct {
 
 func (e TagNotFoundError) Error() string {
 	return fmt.Sprintf("image tag not found: %s", e.Err.Error())
+}
+
+// AuthTokenError is returned when authentication with a registry fails
+type AuthTokenError struct {
+	TokenServer url.URL
+	Err         error
+}
+
+func (e AuthTokenError) Error() string {
+	return fmt.Sprintf("Failed to fetch auth token from %s", e.TokenServer.Host)
 }

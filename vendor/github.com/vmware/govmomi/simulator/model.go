@@ -39,6 +39,9 @@ type Model struct {
 	ServiceContent types.ServiceContent
 	RootFolder     mo.Folder
 
+	// Autostart will power on Model created VMs when true
+	Autostart bool
+
 	// Datacenter specifies the number of Datacenter entities to create
 	Datacenter int
 
@@ -87,6 +90,7 @@ func ESX() *Model {
 	return &Model{
 		ServiceContent: esx.ServiceContent,
 		RootFolder:     esx.RootFolder,
+		Autostart:      true,
 		Datastore:      1,
 		Machine:        2,
 	}
@@ -97,6 +101,7 @@ func VPX() *Model {
 	return &Model{
 		ServiceContent: vpx.ServiceContent,
 		RootFolder:     vpx.RootFolder,
+		Autostart:      true,
 		Datacenter:     1,
 		Portgroup:      1,
 		Host:           1,
@@ -238,9 +243,15 @@ func (m *Model) Create() error {
 					return err
 				}
 
-				err = task.Wait(ctx)
+				info, err := task.WaitForResult(ctx, nil)
 				if err != nil {
 					return err
+				}
+
+				vm := object.NewVirtualMachine(client, info.Result.(types.ManagedObjectReference))
+
+				if m.Autostart {
+					_, _ = vm.PowerOn(ctx)
 				}
 			}
 
@@ -381,7 +392,7 @@ func (m *Model) Create() error {
 			addMachine(prefix+"0", nil, pool, folders)
 
 			for npool := 1; npool <= m.Pool; npool++ {
-				spec := NewResourceConfigSpec()
+				spec := types.DefaultResourceConfigSpec()
 
 				_, err = pool.Create(ctx, m.fmtName(prefix, npool), spec)
 				if err != nil {
@@ -392,7 +403,7 @@ func (m *Model) Create() error {
 			prefix = clusterName + "_APP"
 
 			for napp := 0; napp < m.App; napp++ {
-				rspec := NewResourceConfigSpec()
+				rspec := types.DefaultResourceConfigSpec()
 				vspec := NewVAppConfigSpec()
 				name := m.fmtName(prefix, napp)
 

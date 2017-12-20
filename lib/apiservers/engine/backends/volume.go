@@ -17,14 +17,12 @@ package backends
 import (
 	"encoding/json"
 	"fmt"
-
-	log "github.com/Sirupsen/logrus"
-	derr "github.com/docker/docker/api/errors"
-
 	"regexp"
 	"strconv"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
+	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/go-units"
@@ -129,22 +127,11 @@ func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
 	// and is used while filtering the output by dangling (dangling=true should
 	// return volumes that are not attached to a container)
 	joinedVolumes := make(map[string]struct{})
-
 	if volumeFilters.Include("dangling") {
 		// If the dangling filter is specified, gather required items beforehand
-
-		// Get all containers from the portlayer and use their metadata to obtain
-		// non-dangling (joined) volumes
-		conts, err := allContainers()
+		joinedVolumes, err = fetchJoinedVolumes()
 		if err != nil {
 			return nil, nil, VolumeInternalServerError(err)
-		}
-
-		var s struct{}
-		for i := range conts {
-			for _, vol := range conts[i].VolumeConfig {
-				joinedVolumes[vol.Name] = s
-			}
 		}
 	}
 
@@ -172,6 +159,25 @@ func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
 	}
 
 	return volumes, nil, nil
+}
+
+// fetchJoinedVolumes obtains all containers from the portlayer and returns a map with all
+// volumes that are joined to at least one container.
+func fetchJoinedVolumes() (map[string]struct{}, error) {
+	conts, err := allContainers()
+	if err != nil {
+		return nil, VolumeInternalServerError(err)
+	}
+
+	joinedVolumes := make(map[string]struct{})
+	var s struct{}
+	for i := range conts {
+		for _, vol := range conts[i].VolumeConfig {
+			joinedVolumes[vol.Name] = s
+		}
+	}
+
+	return joinedVolumes, nil
 }
 
 // allContainers obtains all containers from the portlayer, akin to `docker ps -a`.
@@ -283,14 +289,13 @@ func (v *Volume) VolumeCreate(name, driverName string, volumeData, labels map[st
 
 // VolumeRm : docker personality for VIC
 func (v *Volume) VolumeRm(name string, force bool) error {
-	defer trace.End(trace.Begin("Volume.VolumeRm"))
+	defer trace.End(trace.Begin(name))
 
 	client := PortLayerClient()
 	if client == nil {
 		return VolumeInternalServerError(errPortlayerClient)
 	}
 
-	// FIXME: check whether this is a name or a UUID. UUID expected for now.
 	_, err := client.Storage.RemoveVolume(storage.NewRemoveVolumeParamsWithContext(ctx).WithName(name))
 	if err != nil {
 

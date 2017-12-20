@@ -15,12 +15,14 @@
 package common
 
 import (
+	"context"
 	"net/url"
 	"testing"
 
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/govmomi/vim25/soap"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 func TestFlags(t *testing.T) {
@@ -33,6 +35,8 @@ func TestFlags(t *testing.T) {
 }
 
 func TestProcess(t *testing.T) {
+	op := trace.NewOperation(context.Background(), "TestProcess")
+
 	passwd := "pass"
 	url1, _ := soap.ParseURL("127.0.0.1")
 	url2, _ := soap.ParseURL("root:@127.0.0.1")
@@ -67,7 +71,7 @@ func TestProcess(t *testing.T) {
 		if target.URL != nil {
 			t.Logf("Before processing, url: %s", target.URL.String())
 		}
-		e := target.HasCredentials()
+		e := target.HasCredentials(op)
 		if test.err != nil {
 			if e == nil {
 				t.Errorf("Empty error")

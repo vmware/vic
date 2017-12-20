@@ -161,7 +161,7 @@ func (t *Toolbox) session() *SessionConfig {
 	return t.sess.session
 }
 
-func (t *Toolbox) kill(name string) error {
+func (t *Toolbox) kill(_ context.Context, name string) error {
 	session := t.session()
 	if session == nil {
 		return fmt.Errorf("failed to kill container: process not found")
@@ -189,10 +189,9 @@ func (t *Toolbox) killHelper(session *SessionConfig, name string) error {
 
 	num := syscall.Signal(sig.Signum())
 
-	log.Infof("sending signal %s (%d) to %s", sig.Signal, num, session.ID)
-
-	if err := session.Cmd.Process.Signal(num); err != nil {
-		return fmt.Errorf("failed to signal %s: %s", session.ID, err)
+	log.Infof("sending signal %s (%d) to process group for %s", sig.Signal, num, session.ID)
+	if err := syscall.Kill(-session.Cmd.Process.Pid, num); err != nil {
+		return fmt.Errorf("failed to signal %s group: %s", session.ID, err)
 	}
 
 	return nil
@@ -221,14 +220,20 @@ func (t *Toolbox) containerAuthenticate(_ vix.CommandRequestHeader, data []byte)
 }
 
 func (t *Toolbox) containerStartCommand(m *toolbox.ProcessManager, r *vix.StartProgramRequest) (int64, error) {
+	var p *toolbox.Process
+
 	switch r.ProgramPath {
 	case "kill":
-		return -1, t.kill(r.Arguments)
+		p = toolbox.NewProcessFunc(t.kill)
 	case "reload":
-		return -1, ReloadConfig()
+		p = toolbox.NewProcessFunc(func(_ context.Context, _ string) error {
+			return ReloadConfig()
+		})
 	default:
 		return -1, fmt.Errorf("unknown command %q", r.ProgramPath)
 	}
+
+	return m.Start(r, p)
 }
 
 func (t *Toolbox) halt() error {

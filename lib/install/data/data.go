@@ -48,9 +48,8 @@ type Data struct {
 	RegistryCAs []byte
 	common.Images
 
-	ImageDatastorePath     string              `cmd:"image-store"`
-	VolumeLocations        map[string]*url.URL `cmd:"volume-store" label:"value-key"`
-	ContainerDatastoreName string
+	ImageDatastorePath string              `cmd:"image-store"`
+	VolumeLocations    map[string]*url.URL `cmd:"volume-store" label:"value-key"`
 
 	BridgeNetworkName string        `cmd:"bridge-network"`
 	ClientNetwork     NetworkConfig `cmd:"client-network"`
@@ -76,7 +75,6 @@ type Data struct {
 	Timeout time.Duration
 
 	Force               bool
-	UseRP               bool `cmd:"use-rp"`
 	ResetInProgressFlag bool
 
 	AsymmetricRouting bool `cmd:"asymmetric-routes"`
@@ -137,8 +135,6 @@ type InstallerData struct {
 	ISOVersion        string
 	PreUpgradeVersion string
 	Timeout           time.Duration
-
-	UseRP bool
 
 	HTTPSProxy *url.URL
 	HTTPProxy  *url.URL

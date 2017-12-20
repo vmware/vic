@@ -131,10 +131,10 @@ func (p *Plugin) InfoFlags() []cli.Flag {
 	return flags
 }
 
-func (p *Plugin) processInstallParams() error {
-	defer trace.End(trace.Begin(""))
+func (p *Plugin) processInstallParams(op trace.Operation) error {
+	defer trace.End(trace.Begin("", op))
 
-	if err := p.HasCredentials(); err != nil {
+	if err := p.HasCredentials(op); err != nil {
 		return err
 	}
 
@@ -170,10 +170,10 @@ func (p *Plugin) processInstallParams() error {
 	return nil
 }
 
-func (p *Plugin) processRemoveParams() error {
-	defer trace.End(trace.Begin(""))
+func (p *Plugin) processRemoveParams(op trace.Operation) error {
+	defer trace.End(trace.Begin("", op))
 
-	if err := p.HasCredentials(); err != nil {
+	if err := p.HasCredentials(op); err != nil {
 		return err
 	}
 
@@ -185,10 +185,10 @@ func (p *Plugin) processRemoveParams() error {
 	return nil
 }
 
-func (p *Plugin) processInfoParams() error {
-	defer trace.End(trace.Begin(""))
+func (p *Plugin) processInfoParams(op trace.Operation) error {
+	defer trace.End(trace.Begin("", op))
 
-	if err := p.HasCredentials(); err != nil {
+	if err := p.HasCredentials(op); err != nil {
 		return err
 	}
 
@@ -199,8 +199,10 @@ func (p *Plugin) processInfoParams() error {
 }
 
 func (p *Plugin) Install(cli *cli.Context) error {
+	op := trace.NewOperation(context.Background(), "Install")
+
 	var err error
-	if err = p.processInstallParams(); err != nil {
+	if err = p.processInstallParams(op); err != nil {
 		return err
 	}
 
@@ -274,8 +276,10 @@ func (p *Plugin) Install(cli *cli.Context) error {
 }
 
 func (p *Plugin) Remove(cli *cli.Context) error {
+	op := trace.NewOperation(context.Background(), "Remove")
+
 	var err error
-	if err = p.processRemoveParams(); err != nil {
+	if err = p.processRemoveParams(op); err != nil {
 		return err
 	}
 	if p.Debug.Debug != nil && *p.Debug.Debug > 0 {
@@ -336,8 +340,10 @@ func (p *Plugin) Remove(cli *cli.Context) error {
 }
 
 func (p *Plugin) Info(cli *cli.Context) error {
+	op := trace.NewOperation(context.Background(), "Info")
+
 	var err error
-	if err = p.processInfoParams(); err != nil {
+	if err = p.processInfoParams(op); err != nil {
 		return err
 	}
 

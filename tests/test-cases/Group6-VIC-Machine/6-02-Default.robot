@@ -28,7 +28,8 @@ Get Thumbprint From Log
     [Arguments]  ${output}
     ${logline}=  Get Lines Containing String  ${output}  Creating VMOMI session with thumbprint
     Should Not Be Equal As Strings  ${logline}  ${EMPTY}
-    ${thumbprint}=  Evaluate  "${logline}".split()[-1]
+    ${match}  ${msg}=  Should Match Regexp  ${logline}  msg\="([^"]*)"
+    ${rest}  ${thumbprint}=  Split String From Right  ${msg}  ${SPACE}  1
     [Return]  ${thumbprint}
 
 *** Test Cases ***
@@ -97,3 +98,5 @@ Check That VMOMI Sessions Don't Leak From VIC Machine
     Log  ${output}
     ${thumbprint}=  Get Thumbprint From Log  ${output}
     Should Not Have VMOMI Session  ${thumbprint}
+
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}

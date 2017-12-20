@@ -18,6 +18,9 @@ package esx
 
 import "github.com/vmware/govmomi/vim25/types"
 
+// HostConfigInfo is the default template for the HostSystem config property.
+// Capture method:
+//   govc object.collect -s -dump HostSystem:ha-host config
 var HostConfigInfo = types.HostConfigInfo{
 	Host: types.ManagedObjectReference{Type: "HostSystem", Value: "ha-host"},
 	Product: types.AboutInfo{
@@ -46,7 +49,7 @@ var HostConfigInfo = types.HostConfigInfo{
 	},
 	ConsoleReservation:        (*types.ServiceConsoleReservationInfo)(nil),
 	VirtualMachineReservation: (*types.VirtualMachineMemoryReservationInfo)(nil),
-	StorageDevice:             nil,
+	StorageDevice:             &HostStorageDeviceInfo,
 	SystemFile:                nil,
 	Network: &types.HostNetworkInfo{
 		Vswitch: []types.HostVirtualSwitch{

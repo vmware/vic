@@ -33,6 +33,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/guest"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/sys"
@@ -178,7 +179,7 @@ func TestVM(t *testing.T) {
 	}
 	t.Logf("Got UUID: %s", ruuid)
 
-	err = vm.fixVM(ctx)
+	err = vm.fixVM(trace.FromContext(ctx, "TestVM"))
 	if err != nil {
 		t.Errorf("Failed to fix vm: %s", err)
 	}
@@ -461,6 +462,7 @@ func TestProperties(t *testing.T) {
 
 	// Nothing VC specific in this test, so we use the simpler ESX model
 	model := simulator.ESX()
+	model.Autostart = false
 	defer model.Remove()
 	err := model.Create()
 	if err != nil {
@@ -522,6 +524,7 @@ func TestWaitForResult(t *testing.T) {
 
 	// Nothing VC specific in this test, so we use the simpler ESX model
 	model := simulator.ESX()
+	model.Autostart = false
 	defer model.Remove()
 	err := model.Create()
 	if err != nil {

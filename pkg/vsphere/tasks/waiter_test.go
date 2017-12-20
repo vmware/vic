@@ -345,6 +345,7 @@ func TestSoapFaults(t *testing.T) {
 
 	// Nothing VC specific in this test, so we use the simpler ESX model
 	model := simulator.ESX()
+	model.Autostart = false
 	defer model.Remove()
 	err := model.Create()
 	if err != nil {
@@ -388,18 +389,18 @@ func TestSoapFaults(t *testing.T) {
 
 	// Test the task.Error path
 	res, err := task.WaitForResult(op, nil)
-	if !isRetryError(op, err) {
+	if !IsRetryError(op, err) {
 		t.Error(err)
 	}
 
 	// Test the soap.IsVimFault() path
-	if !isRetryError(op, soap.WrapVimFault(res.Error.Fault)) {
+	if !IsRetryError(op, soap.WrapVimFault(res.Error.Fault)) {
 		t.Errorf("fault=%#v", res.Error.Fault)
 	}
 
 	// Test the soap.IsSoapFault() path
 	err = vm.MarkAsTemplate(op)
-	if !isRetryError(op, err) {
+	if !IsRetryError(op, err) {
 		t.Error(err)
 	}
 
@@ -414,7 +415,7 @@ func TestSoapFaults(t *testing.T) {
 	if err == nil {
 		t.Error("expected error")
 	}
-	if isRetryError(op, err) {
+	if IsRetryError(op, err) {
 		t.Error(err)
 	}
 

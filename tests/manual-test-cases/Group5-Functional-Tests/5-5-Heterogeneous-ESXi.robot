@@ -15,14 +15,15 @@
 *** Settings ***
 Documentation  Test 5-1 - Distributed Switch
 Resource  ../../resources/Util.robot
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Heterogenous ESXi Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
-*** Test Cases ***
-Test
-    Log To Console  \nStarting test...
+*** Keywords ***
+Heterogenous ESXi Setup
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     ${pid-vc}=  Deploy Nimbus vCenter Server Async  ${vc}
-    Set Global Variable  @{list}  %{NIMBUS_USER}-${vc}
+    Set Suite Variable  @{list}  %{NIMBUS_USER}-${vc}
 
     Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  3029944
@@ -90,16 +91,20 @@ Test
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
+    Remove Environment Variable  TEST_DATACENTER
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
 
     ${name}  ${ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Append To List  ${list}  ${name}
 
     ${out}=  Run  govc datastore.create -mode readWrite -type nfs -name nfsDatastore -remote-host ${ip} -remote-path /store /ha-datacenter/host/cls
     Should Be Empty  ${out}
 
     Set Environment Variable  TEST_DATASTORE  nfsDatastore
 
+*** Test Cases ***
+Test
+    Log To Console  \nStarting test...
     Install VIC Appliance To Test Server  certs=${false}  vol=default
-
     Run Regression Tests

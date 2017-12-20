@@ -15,11 +15,12 @@
 *** Settings ***
 Documentation  Test 5-19 - ROBO SKU
 Resource  ../../resources/Util.robot
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+#Suite Setup  Wait Until Keyword Succeeds  10x  10m  ROBO SKU Setup
+#Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
-*** Test Cases ***
-Test
-    Log To Console  \nStarting test...
+*** Keywords ***
+ROBO SKU Setup
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${ESX1}  ${esx1}
     ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
@@ -30,7 +31,7 @@ Test
     ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${VC}  ${vc}
 
-    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
+    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
 
     Log To Console  Create a datacenter on the VC
     ${out}=  Run  govc datacenter.create ha-datacenter
@@ -68,7 +69,9 @@ Test
     Set Environment Variable  TEST_RESOURCE  /ha-datacenter/host/${esx1-ip}/Resources
     Set Environment Variable  TEST_TIMEOUT  30m
 
-    #Waiting on a valid license with serial support for this to work
+*** Test Cases ***
+Test
+    Log To Console  VIC does not support ROBO SKU yet, waiting on a valid license with serial support for this to work
+    #Log To Console  \nStarting test...
     #Install VIC Appliance To Test Server
-
     #Run Regression Tests

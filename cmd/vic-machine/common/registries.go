@@ -17,7 +17,6 @@ package common
 import (
 	"io/ioutil"
 
-	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/pkg/errors"
@@ -48,8 +47,8 @@ func (r *Registries) Flags() []cli.Flag {
 }
 
 // LoadRegistryCAs loads additional CA certs for docker registry usage
-func (r *Registries) loadRegistryCAs() ([]byte, error) {
-	defer trace.End(trace.Begin(""))
+func (r *Registries) loadRegistryCAs(op trace.Operation) ([]byte, error) {
+	defer trace.End(trace.Begin("", op))
 
 	var registryCerts []byte
 	for _, f := range r.RegistryCAsArg {
@@ -60,16 +59,16 @@ func (r *Registries) loadRegistryCAs() ([]byte, error) {
 		}
 
 		registryCerts = append(registryCerts, b...)
-		log.Infof("Loaded registry CA from %s", f)
+		op.Infof("Loaded registry CA from %s", f)
 	}
 
 	return registryCerts, nil
 }
 
-func (r *Registries) ProcessRegistries() error {
+func (r *Registries) ProcessRegistries(op trace.Operation) error {
 	// load additional certificate authorities for use with registries
 	if len(r.RegistryCAsArg) > 0 {
-		registryCAs, err := r.loadRegistryCAs()
+		registryCAs, err := r.loadRegistryCAs(op)
 		if err != nil {
 			return errors.Errorf("Unable to load CA certificates for registry logins: %s", err)
 		}

@@ -14,23 +14,21 @@
 # limitations under the License.
 #
 
-# Get the latest code from vic-internal repo for nightly_test_secrets.yml file
-cd ~/internal-repo/vic-internal
+# Get the latest code from vic-internal repo for nightly_secrets.sh file
+cd ~/vic-internal
 git clean -fd
 git fetch
 git pull
+source nightly_secrets.sh
 
 # Get the latest code from vmware/vic repo
-cd ~/go/src/github.com/vmware/vic
+cd ~/vic
 git clean -fd
 git fetch https://github.com/vmware/vic master
 git pull
 
 # Kick off the nightly
-echo "Removing VIC directory if present"
 echo "Cleanup logs from previous run"
-
-sudo rm -rf *.zip *.log
-sudo rm -rf bin 60 65
+sudo rm -rf *.zip *.log bin 60 65
 
 sudo -E ./tests/nightly/nightly-kickoff.sh > ./nightly_console.txt 2>&1

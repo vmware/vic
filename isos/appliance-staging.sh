@@ -101,7 +101,7 @@ yum_cached -c $cache -u -p $PKGDIR install \
     gzip \
     lsof \
     logrotate \
-	photon-release \
+    photon-release \
     -y --nogpgcheck
 
 # https://www.freedesktop.org/wiki/Software/systemd/InitrdInterface/

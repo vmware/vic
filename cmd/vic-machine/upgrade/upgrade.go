@@ -15,11 +15,9 @@
 package upgrade
 
 import (
-	"context"
 	"path"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/cmd/vic-machine/common"
@@ -86,10 +84,10 @@ func (u *Upgrade) Flags() []cli.Flag {
 	return flags
 }
 
-func (u *Upgrade) processParams() error {
-	defer trace.End(trace.Begin(""))
+func (u *Upgrade) processParams(op trace.Operation) error {
+	defer trace.End(trace.Begin("", op))
 
-	if err := u.HasCredentials(); err != nil {
+	if err := u.HasCredentials(op); err != nil {
 		return err
 	}
 
@@ -97,45 +95,40 @@ func (u *Upgrade) processParams() error {
 }
 
 func (u *Upgrade) Run(clic *cli.Context) (err error) {
-	// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
+	op := common.NewOperation(clic, u.Debug.Debug)
 	defer func() {
-		err = common.LogErrorIfAny(clic, err)
+		// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
+		err = common.LogErrorIfAny(op, clic, err)
 	}()
+	op, cancel := trace.WithCancel(&op, clic.App.Name)
+	defer cancel()
 
-	if err = u.processParams(); err != nil {
+	if err = u.processParams(op); err != nil {
 		return err
 	}
 
-	if u.Debug.Debug != nil && *u.Debug.Debug > 0 {
-		log.SetLevel(log.DebugLevel)
-		trace.Logger.Level = log.DebugLevel
-	}
-
 	if len(clic.Args()) > 0 {
-		log.Errorf("Unknown argument: %s", clic.Args()[0])
+		op.Errorf("Unknown argument: %s", clic.Args()[0])
 		return errors.New("invalid CLI arguments")
 	}
 
 	var images map[string]string
-	if images, err = u.CheckImagesFiles(u.Force); err != nil {
+	if images, err = u.CheckImagesFiles(op, u.Force); err != nil {
 		return err
 	}
 
-	log.Infof("### Upgrading VCH ####")
+	op.Infof("### Upgrading VCH ####")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	validator, err := validate.NewValidator(ctx, u.Data)
+	validator, err := validate.NewValidator(op, u.Data)
 	if err != nil {
-		log.Errorf("Upgrade cannot continue - failed to create validator: %s", err)
+		op.Errorf("Upgrade cannot continue - failed to create validator: %s", err)
 		return errors.New("upgrade failed")
 	}
-	defer validator.Session.Logout(ctx)
+	defer validator.Session.Logout(op)
 
-	_, err = validator.ValidateTarget(ctx, u.Data)
+	_, err = validator.ValidateTarget(op, u.Data)
 	if err != nil {
-		log.Errorf("Upgrade cannot continue - target validation failed: %s", err)
+		op.Errorf("Upgrade cannot continue - target validation failed: %s", err)
 		return errors.New("upgrade failed")
 	}
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, u.Force)
@@ -147,57 +140,57 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 		vch, err = executor.NewVCHFromComputePath(u.Data.ComputeResourcePath, u.Data.DisplayName, validator)
 	}
 	if err != nil {
-		log.Errorf("Failed to get Virtual Container Host %s", u.DisplayName)
-		log.Error(err)
+		op.Errorf("Failed to get Virtual Container Host %s", u.DisplayName)
+		op.Error(err)
 		return errors.New("upgrade failed")
 	}
 
-	log.Infof("")
-	log.Infof("VCH ID: %s", vch.Reference().String())
+	op.Infof("")
+	op.Infof("VCH ID: %s", vch.Reference().String())
 
 	if u.ResetInProgressFlag {
-		if err = vch.SetVCHUpdateStatus(ctx, false); err != nil {
-			log.Error("Failed to reset UpdateInProgress flag")
-			log.Error(err)
+		if err = vch.SetVCHUpdateStatus(op, false); err != nil {
+			op.Error("Failed to reset UpdateInProgress flag")
+			op.Error(err)
 			return errors.New("upgrade failed")
 		}
-		log.Infof("Reset UpdateInProgress flag successfully")
+		op.Infof("Reset UpdateInProgress flag successfully")
 		return nil
 	}
 
-	upgrading, err := vch.VCHUpdateStatus(ctx)
+	upgrading, err := vch.VCHUpdateStatus(op)
 	if err != nil {
-		log.Error("Unable to determine if upgrade/configure is in progress")
-		log.Error(err)
+		op.Error("Unable to determine if upgrade/configure is in progress")
+		op.Error(err)
 		return errors.New("upgrade failed")
 	}
 	if upgrading {
-		log.Error("Upgrade failed: another upgrade/configure operation is in progress")
-		log.Error("If no other upgrade/configure process is running, use --reset-progress to reset the VCH upgrade/configure status")
+		op.Error("Upgrade failed: another upgrade/configure operation is in progress")
+		op.Error("If no other upgrade/configure process is running, use --reset-progress to reset the VCH upgrade/configure status")
 		return errors.New("upgrade failed")
 	}
 
-	if err = vch.SetVCHUpdateStatus(ctx, true); err != nil {
-		log.Error("Failed to set UpdateInProgress flag to true")
-		log.Error(err)
+	if err = vch.SetVCHUpdateStatus(op, true); err != nil {
+		op.Error("Failed to set UpdateInProgress flag to true")
+		op.Error(err)
 		return errors.New("upgrade failed")
 	}
 
 	defer func() {
-		if err = vch.SetVCHUpdateStatus(ctx, false); err != nil {
-			log.Error("Failed to reset UpdateInProgress")
-			log.Error(err)
+		if err = vch.SetVCHUpdateStatus(op, false); err != nil {
+			op.Error("Failed to reset UpdateInProgress")
+			op.Error(err)
 		}
 	}()
 
 	vchConfig, err := executor.FetchAndMigrateVCHConfig(vch)
 	if err != nil {
-		log.Error("Failed to get Virtual Container Host configuration")
-		log.Error(err)
+		op.Error("Failed to get Virtual Container Host configuration")
+		op.Error(err)
 		return errors.New("upgrade failed")
 	}
 
-	vConfig := validator.AddDeprecatedFields(ctx, vchConfig, u.Data)
+	vConfig := validator.AddDeprecatedFields(op, vchConfig, u.Data)
 	vConfig.ImageFiles = images
 	vConfig.ApplianceISO = path.Base(u.ApplianceISO)
 	vConfig.BootstrapISO = path.Base(u.BootstrapISO)
@@ -205,15 +198,15 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 
 	// only care about versions if we're not doing a manual rollback
 	if !u.Data.Rollback {
-		if err := validator.AssertVersion(vchConfig); err != nil {
-			log.Error(err)
+		if err := validator.AssertVersion(op, vchConfig); err != nil {
+			op.Error(err)
 			return errors.New("upgrade failed")
 		}
 	}
 
-	if vchConfig, err = validator.ValidateMigratedConfig(ctx, vchConfig); err != nil {
-		log.Errorf("Failed to migrate Virtual Container Host configuration %s", u.DisplayName)
-		log.Error(err)
+	if vchConfig, err = validator.ValidateMigratedConfig(op, vchConfig); err != nil {
+		op.Errorf("Failed to migrate Virtual Container Host configuration %s", u.DisplayName)
+		op.Error(err)
 		return errors.New("upgrade failed")
 	}
 
@@ -229,7 +222,7 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 		return errors.New("upgrade failed")
 	}
 
-	log.Infof("Completed successfully")
+	op.Infof("Completed successfully")
 
 	return nil
 }
