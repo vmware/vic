@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/test"
@@ -34,7 +35,7 @@ import (
 )
 
 func TestGuestInfoSecret(t *testing.T) {
-	ctx := context.Background()
+	op := trace.NewOperation(context.Background(), "TestGuestInfoSecret")
 
 	for i, m := range []*simulator.Model{simulator.ESX(), simulator.VPX()} {
 
@@ -49,9 +50,9 @@ func TestGuestInfoSecret(t *testing.T) {
 
 		var s *session.Session
 		if i == 0 {
-			s, err = test.SessionWithESX(ctx, server.URL.String())
+			s, err = test.SessionWithESX(op, server.URL.String())
 		} else {
-			s, err = test.SessionWithVPX(ctx, server.URL.String())
+			s, err = test.SessionWithVPX(op, server.URL.String())
 		}
 		if err != nil {
 			t.Fatal(err)
@@ -79,18 +80,18 @@ func TestGuestInfoSecret(t *testing.T) {
 			},
 		}
 
-		task, err := s.VMFolder.CreateVM(ctx, spec, s.Pool, nil)
+		task, err := s.VMFolder.CreateVM(op, spec, s.Pool, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = task.Wait(ctx)
+		err = task.Wait(op)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		d := &Dispatcher{
 			session:    s,
-			ctx:        ctx,
+			op:         op,
 			vmPathName: name,
 		}
 
@@ -142,22 +143,25 @@ func TestGuestInfoSecret(t *testing.T) {
 }
 
 func testUpdateResources(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, vConf *data.InstallerData, hasErr bool, t *testing.T) {
+	op := trace.NewOperation(ctx, "testUpdateResources")
+
 	d := &Dispatcher{
 		session: sess,
-		ctx:     ctx,
+		op:      op,
 		isVC:    sess.IsVC(),
 		force:   false,
 	}
 
-	appliance, err := sess.Finder.VirtualMachine(ctx, conf.Name)
+	appliance, err := sess.Finder.VirtualMachine(op, conf.Name)
 	if err != nil {
 		t.Errorf("Didn't find appliance vm: %s", err)
 	}
-	d.appliance = vm.NewVirtualMachine(ctx, sess, appliance.Reference())
+	d.appliance = vm.NewVirtualMachine(op, sess, appliance.Reference())
 
 	settings := &data.InstallerData{}
-	settings.VCHSize.CPU.Limit = 1024
-	settings.VCHSize.Memory.Limit = 1024
+	limit := int64(1024)
+	settings.VCHSize.CPU.Limit = &limit
+	settings.VCHSize.Memory.Limit = &limit
 	settings.VCHSizeIsSet = true
 
 	if err = d.updateResourceSettings(conf.Name, settings); err != nil {
@@ -178,8 +182,9 @@ func testUpdateResources(ctx context.Context, sess *session.Session, conf *confi
 	assert.Equal(t, d.oldVCHResources, nil, "should not update for same resource settings")
 
 	settings2 := &data.InstallerData{}
-	settings2.VCHSize.CPU.Limit = 2048
-	settings2.VCHSize.Memory.Limit = 2048
+	limit = int64(2048)
+	settings2.VCHSize.CPU.Limit = &limit
+	settings2.VCHSize.Memory.Limit = &limit
 	settings2.VCHSizeIsSet = false
 	if err = d.updateResourceSettings(conf.Name, settings); err != nil {
 		t.Errorf("Failed to update resources: %s", err)

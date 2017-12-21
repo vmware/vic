@@ -15,13 +15,15 @@
 *** Settings ***
 Documentation  Test 5-17 - FC Datastore
 Resource  ../../resources/Util.robot
-Test Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  FC Datastore Setup
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
-*** Test Cases ***
-FC Datastore
+*** Keywords ***
+FC Datastore Setup
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${name}=  Evaluate  'vic-fc-' + str(random.randint(1000,9999))  modules=random
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --customizeTestbed '/esx desiredPassword=e2eFunctionalTest' --noSupportBundles --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-sdrs-fc-fullInstall-vcva --runName vic-fc
-    Set Global Variable  @{list}  %{NIMBUS_USER}-vic-fc.vcva-${VC_VERSION}  %{NIMBUS_USER}-vic-fc.esx.0  %{NIMBUS_USER}-vic-fc.esx.1  %{NIMBUS_USER}-vic-fc.fc.0
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --customizeTestbed '/esx desiredPassword=e2eFunctionalTest' --noSupportBundles --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-sdrs-fc-fullInstall-vcva --runName vic-fc
+    Set Suite Variable  @{list}  %{NIMBUS_USER}-vic-fc.vcva-${VC_VERSION}  %{NIMBUS_USER}-vic-fc.esx.0  %{NIMBUS_USER}-vic-fc.esx.1  %{NIMBUS_USER}-vic-fc.fc.0
     Should Contain  ${out}  "deployment_result"=>"PASS"
 
     ${out}=  Execute Command  nimbus-ctl ip %{NIMBUS_USER}-vic-fc.vcva-${VC_VERSION} | grep %{NIMBUS_USER}-vic-fc.vcva-${VC_VERSION}
@@ -61,10 +63,12 @@ FC Datastore
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
+    Remove Environment Variable  TEST_DATACENTER
     Set Environment Variable  TEST_DATASTORE  sharedVmfs-0
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
 
+*** Test Cases ***
+FC Datastore
     Install VIC Appliance To Test Server
-
     Run Regression Tests

@@ -15,9 +15,9 @@
 *** Settings ***
 Documentation  Test 5-22 - NFS Volume
 Resource  ../../resources/Util.robot
-Suite Setup  Setup ESX And NFS Suite
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
-
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Setup ESX And NFS Suite
+Suite Teardown  Run Keyword And Ignore Error  NFS Volume Cleanup
+Test Teardown  Gather NFS Logs
 
 *** Variables ***
 ${nfsVolumeStore}=  nfsVolumeStore
@@ -34,20 +34,30 @@ ${mntNamed}=  /mnt/named
 
 *** Keywords ***
 Setup ESX And NFS Suite
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     Log To Console  \nStarting test...
 
     ${esx1}  ${esx1_ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${POD}=  Fetch POD  ${esx1}
+    Log To Console  ${POD}
+    Close Connection
 
-    ${nfs}  ${nfs_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${nfs}  ${nfs_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--nimbus ${POD}
 
-    ${nfs_readonly}  ${nfs_readonly_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--disk 5000000 --disk 5000000 --mountOpt ro --nfsOpt ro --mountPoint=storage1 --mountPoint=storage2
+    ${nfs_readonly}  ${nfs_readonly_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--disk 5000000 --disk 5000000 --mountOpt ro --nfsOpt ro --mountPoint=storage1 --mountPoint=storage2 --nimbus ${POD}
 
-    Set Global Variable  @{list}  ${esx1}  ${nfs}
-    Set Global Variable  ${ESX1}  ${esx1}
-    Set Global Variable  ${ESX1_IP}  ${esx1_ip}
-    Set Global Variable  ${NFS_IP}  ${nfs_ip}
-    Set Global Variable  ${NFS}  ${nfs}
-    Set Global Variable  ${NFS_READONLY_IP}  ${nfs_readonly_ip}
+    Set Suite Variable  @{list}  ${esx1}  ${nfs}  ${nfs_readonly}
+    Set Suite Variable  ${ESX1}  ${esx1}
+    Set Suite Variable  ${ESX1_IP}  ${esx1_ip}
+    Set Suite Variable  ${NFS_IP}  ${nfs_ip}
+    Set Suite Variable  ${NFS}  ${nfs}
+    Set Suite Variable  ${NFS_READONLY_IP}  ${nfs_readonly_ip}
+
+    # Enable logging on the nfs servers
+    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} rpcdebug -m nfsd -s proc
+    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} rpcdebug -m nfsd -s proc
 
 Setup ENV Variables for VIC Appliance Install
     Log To Console  \nSetup Environment Variables for VIC Appliance To ESX\n
@@ -89,20 +99,21 @@ Reboot VM and Verify Basic VCH Info
     Log To Console  Rebooting VCH\n - %{VCH-NAME}
     Reboot VM  %{VCH-NAME}
 
-    Log To Console  Getting VCH IP ...
-    ${new_vch_ip}=  Get VM IP  %{VCH-NAME}
-    Log To Console  New VCH IP is ${new_vch_ip}
-    ${updated_vch_ip}=  Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new_vch_ip}
-    Should Contain  %{VCH-PARAMS}  ${new_vch_ip}
-    Should Be Equal  ${updated_vch_ip}  %{VCH-PARAMS}
-
-    # wait for docker info to succeed
-    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+    Wait For VCH Initialization
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${busybox}
 
+Gather NFS Logs
+    ${out}=  Run Keyword And Continue On Failure  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} dmesg
+    Log  ${out}
+    ${out}=  Run Keyword And Continue On Failure  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} dmesg
+    Log  ${out}
+
+NFS Volume Cleanup
+    Gather NFS Logs
+    Nimbus Cleanup  ${list}
 
 *** Test Cases ***
 VIC Appliance Install with Read Only NFS Volume
@@ -111,10 +122,8 @@ VIC Appliance Install with Read Only NFS Volume
     # Will only produce a warning in VCH creation output
     ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${NFS_READONLY_IP}/exports/storage1?uid=0&gid=0:${nfsReadOnlyVolumeStore}"
     Should Contain  ${output}  Installer completed successfully
-    Should Contain  ${output}  VolumeStore (${nfsReadOnlyVolumeStore}) specified was not able to be established in the portlayer. Please check network and nfs server configurations.
-    Should Contain  ${output}  Some Volume Stores that were specified were not successfully created,
-    Should Contain  ${output}  Please check the above output for more information.
-    Should Contain  ${output}  More Information on failed volume store targets can also be found in the portlayer logs found at the vic admin endpoint.
+    Should Contain  ${output}  VolumeStore (${nfsReadOnlyVolumeStore}) cannot be brought online - check network, nfs server, and --volume-store configurations
+    Should Contain  ${output}  Not all configured volume stores are online - check port layer log via vicadmin
 
     ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --opt VolumeStore=${nfsReadOnlyVolumeStore}
     Should Be Equal As Integers  ${rc}  1
@@ -125,7 +134,7 @@ VIC Appliance Install With Fake NFS Server
 
     # Will only produce a warning in VCH creation output
     ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${nfs_bogon_ip}/store?uid=0&gid=0:${nfsFakeVolumeStore}"
-    Should Contain  ${output}  VolumeStore (${nfsFakeVolumeStore}) specified was not able to be established in the portlayer. Please check network and nfs server configurations.
+    Should Contain  ${output}  VolumeStore (${nfsFakeVolumeStore}) cannot be brought online - check network, nfs server, and --volume-store configurations
 
 VIC Appliance Install With Correct NFS Server
     Setup ENV Variables for VIC Appliance Install
@@ -276,6 +285,9 @@ Docker Inspect Mount Data after Reboot
     @{checkList}=  Create List  ${mntTest}  ${mntNamed}  ${nfsNamedVolume}
 
     Verify Volume Inspect Info  Before VM Reboot  ${mntDataTestContainer}  ${checkList}
+
+    # Gather logs before rebooting
+    Run Keyword And Continue On Failure  Gather Logs From Test Server  -before-reboot
 
     Reboot VM and Verify Basic VCH Info
 

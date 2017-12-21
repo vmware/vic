@@ -18,30 +18,24 @@ Documentation  This resource contains any keywords dealing with operations being
 *** Keywords ***
 Power On VM OOB
     [Arguments]  ${vm}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -on %{VCH-NAME}/"${vm}"
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -on "${vm}"
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -on "${vm}"
+    Should Be Equal As Integers  ${rc}  0
     Log To Console  Waiting for VM to power on ...
     Wait Until VM Powers On  ${vm}
 
 Power Off VM OOB
     [Arguments]  ${vm}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -off %{VCH-NAME}/"${vm}"
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -off "${vm}"
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -off "${vm}"
+    Should Be Equal As Integers  ${rc}  0
     Log To Console  Waiting for VM to power off ...
     Wait Until VM Powers Off  "${vm}"
 
 Destroy VM OOB
     [Arguments]  ${vm}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc object.method -name Destroy_Task -enable %{TEST_DATACENTER}/vm/%{VCH-NAME}/${vm}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc object.method -name Destroy_Task -enable %{TEST_DATACENTER}/vm/${vm}
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}/"${vm}"
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "${vm}"
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy "${vm}"
+    Should Be Equal As Integers  ${rc}  0
 
 Put Host Into Maintenance Mode
     ${rc}  ${output}=  Run And Return Rc And Output  govc host.maintenance.enter -host.ip=%{TEST_URL}
@@ -61,10 +55,8 @@ Reboot VM
 Wait Until VM Powers On
     [Arguments]  ${vm}
     :FOR  ${idx}  IN RANGE  0  30
-    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc vm.info %{VCH-NAME}/${vm}
-    \   Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${out}  ${ret}
-    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc vm.info ${vm}
-    \   Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
+    \   ${ret}=  Run  govc vm.info ${vm}
+    \   Set Test Variable  ${out}  ${ret}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  poweredOn
     \   Return From Keyword If  ${status}
     \   Sleep  1
@@ -73,10 +65,8 @@ Wait Until VM Powers On
 Wait Until VM Powers Off
     [Arguments]  ${vm}
     :FOR  ${idx}  IN RANGE  0  30
-    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc vm.info %{VCH-NAME}/${vm}
-    \   Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${out}  ${ret}
-    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc vm.info ${vm}
-    \   Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
+    \   ${ret}=  Run  govc vm.info ${vm}
+    \   Set Test Variable  ${out}  ${ret}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  poweredOff
     \   Return From Keyword If  ${status}
     \   Sleep  1
@@ -85,10 +75,8 @@ Wait Until VM Powers Off
 Wait Until VM Is Destroyed
     [Arguments]  ${vm}
     :FOR  ${idx}  IN RANGE  0  30
-    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc ls vm/%{VCH-NAME}/${vm}
-    \   Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${out}  ${ret}
-    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc ls vm/${vm}
-    \   Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
+    \   ${ret}=  Run  govc ls vm/${vm}
+    \   Set Test Variable  ${out}  ${ret}
     \   ${status}=  Run Keyword And Return Status  Should Be Empty  ${out}
     \   Return From Keyword If  ${status}
     \   Sleep  1
@@ -113,6 +101,12 @@ Get VM Info
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${out}
 
+Get VM Moid
+    [Arguments]  ${vm}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -dump -json ${vm} | jq -c '.VirtualMachines[] | .Self.Value'
+    Should Be Equal As Integers  ${rc}  0
+    [Return]  ${output}
+
 Check ImageStore
     ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls -R -ds=%{TEST_DATASTORE} %{VCH-NAME}/VIC
     Should Be Equal As Integers  ${rc}  0
@@ -124,6 +118,19 @@ vMotion A VM
     ${status}=  Run Keyword And Return Status  Should Contain  ${host}  ${esx1-ip}
     Run Keyword If  ${status}  Run  govc vm.migrate -host cls/${esx2-ip} -pool cls/Resources ${vm}
     Run Keyword Unless  ${status}  Run  govc vm.migrate -host cls/${esx1-ip} -pool cls/Resources ${vm}
+
+vMotion A VM And Wait
+    [Arguments]  ${vm}  ${attempts}  ${interval}
+    ${host}=  Get VM Host Name  ${vm}
+    ${status}=  Run Keyword And Return Status  Should Contain  ${host}  ${esx1-ip}
+    Run Keyword If  ${status}  Run  govc vm.migrate -host cls/${esx2-ip} -pool cls/Resources ${vm}
+    Run Keyword Unless  ${status}  Run  govc vm.migrate -host cls/${esx1-ip} -pool cls/Resources ${vm}
+    Wait Until Keyword Succeeds  ${attempts}  ${interval}  VM Host Has Changed  ${host}  ${vm}
+
+VM Host Has Changed
+    [Arguments]  ${oldHost}  ${vm}
+    ${curHost}=  Get VM Host Name  ${vm}
+    Should Not Be Equal  ${oldHost}  ${curHost}
 
 Create Test Server Snapshot
     [Arguments]  ${vm}  ${snapshot}
@@ -160,6 +167,11 @@ Get Datacenter Name
     ${out}=  Split To Lines  ${out}
     ${name}=  Fetch From Right  @{out}[0]  ${SPACE}
     [Return]  ${name}
+
+Get Datacenter ID
+    ${name}=  Get Datacenter Name
+    ${id}=  Run  govc datacenter.info -k --json -dc ${name} | jq .Datacenters[0].Self.Value
+    [Return]  ${id}
 
 Get Test Server Hostname
     [Tags]  secret
@@ -236,3 +248,21 @@ Check VM Guestinfo
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e ${vm} | grep ${str}
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${output}
+
+Get Session List
+    ${rc}  ${sessions}=  Run And Return Rc And Output  govc session.ls
+    Run Keyword If  ${rc} != 0  Fatal Error  The host appears to be in an unrecoverable state
+    [Return]  ${sessions}
+
+Get Hostd ID
+    [Tags]  secret
+    ${out}=  Run  sshpass -p $TEST_PASSWORD ssh $TEST_USERNAME@$TEST_URL "memstats -r group-stats | grep 'hostd '"
+    ${out}=  Strip String  ${out}
+    ${id}=  Fetch From Left  ${out}  ${SPACE}
+    [Return]  ${id}
+
+Get HostD Memory Consumption
+    [Tags]  secret
+    ${id}=  Get Hostd ID
+    ${out}=  Run  sshpass -p $TEST_PASSWORD ssh $TEST_USERNAME@$TEST_URL "memstats -r group-stats -v -g ${id} -s name:min:max:consumed -l 2"
+    [Return]  ${out}

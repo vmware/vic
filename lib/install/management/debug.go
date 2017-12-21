@@ -17,8 +17,6 @@ package management
 import (
 	"context"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/errors"
@@ -27,14 +25,11 @@ import (
 )
 
 func (d *Dispatcher) DebugVCH(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, password, authorizedKey string) error {
-	defer trace.End(trace.Begin(conf.Name))
+	defer trace.End(trace.Begin(conf.Name, d.op))
 
-	op, err := trace.FromContext(d.ctx)
-	if err != nil {
-		op = trace.NewOperation(d.ctx, "enable appliance debug")
-	}
+	op := trace.FromContext(d.op, "enable appliance debug")
 
-	err = d.enableSSH(op, vch, password, authorizedKey)
+	err := d.enableSSH(op, vch, password, authorizedKey)
 	if err != nil {
 		op.Errorf("Unable to enable ssh on the VCH appliance VM: %s", err)
 		return err
@@ -46,14 +41,11 @@ func (d *Dispatcher) DebugVCH(vch *vm.VirtualMachine, conf *config.VirtualContai
 }
 
 func (d *Dispatcher) enableSSH(ctx context.Context, vch *vm.VirtualMachine, password, authorizedKey string) error {
-	op, err := trace.FromContext(ctx)
-	if err != nil {
-		op = trace.NewOperation(ctx, "enable ssh in appliance")
-	}
+	op := trace.FromContext(ctx, "enable ssh in appliance")
 
 	state, err := vch.PowerState(op)
 	if err != nil {
-		log.Errorf("Failed to get appliance power state, service might not be available at this moment.")
+		op.Error("Failed to get appliance power state, service might not be available at this moment.")
 	}
 	if state != types.VirtualMachinePowerStatePoweredOn {
 		err = errors.Errorf("VCH appliance is not powered on, state %s", state)
@@ -68,7 +60,7 @@ func (d *Dispatcher) enableSSH(ctx context.Context, vch *vm.VirtualMachine, pass
 		return err
 	}
 
-	pm, err := d.opManager(ctx, vch)
+	pm, err := d.opManager(vch)
 	if err != nil {
 		err = errors.Errorf("Unable to manage processes in appliance VM: %s", err)
 		op.Errorf("%s", err)
@@ -89,7 +81,7 @@ func (d *Dispatcher) enableSSH(ctx context.Context, vch *vm.VirtualMachine, pass
 		return err
 	}
 
-	_, err = d.opManagerWait(ctx, pm, &auth, pid)
+	_, err = d.opManagerWait(op, pm, &auth, pid)
 	if err != nil {
 		err = errors.Errorf("Unable to check enable SSH status: %s", err)
 		op.Errorf("%s", err)
@@ -113,7 +105,7 @@ func (d *Dispatcher) enableSSH(ctx context.Context, vch *vm.VirtualMachine, pass
 		return err
 	}
 
-	_, err = d.opManagerWait(ctx, pm, &auth, pid)
+	_, err = d.opManagerWait(op, pm, &auth, pid)
 	if err != nil {
 		err = errors.Errorf("Unable to check enable passwd status: %s", err)
 		op.Errorf("%s", err)

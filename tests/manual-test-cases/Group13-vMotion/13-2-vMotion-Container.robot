@@ -15,14 +15,14 @@
 *** Settings ***
 Documentation  Test 13-2 - vMotion Container
 Resource  ../../resources/Util.robot
-Suite Setup  Create a VSAN Cluster
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Create a VSAN Cluster  vic-vmotion-13-2
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 Test Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Test
     Set Test Variable  ${user}  %{NIMBUS_USER}
-    Set Global Variable  @{list}  ${user}-vic-vmotion.vcva-${VC_VERSION}  ${user}-vic-vmotion.esx.0  ${user}-vic-vmotion.esx.1  ${user}-vic-vmotion.esx.2  ${user}-vic-vmotion.esx.3  ${user}-vic-vmotion.nfs.0  ${user}-vic-vmotion.iscsi.0
+    Set Suite Variable  @{list}  ${user}-vic-vmotion-13-2.vcva-${VC_VERSION}  ${user}-vic-vmotion-13-2.esx.0  ${user}-vic-vmotion-13-2.esx.1  ${user}-vic-vmotion-13-2.esx.2  ${user}-vic-vmotion-13-2.esx.3  ${user}-vic-vmotion-13-2.nfs.0  ${user}-vic-vmotion-13-2.iscsi.0
     Install VIC Appliance To Test Server
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
@@ -43,9 +43,9 @@ Test
     ${vmName2}=  Get VM display name  ${container2}
     ${vmName3}=  Get VM display name  ${container3}
     
-    vMotion A VM  %{VCH-NAME}/${vmName1}
-    vMotion A VM  %{VCH-NAME}/${vmName2}
-    vMotion A VM  %{VCH-NAME}/${vmName3}
+    vMotion A VM  ${vmName1}
+    vMotion A VM  ${vmName2}
+    vMotion A VM  ${vmName3}
     
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container1}
     Should Be Equal As Integers  ${rc}  0

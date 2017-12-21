@@ -7,3 +7,4 @@ Group 0 - Bugs
 [Test 4817 - Verify Kernel supports vsyscall](4817.md)
 -
 [Test 5343 - Confirm event collection after SDK connection re-establishment](5343.md)
+[Test 6515 - Check that existing /etc/hosts entries are blended with dynamic ones](6515.md)
