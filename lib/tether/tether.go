@@ -84,6 +84,11 @@ type tether struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	// Cancelable context and its cancel func specifically for Reload loop.
+	// This allows us to trigger a staged shutdown
+	reloadCtx    context.Context
+	reloadCancel context.CancelFunc
+
 	incoming chan os.Signal
 
 	// syslog writer shared by all sessions
@@ -95,18 +100,21 @@ type tether struct {
 
 func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) Tether {
 	ctx, cancel := context.WithCancel(context.Background())
+	rCtx, rCancel := context.WithCancel(ctx)
 	return &tether{
 		ops:    ops,
 		reload: make(chan struct{}, 1),
 		config: &ExecutorConfig{
 			pids: make(map[int]*SessionConfig),
 		},
-		extensions: make(map[string]Extension),
-		src:        src,
-		sink:       sink,
-		ctx:        ctx,
-		cancel:     cancel,
-		incoming:   make(chan os.Signal, 32),
+		extensions:   make(map[string]Extension),
+		src:          src,
+		sink:         sink,
+		ctx:          ctx,
+		cancel:       cancel,
+		reloadCtx:    rCtx,
+		reloadCancel: rCancel,
+		incoming:     make(chan os.Signal, 32),
 	}
 }
 
@@ -165,7 +173,7 @@ func (t *tether) setup() error {
 		}
 	}
 
-	pidDir := shared.PIDFileDir()
+	pidDir := shared.PIDFileDir(&Sys)
 
 	// #nosec: Expect directory permissions to be 0700 or less
 	if err = os.MkdirAll(pidDir, 0755); err != nil {
@@ -190,7 +198,18 @@ func (t *tether) setup() error {
 func (t *tether) cleanup() {
 	defer trace.End(trace.Begin("main tether cleanup"))
 
-	// stop child reaping
+	// clean up child processes
+	// cancel in case we've ended up here on a path that hasn't already
+	t.reloadCancel()
+	// this will deactivate child processes
+	t.processSessions()
+
+	// wait for sessions to exit
+	timeout, cancel := context.WithTimeout(t.ctx, shared.WaitForSessionExitTimeout)
+	t.Wait(timeout)
+	cancel()
+
+	// stop child reaping - we depend on this for tether.Wait so must come after
 	t.stopReaper()
 
 	// stop the extensions first as they may use the config
@@ -434,9 +453,10 @@ func (t *tether) processSessions() error {
 				// check if session is alive and well
 				if proc != nil && proc.Signal(syscall.Signal(0)) == nil {
 					log.Debugf("Process for session %s is running (pid: %d)", id, proc.Pid)
-					if !session.Active {
+
+					if !session.Active || t.reloadCtx.Err() != nil {
 						// stop process - for now this doesn't do any staged levels of aggression
-						log.Infof("Running session %s has been deactivated (pid: %d)", id, proc.Pid)
+						log.Infof("Running session %s has been deactivated (pid: %d, system status: %s)", id, proc.Pid, t.reloadCtx.Err())
 
 						killHelper(session)
 					}
@@ -530,8 +550,8 @@ func (t *tether) Start() error {
 		var err error
 
 		select {
-		case <-t.ctx.Done():
-			log.Warnf("Someone called shutdown, returning from start")
+		case <-t.reloadCtx.Done():
+			log.Warnf("Someone called shutdown, exiting reload loop")
 			return nil
 		default:
 		}
@@ -601,11 +621,46 @@ func (t *tether) Start() error {
 func (t *tether) Stop() error {
 	defer trace.End(trace.Begin(""))
 
-	// cancel the context to signal waiters
+	// cancel the context to signal waiters and indicate shutdown
+	t.reloadCancel()
+
+	// trigger a reload - this should deliver the stopsignal to the children
+	t.reload <- struct{}{}
+
+	close(t.reload)
+
+	// this gets called from inside HandleSessionExit so cannot take session locks
+	// TODO: add a mechanism to block for clean shutdown of:
+	//   session processes
+	//   extensions
+	// probably should wait for the long overdue tether rewrite
+	// instead we're going to rely on the outstanding pid count via tether.Wait
+	timeout, cancel := context.WithTimeout(context.Background(), shared.WaitForSessionExitTimeout)
+	err := t.Wait(timeout)
+	cancel()
+
+	// calling t.cancel will cause the childReaper to exit so at that point no further
+	// updates to process state will be made
 	t.cancel()
 
-	// TODO: kill all the children
-	close(t.reload)
+	return err
+}
+
+func (t *tether) Wait(ctx context.Context) error {
+	tick := time.Tick(500 * time.Millisecond)
+
+	pids := t.lenChildPid()
+	for pids > 0 && ctx.Err() == nil {
+		log.Infof("Waiting for %d processes to exit", pids)
+		pids = t.lenChildPid()
+		<-tick
+	}
+
+	if pids > 0 {
+		detail := fmt.Sprintf("Timed out waiting for processes to exit, %d processes remaining", pids)
+		log.Warn(detail)
+		return errors.New(detail)
+	}
 
 	return nil
 }
@@ -614,7 +669,7 @@ func (t *tether) Reload() {
 	defer trace.End(trace.Begin(""))
 
 	select {
-	case <-t.ctx.Done():
+	case <-t.reloadCtx.Done():
 		log.Warnf("Someone called shutdown, dropping the reload request")
 		return
 	default:
@@ -699,7 +754,7 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 	// Remove associated PID file
 	cmdname := path.Base(session.Cmd.Path)
 
-	_ = os.Remove(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(), cmdname)))
+	_ = os.Remove(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(&Sys), cmdname)))
 
 	// set the stop time
 	session.StopTime = time.Now().UTC().Unix()
@@ -860,7 +915,7 @@ func (t *tether) launch(session *SessionConfig) error {
 
 	// Write the PID to the associated PID file
 	cmdname := path.Base(session.Cmd.Path)
-	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(), cmdname)),
+	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(&Sys), cmdname)),
 		[]byte(fmt.Sprintf("%d", pid)),
 		0644)
 	if err != nil {

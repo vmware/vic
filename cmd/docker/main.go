@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"flag"
@@ -120,12 +121,16 @@ func main() {
 	serveAPIWait := make(chan error)
 	go api.Wait(serveAPIWait)
 
+	// signal.Trap explicitly calls os.Exit so an exit logic has to be rolled in here
 	signal.Trap(func() {
+		log.Info("Closing down docker personality")
+
 		api.Close()
+		plEventMonitor.Stop()
+		vicbackends.Finalize(context.Background())
 	})
 
 	<-serveAPIWait
-	plEventMonitor.Stop()
 }
 
 func handleFlags() bool {

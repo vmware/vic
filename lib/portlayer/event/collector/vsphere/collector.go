@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/vmware/vic/lib/portlayer/event/events"
 
@@ -36,6 +37,8 @@ type EventCollector struct {
 	vmwManager *vmwEvents.Manager
 	mos        monitoredCache
 	callback   func(events.Event)
+	cancel     context.CancelFunc
+	stopped    chan bool
 
 	lastProcessedID int32
 }
@@ -52,6 +55,7 @@ func NewCollector(client *vim25.Client, objects ...string) *EventCollector {
 		mos:        monitoredCache{mos: make(map[string]types.ManagedObjectReference)},
 		// initialize to an index that will not be present in a page
 		lastProcessedID: -1,
+		stopped:         make(chan bool),
 	}
 
 	for i := range objects {
@@ -101,10 +105,19 @@ func (ec *EventCollector) monitoredObjects() []types.ManagedObjectReference {
 	return refs
 }
 func (ec *EventCollector) Stop() {
-	_, err := ec.vmwManager.Destroy(context.Background())
-	if err != nil {
-		log.Warnf("%s failed to destroy the govmomi manager: %s", name, err.Error())
-	}
+	// End the event collection
+	ec.cancel()
+	// allow time for the event collector to be destroyed
+	<-ec.stopped
+
+	// The EventManager cannot be destroyed like this as it isn't a ManagedEntity.
+	// TODO: we do need to ensure the EventHistoryCollector is destroyed, but that's a specific call
+	// and requires a govmomi change. At least it is lifecycle coupled with the session.
+
+	// _, err := ec.vmwManager.Destroy(context.Background())
+	// if err != nil {
+	// 	log.Warnf("%s failed to destroy the govmomi manager: %s", name, err.Error())
+	// }
 }
 
 // Start the event collector
@@ -120,13 +133,14 @@ func (ec *EventCollector) Start() error {
 	log.Debugf("%s starting collection for %d managed objects", name, len(refs))
 
 	// we don't want the event listener to timeout
-	ctx := context.Background()
+	controlContext, cancel := context.WithCancel(context.Background())
+	ec.cancel = cancel
 
 	// pageSize is the number of events on the last page of the eventCollector
 	// as new events are added the oldest are removed.  Originally this value
-	// was 1 and then 25, both led to missed events.  Setting to the default
-	// size of 1000 to help avoid more misses
-	pageSize := int32(1000)
+	// was 1 and we encountered missed events due to them being evicted
+	// before being processed.  A setting of 25 should provide ample buffer.
+	pageSize := int32(25)
 	// bool to follow the stream
 	followStream := true
 	// don't exceed the govmomi object limit
@@ -138,17 +152,28 @@ func (ec *EventCollector) Start() error {
 		// will be replaced
 		//
 		// the manager will be closed with the session
+		defer close(ec.stopped)
 
-		for {
-			err := ec.vmwManager.Events(ctx, refs, pageSize, followStream, force, func(_ types.ManagedObjectReference, page []types.BaseEvent) error {
+		for controlContext.Err() == nil {
+			err := ec.vmwManager.Events(controlContext, refs, pageSize, followStream, force, func(_ types.ManagedObjectReference, page []types.BaseEvent) error {
 				evented(ec, page)
 				return nil
 			})
 			// TODO: this will disappear in the ether
 			if err != nil {
-				log.Debugf("Error configuring %s: %s", name, err.Error())
+				log.Debugf("Interruption collecting events for %s: %s", name, err.Error())
+			}
+
+			// this is a VERY basic throttle so that we don't DoS the remote when the client is NotAuthenticated.
+			// this should be removed/replaced once there is structured connection management in place to trigger re-authentication as required.
+			if controlContext.Err() == nil {
+				time.Sleep(2 * time.Second)
 			}
 		}
+
+		log.Infof("Stopped collecting events for %s", name)
+
+		return nil
 	}(pageSize, followStream, force, refs, ec)
 
 	return nil

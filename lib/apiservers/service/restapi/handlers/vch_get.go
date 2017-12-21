@@ -59,6 +59,8 @@ func (h *VCHGet) Handle(params operations.GetTargetTargetVchVchIDParams, princip
 	}
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
+	defer validator.Session.Logout(op)
+
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -82,6 +84,8 @@ func (h *VCHDatacenterGet) Handle(params operations.GetTargetTargetDatacenterDat
 	}
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
+	defer validator.Session.Logout(op)
+
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}

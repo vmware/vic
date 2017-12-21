@@ -611,15 +611,9 @@ func main() {
 	}
 
 	log.Infof("listening on %s", s.addr)
-	signals := []syscall.Signal{
-		syscall.SIGTERM,
-		syscall.SIGINT,
-	}
 
 	sigchan := make(chan os.Signal, 1)
-	for _, signum := range signals {
-		signal.Notify(sigchan, signum)
-	}
+	signal.Notify(sigchan, syscall.SIGTERM, syscall.SIGINT)
 
 	go func() {
 		signal := <-sigchan

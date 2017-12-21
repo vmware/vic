@@ -250,11 +250,6 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		log.Errorf("Had a problem querying the datastores: %s", err.Error())
 	}
 	v.QueryVCHStatus(vch, sess)
-	defer func() {
-		if sess != nil && len(nwErrors) > 0 {
-			sess.Logout(ctx)
-		}
-	}()
 	return v
 }
 
@@ -383,7 +378,7 @@ func (v *Validator) QueryVCHStatus(vch *config.VirtualContainerHostConfigSpec, s
 
 	for service, proc := range procs {
 		log.Infof("Checking status of %s", proc)
-		pid, err := ioutil.ReadFile(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(), proc)))
+		pid, err := ioutil.ReadFile(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(nil), proc)))
 		if err != nil {
 			// #nosec: this method will not auto-escape HTML. Verify data is well formed.
 			v.VCHIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s service is not running</span>\n",

@@ -47,6 +47,7 @@ import (
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/registry"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
@@ -145,6 +146,28 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 	archiveProxy = vicproxy.NewArchiveProxy(portLayerClient)
 
 	eventService = events.New()
+
+	return nil
+}
+
+func Finalize(ctx context.Context) error {
+	log.Info("Shutting down docker API server backend")
+
+	vchConfig.Lock()
+	defer vchConfig.Unlock()
+
+	if vchConfig == nil {
+		log.Debug("vchConfig is nil so not logging out")
+		return nil
+	}
+
+	if vchConfig.sess == nil {
+		log.Debug("session is nil so not logging out")
+		return nil
+	}
+
+	vchConfig.sess.Logout(ctx)
+	log.Info("Docker personality vSphere session logged out")
 
 	return nil
 }
@@ -527,6 +550,7 @@ func newSession(ctx context.Context, config *config.VirtualContainerHostConfigSp
 		User:       url.UserPassword(config.Username, config.Token),
 		Thumbprint: config.TargetThumbprint,
 		Keepalive:  defaultSessionKeepAlive,
+		UserAgent:  version.UserAgent("vic-dynamic-config"),
 	}
 
 	sess := session.NewSession(sessCfg)

@@ -50,6 +50,8 @@ func (h *VCHListGet) Handle(params operations.GetTargetTargetVchParams, principa
 	}
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
+	defer validator.Session.Logout(op)
+
 	if err != nil {
 		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -73,6 +75,8 @@ func (h *VCHDatacenterListGet) Handle(params operations.GetTargetTargetDatacente
 	}
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
+	defer validator.Session.Logout(op)
+
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}

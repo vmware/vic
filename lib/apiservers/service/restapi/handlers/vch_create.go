@@ -79,6 +79,8 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 	}
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
+	defer validator.Session.Logout(op)
+
 	if err != nil {
 		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -110,6 +112,8 @@ func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacente
 	}
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
+	defer validator.Session.Logout(op)
+
 	if err != nil {
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}

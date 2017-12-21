@@ -16,10 +16,17 @@
 // to be consistent across packages so as to avoid transitive package includes
 package shared
 
+import "time"
+
 /* Constants used by tether for exchange outside of tether */
 const (
 	DiskLabelQueryName   = "disk-label"
 	FilterSpecQueryName  = "filter-spec"
 	SkipRecurseQueryName = "skip-recurse"
 	SkipDataQueryName    = "skip-data"
+
+	GuestShutdownTimeout = 60 * time.Second
+	GuestRebootTimeout   = 60 * time.Second
+
+	WaitForSessionExitTimeout = 60 * time.Second
 )

@@ -127,6 +127,16 @@ func NewVMCollector(session *session.Session) *VMCollector {
 	}
 }
 
+// Destroy exposes the Destroy method for the underlying performance manager
+func (vmc *VMCollector) Destroy(ctx context.Context) error {
+	vmc.Stop()
+
+	// Perform any additional cleanup needed.
+	// PerformanceManager isn't a ManagedEntity so nothing else known at this time
+
+	return nil
+}
+
 // Start will begin the collection polling process
 func (vmc *VMCollector) Start() {
 	// create timer with sampleInterval alignment
@@ -155,8 +165,14 @@ func (vmc *VMCollector) Start() {
 
 // Stop will stop the collection polling process
 func (vmc *VMCollector) Stop() {
-	vmc.timer.Stop()
-	close(vmc.stopper)
+	if vmc.timer != nil {
+		vmc.timer.Stop()
+	}
+
+	if vmc.stopper != nil {
+		close(vmc.stopper)
+		vmc.stopper = nil
+	}
 }
 
 // collect will query vSphere for VM metrics and return to the subscribers
