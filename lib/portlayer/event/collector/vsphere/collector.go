@@ -17,6 +17,7 @@ package vsphere
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sync"
 
 	"github.com/vmware/vic/lib/portlayer/event/events"
@@ -107,6 +108,27 @@ func (ec *EventCollector) Stop() {
 	}
 }
 
+// eventTypes is used to filter the event collector so we only receive these event types.
+var eventTypes []string
+
+func init() {
+	events := []types.BaseEvent{
+		(*types.VmGuestShutdownEvent)(nil),
+		(*types.VmPoweredOnEvent)(nil),
+		(*types.DrsVmPoweredOnEvent)(nil),
+		(*types.VmPoweredOffEvent)(nil),
+		(*types.VmRemovedEvent)(nil),
+		(*types.VmSuspendedEvent)(nil),
+		(*types.VmMigratedEvent)(nil),
+		(*types.DrsVmMigratedEvent)(nil),
+		(*types.VmRelocatedEvent)(nil),
+	}
+
+	for _, event := range events {
+		eventTypes = append(eventTypes, reflect.TypeOf(event).Elem().Name())
+	}
+}
+
 // Start the event collector
 func (ec *EventCollector) Start() error {
 	// array of managed objects
@@ -143,7 +165,7 @@ func (ec *EventCollector) Start() error {
 			err := ec.vmwManager.Events(ctx, refs, pageSize, followStream, force, func(_ types.ManagedObjectReference, page []types.BaseEvent) error {
 				evented(ec, page)
 				return nil
-			})
+			}, eventTypes...)
 			// TODO: this will disappear in the ether
 			if err != nil {
 				log.Debugf("Error configuring %s: %s", name, err.Error())
@@ -179,28 +201,7 @@ func evented(ec *EventCollector, page []types.BaseEvent) {
 	// events appear in page with most recent first - need to reverse for sane ordering
 	// we start from the first new event after the last one processed
 	for i := oldIndex - 1; i >= 0; i-- {
-		// what type of event do we have
-		switch page[i].(type) {
-		case *types.VmGuestShutdownEvent,
-			*types.VmPoweredOnEvent,
-			*types.DrsVmPoweredOnEvent,
-			*types.VmPoweredOffEvent,
-			*types.VmRemovedEvent,
-			*types.VmSuspendedEvent,
-			*types.VmMigratedEvent,
-			*types.DrsVmMigratedEvent,
-			*types.VmRelocatedEvent:
-
-			// we have an event we need to process
-			ec.callback(NewVMEvent(page[i]))
-		case *types.VmReconfiguredEvent:
-			// reconfigures happen often, so completely ignore for now
-			continue
-		default:
-			// log the skipped event
-			e := page[i].GetEvent()
-			log.Debugf("vSphere Event %s for eventID(%d) ignored by the event collector", e.FullFormattedMessage, int(e.Key))
-		}
+		ec.callback(NewVMEvent(page[i]))
 
 		ec.lastProcessedID = page[i].GetEvent().Key
 	}
