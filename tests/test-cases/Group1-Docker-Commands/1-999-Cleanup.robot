@@ -23,7 +23,8 @@ Test Timeout  20 minutes
 Is Single VCH Mode
     # If TARGET_VCH not present when running group, track that we're installing a single VCH here.
     # This allows the cleanup suite to know that it can clean up the VCH
-    ${multi-vch}=  Get Environment Variable  MULTI_VCH  ${EMPTY}
+    ${multi-vch}=  1
+    #${multi-vch}=  Get Environment Variable  MULTI_VCH  ${EMPTY}
 
     ${single-vch-mode}=  Run Keyword If  '${multi-vch}' == '1'  Set Variable  ${False}
     ...  ELSE  Set Variable  ${True}
