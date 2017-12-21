@@ -124,9 +124,9 @@ func (ec *EventCollector) Start() error {
 
 	// pageSize is the number of events on the last page of the eventCollector
 	// as new events are added the oldest are removed.  Originally this value
-	// was 1 and then 25, both led to missed events.  Setting to the default
-	// size of 1000 to help avoid more misses
-	pageSize := int32(1000)
+	// was 1 and we encountered missed events due to them being evicted
+	// before being processed.  A setting of 25 should provide ample buffer.
+	pageSize := int32(25)
 	// bool to follow the stream
 	followStream := true
 	// don't exceed the govmomi object limit
