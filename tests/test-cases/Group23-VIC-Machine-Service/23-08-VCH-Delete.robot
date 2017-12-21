@@ -582,8 +582,7 @@ Delete VCH and powered off container and preserve volumes
 
     Verify VCH Exists                 vch/${id}
 
-    # volume should already exist even before use
-    Verify Container Exists           ${OFF_NV_DVS_CONTAINER_NAME}
+    # volume should already exist even before use - default volume store
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Exists Docker       %{VCH-NAME}-VOL                ${OFF_NV_DVS_VOLUME_NAME}
 
@@ -591,9 +590,9 @@ Delete VCH and powered off container and preserve volumes
     Run Docker Command                create --name ${OFF_NV_DVS_CONTAINER_NAME} -v ${OFF_NV_DVS_VOLUME_NAME}:/volume ${busybox} /bin/top
     Verify Return Code
     Output Should Not Contain         Error
+    Verify Container Exists           ${OFF_NV_DVS_CONTAINER_NAME}
 
-    # volume should already exist even before use
-    Verify Container Exists           ${OFF_NV_NVS_CONTAINER_NAME}
+    # volume should already exist even before use - named volume store
     Verify Volume Store Exists        ${VOLUME_STORE_PATH}
     Verify Volume Exists Docker       ${VOLUME_STORE_PATH}           ${OFF_NV_NVS_VOLUME_NAME}
 
@@ -601,12 +600,12 @@ Delete VCH and powered off container and preserve volumes
     Run Docker Command                create --name ${OFF_NV_NVS_CONTAINER_NAME} -v ${OFF_NV_NVS_VOLUME_NAME}:/volume ${busybox} /bin/top
     Verify Return Code
     Output Should Not Contain         Error
+    Verify Container Exists           ${OFF_NV_NVS_CONTAINER_NAME}
 
     [Teardown]                        Cleanup VIC Appliance On Test Server
 
 
 Delete VCH and powered on container but preserve volume
-    [Setup]    Install And Prepare VIC Appliance With Volume Stores
     ${id}=    Get VCH ID %{VCH-NAME}
 
     Verify VCH Exists                 vch/${id}
@@ -634,7 +633,6 @@ Delete VCH and powered on container but preserve volume
     Verify VCH Exists                 vch/${id}
 
     # volume should already exist even before use
-    Verify Container Exists           ${ON_NV_DVS_CONTAINER_NAME}
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Exists Docker       %{VCH-NAME}-VOL                ${ON_NV_DVS_VOLUME_NAME}
 
@@ -642,6 +640,8 @@ Delete VCH and powered on container but preserve volume
     Run Docker Command                run --name ${ON_NV_DVS_CONTAINER_NAME} -v ${ON_NV_DVS_VOLUME_NAME}:/volume ${busybox} /bin/touch /volume/hello
     Verify Return Code
     Output Should Not Contain         Error
+
+    Verify Container Exists           ${ON_NV_DVS_CONTAINER_NAME}
 
     [Teardown]                        Cleanup VIC Appliance On Test Server
 
