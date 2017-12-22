@@ -288,4 +288,3 @@ Fail to create VCH with gateway without static address
     Verify Status Bad Request
 
     Output Should Contain    static
-    
