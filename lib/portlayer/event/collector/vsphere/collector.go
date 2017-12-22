@@ -147,8 +147,17 @@ func (ec *EventCollector) Start() error {
 	// pageSize is the number of events on the last page of the eventCollector
 	// as new events are added the oldest are removed.  Originally this value
 	// was 1 and we encountered missed events due to them being evicted
-	// before being processed.  A setting of 25 should provide ample buffer.
-	pageSize := int32(25)
+	// before being processed. We bumped to 25 but we still miss events during
+	// storms such as a host HA event.
+	// Setting pageSize to 1000 overwhelmed hostd via the task history and caused
+	// memory exhaustion. Setting pagesize to 200 while filtering for the specific
+	// types we require showed directly comparable memory overhead vs the 25 page
+	// size setting when running full ci. We may still have significantly higher
+	// memory usage in the scenario where we legitimately have events of interest
+	// at a rate of greater than 25 per page.
+	// This should eventually be replaced with a smaller maximum page size, a page
+	// cursor, and maybe a sliding window for the actual page size.
+	pageSize := int32(200)
 	// bool to follow the stream
 	followStream := true
 	// don't exceed the govmomi object limit
