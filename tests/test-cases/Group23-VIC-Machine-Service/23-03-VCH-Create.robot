@@ -280,3 +280,11 @@ Fail to create VCH without network
 
     Output Should Contain    network
 
+
+Fail to create VCH with gateway without static address
+    Create VCH    '{"name":"%{VCH-NAME}-api-bad-gateway","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"${PUBLIC_NETWORK}"},"gateway":{"address":"127.0.0.1","routing_destinations":[]}}},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
+
+    Verify Return Code
+    Verify Status Bad Request
+
+    Output Should Contain    static
