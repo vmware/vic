@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -58,11 +59,19 @@ func create(ctx context.Context, session *session.Session, pool *object.Resource
 
 	mngr := view.NewManager(session.Vim25())
 
+	op := trace.FromContext(ctx, "storage component initialization")
+
 	// Create view of VirtualMachine objects under the VCH's resource pool
-	Config.ContainerView, err = mngr.CreateContainerView(ctx, pool.Reference(), []string{"VirtualMachine"}, true)
+	Config.ContainerView, err = mngr.CreateContainerView(op, pool.Reference(), []string{"VirtualMachine"}, true)
 	if err != nil {
 		return err
 	}
+
+	Config.DiskManager, err = disk.NewDiskManager(op, session, Config.ContainerView)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -80,6 +89,14 @@ func Init(ctx context.Context, session *session.Session, pool *object.ResourcePo
 		err = create(ctx, session, pool)
 	})
 	return err
+}
+
+// TODO: figure out why the Init calls are wrapped in once.Do - implies it can be called
+// multiple times, but once Finalize is called things will not be functional.
+func Finalize(ctx context.Context) error {
+	Config.ContainerView.Destroy(ctx)
+
+	return nil
 }
 
 // RegisterImporter registers the specified importer against the provided store for later retrieval.

@@ -49,14 +49,9 @@ type ContainerStore struct {
 
 // NewContainerStore creates and returns a new container store
 func NewContainerStore(op trace.Operation, s *session.Session, imageResolver storage.Resolver) (*ContainerStore, error) {
-	dm, err := disk.NewDiskManager(op, s, storage.Config.ContainerView)
-	if err != nil {
-		return nil, err
-	}
-
 	cs := &ContainerStore{
 		Vmdk: disk.Vmdk{
-			Manager: dm,
+			Manager: storage.Config.DiskManager,
 			//ds: ds,
 			Session: s,
 		},

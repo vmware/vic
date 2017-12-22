@@ -47,13 +47,8 @@ func NewVolumeStore(op trace.Operation, storeName string, s *session.Session, ds
 		return nil, err
 	}
 
-	dm, err := disk.NewDiskManager(op, s, storage.Config.ContainerView)
-	if err != nil {
-		return nil, err
-	}
-
 	if DetachAll {
-		if err = dm.DetachAll(op); err != nil {
+		if err := storage.Config.DiskManager.DetachAll(op); err != nil {
 			return nil, err
 		}
 	}
@@ -65,7 +60,7 @@ func NewVolumeStore(op trace.Operation, storeName string, s *session.Session, ds
 
 	v := &VolumeStore{
 		Vmdk: disk.Vmdk{
-			Manager: dm,
+			Manager: storage.Config.DiskManager,
 			Helper:  ds,
 			Session: s,
 		},

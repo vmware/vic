@@ -42,6 +42,7 @@ import (
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/spec"
+	"github.com/vmware/vic/lib/tether/shared"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
@@ -149,6 +150,46 @@ func (d *Dispatcher) getName(vm *vm.VirtualMachine) string {
 	return name
 }
 
+func (d *Dispatcher) powerOffVM(vm *vm.VirtualMachine) error {
+	var err error
+	power, err := vm.PowerState(d.op)
+	if err == nil && power == types.VirtualMachinePowerStatePoweredOff {
+		d.op.Debugf("VM is already powered off: %s", vm.Reference())
+		return nil
+	}
+
+	if err != nil {
+		d.op.Warnf("Failed to get vm power status %q: %s", vm.Reference(), err)
+	}
+
+	// try guest shutdown first
+	tools := false
+	tools, err = vm.IsToolsRunning(d.op)
+	if tools {
+		d.op.Debugf("Performing guest shutdown for %s", vm.Reference())
+		err = vm.ShutdownGuest(d.op)
+		if err == nil {
+			// just enough time for the endpoint to shutdown cleanly even having timed out internally
+			timeout, cancel := trace.WithTimeout(&d.op, shared.GuestShutdownTimeout+(5*time.Second), "Shut down endpointVM")
+			err = vm.WaitForPowerState(timeout, types.VirtualMachinePowerStatePoweredOff)
+			cancel()
+		}
+	}
+
+	if err != nil || !tools {
+		if !tools {
+			d.op.Warnf("Guest tools unavailable, resorting to power off - sessions will be left open")
+		} else {
+			d.op.Warnf("Guest shutdown failed, resorting to power off - sessions will be left open: %s", err)
+		}
+		_, err = vm.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
+			return vm.PowerOff(ctx)
+		})
+	}
+
+	return err
+}
+
 func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("vm %q, force %t", vm.String(), force)))
 
@@ -170,12 +211,13 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 			}
 			return err
 		}
-		if _, err = vm.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-			return vm.PowerOff(ctx)
-		}); err != nil {
+
+		err = d.powerOffVM(vm)
+		if err != nil {
 			d.op.Debugf("Failed to power off existing appliance for %s, try to remove anyway", err)
 		}
 	}
+
 	// get the actual folder name before we delete it
 	folder, err := vm.FolderName(d.op)
 	if err != nil {
