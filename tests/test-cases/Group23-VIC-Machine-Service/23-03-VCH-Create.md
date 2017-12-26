@@ -14,7 +14,7 @@ This test requires a vSphere system where VCHs can be deployed
 1. Create a VCH with as minimal a configuration as possible
 2. Inspect that VCH using the CLI
 3. Verify that the VCH appliance created has been successfully initialized
-4. Create a VCH with a more complex configuration
+4. Create a VCH with a more complex configuration (some input params for creation have placeholder values)
 5. Inspect that VCH using the CLI
 
 # Expected Outcome:
