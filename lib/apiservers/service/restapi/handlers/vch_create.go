@@ -277,17 +277,22 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 					}
 					containerNetworks.MappedNetworks[alias] = path
 
-					address := net.ParseIP(string(cnetwork.Gateway.Address))
-					if cnetwork.Gateway.RoutingDestinations == nil || len(cnetwork.Gateway.RoutingDestinations) != 1 {
-						return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: exactly one subnet must be specified", alias))
-					}
-					_, mask, err := net.ParseCIDR(string(cnetwork.Gateway.RoutingDestinations[0]))
-					if err != nil {
-						return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: %s", alias, err))
-					}
-					containerNetworks.MappedNetworksGateways[alias] = net.IPNet{
-						IP:   address,
-						Mask: mask.Mask,
+					if cnetwork.Gateway != nil {
+						address := net.ParseIP(string(cnetwork.Gateway.Address))
+						if address == nil {
+							return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing gateway IP %s for container network %s", cnetwork.Gateway.Address, alias))
+						}
+						if cnetwork.Gateway.RoutingDestinations == nil || len(cnetwork.Gateway.RoutingDestinations) != 1 {
+							return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: exactly one subnet must be specified", alias))
+						}
+						_, mask, err := net.ParseCIDR(string(cnetwork.Gateway.RoutingDestinations[0]))
+						if err != nil {
+							return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: %s", alias, err))
+						}
+						containerNetworks.MappedNetworksGateways[alias] = net.IPNet{
+							IP:   address,
+							Mask: mask.Mask,
+						}
 					}
 
 					ipranges := make([]ip.Range, 0, len(cnetwork.IPRanges))
