@@ -45,8 +45,8 @@ Create VCH Within Datacenter
     Post Path Under Target    datacenter/${dcID}/vch    ${data}
 
 
-Inspect VCH ${name}
-    ${RC}    ${OUTPUT}=    Run And Return Rc And Output    bin/vic-machine-linux inspect config --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=${name} --format raw
+Inspect VCH Config ${name}
+    ${RC}    ${OUTPUT}=    Run And Return Rc And Output    bin/vic-machine-linux inspect config --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name=${name} --format raw
     Should Be Equal As Integers    ${RC}    0
     Set Test Variable    ${OUTPUT}
 
@@ -66,7 +66,7 @@ Create minimal VCH
     Verify Status Created
 
 
-    Inspect VCH %{VCH-NAME}-api-test-minimal
+    Inspect VCH Config %{VCH-NAME}-api-test-minimal
 
     Output Should Contain    --image-store=ds://%{TEST_DATASTORE}
     Output Should Contain    --bridge-network=%{BRIDGE_NETWORK}
@@ -90,6 +90,8 @@ Create minimal VCH
     Property Should Contain         .runtime.power_state                 poweredOn
     Property Should Contain         .runtime.upgrade_status              Up to date
 
+    Wait For VCH Initialization  name=%{VCH-NAME}-api-test-minimal
+
     [Teardown]    Run Secret VIC Machine Delete Command    %{VCH-NAME}-api-test-minimal
 
 
@@ -100,7 +102,7 @@ Create minimal VCH within datacenter
     Verify Status Created
 
 
-    Inspect VCH %{VCH-NAME}-api-test-dc
+    Inspect VCH Config %{VCH-NAME}-api-test-dc
 
     Output Should Contain    --image-store=ds://%{TEST_DATASTORE}
     Output Should Contain    --bridge-network=%{BRIDGE_NETWORK}
@@ -124,6 +126,8 @@ Create minimal VCH within datacenter
     Property Should Contain         .runtime.power_state                 poweredOn
     Property Should Contain         .runtime.upgrade_status              Up to date
 
+    Wait For VCH Initialization  name=%{VCH-NAME}-api-test-dc
+
     [Teardown]    Run Secret VIC Machine Delete Command    %{VCH-NAME}-api-test-dc
 
 
@@ -134,7 +138,7 @@ Create complex VCH
     Verify Status Created
 
 
-    Inspect VCH %{VCH-NAME}-api-test-complex
+    Inspect VCH Config %{VCH-NAME}-api-test-complex
 
     Output Should Contain    --debug=3
 
