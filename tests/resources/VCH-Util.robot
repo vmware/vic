@@ -316,7 +316,7 @@ Run Secret VIC Machine Delete Command
 Run Secret VIC Machine Inspect Command
     [Tags]  secret
     [Arguments]  ${name}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --thumbprint=%{TEST_THUMBPRINT}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --thumbprint=%{TEST_THUMBPRINT} --compute-resource=%{TEST_RESOURCE}
 
     [Return]  ${rc}  ${output}
 
@@ -329,7 +329,8 @@ Run VIC Machine Delete Command
     [Return]  ${output}
 
 Run VIC Machine Inspect Command
-    ${rc}  ${output}=  Run Secret VIC Machine Inspect Command  %{VCH-NAME}
+    [Arguments]  ${name}=%{VCH-NAME}
+    ${rc}  ${output}=  Run Secret VIC Machine Inspect Command  ${name}
     Get Docker Params  ${output}  ${true}
 
 Inspect VCH
@@ -339,11 +340,12 @@ Inspect VCH
     Should Contain  ${output}  ${expected}
 
 Wait For VCH Initialization
-    [Arguments]  ${attempts}=12x  ${interval}=10 seconds
-    Wait Until Keyword Succeeds  ${attempts}  ${interval}  VCH Docker Info
+    [Arguments]  ${attempts}=12x  ${interval}=10 seconds  ${name}=%{VCH-NAME}
+    Wait Until Keyword Succeeds  ${attempts}  ${interval}  VCH Docker Info  ${name}
 
 VCH Docker Info
-    Run VIC Machine Inspect Command
+    [Arguments]  ${name}=%{VCH-NAME}
+    Run VIC Machine Inspect Command  ${name}
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} info
     Should Be Equal As Integers  ${rc}  0
 
