@@ -51,31 +51,11 @@ Inspect VCH Config ${name}
     Set Test Variable    ${OUTPUT}
 
 
-Inspect VCH
-    [Arguments]  ${name}  ${expected}
-    ${rc}    ${output}=    Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${name} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  ${expected}
-    [Return]  ${output}
-
-
 Get VCH ${name}
     Get Path Under Target    vch
     ${id}=    Run    echo '${OUTPUT}' | jq -r '.vchs[] | select(.name=="${name}").id'
 
     Get Path Under Target    vch/${id}
-
-
-Get VCH Docker Info
-    [Arguments]  ${name}
-    ${output}=  Inspect VCH  ${name}  Completed successfully
-    Get Docker Params  ${output}  ${true}
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} info
-    Should Be Equal As Integers  ${rc}  0
-
-
-Verify VCH Initialization ${name}
-    Wait Until Keyword Succeeds  12x  10 seconds  Get VCH Docker Info  ${name}
 
 
 *** Test Cases ***
