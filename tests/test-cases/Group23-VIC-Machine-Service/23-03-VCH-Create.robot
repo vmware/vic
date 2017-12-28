@@ -110,7 +110,7 @@ Create minimal VCH
     Property Should Contain         .runtime.power_state                 poweredOn
     Property Should Contain         .runtime.upgrade_status              Up to date
 
-    Verify VCH Initialization %{VCH-NAME}-api-test-minimal
+    Wait For VCH Initialization  name=%{VCH-NAME}-api-test-minimal
 
     [Teardown]    Run Secret VIC Machine Delete Command    %{VCH-NAME}-api-test-minimal
 
@@ -146,7 +146,7 @@ Create minimal VCH within datacenter
     Property Should Contain         .runtime.power_state                 poweredOn
     Property Should Contain         .runtime.upgrade_status              Up to date
 
-    Verify VCH Initialization %{VCH-NAME}-api-test-dc
+    Wait For VCH Initialization  name=%{VCH-NAME}-api-test-dc
 
     [Teardown]    Run Secret VIC Machine Delete Command    %{VCH-NAME}-api-test-dc
 
