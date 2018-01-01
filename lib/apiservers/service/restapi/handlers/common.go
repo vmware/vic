@@ -99,6 +99,15 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 		v.Session.Datacenter = dc
 		v.Session.Finder.SetDatacenter(dc)
 
+		// Do what validator.session.Populate would have done if datacenterPath is set
+		if v.Session.Datacenter != nil {
+			folders, err := v.Session.Datacenter.Folders(op)
+			if err != nil {
+				return data, nil, util.NewError(http.StatusBadRequest, "Validator Error: error finding datacenter folders: %s", err)
+			}
+			v.Session.VMFolder = folders.VmFolder
+		}
+
 		validator = v
 	} else {
 		v, err := validate.NewValidator(op, data)
