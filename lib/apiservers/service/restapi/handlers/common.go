@@ -103,7 +103,7 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 		if v.Session.Datacenter != nil {
 			folders, err := v.Session.Datacenter.Folders(op)
 			if err != nil {
-				return data, nil, util.NewError(http.StatusBadRequest, "Validator Error: error finding datacenter folders: %s", err)
+				return data, nil, util.NewError(http.StatusBadRequest, "Validation Error: error finding datacenter folders: %s", err)
 			}
 			v.Session.VMFolder = folders.VmFolder
 		}
