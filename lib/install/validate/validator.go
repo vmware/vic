@@ -40,6 +40,7 @@ import (
 	"github.com/vmware/vic/lib/config/dynamic"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/opsuser"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/registry"
 	"github.com/vmware/vic/pkg/trace"
@@ -467,6 +468,23 @@ func (v *Validator) credentials(op trace.Operation, input *data.Data, conf *conf
 			conf.SetGrantPerms()
 		} else {
 			conf.ClearGrantPerms()
+		}
+	}
+
+	// If Grant Perms is set trying adding ReadOnly role to the Datacenter
+	// for the ops-user. This is necessary since the Login operation below
+	// fails if the ops-user has no permissions.
+	//
+	// FIXME DEBT.
+	// https://github.com/vmware/vic/issues/6870
+	// Notice that this operation should not be performed from the Validator.
+	// Eventually, this must be moved to the Dispatcher as the Validator
+	// should not modify VC configuration.
+	if conf.ShouldGrantPerms() {
+		err := opsuser.GrantDCReadOnlyPerms(v.Context, v.Session, conf)
+		if err != nil {
+			v.NoteIssue(fmt.Errorf("Failed to validate operations credentials: %s", err))
+			return
 		}
 	}
 
