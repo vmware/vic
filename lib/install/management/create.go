@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/opsuser"
 	"github.com/vmware/vic/lib/install/vchlog"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/retry"
@@ -74,7 +75,7 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 	}
 
 	if conf.ShouldGrantPerms() {
-		err = GrantOpsUserPerms(d.op, d.session.Vim25(), conf)
+		err = opsuser.GrantOpsUserPerms(d.op, d.session.Vim25(), conf)
 		if err != nil {
 			return errors.Errorf("Cannot init ops-user permissions, failure: %s. Exiting...", err)
 		}
