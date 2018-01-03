@@ -292,14 +292,14 @@ pipeline:
       branch: [ master, releases/*, refs/tags/* ]
       status: success
 
-  report-coverage:
-    image: plugins/coverage
-    server: https://coverage.vmware.run
-    pattern: .cover/cover.out
-    when:
-      branch: [ master, releases/*, refs/tags/* ]
-      repo: vmware/vic
-      status: success
+#  report-coverage:
+#    image: plugins/coverage
+#    server: https://coverage.vmware.run
+#    pattern: .cover/cover.out
+#    when:
+#      branch: [ master, releases/*, refs/tags/* ]
+#      repo: vmware/vic
+#      status: success
 
   notify-slack-on-fail:
     image: plugins/slack
