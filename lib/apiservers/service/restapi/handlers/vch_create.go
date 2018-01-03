@@ -255,10 +255,10 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 					return nil, util.WrapError(http.StatusBadRequest, err)
 				}
 
-				c.dns = common.DNS{
-					dns: vch.Network.Public.Nameservers,
+				c.Dns = common.DNS{
+					Dns: fromIPAddresses(vch.Network.Public.Nameservers),
 				}
-				c.DNS, err := c.dns.ProcessDNSServers(op)
+				c.DNS, err = c.Dns.ProcessDNSServers(op)
 				if err != nil {
 					return nil, util.WrapError(http.StatusBadRequest, err)
 				}
@@ -514,6 +514,23 @@ func fromCIDRs(m *[]models.CIDR) *[]string {
 	}
 
 	return &s
+}
+
+func fromIPAddress(m *models.IPAddress) string {
+	if m == nil {
+		return ""
+	}
+
+	return string(*m)
+}
+
+func fromIPAddresses(m []models.IPAddress) []string {
+	s := make([]string, 0, len(m))
+	for _, ip := range m {
+		s = append(s, fromIPAddress(&ip))
+	}
+
+	return s
 }
 
 func fromGateway(m *models.Gateway) string {
