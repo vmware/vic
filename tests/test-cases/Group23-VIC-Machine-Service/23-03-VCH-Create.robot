@@ -132,7 +132,7 @@ Create minimal VCH within datacenter
 
 
 Create complex VCH
-    Create VCH    '{"name":"%{VCH-NAME}-api-test-complex","debug":3,"compute":{"cpu":{"limit":{"units":"MHz","value":2345},"reservation":{"units":"GHz","value":2},"shares":{"level":"high"}},"memory":{"limit":{"units":"MiB","value":1200},"reservation":{"units":"MiB","value":501},"shares":{"number":81910}},"resource":{"name":"%{TEST_RESOURCE}"}},"endpoint":{"cpu":{"sockets":2},"memory":{"units":"MiB","value":3072}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"],"volume_stores":[{"datastore":"ds://%{TEST_DATASTORE}/test-volumes/foo","label":"foo"}],"base_image_size":{"units":"B","value":16000000}},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"container":[{"alias":"vic-containers","firewall":"outbound","nameservers":["8.8.8.8","8.8.4.4"],"port_group":{"name":"${PUBLIC_NETWORK}"},"gateway":{"address":"203.0.113.1","routing_destinations":["203.0.113.1/24"]},"ip_ranges":["203.0.113.8/31"]}],"public":{"port_group":{"name":"${PUBLIC_NETWORK}"}}},"registry":{"image_fetch_proxy":{"http":"http://example.com","https":"https://example.com"},"insecure":["https://insecure.example.com"],"whitelist":["10.0.0.0/8"]},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}},"syslog_addr":"tcp://syslog.example.com:4444", "container": {"name_convention": "container-{id}"}}'
+    Create VCH    '{"name":"%{VCH-NAME}-api-test-complex","debug":3,"compute":{"cpu":{"limit":{"units":"MHz","value":2345},"reservation":{"units":"GHz","value":2},"shares":{"level":"high"}},"memory":{"limit":{"units":"MiB","value":1200},"reservation":{"units":"MiB","value":501},"shares":{"number":81910}},"resource":{"name":"%{TEST_RESOURCE}"}},"endpoint":{"cpu":{"sockets":2},"memory":{"units":"MiB","value":3072}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"],"volume_stores":[{"datastore":"ds://%{TEST_DATASTORE}/test-volumes/foo","label":"foo"}],"base_image_size":{"units":"B","value":16000000}},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"container":[{"alias":"vic-containers","firewall":"outbound","nameservers":["8.8.8.8","8.8.4.4"],"port_group":{"name":"${PUBLIC_NETWORK}"},"gateway":{"address":"203.0.113.1","routing_destinations":["203.0.113.1/24"]},"ip_ranges":["203.0.113.8/31"]}],"public":{"port_group":{"name":"${PUBLIC_NETWORK}"},"static":"192.168.100.22/24","gateway":{"address":"192.168.100.1"},"nameservers":["192.168.110.10","192.168.1.1"]}},"registry":{"image_fetch_proxy":{"http":"http://example.com","https":"https://example.com"},"insecure":["https://insecure.example.com"],"whitelist":["10.0.0.0/8"]},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}},"syslog_addr":"tcp://syslog.example.com:4444", "container": {"name_convention": "container-{id}"}}'
 
     Verify Return Code
     Verify Status Created
@@ -163,6 +163,12 @@ Create complex VCH
     Output Should Contain    --container-network-dns=${PUBLIC_NETWORK}:8.8.8.8
     Output Should Contain    --container-network-dns=${PUBLIC_NETWORK}:8.8.4.4
     Output Should Contain    --container-network-firewall=${PUBLIC_NETWORK}:outbound
+
+    Output Should Contain    --public-network=${PUBLIC_NETWORK}
+    Output Should Contain    --public-network-gateway=192.168.100.1
+    Output Should Contain    --public-network-ip=192.168.100.22/24
+    Output Should Contain    --dns-server=192.168.110.10
+    Output Should Contain    --dns-server=192.168.1.1
 
     Output Should Contain    --insecure-registry=https://insecure.example.com
     Output Should Contain    --whitelist-registry=10.0.0.0/8
