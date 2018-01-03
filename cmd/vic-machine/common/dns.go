@@ -25,7 +25,7 @@ import (
 
 // general dns
 type DNS struct {
-	Dns   cli.StringSlice `arg:"dns-server"`
+	DNS   cli.StringSlice `arg:"dns-server"`
 	IsSet bool
 }
 
@@ -33,7 +33,7 @@ func (d *DNS) DNSFlags(hidden bool) []cli.Flag {
 	return []cli.Flag{
 		cli.StringSliceFlag{
 			Name:   "dns-server",
-			Value:  &d.Dns,
+			Value:  &d.DNS,
 			Usage:  "DNS server for the client, public, and management networks. Defaults to 8.8.8.8 and 8.8.4.4 when VCH uses static IP",
 			Hidden: hidden,
 		},
@@ -43,11 +43,11 @@ func (d *DNS) DNSFlags(hidden bool) []cli.Flag {
 // processDNSServers parses DNS servers used for client, public, mgmt networks
 func (d *DNS) ProcessDNSServers(op trace.Operation) ([]net.IP, error) {
 	var parsedDNS []net.IP
-	if len(d.Dns) > 0 {
+	if len(d.DNS) > 0 {
 		d.IsSet = true
 	}
 
-	for _, n := range d.Dns {
+	for _, n := range d.DNS {
 		if n != "" {
 			s := net.ParseIP(n)
 			if s == nil {

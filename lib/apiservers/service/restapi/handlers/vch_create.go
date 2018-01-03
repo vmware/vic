@@ -255,10 +255,10 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 					return nil, util.WrapError(http.StatusBadRequest, err)
 				}
 
-				c.Dns = common.DNS{
-					Dns: fromIPAddresses(vch.Network.Public.Nameservers),
+				c.Nameservers = common.DNS{
+					DNS: fromIPAddresses(vch.Network.Public.Nameservers),
 				}
-				c.DNS, err = c.Dns.ProcessDNSServers(op)
+				c.DNS, err = c.Nameservers.ProcessDNSServers(op)
 				if err != nil {
 					return nil, util.WrapError(http.StatusBadRequest, err)
 				}

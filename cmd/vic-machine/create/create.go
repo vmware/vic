@@ -71,7 +71,7 @@ type Create struct {
 
 	volumeStores common.VolumeStores
 
-	Dns common.DNS
+	Nameservers common.DNS
 
 	memoryReservLimits string
 	cpuReservLimits    string
@@ -306,7 +306,7 @@ func (c *Create) Flags() []cli.Flag {
 	volume := c.volumeStores.Flags()
 	iso := c.ImageFlags(true)
 	cNetwork := c.containerNetworks.CNetworkFlags(true)
-	dns := c.Dns.DNSFlags(true)
+	dns := c.Nameservers.DNSFlags(true)
 	proxies := c.Proxies.ProxyFlags(true)
 	debug := c.DebugFlags(true)
 
@@ -369,7 +369,7 @@ func (c *Create) ProcessParams(op trace.Operation) error {
 		return err
 	}
 
-	if c.DNS, err = c.Dns.ProcessDNSServers(op); err != nil {
+	if c.DNS, err = c.Nameservers.ProcessDNSServers(op); err != nil {
 		return err
 	}
 
