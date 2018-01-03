@@ -254,6 +254,14 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				if err := c.ProcessNetwork(op, &c.Data.PublicNetwork, "public", c.PublicNetworkName, c.PublicNetworkIP, c.PublicNetworkGateway); err != nil {
 					return nil, util.WrapError(http.StatusBadRequest, err)
 				}
+
+				c.dns = common.DNS{
+					dns: vch.Network.Public.Nameservers,
+				}
+				c.DNS, err := c.dns.ProcessDNSServers(op)
+				if err != nil {
+					return nil, util.WrapError(http.StatusBadRequest, err)
+				}
 			}
 
 			if vch.Network.Container != nil {
