@@ -222,10 +222,17 @@ Create complex VCH
     Property Should Be Equal        .network.container[0].gateway.address                  203.0.113.1
     Property Should Be Equal        .network.container[0].gateway.routing_destinations[0]  203.0.113.1/24
 
+    Property Should Be Equal        .network.public.port_group.name      ${PUBLIC_NETWORK}
+    Property Should Be Equal        .network.public.static               192.168.100.22/24
+    Property Should Be Equal        .network.public.gateway.address      192.168.100.1
+    Property Should Be Equal        .network.public.nameservers[0]       192.168.110.10
+    Property Should Be Equal        .network.public.nameservers[1]       192.168.1.1
+
     Property Should Be Equal        .runtime.power_state                 poweredOn
     Property Should Be Equal        .runtime.upgrade_status              Up to date
 
     Property Should Be Equal        .container.name_convention           container-{id}
+
 
     [Teardown]    Run Secret VIC Machine Delete Command    %{VCH-NAME}-api-test-complex
 
