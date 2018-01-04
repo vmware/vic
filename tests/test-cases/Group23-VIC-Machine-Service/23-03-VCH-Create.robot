@@ -164,7 +164,6 @@ Create complex VCH
     Output Should Contain    --container-network-dns=${PUBLIC_NETWORK}:8.8.4.4
     Output Should Contain    --container-network-firewall=${PUBLIC_NETWORK}:outbound
 
-    Output Should Contain    --public-network=${PUBLIC_NETWORK}
     Output Should Contain    --public-network-gateway=192.168.100.1
     Output Should Contain    --public-network-ip=192.168.100.22/24
     Output Should Contain    --dns-server=192.168.110.10
