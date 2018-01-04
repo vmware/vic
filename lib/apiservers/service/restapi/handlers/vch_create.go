@@ -254,6 +254,14 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				if err := c.ProcessNetwork(op, &c.Data.PublicNetwork, "public", c.PublicNetworkName, c.PublicNetworkIP, c.PublicNetworkGateway); err != nil {
 					return nil, util.WrapError(http.StatusBadRequest, err)
 				}
+
+				c.Nameservers = common.DNS{
+					DNS: fromIPAddresses(vch.Network.Public.Nameservers),
+				}
+				c.DNS, err = c.Nameservers.ProcessDNSServers(op)
+				if err != nil {
+					return nil, util.WrapError(http.StatusBadRequest, err)
+				}
 			}
 
 			if vch.Network.Container != nil {
@@ -506,6 +514,23 @@ func fromCIDRs(m *[]models.CIDR) *[]string {
 	}
 
 	return &s
+}
+
+func fromIPAddress(m *models.IPAddress) string {
+	if m == nil {
+		return ""
+	}
+
+	return string(*m)
+}
+
+func fromIPAddresses(m []models.IPAddress) []string {
+	s := make([]string, 0, len(m))
+	for _, ip := range m {
+		s = append(s, fromIPAddress(&ip))
+	}
+
+	return s
 }
 
 func fromGateway(m *models.Gateway) string {
