@@ -221,7 +221,6 @@ Create complex VCH
     Property Should Be Equal        .network.container[0].gateway.address                  203.0.113.1
     Property Should Be Equal        .network.container[0].gateway.routing_destinations[0]  203.0.113.1/24
 
-    Property Should Be Equal        .network.public.static               192.168.100.22/24
     Property Should Be Equal        .network.public.gateway.address      192.168.100.1
     Property Should Be Equal        .network.public.nameservers[0]       192.168.110.10
     Property Should Be Equal        .network.public.nameservers[1]       192.168.1.1
