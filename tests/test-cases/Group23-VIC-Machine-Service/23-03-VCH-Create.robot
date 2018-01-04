@@ -230,7 +230,6 @@ Create complex VCH
 
     Property Should Be Equal        .container.name_convention           container-{id}
 
-
     [Teardown]    Run Secret VIC Machine Delete Command    %{VCH-NAME}-api-test-complex
 
 
