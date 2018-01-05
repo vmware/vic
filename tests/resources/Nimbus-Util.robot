@@ -44,6 +44,12 @@ Fetch POD
       ${pod}=  Fetch From Left  ${out}  :
       [return]  ${pod}
 
+Custom Testbed Keepalive
+    [Tags]  secret
+    [Arguments]  ${folder}
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  touch ${folder}
+    [Return]  ${out}
+
 Deploy Nimbus ESXi Server
     [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}  ${tls_disabled}=True
     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
