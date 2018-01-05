@@ -61,6 +61,8 @@ Simple VSAN
     ${out}=  Run  govc datastore.vsan.dom.ls -ds %{TEST_DATASTORE} -l -o
     Should Be Empty  ${out}
 
+    Custom Testbed Keepalive  /dbc/pa-dbc1111/mhagen
+
     Install VIC Appliance To Test Server
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
