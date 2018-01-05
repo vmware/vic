@@ -99,7 +99,7 @@ Reboot VM and Verify Basic VCH Info
     Log To Console  Rebooting VCH\n - %{VCH-NAME}
     Reboot VM  %{VCH-NAME}
 
-    Wait For VCH Initialization
+    Wait For VCH Initialization  24x
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
     Should Be Equal As Integers  ${rc}  0
