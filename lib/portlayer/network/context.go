@@ -654,15 +654,15 @@ func (c *Context) DefaultScope() *Scope {
 	return c.defaultScope
 }
 
-func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
-	defer trace.End(trace.Begin(""))
+func (c *Context) BindContainer(op trace.Operation, h *exec.Handle) ([]*Endpoint, error) {
+	defer trace.End(trace.Begin("", op))
 	c.Lock()
 	defer c.Unlock()
 
-	return c.bindContainer(h)
+	return c.bindContainer(op, h)
 }
 
-func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
+func (c *Context) bindContainer(op trace.Operation, h *exec.Handle) ([]*Endpoint, error) {
 	con, err := c.container(h)
 	if con != nil {
 		return con.Endpoints(), nil // already bound
@@ -698,14 +698,20 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		var eip *net.IP
 		if ne.Static {
 			eip = &ne.IP.IP
-		} else if !ip.IsUnspecifiedIP(ne.Assigned.IP) {
-			// for VCH restart, we need to reserve
-			// the IP of the running container
-			//
-			// this may be a DHCP assigned IP, however, the
-			// addContainer call below will ignore reserving
-			// an IP if the scope is "dynamic"
-			eip = &ne.Assigned.IP
+			op.Debugf("BindContainer found container %s with static endpoint and IP %s", con.ID(), eip.String())
+		} else {
+			if !ip.IsUnspecifiedIP(ne.Assigned.IP) {
+				// for VCH restart, we need to reserve
+				// the IP of the running container
+				//
+				// this may be a DHCP assigned IP, however, the
+				// addContainer call below will ignore reserving
+				// an IP if the scope is "dynamic"
+				op.Debugf("BindContainer found container %s with dynamic endpoint and assigned IP %s", con.ID(), ne.Assigned.IP.String())
+				eip = &ne.Assigned.IP
+			} else {
+				op.Debugf("BindContainer found container %s with dynamic endpoint and unassigned IP", con.ID())
+			}
 		}
 
 		e := newEndpoint(con, s, eip, nil)
@@ -757,7 +763,7 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 
 		// container specific aliases
 		for _, a := range ne.Network.Aliases {
-			log.Debugf("parsing alias %s", a)
+			op.Debugf("parsing alias %s", a)
 			l := strings.Split(a, ":")
 			if len(l) != 2 {
 				err = fmt.Errorf("Parsing network alias %s failed", a)
@@ -782,7 +788,7 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 				if whoc != nil {
 					aliases[a.scopedName()] = whoc
 				} else {
-					log.Debugf("skipping alias %s since %s is not bound yet", a, who)
+					op.Debugf("skipping alias %s since %s is not bound yet", a, who)
 				}
 			}
 		}
@@ -794,7 +800,6 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 				continue
 			}
 
-			log.Debugf("getting aliases for %s from %s", con.name, e.Container().Name())
 			for _, a := range e.getAliases(con.name) {
 				aliases[a.scopedName()] = con
 			}
@@ -964,6 +969,8 @@ func (c *Context) UnbindContainer(op trace.Operation, h *exec.Handle) ([]*Endpoi
 
 		return nil, err
 	}
+
+	op.Debugf("Removing endpoints from container %s", con.ID())
 
 	// aliases to remove
 	var aliases []string

@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/opsuser"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
@@ -112,10 +113,10 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 
 	// If successful try to grant permissions to the ops-user
 	if err == nil && conf.ShouldGrantPerms() {
-		err = GrantOpsUserPerms(d.op, d.session.Vim25(), conf)
+		err = opsuser.GrantOpsUserPerms(d.op, d.session.Vim25(), conf)
 		if err != nil {
 			// Update error message and fall through to roll back
-			err = errors.Errorf("Cannot setup ops-user permissions, failure: %s", err)
+			err = errors.Errorf("Failed to grant permissions to ops-user, failure: %s", err)
 		}
 	}
 

@@ -16,18 +16,32 @@ package util
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
 )
 
 func TestNewError(t *testing.T) {
-	e := NewError(123, "new error")
+	e := NewError(123, "new error %d %s %q")
 	c := StatusCode(e)
 
 	if c != 123 {
 		t.Errorf("Status code was %d, not 123.", c)
 	}
 
-	if e.Error() != "new error" {
+	if e.Error() != "new error %d %s %q" {
+		t.Error("NewError did not preserve message.")
+	}
+}
+
+func TestNewErrorWithArgs(t *testing.T) {
+	e := NewError(123, "new error %d %s %q", 1, "a", "foo")
+	c := StatusCode(e)
+
+	if c != 123 {
+		t.Errorf("Status code was %d, not 123.", c)
+	}
+
+	if e.Error() != "new error 1 a \"foo\"" {
 		t.Error("NewError did not preserve message.")
 	}
 }
@@ -58,7 +72,7 @@ func TestStatusCodeFallback(t *testing.T) {
 	e := fmt.Errorf("fmt error")
 	c := StatusCode(e)
 
-	if c != 500 {
+	if c != http.StatusInternalServerError {
 		t.Errorf("Default status code was %d, not 500.", c)
 	}
 }

@@ -17,6 +17,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"reflect"
 	"sort"
@@ -30,6 +31,7 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/cmd/vic-machine/create"
 	"github.com/vmware/vic/lib/apiservers/service/models"
+	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -179,24 +181,19 @@ func TestCreateVCH(t *testing.T) {
 		assert.NoError(t, err, "Error removing temp directory: %s", err)
 	}()
 
-	principal := Credentials{
-		user: "testuser",
-		pass: "testpass",
+	pass := "testpass"
+	data := &data.Data{
+		Target: &common.Target{
+			URL:      &url.URL{Host: "10.10.1.2"},
+			User:     "testuser",
+			Password: &pass,
+		},
 	}
-
-	tp := "thumbprint"
-	params := buildDataParams{
-		target:     "10.10.1.2",
-		thumbprint: &tp,
-	}
-	data, err := buildData(op, params, principal)
-	assert.NoError(t, err, "Expected no error")
-	// TODO(jzt): assert data struct is as expected
 
 	ca := newCreate()
 	ca.Data = data
 	ca.DisplayName = "test-vch"
-	err = ca.ProcessParams(op)
+	err := ca.ProcessParams(op)
 	assert.NoError(t, err, "Error while processing params: %s", err)
 	op.Infof("ca EnvFile: %s", ca.Certs.EnvFile)
 

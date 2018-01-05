@@ -33,7 +33,7 @@ Longevity
     \   Repeat Keyword  ${rand} times  Run Regression Tests
     \   Cleanup VIC Appliance On Test Server
     \   ${rand}=  Evaluate  random.randint(10, 50)  modules=random
-    \   Install VIC Appliance To Test Server  debug=0  certs=${true}  additional-args=%{STATIC_VCH_OPTIONS}
+    \   Install VIC Appliance To Test Server  debug=0  certs=${true}  additional-args=%{STATIC_VCH_OPTIONS} %{SYSLOG_VCH_OPTION}
     \   Repeat Keyword  ${rand} times  Run Regression Tests
     \   Cleanup VIC Appliance On Test Server
 

@@ -28,13 +28,9 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/lib/install/vchlog"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
-)
-
-const (
-	logFilePrefix = "vic-machine" // logFilePrefix is the prefix for file names of all vic-machine log files
-	logFileSuffix = ".log"        // logFileSuffix is the suffix for file names of all vic-machine log files
 )
 
 // VCHLogGet is the handler for getting the log messages for a VCH
@@ -51,16 +47,15 @@ func (h *VCHLogGet) Handle(params operations.GetTargetTargetVchVchIDLogParams, p
 	b := buildDataParams{
 		target:     params.Target,
 		thumbprint: params.Thumbprint,
+		vchID:      &params.VchID,
 	}
 
-	d, err := buildData(op, b, principal)
+	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
 	}
 
-	d.ID = params.VchID
-
-	helper, err := getDatastoreHelper(op, d)
+	helper, err := getDatastoreHelper(op, d, validator)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
 	}
@@ -85,16 +80,15 @@ func (h *VCHDatacenterLogGet) Handle(params operations.GetTargetTargetDatacenter
 		target:     params.Target,
 		thumbprint: params.Thumbprint,
 		datacenter: &params.Datacenter,
+		vchID:      &params.VchID,
 	}
 
-	d, err := buildData(op, b, principal)
+	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
 	}
 
-	d.ID = params.VchID
-
-	helper, err := getDatastoreHelper(op, d)
+	helper, err := getDatastoreHelper(op, d, validator)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
 	}
@@ -113,13 +107,7 @@ func (h *VCHDatacenterLogGet) Handle(params operations.GetTargetTargetDatacenter
 }
 
 // getDatastoreHelper validates the VCH and returns the datastore helper for the VCH. It errors when validation fails or when datastore is not ready
-func getDatastoreHelper(op trace.Operation, d *data.Data) (*datastore.Helper, error) {
-	// TODO (#6032): abstract some of the boilerplate into helpers in common.go
-	validator, err := validateTarget(op, d)
-	if err != nil {
-		return nil, util.WrapError(http.StatusBadRequest, err)
-	}
-
+func getDatastoreHelper(op trace.Operation, d *data.Data, validator *validate.Validator) (*datastore.Helper, error) {
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
@@ -161,7 +149,7 @@ func getAllLogFilePaths(op trace.Operation, helper *datastore.Helper) ([]string,
 	var paths []string
 	for _, f := range res.File {
 		path := f.GetFileInfo().Path
-		if strings.HasPrefix(path, logFilePrefix) && strings.HasSuffix(path, logFileSuffix) {
+		if strings.HasPrefix(path, vchlog.LogFilePrefix) && strings.HasSuffix(path, vchlog.LogFileSuffix) {
 			paths = append(paths, path)
 		}
 	}

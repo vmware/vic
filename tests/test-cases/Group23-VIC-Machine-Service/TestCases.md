@@ -2,7 +2,7 @@ Group 23 - VIC Machine Service
 =======
 
 
-[Test 23-01 - Version](23-01-Version.md)
+[Test 23-01 - Metadata](23-01-Metadata.md)
 -
 [Test 23-02 - VCH List](23-02-VCH-List.md)
 -

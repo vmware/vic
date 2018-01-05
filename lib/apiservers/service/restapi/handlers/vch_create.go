@@ -37,6 +37,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/util"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
@@ -77,14 +78,9 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 		thumbprint: params.Thumbprint,
 	}
 
-	d, err := buildData(op, b, principal)
+	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
 		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
-	}
-
-	validator, err := validateTarget(op, d)
-	if err != nil {
-		return operations.NewPostTargetTargetVchDefault(http.StatusBadRequest).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	c, err := buildCreate(op, d, finder(validator.Session.Finder), params.Vch)
@@ -113,14 +109,9 @@ func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacente
 		datacenter: &params.Datacenter,
 	}
 
-	d, err := buildData(op, b, principal)
+	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
-	}
-
-	validator, err := validateTarget(op, d)
-	if err != nil {
-		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(http.StatusBadRequest).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	c, err := buildCreate(op, d, validator.Session.Finder, params.Vch)
@@ -143,6 +134,8 @@ func setUpLogger(op *trace.Operation) *vchlog.VCHLogger {
 	op.Logger.Out = log.GetPipe()
 	op.Logger.Level = logrus.DebugLevel
 	op.Logger.Formatter = viclog.NewTextFormatter()
+
+	op.Logger.Infof("Starting API-based VCH Creation. Version: %q", version.GetBuild().ShortVersion())
 
 	go log.Run()
 
@@ -261,6 +254,14 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				if err := c.ProcessNetwork(op, &c.Data.PublicNetwork, "public", c.PublicNetworkName, c.PublicNetworkIP, c.PublicNetworkGateway); err != nil {
 					return nil, util.WrapError(http.StatusBadRequest, err)
 				}
+
+				c.Nameservers = common.DNS{
+					DNS: fromIPAddresses(vch.Network.Public.Nameservers),
+				}
+				c.DNS, err = c.Nameservers.ProcessDNSServers(op)
+				if err != nil {
+					return nil, util.WrapError(http.StatusBadRequest, err)
+				}
 			}
 
 			if vch.Network.Container != nil {
@@ -284,17 +285,22 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 					}
 					containerNetworks.MappedNetworks[alias] = path
 
-					address := net.ParseIP(string(cnetwork.Gateway.Address))
-					if cnetwork.Gateway.RoutingDestinations == nil || len(cnetwork.Gateway.RoutingDestinations) != 1 {
-						return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: exactly one subnet must be specified", alias))
-					}
-					_, mask, err := net.ParseCIDR(string(cnetwork.Gateway.RoutingDestinations[0]))
-					if err != nil {
-						return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: %s", alias, err))
-					}
-					containerNetworks.MappedNetworksGateways[alias] = net.IPNet{
-						IP:   address,
-						Mask: mask.Mask,
+					if cnetwork.Gateway != nil {
+						address := net.ParseIP(string(cnetwork.Gateway.Address))
+						if address == nil {
+							return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing gateway IP %s for container network %s", cnetwork.Gateway.Address, alias))
+						}
+						if cnetwork.Gateway.RoutingDestinations == nil || len(cnetwork.Gateway.RoutingDestinations) != 1 {
+							return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: exactly one subnet must be specified", alias))
+						}
+						_, mask, err := net.ParseCIDR(string(cnetwork.Gateway.RoutingDestinations[0]))
+						if err != nil {
+							return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: %s", alias, err))
+						}
+						containerNetworks.MappedNetworksGateways[alias] = net.IPNet{
+							IP:   address,
+							Mask: mask.Mask,
+						}
 					}
 
 					ipranges := make([]ip.Range, 0, len(cnetwork.IPRanges))
@@ -349,7 +355,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				c.VolumeLocations = volumeLocations
 			}
 
-			c.ScratchSize = "8GB"
+			c.ScratchSize = constants.DefaultBaseImageScratchSize
 			if vch.Storage.BaseImageSize != nil {
 				c.ScratchSize = fromValueBytesMetric(vch.Storage.BaseImageSize)
 			}
@@ -387,7 +393,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 			}
 		}
 
-		c.MemoryMB = 2048
+		c.MemoryMB = constants.DefaultEndpointMemoryMB
 		if vch.Endpoint != nil {
 			if vch.Endpoint.Memory != nil {
 				c.MemoryMB = *mbFromValueBytes(vch.Endpoint.Memory)
@@ -401,6 +407,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				c.OpsCredentials = common.OpsCredentials{
 					OpsUser:     &vch.Endpoint.OperationsCredentials.User,
 					OpsPassword: &opsPassword,
+					GrantPerms:  &vch.Endpoint.OperationsCredentials.GrantPermissions,
 				}
 			}
 		}
@@ -507,6 +514,23 @@ func fromCIDRs(m *[]models.CIDR) *[]string {
 	}
 
 	return &s
+}
+
+func fromIPAddress(m *models.IPAddress) string {
+	if m == nil {
+		return ""
+	}
+
+	return string(*m)
+}
+
+func fromIPAddresses(m []models.IPAddress) []string {
+	s := make([]string, 0, len(m))
+	for _, ip := range m {
+		s = append(s, fromIPAddress(&ip))
+	}
+
+	return s
 }
 
 func fromGateway(m *models.Gateway) string {

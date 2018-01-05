@@ -14,16 +14,24 @@
 
 package util
 
+import (
+	"fmt"
+	"net/http"
+)
+
 func StatusCode(err error) int {
 	e, ok := err.(statusCode)
 	if !ok {
-		return 500
+		return http.StatusInternalServerError
 	}
 
 	return e.Code()
 }
 
-func NewError(code int, message string) error {
+func NewError(code int, message string, a ...interface{}) error {
+	if a != nil {
+		return httpError{code: code, message: fmt.Sprintf(message, a...)}
+	}
 	return httpError{code: code, message: message}
 }
 

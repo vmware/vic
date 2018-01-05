@@ -422,3 +422,11 @@ Check License Features
     ${out}=  Run  govc object.collect -json $(govc object.collect -s - content.licenseManager) licenses | jq '.[].Val.LicenseManagerLicenseInfo[].Properties[] | select(.Key == "feature") | .Value'
     Should Contain  ${out}  serialuri
     Should Contain  ${out}  dvs
+
+# Abruptly power off the host
+Power Off Host
+    [Arguments]  ${host}
+    Open Connection  ${host}  prompt=:~]
+    Login  root  ${NIMBUS_ESX_PASSWORD}
+    ${out}=  Execute Command  poweroff -d 0 -f
+    Close connection

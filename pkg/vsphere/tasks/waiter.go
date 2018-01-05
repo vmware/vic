@@ -121,6 +121,9 @@ func IsRetryError(op trace.Operation, err error) bool {
 		case types.FailToLockFaultToleranceVMs:
 			logExpectedFault(op, soapFault, f)
 			return true
+		case types.HostCommunication:
+			logExpectedFault(op, soapFault, f)
+			return true
 		default:
 			logSoapFault(op, f)
 			return false
@@ -143,6 +146,9 @@ func IsRetryError(op trace.Operation, err error) bool {
 		case *types.FailToLockFaultToleranceVMs:
 			logExpectedFault(op, soapFault, f)
 			return true
+		case *types.HostCommunication:
+			logExpectedFault(op, soapFault, f)
+			return true
 		default:
 			logFault(op, f)
 			return false
@@ -158,6 +164,9 @@ func IsRetryError(op trace.Operation, err error) bool {
 			logExpectedFault(op, taskFault, f)
 			return true
 		case *types.InvalidArgument:
+			logExpectedFault(op, taskFault, f)
+			return true
+		case *types.HostCommunication:
 			logExpectedFault(op, taskFault, f)
 			return true
 		default:

@@ -180,11 +180,10 @@ Test
     \     Should Be Equal As Integers  ${rc}  0
     \     Append To List  ${stopped}  ${c}
 
+    # Speculating that this is here to add some stability if VMs vmotion immediately after power on
+    # If so it should be replaced with a check for active tasks running against the VM or a DRS rule to avoid it completely
     Sleep  2 minutes
-
-    ${output}=  Run  govc vm.info %{VCH-NAME}
-    @{output}=  Split To Lines  ${output}
-    ${curHost}=  Fetch From Right  @{output}[-1]  ${SPACE}
+    ${curHost}=  Get VM Host Name  %{VCH-NAME}
 
     ${info}=  Run  govc vm.info \\*
     Log  ${info}
@@ -199,22 +198,18 @@ Test
 
     # Create check list for Volume Inspect
     @{checkList}=  Create List  ${mntTest}  ${mntNamed}  ${namedVolume}
-
     Verify Volume Inspect Info  Before Host Power OFF  ${containerMountDataTestID}  ${checkList}
 
-    # Abruptly power off the host
-    Open Connection  ${curHost}  prompt=:~]
-    Login  root  e2eFunctionalTest
-    ${out}=  Execute Command  poweroff -d 0 -f
-    Close connection
+    Power Off Host  ${curHost}
 
     ${info}=  Run  govc vm.info \\*
     Log  ${info}
 
-    # Really not sure what better to do here?  Otherwise, vic-machine-inspect returns the old IP address... maybe some sort of power monitoring? Can I pull uptime of the system?
-    Sleep  4 minutes
-    Run VIC Machine Inspect Command
-    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+    # It can take a while for the host to power down and for HA to kick in
+    Wait Until Keyword Succeeds  24x  10s  VM Host Has Changed  ${curHost}  %{VCH-NAME}
+
+    # Wait for the VCH to come back up fully - if it's not completely reinitialized it will still report the old IP address 
+    Wait For VCH Initialization  12x  20 seconds
 
     ${info}=  Run  govc vm.info \\*
     Log  ${info}
@@ -232,6 +227,7 @@ Test
     \     Should Be Equal As Integers  ${rc}  0
     \     Should Be Equal  ${output}  running
     \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c}
+    \     Log To Console  ${output}
     \     Should Be Equal As Integers  ${rc}  0
 
     # check stopped containers are still stopped
@@ -240,6 +236,7 @@ Test
     \     Should Be Equal As Integers  ${rc}  0
     \     Should Be Equal  ${output}  exited
     \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c}
+    \     Log To Console  ${output}
     \     Should Be Equal As Integers  ${rc}  0
 
 Run Regression Tests

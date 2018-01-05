@@ -21,13 +21,13 @@ import (
 )
 
 // BufferedPipe struct implements a pipe readwriter with buffer
-// buffer: the internal buffer to hold data
-// c: the sync locker to manage concurrent reads and writes
-// closed: boolean indicating if the stream is closed
 type BufferedPipe struct {
+	// buffer: the internal buffer to hold data
 	buffer *bytes.Buffer
-	c      *sync.Cond
-	closed bool
+	// c: the sync locker to manage concurrent reads and writes
+	c *sync.Cond
+	// writeClosed: boolean indicating if write end of the pipe is closed
+	writeClosed bool
 }
 
 // NewBufferedPipe returns a new buffered pipe instance
@@ -37,9 +37,9 @@ func NewBufferedPipe() *BufferedPipe {
 	var m sync.Mutex
 	c := sync.NewCond(&m)
 	return &BufferedPipe{
-		buffer: bytes.NewBuffer(nil),
-		c:      c,
-		closed: false,
+		buffer:      bytes.NewBuffer(nil),
+		c:           c,
+		writeClosed: false,
 	}
 }
 
@@ -47,13 +47,13 @@ func NewBufferedPipe() *BufferedPipe {
 func (bp *BufferedPipe) Read(data []byte) (n int, err error) {
 	bp.c.L.Lock()
 	defer bp.c.L.Unlock()
+	defer bp.c.Broadcast()
 
-	// pipe closed, drop all left-over data
-	if bp.closed {
-		return 0, io.EOF
-	}
-	for bp.buffer.Len() == 0 && !bp.closed {
+	for bp.buffer.Len() == 0 && !bp.writeClosed {
 		bp.c.Wait()
+	}
+	if bp.buffer.Len() == 0 && bp.writeClosed {
+		return 0, io.EOF
 	}
 
 	return bp.buffer.Read(data)
@@ -63,20 +63,20 @@ func (bp *BufferedPipe) Read(data []byte) (n int, err error) {
 func (bp *BufferedPipe) Write(data []byte) (n int, err error) {
 	bp.c.L.Lock()
 	defer bp.c.L.Unlock()
-	defer bp.c.Signal()
+	defer bp.c.Broadcast()
 
-	if bp.closed {
+	if bp.writeClosed {
 		return 0, io.ErrUnexpectedEOF
 	}
 
 	return bp.buffer.Write(data)
 }
 
-// Close closes the pipe.
+// Close closes the pipe
 func (bp *BufferedPipe) Close() (err error) {
 	bp.c.L.Lock()
 	defer bp.c.L.Unlock()
-	defer bp.c.Signal()
-	bp.closed = true
+	defer bp.c.Broadcast()
+	bp.writeClosed = true
 	return nil
 }

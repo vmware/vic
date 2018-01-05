@@ -17,6 +17,7 @@ Documentation  Test 5-22 - NFS Volume
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  Setup ESX And NFS Suite
 Suite Teardown  Run Keyword And Ignore Error  NFS Volume Cleanup
+Test Teardown  Gather NFS Logs
 
 *** Variables ***
 ${nfsVolumeStore}=  nfsVolumeStore
@@ -98,25 +99,20 @@ Reboot VM and Verify Basic VCH Info
     Log To Console  Rebooting VCH\n - %{VCH-NAME}
     Reboot VM  %{VCH-NAME}
 
-    Log To Console  Getting VCH IP ...
-    ${new_vch_ip}=  Get VM IP  %{VCH-NAME}
-    Log To Console  New VCH IP is ${new_vch_ip}
-    ${updated_vch_ip}=  Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new_vch_ip}
-    Should Contain  %{VCH-PARAMS}  ${new_vch_ip}
-    Should Be Equal  ${updated_vch_ip}  %{VCH-PARAMS}
-
-    # wait for docker info to succeed
-    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+    Wait For VCH Initialization  24x
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${busybox}
 
-NFS Volume Cleanup
+Gather NFS Logs
     ${out}=  Run Keyword And Continue On Failure  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} dmesg
     Log  ${out}
     ${out}=  Run Keyword And Continue On Failure  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} dmesg
     Log  ${out}
+
+NFS Volume Cleanup
+    Gather NFS Logs
     Nimbus Cleanup  ${list}
 
 *** Test Cases ***
@@ -299,6 +295,7 @@ Docker Inspect Mount Data after Reboot
 
 
 Kill NFS Server
+    Sleep  5 minutes
     ${rc}  ${runningContainer}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo 'Still here...\n' >> /mydata/test_nfs_kill.txt; sleep 2; done"
     Should Be Equal As Integers  ${rc}  0
 

@@ -31,6 +31,19 @@
         "security": []
       }
     },
+    "/hello": {
+      "get": {
+        "summary": "Provide a welcome message",
+        "description": "The API server may deployed with self-signed certificates. JavaScript API clients may wish to direct users to this endpoint to view certificate validation errors in their browser.",
+        "produces": [
+          "text/plain"
+        ],
+        "responses": {
+          "200": { "$ref": "#/responses/hello" }
+        },
+        "security": []
+      }
+    },
     "/version": {
       "get": {
         "summary": "Show VIC version information",
@@ -759,6 +772,9 @@
                 },
                 "user": {
                   "type": "string"
+                },
+                "grant_permissions": {
+                  "type": "boolean"
                 }
               }
             }
@@ -962,6 +978,12 @@
     },
     "error-plain": {
       "description": "An error occurred",
+      "schema": {
+        "type": "string"
+      }
+    },
+    "hello": {
+      "description": "A static welcome message",
       "schema": {
         "type": "string"
       }

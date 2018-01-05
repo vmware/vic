@@ -40,10 +40,12 @@ import (
 	"github.com/vmware/vic/lib/config/dynamic"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/opsuser"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/registry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
+	"github.com/vmware/vic/pkg/vsphere/optmanager"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -309,7 +311,18 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	v.compute(op, input, conf)
 	v.storage(op, input, conf)
 	v.network(op, input, conf)
+	// FIXME ATC DEBT setting this value needs to be moved to Dispatcher
+	// https://github.com/vmware/vic/issues/6803
+	ok := v.CheckPersistNetworkBacking(op, true)
+	if !ok {
+		err := v.ConfigureVCenter(op)
+		if err != nil {
+			op.Errorf("%s", err)
+			op.Errorf("vCenter settings update FAILED")
+		}
+	}
 	v.CheckFirewall(op, conf)
+	v.CheckPersistNetworkBacking(op, false)
 	v.CheckLicense(op)
 	v.CheckDrs(op)
 
@@ -455,6 +468,23 @@ func (v *Validator) credentials(op trace.Operation, input *data.Data, conf *conf
 			conf.SetGrantPerms()
 		} else {
 			conf.ClearGrantPerms()
+		}
+	}
+
+	// If Grant Perms is set trying adding ReadOnly role to the Datacenter
+	// for the ops-user. This is necessary since the Login operation below
+	// fails if the ops-user has no permissions.
+	//
+	// FIXME DEBT.
+	// https://github.com/vmware/vic/issues/6870
+	// Notice that this operation should not be performed from the Validator.
+	// Eventually, this must be moved to the Dispatcher as the Validator
+	// should not modify VC configuration.
+	if conf.ShouldGrantPerms() {
+		err := opsuser.GrantDCReadOnlyPerms(v.Context, v.Session, conf)
+		if err != nil {
+			v.NoteIssue(fmt.Errorf("Failed to validate operations credentials: %s", err))
+			return
 		}
 	}
 
@@ -901,4 +931,29 @@ func (v *Validator) syslog(op trace.Operation, conf *config.VirtualContainerHost
 		Network: network,
 		RAddr:   host,
 	}
+}
+
+// FIXME ATC DEBT setting this value needs to be moved to Dispatcher
+// https://github.com/vmware/vic/issues/6803
+// set PersistNetworkBacking key to "true"
+func (v *Validator) ConfigureVCenter(ctx context.Context) error {
+	op := trace.FromContext(ctx, "Set vCenter serial port backing")
+	defer trace.End(trace.Begin("", op))
+
+	errMsg := "Set vCenter settings SKIPPED"
+	if !v.sessionValid(op, errMsg) {
+		return nil
+	}
+	if !v.IsVC() {
+		op.Debug(errMsg)
+		return nil
+	}
+
+	err := optmanager.UpdateOptionValue(ctx, v.Session, persistNetworkBackingKey, "true")
+	if err != nil {
+		msg := fmt.Sprintf("Failed to set required value \"true\" for %s: %s", persistNetworkBackingKey, err)
+		return errors.New(msg)
+	}
+	op.Infof("Set vCenter settings OK")
+	return nil
 }

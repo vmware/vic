@@ -23,6 +23,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/require"
@@ -34,10 +35,13 @@ import (
 	"github.com/vmware/govmomi/simulator/esx"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/opsuser"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/rbac"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -584,6 +588,19 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 	}
 }
 
+// TODO: vcsim should support UpdateOptions
+type testOptionManager struct {
+	*simulator.OptionManager
+}
+
+func (m *testOptionManager) UpdateOptions(req *types.UpdateOptions) soap.HasFault {
+	m.Setting = append(req.ChangedValue, m.Setting...)
+
+	return &methods.UpdateOptionsBody{
+		Res: new(types.UpdateOptionsResponse),
+	}
+}
+
 func TestValidateWithFolders(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
 	op := trace.NewOperation(context.Background(), "TestValidateWithFolders")
@@ -605,6 +622,9 @@ func TestValidateWithFolders(t *testing.T) {
 	m.Service.TLS = new(tls.Config)
 	s := m.Service.NewServer()
 	defer s.Close()
+
+	om := simulator.Map.Get(*m.ServiceContent.Setting).(*simulator.OptionManager)
+	simulator.Map.Put(&testOptionManager{om})
 
 	input := data.NewData()
 	input.URL = &url.URL{
@@ -905,4 +925,94 @@ func TestValidateWithESX(t *testing.T) {
 
 	simulator.Map.Remove(esx.Datacenter.Reference()) // goodnight now.
 	validator.suggestDatacenter(op)
+}
+
+func TestDCReadOnlyPermsFromConfigSimulatorVPX(t *testing.T) {
+	ctx := context.Background()
+	m := simulator.VPX()
+
+	m.Datacenter = 3
+	m.Folder = 2
+	m.Pool = 1
+	m.App = 1
+	m.Pod = 1
+
+	defer m.Remove()
+
+	err := m.Create()
+	require.NoError(t, err)
+
+	s := m.Service.NewServer()
+	defer s.Close()
+
+	fmt.Println(s.URL.String())
+
+	input := GetVcsimInputConfig(ctx, s.URL)
+	require.NotNil(t, input)
+	v, err := NewValidator(ctx, input)
+	require.NoError(t, err)
+	require.NotNil(t, v)
+	configSpec, err := v.VcsimValidate(ctx, input)
+	require.NoError(t, err)
+	require.NotNil(t, configSpec)
+
+	// Set up the Authz Manager
+	mgr := opsuser.NewRBACManager(ctx, v.Session.Vim25(), v.Session, &opsuser.DCReadOnlyConf, configSpec)
+
+	resourcePermission, err := mgr.SetupDCReadOnlyPermissions(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, resourcePermission)
+	resourcePermissions := []rbac.ResourcePermission{*resourcePermission}
+	require.True(t, len(mgr.AuthzManager.Config.Resources) >= len(resourcePermissions))
+
+	rbac.VerifyResourcePermissions(ctx, t, mgr.AuthzManager, resourcePermissions)
+}
+
+func TestOpsUserPermsFromConfigSimulatorVPX(t *testing.T) {
+	ctx := context.Background()
+	m := simulator.VPX()
+
+	m.Datacenter = 3
+	m.Folder = 2
+	m.Pool = 1
+	m.App = 1
+	m.Pod = 1
+
+	defer m.Remove()
+
+	err := m.Create()
+	require.NoError(t, err)
+
+	s := m.Service.NewServer()
+	defer s.Close()
+
+	fmt.Println(s.URL.String())
+
+	config := &session.Config{
+		Service:   s.URL.String(),
+		Insecure:  true,
+		Keepalive: time.Duration(5) * time.Minute,
+	}
+	sess, err := session.NewSession(config).Connect(ctx)
+	require.NoError(t, err)
+
+	input := GetVcsimInputConfig(ctx, s.URL)
+	require.NotNil(t, input)
+	v, err := NewValidator(ctx, input)
+	require.NoError(t, err)
+	require.NotNil(t, v)
+	configSpec, err := v.VcsimValidate(ctx, input)
+	require.NoError(t, err)
+	require.NotNil(t, configSpec)
+
+	// Set up the Authz Manager
+	mgr := opsuser.NewRBACManager(ctx, sess.Vim25(), nil, &opsuser.OpsuserRBACConf, configSpec)
+
+	resourcePermissions, err := mgr.SetupRolesAndPermissions(ctx)
+	require.NoError(t, err)
+	am := mgr.AuthzManager
+	defer rbac.Cleanup(ctx, t, am, true)
+	require.True(t, len(am.Config.Resources) >= len(resourcePermissions))
+
+	rbac.VerifyResourcePermissions(ctx, t, mgr.AuthzManager, resourcePermissions)
 }

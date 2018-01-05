@@ -74,4 +74,4 @@ Invalid ESXi Install Setup
 *** Test Cases ***
 Test
     ${out}=  Run  bin/vic-machine-linux create --target ${esx1-ip} --user root --password e2eFunctionalTest --no-tls --name VCH-invalid-test --force --timeout 30m
-    Should Contain  ${out}  Target is managed by vCenter server "${vc-ip}", please change --target to vCenter server address or select a standalone ESXi
+    Should Contain  ${out}  Target is managed by vCenter server \\"${vc-ip}\\", please change --target to vCenter server address or select a standalone ESXi

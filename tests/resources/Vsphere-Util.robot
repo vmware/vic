@@ -101,6 +101,12 @@ Get VM Info
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${out}
 
+Get VM Moid
+    [Arguments]  ${vm}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -dump -json ${vm} | jq -c '.VirtualMachines[] | .Self.Value'
+    Should Be Equal As Integers  ${rc}  0
+    [Return]  ${output}
+
 Check ImageStore
     ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls -R -ds=%{TEST_DATASTORE} %{VCH-NAME}/VIC
     Should Be Equal As Integers  ${rc}  0
@@ -112,6 +118,19 @@ vMotion A VM
     ${status}=  Run Keyword And Return Status  Should Contain  ${host}  ${esx1-ip}
     Run Keyword If  ${status}  Run  govc vm.migrate -host cls/${esx2-ip} -pool cls/Resources ${vm}
     Run Keyword Unless  ${status}  Run  govc vm.migrate -host cls/${esx1-ip} -pool cls/Resources ${vm}
+
+vMotion A VM And Wait
+    [Arguments]  ${vm}  ${attempts}  ${interval}
+    ${host}=  Get VM Host Name  ${vm}
+    ${status}=  Run Keyword And Return Status  Should Contain  ${host}  ${esx1-ip}
+    Run Keyword If  ${status}  Run  govc vm.migrate -host cls/${esx2-ip} -pool cls/Resources ${vm}
+    Run Keyword Unless  ${status}  Run  govc vm.migrate -host cls/${esx1-ip} -pool cls/Resources ${vm}
+    Wait Until Keyword Succeeds  ${attempts}  ${interval}  VM Host Has Changed  ${host}  ${vm}
+
+VM Host Has Changed
+    [Arguments]  ${oldHost}  ${vm}
+    ${curHost}=  Get VM Host Name  ${vm}
+    Should Not Be Equal  ${oldHost}  ${curHost}
 
 Create Test Server Snapshot
     [Arguments]  ${vm}  ${snapshot}
@@ -229,3 +248,21 @@ Check VM Guestinfo
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e ${vm} | grep ${str}
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${output}
+
+Get Session List
+    ${rc}  ${sessions}=  Run And Return Rc And Output  govc session.ls
+    Run Keyword If  ${rc} != 0  Fatal Error  The host appears to be in an unrecoverable state
+    [Return]  ${sessions}
+
+Get Hostd ID
+    [Tags]  secret
+    ${out}=  Run  sshpass -p $TEST_PASSWORD ssh $TEST_USERNAME@$TEST_URL "memstats -r group-stats | grep 'hostd '"
+    ${out}=  Strip String  ${out}
+    ${id}=  Fetch From Left  ${out}  ${SPACE}
+    [Return]  ${id}
+
+Get HostD Memory Consumption
+    [Tags]  secret
+    ${id}=  Get Hostd ID
+    ${out}=  Run  sshpass -p $TEST_PASSWORD ssh $TEST_USERNAME@$TEST_URL "memstats -r group-stats -v -g ${id} -s name:min:max:consumed -l 2"
+    [Return]  ${out}

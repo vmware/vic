@@ -752,7 +752,8 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 // stop. Returns an error if the container cannot be found, or if
 // there is an underlying error at any stage of the restart.
 func (c *Container) ContainerRestart(name string, seconds *int) error {
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "ContainerRestart - %s", name)
+	defer trace.End(trace.Begin(name, op))
 
 	// Look up the container name in the metadata cache ot get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -768,7 +769,7 @@ func (c *Container) ContainerRestart(name string, seconds *int) error {
 	}
 
 	operation = func() error {
-		return c.containerStart(name, nil, true)
+		return c.containerStart(op, name, nil, true)
 	}
 	if err := retry.Do(operation, IsConflictError); err != nil {
 		return InternalServerError(fmt.Sprintf("Start failed with: %s", err))
@@ -793,11 +794,14 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		return NotFoundError(name)
 	}
 	id := vc.ContainerID
+	secs := 0
+	running := false
 
 	// Use the force and stop the container first
-	secs := 0
 	if config.ForceRemove {
-		c.containerProxy.Stop(vc, name, &secs, true)
+		if err := c.ContainerStop(name, &secs); err != nil {
+			return err
+		}
 	} else {
 		state, err := c.containerProxy.State(vc)
 		if err != nil {
@@ -808,13 +812,16 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 			}
 			return InternalServerError(err.Error())
 		}
-		// force stop if container state is error to make sure container is deletable later
-		if state.Status == ContainerError {
+
+		switch state.Status {
+		case ContainerError:
+			// force stop if container state is error to make sure container is deletable later
 			c.containerProxy.Stop(vc, name, &secs, true)
-		}
-		// if we are starting let the user know they must use the force
-		if state.Status == "Starting" {
+		case "Starting":
+			// if we are starting let the user know they must use the force
 			return derr.NewRequestConflictError(fmt.Errorf("The container is starting.  To remove use -f"))
+		case ContainerRunning:
+			running = true
 		}
 
 		handle, err := c.Handle(id, name)
@@ -828,11 +835,17 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		}
 	}
 
-	if err := c.containerProxy.Remove(vc, config); err != nil {
-		return err
+	// Retry remove operation if container is not in running state.  If in running state, we only try
+	// once to prevent retries from degrading performance.
+	if !running {
+		operation := func() error {
+			return c.containerProxy.Remove(vc, config)
+		}
+
+		return retry.Do(operation, IsConflictError)
 	}
 
-	return nil
+	return c.containerProxy.Remove(vc, config)
 }
 
 // cleanupPortBindings gets port bindings for the container and
@@ -890,19 +903,21 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 
 // ContainerStart starts a container.
 func (c *Container) ContainerStart(name string, hostConfig *containertypes.HostConfig, checkpoint string, checkpointDir string) error {
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "ContainerStart - %s", name)
+	defer trace.End(trace.Begin(name, op))
 
 	operation := func() error {
-		return c.containerStart(name, hostConfig, true)
+		return c.containerStart(op, name, hostConfig, true)
 	}
 	if err := retry.Do(operation, IsConflictError); err != nil {
+		op.Debugf("Container start failed due to error - %s", err.Error())
 		return err
 	}
 
 	return nil
 }
 
-func (c *Container) containerStart(name string, hostConfig *containertypes.HostConfig, bind bool) error {
+func (c *Container) containerStart(op trace.Operation, name string, hostConfig *containertypes.HostConfig, bind bool) error {
 	var err error
 
 	// Get an API client to the portlayer
@@ -913,7 +928,12 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 	if vc == nil {
 		return NotFoundError(name)
 	}
+	if !vc.TryLock(APITimeout) {
+		return ConcurrentAPIError(name, "ContainerStart")
+	}
+	defer vc.Unlock()
 	id := vc.ContainerID
+	op.Debugf("Obtained container lock for %s", id)
 
 	// handle legacy hostConfig
 	if hostConfig != nil {
@@ -936,6 +956,8 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 	var endpoints []*models.EndpointConfig
 	// bind network
 	if bind {
+		op.Debugf("Binding network to container %s", id)
+
 		var bindRes *scopes.BindContainerOK
 		bindRes, err = client.Scopes.BindContainer(scopes.NewBindContainerParamsWithContext(ctx).WithHandle(handle))
 		if err != nil {
@@ -956,6 +978,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 		// unbind in case we fail later
 		defer func() {
 			if err != nil {
+				op.Debugf("Unbinding %s due to error - %s", id, err.Error())
 				client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle))
 			}
 		}()
@@ -969,6 +992,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 
 	// change the state of the container
 	// TODO: We need a resolved ID from the name
+	op.Debugf("Setting container %s state to running", id)
 	var stateChangeRes *containers.StateChangeOK
 	stateChangeRes, err = client.Containers.StateChange(containers.NewStateChangeParamsWithContext(ctx).WithHandle(handle).WithState("RUNNING"))
 	if err != nil {
@@ -995,6 +1019,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 
 			defer func() {
 				if err != nil {
+					op.Debugf("Unbinding ports for %s due to error - %s", id, err.Error())
 					UnmapPorts(id, hostConfig)
 				}
 			}()
@@ -1002,6 +1027,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 	}
 
 	// commit the handle; this will reconfigure and start the vm
+	op.Debugf("Commit container %s", id)
 	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
 	if err != nil {
 		switch err := err.(type) {
