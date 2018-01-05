@@ -51,6 +51,9 @@ const (
 	admiralEndpointKey = "guestinfo.vicova.admiral.endpoint"
 
 	clusterFilter = "(address eq '%s' and customProperties.__containerHostType eq 'VCH')"
+
+	// defaultVicRegistry is the query string to fetch the default VIC registry from Admiral
+	defaultVicRegistry = "default-vic-registry"
 )
 
 // #nosec
@@ -352,21 +355,18 @@ func (a *source) whitelist(ctx context.Context, c *client.Admiral, hostProjs []s
 		return nil, nil
 	}
 
-	regs, err := c.ConfigRegistries.GetConfigRegistries(config_registries.NewGetConfigRegistriesParamsWithContext(ctx).WithExpand(&trueStr))
+	regs, err := c.ConfigRegistries.GetConfigRegistriesID(config_registries.NewGetConfigRegistriesIDParamsWithContext(ctx).WithID(defaultVicRegistry))
 	if err != nil {
 		return nil, err
 	}
-
-	var wl []string
-	for _, r := range regs.Payload.Documents {
-		m := &models.ComVmwareAdmiralServiceCommonRegistryServiceRegistryState{}
-		if err := mapstructure.Decode(r, m); err != nil {
-			log.Warnf("skipping registry: %s", err)
-			continue
-		}
-
-		wl = append(wl, m.Address)
+	if regs.Payload == nil {
+		// No default VIC registry configured.
+		log.Warnf("no default VIC registry found despite content trust being enabled")
+		return nil, nil
 	}
+
+	m := regs.Payload
+	wl := []string{m.Address}
 
 	return wl, nil
 }

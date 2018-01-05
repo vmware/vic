@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
+	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -48,12 +49,12 @@ func (h *VCHListGet) Handle(params operations.GetTargetTargetVchParams, principa
 		computeResource: params.ComputeResource,
 	}
 
-	d, err := buildData(op, b, principal)
+	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	vchs, err := listVCHs(op, d)
+	vchs, err := listVCHs(op, d, validator)
 	if err != nil {
 		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -71,25 +72,20 @@ func (h *VCHDatacenterListGet) Handle(params operations.GetTargetTargetDatacente
 		computeResource: params.ComputeResource,
 	}
 
-	d, err := buildData(op, b, principal)
+	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
-		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	vchs, err := listVCHs(op, d)
+	vchs, err := listVCHs(op, d, validator)
 	if err != nil {
-		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	return operations.NewGetTargetTargetVchOK().WithPayload(operations.GetTargetTargetVchOKBody{Vchs: vchs})
 }
 
-func listVCHs(op trace.Operation, d *data.Data) ([]*models.VCHListItem, error) {
-	validator, err := validateTarget(op, d)
-	if err != nil {
-		return nil, util.WrapError(http.StatusBadRequest, err)
-	}
-
+func listVCHs(op trace.Operation, d *data.Data, validator *validate.Validator) ([]*models.VCHListItem, error) {
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 	vchs, err := executor.SearchVCHs(validator.ClusterPath)
 	if err != nil {

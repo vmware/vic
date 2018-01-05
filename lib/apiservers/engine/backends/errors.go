@@ -111,6 +111,10 @@ func StreamFormatNotRecognized() error {
 	return derr.NewRequestConflictError(fmt.Errorf("Stream format not recognized"))
 }
 
+func ConcurrentAPIError(name, request string) error {
+	return derr.NewRequestConflictError(fmt.Errorf("%s request is already in progress for container '%s'.", request, name))
+}
+
 // Error type check
 
 func IsNotFoundError(err error) bool {

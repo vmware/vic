@@ -140,27 +140,25 @@ var testInputConfigVPX = data.Data{
 	SyslogConfig:        data.SyslogConfig{},
 }
 
-func TestValidateForSim(ctx context.Context, URL *url.URL) (*config.VirtualContainerHostConfigSpec, error) {
+func GetVcsimInputConfig(ctx context.Context, URL *url.URL) *data.Data {
 	localInputConfig := testInputConfigVPX
-
+	// Fix the URL to point to vcsim
 	if URL != nil {
 		// Update the Host from the URL
 		localInputConfig.Target.URL.Host = URL.Host
 	}
-
-	v, err := NewValidator(ctx, &localInputConfig)
-	if err != nil {
-		return nil, err
-	}
-	defer v.Session.Logout(ctx)
-
-	return v.validateForSim(ctx, &localInputConfig)
+	// Copy the URL pointer
+	localInputConfig.Target = common.NewTarget()
+	*localInputConfig.Target = *testInputConfigVPX.Target
+	localInputConfig.Target.URL = new(url.URL)
+	*localInputConfig.Target.URL = *testInputConfigVPX.Target.URL
+	return &localInputConfig
 }
 
 // This method allows to perform validation of a configuration when
 // interacting with GO vmomi simulator, it skips some of the tests
 // that otherwise would fail (e.g. Firewall)
-func (v *Validator) validateForSim(ctx context.Context, input *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
+func (v *Validator) VcsimValidate(ctx context.Context, localInputConfig *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
 	op := trace.FromContext(ctx, "validateForSim")
 	log.Infof("Validating supplied configuration")
@@ -171,13 +169,13 @@ func (v *Validator) validateForSim(ctx context.Context, input *data.Data) (*conf
 		return conf, err
 	}
 
-	v.basics(op, input, conf)
+	v.basics(op, localInputConfig, conf)
 
-	v.target(op, input, conf)
-	v.credentials(op, input, conf)
-	v.compute(op, input, conf)
-	v.storage(op, input, conf)
-	v.network(op, input, conf)
+	v.target(op, localInputConfig, conf)
+	v.credentials(op, localInputConfig, conf)
+	v.compute(op, localInputConfig, conf)
+	v.storage(op, localInputConfig, conf)
+	v.network(op, localInputConfig, conf)
 	v.CheckLicense(op)
 	v.CheckDrs(op)
 
@@ -186,9 +184,9 @@ func (v *Validator) validateForSim(ctx context.Context, input *data.Data) (*conf
 	// Perform the higher level compatibility and consistency checks
 	v.compatibility(op, conf)
 
-	v.syslog(op, conf, input)
+	v.syslog(op, conf, localInputConfig)
 
-	pool, err := v.ResourcePoolHelper(op, input.ComputeResourcePath)
+	pool, err := v.ResourcePoolHelper(op, localInputConfig.ComputeResourcePath)
 	v.NoteIssue(err)
 
 	if pool == nil {
