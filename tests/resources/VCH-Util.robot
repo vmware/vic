@@ -48,7 +48,8 @@ Set Test Environment Variables
     ${server_date}=  Run  govc host.date.info
     Log To Console  \nTest_Server_Date=\n${server_date}\n
 
-    ${host}=  Run  govc ls host
+    ${rc}  ${host}=  Run And Return Rc And Output  govc ls host
+    Should Be Equal As Integers  ${rc}  0
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_RESOURCE
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_RESOURCE  ${host}/Resources
     Set Environment Variable  GOVC_RESOURCE_POOL  %{TEST_RESOURCE}
