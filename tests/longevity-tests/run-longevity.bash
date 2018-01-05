@@ -15,8 +15,29 @@
 #!/bin/bash
 pushd /home/$USER/vic/tests/longevity-tests
 set -e
-if [ $# -ne 1 ] && [ $# -ne 2 ]; then
-    echo "Usage: $0 target-cluster optional-harbor-version"
+
+while getopts ":s:h:" opt; do
+  case $opt in
+    s)
+      syslogAddress=$OPTARG
+      ;;
+    h)
+      harborVersion=$OPTARG
+      ;;
+    \?)
+      echo "Usage: $0 [-s <syslog endpoint>] [-h <harbor version>] target-cluster"
+      exit 1
+      ;;
+    :)
+      echo "Usage: $0 [-s <syslog endpoint>] [-h <harbor version>] target-cluster"
+      exit 1
+      ;;
+  esac
+done
+
+shift $((OPTIND-1))
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 [-s <syslog endpoint>] [-h <harbor version>] target-cluster"
     exit 1
 fi
 
@@ -47,8 +68,8 @@ odir="/home/$USER/vic-longevity-test-output-$(date -Iminute | sed 's/:/_/g')"
 
 # set up harbor if necessary
 if [[ $(docker ps | grep harbor) == "" ]]; then
-    if [[ $2 != "" ]]; then
-        hversion=$2
+    if [[ ${harborVersion} != "" ]]; then
+        hversion=${harborVersion}
     else
         hversion="1.2.0"
         echo "No Harbor version specified. Using default $hversion"
@@ -59,6 +80,11 @@ fi
 echo "Building container images...."
 docker build -q -t longevity-base -f Dockerfile.foundation .
 docker build -q -t tests-"$target" -f Dockerfile."${target}" .
+
+
+if [ ${syslogAddress} != "" ]; then
+    syslogVchOption="--syslog-address ${syslogAddress}"
+fi
 
 # remove old binaries
 pushd /home/$USER/vic
@@ -74,17 +100,18 @@ popd
 
 
 echo "Creating container..."
-testsContainer=$(docker create -it\
+testsContainer=$(docker create --rm -it\
                         -w /go/src/github.com/vmware/vic/ \
-                        -v "$odir":/tmp/ -e GOVC_URL="$ip" \
+                        -v "$odir":/tmp/ -e SYSLOG_VCH_OPTION="${syslogVchOption}" \
                         tests-"$target" \
                         bash -c \
-                        ". secrets && pybot -d /tmp/ /go/src/github.com/vmware/vic/tests/manual-test-cases/Group14-Longevity/14-1-Longevity.robot;\
+                        ". secrets && pybot -d /tmp/ /go/src/github.com/vmware/vic/tests/manual-test-cases/Group14-Longevity/14-1-Longevity.robot; rc=$?;\
                  mv *-container-logs.zip /tmp/ 2>/dev/null; \
                  mv VCH-*-vmware.log /tmp/ 2>/dev/null; \
                  mv vic-machine.log /tmp/ 2>/dev/null; \
                  mv index.html* /tmp/ 2>/dev/null; \
-                 mv VCH-* /tmp/ 2>/dev/null")
+                 mv VCH-* /tmp/ 2>/dev/null; \
+                 exit $rc")
 
 echo "Copying code and binaries into container...."
 docker cp /home/$USER/vic $testsContainer:/go/src/github.com/vmware/

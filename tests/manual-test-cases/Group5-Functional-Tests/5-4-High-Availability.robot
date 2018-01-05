@@ -209,7 +209,7 @@ Test
     Wait Until Keyword Succeeds  24x  10s  VM Host Has Changed  ${curHost}  %{VCH-NAME}
 
     # Wait for the VCH to come back up fully - if it's not completely reinitialized it will still report the old IP address 
-    Wait For VCH Initialization
+    Wait For VCH Initialization  12x  20 seconds
 
     ${info}=  Run  govc vm.info \\*
     Log  ${info}

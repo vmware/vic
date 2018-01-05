@@ -70,19 +70,6 @@ func TestEvented(t *testing.T) {
 	page := eventPage(3, LifeCycle)
 	evented(mgr, page)
 	assert.Equal(t, 3, callcount)
-
-	// non-lifecycle events, should be ignored
-	callcount = 0
-	page = eventPage(2, Reconfigure)
-	evented(mgr, page)
-	assert.Equal(t, 0, callcount)
-
-	// mixed events, ignore half
-	callcount = 0
-	page = eventPage(6, Mixed)
-	evented(mgr, page)
-	assert.Equal(t, 3, callcount)
-
 }
 
 func TestName(t *testing.T) {
@@ -95,6 +82,21 @@ func TestStart(t *testing.T) {
 	mgr := newCollector()
 	// start should fail as no objects registered
 	assert.Error(t, mgr.Start())
+}
+
+func TestEventTypes(t *testing.T) {
+	if len(eventTypes) != 9 {
+		t.Fatalf("eventTypes=%d", len(eventTypes))
+	}
+
+	f := types.TypeFunc()
+
+	for _, name := range eventTypes {
+		_, ok := f(name)
+		if !ok {
+			t.Errorf("unknown event type: %q", name)
+		}
+	}
 }
 
 func newCollector() *EventCollector {

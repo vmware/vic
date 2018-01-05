@@ -640,7 +640,7 @@ func (v *ImageStore) deleteImage(op trace.Operation, storeName, ID string) error
 
 // Find any image directories without the manifest file and remove them.
 func (v *ImageStore) cleanup(op trace.Operation, store *url.URL) error {
-	op.Infof("Checking for inconsistent images on %s", store.String())
+	defer trace.End(trace.Begin(fmt.Sprintf("Checking for inconsistent images on %s", store.String()), op))
 
 	storeName, err := util.ImageStoreName(store)
 	if err != nil {

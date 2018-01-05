@@ -130,6 +130,28 @@ pipeline:
       - rm $BIN/vic_ui_*.tar.gz
     when:
       status:  success
+      branch: [ master ]
+
+  vic-ui-release:
+    image: harbor.ci.drone.local/library/vic-integration-test:1.38
+    pull: true
+    environment:
+      BUILD_NUMBER: ${DRONE_BUILD_NUMBER}
+      BIN: bin
+      GS_PROJECT_ID: ${GS_PROJECT_ID}
+      GS_CLIENT_EMAIL: ${GS_CLIENT_EMAIL}
+      GS_PRIVATE_KEY: ${GS_PRIVATE_KEY}
+    commands:
+      - mkdir -p $BIN/ui
+      - export LATEST_VIC_UI_RELEASE="$(gsutil ls -l 'gs://vic-ui-releases' | grep -v TOTAL | grep vic_ | sort -k2 -r | (trap ' ' PIPE; head -1))"
+      - export VIC_UI_URL=$(echo $LATEST_VIC_UI_RELEASE | xargs | cut -d " " -f 3 | sed "s/gs:\/\//https:\/\/storage.googleapis.com\//")
+      - wget -nv $VIC_UI_URL -P $BIN
+      - tar -xvzf $BIN/vic_ui_*.tar.gz
+      - ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1
+      - rm $BIN/vic_ui_*.tar.gz
+    when:
+      status:  success
+      branch: [ releases/*, refs/tags/* ]
 
   bundle:
     image: harbor.ci.drone.local/library/golang:1.8
@@ -179,31 +201,6 @@ pipeline:
       branch: [ master, releases/* ]
       status: success
 
-  publish-vic-machine-server-on-pass:
-    image: plugins/gcr
-    repo: eminent-nation-87317/vic-machine-server
-    dockerfile: cmd/vic-machine-server/Dockerfile
-    tags:
-      - latest
-    json_key: >
-      {
-        "type": "service_account",
-        "project_id": "${GS_PROJECT_ID}",
-        "private_key_id": "${GS_PRIVATE_KEY_ID}",
-        "private_key": "${GS_PRIVATE_KEY}",
-        "client_email": "${GS_CLIENT_EMAIL}",
-        "client_id": "${GS_PROJECT_ID}",
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://accounts.google.com/o/oauth2/token",
-        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-        "client_x509_cert_url": ""
-      }
-    when:
-      repo: vmware/vic
-      event: [ push ]
-      branch: [ master, releases/* ]
-      status: success
-
   publish-gcs-builds-on-fail:
     image: maplain/drone-gcs:latest
     pull: true
@@ -232,18 +229,55 @@ pipeline:
       branch: [ refs/tags/* ]
       status: success
 
-  #  publish-vic-machine-server-releases:
-  #    image: plugins/gcr
-  #    repo: eminent-nation-87317/vic-machine-server
-  #    dockerfile: cmd/vic-machine-server/Dockerfile
-  #    tags:
-  #      - latest
-  #      - TODO GIT TAG VER
-  #    when:
-  #      repo: vmware/vic
-  #      event: [ push, tag ]
-  #      branch: [ refs/tags/* ]
-  #      status: success
+  publish-vic-machine-server-dev:
+    image: plugins/gcr
+    repo: eminent-nation-87317/vic-machine-server
+    dockerfile: cmd/vic-machine-server/Dockerfile
+    tags:
+      - dev
+    json_key: >
+      {
+        "type": "service_account",
+        "project_id": "${GS_PROJECT_ID}",
+        "private_key_id": "${GS_PRIVATE_KEY_ID}",
+        "private_key": "${GS_PRIVATE_KEY}",
+        "client_email": "${GS_CLIENT_EMAIL}",
+        "client_id": "${GS_PROJECT_ID}",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://accounts.google.com/o/oauth2/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": ""
+      }
+    when:
+      repo: vmware/vic
+      event: [ push ]
+      branch: [ master ]
+      status: success
+
+  publish-vic-machine-server-releases:
+    image: plugins/gcr
+    repo: eminent-nation-87317/vic-machine-server
+    dockerfile: cmd/vic-machine-server/Dockerfile
+    tags:
+      - latest
+    json_key: >
+      {
+        "type": "service_account",
+        "project_id": "${GS_PROJECT_ID}",
+        "private_key_id": "${GS_PRIVATE_KEY_ID}",
+        "private_key": "${GS_PRIVATE_KEY}",
+        "client_email": "${GS_CLIENT_EMAIL}",
+        "client_id": "${GS_PROJECT_ID}",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://accounts.google.com/o/oauth2/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": ""
+      }
+    when:
+      repo: vmware/vic
+      event: [ push, tag ]
+      branch: [ refs/tags/*, releases/* ]
+      status: success
 
   trigger-downstream:
     image: plugins/downstream
@@ -258,14 +292,14 @@ pipeline:
       branch: [ master, releases/*, refs/tags/* ]
       status: success
 
-  report-coverage:
-    image: plugins/coverage
-    server: https://coverage.vmware.run
-    pattern: .cover/cover.out
-    when:
-      branch: [ master, releases/*, refs/tags/* ]
-      repo: vmware/vic
-      status: success
+#  report-coverage:
+#    image: plugins/coverage
+#    server: https://coverage.vmware.run
+#    pattern: .cover/cover.out
+#    when:
+#      branch: [ master, releases/*, refs/tags/* ]
+#      repo: vmware/vic
+#      status: success
 
   notify-slack-on-fail:
     image: plugins/slack

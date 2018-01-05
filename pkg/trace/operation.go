@@ -226,7 +226,11 @@ func opID(opNum uint64) string {
 
 // NewOperation will return a new operation with operationID added as a value to the context
 func NewOperation(ctx context.Context, format string, args ...interface{}) Operation {
-	return newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, fmt.Sprintf(format, args...))
+	o := newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, fmt.Sprintf(format, args...))
+
+	frame := o.t[0]
+	o.Debugf("[NewOperation] %s [%s:%d]", o.header(), frame.funcName, frame.lineNo)
+	return o
 }
 
 // NewOperationWithLoggerFrom will return a new operation with operationID added as a value to the

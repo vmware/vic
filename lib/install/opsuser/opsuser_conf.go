@@ -12,13 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package management
+package opsuser
 
 import (
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/vsphere/rbac"
 )
 
-var rolePrefix = "vic-vch-"
+var vchRolePrefix = "vic-vch-"
+
+// Pre-existing ReadOnly Role, no need to specify the privileges
+var RoleReadOnly = types.AuthorizationRole{
+	Name:      "ReadOnly",
+	Privilege: []string{},
+}
 
 var RoleVCenter = types.AuthorizationRole{
 	Name: "vcenter",
@@ -96,46 +103,56 @@ var RoleEndpoint = types.AuthorizationRole{
 	},
 }
 
-// Configuration for the ops-user
-var OpsUserRBACConf = RBACConfig{
-	Resources: []RBACResource{
+var DCReadOnlyConf = rbac.Config{
+	Resources: []rbac.Resource{
 		{
-			Type:      VCenter,
+			Type:      rbac.DatacenterReadOnly,
+			Propagate: false,
+			Role:      RoleReadOnly,
+		},
+	},
+}
+
+// Configuration for the ops-user
+var OpsuserRBACConf = rbac.Config{
+	Resources: []rbac.Resource{
+		{
+			Type:      rbac.VCenter,
 			Propagate: false,
 			Role:      RoleVCenter,
 		},
 		{
-			Type:      Datacenter,
+			Type:      rbac.Datacenter,
 			Propagate: true,
 			Role:      RoleDataCenter,
 		},
 		{
-			Type:      Cluster,
+			Type:      rbac.Cluster,
 			Propagate: true,
 			Role:      RoleDataStore,
 		},
 		{
-			Type:      DatastoreFolder,
+			Type:      rbac.DatastoreFolder,
 			Propagate: true,
 			Role:      RoleDataStore,
 		},
 		{
-			Type:      Datastore,
+			Type:      rbac.Datastore,
 			Propagate: false,
 			Role:      RoleDataStore,
 		},
 		{
-			Type:      VSANDatastore,
+			Type:      rbac.VSANDatastore,
 			Propagate: false,
 			Role:      RoleDataStore,
 		},
 		{
-			Type:      Network,
+			Type:      rbac.Network,
 			Propagate: true,
 			Role:      RoleNetwork,
 		},
 		{
-			Type:      Endpoint,
+			Type:      rbac.Endpoint,
 			Propagate: true,
 			Role:      RoleEndpoint,
 		},
