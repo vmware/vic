@@ -74,10 +74,10 @@ pipeline:
      token: ${CODECOV_TOKEN}
      files:
        - .cover/cover.out
-    when:
-      branch: [ master, releases/*, refs/tags/* ]
-      repo: vmware/vic
-      status: success
+     when:
+       branch: [ master, releases/*, refs/tags/* ]
+       repo: vmware/vic
+       status: success
 
   vic-integration-test-on-pr:
     image: harbor.ci.drone.local/library/vic-integration-test:1.38
