@@ -298,7 +298,6 @@ pipeline:
      files:
        - .cover/cover.out
      when:
-       branch: [ master, releases/*, refs/tags/* ]
        repo: vmware/vic
        status: success
 
