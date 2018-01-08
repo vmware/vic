@@ -71,7 +71,7 @@ pipeline:
 
   report-coverage:
      image: robertstettner/drone-codecov
-     token: ${DRONE_TOKEN}
+     token: ${CODECOV_TOKEN}
      files:
        - .cover/cover.out
     when:
