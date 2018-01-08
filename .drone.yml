@@ -69,6 +69,16 @@ pipeline:
     when:
       status:  success
 
+  report-coverage:
+     image: robertstettner/drone-codecov
+     token: ${DRONE_TOKEN}
+     files:
+       - .cover/cover.out
+    when:
+      branch: [ master, releases/*, refs/tags/* ]
+      repo: vmware/vic
+      status: success
+
   vic-integration-test-on-pr:
     image: harbor.ci.drone.local/library/vic-integration-test:1.38
     pull: true
@@ -291,15 +301,6 @@ pipeline:
       event: [ push, tag ]
       branch: [ master, releases/*, refs/tags/* ]
       status: success
-
-#  report-coverage:
-#    image: plugins/coverage
-#    server: https://coverage.vmware.run
-#    pattern: .cover/cover.out
-#    when:
-#      branch: [ master, releases/*, refs/tags/* ]
-#      repo: vmware/vic
-#      status: success
 
   notify-slack-on-fail:
     image: plugins/slack
