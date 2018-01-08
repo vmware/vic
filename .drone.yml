@@ -75,8 +75,8 @@ pipeline:
      files:
        - .cover/cover.out
      when:
-       branch: [ master, releases/*, refs/tags/* ]
-       repo: vmware/vic
+#       branch: [ master, releases/*, refs/tags/* ]
+#       repo: vmware/vic
        status: success
 
   vic-integration-test-on-pr:
