@@ -24,6 +24,7 @@ Default Tags
 *** Keywords ***
 Get Version
     Get Path    version
+    Verify Return Code
 
 Get Hello
     Get Path    hello
@@ -40,11 +41,8 @@ Verify Hello
 
 *** Test Cases ***
 Get Version
-    Sleep    1s    for service to start
+    Wait Until Keyword Succeeds  5x  1s  Get Version 
 
-    Get Version
-
-    Verify Return Code
     Verify Status Ok
     Verify Version
 
