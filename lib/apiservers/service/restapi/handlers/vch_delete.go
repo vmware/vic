@@ -103,8 +103,7 @@ func deleteVCH(op trace.Operation, d *data.Data, validator *validate.Validator, 
 	// compare vch version and vic-machine version
 	installerBuild := version.GetBuild()
 	if vchConfig.Version == nil || !installerBuild.Equal(vchConfig.Version) {
-		err = fmt.Errorf("VCH version %q is different than API version %s", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
-		return util.WrapError(http.StatusBadRequest, err)
+		op.Debugf("VCH version %q is different than API version %s", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
 	}
 
 	deleteContainers, deleteVolumeStores := fromDeletionSpecification(specification)
