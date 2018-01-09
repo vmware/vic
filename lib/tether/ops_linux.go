@@ -878,6 +878,7 @@ WaitForDevice:
 func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target string, mountOptions string) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", source.String(), target)))
 
+	// #nosec
 	if err := os.MkdirAll(target, 0755); err != nil {
 		// same as MountLabel error for consistency
 		return fmt.Errorf("unable to create mount point %s: %s", target, err)
@@ -915,6 +916,7 @@ func (t *BaseOperations) CopyExistingContent(source string) error {
 	}
 
 	log.Debugf("creating directory %s", bind)
+	// #nosec
 	if err := os.MkdirAll(bind, 0755); err != nil {
 		log.Errorf("error creating directory %s: %+v", bind, err)
 		return err
