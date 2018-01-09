@@ -47,7 +47,7 @@ rc="$?"
 timestamp=$(date +%s)
 outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT".zip"
 
-zip -9 $outfile output.xml log.html report.html package.list *container-logs.zip *.log /var/log/vic-machine-server/vic-machine-server.log 
+zip -9 -j $outfile output.xml log.html report.html package.list *container-logs.zip *.log /var/log/vic-machine-server/vic-machine-server.log 
 
 # GC credentials
 keyfile="/root/vic-ci-logs.key"
