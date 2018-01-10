@@ -186,10 +186,14 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		// output should just be trace messages
 		op.Debugf("%s", string(out))
 	}
+
 	if err != nil {
 		op.Errorf("Command returned error %s", err.Error())
+		return err
 	}
 
+	// This error gets logged by the goroutine if it is non-nil.
+	// This receive is just functioning as a wait
 	err = <-done
 	return err
 }
