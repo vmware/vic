@@ -47,6 +47,7 @@ const (
 // - strip : The strip string will indicate the
 // - exlude : marks paths that are to be excluded from the write
 // - rebase : marks the the write path that will be tacked onto (appended or prepended? TODO improve this comment) the "root". e.g /tmp/unpack + /my/target/path = /tmp/unpack/my/target/path
+// N.B. tarStream MUST BE TERMINATED WITH EOF or this function will hang forever!
 func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string) error {
 	op.Debugf("unpacking archive to root: %s, filter: %+v", root, filter)
 
@@ -188,6 +189,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 	}
 
 	if err != nil {
+		stdin.Close()
 		op.Errorf("Command returned error %s", err.Error())
 		return err
 	}
