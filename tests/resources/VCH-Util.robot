@@ -365,21 +365,24 @@ Portlayer Log Should Match Regexp
     Should Be Equal As Integers  ${rc}  0
 
 Gather Logs From Test Server
-    [Tags]  secret
     [Arguments]  ${name-suffix}=${EMPTY}
-
     Run Keyword And Continue On Failure  Run  zip %{VCH-NAME}-certs -r %{VCH-NAME}
-    ${out}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
-    Log  ${out}
-    ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs${name-suffix}.zip
-    Log  ${out}
-    Remove File  vic-admin-cookies
+    Secret Curl Container Logs  ${name-suffix}
     ${host}=  Get VM Host Name  %{VCH-NAME}
     ${out}=  Run  govc datastore.download -host ${host} %{VCH-NAME}/vmware.log %{VCH-NAME}-vmware${name-suffix}.log
     Should Contain  ${out}  OK
     ${out}=  Run  govc datastore.download -host ${host} %{VCH-NAME}/tether.debug %{VCH-NAME}-tether${name-suffix}.debug
     Should Contain  ${out}  OK
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc logs -log=vmkernel -n=10000 > vmkernel${name-suffix}.log
+
+Secret Curl Container Logs
+    [Tags]  secret
+    [Arguments]  ${name-suffix}=${EMPTY}
+    ${out}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
+    Log  ${out}
+    ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs${name-suffix}.zip
+    Log  ${out}
+    Remove File  vic-admin-cookies
 
 Check For The Proper Log Files
     [Arguments]  ${container}
