@@ -814,7 +814,7 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 	if err != nil {
 		if os.IsNotExist(err) {
 			// if there's not such directory then revert to using the device directly
-			log.Info("No " + volumeDataDir + " data directory in volume, mounting filesystem directly")
+			log.Info("No %s data directory in volume, mounting filesystem directly", volumeDataDir)
 			mntsrc = label
 			mnttype = ext4FileSystemType
 			mntflags = syscall.MS_NOATIME
@@ -838,8 +838,17 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 		uid := int(sys.Uid)
 		gid := int(sys.Gid)
 
+		log.Debugf("Setting target uid/gid to the mount source as %d/%d", uid, gid)
 		if err := os.Chown(target, uid, gid); err != nil {
 			return fmt.Errorf("unable to change the owner of the mount point %s: %s", target, err)
+		}
+
+		log.Debugf("Setting target %s permissions to the mount source as: %#o",
+			target, fi.Mode())
+		if err := os.Chmod(target, fi.Mode()); err != nil {
+			return fmt.Errorf("failed to set target %s mount permissions as %#o: %s",
+				target, fi.Mode(), err)
+
 		}
 	}
 	return nil
