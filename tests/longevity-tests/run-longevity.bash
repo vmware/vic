@@ -61,7 +61,7 @@ fi
 target="$1"
 
 # set an output directory
-odir="vic-longevity-test-output-$(date -Iminute | sed 's/:/_/g')"
+odir=$PWD"-longevity-test-output-$(date -Iminute | sed 's/:/_/g')"
 
 
 # set up harbor if necessary
@@ -97,7 +97,7 @@ rmdir bin/vic
 echo "Creating container..."
 testsContainer=$(docker create --rm -it\
                         -w /go/src/github.com/vmware/vic/ \
-                        -v $PWD"$odir":/tmp/ -e SYSLOG_VCH_OPTION="${syslogVchOption}" \
+                        -v "$odir":/tmp/ -e SYSLOG_VCH_OPTION="${syslogVchOption}" \
                         tests-"$target" \
                         bash -c \
                         ". secrets && pybot -d /tmp/ /go/src/github.com/vmware/vic/tests/manual-test-cases/Group14-Longevity/14-1-Longevity.robot; rc=$?;\
