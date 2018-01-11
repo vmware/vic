@@ -82,7 +82,7 @@ docker build -q -t longevity-base -f Dockerfile.foundation .
 docker build -q -t tests-"$target" -f Dockerfile."${target}" .
 popd
 
-if [ ${syslogAddress} != "" ]; then
+if [[ ${syslogAddress} != "" ]]; then
     syslogVchOption="--syslog-address ${syslogAddress}"
 fi
 
