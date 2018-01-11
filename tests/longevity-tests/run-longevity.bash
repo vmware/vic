@@ -88,6 +88,7 @@ fi
 
 input=$(gsutil ls -l gs://vic-engine-builds/vic_* | grep -v TOTAL | sort -k2 -r | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
 echo "Downloading VIC build $input..."
+rmdir bin
 mkdir -p bin
 wget -P bin https://storage.googleapis.com/vic-engine-builds/$input -qO - | tar xz -C bin
 mv bin/vic/* bin
@@ -96,7 +97,7 @@ rmdir bin/vic
 echo "Creating container..."
 testsContainer=$(docker create --rm -it\
                         -w /go/src/github.com/vmware/vic/ \
-                        -v "$odir":/tmp/ -e SYSLOG_VCH_OPTION="${syslogVchOption}" \
+                        -v $PWD"$odir":/tmp/ -e SYSLOG_VCH_OPTION="${syslogVchOption}" \
                         tests-"$target" \
                         bash -c \
                         ". secrets && pybot -d /tmp/ /go/src/github.com/vmware/vic/tests/manual-test-cases/Group14-Longevity/14-1-Longevity.robot; rc=$?;\
