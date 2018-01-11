@@ -78,9 +78,10 @@ if [[ $(docker ps | grep harbor) == "" ]]; then
 fi
 
 echo "Building container images...."
-docker build -q -t longevity-base -f tests/longevity/Dockerfile.foundation .
-docker build -q -t tests-"$target" -f tests/longevity/Dockerfile."${target}" .
-
+pushd tests/longevity
+docker build -q -t longevity-base -f Dockerfile.foundation .
+docker build -q -t tests-"$target" -f Dockerfile."${target}" .
+popd
 
 if [ ${syslogAddress} != "" ]; then
     syslogVchOption="--syslog-address ${syslogAddress}"
