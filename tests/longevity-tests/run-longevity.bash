@@ -109,6 +109,7 @@ testsContainer=$(docker create --rm -it\
                  exit $rc")
 
 echo "Copying code and binaries into container...."
+cd ..
 docker cp vic $testsContainer:/go/src/github.com/vmware/
 
 echo "Running tests.."
