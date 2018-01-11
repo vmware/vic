@@ -21,6 +21,7 @@ Test Teardown  Cleanup VIC Appliance On Test Server
 
 *** Keywords ***
 Non vSphere Local Cluster Install Setup
+    [Timeout]    110 minutes    Setup appears to have hung for more than 110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
 
     Log To Console  \nStarting simple VC cluster deploy...

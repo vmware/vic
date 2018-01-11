@@ -29,6 +29,7 @@ Combine Dictionaries
     [Return]  ${dict1}
 
 Multiple Datacenter Setup
+    [Timeout]    110 minutes    Setup appears to have hung for more than 110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     &{esxes}=  Create Dictionary
     ${num_of_esxes}=  Evaluate  2

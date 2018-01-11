@@ -20,6 +20,7 @@ Resource  ../../resources/Util.robot
 
 *** Keywords ***
 SDRS Datastore Setup
+    [Timeout]    110 minutes    Setup appears to have hung for more than 110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     {out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --customizeTestbed '/esx desiredPassword=e2eFunctionalTest' --noSupportBundles --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-sdrs-fc-fullInstall-vcva --runName vic-fc
     Set Suite Variable  @{list}  %{NIMBUS_USER}-vic-fc.vcva-${VC_VERSION}  %{NIMBUS_USER}-vic-fc.esx.0  %{NIMBUS_USER}-vic-fc.esx.1  %{NIMBUS_USER}-vic-fc.fc.0

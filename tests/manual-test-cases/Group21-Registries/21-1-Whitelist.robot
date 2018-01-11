@@ -22,6 +22,7 @@ Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
 *** Keywords ***
 Simple ESXi Setup
+    [Timeout]    110 minutes    Setup appears to have hung for more than 110 minutes
     ${esx}  ${esx-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  @{list}  ${esx}
 
