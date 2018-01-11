@@ -924,10 +924,7 @@ func (c *ContainerProxy) UnbindContainerFromNetwork(vc *viccontainer.VicContaine
 func (c *ContainerProxy) GetStateFromHandle(op trace.Operation, handle string) (string, string, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", handle), op))
 
-	params := &containers.GetStateParams{
-		Handle: handle,
-	}
-
+	params := containers.NewGetStateParams().WithHandle(handle)
 	resp, err := c.client.Containers.GetState(params)
 	if err != nil {
 		switch err := err.(type) {
