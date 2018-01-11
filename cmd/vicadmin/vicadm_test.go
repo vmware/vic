@@ -253,6 +253,7 @@ func testSeek(t *testing.T, st seekTest, td string) {
 	log.Printf("Successfully seeked to position %d", st.output)
 	os.Remove(f.Name())
 }
+
 func TestFindSeekPos(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.SkipNow()

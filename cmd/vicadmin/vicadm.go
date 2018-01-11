@@ -472,6 +472,26 @@ func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 
 			log.Debugf("Added log file for collection: %s", logfile.URL.String())
 		}
+
+		f := logfile.VMName
+		if !c.IsVC() {
+			f = logfile.URL.Path
+		}
+
+		// get the vmx and vmsd files
+		for _, ext := range []string{"vmx", "vmsd"} {
+			rpath := fmt.Sprintf("%s/%s.%s", logfile.URL.Path, f, ext)
+			wpath := fmt.Sprintf("%s/%s.%s", logfile.VMName, f, ext)
+			log.Infof("Processed File read Path : %s", rpath)
+			log.Infof("Processed File write Path : %s", wpath)
+			readers[wpath] = datastoreReader{
+				ds:   ds,
+				path: rpath,
+				ctx:  hCtx,
+			}
+
+			log.Debugf("Added log file for collection: %s", logfile.URL.String())
+		}
 	}
 
 	return readers, nil
