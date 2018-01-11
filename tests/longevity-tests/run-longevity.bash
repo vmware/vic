@@ -78,8 +78,8 @@ if [[ $(docker ps | grep harbor) == "" ]]; then
 fi
 
 echo "Building container images...."
-docker build -q -t longevity-base -f Dockerfile.foundation .
-docker build -q -t tests-"$target" -f Dockerfile."${target}" .
+docker build -q -t longevity-base -f tests/longevity/Dockerfile.foundation .
+docker build -q -t tests-"$target" -f tests/longevity/Dockerfile."${target}" .
 
 
 if [ ${syslogAddress} != "" ]; then
