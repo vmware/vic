@@ -31,7 +31,7 @@ Get Hello
 
 
 Verify Version
-    Output Should Match Regexp    v\\d+\\.\\d+\\.\\d+-\\w+-\\d+-[a-f0-9]+
+    Output Should Match Regexp    v\\d+\\.\\d+\\.\\d+-(\\w+-)?\\d+-[a-f0-9]+
     Output Should Not Contain     "
 
 Verify Hello
