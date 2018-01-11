@@ -78,7 +78,7 @@ if [[ $(docker ps | grep harbor) == "" ]]; then
 fi
 
 echo "Building container images...."
-pushd tests/longevity
+pushd tests/longevity-tests
 docker build -q -t longevity-base -f Dockerfile.foundation .
 docker build -q -t tests-"$target" -f Dockerfile."${target}" .
 popd
