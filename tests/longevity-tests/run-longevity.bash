@@ -88,7 +88,7 @@ fi
 
 input=$(gsutil ls -l gs://vic-engine-builds/vic_* | grep -v TOTAL | sort -k2 -r | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
 echo "Downloading VIC build $input..."
-rmdir bin
+rm -rf bin
 mkdir -p bin
 wget -P bin https://storage.googleapis.com/vic-engine-builds/$input -qO - | tar xz -C bin
 mv bin/vic/* bin
