@@ -20,7 +20,7 @@ Resource  ../../resources/Util.robot
 
 *** Test Cases ***
 Restore Container Starting State on Restart
-    [Timeout]    110 minutes    Setup appears to have hung for more than 110 minutes
+    [Timeout]    110 minutes
     Pass Execution  Not sure why this test case is here, but it needs to be re-implemented to work in Nimbus
 	# enable firewall
 	Run  govc host.esxcli network firewall set -e true

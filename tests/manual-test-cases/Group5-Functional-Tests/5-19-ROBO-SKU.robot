@@ -20,7 +20,7 @@ Resource  ../../resources/Util.robot
 
 *** Keywords ***
 ROBO SKU Setup
-    [Timeout]    110 minutes    Setup appears to have hung for more than 110 minutes
+    [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${ESX1}  ${esx1}
