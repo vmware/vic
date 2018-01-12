@@ -161,6 +161,12 @@ func main() {
 		}
 	}()
 
+	// When writing log files (vic-machine.log and the datastore log), always log at debug.
+	defer func(old log.Level) {
+		trace.Logger.Level = old
+	}(trace.Logger.Level)
+	trace.Logger.Level = log.DebugLevel
+
 	// #nosec: Errors unhandled.
 	app.Run(os.Args)
 }

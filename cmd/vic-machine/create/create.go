@@ -25,7 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/cmd/vic-machine/common"
@@ -680,12 +679,6 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	// These operations will be executed without timeout
 	op := common.NewOperation(clic, c.Debug.Debug)
 	op.Infof("### Installing VCH ####")
-
-	// When writing creation log files (vic-machine.log and the datastore log), always log at debug.
-	defer func(old logrus.Level) {
-		trace.Logger.Level = old
-	}(trace.Logger.Level)
-	trace.Logger.Level = logrus.DebugLevel
 
 	defer func() {
 		// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
