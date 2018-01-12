@@ -216,7 +216,7 @@ func (s *Scope) RemoveContainer(con *Container) error {
 	s.Lock()
 	defer s.Unlock()
 
-	op := trace.NewOperation(context.Background(), "Remove container from the scope")
+	op := trace.NewOperation(context.Background(), "Removing container from the scope")
 
 	c, ok := s.containers[con.id]
 	if !ok || c != con {
@@ -238,7 +238,7 @@ func (s *Scope) RemoveContainer(con *Container) error {
 	s.endpoints = removeEndpointHelper(e, s.endpoints)
 	c.removeEndpoint(e)
 
-	op.Debugf("Container %s successfully removed from the scope %s(%s)", con.id, s.name, s.id)
+	op.Debugf("Container %s removed from the scope %s(%s)", con.id, s.name, s.id)
 
 	return nil
 }
