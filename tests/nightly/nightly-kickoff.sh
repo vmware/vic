@@ -34,6 +34,7 @@ nightly_list_var="5-1-Distributed-Switch \
 5-21-Datastore-Path \
 5-22-NFS-Volume \
 5-24-Non-vSphere-Local-Cluster \
+5-25-OPS-User-Grant \
 13-1-vMotion-VCH-Appliance \
 13-2-vMotion-Container \
 21-1-Whitelist \
