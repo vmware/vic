@@ -130,7 +130,7 @@ func getDatastoreHelper(op trace.Operation, d *data.Data, validator *validate.Va
 
 // getAllLogs downloads all log files in datastore and concatenates the content
 func getAllLogs(op trace.Operation, helper *datastore.Helper) (string, error) {
-	res, err := helper.Ls(op, "", []string{vchlog.LogFilePrefix + "*" + vchlog.LogFileSuffix}...)
+	res, err := helper.Ls(op, "", vchlog.LogFilePrefix + "*" + vchlog.LogFileSuffix)
 	if err != nil {
 		return "", fmt.Errorf("Unable to list vic-machine log files in datastore: %s", err)
 	}
