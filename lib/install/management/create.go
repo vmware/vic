@@ -242,8 +242,8 @@ func (d *Dispatcher) cleanupEmptyPool(conf *config.VirtualContainerHostConfigSpe
 	err = d.destroyResourcePoolIfEmpty(conf)
 	if err != nil {
 		d.op.Errorf("Failed to clean up dangling VCH resource pool: %s", err)
-		return 
-	} 
+		return
+	}
 
 	d.op.Info("Successfully cleaned up dangling resource pool.")
 }
@@ -256,7 +256,7 @@ func (d *Dispatcher) cleanupBridgeNetwork(conf *config.VirtualContainerHostConfi
 
 	if err := d.removeNetwork(conf); err != nil {
 		d.op.Errorf("Clean up dangling bridge network returns error: %s", err)
-		return 
+		return
 	}
 
 	d.op.Info("Successfully cleaned up dangling bridge network.")
