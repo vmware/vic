@@ -967,7 +967,7 @@ func (c *Context) UnbindContainer(op trace.Operation, h *exec.Handle) ([]*Endpoi
 	op.Debugf("Trying to unbind container: %s", h.ExecConfig.ID)
 	con, err := c.container(h)
 	if err != nil {
-		op.Debugf("Could not get container %s by handle %s", h.String(), h.ExecConfig.ID)
+		op.Debugf("Could not get container %s by handle %s: %s", h.String(), h.ExecConfig.ID, err)
 		if _, ok := err.(ResourceNotFoundError); ok {
 			return nil, nil // not bound
 		}
