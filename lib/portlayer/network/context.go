@@ -524,6 +524,9 @@ func (c *Context) NewScope(ctx context.Context, scopeData *ScopeData) (*Scope, e
 	if err != nil {
 		return nil, err
 	}
+
+	log.Debugf("New scope has been created %s: %s", s.name, s.id)
+
 	defer func() {
 		if err != nil {
 			c.deleteScope(s)
@@ -957,12 +960,14 @@ func (c *Context) RemoveIDFromScopes(op trace.Operation, id string) ([]*Endpoint
 // UnbindContainer removes the container from the scopes and clears out the assigned IP
 // Because of that, it requires a handle
 func (c *Context) UnbindContainer(op trace.Operation, h *exec.Handle) ([]*Endpoint, error) {
-	defer trace.End(trace.Begin("", op))
+	defer trace.End(trace.Begin("UnbindContainer", op))
 	c.Lock()
 	defer c.Unlock()
 
+	op.Debugf("Trying to unbind container: %s", h.ExecConfig.ID)
 	con, err := c.container(h)
 	if err != nil {
+		op.Debugf("Could not get container %s by handle %s", h.String(), h.ExecConfig.ID)
 		if _, ok := err.(ResourceNotFoundError); ok {
 			return nil, nil // not bound
 		}

@@ -15,6 +15,7 @@
 package network
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -24,6 +25,7 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/pkg/ip"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 )
 
@@ -183,6 +185,8 @@ func (s *Scope) releaseEndpointIP(e *Endpoint) error {
 }
 
 func (s *Scope) AddContainer(con *Container, e *Endpoint) error {
+	op := trace.NewOperation(context.Background(), "Add container to the scope")
+
 	s.Lock()
 	defer s.Unlock()
 
@@ -194,6 +198,9 @@ func (s *Scope) AddContainer(con *Container, e *Endpoint) error {
 	if ok {
 		return DuplicateResourceError{resID: con.id.String()}
 	}
+
+	op.Debugf("Adding container %s to the scope %s(%s)",
+		con.id, s.name, s.id)
 
 	if err := s.reserveEndpointIP(e); err != nil {
 		return err
@@ -209,13 +216,17 @@ func (s *Scope) RemoveContainer(con *Container) error {
 	s.Lock()
 	defer s.Unlock()
 
+	op := trace.NewOperation(context.Background(), "Remove container from the scope")
+
 	c, ok := s.containers[con.id]
 	if !ok || c != con {
+		op.Debugf("Container %s not found in the scope %s(%s)", con.id, s.name, s.id)
 		return ResourceNotFoundError{}
 	}
 
 	e := c.Endpoint(s)
 	if e == nil {
+		op.Debugf("No scope endpoint for container %s in the scope %s(%s)", con.id, s.name, s.id)
 		return ResourceNotFoundError{}
 	}
 
@@ -226,6 +237,9 @@ func (s *Scope) RemoveContainer(con *Container) error {
 	delete(s.containers, c.id)
 	s.endpoints = removeEndpointHelper(e, s.endpoints)
 	c.removeEndpoint(e)
+
+	op.Debugf("Container %s successfully removed from the scope %s(%s)", con.id, s.name, s.id)
+
 	return nil
 }
 
