@@ -57,6 +57,24 @@ Clean up test files and VIC appliance to test server
     Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
+Try To Exploit VCH With Offline Copy of Malicious Tarball
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name exploitme ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  cat ${CURDIR}/../../resources/archive.tar.gz | docker %{VCH-PARAMS} cp - exploitme:/
+    Should Not Contain  ${output}  No such file or directory
+
+    Enable VCH SSH
+
+    ${rc}  ${output}=  Run And Return Rc And Output  sshpass -ppassword ssh %{VCH-IP} -lroot -C -oStrictHostKeyChecking=no "ls /tmp | grep pingme"
+
+    Log  ${output}
+    Should Not Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  pingme
+
 Copy a file from host to offline container root dir
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
