@@ -46,9 +46,6 @@ Ops User Create
     Log  User Find ${ops_user_base_name}, rc: ${rc}, output: ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    Log To Console  Running govc to set permissions ..
-    ${out}=  Run  govc permissions.set -principal ${ops_user_name} -role ReadOnly -propagate=false /
-    Should Be Empty  ${out}
     ${out}=  Run  govc role.usage
     Log  Output, govc role.usage: ${out}
 
