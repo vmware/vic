@@ -160,7 +160,7 @@ func (d *Helper) Mkdir(ctx context.Context, createParentDirectories bool, dirs .
 	return mkdir(op, d.s, d.fm, createParentDirectories, path.Join(d.RootURL.String(), path.Join(dirs...)))
 }
 
-// Ls returns a list of dirents at the given path (relative to root), given a search pattern 
+// Ls returns a list of dirents at the given path (relative to root), given a search pattern
 // (default to all files under the path if no pattern is provided)
 //
 // A note aboutpaths and the datastore browser.
