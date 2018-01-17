@@ -23,6 +23,10 @@ Default Tags
 
 *** Keywords ***
 Get Version
+    ${out}=  Run  netstat -l | grep 1337
+    Log  ${out}
+    ${out}=  Run  ps aux | grep vic-machine-server
+    Log  ${out}
     Get Path    version
     Verify Return Code
 
