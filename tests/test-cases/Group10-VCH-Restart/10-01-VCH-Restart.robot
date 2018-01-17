@@ -17,7 +17,6 @@ Documentation  Test 10-01 - VCH Restart
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
-
 Default Tags
 
 *** Keywords ***
