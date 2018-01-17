@@ -14,8 +14,8 @@
 
 *** Settings ***
 Documentation  Test 10-01 - VCH Restart
-Test Setup  Install VIC Appliance To Test Server
-Test Teardown  Cleanup VIC Appliance On Test Server
+Suite Setup  Install VIC Appliance To Test Server
+Suite Teardown  Cleanup VIC Appliance On Test Server
 Resource  ../../resources/Util.robot
 Default Tags
 
