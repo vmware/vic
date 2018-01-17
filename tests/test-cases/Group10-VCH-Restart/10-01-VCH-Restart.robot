@@ -15,8 +15,6 @@
 *** Settings ***
 Documentation  Test 10-01 - VCH Restart
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
-Suite Teardown  Cleanup VIC Appliance On Test Server
 Default Tags
 
 *** Keywords ***
@@ -33,8 +31,21 @@ Launch Container
     ${id}=  Get Line  ${output}  -1
     [Return]  ${id}
 
+Launch Container With Port Forwarding
+    [Arguments]  ${name}  ${port1}  ${port2}  ${network}=default
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p ${port1}:80 -p ${port2}:80 --name ${name} --net ${network} ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${name}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  ${port1}
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  ${port2}
+
 *** Test Cases ***
 Created Network And Images Persists As Well As Containers Are Discovered With Correct IPs
+    Install VIC Appliance To Test Server
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${nginx}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create foo
@@ -63,14 +74,15 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} exec bar-c2 ping -c3 bar-c1
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver ${nginx}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start webserver
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
+    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver ${nginx}
+    # Should Be Equal As Integers  ${rc}  0
+    # Should Not Contain  ${output}  Error
+    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start webserver
+    # Should Be Equal As Integers  ${rc}  0
+    # Should Not Contain  ${output}  Error
+    # Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
+    # Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
+    Launch Container With Port Forwarding  ${name}=webserver  ${port1}=10000  ${port2}=10001
 
     Reboot VM  %{VCH-NAME}
 
@@ -145,44 +157,101 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${alpine}
     Should Be Equal As Integers  ${rc}  0
 
-Create VCH attach disk and reboot
-    ${rc}=  Run And Return Rc  govc vm.disk.create -vm=%{VCH-NAME} -name=%{VCH-NAME}/deleteme -size "16M"
-    Should Be Equal As Integers  ${rc}  0
+    Cleanup VIC Appliance On Test Server
 
-    Reboot VM  %{VCH-NAME}
+# Container on Open Network And Port Forwarding Persist After Reboot
+#     Set Test Environment Variables
 
-    # wait for docker info to succeed
-    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
-    ${rc}=  Run And Return Rc  govc device.ls -vm=%{VCH-NAME} | grep disk
-    Should Be Equal As Integers  ${rc}  1
+#     Log To Console  Create Port Groups For Container network
+#     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vswitch vSwitchLAN open-net
 
-Docker inspect mount and cmd data after reboot
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=named-volume
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=mount-data-test -v /mnt/test -v named-volume:/mnt/named busybox /bin/ls -la /
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' mount-data-test
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${out}  /mnt/test
-    Should Contain  ${out}  /mnt/named
+#     ${createcommand}=  catenate  SEPARATOR=\ \
+#     ...  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME}
+#     ...  --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT}
+#     ...  --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD}
+#     ...  --force=true --bridge-network=bridge --compute-resource=%{TEST_RESOURCE} --no-tlsverify --no-tls
+#     ...  --container-network=open-net --container-network-firewall=open-net:open
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Config.Cmd}}' mount-data-test
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain X Times  ${out}  /bin/ls  1
-    Should Contain X Times  ${out}  -la  1
-    Should Contain X Times  ${out}  ${SPACE}/  1
+#     ${output}=  Run  ${createcommand}
 
-    Reboot VM  %{VCH-NAME}
+#     # Create a container on the open network
+#     ${open-running}=  Launch Container  vch-restart-open-running  open-net
+#     ${open-exited}=  Launch Container  vch-restart-open-exited  open-net  ls
 
-    # wait for docker info to succeed
-    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' mount-data-test
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${out}  /mnt/test
-    Should Contain  ${out}  /mnt/named
+#     # Create nginx on the open network and check port forwarding
+#     Launch Container With Port Forwarding  ${name}=webserver  ${port1}=10000  ${port2}=10001  ${network}=open-net
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Config.Cmd}}' mount-data-test
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain X Times  ${out}  /bin/ls  1
-    Should Contain X Times  ${out}  -la  1
-    Should Contain X Times  ${out}  ${SPACE}/  1
+#     # Reboot VCH
+#     Reboot VM  %{VCH-NAME}
+#     Log To Console  Getting VCH IP ...
+#     ${new-vch-ip}=  Get VM IP  %{VCH-NAME}
+#     Log To Console  New VCH IP is ${new-vch-ip}
+#     Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new-vch-ip}
+
+#     # wait for docker info to succeed
+#     Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+
+#     # Check if the open container is persisted
+#     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${open-running} | jq '.[0].State.Status'
+#     Should Be Equal As Integers  ${rc}  0
+#     Should Be Equal  ${output}  \"running\"
+#     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${open-exited} | jq '.[0].State.Status'
+#     Should Be Equal As Integers  ${rc}  0
+#     Should Be Equal  ${output}  \"exited\"
+#     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${open-exited}
+#     Should Be Equal As Integers  ${rc}  0
+
+#     # Check port forwarding after reboot
+#     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
+#     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
+
+
+# Create VCH attach disk and reboot
+#     Install VIC Appliance To Test Server
+
+#     ${rc}=  Run And Return Rc  govc vm.disk.create -vm=%{VCH-NAME} -name=%{VCH-NAME}/deleteme -size "16M"
+#     Should Be Equal As Integers  ${rc}  0
+
+#     Reboot VM  %{VCH-NAME}
+
+#     # wait for docker info to succeed
+#     Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+#     ${rc}=  Run And Return Rc  govc device.ls -vm=%{VCH-NAME} | grep disk
+#     Should Be Equal As Integers  ${rc}  1
+
+#     Cleanup VIC Appliance On Test Server
+
+# Docker inspect mount and cmd data after reboot
+#     Install VIC Appliance To Test Server
+
+#     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=named-volume
+#     Should Be Equal As Integers  ${rc}  0
+#     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=mount-data-test -v /mnt/test -v named-volume:/mnt/named busybox /bin/ls -la /
+#     Should Be Equal As Integers  ${rc}  0
+#     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' mount-data-test
+#     Should Be Equal As Integers  ${rc}  0
+#     Should Contain  ${out}  /mnt/test
+#     Should Contain  ${out}  /mnt/named
+
+#     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Config.Cmd}}' mount-data-test
+#     Should Be Equal As Integers  ${rc}  0
+#     Should Contain X Times  ${out}  /bin/ls  1
+#     Should Contain X Times  ${out}  -la  1
+#     Should Contain X Times  ${out}  ${SPACE}/  1
+
+#     Reboot VM  %{VCH-NAME}
+
+#     # wait for docker info to succeed
+#     Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+#     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' mount-data-test
+#     Should Be Equal As Integers  ${rc}  0
+#     Should Contain  ${out}  /mnt/test
+#     Should Contain  ${out}  /mnt/named
+
+#     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Config.Cmd}}' mount-data-test
+#     Should Be Equal As Integers  ${rc}  0
+#     Should Contain X Times  ${out}  /bin/ls  1
+#     Should Contain X Times  ${out}  -la  1
+#     Should Contain X Times  ${out}  ${SPACE}/  1
+
+#     Cleanup VIC Appliance On Test Server
