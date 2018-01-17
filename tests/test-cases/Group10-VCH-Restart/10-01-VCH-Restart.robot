@@ -14,6 +14,8 @@
 
 *** Settings ***
 Documentation  Test 10-01 - VCH Restart
+Test Setup  Install VIC Appliance To Test Server
+Test Teardown  Cleanup VIC Appliance On Test Server
 Resource  ../../resources/Util.robot
 Default Tags
 
@@ -44,8 +46,6 @@ Launch Container With Port Forwarding
 
 *** Test Cases ***
 Created Network And Images Persists As Well As Containers Are Discovered With Correct IPs
-    Install VIC Appliance To Test Server
-
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${nginx}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create foo
@@ -74,7 +74,7 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} exec bar-c2 ping -c3 bar-c1
     Should Be Equal As Integers  ${rc}  0
 
-    Launch Container With Port Forwarding  ${name}=webserver  ${port1}=10000  ${port2}=10001
+    Launch Container With Port Forwarding  webserver  10000  10001
 
     Reboot VM  %{VCH-NAME}
 
@@ -149,9 +149,10 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${alpine}
     Should Be Equal As Integers  ${rc}  0
 
-    Cleanup VIC Appliance On Test Server
 
 Container on Open Network And Port Forwarding Persist After Reboot
+    [Setup]     NONE
+
     Set Test Environment Variables
 
     Log To Console  Create Port Groups For Container network
@@ -166,22 +167,20 @@ Container on Open Network And Port Forwarding Persist After Reboot
 
     ${output}=  Run  ${createcommand}
 
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: %{VCH-NAME}
+
     # Create a container on the open network
     ${open-running}=  Launch Container  vch-restart-open-running  open-net
     ${open-exited}=  Launch Container  vch-restart-open-exited  open-net  ls
 
     # Create nginx on the open network and check port forwarding
-    Launch Container With Port Forwarding  ${name}=webserver  ${port1}=10000  ${port2}=10001  ${network}=open-net
+    Launch Container With Port Forwarding  webserver  10000  10001  open-net
 
     # Reboot VCH
     Reboot VM  %{VCH-NAME}
-    Log To Console  Getting VCH IP ...
-    ${new-vch-ip}=  Get VM IP  %{VCH-NAME}
-    Log To Console  New VCH IP is ${new-vch-ip}
-    Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new-vch-ip}
-
-    # wait for docker info to succeed
-    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+    Wiat For VCH Initialization  20x  10 seconds
 
     # Check if the open container is persisted
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${open-running} | jq '.[0].State.Status'
@@ -197,10 +196,10 @@ Container on Open Network And Port Forwarding Persist After Reboot
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
 
+    [Teardown]     Run VIC Machine Delete Command
+
 
 Create VCH attach disk and reboot
-    Install VIC Appliance To Test Server
-
     ${rc}=  Run And Return Rc  govc vm.disk.create -vm=%{VCH-NAME} -name=%{VCH-NAME}/deleteme -size "16M"
     Should Be Equal As Integers  ${rc}  0
 
@@ -211,11 +210,7 @@ Create VCH attach disk and reboot
     ${rc}=  Run And Return Rc  govc device.ls -vm=%{VCH-NAME} | grep disk
     Should Be Equal As Integers  ${rc}  1
 
-    Cleanup VIC Appliance On Test Server
-
 Docker inspect mount and cmd data after reboot
-    Install VIC Appliance To Test Server
-
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=named-volume
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=mount-data-test -v /mnt/test -v named-volume:/mnt/named busybox /bin/ls -la /
@@ -245,5 +240,3 @@ Docker inspect mount and cmd data after reboot
     Should Contain X Times  ${out}  /bin/ls  1
     Should Contain X Times  ${out}  -la  1
     Should Contain X Times  ${out}  ${SPACE}/  1
-
-    Cleanup VIC Appliance On Test Server
