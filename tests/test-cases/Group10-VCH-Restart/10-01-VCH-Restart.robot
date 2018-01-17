@@ -41,6 +41,9 @@ Launch Container With Port Forwarding
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${name}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
+
+Check Nginx Port Forwarding
+    [Arguments]  ${port1}  ${port2}
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  ${port1}
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  ${port2}
 
@@ -75,16 +78,18 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     Should Be Equal As Integers  ${rc}  0
 
     Launch Container With Port Forwarding  webserver  10000  10001
+    Check Nginx Port Forwarding  10000  10001
 
     Reboot VM  %{VCH-NAME}
+    Wait For VCH Initialization  20x  10 seconds
 
-    Log To Console  Getting VCH IP ...
-    ${new-vch-ip}=  Get VM IP  %{VCH-NAME}
-    Log To Console  New VCH IP is ${new-vch-ip}
-    Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new-vch-ip}
+#    Log To Console  Getting VCH IP ...
+#    ${new-vch-ip}=  Get VM IP  %{VCH-NAME}
+#    Log To Console  New VCH IP is ${new-vch-ip}
+#    Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new-vch-ip}
 
-    # wait for docker info to succeed
-    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+#    # wait for docker info to succeed
+#    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
 
     # name resolution should work on the foo and bar networks
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} exec foo-c1 ping -c3 foo-c2
@@ -134,8 +139,7 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${bridge-exited}
     Should Be Equal As Integers  ${rc}  0
 
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
+    Check Nginx Port Forwarding  10000  10001
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver1 ${nginx}
     Should Be Equal As Integers  ${rc}  0
@@ -175,26 +179,36 @@ Container on Open Network And Port Forwarding Persist After Reboot
     ${open-running}=  Launch Container  vch-restart-open-running  open-net
     ${open-exited}=  Launch Container  vch-restart-open-exited  open-net  ls
 
-    # Create nginx on the open network and check port forwarding
-    Launch Container With Port Forwarding  webserver  10000  10001  open-net
+    # Create nginx on the open network and bridge network
+    Launch Container With Port Forwarding  webserver-open  10000  10001  open-net
+    Launch Container with Port Forwarding  webserver-bridge  10002  10003  bridge
+    Check Nginx Port Forwarding  10002  10003
 
     # Reboot VCH
     Reboot VM  %{VCH-NAME}
-    Wiat For VCH Initialization  20x  10 seconds
+    Wait For VCH Initialization  20x  10 seconds
 
     # Check if the open container is persisted
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${open-running} | jq '.[0].State.Status'
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${output}  \"running\"
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${open-exited} | jq '.[0].State.Status'
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${open-running} | jq '.[0].HostConfig.PortBindings'
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal  $[output}  \"{}\"
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${open-exited} | jq -r '.[0].State.Status'
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${output}  \"exited\"
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${open-exited}
     Should Be Equal As Integers  ${rc}  0
 
-    # Check port forwarding after reboot
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
+    # Check port forwarding on bridge container after reboot
+    Check Nginx Port Forwarding  10002  10003
+
+    # Check port forwarding on open container not reachable from endpoint VM
+    ${rc1}  ${output1}=  Run And Return Rc And Output  wget %{VCH-IP}:10000
+    ${rc2}  ${output2}=  Run And Return Rc And Output  wget %{VCH-IP}:10001
+    Should Not Be Equal As Integers  ${rc1}  0
+    Should Not Be Equal As Integers  ${rc2}  0
 
     [Teardown]     Run VIC Machine Delete Command
 
