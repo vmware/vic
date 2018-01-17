@@ -74,14 +74,6 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} exec bar-c2 ping -c3 bar-c1
     Should Be Equal As Integers  ${rc}  0
 
-    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver ${nginx}
-    # Should Be Equal As Integers  ${rc}  0
-    # Should Not Contain  ${output}  Error
-    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start webserver
-    # Should Be Equal As Integers  ${rc}  0
-    # Should Not Contain  ${output}  Error
-    # Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
-    # Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
     Launch Container With Port Forwarding  ${name}=webserver  ${port1}=10000  ${port2}=10001
 
     Reboot VM  %{VCH-NAME}
