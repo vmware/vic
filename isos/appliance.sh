@@ -124,6 +124,7 @@ chroot $(rootfs_dir $PKGDIR) chmod 0660 /var/run/lock/logrotate_run.lock
 cp ${BIN}/vic-init $(rootfs_dir $PKGDIR)/sbin/vic-init
 
 cp ${BIN}/{docker-engine-server,port-layer-server,vicadmin} $(rootfs_dir $PKGDIR)/sbin/
+cp ${BIN}/unpack $(rootfs_dir $PKGDIR)/bin/
 
 ## Generate the ISO
 # Select systemd for our init process
