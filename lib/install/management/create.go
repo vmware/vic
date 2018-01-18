@@ -53,12 +53,12 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 	}
 
 	if err = d.createBridgeNetwork(conf); err != nil {
-		d.cleanup(conf, false)
+		d.cleanupAfterCreationFailed(conf, false)
 		return err
 	}
 
 	if err = d.createAppliance(conf, settings); err != nil {
-		d.cleanup(conf, true)
+		d.cleanupAfterCreationFailed(conf, true)
 		return errors.Errorf("Creating the appliance failed with %s. Exiting...", err)
 	}
 
