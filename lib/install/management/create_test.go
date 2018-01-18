@@ -83,7 +83,18 @@ func TestMain(t *testing.T) {
 		errConf.VolumeLocations = make(map[string]*url.URL)
 		errConf.VolumeLocations["volume-store"], _ = url.Parse("ds://store_not_exist/volumes/test")
 		testCreateVolumeStores(op, validator.Session, errConf, true, t)
+
+		// FIXME: (pull vic/7088) have to make another VCH config from validator for negative test case and cleanup test
+		// If we re-use the previous validator like we did in the earlier test (*errConf = *conf), it's not a deep copy of conf
+		// This conf will get modified by appliance creation and cleanup test, and we can't test create appliance in positive case
+		// The other way around, if we test positive case first, the VCH data and session data are modified, so we are not able to test the negative case
+		conf2, err := validator.Validate(op, input)
+		conf2.ImageStores[0].Host = "http://non-exist"
+		testCreateAppliance(op, validator.Session, conf2, installSettings, true, t)
+		testCleanup(op, validator.Session, conf2, t)
+
 		testCreateAppliance(op, validator.Session, conf, installSettings, false, t)
+
 		// cannot run test for func not implemented in vcsim: ResourcePool:resourcepool-24 does not implement: UpdateConfig
 		// testUpdateResources(ctx, validator.Session, conf, installSettings, false, t)
 	}
@@ -188,6 +199,30 @@ func testDeleteVolumeStores(op trace.Operation, sess *session.Session, conf *con
 
 }
 
+func testCleanup(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
+	d := &Dispatcher{
+		session: sess,
+		op:      op,
+		isVC:    sess.IsVC(),
+		force:   true,
+	}
+
+	err := d.cleanupEmptyPool(conf)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	t.Logf("poll path after cleanup is: %s", d.parentResourcepool)
+
+	err = d.cleanupBridgeNetwork(conf)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+}
+
+
 func testCreateAppliance(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, vConf *data.InstallerData, hasErr bool, t *testing.T) {
 	d := &Dispatcher{
 		session: sess,
@@ -198,11 +233,25 @@ func testCreateAppliance(op trace.Operation, sess *session.Session, conf *config
 
 	err := d.createPool(conf, vConf)
 	if err != nil {
-		t.Fatal(err)
+		if hasErr {
+			t.Logf("Got expected err: %s", err)
+		} else {
+			t.Fatal(err)
+		}
+		return
 	}
 
 	err = d.createAppliance(conf, vConf)
 	if err != nil {
-		t.Error(err)
+		if hasErr {
+			t.Logf("Got expected err: %s", err)
+		} else {
+			t.Fatal(err)
+		}
+		return
+	}
+
+	if hasErr {
+		t.Errorf("No error when error is expected.")
 	}
 }

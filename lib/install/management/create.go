@@ -53,13 +53,12 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 	}
 
 	if err = d.createBridgeNetwork(conf); err != nil {
-		d.cleanupEmptyPool(conf)
+		d.cleanup(conf, false)
 		return err
 	}
 
 	if err = d.createAppliance(conf, settings); err != nil {
-		d.cleanupEmptyPool(conf)
-		d.cleanupBridgeNetwork(conf)
+		d.cleanup(conf, true)
 		return errors.Errorf("Creating the appliance failed with %s. Exiting...", err)
 	}
 
@@ -215,49 +214,66 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 	return nil
 }
 
-// cleanupEmptyPool cleans up any dangling empty VCH resource pool when creating this VCH. no-op when VCH pool is nonempty.
-func (d *Dispatcher) cleanupEmptyPool(conf *config.VirtualContainerHostConfigSpec) {
+func (d *Dispatcher) cleanup(conf *config.VirtualContainerHostConfigSpec, cleanupNetwork bool) {
 	defer trace.End(trace.Begin("", d.op))
 	var err error
 
+	// clean up dangling empty resource pool
 	d.op.Info("Clean up dangling VCH resource pool after VCH creation failed...")
+
+	if err = d.cleanupEmptyPool(conf); err != nil {
+		d.op.Errorf("Failed to clean up dangling VCH resource pool: %s", err)
+	}
+
+	d.op.Info("Successfully cleaned up dangling resource pool.")
+
+	// only clean up bridge network created if told to
+	if cleanupNetwork {
+		d.op.Info("Cleaning up dangling bridge networks created after VCH creation failed...")
+
+		if err = d.cleanupBridgeNetwork(conf); err != nil {
+			d.op.Errorf("Clean up dangling bridge network returns error: %s", err)
+		}
+
+		d.op.Info("Successfully cleaned up dangling bridge network.")
+	}
+}
+
+// cleanupEmptyPool cleans up any dangling empty VCH resource pool when creating this VCH. no-op when VCH pool is nonempty.
+func (d *Dispatcher) cleanupEmptyPool(conf *config.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin("", d.op))
+	var err error
 
 	d.parentResourcepool, err = d.getComputeResource(nil, conf)
 	if err != nil {
-		d.op.Errorf("Failed to find dangling VCH resource pool: %s", err)
-		return
+		return err
 	}
 
 	defaultrp, err := d.session.Cluster.ResourcePool(d.op)
 	if err != nil {
-		d.op.Errorf("Failed to find dangling VCH resource pool: %s", err)
-		return
+		return err
 	}
 
 	if d.parentResourcepool != nil && d.parentResourcepool.Reference() == defaultrp.Reference() {
 		d.op.Warnf("VCH resource pool is cluster default pool - skipping cleanup")
-		return
+		return nil
 	}
 
 	err = d.destroyResourcePoolIfEmpty(conf)
 	if err != nil {
-		d.op.Errorf("Failed to clean up dangling VCH resource pool: %s", err)
-		return
+		return err
 	}
 
-	d.op.Info("Successfully cleaned up dangling resource pool.")
+	return nil
 }
 
 // cleanupBridgeNetwork cleans up any bridge networks created when creating this VCH. no-op for VCenter environment.
-func (d *Dispatcher) cleanupBridgeNetwork(conf *config.VirtualContainerHostConfigSpec) {
+func (d *Dispatcher) cleanupBridgeNetwork(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin("", d.op))
 
-	d.op.Info("Cleaning up dangling bridge networks created after VCH creation failed...")
-
 	if err := d.removeNetwork(conf); err != nil {
-		d.op.Errorf("Clean up dangling bridge network returns error: %s", err)
-		return
+		return err
 	}
 
-	d.op.Info("Successfully cleaned up dangling bridge network.")
+	return nil
 }
