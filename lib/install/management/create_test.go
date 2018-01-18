@@ -222,7 +222,6 @@ func testCleanup(op trace.Operation, sess *session.Session, conf *config.Virtual
 	}
 }
 
-
 func testCreateAppliance(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, vConf *data.InstallerData, hasErr bool, t *testing.T) {
 	d := &Dispatcher{
 		session: sess,
