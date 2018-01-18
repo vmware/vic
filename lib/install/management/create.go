@@ -214,7 +214,9 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 	return nil
 }
 
-func (d *Dispatcher) cleanup(conf *config.VirtualContainerHostConfigSpec, cleanupNetwork bool) {
+// cleanupAfterCreationFailed cleans up the dangling resource pool for the failed VCH and any bridge network if there is any.
+// The function will not abort and early terminate upon any error during cleanup process. Error details are logged.
+func (d *Dispatcher) cleanupAfterCreationFailed(conf *config.VirtualContainerHostConfigSpec, cleanupNetwork bool) {
 	defer trace.End(trace.Begin("", d.op))
 	var err error
 
