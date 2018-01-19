@@ -220,25 +220,22 @@ func (d *Dispatcher) cleanupAfterCreationFailed(conf *config.VirtualContainerHos
 	defer trace.End(trace.Begin(conf.Name, d.op))
 	var err error
 
-	d.op.Info("VCH creation has failed in previous steps, start cleaning up dangling resources...")
-	d.op.Info("Clean up dangling VCH resource pool after VCH creation failed...")
+	d.op.Debug("Cleaning up dangling VCH resources after VCH creation failure.")
 
 	err = d.cleanupEmptyPool(conf)
 	if err != nil {
-		d.op.Errorf("Failed to clean up dangling VCH resource pool: %s", err)
+		d.op.Errorf("Failed to clean up dangling VCH resource pool after VCH creation failure: %s", err)
 	} else {
-		d.op.Info("Successfully cleaned up dangling resource pool.")
+		d.op.Debug("Successfully cleaned up dangling resource pool.")
 	}
 
 	// only clean up bridge network created if told to
 	if cleanupNetwork {
-		d.op.Info("Cleaning up dangling bridge networks created after VCH creation failed...")
-
 		err = d.cleanupBridgeNetwork(conf)
 		if err != nil {
-			d.op.Errorf("Failed to clean up dangling bridge network: %s", err)
+			d.op.Errorf("Failed to clean up dangling bridge network after VCH creation failure: %s", err)
 		} else {
-			d.op.Info("Successfully cleaned up dangling bridge network.")
+			d.op.Debug("Successfully cleaned up dangling bridge network.")
 		}
 	}
 }
