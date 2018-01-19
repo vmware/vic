@@ -213,8 +213,6 @@ func testCleanup(op trace.Operation, sess *session.Session, conf *config.Virtual
 		return
 	}
 
-	t.Logf("poll path after cleanup is: %s", d.parentResourcepool)
-
 	err = d.cleanupBridgeNetwork(conf)
 	if err != nil {
 		t.Fatal(err)
