@@ -132,7 +132,7 @@ func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, r
 }
 
 // Unpack hooks into a binary present in the appliance vm called unpack in order to execute InvokeUnpack inside of a chroot. This method works identically to InvokeUnpack, except that it will not function in areas where the binary is not present at /bin/unpack
-func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string) error {
+func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string, binPath string) error {
 
 	fi, err := os.Stat(root)
 	if err != nil {
@@ -155,7 +155,9 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 
 	// Prepare to launch the binary, which will create a chroot at root and then invoke InvokeUnpack
 	// #nosec: Subprocess launching with variable. -- neither variable is user input & both are bounded inputs so this is fine
-	cmd := exec.Command("/bin/unpack", op.ID(), root, *encodedFilter)
+	// "/bin/unpack" on appliance
+	// "/.tether/unpack" inside container
+	cmd := exec.Command(binPath, op.ID(), root, *encodedFilter)
 
 	//stdin
 	stdin, err := cmd.StdinPipe()
