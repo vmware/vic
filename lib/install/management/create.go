@@ -217,33 +217,35 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 // cleanupAfterCreationFailed cleans up the dangling resource pool for the failed VCH and any bridge network if there is any.
 // The function will not abort and early terminate upon any error during cleanup process. Error details are logged.
 func (d *Dispatcher) cleanupAfterCreationFailed(conf *config.VirtualContainerHostConfigSpec, cleanupNetwork bool) {
-	defer trace.End(trace.Begin("", d.op))
+	defer trace.End(trace.Begin(conf.Name, d.op))
 	var err error
 
-	// clean up dangling empty resource pool
+	d.op.Info("VCH creation has failed in previous steps, start cleaning up dangling resources...")
 	d.op.Info("Clean up dangling VCH resource pool after VCH creation failed...")
 
-	if err = d.cleanupEmptyPool(conf); err != nil {
+	err = d.cleanupEmptyPool(conf)
+	if err != nil {
 		d.op.Errorf("Failed to clean up dangling VCH resource pool: %s", err)
+	} else {
+		d.op.Info("Successfully cleaned up dangling resource pool.")
 	}
-
-	d.op.Info("Successfully cleaned up dangling resource pool.")
 
 	// only clean up bridge network created if told to
 	if cleanupNetwork {
 		d.op.Info("Cleaning up dangling bridge networks created after VCH creation failed...")
 
-		if err = d.cleanupBridgeNetwork(conf); err != nil {
-			d.op.Errorf("Clean up dangling bridge network returns error: %s", err)
+		err = d.cleanupBridgeNetwork(conf)
+		if err != nil {
+			d.op.Errorf("Failed to clean up dangling bridge network: %s", err)
+		} else {
+			d.op.Info("Successfully cleaned up dangling bridge network.")
 		}
-
-		d.op.Info("Successfully cleaned up dangling bridge network.")
 	}
 }
 
 // cleanupEmptyPool cleans up any dangling empty VCH resource pool when creating this VCH. no-op when VCH pool is nonempty.
 func (d *Dispatcher) cleanupEmptyPool(conf *config.VirtualContainerHostConfigSpec) error {
-	defer trace.End(trace.Begin("", d.op))
+	defer trace.End(trace.Begin(conf.Name, d.op))
 	var err error
 
 	d.parentResourcepool, err = d.getComputeResource(nil, conf)
@@ -257,7 +259,7 @@ func (d *Dispatcher) cleanupEmptyPool(conf *config.VirtualContainerHostConfigSpe
 	}
 
 	if d.parentResourcepool != nil && d.parentResourcepool.Reference() == defaultrp.Reference() {
-		d.op.Warnf("VCH resource pool is cluster default pool - skipping cleanup")
+		d.op.Info("VCH resource pool is cluster default pool - skipping cleanup")
 		return nil
 	}
 
@@ -271,9 +273,10 @@ func (d *Dispatcher) cleanupEmptyPool(conf *config.VirtualContainerHostConfigSpe
 
 // cleanupBridgeNetwork cleans up any bridge networks created when creating this VCH. no-op for VCenter environment.
 func (d *Dispatcher) cleanupBridgeNetwork(conf *config.VirtualContainerHostConfigSpec) error {
-	defer trace.End(trace.Begin("", d.op))
+	defer trace.End(trace.Begin(conf.Name, d.op))
 
-	if err := d.removeNetwork(conf); err != nil {
+	err := d.removeNetwork(conf)
+	if err != nil {
 		return err
 	}
 
