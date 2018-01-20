@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import (
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/iolog"
 	"github.com/vmware/vic/lib/portlayer/event/events"
+	stateevents "github.com/vmware/vic/lib/portlayer/event/events/vsphere"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
@@ -340,7 +341,8 @@ func (c *Container) Refresh(op trace.Operation) error {
 	}
 
 	var started bool
-	// determine if the containerVM has started
+	// determine if the containerVM has started - this could pick up stale data for an out-of-band
+	// power change such as HA or user intervention.
 	if session, exists := c.ExecConfig.Sessions[c.ExecConfig.ID]; exists {
 		if session.Started == "true" {
 			started = true
@@ -348,10 +350,24 @@ func (c *Container) Refresh(op trace.Operation) error {
 	}
 
 	// conditionally sync state (see issue 4872, 6372)
+	event := stateevents.NewStateEvent(op, c.containerBase.Runtime.PowerState, c.VMReference())
+	state := eventedState(event, c.state)
+	if state == StateRunning && !started {
+		// if it's running but not reported started then bypass the update.
+		return nil
+	}
+
+	// trigger event publishing if c.state -> state is a transition we care about
+	c.onEvent(op, state, event)
+	// update recorded state to new state
+	c.state = state
+
 	switch c.containerBase.Runtime.PowerState {
 	case types.VirtualMachinePowerStatePoweredOn:
 		// only set to running if the container process has started
-		if started {
+		if started && c.state != StateRunning {
+			publishContainerEvent(op, c.ExecConfig.ID, time.Now(), events.ContainerStarted)
+
 			c.state = StateRunning
 		}
 	case types.VirtualMachinePowerStatePoweredOff:
@@ -721,7 +737,16 @@ func (c *Container) OnEvent(e events.Event) {
 		op.Warnf("Event(%s) received for %s but no VM found", e.EventID(), e.Reference())
 		return
 	}
+
 	newState := eventedState(e, c.state)
+	c.onEvent(op, newState, e)
+}
+
+// onEvent determines what needs to be done when receiving a state update. It filters duplicate state transitions
+// and publishes container events as needed in addition to performing necessary manipulations.
+// newState - this is the new state determined by eventedState
+// e - the source event used to derive the new State and reason for the transition
+func (c *Container) onEvent(op trace.Operation, newState State, e events.Event) {
 	// do we have a state change
 	if newState != c.state {
 		switch newState {
