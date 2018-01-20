@@ -1,4 +1,4 @@
-# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -71,6 +71,9 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     Should Not Contain  ${output}  Error
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
+
+    # Gather logs before rebooting
+    Run Keyword And Continue On Failure  Gather Logs From Test Server  -before-reboot-1
 
     Reboot VM  %{VCH-NAME}
 
@@ -149,6 +152,9 @@ Create VCH attach disk and reboot
     ${rc}=  Run And Return Rc  govc vm.disk.create -vm=%{VCH-NAME} -name=%{VCH-NAME}/deleteme -size "16M"
     Should Be Equal As Integers  ${rc}  0
 
+    # Gather logs before rebooting
+    Run Keyword And Continue On Failure  Gather Logs From Test Server  -before-reboot-2
+
     Reboot VM  %{VCH-NAME}
 
     # wait for docker info to succeed
@@ -171,6 +177,9 @@ Docker inspect mount and cmd data after reboot
     Should Contain X Times  ${out}  /bin/ls  1
     Should Contain X Times  ${out}  -la  1
     Should Contain X Times  ${out}  ${SPACE}/  1
+
+    # Gather logs before rebooting
+    Run Keyword And Continue On Failure  Gather Logs From Test Server  -before-reboot-3
 
     Reboot VM  %{VCH-NAME}
 
