@@ -723,18 +723,16 @@ func (c *Context) bindContainer(op trace.Operation, h *exec.Handle) ([]*Endpoint
 			return nil, err
 		}
 
-		ports, _, err := nat.ParsePortSpecs(ne.Ports)
-		if err != nil {
-			return nil, err
-		}
-		for p := range ports {
-			var port Port
-			if port, err = ParsePort(string(p)); err != nil {
+		for i := range ne.Ports {
+			mappings, err := nat.ParsePortSpec(ne.Ports[i])
+			if err != nil {
 				return nil, err
 			}
-
-			if err = e.addPort(port); err != nil {
-				return nil, err
+			for j := range mappings {
+				port := PortFromMapping(mappings[j])
+				if err = e.addPort(port); err != nil {
+					return nil, err
+				}
 			}
 		}
 
