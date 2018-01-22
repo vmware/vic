@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -105,6 +105,13 @@ func InitializeImageCache(client *client.PortLayer) error {
 
 		// populate the trie with IDs
 		for k := range i.CacheByID {
+			// Separate out the hash prefix from the CacheByID key before indexing iDIndex
+			// as it is keyed by the full image ID without the hash prefix.
+			fields := strings.SplitN(k, ":", 2)
+			if len(fields) == 2 {
+				k = fields[1]
+			}
+
 			imageCache.iDIndex.Add(k)
 		}
 
@@ -201,14 +208,14 @@ func (ic *ICache) getImageByNamed(named reference.Named) *metadata.ImageConfig {
 	return copyImageConfig(ic.cacheByID[prefixImageID(id)])
 }
 
-// Add the "sha256:" prefix to the image ID if missing.
-// Don't assume the image id in image has "sha256:<id> as format.  We store it in
-// this format to make it easier to lookup by digest
+// Add the default "sha256:" prefix to the image ID if it doesn't include a hash
+// prefix. Don't assume the image ID has "<hash>:<id> as format (e.g. "sha256:<id>").
+// We store it in this format to make it easier to lookup by digest.
 func prefixImageID(imageID string) string {
-	if strings.HasPrefix(imageID, "sha256:") {
+	if strings.Contains(imageID, ":") {
 		return imageID
 	}
-	return "sha256:" + imageID
+	return digest.Canonical.String() + ":" + imageID
 }
 
 // Add adds an image to the image cache
