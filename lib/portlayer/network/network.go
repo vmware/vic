@@ -133,6 +133,11 @@ func handleEvent(netctx *Context, ie events.Event) {
 		}
 		defer handle.Close()
 
+		if handle.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
+			op.Warnf("Not unbinding network for %s as power state is %s", ie.Reference(), handle.Runtime.PowerState)
+			return
+		}
+
 		if _, err := netctx.UnbindContainer(op, handle); err != nil {
 			op.Warnf("Failed to unbind container %s: %s", ie.Reference(), err)
 			return

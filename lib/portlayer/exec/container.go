@@ -352,6 +352,11 @@ func (c *Container) Refresh(op trace.Operation) error {
 	// conditionally sync state (see issue 4872, 6372)
 	event := stateevents.NewStateEvent(op, c.containerBase.Runtime.PowerState, c.VMReference())
 	state := eventedState(event, c.state)
+	if state == c.state {
+		// if the container state is still current we need do nothing else
+		return nil
+	}
+
 	if state == StateRunning && !started {
 		// if it's running but not reported started then bypass the update.
 		return nil
