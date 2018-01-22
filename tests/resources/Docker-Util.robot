@@ -49,7 +49,7 @@ Hit Nginx Endpoint
 
 Get Container IP
     [Arguments]  ${docker-params}  ${id}  ${network}=default  ${dockercmd}=docker
-    ${rc}  ${ip}=  Run And Return Rc And Output  ${dockercmd} ${docker-params} network inspect ${network} | jq '.[0].Containers."${id}".IPv4Address' | cut -d \\" -f 2 | cut -d \\/ -f 1
+    ${rc}  ${ip}=  Run And Return Rc And Output  ${dockercmd} ${docker-params} inspect --format='{{(index .NetworkSettings.Networks "${network}").IPAddress}}' ${id}
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${ip}
 

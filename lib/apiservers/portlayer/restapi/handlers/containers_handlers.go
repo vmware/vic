@@ -518,7 +518,7 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 
 	// ensure we have probably up-to-date info
 	for _, endpoint := range container.ExecConfig.Networks {
-		if !endpoint.Static && (endpoint.IP == nil || ip.IsUnspecifiedIP(endpoint.IP.IP)) {
+		if !endpoint.Static && ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
 			// container has dynamic IP but we do not have a reported address
 			op := trace.NewOperation(context.Background(), "state refresh triggered by missing DHCP data")
 			c.Refresh(op)
@@ -615,15 +615,6 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 
 	info.HostConfig = &models.HostConfig{}
 	for _, endpoint := range container.ExecConfig.Networks {
-		// if an external type this will be the endpoint used to publish ports
-		if endpoint.Network.Type == constants.ExternalScopeType && !ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
-			info.HostConfig.Address = endpoint.Assigned.IP.String()
-			if endpoint.Network.TrustLevel == executor.Open {
-				// add all ports as port range
-				info.HostConfig.Ports = append(info.HostConfig.Ports, constants.PortsOpenNetwork)
-			}
-		}
-
 		ep := &models.EndpointConfig{
 			Address:     "",
 			Container:   ccid,
@@ -634,19 +625,20 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 			Scope:       endpoint.Network.Name,
 			Aliases:     make([]string, 0),
 			Nameservers: make([]string, 0),
+			Trust:       endpoint.Network.TrustLevel.String(),
+			Direct:      endpoint.Network.Type == constants.ExternalScopeType,
 		}
 
-		if len(endpoint.Network.Gateway.IP) > 0 {
+		if !ip.IsUnspecifiedIP(endpoint.Network.Gateway.IP) {
 			ep.Gateway = endpoint.Network.Gateway.String()
 		}
 
-		if len(endpoint.Assigned.IP) > 0 {
+		if !ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
 			ep.Address = endpoint.Assigned.String()
 		}
 
 		if len(endpoint.Ports) > 0 {
 			ep.Ports = append(ep.Ports, endpoint.Ports...)
-			info.HostConfig.Ports = append(info.HostConfig.Ports, endpoint.Ports...)
 		}
 
 		for _, alias := range endpoint.Network.Aliases {

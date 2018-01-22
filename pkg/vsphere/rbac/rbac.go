@@ -17,13 +17,17 @@ package rbac
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/methods"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 const (
@@ -118,6 +122,8 @@ func (am *AuthzManager) IsPrincipalAnAdministrator(ctx context.Context) (bool, e
 }
 
 func (am *AuthzManager) PrincipalBelongsToGroup(ctx context.Context, group string) (bool, error) {
+	op := trace.FromContext(ctx, "PrincipalBelongsToGroup")
+
 	ref := *am.client.ServiceContent.UserDirectory
 
 	components := strings.Split(am.Principal, "@")
@@ -140,7 +146,17 @@ func (am *AuthzManager) PrincipalBelongsToGroup(ctx context.Context, group strin
 	}
 
 	results, err := methods.RetrieveUserGroups(ctx, am.client, &req)
+	// This is to work around a bug in vSphere, when AD is added to
+	// the identity source list, the API returns Object Not Found,
+	// In this case, we ignore the error and return false (BUG: 2037706)
+	if err != nil && isNotFoundError(ctx, err) {
+		op.Debugf("Received Not Found Error from PrincipalBelongsToGroup(), could not verify user %s is not a member of the Administrators group", am.Principal)
+		op.Warnf("If ops-user (%s) belongs to the Administrators group, permissions on some resources might have been restricted", am.Principal)
+		return false, nil
+	}
+
 	if err != nil {
+		op.Debugf("Error from PrincipalBelongsToGroup: %s", err.Error())
 		return false, err
 	}
 
@@ -375,4 +391,18 @@ func (am *AuthzManager) getRoleName(resource *Resource) string {
 	default:
 		return am.RolePrefix + resource.Role.Name
 	}
+}
+
+func isNotFoundError(ctx context.Context, err error) bool {
+	op := trace.FromContext(ctx, "isNotFoundError")
+
+	if soap.IsSoapFault(err) {
+		vimFault := soap.ToSoapFault(err).VimFault()
+		op.Debugf("Error type: %s", reflect.TypeOf(vimFault))
+
+		_, ok := soap.ToSoapFault(err).VimFault().(types.NotFound)
+		return ok
+	}
+
+	return false
 }
