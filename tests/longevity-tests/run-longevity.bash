@@ -1,4 +1,5 @@
-# Copyright 2017 VMware, Inc. All Rights Reserved.
+#!/bin/bash
+# Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,9 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License
-
-#!/bin/bash
-pushd /home/$USER/vic/tests/longevity-tests
 set -e
 
 while getopts ":s:h:" opt; do
@@ -63,7 +61,7 @@ fi
 target="$1"
 
 # set an output directory
-odir="/home/$USER/vic-longevity-test-output-$(date -Iminute | sed 's/:/_/g')"
+odir=$PWD"-longevity-test-output-$(date -Iminute | sed 's/:/_/g')"
 
 
 # set up harbor if necessary
@@ -74,30 +72,27 @@ if [[ $(docker ps | grep harbor) == "" ]]; then
         hversion="1.2.0"
         echo "No Harbor version specified. Using default $hversion"
     fi
-    ./get-and-start-harbor.bash $hversion
+    DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    $DIR/get-and-start-harbor.bash $hversion
 fi
 
 echo "Building container images...."
+pushd tests/longevity-tests
 docker build -q -t longevity-base -f Dockerfile.foundation .
 docker build -q -t tests-"$target" -f Dockerfile."${target}" .
+popd
 
-
-if [ ${syslogAddress} != "" ]; then
+if [[ ${syslogAddress} != "" ]]; then
     syslogVchOption="--syslog-address ${syslogAddress}"
 fi
 
-# remove old binaries
-pushd /home/$USER/vic
-rm -rf bin && mkdir bin
-
-pushd bin
 input=$(gsutil ls -l gs://vic-engine-builds/vic_* | grep -v TOTAL | sort -k2 -r | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
 echo "Downloading VIC build $input..."
-wget https://storage.googleapis.com/vic-engine-builds/$input -qO - | tar xz
-mv vic/* .
-rmdir vic
-popd
-
+rm -rf bin
+mkdir -p bin
+wget -P bin https://storage.googleapis.com/vic-engine-builds/$input -qO - | tar xz -C bin
+mv bin/vic/* bin
+rmdir bin/vic
 
 echo "Creating container..."
 testsContainer=$(docker create --rm -it\
@@ -114,11 +109,11 @@ testsContainer=$(docker create --rm -it\
                  exit $rc")
 
 echo "Copying code and binaries into container...."
-docker cp /home/$USER/vic $testsContainer:/go/src/github.com/vmware/
+cd ..
+docker cp vic $testsContainer:/go/src/github.com/vmware/
 
 echo "Running tests.."
 echo "Run docker attach $testsContainer to interact with the container or use docker logs -f to simply view test output as the tests run"
 docker start $testsContainer
 
 echo "Output can be found in $odir"
-popd
