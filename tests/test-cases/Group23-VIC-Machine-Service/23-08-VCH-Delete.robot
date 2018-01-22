@@ -19,7 +19,7 @@ Resource          ../../resources/Group23-VIC-Machine-Service-Util.robot
 Suite Setup       Start VIC Machine Server
 Suite Teardown    Terminate All Processes    kill=True
 Test Setup        Install And Prepare VIC Appliance
-Test Teardown     Run keyword  govc datastore.rm  %{VCH-NAME}-VOL
+Test Teardown     Run  govc datastore.rm  %{VCH-NAME}-VOL
 
 Default Tags
 
