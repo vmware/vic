@@ -268,6 +268,8 @@ Creation log file uploaded to datastore
     ${output}=  Run  govc datastore.tail -n 1 "%{VCH-NAME}/${filename}"
     Should Contain  ${output}  Installer completed successfully
 
+    Cleanup VIC Appliance On Test Server
+
 Basic timeout
     Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
