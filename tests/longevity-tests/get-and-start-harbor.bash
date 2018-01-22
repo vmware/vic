@@ -21,7 +21,7 @@ fi
 version=$1
 [ -e harbor ] \
     && echo "harbor exists. Delete it if you want to install a newer version and re-run $0" \
-    && cd harbor && docker-compose start && cd .. && exit 0
+    && pushd harbor && docker-compose start && popd && exit 0
 
 echo "Pulling down version ${version} of Harbor..."
 wget https://github.com/vmware/harbor/releases/download/v${version}/harbor-online-installer-v${version}.tgz -qO - | tar xz
@@ -35,8 +35,10 @@ echo "Logging in..."
 docker login vic-executor1.vcna.io --username=admin --password="Harbor12345"
 echo "Pulling some images to put in Harbor and putting them in Harbor.."
 
-for image in $(python -c "vars=__import__('tests/resources/dynamic-vars'); print(\" \".join(vars.images))"); do
+pushd tests/resources
+for image in $(python -c "vars=__import__('dynamic-vars'); print(\" \".join(vars.images))"); do
     docker pull $image
     docker tag $image vic-executor1.vcna.io/library/${image}
     docker push vic-executor1.vcna.io/library/${image}
 done
+popd
