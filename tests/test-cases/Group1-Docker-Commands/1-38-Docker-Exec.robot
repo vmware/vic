@@ -130,17 +130,18 @@ Exec During PowerOff
      Should Not Contain  ${output}  Error
      ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
      Should Be Equal As Integers  ${rc}  0
-     :FOR  ${idx}  IN RANGE  1  10
+     :FOR  ${idx}  IN RANGE  1  20
      \   Start Process  docker %{VCH-PARAMS} exec ${id} /bin/top  alias=exec-%{VCH-NAME}-${idx}  shell=true
  
      Start Process  docker %{VCH-PARAMS} stop ${id}  alias=stop-%{VCH-NAME}-${id}  shell=true
-     ${stopResult}=  Wait For Process  stop-%{VCH-NAME}-${id}
-     Should Be Equal As Integers  ${stopResult.rc}  0
 
      ${combinedoutput}=  Set Variable
 
-     :FOR  ${idx}  IN RANGE  1  10
+     :FOR  ${idx}  IN RANGE  1  20
      \   ${result}=  Wait For Process  exec-%{VCH-NAME}-${idx}  timeout=2 mins
      \   ${combinedOutput}=  Catenate  ${combinedOutput}  ${result.stderr}${\n}
+
+     ${stopResult}=  Wait For Process  stop-%{VCH-NAME}-${id}
+     Should Be Equal As Integers  ${stopResult.rc}  0
 
      Should Contain  ${combinedOutput}  container (${id}) has been powered off
