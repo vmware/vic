@@ -23,14 +23,18 @@ Default Tags
 
 *** Keywords ***
 Get Version
+    ${out}=  Run  netstat -l | grep 1337
+    Log  ${out}
+    ${out}=  Run  ps aux | grep vic-machine-server
+    Log  ${out}
     Get Path    version
+    Verify Return Code
 
 Get Hello
     Get Path    hello
 
-
 Verify Version
-    Output Should Match Regexp    v\\d+\\.\\d+\\.\\d+-\\w+-\\d+-[a-f0-9]+
+    Output Should Match Regexp    v\\d+\\.\\d+\\.\\d+-(\\w+-)?\\d+-[a-f0-9]+
     Output Should Not Contain     "
 
 Verify Hello
@@ -40,11 +44,8 @@ Verify Hello
 
 *** Test Cases ***
 Get Version
-    Sleep    1s    for service to start
+    Wait Until Keyword Succeeds  5x  1s  Get Version 
 
-    Get Version
-
-    Verify Return Code
     Verify Status Ok
     Verify Version
 

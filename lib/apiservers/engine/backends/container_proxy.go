@@ -786,7 +786,7 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 		}
 
 		// unmap ports
-		if err = UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
+		if err = UnmapPorts(vc.ContainerID, vc); err != nil {
 			return err
 		}
 	}
@@ -980,7 +980,7 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 
 	if state, err := c.State(vc); !state.Running && err == nil {
 		// unmap ports
-		if err = UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
+		if err = UnmapPorts(vc.ContainerID, vc); err != nil {
 			return err
 		}
 	}
@@ -1608,14 +1608,10 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 		hostConfig.NetworkMode = container.NetworkMode(info.Endpoints[0].Scope)
 	}
 
+	hostConfig.PortBindings = portMapFromContainer(vc, info)
+
 	// Set this to json-file to force the docker CLI to allow us to use docker logs
 	hostConfig.LogConfig.Type = forceLogType
-
-	var err error
-	_, hostConfig.PortBindings, err = nat.ParsePortSpecs(info.HostConfig.Ports)
-	if err != nil {
-		log.Errorf("Failed to parse port mapping %s: %s", info.HostConfig.Ports, err)
-	}
 
 	// get the autoremove annotation from the container annotations
 	convert.ContainerAnnotation(info.ContainerConfig.Annotations, convert.AnnotationKeyAutoRemove, &hostConfig.AutoRemove)
@@ -1749,7 +1745,7 @@ func networkFromContainerInfo(vc *viccontainer.VicContainer, info *models.Contai
 			HairpinMode:            false,
 			LinkLocalIPv6Address:   "",
 			LinkLocalIPv6PrefixLen: 0,
-			Ports:                  portMapFromVicContainer(vc),
+			Ports:                  portMapFromContainer(vc, info),
 			SandboxKey:             "",
 			SecondaryIPAddresses:   nil,
 			SecondaryIPv6Addresses: nil,
@@ -1806,68 +1802,202 @@ func networkFromContainerInfo(vc *viccontainer.VicContainer, info *models.Contai
 	return networks
 }
 
-// portMapFromVicContainer() constructs a docker portmap from both the container's
-// hostconfig and config (both stored in VicContainer).  They are added and modified
-// during docker create.  This function creates a new map that is adheres to docker's
-// structure for types.NetworkSettings.Ports.
-func portMapFromVicContainer(vc *viccontainer.VicContainer) nat.PortMap {
-	var portMap nat.PortMap
+// portMapFromContainer constructs a docker portmap from the container's
+// info as returned by the portlayer and adds nil entries for any exposed ports
+// that are unmapped
+func portMapFromContainer(vc *viccontainer.VicContainer, t *models.ContainerInfo) nat.PortMap {
+	var mappings nat.PortMap
 
-	if vc == nil {
+	if t != nil {
+		mappings = addDirectEndpointsToPortMap(t.Endpoints, mappings)
+	}
+	if vc != nil && vc.Config != nil {
+		if vc.NATMap != nil {
+			// if there's a NAT map for the container then just use that for the indirect port set
+			mappings = mergePortMaps(vc.NATMap, mappings)
+		} else {
+			// if there's no NAT map then we use the backend data every time
+			mappings = addIndirectEndpointsToPortMap(t.Endpoints, mappings)
+		}
+		mappings = addExposedToPortMap(vc.Config, mappings)
+	}
+
+	return mappings
+}
+
+// mergePortMaps creates a new map containing the union of the two arguments
+func mergePortMaps(map1, map2 nat.PortMap) nat.PortMap {
+	resultMap := make(map[nat.Port][]nat.PortBinding)
+	for k, v := range map1 {
+		resultMap[k] = v
+	}
+
+	for k, v := range map2 {
+		vr := resultMap[k]
+		resultMap[k] = append(vr, v...)
+	}
+
+	return resultMap
+}
+
+// addIndirectEndpointToPortMap constructs a docker portmap from the container's info as returned by the portlayer for those ports that
+// require NAT forward on the endpointVM.
+// The portMap provided is modified and returned - the return value should always be used.
+func addIndirectEndpointsToPortMap(endpoints []*models.EndpointConfig, portMap nat.PortMap) nat.PortMap {
+	if len(endpoints) == 0 {
 		return portMap
 	}
 
-	portMap = make(nat.PortMap)
-
-	// Iterate over the hostconfig that was set in docker create.  Get non-nil
-	// bindings and fix up ip addr and add to networks
-	if vc.HostConfig != nil && vc.HostConfig.PortBindings != nil {
-		//		networks.Ports = vc.HostConfig.PortBindings
-		for port, portbindings := range vc.HostConfig.PortBindings {
-
-			var newbindings []nat.PortBinding
-
-			for _, binding := range portbindings {
-				nb := binding
-
-				// Check host IP.  VIC only support 0.0.0.0
-				if nb.HostIP == "" {
-					nb.HostIP = "0.0.0.0"
-				}
-
-				newbindings = append(newbindings, nb)
-			}
-
-			portMap[port] = newbindings
-		}
+	// will contain a combined set of port mappings
+	if portMap == nil {
+		portMap = make(nat.PortMap)
 	}
 
-	// Iterate over the container's original image config.  This is the set of
-	// exposed ports.  For ports that were not in hostConfig, we assign value of
-	// nil.  This appears to be the behavior of regular docker.
-	if vc.Config != nil {
-		for port := range vc.Config.ExposedPorts {
-			if _, ok := portMap[port]; ok {
-				continue
+	// add IP address into port spec to allow direct usage of data returned by calls such as docker port
+	var ip string
+	ips, _ := publicIPv4Addrs()
+	if len(ips) > 0 {
+		ip = ips[0]
+	}
+
+	// Preserve the existing behaviour if we do not have an IP for some reason.
+	if ip == "" {
+		ip = "0.0.0.0"
+	}
+
+	for _, ep := range endpoints {
+		if ep.Direct {
+			continue
+		}
+
+		for _, port := range ep.Ports {
+			mappings, err := nat.ParsePortSpec(port)
+			if err != nil {
+				log.Error(err)
+				// just continue if we do have partial port data
 			}
 
-			portMap[port] = nil
+			for i := range mappings {
+				p := mappings[i].Port
+				b := mappings[i].Binding
+
+				if b.HostIP == "" {
+					b.HostIP = ip
+				}
+
+				if mappings[i].Binding.HostPort == "" {
+					// leave this undefined for dynamic assignment
+					// TODO: for port stability over VCH restart we would expect to set the dynamically assigned port
+					// recorded in containerVM annotations here, so that the old host->port mapping is preserved.
+				}
+
+				log.Debugf("Adding indirect mapping for port %v: %v (%s)", p, b, port)
+
+				current, _ := portMap[p]
+				portMap[p] = append(current, b)
+			}
 		}
 	}
 
 	return portMap
 }
 
-func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicContainer {
-	log.Debugf("Convert container info to vic container")
+// addDirectEndpointsToPortMap constructs a docker portmap from the container's info as returned by the portlayer for those
+// ports exposed directly from the containerVM via container network
+// The portMap provided is modified and returned - the return value should always be used.
+func addDirectEndpointsToPortMap(endpoints []*models.EndpointConfig, portMap nat.PortMap) nat.PortMap {
+	if len(endpoints) == 0 {
+		return portMap
+	}
 
+	if portMap == nil {
+		portMap = make(nat.PortMap)
+	}
+
+	for _, ep := range endpoints {
+		if !ep.Direct {
+			continue
+		}
+
+		// add IP address into the port spec to allow direct usage of data returned by calls such as docker port
+		var ip string
+		rawIP, _, _ := net.ParseCIDR(ep.Address)
+		if rawIP != nil {
+			ip = rawIP.String()
+		}
+
+		if ip == "" {
+			ip = "0.0.0.0"
+		}
+
+		for _, port := range ep.Ports {
+			mappings, err := nat.ParsePortSpec(port)
+			if err != nil {
+				log.Error(err)
+				// just continue if we do have partial port data
+			}
+
+			for i := range mappings {
+				if mappings[i].Binding.HostIP == "" {
+					mappings[i].Binding.HostIP = ip
+				}
+
+				if mappings[i].Binding.HostPort == "" {
+					// If there's no explicit host port and it's a direct endpoint, then
+					// mirror the actual port. It's a bit misleading but we're trying to
+					// pack extended function into an existing structure.
+					_, p := nat.SplitProtoPort(string(mappings[i].Port))
+					mappings[i].Binding.HostPort = p
+				}
+			}
+
+			for _, mapping := range mappings {
+				p := mapping.Port
+				current, _ := portMap[p]
+				portMap[p] = append(current, mapping.Binding)
+			}
+		}
+	}
+
+	return portMap
+}
+
+// addExposedToPortMap ensures that exposed ports are all present in the port map.
+// This means nil entries for any exposed ports that are not mapped.
+// The portMap provided is modified and returned - the return value should always be used.
+func addExposedToPortMap(config *container.Config, portMap nat.PortMap) nat.PortMap {
+	if config == nil || len(config.ExposedPorts) == 0 {
+		return portMap
+	}
+
+	if portMap == nil {
+		portMap = make(nat.PortMap)
+	}
+
+	for p := range config.ExposedPorts {
+		if _, ok := portMap[p]; ok {
+			continue
+		}
+
+		portMap[p] = nil
+	}
+
+	return portMap
+}
+
+func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicContainer {
 	vc := viccontainer.NewVicContainer()
 
-	var name string
+	if info.ContainerConfig.ContainerID != "" {
+		vc.ContainerID = info.ContainerConfig.ContainerID
+	}
+
+	log.Debugf("Convert container info to vic container: %s", vc.ContainerID)
+
 	if len(info.ContainerConfig.Names) > 0 {
 		vc.Name = info.ContainerConfig.Names[0]
+		log.Debugf("Container %q", vc.Name)
 	}
-	log.Debugf("Container %q", name)
 
 	if info.ContainerConfig.LayerID != "" {
 		vc.LayerID = info.ContainerConfig.LayerID
@@ -1875,10 +2005,6 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 
 	if info.ContainerConfig.ImageID != "" {
 		vc.ImageID = info.ContainerConfig.ImageID
-	}
-
-	if info.ContainerConfig.ContainerID != "" {
-		vc.ContainerID = info.ContainerConfig.ContainerID
 	}
 
 	tempVC := viccontainer.NewVicContainer()
