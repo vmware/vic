@@ -3020,6 +3020,14 @@
 					"items": {
 						"type": "string"
 					}
+				},
+				"trust": {
+					"x-nullable": false,
+					"type": "string"
+				},
+				"direct": {
+					"x-nullable": false,
+					"type": "boolean"
 				}
 			}
 		},
@@ -3400,15 +3408,6 @@
 				},
 				"reservation": {
 					"$ref": "#/definitions/ReservationConfig"
-				},
-				"address": {
-					"type": "string"
-				},
-				"ports": {
-					"type": "array",
-					"items": {
-						"type": "string"
-					}
 				}
 			}
 		},
