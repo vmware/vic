@@ -37,6 +37,6 @@ def getName(image):
 
 # this global variable (images) is used by the Longevity scripts. If you change this, change those!
 # and don't inline it!
-images = ['busybox', 'alpine', 'nginx','debian', 'ubuntu', 'redis']
+images = ['busybox', 'alpine', 'nginx','debian', 'ubuntu', 'redis', 'mongo']
 for image in images:
     exec("{} = '{}'".format(image.upper().replace(':', '_').replace('.', '_'), getName(image)))
