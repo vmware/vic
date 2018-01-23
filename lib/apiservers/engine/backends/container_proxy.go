@@ -391,6 +391,13 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 	}
 	log.Infof("Finalized volume list: %#v", volList)
 
+	// remove overlapping specified volume entries from the config.Config.Volumes map since they are superseding the anonymous behavior of image volumes.
+	for _, v := range config.HostConfig.Binds {
+		fields := strings.SplitN(v, ":", 2)
+		destination := fields[1]
+		delete(config.Config.Volumes, destination)
+	}
+
 	if len(config.Config.Volumes) > 0 {
 		// override anonymous volume list with generated volume id
 		for _, vol := range volList {
@@ -1253,10 +1260,12 @@ func removeAnonContainerVols(pl *client.PortLayer, cID string, volumes map[strin
 		volFields := strings.SplitN(vol, ":", 2)
 		volName := volFields[0]
 		if _, joined := joinedVols[volName]; !joined {
+			log.Debugf("Attempting to remove Anonymous volume %s from container %s", volName, cID)
 			_, err := pl.Storage.RemoveVolume(storage.NewRemoveVolumeParamsWithContext(ctx).WithName(volName))
 			if err != nil {
 				log.Debugf("Unable to remove anonymous volume %s in container %s: %s", volName, cID, err.Error())
 			}
+			log.Debugf("Successfully removed anonmyous volume %s", volName)
 		}
 	}
 }
