@@ -22,12 +22,15 @@ while getopts ":s:h:" opt; do
     h)
       harborVersion=$OPTARG
       ;;
+    d)
+      debugLevel=$OPTARG
+      ;;
     \?)
-      echo "Usage: $0 [-s <syslog endpoint>] [-h <harbor version>] target-cluster"
+      echo "Usage: $0 [-d <debug level>] [-s <syslog endpoint>] [-h <harbor version>] target-cluster"
       exit 1
       ;;
     :)
-      echo "Usage: $0 [-s <syslog endpoint>] [-h <harbor version>] target-cluster"
+      echo "Usage: $0 [-d <debug level>] [-s <syslog endpoint>] [-h <harbor version>] target-cluster"
       exit 1
       ;;
   esac
@@ -82,7 +85,13 @@ docker build -q -t longevity-base -f Dockerfile.foundation .
 docker build -q -t tests-"$target" -f Dockerfile."${target}" .
 popd
 
-if [[ ${syslogAddress} != "" ]]; then
+if [ ${debugLevel} != "" ]; then
+    debugVchLevel="--debug=${debugLevel}"
+else
+    debugVchLevel="--debug=0"
+fi
+
+if [ ${syslogAddress} != "" ]; then
     syslogVchOption="--syslog-address ${syslogAddress}"
 fi
 
@@ -97,7 +106,7 @@ rmdir bin/vic
 echo "Creating container..."
 testsContainer=$(docker create --rm -it\
                         -w /go/src/github.com/vmware/vic/ \
-                        -v "$odir":/tmp/ -e SYSLOG_VCH_OPTION="${syslogVchOption}" \
+                        -v "$odir":/tmp/ -e SYSLOG_VCH_OPTION="${syslogVchOption}" -e DEBUG_VCH_LEVEL="${debugVchLevel}" \
                         tests-"$target" \
                         bash -c \
                         ". secrets && pybot -d /tmp/ /go/src/github.com/vmware/vic/tests/manual-test-cases/Group14-Longevity/14-1-Longevity.robot; rc=$?;\
