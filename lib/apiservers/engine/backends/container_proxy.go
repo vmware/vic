@@ -1265,7 +1265,7 @@ func removeAnonContainerVols(pl *client.PortLayer, cID string, volumes map[strin
 			if err != nil {
 				log.Debugf("Unable to remove anonymous volume %s in container %s: %s", volName, cID, err.Error())
 			}
-			log.Debugf("Successfully removed anonmyous volume %s", volName)
+			log.Debugf("Successfully removed anonymous volume %s", volName)
 		}
 	}
 }
