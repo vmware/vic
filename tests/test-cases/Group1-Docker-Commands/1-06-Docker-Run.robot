@@ -168,7 +168,7 @@ Docker run and auto remove with anonymous volumes and named volumes
        Set Test Variable  ${namedImageVol}  non-anonymous-image-volume-${suffix}
        Should Be Equal As Integers  ${rc}  0
        Set Test Variable  ${imageVolumeContainer}  I-Have-Two-Anonymous-Volumes-${suffix}
-       ${rc}  ${c5}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --rm --name ${imageVolumeContainer} -v ${namedImageVol}:/data/db -v /I/AM/ANONYMOOOOSE ${mongo} bash
+       ${rc}  ${c5}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --rm --name ${imageVolumeContainer} -v ${namedImageVol}:/data/db -v /I/AM/ANONYMOOOOSE mongo bash
        Should Be Equal As Integers  ${rc}  0
        ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
        Should Be Equal As Integers  ${rc}  0

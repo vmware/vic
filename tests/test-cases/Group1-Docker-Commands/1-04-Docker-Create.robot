@@ -61,7 +61,7 @@ Create with complex volume topology - overriding image volume with named volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name ${namedImageVol}
     Should Be Equal As Integers  ${rc}  0
     Set Test Variable  ${imageVolumeContainer}  I-Have-Two-Anonymous-Volumes-${suffix}
-    ${rc}  ${c5}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${imageVolumeContainer} -v ${namedImageVol}:/data/db -v /I/AM/ANONYMOOOOSE ${mongo}
+    ${rc}  ${c5}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${imageVolumeContainer} -v ${namedImageVol}:/data/db -v /I/AM/ANONYMOOOOSE mongo
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f "{{.HostConfig.Binds}}" ${imageVolumeContainer}
     Should Contain  ${output}  ${namedImageVol}
