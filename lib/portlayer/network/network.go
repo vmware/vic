@@ -33,6 +33,8 @@ import (
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/retry"
+	"github.com/derekparker/delve/pkg/dwarf/op"
 )
 
 var (
@@ -49,6 +51,10 @@ type DuplicateResourceError struct {
 }
 
 type ResourceNotFoundError struct {
+	error
+}
+
+type ConcurrentResourceError struct {
 	error
 }
 
@@ -120,25 +126,60 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 func handleEvent(netctx *Context, ie events.Event) {
 	switch ie.String() {
 	case events.ContainerPoweredOff:
-		op := trace.NewOperation(context.Background(), fmt.Sprintf("handleEvent(%s)", ie.EventID()))
-		op.Infof("Handling Event: %s", ie.EventID())
-		// grab the operation from the event
-		handle := exec.GetContainer(op, uid.Parse(ie.Reference()))
-		if handle == nil {
-			_, err := netctx.RemoveIDFromScopes(op, ie.Reference())
-			if err != nil {
-				op.Errorf("Failed to remove container %s scope: %s", ie.Reference(), err)
+		//op := trace.NewOperation(context.Background(), fmt.Sprintf("handleEvent(%s)", ie.EventID()))
+		//op.Infof("Handling Event: %s", ie.EventID())
+		//// grab the operation from the event
+		//handle := exec.GetContainer(op, uid.Parse(ie.Reference()))
+		//if handle == nil {
+		//	_, err := netctx.RemoveIDFromScopes(op, ie.Reference())
+		//	if err != nil {
+		//		op.Errorf("Failed to remove container %s scope: %s", ie.Reference(), err)
+		//	}
+		//	return
+		//}
+		//defer handle.Close()
+		//
+		//if _, err := netctx.UnbindContainer(op, handle); err != nil {
+		//	op.Warnf("Failed to unbind container %s: %s", ie.Reference(), err)
+		//	return
+		//}
+
+		// Retry the commit if we get concurrent access error.  If we fail to unbind here, the
+		// container will continually ask for the same IP address and may never restart on a
+		// heavily loaded system again.  https://github.com/vmware/vic/issues/6851
+		operation := func() error {
+			op := trace.NewOperation(context.Background(), fmt.Sprintf("handleEvent(%s)", ie.EventID()))
+			op.Infof("Handling Event: %s", ie.EventID())
+			// grab the operation from the event
+			handle := exec.GetContainer(op, uid.Parse(ie.Reference()))
+			if handle == nil {
+				_, err := netctx.RemoveIDFromScopes(op, ie.Reference())
+				if err != nil {
+					op.Errorf("Failed to remove container %s scope: %s", ie.Reference(), err)
+				}
+				return nil
 			}
-			return
-		}
-		defer handle.Close()
+			defer handle.Close()
 
-		if _, err := netctx.UnbindContainer(op, handle); err != nil {
-			op.Warnf("Failed to unbind container %s: %s", ie.Reference(), err)
-			return
+			if _, err := netctx.UnbindContainer(op, handle); err != nil {
+				op.Warnf("Failed to unbind container %s: %s", ie.Reference(), err)
+				return nil
+			}
+
+			return handle.Commit(op, nil, nil)
 		}
 
-		if err := handle.Commit(op, nil, nil); err != nil {
+		retryCondition := func(err error) bool {
+			if f, ok := err.(types.HasFault); ok {
+				switch f.Fault().(type) {
+				case *types.ConcurrentAccess:
+					return true
+				}
+			}
+			return false
+		}
+
+		if err := retry.Do(operation, retryCondition); err != nil {
 			op.Warnf("Failed to commit handle after network unbind for container %s: %s", ie.Reference(), err)
 		}
 

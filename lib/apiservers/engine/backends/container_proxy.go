@@ -1470,13 +1470,11 @@ func processVolumeFields(volumes []string) (map[string]volumeFields, error) {
 }
 
 func finalizeVolumeList(specifiedVolumes, anonymousVolumes []string) ([]volumeFields, error) {
-	log.Infof("Specified Volumes : %#v", specifiedVolumes)
 	processedVolumes, err := processVolumeFields(specifiedVolumes)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Infof("anonymous Volumes : %#v", anonymousVolumes)
 	processedAnonVolumes, err := processVolumeFields(anonymousVolumes)
 	if err != nil {
 		return nil, err

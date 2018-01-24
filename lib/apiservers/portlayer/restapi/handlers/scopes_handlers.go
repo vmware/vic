@@ -284,7 +284,8 @@ func (handler *ScopesHandlersImpl) ScopesBindContainer(params scopes.BindContain
 		switch err := err.(type) {
 		case network.ResourceNotFoundError:
 			return scopes.NewBindContainerNotFound().WithPayload(errorPayload(err))
-
+		case network.ConcurrentResourceError:
+			return scopes.NewBindContainerConflict().WithPayload(&models.Error{Message: err.Error()})
 		default:
 			return scopes.NewBindContainerInternalServerError().WithPayload(errorPayload(err))
 		}
