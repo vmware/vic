@@ -85,13 +85,13 @@ docker build -q -t longevity-base -f Dockerfile.foundation .
 docker build -q -t tests-"$target" -f Dockerfile."${target}" .
 popd
 
-if [ ${debugLevel} != "" ]; then
+if [[ ${debugLevel} != "" ]]; then
     debugVchLevel="--debug=${debugLevel}"
 else
     debugVchLevel="--debug=0"
 fi
 
-if [ ${syslogAddress} != "" ]; then
+if [[ ${syslogAddress} != "" ]]; then
     syslogVchOption="--syslog-address ${syslogAddress}"
 fi
 
