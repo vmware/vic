@@ -22,14 +22,14 @@ on-vch() {
 
 VCH_IP="$(govc vm.ip $VCH_NAME)"
 
-for x in port-layer-server docker-engine-server vicadmin; do
+for x in port-layer-server docker-engine-server vicadmin vic-init; do
     sshpass -p 'password' scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no $GOPATH/src/github.com/vmware/vic/bin/$x root@$VCH_IP:/tmp/$x
     on-vch mv /sbin/$x /tmp/old-$x
     on-vch mv /tmp/$x /sbin/$x
     on-vch chmod 755 /sbin/$x
     pid=$(on-vch ps -e --format='pid,args' | grep $x | grep -v grep | awk '{print $1}')
-    on-vch kill -HUP $pid
+    on-vch kill -9 $pid
     on-vch rm -f /tmp/old-$x
 done
 
-on-vch telinit 6
+on-vch vic-init &
