@@ -36,6 +36,15 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
+// All paths on the datastore for images are relative to <datastore>/VIC/
+var StorageParentDir = "VIC"
+
+// Key-value storage directory.
+var KVStoreFolder = "kvStores"
+
+// All volumes are stored in this directory.
+const VolumesDir = "volumes"
+
 // Helper gives access to the datastore regardless of type (esx, esx + vc,
 // or esx + vc + vsan).  Also wraps paths to a given root directory
 type Helper struct {

@@ -40,9 +40,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-// All paths on the datastore for images are relative to <datastore>/VIC/
-var StorageParentDir = "VIC"
-
 // Set to false for unit tests
 var (
 	DetachAll = true
@@ -102,7 +99,7 @@ func NewImageStore(op trace.Operation, s *session.Session, u *url.URL) (*ImageSt
 		return nil, fmt.Errorf("Found %d datastores with provided datastore path %s. Cannot create image store.", len(datastores), u)
 	}
 
-	ds, err := datastore.NewHelper(op, s, datastores[0], path.Join(u.Path, StorageParentDir))
+	ds, err := datastore.NewHelper(op, s, datastores[0], path.Join(u.Path, datastore.StorageParentDir))
 	if err != nil {
 		return nil, err
 	}

@@ -31,8 +31,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
-const VolumesDir = "volumes"
-
 // VolumeStore caches Volume references to volumes in the system.
 type VolumeStore struct {
 	disk.Vmdk
@@ -43,7 +41,7 @@ type VolumeStore struct {
 
 func NewVolumeStore(op trace.Operation, storeName string, s *session.Session, ds *datastore.Helper) (*VolumeStore, error) {
 	// Create the volume dir if it doesn't already exist
-	if _, err := ds.Mkdir(op, true, VolumesDir); err != nil && !os.IsExist(err) {
+	if _, err := ds.Mkdir(op, true, datastore.VolumesDir); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
@@ -79,7 +77,7 @@ func NewVolumeStore(op trace.Operation, storeName string, s *session.Session, ds
 // for a vol in the datastore is `<configured datastore path>/volumes/<vol ID>/<vol ID>.vmkd`.
 // Everything up to "volumes" is taken care of by the datastore wrapper.
 func (v *VolumeStore) volDirPath(ID string) string {
-	return path.Join(VolumesDir, ID)
+	return path.Join(datastore.VolumesDir, ID)
 }
 
 // Returns the path to the metadata directory for a volume
@@ -165,7 +163,7 @@ func (v *VolumeStore) VolumeGet(op trace.Operation, ID string) (*storage.Volume,
 func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error) {
 	volumes := []*storage.Volume{}
 
-	res, err := v.Ls(op, VolumesDir)
+	res, err := v.Ls(op, datastore.VolumesDir)
 	if err != nil {
 		return nil, fmt.Errorf("error listing vols: %s", err)
 	}
