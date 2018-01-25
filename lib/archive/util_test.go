@@ -21,6 +21,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// INPUT VALIDATION TESTS
+
+func TestNilSpecForAddInclusionExclusion(t *testing.T) {
+	var emptyMounts []string
+	err := AddMountInclusionsExclusions("", nil, emptyMounts, "")
+	assert.Error(t, err)
+
+	emptySpec := FilterSpec{
+		RebasePath: "",
+		StripPath:  "",
+		Exclusions: nil,
+		Inclusions: nil,
+	}
+
+	err = AddMountInclusionsExclusions("", &emptySpec, emptyMounts, "")
+	assert.Error(t, err)
+
+}
+
 // COPY TO TESTS
 
 func TestComplexWriteSpec(t *testing.T) {
