@@ -1,4 +1,18 @@
 #!/bin/bash
+# Copyright 2018 VMware, Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 set -e
 
 for x in $(echo GOVC_USERNAME GOVC_PASSWORD VCH_NAME GOVC_URL GOPATH GOVC_INSECURE); do
@@ -28,15 +42,25 @@ on-vch() {
 
 VCH_IP="$(govc vm.ip $VCH_NAME)"
 
-for x in port-layer-server docker-engine-server vicadmin vic-init; do
-    sshpass -p 'password' scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no $GOPATH/src/github.com/vmware/vic/bin/$x root@$VCH_IP:/tmp/$x
-    on-vch mv /sbin/$x /tmp/old-$x
-    on-vch mv /tmp/$x /sbin/$x
-    on-vch chmod 755 /sbin/$x
-    pid=$(on-vch ps -e --format='pid,args' | grep $x | grep -v grep | awk '{print $1}')
+function replace-component() {
+    sshpass -p 'password' scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no $GOPATH/src/github.com/vmware/vic/bin/$1 root@$VCH_IP:/tmp/$1
+    on-vch mv /sbin/$1 /tmp/old-$1
+    on-vch mv /tmp/$1 /sbin/$1
+    on-vch chmod 755 /sbin/$1
+    pid=$(on-vch ps -e --format='pid,args' | grep $1 | grep -v grep | awk '{print $1}')
     on-vch kill -9 $pid
-    on-vch rm -f /tmp/old-$x
-done
+    on-vch rm -f /tmp/old-$1
+
+}
+
+if [[ $1 == "" ]]; then
+    for x in port-layer-server docker-engine-server vicadmin vic-init; do
+        replace-component $x
+    done
+else
+    replace-component $1
+fi
+
 
 on-vch vic-init &
 echo "IP address may change when appliance finishes re-initializing. Get the new IP with govc vm.ip"
