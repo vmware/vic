@@ -320,6 +320,8 @@ func ParseTrustLevel(value string) (TrustLevel, error) {
 		trust = Outbound
 	case "peers":
 		trust = Peers
+	case "":
+		trust = Unspecified
 	default:
 		return Unspecified, fmt.Errorf("Unrecognized container trust level %s.", value)
 	}
