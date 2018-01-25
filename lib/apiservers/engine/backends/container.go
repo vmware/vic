@@ -565,11 +565,10 @@ func (c *Container) ExecExists(eid string) (bool, error) {
 	return true, nil
 }
 
-// docker's container.stateBackend
-
 // ContainerCreate creates a container.
 func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
 	defer trace.End(trace.Begin(""))
+	// TODO: Add Op logging to this operation. This is the start of container create operation and op logging here is very valuable.
 
 	var err error
 

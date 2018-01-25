@@ -394,6 +394,11 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 	// remove overlapping specified volume entries from the config.Config.Volumes map since they are superseding the anonymous behavior of image volumes.
 	for _, v := range config.HostConfig.Binds {
 		fields := strings.SplitN(v, ":", 2)
+		if len(fields) != 2 {
+			log.Error("HostConfig.Binds has an incorrect entry: %s should have two distinct entries separate by the ':' separator", v)
+			return nil, fmt.Errorf("Container HostConfig.Bind entry had an invalid entry: %s please check your docker client version and docker api version", v)
+		}
+
 		destination := fields[1]
 		delete(config.Config.Volumes, destination)
 	}
