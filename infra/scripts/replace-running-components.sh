@@ -50,17 +50,18 @@ function replace-component() {
     pid=$(on-vch ps -e --format='pid,args' | grep $1 | grep -v grep | awk '{print $1}')
     on-vch kill -9 $pid
     on-vch rm -f /tmp/old-$1
-
 }
 
 if [[ $1 == "" ]]; then
     for x in port-layer-server docker-engine-server vicadmin vic-init; do
         replace-component $x
     done
+elif [[ $1 == "vic-init" ]]; then
+    replace-component vic-init
 else
     replace-component $1
+    replace-component vic-init
 fi
-
 
 on-vch vic-init &
 echo "IP address may change when appliance finishes re-initializing. Get the new IP with govc vm.ip"
