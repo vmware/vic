@@ -61,7 +61,7 @@ endif
 # Caches dependencies to speed repeated calls
 define godeps
 	$(call assert,$(call gmsl_compatible,1 1 7), Wrong GMSL version) \
-	$(if $(filter-out push focused-test test check clean distclean mrrobot mark sincemark .DEFAULT,$(MAKECMDGOALS)), \
+	$(if $(filter-out push push-portlayer push-docker push-vic-init push-vicadmin focused-test test check clean distclean mrrobot mark sincemark .DEFAULT,$(MAKECMDGOALS)), \
 		$(if $(call defined,dep_cache,$(dir $1)),,$(info Generating dependency set for $(dir $1))) \
 		$(or \
 			$(if $(call defined,dep_cache,$(dir $1)), $(debug Using cached Go dependencies) $(wildcard $1) $(call get,dep_cache,$(dir $1))),
@@ -273,7 +273,19 @@ install-govmomi:
 test: install-govmomi portlayerapi $(TEST_JOBS)
 
 push:
-	./infra/scripts/replace-running-components.bash
+	./infra/scripts/replace-running-components.sh
+
+push-portlayer:
+	./infra/scripts/replace-running-components.sh port-layer-server
+
+push-docker:
+	./infra/scripts/replace-running-components.sh docker-engine-server
+
+push-vic-init:
+	./infra/scripts/replace-running-components.sh vic-init
+
+push-vicadmin:
+	./infra/scripts/replace-running-components.sh vicadmin
 
 focused-test:
 # test only those packages that have changes
