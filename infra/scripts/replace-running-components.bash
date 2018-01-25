@@ -4,6 +4,12 @@ set -e
 for x in $(echo GOVC_USERNAME GOVC_PASSWORD VCH_NAME GOVC_URL GOPATH GOVC_INSECURE); do
     if [[ ! -v $x ]]; then
         echo "Insufficient inputs. Please set $x environment variable and re-execute this script.";
+        echo "GOVC_USERNAME: username on ESX/vCenter target"
+        echo "GOVC_PASSWORD: password on ESX/vCenter target"
+        echo "VCH_NAME: name of VCH; matches --name argument for vic-machine"
+        echo "GOVC_URL: IP or FQDN of your vCenter/ESX target"
+        echo "GOPATH: your GOPATH, obviously"
+        echo "GOVC_INSECURE: set to 1 to disable tls verify when using govc to talk to ESX/vC"
         exit 1
     fi;
 done
@@ -33,3 +39,4 @@ for x in port-layer-server docker-engine-server vicadmin vic-init; do
 done
 
 on-vch vic-init &
+echo "IP address may change when appliance finishes re-initializing. Get the new IP with govc vm.ip"
