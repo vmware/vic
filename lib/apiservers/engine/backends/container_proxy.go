@@ -1247,20 +1247,20 @@ func removeAnonContainerVols(pl *client.PortLayer, cID string, vc *viccontainer.
 	// NOTE: these strings come in the form of <volume id>:<destination path>
 	namedVolumes := vc.HostConfig.Binds
 
-	// assemble white list of volume paths before processing binds. MUST be paths, as we want to move to honoring the proper metadata in the "volumes" section in the future.
-	whitelist := make(map[string]struct{}, 0)
+	// assemble a mask of volume paths before processing binds. MUST be paths, as we want to move to honoring the proper metadata in the "volumes" section in the future.
+	namedMaskList := make(map[string]struct{}, 0)
 	for _, entry := range namedVolumes {
 		fields := strings.SplitN(entry, ":", 2)
-		if len(fields) != 2 {
-			log.Debugf("Invalid entry found in the HostConfig.Binds metadata for container %s: entry---> %s", cID, entry)
+		if len(fields) >= 2 {
+			log.Errorf("Invalid entry in the HostConfig.Binds metadata section for container %s: %s", cID, entry)
 		}
 		destPath := fields[1]
-		whitelist[destPath] = struct{}{}
+		namedMaskList[destPath] = struct{}{}
 	}
 
 	joinedVols, err := fetchJoinedVolumes()
 	if err != nil {
-		log.Warnf("Unable to obtain joined volumes from portlayer, skipping removing anonymous volumes for %s: %s", cID, err.Error())
+		log.Errorf("Unable to obtain joined volumes from portlayer, skipping removing anonymous volumes for %s: %s", cID, err.Error())
 		return
 	}
 
@@ -1268,15 +1268,15 @@ func removeAnonContainerVols(pl *client.PortLayer, cID string, vc *viccontainer.
 		// Extract the volume ID from the full mount path, which is of form "id:mountpath:flags" - see getMountString().
 		volFields := strings.SplitN(vol, ":", 3)
 
-		// XXX: this check will start to fail when we fix our metadata correctness issues
+		// NOTE(mavery): this check will start to fail when we fix our metadata correctness issues
 		if len(volFields) != 3 {
-			log.Debugf("Invalid Entry found in the Volumes metadata seciont for container %s: entry---> %s", cID, vol)
+			log.Debugf("Invalid entry in the volumes metadata section for container %s: %s", cID, vol)
 			continue
 		}
 		volName := volFields[0]
 		volPath := volFields[1]
 
-		_, isNamed := whitelist[volPath]
+		_, isNamed := namedMaskList[volPath]
 		if _, joined := joinedVols[volName]; !joined && !isNamed {
 			_, err := pl.Storage.RemoveVolume(storage.NewRemoveVolumeParamsWithContext(ctx).WithName(volName))
 			if err != nil {
