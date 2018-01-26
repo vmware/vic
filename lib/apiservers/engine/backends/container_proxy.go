@@ -1269,7 +1269,7 @@ func removeAnonContainerVols(pl *client.PortLayer, cID string, vc *viccontainer.
 		volFields := strings.SplitN(vol, ":", 3)
 
 		// NOTE(mavery): this check will start to fail when we fix our metadata correctness issues
-		if len(volFields) != 3 {
+		if len(volFields) >= 3 {
 			log.Debugf("Invalid entry in the volumes metadata section for container %s: %s", cID, vol)
 			continue
 		}
