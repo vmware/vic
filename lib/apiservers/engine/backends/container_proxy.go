@@ -1261,7 +1261,7 @@ func removeAnonContainerVols(pl *client.PortLayer, cID string, vc *viccontainer.
 
 	joinedVols, err := fetchJoinedVolumes()
 	if err != nil {
-		log.Errorf("Unable to obtain joined volumes from portlayer, skipping removing anonymous volumes for %s: %s", cID, err.Error())
+		log.Errorf("Unable to obtain joined volumes from portlayer, skipping removal of anonymous volumes for %s: %s", cID, err.Error())
 		return
 	}
 
