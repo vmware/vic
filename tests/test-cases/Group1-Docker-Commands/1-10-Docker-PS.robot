@@ -94,7 +94,8 @@ Docker ps all containers
     Length Should Be  ${output}  ${len+3}
 
 Docker ps powerOn container OOB
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name jojo ${busybox} /bin/top
+    # supply an IP address or the container will not have one bound and will only report as Starting, not showing in plain ps output
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name jojo --ip=172.16.0.50 ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -q
     Should Be Equal As Integers  ${rc}  0

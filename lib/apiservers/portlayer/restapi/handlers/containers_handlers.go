@@ -516,16 +516,27 @@ func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.
 func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 	container := c.Info()
 
-	// ensure we have probably up-to-date info
-	for _, endpoint := range container.ExecConfig.Networks {
-		if !endpoint.Static && ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
-			// container has dynamic IP but we do not have a reported address
-			op := trace.NewOperation(context.Background(), "state refresh triggered by missing DHCP data")
-			c.Refresh(op)
-			container = c.Info()
-			// shouldn't need multiple refreshes if multiple dhcps
-			break
+	// ensure we have probably up-to-date info. Determine if we have transient state values
+	transient := false
+	if container.State() == exec.StateStarting || container.State() == exec.StateStopping {
+		transient = true
+	}
+
+	if container.State() != exec.StateStopped {
+		for _, endpoint := range container.ExecConfig.Networks {
+			if !endpoint.Static && ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
+				// container has dynamic IP but we do not have a reported address
+				// shouldn't need multiple refreshes if multiple dhcps
+				transient = true
+				break
+			}
 		}
+	}
+
+	if transient {
+		op := trace.NewOperation(context.Background(), "state refresh triggered by a transient data state")
+		c.Refresh(op)
+		container = c.Info()
 	}
 
 	// convert the container type to the required model

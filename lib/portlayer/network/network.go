@@ -134,7 +134,7 @@ func handleEvent(netctx *Context, ie events.Event) {
 		defer handle.Close()
 
 		if handle.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
-			op.Warnf("Not unbinding network for %s as power state is %s", ie.Reference(), handle.Runtime.PowerState)
+			op.Warnf("Live power state check on power off event shows %s: not unbinding network", ie.Reference(), handle.Runtime.PowerState)
 			return
 		}
 

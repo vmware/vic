@@ -63,6 +63,7 @@ import (
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/convert"
 	epoint "github.com/vmware/vic/lib/apiservers/engine/backends/endpoint"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/filter"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/interaction"
@@ -1574,7 +1575,7 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 
 	if info.ContainerConfig != nil {
 		// set the status to the inspect expected values
-		containerState.Status = strings.ToLower(info.ContainerConfig.State)
+		containerState.Status = filter.DockerState(info.ContainerConfig.State)
 
 		// https://github.com/docker/docker/blob/master/container/state.go#L77
 		if containerState.Status == ContainerStopped {
