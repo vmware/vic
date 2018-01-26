@@ -66,7 +66,7 @@ Create with complex volume topology - overriding image volume with named volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f "{{.HostConfig.Binds}}" ${imageVolumeContainer}
     Should Contain  ${output}  ${namedImageVol}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f "{{.Config.Volumes}}" ${imageVolumeContainer}
-    Should Not Contain  ${output}  ${namedImageVol}
+    Should Contain  ${output}  ${namedImageVol}
 
 Create simple top example
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} /bin/top
