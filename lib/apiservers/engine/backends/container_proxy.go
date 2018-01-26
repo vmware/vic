@@ -1251,7 +1251,7 @@ func removeAnonContainerVols(pl *client.PortLayer, cID string, vc *viccontainer.
 	namedMaskList := make(map[string]struct{}, 0)
 	for _, entry := range namedVolumes {
 		fields := strings.SplitN(entry, ":", 2)
-		if len(fields) >= 2 {
+		if len(fields) != 2 {
 			log.Errorf("Invalid entry in the HostConfig.Binds metadata section for container %s: %s", cID, entry)
 			continue
 		}
@@ -1270,7 +1270,7 @@ func removeAnonContainerVols(pl *client.PortLayer, cID string, vc *viccontainer.
 		volFields := strings.SplitN(vol, ":", 3)
 
 		// NOTE(mavery): this check will start to fail when we fix our metadata correctness issues
-		if len(volFields) >= 3 {
+		if len(volFields) != 3 {
 			log.Debugf("Invalid entry in the volumes metadata section for container %s: %s", cID, vol)
 			continue
 		}
