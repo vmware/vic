@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package util
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"path"
@@ -28,8 +29,10 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/spec"
+	"github.com/vmware/vic/pkg/trace"
 )
 
+// testName allows easy embedding of the test function name in the test body as string data
 func testName(t *testing.T) string {
 	pc, _, _, ok := runtime.Caller(1)
 	require.True(t, ok, "unable to determine test name")
@@ -52,6 +55,8 @@ func TestServiceUrl(t *testing.T) {
 }
 
 func TestNameConventionDefault(t *testing.T) {
+	op := trace.NewOperation(context.Background(), testName(t))
+
 	formatString := "%s-%s"
 	template := fmt.Sprintf(formatString, config.NameToken.String(), config.IDToken.String())
 
@@ -62,11 +67,16 @@ func TestNameConventionDefault(t *testing.T) {
 
 	shortID := cfg.ID[:constants.ShortIDLen]
 
-	formatted := DisplayName(cfg, template)
+	formatted := DisplayName(op, cfg, template)
 	assert.Equal(t, fmt.Sprintf(formatString, cfg.Name, shortID), formatted, "display name not as expected")
+
+	second := DisplayName(op, cfg, template)
+	assert.Equal(t, formatted, second, "second call should return the same output")
 }
 
 func TestNameConventionUnspecified(t *testing.T) {
+	op := trace.NewOperation(context.Background(), testName(t))
+
 	formatString := "%s-%s"
 	template := ""
 
@@ -77,11 +87,13 @@ func TestNameConventionUnspecified(t *testing.T) {
 
 	shortID := cfg.ID[:constants.ShortIDLen]
 
-	formatted := DisplayName(cfg, template)
+	formatted := DisplayName(op, cfg, template)
 	assert.Equal(t, fmt.Sprintf(formatString, cfg.Name, shortID), formatted, "display name not as expected")
 }
 
 func TestNameConventionNameInsertOnly(t *testing.T) {
+	op := trace.NewOperation(context.Background(), testName(t))
+
 	formatString := "%s"
 	template := fmt.Sprintf(formatString, config.NameToken.String())
 
@@ -92,11 +104,13 @@ func TestNameConventionNameInsertOnly(t *testing.T) {
 
 	_ = cfg.ID[:constants.ShortIDLen]
 
-	formatted := DisplayName(cfg, template)
+	formatted := DisplayName(op, cfg, template)
 	assert.Equal(t, fmt.Sprintf(formatString, cfg.Name), formatted, "display name not as expected")
 }
 
 func TestNameConventionIdInsertOnly(t *testing.T) {
+	op := trace.NewOperation(context.Background(), testName(t))
+
 	formatString := "%s"
 	template := fmt.Sprintf(formatString, config.IDToken.String())
 
@@ -107,11 +121,13 @@ func TestNameConventionIdInsertOnly(t *testing.T) {
 
 	shortID := cfg.ID[:constants.ShortIDLen]
 
-	formatted := DisplayName(cfg, template)
+	formatted := DisplayName(op, cfg, template)
 	assert.Equal(t, fmt.Sprintf(formatString, shortID), formatted, "display name not as expected")
 }
 
 func TestNameConventionNamePre(t *testing.T) {
+	op := trace.NewOperation(context.Background(), testName(t))
+
 	formatString := "pre-%s"
 	template := fmt.Sprintf(formatString, config.NameToken.String())
 
@@ -122,11 +138,13 @@ func TestNameConventionNamePre(t *testing.T) {
 
 	_ = cfg.ID[:constants.ShortIDLen]
 
-	formatted := DisplayName(cfg, template)
+	formatted := DisplayName(op, cfg, template)
 	assert.Equal(t, fmt.Sprintf(formatString, cfg.Name), formatted, "display name not as expected")
 }
 
 func TestNameConventionNamePost(t *testing.T) {
+	op := trace.NewOperation(context.Background(), testName(t))
+
 	formatString := "%s-post"
 	template := fmt.Sprintf(formatString, config.NameToken.String())
 
@@ -137,11 +155,13 @@ func TestNameConventionNamePost(t *testing.T) {
 
 	_ = cfg.ID[:constants.ShortIDLen]
 
-	formatted := DisplayName(cfg, template)
+	formatted := DisplayName(op, cfg, template)
 	assert.Equal(t, fmt.Sprintf(formatString, cfg.Name), formatted, "display name not as expected")
 }
 
 func TestNameConventionIDPre(t *testing.T) {
+	op := trace.NewOperation(context.Background(), testName(t))
+
 	formatString := "pre-%s"
 	template := fmt.Sprintf(formatString, config.IDToken.String())
 
@@ -152,12 +172,14 @@ func TestNameConventionIDPre(t *testing.T) {
 
 	shortID := cfg.ID[:constants.ShortIDLen]
 
-	formatted := DisplayName(cfg, template)
+	formatted := DisplayName(op, cfg, template)
 	assert.Equal(t, fmt.Sprintf(formatString, shortID), formatted, "display name not as expected")
 
 }
 
 func TestNameConventionIDPost(t *testing.T) {
+	op := trace.NewOperation(context.Background(), testName(t))
+
 	formatString := "%s-post"
 	template := fmt.Sprintf(formatString, config.IDToken.String())
 
@@ -168,11 +190,13 @@ func TestNameConventionIDPost(t *testing.T) {
 
 	shortID := cfg.ID[:constants.ShortIDLen]
 
-	formatted := DisplayName(cfg, template)
+	formatted := DisplayName(op, cfg, template)
 	assert.Equal(t, fmt.Sprintf(formatString, shortID), formatted, "display name not as expected")
 }
 
 func TestNameConventionNameBoth(t *testing.T) {
+	op := trace.NewOperation(context.Background(), testName(t))
+
 	formatString := "pre-%s-post"
 	template := fmt.Sprintf(formatString, config.NameToken.String())
 
@@ -183,11 +207,13 @@ func TestNameConventionNameBoth(t *testing.T) {
 
 	_ = cfg.ID[:constants.ShortIDLen]
 
-	formatted := DisplayName(cfg, template)
+	formatted := DisplayName(op, cfg, template)
 	assert.Equal(t, fmt.Sprintf(formatString, cfg.Name), formatted, "display name not as expected")
 }
 
 func TestNameConventionIDBoth(t *testing.T) {
+	op := trace.NewOperation(context.Background(), testName(t))
+
 	formatString := "pre-%s-post"
 	template := fmt.Sprintf(formatString, config.IDToken.String())
 
@@ -198,11 +224,13 @@ func TestNameConventionIDBoth(t *testing.T) {
 
 	shortID := cfg.ID[:constants.ShortIDLen]
 
-	formatted := DisplayName(cfg, template)
+	formatted := DisplayName(op, cfg, template)
 	assert.Equal(t, fmt.Sprintf(formatString, shortID), formatted, "display name not as expected")
 }
 
 func TestNameConventionNameAndIDWithPrePost(t *testing.T) {
+	op := trace.NewOperation(context.Background(), testName(t))
+
 	formatString := "pre-%s-%s-post"
 	template := fmt.Sprintf(formatString, config.NameToken.String(), config.IDToken.String())
 
@@ -213,11 +241,13 @@ func TestNameConventionNameAndIDWithPrePost(t *testing.T) {
 
 	shortID := cfg.ID[:constants.ShortIDLen]
 
-	formatted := DisplayName(cfg, template)
+	formatted := DisplayName(op, cfg, template)
 	assert.Equal(t, fmt.Sprintf(formatString, cfg.Name, shortID), formatted, "display name not as expected")
 }
 
 func TestNameConventionIDAndNameWithPrePost(t *testing.T) {
+	op := trace.NewOperation(context.Background(), testName(t))
+
 	formatString := "pre-%s-%s-post"
 	template := fmt.Sprintf(formatString, config.IDToken.String(), config.NameToken.String())
 
@@ -228,11 +258,13 @@ func TestNameConventionIDAndNameWithPrePost(t *testing.T) {
 
 	shortID := cfg.ID[:constants.ShortIDLen]
 
-	formatted := DisplayName(cfg, template)
+	formatted := DisplayName(op, cfg, template)
 	assert.Equal(t, fmt.Sprintf(formatString, shortID, cfg.Name), formatted, "display name not as expected")
 }
 
 func TestNameConventionNameOverflowWithPrePost(t *testing.T) {
+	op := trace.NewOperation(context.Background(), testName(t))
+
 	formatString := "this-is-a-really-long-pre-segment-in-order-to-test-name-truncation-%s-post"
 	template := fmt.Sprintf(formatString, config.NameToken.String())
 
@@ -243,11 +275,13 @@ func TestNameConventionNameOverflowWithPrePost(t *testing.T) {
 
 	_ = cfg.ID[:constants.ShortIDLen]
 
-	formatted := DisplayName(cfg, template)
+	formatted := DisplayName(op, cfg, template)
 	assert.Equal(t, constants.MaxVMNameLength, len(formatted), "name was expected to be the max vm name length")
 }
 
 func TestNameConventionIDOverflowWithPrePost(t *testing.T) {
+	op := trace.NewOperation(context.Background(), testName(t))
+
 	formatString := "this-is-a-really-long-pre-segment-in-order-to-test-name-truncation-%s-post"
 	template := fmt.Sprintf(formatString, config.IDToken.String())
 
@@ -258,11 +292,13 @@ func TestNameConventionIDOverflowWithPrePost(t *testing.T) {
 
 	_ = cfg.ID[:constants.ShortIDLen]
 
-	formatted := DisplayName(cfg, template)
+	formatted := DisplayName(op, cfg, template)
 	assert.Equal(t, constants.MaxVMNameLength, len(formatted), "name was expected to be the max vm name length")
 }
 
 func TestNameConventionBothOverflowWithPrePost(t *testing.T) {
+	op := trace.NewOperation(context.Background(), testName(t))
+
 	formatString := "this-is-a-really-long-pre-segment-in-order-to-test-name-truncation-%s-%s-post"
 	template := fmt.Sprintf(formatString, config.IDToken.String(), config.NameToken.String())
 
@@ -273,11 +309,13 @@ func TestNameConventionBothOverflowWithPrePost(t *testing.T) {
 
 	_ = cfg.ID[:constants.ShortIDLen]
 
-	formatted := DisplayName(cfg, template)
+	formatted := DisplayName(op, cfg, template)
 	assert.Equal(t, constants.MaxVMNameLength, len(formatted), "name was expected to be the max vm name length")
 }
 
 func TestTemplateOverflow(t *testing.T) {
+	op := trace.NewOperation(context.Background(), testName(t))
+
 	formatString := "this-is-a-really-long-pre-segment-in-order-to-test-name-truncation-that-overflows-without-any-%s-post"
 	template := fmt.Sprintf(formatString, config.IDToken.String(), config.NameToken.String())
 
@@ -288,7 +326,7 @@ func TestTemplateOverflow(t *testing.T) {
 
 	shortID := cfg.ID[:constants.ShortIDLen]
 
-	formatted := DisplayName(cfg, template)
+	formatted := DisplayName(op, cfg, template)
 	// behaviour of template overflow is to revert to default template
 	assert.Equal(t, fmt.Sprintf("%s-%s", cfg.Name, shortID), formatted, "display name not as expected")
 }
