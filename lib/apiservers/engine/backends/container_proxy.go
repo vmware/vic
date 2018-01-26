@@ -1253,6 +1253,7 @@ func removeAnonContainerVols(pl *client.PortLayer, cID string, vc *viccontainer.
 		fields := strings.SplitN(entry, ":", 2)
 		if len(fields) >= 2 {
 			log.Errorf("Invalid entry in the HostConfig.Binds metadata section for container %s: %s", cID, entry)
+			continue
 		}
 		destPath := fields[1]
 		namedMaskList[destPath] = struct{}{}
