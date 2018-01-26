@@ -1278,12 +1278,14 @@ func removeAnonContainerVols(pl *client.PortLayer, cID string, vc *viccontainer.
 		volPath := volFields[1]
 
 		_, isNamed := namedMaskList[volPath]
-		if _, joined := joinedVols[volName]; !joined && !isNamed {
+		_, joined := joinedVols[volName]
+		if !joined && !isNamed {
 			_, err := pl.Storage.RemoveVolume(storage.NewRemoveVolumeParamsWithContext(ctx).WithName(volName))
 			if err != nil {
 				log.Debugf("Unable to remove anonymous volume %s in container %s: %s", volName, cID, err.Error())
+				continue
 			}
-			log.Debugf("Successfully removed anonymous volume %s", volName)
+			log.Debugf("Successfully removed anonymous volume %s during remove operation against container(%s)", volName, cID)
 		}
 	}
 }
