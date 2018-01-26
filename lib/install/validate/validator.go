@@ -377,12 +377,12 @@ func (v *Validator) basics(op trace.Operation, input *data.Data, conf *config.Vi
 
 	if input.ContainerNameConvention != "" {
 		// ensure token is present
-		if !strings.Contains(input.ContainerNameConvention, string(config.ID)) && !strings.Contains(input.ContainerNameConvention, string(config.Name)) {
-			v.NoteIssue(errors.Errorf("Container name convention must include %s or %s token", config.ID, config.Name))
+		if !strings.Contains(input.ContainerNameConvention, string(config.IDToken)) && !strings.Contains(input.ContainerNameConvention, string(config.NameToken)) {
+			v.NoteIssue(errors.Errorf("Container name convention must include %s or %s token", config.IDToken, config.NameToken))
 		}
 		// guard against both -- possibly we want to allow, but for now only allow one
-		if strings.Contains(input.ContainerNameConvention, string(config.ID)) && strings.Contains(input.ContainerNameConvention, string(config.Name)) {
-			v.NoteIssue(errors.Errorf("Container name convention only allows one token, either %s or %s", config.ID, config.Name))
+		if strings.Contains(input.ContainerNameConvention, string(config.IDToken)) && strings.Contains(input.ContainerNameConvention, string(config.NameToken)) {
+			v.NoteIssue(errors.Errorf("Container name convention only allows one token, either %s or %s", config.IDToken, config.NameToken))
 		}
 	}
 

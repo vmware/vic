@@ -23,6 +23,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/spec"
 )
@@ -61,30 +62,49 @@ func ServiceURL(serviceName string) *url.URL {
 }
 
 // Update the VM display name on vSphere UI
-func DisplayName(config *spec.VirtualMachineConfigSpecConfig, namingConvention string) string {
-	var name string
-	shortID := config.ID[:constants.ShortIDLen]
-	nameMaxLen := constants.MaxVMNameLength - len(shortID)
-	prettyName := config.Name
+func DisplayName(cfg *spec.VirtualMachineConfigSpecConfig, namingConvention string) string {
+	shortID := cfg.ID[:constants.ShortIDLen]
+	prettyName := cfg.Name
 
-	if namingConvention != "" {
-		//TODO: need to respect max length -- potentially enforce '-' separator
-		if strings.Contains(namingConvention, "{id}") {
-			name = strings.Replace(namingConvention, "{id}", shortID, -1)
-		} else {
-			//assume name
-			name = strings.Replace(namingConvention, "{name}", prettyName, -1)
-		}
-		log.Infof("Applied naming convention: %s resulting %s", namingConvention, name)
-	} else {
-		// no naming convention specified during VCH creation / reconfigure so apply
-		// standard VM display name convention
-		if len(prettyName) > nameMaxLen-1 {
-			name = fmt.Sprintf("%s-%s", prettyName[:nameMaxLen-1], shortID)
-		} else {
-			name = fmt.Sprintf("%s-%s", prettyName, shortID)
-		}
+	if namingConvention == "" {
+		namingConvention = config.DefaultNamePattern
 	}
+	name := namingConvention
+
+	// determine length of template without tokens
+	templateLen := len(strings.Replace(strings.Replace(namingConvention, config.NameToken.String(), "", -1), config.IDToken.String(), "", -1))
+	availableLen := constants.MaxVMNameLength - templateLen
+
+	if availableLen < 0 {
+		// revert to default
+		namingConvention = config.DefaultNamePattern
+		name = config.DefaultNamePattern
+		templateLen = len(strings.Replace(strings.Replace(namingConvention, config.NameToken.String(), "", -1), config.IDToken.String(), "", -1))
+		availableLen = constants.MaxVMNameLength - templateLen
+	}
+
+	if strings.Contains(namingConvention, config.IDToken.String()) {
+		trunc := shortID
+		if len(shortID) > availableLen {
+			trunc = shortID[:availableLen]
+		}
+
+		name = strings.Replace(name, config.IDToken.String(), trunc, -1)
+		availableLen -= len(trunc)
+	}
+
+	// check for presence in template not working result so we don't have issues with recursive templates
+	if strings.Contains(namingConvention, config.NameToken.String()) {
+		trunc := prettyName
+		if len(prettyName) > availableLen {
+			trunc = prettyName[:availableLen]
+		}
+
+		name = strings.Replace(name, config.NameToken.String(), trunc, -1)
+		availableLen -= len(trunc)
+	}
+
+	log.Infof("Applied naming convention: %s resulting %s", namingConvention, name)
 	return name
 }
 

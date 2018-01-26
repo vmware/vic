@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -150,13 +149,8 @@ func (h *Handle) Rename(newName string) *Handle {
 		ID:   h.ExecConfig.ID,
 		Name: newName,
 	}
-	// Only rename on vSphere when the containerNameConvention is name
-	var convention string
-	if strings.Contains(Config.ContainerNameConvention, "{name}") {
-		convention = Config.ContainerNameConvention
-	}
 
-	h.Spec.Spec().Name = util.DisplayName(s, convention)
+	h.Spec.Spec().Name = util.DisplayName(s, Config.ContainerNameConvention)
 
 	return h
 }
