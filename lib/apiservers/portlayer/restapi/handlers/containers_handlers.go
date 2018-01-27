@@ -300,19 +300,29 @@ func (r containerByCreated) Less(i, j int) bool {
 func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers.GetContainerListParams) middleware.Responder {
 	defer trace.End(trace.Begin(""))
 
-	var state *exec.State
+	var states []exec.State
+	var include func(*models.ContainerInfo) bool
 	if params.All != nil && !*params.All {
-		state = new(exec.State)
-		*state = exec.StateRunning
+		// we include Starting in the query as it's transient but will filter out those that don't transition to running
+		// before returning.
+		// TODO: this is here solely due to the lack of a structured means of queuing a background refresh and should be
+		// eliminated as soon as that's available. If we don't do this at this point in time then the caller must look at
+		// all containers or inspect the Starting one directly to trigger a refresh
+		states = append(states, exec.StateRunning, exec.StateStarting)
+		include = func(info *models.ContainerInfo) bool {
+			return info.ContainerConfig.State == exec.StateRunning.String()
+		}
 	}
 
-	containerVMs := exec.Containers.Containers(state)
+	containerVMs := exec.Containers.Containers(states)
 	containerList := make([]*models.ContainerInfo, 0, len(containerVMs))
 
 	for _, container := range containerVMs {
 		// convert to return model
 		info := convertContainerToContainerInfo(container)
-		containerList = append(containerList, info)
+		if include == nil || include(info) {
+			containerList = append(containerList, info)
+		}
 	}
 
 	sort.Sort(sort.Reverse(containerByCreated(containerList)))
@@ -563,14 +573,13 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 	ccid := container.ExecConfig.ID
 	info.ContainerConfig.ContainerID = ccid
 
-	var state string
+	state := container.State().String()
 	if container.MigrationError != nil {
 		state = "error"
 		info.ProcessConfig.ErrorMsg = fmt.Sprintf("Migration failed: %s", container.MigrationError.Error())
 		info.ProcessConfig.Status = state
-	} else {
-		state = container.State().String()
 	}
+
 	info.ContainerConfig.State = state
 	info.ContainerConfig.LayerID = container.ExecConfig.LayerID
 	info.ContainerConfig.ImageID = container.ExecConfig.ImageID

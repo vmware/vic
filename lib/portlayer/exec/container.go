@@ -742,6 +742,9 @@ func (c *Container) onEvent(op trace.Operation, newState State, e events.Event) 
 	refresh := e.String() == events.ContainerRelocated
 	// if it's a state event we've already done a refresh to end up here and dont need another
 	_, stateEvent := e.(*stateevents.StateEvent)
+	// the event we're going to publish - may be overridden/transformed by more context aware logic below
+	// the incoming event is from the very coarse vSphere events
+	publishEventType := e.String()
 
 	if !stateEvent {
 		if (newState == StateStarting && !started) || newState == StateStopping {
@@ -777,8 +780,12 @@ func (c *Container) onEvent(op trace.Operation, newState State, e events.Event) 
 
 	if newState != c.state {
 		switch newState {
+		case StateRunning:
+			// transform the PoweredOn event into Started
+			publishEventType = events.ContainerStarted
+			fallthrough
+
 		case StateStarting,
-			StateRunning,
 			StateStopping,
 			StateStopped,
 			StateSuspended:
@@ -810,9 +817,9 @@ func (c *Container) onEvent(op trace.Operation, newState State, e events.Event) 
 			return
 		}
 
-		op.Debugf("Container (%s) publishing event %s from event %s", c, newState, e.String())
+		op.Debugf("Container (%s) publishing event (state=%s, event=%s) from event %s", c, newState, publishEventType, e.String())
 		// regardless of state update success or failure publish the container event
-		publishContainerEvent(op, c.ExecConfig.ID, e.Created(), e.String())
+		publishContainerEvent(op, c.ExecConfig.ID, e.Created(), publishEventType)
 		return
 	}
 }
