@@ -343,10 +343,6 @@ func (c *Container) Refresh(op trace.Operation) error {
 	// conditionally sync state (see issue 4872, 6372)
 	event := stateevents.NewStateEvent(op, c.containerBase.Runtime.PowerState, c.VMReference())
 	state := eventedState(op, event, c.state)
-	if state == c.state {
-		// if the container state is still current we need do nothing else
-		return nil
-	}
 
 	// trigger internal event publishing if c.state -> state is a transition we care about
 	// this will update container state and trigger follow up port layer events as needed
@@ -791,7 +787,6 @@ func (c *Container) onEvent(op trace.Operation, newState State, e events.Event) 
 			if newState == StateStopped {
 				c.onStop()
 			}
-			op.Debugf("Container(%s) state set to %s via event activity", c, newState)
 		case StateRemoved:
 			if c.vm != nil && c.vm.IsFixing() {
 				// is fixing vm, which will be registered back soon, so do not remove from containers cache
@@ -815,13 +810,11 @@ func (c *Container) onEvent(op trace.Operation, newState State, e events.Event) 
 			return
 		}
 
-		log.Debugf("Container (%s) publishing event %s from event %s", c, newState, e.String())
+		op.Debugf("Container (%s) publishing event %s from event %s", c, newState, e.String())
 		// regardless of state update success or failure publish the container event
 		publishContainerEvent(op, c.ExecConfig.ID, e.Created(), e.String())
 		return
 	}
-
-	op.Debugf("Container(%s) state(%s) didn't change after event %s", c, newState, e.String())
 }
 
 // get the containerVMs from infrastructure for this resource pool

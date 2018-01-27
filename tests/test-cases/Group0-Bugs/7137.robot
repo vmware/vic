@@ -13,7 +13,7 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 6515
+Documentation  Test 7137
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
@@ -32,10 +32,11 @@ Check for die events when forcing update via state refresh
     ${shortid}=  Get container shortID  ${id}
 
     # tight loop on inspect
+    Run  end=$(($(date +%s) + 6));while [ $(date +%s) -lt $end ]; do docker %{VCH-PARAMS} inspect ${id} >/dev/null; done
 
     ${rc}  ${until}=  Run And Return Rc And Output  docker info --format '{{json .SystemTime}}'
     # check for die event - need to supply --until=current-server-timestamp so command returns immediately
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} events --since=${since} --filter container=${name} --filter='event=die' --format='{{.ID}}' --until=${until}
+    ${rc}  ${events}=  Run And Return Rc And Output  docker %{VCH-PARAMS} events --since=${since} --filter container=${name} --filter='event=die' --format='{{.ID}}' --until=${until}
 
-    Log  ${id}
-#    Should Contain  ${id}  ${shortid}
+    Log  ${events}
+    Should Contain  ${events}  ${shortid}
