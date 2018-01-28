@@ -1042,8 +1042,7 @@ func (c *Container) containerStart(op trace.Operation, name string, hostConfig *
 		}
 	}
 
-	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-	EventService().Log(containerStartEvent, eventtypes.ContainerEventType, actor)
+	// Started event will be published on confirmation of successful start, triggered by port layer event stream
 
 	return nil
 }

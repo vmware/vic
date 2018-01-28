@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -300,19 +300,29 @@ func (r containerByCreated) Less(i, j int) bool {
 func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers.GetContainerListParams) middleware.Responder {
 	defer trace.End(trace.Begin(""))
 
-	var state *exec.State
+	var states []exec.State
+	var include func(*models.ContainerInfo) bool
 	if params.All != nil && !*params.All {
-		state = new(exec.State)
-		*state = exec.StateRunning
+		// we include Starting in the query as it's transient but will filter out those that don't transition to running
+		// before returning.
+		// TODO: this is here solely due to the lack of a structured means of queuing a background refresh and should be
+		// eliminated as soon as that's available. If we don't do this at this point in time then the caller must look at
+		// all containers or inspect the Starting one directly to trigger a refresh
+		states = append(states, exec.StateRunning, exec.StateStarting)
+		include = func(info *models.ContainerInfo) bool {
+			return info.ContainerConfig.State == exec.StateRunning.String()
+		}
 	}
 
-	containerVMs := exec.Containers.Containers(state)
+	containerVMs := exec.Containers.Containers(states)
 	containerList := make([]*models.ContainerInfo, 0, len(containerVMs))
 
 	for _, container := range containerVMs {
 		// convert to return model
 		info := convertContainerToContainerInfo(container)
-		containerList = append(containerList, info)
+		if include == nil || include(info) {
+			containerList = append(containerList, info)
+		}
 	}
 
 	sort.Sort(sort.Reverse(containerByCreated(containerList)))
@@ -518,16 +528,27 @@ func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.
 func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 	container := c.Info()
 
-	// ensure we have probably up-to-date info
-	for _, endpoint := range container.ExecConfig.Networks {
-		if !endpoint.Static && ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
-			// container has dynamic IP but we do not have a reported address
-			op := trace.NewOperation(context.Background(), "state refresh triggered by missing DHCP data")
-			c.Refresh(op)
-			container = c.Info()
-			// shouldn't need multiple refreshes if multiple dhcps
-			break
+	// ensure we have probably up-to-date info. Determine if we have transient state values
+	transient := false
+	if container.State() == exec.StateStarting || container.State() == exec.StateStopping {
+		transient = true
+	}
+
+	if container.State() != exec.StateStopped {
+		for _, endpoint := range container.ExecConfig.Networks {
+			if !endpoint.Static && ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
+				// container has dynamic IP but we do not have a reported address
+				// shouldn't need multiple refreshes if multiple dhcps
+				transient = true
+				break
+			}
 		}
+	}
+
+	if transient {
+		op := trace.NewOperation(context.Background(), "state refresh triggered by a transient data state")
+		c.Refresh(op)
+		container = c.Info()
 	}
 
 	// convert the container type to the required model
@@ -554,14 +575,13 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 	ccid := container.ExecConfig.ID
 	info.ContainerConfig.ContainerID = ccid
 
-	var state string
+	state := container.State().String()
 	if container.MigrationError != nil {
 		state = "error"
 		info.ProcessConfig.ErrorMsg = fmt.Sprintf("Migration failed: %s", container.MigrationError.Error())
 		info.ProcessConfig.Status = state
-	} else {
-		state = container.State().String()
 	}
+
 	info.ContainerConfig.State = state
 	info.ContainerConfig.LayerID = container.ExecConfig.LayerID
 	info.ContainerConfig.ImageID = container.ExecConfig.ImageID

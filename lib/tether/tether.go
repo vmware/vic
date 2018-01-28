@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -854,6 +854,10 @@ func (t *tether) launch(session *SessionConfig) error {
 
 		return errors.New(detail)
 	}
+
+	// ensure that this is updated so that we're correct for out-of-band power operations
+	// semantic should conform with port layer
+	session.StartTime = time.Now().UTC().Unix()
 
 	// Set the Started key to "true" - this indicates a successful launch
 	session.Started = "true"
