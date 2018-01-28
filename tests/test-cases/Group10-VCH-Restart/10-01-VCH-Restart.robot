@@ -15,8 +15,8 @@
 *** Settings ***
 Documentation  Test 10-01 - VCH Restart
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
-Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Setup  Install VIC Appliance To Test Server
+Test Teardown  Cleanup VIC Appliance On Test Server
 Default Tags
 
 *** Keywords ***
@@ -32,6 +32,20 @@ Launch Container
     Should Be Equal As Integers  ${rc}  0
     ${id}=  Get Line  ${output}  -1
     [Return]  ${id}
+
+Launch Container With Port Forwarding
+    [Arguments]  ${name}  ${port1}  ${port2}  ${network}=default
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p ${port1}:80 -p ${port2}:80 --name ${name} --net ${network} ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${name}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
+Check Nginx Port Forwarding
+    [Arguments]  ${port1}  ${port2}
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  ${port1}
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  ${port2}
 
 *** Test Cases ***
 Created Network And Images Persists As Well As Containers Are Discovered With Correct IPs
@@ -63,24 +77,11 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} exec bar-c2 ping -c3 bar-c1
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver ${nginx}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start webserver
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
+    Launch Container With Port Forwarding  webserver  10000  10001
+    Check Nginx Port Forwarding  10000  10001
 
     Reboot VM  %{VCH-NAME}
-
-    Log To Console  Getting VCH IP ...
-    ${new-vch-ip}=  Get VM IP  %{VCH-NAME}
-    Log To Console  New VCH IP is ${new-vch-ip}
-    Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new-vch-ip}
-
-    # wait for docker info to succeed
-    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+    Wait For VCH Initialization  20x  10 seconds
 
     # name resolution should work on the foo and bar networks
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} exec foo-c1 ping -c3 foo-c2
@@ -130,8 +131,7 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${bridge-exited}
     Should Be Equal As Integers  ${rc}  0
 
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
+    Check Nginx Port Forwarding  10000  10001
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver1 ${nginx}
     Should Be Equal As Integers  ${rc}  0
@@ -153,7 +153,6 @@ Container on Open Network And Port Forwarding Persist After Reboot
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vswitch vSwitchLAN open-net
 
     Install VIC Appliance To Test Server  additional-args=--container-network=open-net --container-network-firewall=open-net:open
-
     # Create a container on the open network
     ${open-running}=  Launch Container  vch-restart-open-running  open-net
     ${open-exited}=  Launch Container  vch-restart-open-exited  open-net  ls
@@ -181,7 +180,7 @@ Container on Open Network And Port Forwarding Persist After Reboot
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${open-exited} | jq -r '.[0].State.Status'
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${output}  exited
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${open-exited}
+   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${open-exited}
     Should Be Equal As Integers  ${rc}  0
 
     # Check port forwarding on bridge container after reboot
