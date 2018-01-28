@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -229,12 +229,18 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 	var attrs map[string]string
 
 	switch event.Event {
+	case plevents.ContainerStarted:
+		attrs = make(map[string]string)
+
+		actor := CreateContainerEventActorWithAttributes(vc, attrs)
+		EventService().Log(containerStartEvent, eventtypes.ContainerEventType, actor)
+
 	case plevents.ContainerStopped,
 		plevents.ContainerPoweredOff,
 		plevents.ContainerFailed:
 		// since we are going to make a call to the portLayer lets execute this in a go routine
 		go func() {
-			attrs := make(map[string]string)
+			attrs = make(map[string]string)
 			// get the containerEngine
 			code, _ := NewContainerBackend().containerProxy.exitCode(vc)
 
@@ -243,11 +249,14 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 			attrs["exitCode"] = code
 			actor := CreateContainerEventActorWithAttributes(vc, attrs)
 			EventService().Log(containerDieEvent, eventtypes.ContainerEventType, actor)
+			// TODO: this really, really shouldn't be in the event publishing code - it's fine to have multiple consumers of events
+			// and this should be registered as a callback by the logic responsible for the MapPorts portion.
 			if err := UnmapPorts(vc.ContainerID, vc); err != nil {
 				log.Errorf("Event Monitor failed to unmap ports for container(%s): %s - eventID(%s)", containerShortID, err, event.ID)
 			}
 
 			// auto-remove if required
+			// TODO: this should be a separate event hook registered by logic outside of the publish events loop.
 			if vc.HostConfig.AutoRemove {
 				config := &types.ContainerRmConfig{
 					ForceRemove:  true,

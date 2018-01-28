@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,30 +34,31 @@ func TestEventedState(t *testing.T) {
 	id := "123439"
 	container := newTestContainer(id)
 	addTestVM(container)
+	op := trace.NewOperation(context.Background(), "test operations")
 	// poweredOn event
 	event := createVMEvent(container, StateRunning)
-	assert.EqualValues(t, StateStarting, eventedState(event, StateStarting))
-	assert.EqualValues(t, StateRunning, eventedState(event, StateRunning))
-	assert.EqualValues(t, StateRunning, eventedState(event, StateStopped))
-	assert.EqualValues(t, StateRunning, eventedState(event, StateSuspended))
+	assert.EqualValues(t, StateStarting, eventedState(op, event, StateStarting))
+	assert.EqualValues(t, StateRunning, eventedState(op, event, StateRunning))
+	assert.EqualValues(t, StateRunning, eventedState(op, event, StateStopped))
+	assert.EqualValues(t, StateRunning, eventedState(op, event, StateSuspended))
 
 	// // powerOff event
 	event = createVMEvent(container, StateStopped)
-	assert.EqualValues(t, StateStopping, eventedState(event, StateStopping))
-	assert.EqualValues(t, StateStopped, eventedState(event, StateStopped))
-	assert.EqualValues(t, StateStopped, eventedState(event, StateRunning))
+	assert.EqualValues(t, StateStopping, eventedState(op, event, StateStopping))
+	assert.EqualValues(t, StateStopped, eventedState(op, event, StateStopped))
+	assert.EqualValues(t, StateStopped, eventedState(op, event, StateRunning))
 
 	// // suspended event
 	event = createVMEvent(container, StateSuspended)
-	assert.EqualValues(t, StateSuspending, eventedState(event, StateSuspending))
-	assert.EqualValues(t, StateSuspended, eventedState(event, StateSuspended))
-	assert.EqualValues(t, StateSuspended, eventedState(event, StateRunning))
+	assert.EqualValues(t, StateSuspending, eventedState(op, event, StateSuspending))
+	assert.EqualValues(t, StateSuspended, eventedState(op, event, StateSuspended))
+	assert.EqualValues(t, StateSuspended, eventedState(op, event, StateRunning))
 
 	// removed event
 	event = createVMEvent(container, StateRemoved)
-	assert.EqualValues(t, StateRemoved, eventedState(event, StateRemoved))
-	assert.EqualValues(t, StateRemoved, eventedState(event, StateStopped))
-	assert.EqualValues(t, StateRemoving, eventedState(event, StateRemoving))
+	assert.EqualValues(t, StateRemoved, eventedState(op, event, StateRemoved))
+	assert.EqualValues(t, StateRemoved, eventedState(op, event, StateStopped))
+	assert.EqualValues(t, StateRemoving, eventedState(op, event, StateRemoving))
 }
 
 func TestPublishContainerEvent(t *testing.T) {
@@ -70,11 +71,12 @@ func TestPublishContainerEvent(t *testing.T) {
 	Config.EventManager = mgr
 	mgr.Subscribe(events.NewEventType(events.ContainerEvent{}).Topic(), "testing", containerCallback)
 
+	op := trace.NewOperation(context.Background(), "test publish event operation")
 	// create new running container and place in cache
 	id := "123439"
 	container := newTestContainer(id)
 	addTestVM(container)
-	container.SetState(StateRunning)
+	container.SetState(op, StateRunning)
 	Containers.Put(container)
 
 	publishContainerEvent(trace.NewOperation(context.Background(), "container"), id, time.Now().UTC(), events.ContainerPoweredOff)
@@ -101,11 +103,12 @@ func TestVMRemovedEventCallback(t *testing.T) {
 		}
 	})
 
+	op := trace.NewOperation(context.Background(), "test removed event operation")
 	// create new running container and place in cache
 	id := "123439"
 	container := newTestContainer(id)
 	addTestVM(container)
-	container.SetState(StateRunning)
+	container.SetState(op, StateRunning)
 	Containers.Put(container)
 
 	container.vm.EnterFixingState()

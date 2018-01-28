@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -132,6 +132,11 @@ func handleEvent(netctx *Context, ie events.Event) {
 			return
 		}
 		defer handle.Close()
+
+		if handle.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
+			op.Warnf("Live power state check on power off event shows %s: not unbinding network", ie.Reference(), handle.Runtime.PowerState)
+			return
+		}
 
 		if _, err := netctx.UnbindContainer(op, handle); err != nil {
 			op.Warnf("Failed to unbind container %s: %s", ie.Reference(), err)
