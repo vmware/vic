@@ -406,7 +406,7 @@ func (handler *ContainersHandlersImpl) GetContainerStatsHandler(params container
 }
 
 func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers.GetContainerLogsParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), params.ID)
+	op := trace.NewOperation(context.Background(), "Getting logs for %s", params.ID)
 	defer trace.End(trace.Begin(params.ID, op))
 
 	container := exec.Containers.Container(params.ID)
@@ -488,12 +488,14 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 }
 
 func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.ContainerRenameParams) middleware.Responder {
-	defer trace.End(trace.Begin(fmt.Sprintf("Rename container to %s", params.Name)))
+	op := trace.NewOperation(context.Background(), "Rename container to %s", params.Name)
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil || h.ExecConfig == nil {
 		return containers.NewContainerRenameNotFound()
 	}
+
+	defer trace.End(trace.Begin(h.ExecConfig.ID, op))
 
 	// get the indicated container for rename
 	container := exec.Containers.Container(h.ExecConfig.ID)
@@ -517,7 +519,7 @@ func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.
 		return containers.NewContainerRenameInternalServerError().WithPayload(err)
 	}
 
-	h = h.Rename(params.Name)
+	h = h.Rename(op, params.Name)
 
 	return containers.NewContainerRenameOK().WithPayload(h.String())
 }
