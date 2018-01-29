@@ -20,32 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFlags(t *testing.T) {
-	c := NewCreate()
-	flags := c.Flags()
-	numberOfFlags := 60
-	assert.Equal(t, numberOfFlags, len(flags), "Missing flags during Create.")
-
-}
-
-func TestProcessBridgeNetwork(t *testing.T) {
-	c := NewCreate()
-
-	c.BridgeIPRange = "172.16.0.0.0"
-	improperBridgeIPRange := c.ProcessBridgeNetwork()
-	assert.NotNil(t, improperBridgeIPRange)
-
-	c.BridgeIPRange = "172.16.0.0/12"
-	properBridgeIPRange := c.ProcessBridgeNetwork()
-	assert.Nil(t, properBridgeIPRange, "Bridge Network IP Range can't be parsed and is in improper range format.")
-}
-
-func TestSetFields(t *testing.T) {
-	c := NewCreate()
-	option := c.SetFields()
-	assert.NotNil(t, option)
-}
-
 func TestParseGatewaySpec(t *testing.T) {
 	var tests = []struct {
 		in   string
