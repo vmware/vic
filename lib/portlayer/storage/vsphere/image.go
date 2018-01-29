@@ -26,10 +26,10 @@ import (
 	"syscall"
 
 	docker "github.com/docker/docker/pkg/archive"
-
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
@@ -99,7 +99,7 @@ func NewImageStore(op trace.Operation, s *session.Session, u *url.URL) (*ImageSt
 		return nil, fmt.Errorf("Found %d datastores with provided datastore path %s. Cannot create image store.", len(datastores), u)
 	}
 
-	ds, err := datastore.NewHelper(op, s, datastores[0], path.Join(u.Path, datastore.StorageParentDir))
+	ds, err := datastore.NewHelper(op, s, datastores[0], path.Join(u.Path, constants.StorageParentDir))
 	if err != nil {
 		return nil, err
 	}

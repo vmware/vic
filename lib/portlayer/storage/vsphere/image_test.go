@@ -17,6 +17,7 @@ package vsphere
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"net/url"
@@ -28,12 +29,11 @@ import (
 	"sync"
 	"testing"
 
-	"context"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
@@ -92,7 +92,7 @@ func TestRestartImageStore(t *testing.T) {
 	}
 
 	imageStoreURL := &url.URL{
-		Path: StorageParentDir,
+		Path: constants.StorageParentDir,
 		Host: client.DatastorePath}
 
 	// now start it again
