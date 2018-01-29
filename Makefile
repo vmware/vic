@@ -106,6 +106,7 @@ vic-init-test := $(BIN)/vic-init-test
 vic-dns-linux := $(BIN)/vic-dns-linux
 vic-dns-windows := $(BIN)/vic-dns-windows.exe
 vic-dns-darwin := $(BIN)/vic-dns-darwin
+archive := $(BIN)/unpack
 gandalf := $(BIN)/gandalf
 
 tether-linux := $(BIN)/tether-linux
@@ -311,6 +312,10 @@ $(vicadmin): $$(call godeps,cmd/vicadmin/*.go)
 	@echo building vicadmin
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
+$(archive): $$(call godeps,cmd/archive/*.go)
+	@echo building archive
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
+
 $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
 	@$(TIME) $(GO) build $(RACE)  $(ldflags) -o ./$@ ./$(dir $<)
@@ -397,7 +402,7 @@ $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $(iso-base) -o $@
 
 # main appliance target - depends on all top level component targets
-$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
+$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging) $(archive)
 	@echo building VCH appliance ISO
 	@$(TIME) $< -p $(appliance-staging) -b $(BIN)
 
