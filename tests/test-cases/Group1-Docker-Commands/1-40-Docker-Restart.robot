@@ -1,4 +1,4 @@
-# Copyright 2017 VMware, Inc. All Rights Reserved.
+# Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -89,8 +89,10 @@ Restart Stopped Container
 Restart with start-stop stress
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit ${busybox}
-    ${restart-pid}=  Start Process  while true; do docker %{VCH-PARAMS} restart ${container}; done  shell=${true}
-    ${restart-pid2}=  Start Process  while true; do docker %{VCH-PARAMS} restart ${container}; done  shell=${true}
+    # Set the timeout to 5s - this should be enough to allow the docker stop to pre-empt the stop portion of restart
+    # but not so long we have massive variance based on which process wins the race for each iteration
+    ${restart-pid}=  Start Process  while true; do docker %{VCH-PARAMS} restart -t 5 ${container}; done  shell=${true}
+    ${restart-pid2}=  Start Process  while true; do docker %{VCH-PARAMS} restart -t 5 ${container}; done  shell=${true}
     ${loopOutput}=  Create List
     :FOR  ${idx}  IN RANGE  0  150
     \   ${out}=  Run  (docker %{VCH-PARAMS} start ${container} && docker %{VCH-PARAMS} stop -t1 ${container})
