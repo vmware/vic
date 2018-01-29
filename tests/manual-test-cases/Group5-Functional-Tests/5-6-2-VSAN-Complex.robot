@@ -20,6 +20,7 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***
 VSAN Complex Setup
+    [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${name}=  Evaluate  'vic-vsan-complex-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${user}  %{NIMBUS_USER}

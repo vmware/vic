@@ -20,6 +20,7 @@ Resource  ../../resources/Util.robot
 
 *** Keywords ***
 Private Registry Setup
+    [Timeout]    110 minutes
     ${dockerHost}=  Get Environment Variable  DOCKER_HOST  ${SPACE}
     Remove Environment Variable  DOCKER_HOST
     ${rc}  ${output}=  Run And Return Rc And Output  docker run -d -p 5000:5000 --name registry registry
