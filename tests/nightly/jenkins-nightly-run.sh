@@ -70,14 +70,15 @@ else
 echo "Tarball extraction passed, Running nightlies test.."
 
 if [[ $target == "6.0" ]]; then
-    echo "Executing nightly test $i on vSphere 6.0"
+    echo "Executing nightly tests on vSphere 6.0"
     pabot --processes 3 --removekeywords TAG:secret --exclude nsx --variable ESX_VERSION:$ESX_60_VERSION --variable VC_VERSION:$VC_60_VERSION -d 60/$i tests/manual-test-cases/Group5-Functional-Tests tests/manual-test-cases/Group13-vMotion tests/manual-test-cases/Group21-Registries
+
 elif [[ $target == "6.5" ]]; then
-    echo "Executing nightly test $i on vSphere 6.5"
+    echo "Executing nightly tests on vSphere 6.5"
     pabot --processes 3 --removekeywords TAG:secret -d 65/$i tests/manual-test-cases/Group5-Functional-Tests tests/manual-test-cases/Group13-vMotion tests/manual-test-cases/Group21-Registries
+fi
 
 # See if any VMs leaked
 sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking\=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl list
 
-DATE=`date +%m_%d_%H_%M_`
-sh tests/nightly/upload-logs.sh $DATE$input
+sh tests/nightly/upload-logs.sh $target_$BUILD_TIMESTAMP

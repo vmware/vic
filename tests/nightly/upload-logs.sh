@@ -20,7 +20,7 @@ set -x
 gsutil version -l
 set +x
 
-outfile="functional_logs_"$1".zip"
+outfile="vic_nightly_logs_"$1".zip"
 
 echo $Build
 echo $outfile
@@ -46,7 +46,7 @@ fi
 if [ -f "$outfile" ]; then
   gsutil cp $outfile gs://vic-ci-logs
   echo "----------------------------------------------"
-  echo "Upload test logs:"
+  echo "Download test logs here:"
   echo "https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/$outfile?authuser=1"
   echo "----------------------------------------------"
 else
