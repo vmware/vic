@@ -34,6 +34,7 @@ ${mntNamed}=  /mnt/named
 
 *** Keywords ***
 Setup ESX And NFS Suite
+    [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     Log To Console  \nStarting test...
 

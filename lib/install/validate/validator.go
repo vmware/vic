@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/dynamic"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/opsuser"
 	"github.com/vmware/vic/pkg/errors"
@@ -377,12 +378,14 @@ func (v *Validator) basics(op trace.Operation, input *data.Data, conf *config.Vi
 
 	if input.ContainerNameConvention != "" {
 		// ensure token is present
-		if !strings.Contains(input.ContainerNameConvention, string(config.ID)) && !strings.Contains(input.ContainerNameConvention, string(config.Name)) {
-			v.NoteIssue(errors.Errorf("Container name convention must include %s or %s token", config.ID, config.Name))
+		if !strings.Contains(input.ContainerNameConvention, string(config.IDToken)) && !strings.Contains(input.ContainerNameConvention, string(config.NameToken)) {
+			v.NoteIssue(errors.Errorf("Container name convention must include %s or %s token", config.IDToken, config.NameToken))
 		}
-		// guard against both -- possibly we want to allow, but for now only allow one
-		if strings.Contains(input.ContainerNameConvention, string(config.ID)) && strings.Contains(input.ContainerNameConvention, string(config.Name)) {
-			v.NoteIssue(errors.Errorf("Container name convention only allows one token, either %s or %s", config.ID, config.Name))
+
+		// coarse check - only enforce that there's enough capcity for a shortID
+		// name lengths are many and vary significantly so much harder to provide sanity checks for - they will truncate when convention is applied.
+		if len(input.ContainerNameConvention)-len(config.IDToken) >= constants.MaxVMNameLength-constants.ShortIDLen {
+			v.NoteIssue(errors.Errorf("Container name convetion exceeds maximum length (%d, discounting tokens)", constants.MaxVMNameLength-constants.ShortIDLen))
 		}
 	}
 
