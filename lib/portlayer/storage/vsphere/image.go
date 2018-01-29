@@ -26,6 +26,7 @@ import (
 	"syscall"
 
 	docker "github.com/docker/docker/pkg/archive"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
