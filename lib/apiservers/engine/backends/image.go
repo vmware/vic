@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -475,9 +475,9 @@ func imageConfigToDockerImageInspect(imageConfig *metadata.ImageConfig, productN
 
 	inspectData.GraphDriver.Name = productName + " " + PortlayerName
 
-	//imageid is currently stored within VIC without "sha256:" so we add it to
-	//match Docker
-	inspectData.ID = "sha256:" + imageConfig.ImageID
+	// ImageID is currently stored within VIC without the "sha256:" prefix
+	// so we add it here to match Docker output.
+	inspectData.ID = digest.Canonical.String() + ":" + imageConfig.ImageID
 
 	return inspectData
 }

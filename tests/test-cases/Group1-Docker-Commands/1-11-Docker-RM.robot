@@ -151,3 +151,19 @@ Remove a container and its anonymous volumes
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c4}
     Should Be Equal As Integers  ${rc}  0
+
+    # Verify that only anonymous volumes are removed when superseding an image volume with a named volume
+    ${suffix}=  Evaluate  '%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
+    Set Test Variable  ${namedImageVol}  non-anonymous-image-volume-${suffix}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name ${namedImageVol}
+    Should Be Equal As Integers  ${rc}  0
+    Set Test Variable  ${imageVolumeContainer}  I-Have-Two-Anonymous-Volumes-${suffix}
+    ${rc}  ${c5}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${imageVolumeContainer} -v ${namedImageVol}:/data/db -v /I/AM/ANONYMOOOOSE mongo
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls
+    Should Contain  ${output}  ${namedImageVol}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -v ${imageVolumeContainer}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls
+    Should Contain  ${output}  ${namedImageVol}
+

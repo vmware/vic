@@ -20,22 +20,36 @@ Test Timeout  20 minutes
 
 *** Test Cases ***
 Container name convention with id
-    Install VIC Appliance To Test Server  additional-args=--container-name-convention 192.168.1.1-{id}
+    Set Test Environment Variables
+    Install VIC Appliance To Test Server With Current Environment Variables  additional-args=--container-name-convention %{VCH-NAME}-{id}
     Run  docker %{VCH-PARAMS} pull ${busybox}
     ${containerID}=  Run  docker %{VCH-PARAMS} run -d ${busybox}
     ${shortId}=  Get container shortID  ${containerID}
     ${output}=  Run  govc ls vm
-    Should Contain  ${output}  192.168.1.1-${shortID}
+    Should Contain  ${output}  %{VCH-NAME}-${shortID}
+
+    Run  docker %{VCH-PARAMS} rename ${containerID} renamed-container
+    ${output}=  Run  govc ls vm
+    # confirm that the cnc is still in force
+    Should Contain  ${output}  %{VCH-NAME}-${shortID}
+
     Run  docker %{VCH-PARAMS} rm -f ${containerID}
     Run Regression Tests
     
 Container name convention with name
-    Install VIC Appliance To Test Server  additional-args=--container-name-convention 192.168.1.1-{name}
+    Set Test Environment Variables
+    Install VIC Appliance To Test Server With Current Environment Variables  additional-args=--container-name-convention %{VCH-NAME}-{name}
     Run  docker %{VCH-PARAMS} pull ${busybox}
     ${containerID}=  Run  docker %{VCH-PARAMS} run -d ${busybox}
     ${name}=  Get container name  ${containerID}
     ${output}=  Run  govc ls vm
-    Should Contain  ${output}  192.168.1.1-${name}
+    Should Contain  ${output}  %{VCH-NAME}-${name}
+
+    Run  docker %{VCH-PARAMS} rename ${containerID} renamed-container
+    ${output}=  Run  govc ls vm
+    # confirm that the cnc is still in force but updated for new container name
+    Should Contain  ${output}  %{VCH-NAME}-renamed-container
+
     Run  docker %{VCH-PARAMS} rm -f ${containerID}
     Run Regression Tests
 

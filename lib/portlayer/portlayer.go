@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -110,9 +110,10 @@ func TakeCareOfSerialPorts(sess *session.Session) {
 	op := trace.NewOperation(context.Background(), "SerialPorts")
 	defer trace.End(trace.Begin("", op))
 	// Get all running containers from the portlayer cache
-	runningState := new(exec.State)
-	*runningState = exec.StateRunning
-	containers := exec.Containers.Containers(runningState)
+	// Including starting containers here as well
+	// TODO: for starting containers, if using the runblocking mechanism present as of this date, we should cause the
+	// unbind change to blocking status to propagate into the container and release the process for start
+	containers := exec.Containers.Containers([]exec.State{exec.StateRunning, exec.StateStarting})
 
 	for i := range containers {
 		var containerID string
