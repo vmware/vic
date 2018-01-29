@@ -8,3 +8,5 @@ Group 0 - Bugs
 -
 [Test 5343 - Confirm event collection after SDK connection re-establishment](5343.md)
 [Test 6515 - Check that existing /etc/hosts entries are blended with dynamic ones](6515.md)
+-
+[Test 7137 - Ensure state updates generate internal events](7137.md)

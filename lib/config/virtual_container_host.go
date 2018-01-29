@@ -34,11 +34,14 @@ type PatternToken string
 
 const (
 	// VM is the VM name - i.e. [ds] {vm}/{vm}.vmx
-	VM PatternToken = "{vm}"
+	VMToken PatternToken = "{vm}"
 	// ID is the container ID for the VM
-	ID PatternToken = "{id}"
+	IDToken PatternToken = "{id}"
 	// Name is the container name of the VM
-	Name PatternToken = "{name}"
+	NameToken PatternToken = "{name}"
+
+	// The default naming pattern that gets applied if no convention is supplied
+	DefaultNamePattern = "{name}-{id}"
 
 	// ID represents the VCH in creating status, which helps to identify VCH VM which still does not have a valid VM moref set
 	CreatingVCH = "CreatingVCH"
@@ -58,6 +61,10 @@ const (
 
 	AddPerms = "ADD"
 )
+
+func (p PatternToken) String() string {
+	return string(p)
+}
 
 // Can we just treat the VCH appliance as a containerVM booting off a specific bootstrap image
 // It has many of the same requirements (around networks being attached, version recorded,

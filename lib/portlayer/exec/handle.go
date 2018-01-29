@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -141,7 +140,7 @@ func (h *Handle) Reload() {
 }
 
 // Rename updates the container name in ExecConfig as well as the vSphere display name
-func (h *Handle) Rename(newName string) *Handle {
+func (h *Handle) Rename(op trace.Operation, newName string) *Handle {
 	defer trace.End(trace.Begin(newName))
 
 	h.ExecConfig.Name = newName
@@ -150,13 +149,8 @@ func (h *Handle) Rename(newName string) *Handle {
 		ID:   h.ExecConfig.ID,
 		Name: newName,
 	}
-	// Only rename on vSphere when the containerNameConvention is name
-	var convention string
-	if strings.Contains(Config.ContainerNameConvention, "{name}") {
-		convention = Config.ContainerNameConvention
-	}
 
-	h.Spec.Spec().Name = util.DisplayName(s, convention)
+	h.Spec.Spec().Name = util.DisplayName(op, s, Config.ContainerNameConvention)
 
 	return h
 }
@@ -278,7 +272,8 @@ func (h *Handle) Close() {
 // TODO: either deep copy the configuration, or provide an alternative means of passing the data that
 // avoids the need for the caller to unpack/repack the parameters
 func Create(ctx context.Context, vmomiSession *session.Session, config *ContainerCreateConfig) (*Handle, error) {
-	defer trace.End(trace.Begin("Handle.Create"))
+	op := trace.FromContext(ctx, "Handle.Create")
+	defer trace.End(trace.Begin(config.Metadata.Name, op))
 
 	h := &Handle{
 		key:         newHandleKey(),
@@ -335,11 +330,11 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 	}
 
 	// if not vsan, set the datastore folder name to containerID
-	if !vmomiSession.IsVSAN(ctx) {
+	if !vmomiSession.IsVSAN(op) {
 		specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", vmomiSession.Datastore.Name(), specconfig.ID, specconfig.ID)
 	}
 
-	specconfig.VMFullName = util.DisplayName(specconfig, Config.ContainerNameConvention)
+	specconfig.VMFullName = util.DisplayName(op, specconfig, Config.ContainerNameConvention)
 
 	// log only core portions
 	s := specconfig
@@ -363,7 +358,7 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 	}
 
 	// Create a linux guest
-	linux, err := guest.NewLinuxGuest(ctx, vmomiSession, specconfig)
+	linux, err := guest.NewLinuxGuest(op, vmomiSession, specconfig)
 	if err != nil {
 		log.Errorf("Failed during linux specific spec generation during create of %s: %s", config.Metadata.ID, err)
 		return nil, err

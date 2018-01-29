@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build windows
+
 package archive
 
 import (
@@ -34,7 +36,6 @@ const (
 	fileWriteFlags = os.O_CREATE | os.O_TRUNC | os.O_WRONLY
 )
 
-// unpack will unpack the given tarstream(if it is a tar stream) on the local filesystem based on the specified root
 // combined with any rebase from the path spec
 //
 // the pathSpec will include the following elements
