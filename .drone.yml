@@ -298,7 +298,6 @@ pipeline:
      files:
        - .cover/cover.out
      when:
-       repo: vmware/vic
        status: success
 
   notify-slack-on-fail:
