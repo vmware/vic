@@ -25,7 +25,7 @@ outfile="functional_logs_"$1".zip"
 echo $Build
 echo $outfile
 
-/usr/bin/zip -9 -r $outfile 60 65 nightly_console.txt
+/usr/bin/zip -9 -r $outfile 60 65
 
 # GC credentials
 keyfile=~/vic-ci-logs.key
