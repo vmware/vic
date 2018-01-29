@@ -338,14 +338,20 @@ PORTLAYER_DEPS ?= lib/apiservers/portlayer/swagger.json \
 
 $(admiralapi-client): lib/config/dynamic/admiral/swagger.json $(SWAGGER)
 	@echo regenerating swagger models and operations for Admiral API client...
-	@$(SWAGGER) generate client -A Admiral --target lib/config/dynamic/admiral -f lib/config/dynamic/admiral/swagger.json \
-	    --tags /projects --tags /resources/compute --tags /config/registries \
-	    -O GetResourcesCompute -O GetProjects -O GetConfigRegistriesID \
+	@$(SWAGGER) generate client -A Admiral --target lib/config/dynamic/admiral \
+	    -f lib/config/dynamic/admiral/swagger.json \
+	    --tags /projects \
+	    --tags /resources/compute \
+	    --tags /config/registries \
+	    -O GetResourcesCompute \
+	    -O GetProjects \
+	    -O GetConfigRegistriesID \
 	    -M "com:vmware:photon:controller:model:resources:ComputeService:ComputeState" \
 	    -M "com:vmware:xenon:common:ServiceDocumentQueryResult" \
 	    -M "com:vmware:admiral:service:common:RegistryService:RegistryState" \
 	    -M "com:vmware:xenon:common:ServiceDocumentQueryResult:ContinuousResult" \
-	    -M "com:vmware:xenon:common:ServiceErrorResponse" 2>>swagger-gen.log
+	    -M "com:vmware:xenon:common:ServiceErrorResponse" \
+	    2>>swagger-gen.log
 	@echo done regenerating swagger models and operations for Admiral API client...
 
 $(portlayerapi-client): $(PORTLAYER_DEPS) $(SWAGGER)
