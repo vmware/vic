@@ -54,6 +54,20 @@ Create with a directory as a volume
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: Bad request error from portlayer: vSphere Integrated Containers does not support mounting directories as a data volume.
 
+Create with complex volume topology - overriding image volume with named volume
+    # Verify that only anonymous volumes are removed when superseding an image volume with a named volume
+    ${suffix}=  Evaluate  '%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
+    Set Test Variable  ${namedImageVol}  non-anonymous-image-volume-${suffix}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name ${namedImageVol}
+    Should Be Equal As Integers  ${rc}  0
+    Set Test Variable  ${imageVolumeContainer}  I-Have-Two-Anonymous-Volumes-${suffix}
+    ${rc}  ${c5}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${imageVolumeContainer} -v ${namedImageVol}:/data/db -v /I/AM/ANONYMOOOOSE mongo
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f "{{.HostConfig.Binds}}" ${imageVolumeContainer}
+    Should Contain  ${output}  ${namedImageVol}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f "{{.Config.Volumes}}" ${imageVolumeContainer}
+    Should Contain  ${output}  ${namedImageVol}
+
 Create simple top example
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0

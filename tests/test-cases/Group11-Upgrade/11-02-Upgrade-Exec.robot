@@ -1,4 +1,4 @@
-# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ Default Tags
 
 *** Test Cases ***
 Exec Not Allowed On Older Containers
-    Launch Container  exec-test
+    Launch Container  exec-test  bridge
 
     Upgrade
     Check Upgraded Version
@@ -30,6 +30,6 @@ Exec Not Allowed On Older Containers
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  running tasks not supported for this container
 
-    Launch Container  exec-test2
+    Launch Container  exec-test2  bridge
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d exec-test2 ls
     Should Be Equal As Integers  ${rc}  0

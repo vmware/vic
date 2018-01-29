@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,6 +63,7 @@ import (
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/convert"
 	epoint "github.com/vmware/vic/lib/apiservers/engine/backends/endpoint"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/filter"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/interaction"
@@ -1227,7 +1228,7 @@ func (c *ContainerProxy) Remove(vc *viccontainer.VicContainer, config *types.Con
 	// Once the container is removed, remove anonymous volumes (vc.Config.Volumes) if
 	// the remove flag is set.
 	if config.RemoveVolume && len(vc.Config.Volumes) > 0 {
-		removeAnonContainerVols(c.client, id, vc.Config.Volumes)
+		removeAnonContainerVols(c.client, id, vc)
 	}
 
 	return nil
@@ -1241,22 +1242,51 @@ func (c *ContainerProxy) Remove(vc *viccontainer.VicContainer, config *types.Con
 // once the said container has been removed. It fetches a list of volumes that are joined
 // to at least one other container, and calls the portlayer to remove this container's
 // anonymous volumes if they are dangling. Errors, if any, are only logged.
-func removeAnonContainerVols(pl *client.PortLayer, cID string, volumes map[string]struct{}) {
+func removeAnonContainerVols(pl *client.PortLayer, cID string, vc *viccontainer.VicContainer) {
+	// NOTE: these strings come in the form of <volume id>:<destination>:<volume options>
+	volumes := vc.Config.Volumes
+	// NOTE: these strings come in the form of <volume id>:<destination path>
+	namedVolumes := vc.HostConfig.Binds
+
+	// assemble a mask of volume paths before processing binds. MUST be paths, as we want to move to honoring the proper metadata in the "volumes" section in the future.
+	namedMaskList := make(map[string]struct{}, 0)
+	for _, entry := range namedVolumes {
+		fields := strings.SplitN(entry, ":", 2)
+		if len(fields) != 2 {
+			log.Errorf("Invalid entry in the HostConfig.Binds metadata section for container %s: %s", cID, entry)
+			continue
+		}
+		destPath := fields[1]
+		namedMaskList[destPath] = struct{}{}
+	}
+
 	joinedVols, err := fetchJoinedVolumes()
 	if err != nil {
-		log.Warnf("Unable to obtain joined volumes from portlayer, skipping removing anonymous volumes for %s: %s", cID, err.Error())
+		log.Errorf("Unable to obtain joined volumes from portlayer, skipping removal of anonymous volumes for %s: %s", cID, err.Error())
 		return
 	}
 
 	for vol := range volumes {
 		// Extract the volume ID from the full mount path, which is of form "id:mountpath:flags" - see getMountString().
-		volFields := strings.SplitN(vol, ":", 2)
+		volFields := strings.SplitN(vol, ":", 3)
+
+		// NOTE(mavery): this check will start to fail when we fix our metadata correctness issues
+		if len(volFields) != 3 {
+			log.Debugf("Invalid entry in the volumes metadata section for container %s: %s", cID, vol)
+			continue
+		}
 		volName := volFields[0]
-		if _, joined := joinedVols[volName]; !joined {
+		volPath := volFields[1]
+
+		_, isNamed := namedMaskList[volPath]
+		_, joined := joinedVols[volName]
+		if !joined && !isNamed {
 			_, err := pl.Storage.RemoveVolume(storage.NewRemoveVolumeParamsWithContext(ctx).WithName(volName))
 			if err != nil {
 				log.Debugf("Unable to remove anonymous volume %s in container %s: %s", volName, cID, err.Error())
+				continue
 			}
+			log.Debugf("Successfully removed anonymous volume %s during remove operation against container(%s)", volName, cID)
 		}
 	}
 }
@@ -1545,7 +1575,7 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 
 	if info.ContainerConfig != nil {
 		// set the status to the inspect expected values
-		containerState.Status = strings.ToLower(info.ContainerConfig.State)
+		containerState.Status = filter.DockerState(info.ContainerConfig.State)
 
 		// https://github.com/docker/docker/blob/master/container/state.go#L77
 		if containerState.Status == ContainerStopped {
