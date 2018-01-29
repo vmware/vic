@@ -278,22 +278,3 @@ EOT
 sendmail -t < nightly_mail.html
 fi
 
-# Saves test results to reporting server
-testresultsdb="vic-nightly.db"
-rm $testresultsdb
-scp $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns-db/$testresultsdb .
-
-for i in $nightly_list_var; do
-python -m dbbot.run -k  -b $testresultsdb 65/$i/output.xml
-ssh $REPORTING_USER@$REPORTING_SERVER_URL mkdir -p /export/drone-test-results/testruns/$buildNumber-nightly/65/$i
-scp 65/$i/log.html $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns/$buildNumber-nightly/65/$i
-scp 65/$i/report.html $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns/$buildNumber-nightly/65/$i
-
-python -m dbbot.run -k  -b $testresultsdb 60/$i/output.xml
-ssh $REPORTING_USER@$REPORTING_SERVER_URL mkdir -p /export/drone-test-results/testruns/$buildNumber-nightly/60/$i
-scp 60/$i/log.html $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns/$buildNumber-nightly/60/$i
-scp 60/$i/report.html $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns/$buildNumber-nightly/60/$i
-done
-
-scp $testresultsdb $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns-db/$testresultsdb
-

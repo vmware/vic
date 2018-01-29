@@ -524,6 +524,9 @@ func (c *Context) NewScope(ctx context.Context, scopeData *ScopeData) (*Scope, e
 	if err != nil {
 		return nil, err
 	}
+
+	log.Debugf("New scope has been created %s: %s", s.name, s.id)
+
 	defer func() {
 		if err != nil {
 			c.deleteScope(s)
@@ -720,18 +723,16 @@ func (c *Context) bindContainer(op trace.Operation, h *exec.Handle) ([]*Endpoint
 			return nil, err
 		}
 
-		ports, _, err := nat.ParsePortSpecs(ne.Ports)
-		if err != nil {
-			return nil, err
-		}
-		for p := range ports {
-			var port Port
-			if port, err = ParsePort(string(p)); err != nil {
+		for i := range ne.Ports {
+			mappings, err := nat.ParsePortSpec(ne.Ports[i])
+			if err != nil {
 				return nil, err
 			}
-
-			if err = e.addPort(port); err != nil {
-				return nil, err
+			for j := range mappings {
+				port := PortFromMapping(mappings[j])
+				if err = e.addPort(port); err != nil {
+					return nil, err
+				}
 			}
 		}
 
@@ -957,12 +958,14 @@ func (c *Context) RemoveIDFromScopes(op trace.Operation, id string) ([]*Endpoint
 // UnbindContainer removes the container from the scopes and clears out the assigned IP
 // Because of that, it requires a handle
 func (c *Context) UnbindContainer(op trace.Operation, h *exec.Handle) ([]*Endpoint, error) {
-	defer trace.End(trace.Begin("", op))
+	defer trace.End(trace.Begin("UnbindContainer", op))
 	c.Lock()
 	defer c.Unlock()
 
+	op.Debugf("Trying to unbind container: %s", h.ExecConfig.ID)
 	con, err := c.container(h)
 	if err != nil {
+		op.Debugf("Could not get container %s by handle %s: %s", h.String(), h.ExecConfig.ID, err)
 		if _, ok := err.(ResourceNotFoundError); ok {
 			return nil, nil // not bound
 		}
