@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,32 @@ import (
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestFlags(t *testing.T) {
+	c := NewCreate()
+	flags := c.Flags()
+	numberOfFlags := 60
+	assert.Equal(t, numberOfFlags, len(flags), "Missing flags during Create.")
+
+}
+
+func TestProcessBridgeNetwork(t *testing.T) {
+	c := NewCreate()
+
+	c.BridgeIPRange = "172.16.0.0.0"
+	improperBridgeIPRange := c.ProcessBridgeNetwork()
+	assert.NotNil(t, improperBridgeIPRange)
+
+	c.BridgeIPRange = "172.16.0.0/12"
+	properBridgeIPRange := c.ProcessBridgeNetwork()
+	assert.Nil(t, properBridgeIPRange, "Bridge Network IP Range can't be parsed and is in improper range format.")
+}
+
+func TestSetFields(t *testing.T) {
+	c := NewCreate()
+	option := c.SetFields()
+	assert.NotNil(t, option)
+}
 
 func TestParseGatewaySpec(t *testing.T) {
 	var tests = []struct {

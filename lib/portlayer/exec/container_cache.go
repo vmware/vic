@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53,7 +53,7 @@ func (conCache *containerCache) Container(idOrRef string) *Container {
 	return conCache.cache[idOrRef]
 }
 
-func (conCache *containerCache) Containers(state *State) []*Container {
+func (conCache *containerCache) Containers(states []State) []*Container {
 	conCache.m.RLock()
 	defer conCache.m.RUnlock()
 	// cache contains 2 items for each container
@@ -65,11 +65,20 @@ func (conCache *containerCache) Containers(state *State) []*Container {
 		if !isContainerID(id) {
 			continue
 		}
+
+		// no state filtering
+		if len(states) == 0 {
+			containers = append(containers, con)
+			continue
+		}
+
 		// filter by container state
 		// DO NOT use container.CurrentState as that can
 		// cause cache deadlocks
-		if state == nil || *state == con.State() {
-			containers = append(containers, con)
+		for _, state := range states {
+			if state == con.State() {
+				containers = append(containers, con)
+			}
 		}
 	}
 
