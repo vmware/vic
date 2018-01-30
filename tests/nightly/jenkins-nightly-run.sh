@@ -21,7 +21,7 @@ if [[ $1 != "6.0" && $1 != "6.5" ]]; then
     exit 1
 fi
 target="$1"
-echo $target
+echo "Target cluster: "$target
 
 input=$(gsutil ls -l gs://vic-engine-builds/vic_* | grep -v TOTAL | sort -k2 -r | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
 buildNumber=${input:4}
@@ -63,12 +63,11 @@ n=0
       sleep 15
    done
 
-if [ $canContinue = "No" ]
-then
-echo "Tarball extraction failed..quitting the run"
-break
+if [[ $canContinue = "No" ]]; then
+    echo "Tarball extraction failed..quitting the run"
+    break
 else
-echo "Tarball extraction passed, Running nightlies test.."
+    echo "Tarball extraction passed, Running nightlies test.."
 fi
 
 if [[ $target == "6.0" ]]; then
