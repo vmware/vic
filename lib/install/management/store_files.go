@@ -25,8 +25,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/config"
-	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
-	"github.com/vmware/vic/lib/portlayer/store"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
@@ -59,13 +58,13 @@ func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) e
 		}
 
 		// delete images subfolder
-		imagePath := path.Join(imageDir.Path, vsphere.StorageParentDir)
+		imagePath := path.Join(imageDir.Path, constants.StorageParentDir)
 		if _, err = d.deleteDatastoreFiles(imageDSes[0], imagePath, true); err != nil {
 			errs = append(errs, err.Error())
 		}
 
 		// delete kvStores subfolder
-		kvPath := path.Join(imageDir.Path, store.KVStoreFolder)
+		kvPath := path.Join(imageDir.Path, constants.KVStoreFolder)
 		if _, err = d.deleteDatastoreFiles(imageDSes[0], kvPath, true); err != nil {
 			errs = append(errs, err.Error())
 		}
@@ -292,7 +291,7 @@ func (d *Dispatcher) createVolumeStores(conf *config.VirtualContainerHostConfigS
 		}
 
 		if url.Path == "/" || url.Path == "" {
-			url.Path = vsphere.StorageParentDir
+			url.Path = constants.StorageParentDir
 		}
 
 		nds, err := datastore.NewHelper(d.op, d.session, ds, url.Path)
@@ -347,8 +346,8 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHost
 			continue
 		}
 
-		if dsURL.Path == vsphere.StorageParentDir {
-			dsURL.Path = path.Join(dsURL.Path, vsphere.VolumesDir)
+		if dsURL.Path == constants.StorageParentDir {
+			dsURL.Path = path.Join(dsURL.Path, constants.VolumesDir)
 		}
 
 		d.op.Debugf("Provided datastore URL: %q\nParsed volume store path: %q", url.Path, dsURL.Path)
