@@ -69,6 +69,7 @@ echo "Tarball extraction failed..quitting the run"
 break
 else
 echo "Tarball extraction passed, Running nightlies test.."
+fi
 
 if [[ $target == "6.0" ]]; then
     echo "Executing nightly tests on vSphere 6.0"
