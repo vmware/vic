@@ -88,6 +88,7 @@ func main() {
 		os.Exit(FailedChdirAfterChroot)
 	}
 
+	op.Errorf("XXX calling invoke unpack and expecting to hang")
 	if err = archive.InvokeUnpack(op, os.Stdin, filterSpec, "/"); err != nil {
 		op.Error(err)
 		os.Exit(FailedInvokeUnpack)
