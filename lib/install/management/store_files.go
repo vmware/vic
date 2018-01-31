@@ -350,8 +350,10 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHost
 			dsURL.Path = path.Join(dsURL.Path, constants.VolumesDir)
 		}
 
-		d.op.Debugf("Provided datastore URL: %q\nParsed volume store path: %q", url.Path, dsURL.Path)
-		d.op.Infof("Deleting volume store %q on Datastore %q at path %q", label, dsURL.Host, dsURL.Path)
+		d.op.Debugf("Provided datastore URL: %q", url.Path)
+		d.op.Debugf("Parsed volume store path: %q", dsURL.Path)
+		d.op.Infof("Deleting volume store %q on Datastore %q at path %q",
+			label, dsURL.Host, dsURL.Path)
 
 		datastores, err := d.session.Finder.DatastoreList(d.op, dsURL.Host)
 
