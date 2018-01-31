@@ -74,7 +74,6 @@ func TestFlags(t *testing.T) {
 	flags := c.Flags()
 	numberOfFlags := 60
 	assert.Equal(t, numberOfFlags, len(flags), "Missing flags during Create.")
-
 }
 
 func TestProcessBridgeNetwork(t *testing.T) {
@@ -86,7 +85,7 @@ func TestProcessBridgeNetwork(t *testing.T) {
 
 	c.BridgeIPRange = "172.16.0.0/12"
 	properBridgeIPRange := c.ProcessBridgeNetwork()
-	assert.Nil(t, properBridgeIPRange, "Bridge Network IP Range can't be parsed and is in improper range format.")
+	assert.Nil(t, properBridgeIPRange, "Bridge Network IP Range can't be parsed. Range must be in CIDR format, e.g., 172.16.0.0/12.")
 }
 
 func TestSetFields(t *testing.T) {
