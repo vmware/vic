@@ -67,7 +67,6 @@ password=$(govc env | grep GOVC_PASSWORD | cut -d= -f2)
 target=$(govc env | grep GOVC_URL | cut -d= -f2)
 
 
-echo "is the vch name ambiguous?"
 if [[ ! -v VIC_ID ]] && [[ $(vch-name-is-ambiguous) ]]; then
     echo "The provided VIC name is ambiguous; please choose the correct VCH ID from the output below and assign it to the environment variable VIC_ID, e.g., export VIC_ID=12"
     $VIC_DIR/bin/vic-machine-linux ls --target $GOVC_URL --user $GOVC_USER --password=$GOVC_PASSWORD --thumbprint=$(get-thumbprint)
@@ -75,11 +74,9 @@ if [[ ! -v VIC_ID ]] && [[ $(vch-name-is-ambiguous) ]]; then
 fi
 
 if [[ ! -v VIC_ID ]]; then
-    echo "Getting VCH ID"
     VIC_ID=$($VIC_DIR/bin/vic-machine-linux ls --target=$target --user=$username --password=$password --thumbprint=$(get-thumbprint) | grep $VIC_NAME | awk '{print $1}')
 fi
 
-echo "Enabling SSH access on your VCH"
 $VIC_DIR/bin/vic-machine-linux debug --target=$target --id=$VIC_ID --user=$username --password=$password --thumbprint=$(get-thumbprint)
 
 VCH_IP="$(govc vm.ip $VIC_NAME)"
