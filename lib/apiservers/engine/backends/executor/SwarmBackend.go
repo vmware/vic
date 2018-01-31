@@ -15,9 +15,10 @@
 package executor
 
 import (
-	"fmt"
 	"io"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/docker/distribution"
 	"github.com/docker/docker/api/types"
@@ -34,7 +35,8 @@ import (
 	"github.com/docker/libnetwork/cluster"
 	networktypes "github.com/docker/libnetwork/types"
 	"github.com/docker/swarmkit/agent/exec"
-	"golang.org/x/net/context"
+
+	"github.com/vmware/vic/lib/apiservers/engine/errors"
 )
 
 type SwarmBackend struct {
@@ -138,7 +140,7 @@ func (b SwarmBackend) SetClusterProvider(provider cluster.Provider) {
 }
 
 func (b SwarmBackend) IsSwarmCompatible() error {
-	return fmt.Errorf("vSphere Integrated Containers Engine does not yet support Docker Swarm.")
+	return errors.SwarmNotSupportedError()
 }
 
 func (b SwarmBackend) SubscribeToEvents(since, until time.Time, filter filters.Args) ([]events.Message, chan interface{}) {

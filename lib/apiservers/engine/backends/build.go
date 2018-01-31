@@ -15,17 +15,18 @@
 package backends
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"golang.org/x/net/context"
+
+	"github.com/vmware/vic/lib/apiservers/engine/errors"
 )
 
 type Builder struct {
 }
 
 func (b *Builder) BuildFromContext(ctx context.Context, src io.ReadCloser, remote string, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error) {
-	return "", fmt.Errorf("%s does not yet implement BuildFromContext", ProductName())
+	return "", errors.APINotSupportedMsg(ProductName(), "BuildFromContext")
 }
