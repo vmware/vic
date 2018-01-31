@@ -15,7 +15,8 @@
 
 set -e
 
-BASE_DIR=$(readlink -f ../../)
+BASE_DIR=$(dirname $(readlink -f "$BASH_SOURCE"))
+VIC_DIR=$(dirname $(readlink -f $BASE_DIR/..))
 
 # Grab vSphere's thumbprint for calling vic-machine
 function get-thumbprint () {
@@ -29,7 +30,7 @@ function on-vch() {
 
 # SCPs the component in $1 to the VCH, plops it in place, and brutally kills the previous running process
 function replace-component() {
-    sshpass -p 'password' scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no $BASEDIR/bin/$1 root@$VCH_IP:/tmp/$1
+    sshpass -p 'password' scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no $VIC_DIR/bin/$1 root@$VCH_IP:/tmp/$1
     on-vch mv /sbin/$1 /tmp/old-$1
     on-vch mv /tmp/$1 /sbin/$1
     on-vch chmod 755 /sbin/$1
@@ -38,26 +39,48 @@ function replace-component() {
     on-vch rm -f /tmp/old-$1
 }
 
+function vch-name-is-ambiguous () {
+    [ $($VIC_DIR/bin/vic-machine-linux ls --target=$target --user=$username --password=$password --thumbprint=$(get-thumbprint)  | grep $VIC_NAME | wc -l) -ne 1 ] && return 0 || return 1
+}
+
 # Check GOVC vars
 if [[ ! $(govc ls 2>/dev/null) ]]; then
-        echo "GOVC environment variables are required to use this script. Set the necessary variables to allow govc to connect to your vSphere deployment:";
-        echo "GOVC_USERNAME: username on vSphere target"
-        echo "GOVC_PASSWORD: password on vSphere target"
-        echo "GOVC_URL: IP or FQDN of your vSphere target"
-        echo "GOVC_INSECURE: set to 1 to disable tls verify when using govc to talk to vSphere"
-        exit 1
-fi
-
-# Check for our one required argument
-if [[ -v $VIC_NAME ]]; then
-    echo "Please set the following environment variable to specify the VCH which you would like to reconfigure:"
-    echo "VIC_NAME: name of VCH; matches --name argument for vic-machine"
+    echo "ERROR:"
+    echo "GOVC environment variables are required to use this command. Set the necessary variables to allow govc to connect to your vSphere deployment:";
+    echo "GOVC_USERNAME: username on vSphere target"
+    echo "GOVC_PASSWORD: password on vSphere target"
+    echo "GOVC_URL: IP or FQDN of your vSphere target"
+    echo "GOVC_INSECURE: set to 1 to disable tls verify when using govc to talk to vSphere"
     exit 1
 fi
 
-echo "Enabling SSH access on your VCH"
-$BASEDIR/bin/vic-machine-linux debug --target=$GOVC_URL --name=$VIC_NAME --user=$GOVC_USERNAME --password=$GOVC_PASSWORD --thumbprint=$(get-thumbprint)
+# Check for our one required argument
+if [[ ! -v VIC_NAME ]] && [[ ! -v VIC_ID ]]; then
+    echo "Please set one of the following environment variables to specify the VCH which you would like to reconfigure:"
+    echo "VIC_NAME: name of VCH; matches --name argument for vic-machine"
+    echo "VIC_ID: ID of VCH, as displayed in output of vic-machine ls"
+    exit 1
+fi
 
+username=$(govc env | grep GOVC_USERNAME | cut -d= -f2)
+password=$(govc env | grep GOVC_PASSWORD | cut -d= -f2)
+target=$(govc env | grep GOVC_URL | cut -d= -f2)
+
+
+echo "is the vch name ambiguous?"
+if [[ ! -v VIC_ID ]] && [[ $(vch-name-is-ambiguous) ]]; then
+    echo "The provided VIC name is ambiguous; please choose the correct VCH ID from the output below and assign it to the environment variable VIC_ID, e.g., export VIC_ID=12"
+    $VIC_DIR/bin/vic-machine-linux ls --target $GOVC_URL --user $GOVC_USER --password=$GOVC_PASSWORD --thumbprint=$(get-thumbprint)
+    exit 1
+fi
+
+if [[ ! -v VIC_ID ]]; then
+    echo "Getting VCH ID"
+    VIC_ID=$($VIC_DIR/bin/vic-machine-linux ls --target=$target --user=$username --password=$password --thumbprint=$(get-thumbprint) | grep $VIC_NAME | awk '{print $1}')
+fi
+
+echo "Enabling SSH access on your VCH"
+$VIC_DIR/bin/vic-machine-linux debug --target=$target --id=$VIC_ID --user=$username --password=$password --thumbprint=$(get-thumbprint)
 
 VCH_IP="$(govc vm.ip $VIC_NAME)"
 
