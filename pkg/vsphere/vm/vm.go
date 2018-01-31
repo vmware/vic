@@ -520,7 +520,7 @@ func (vm *VirtualMachine) Properties(ctx context.Context, r types.ManagedObjectR
 
 	contains := false
 	for _, v := range ps {
-		if strings.HasPrefix(v, "summary") {
+		if v == "summary" || v == "summary.runtime" {
 			contains = true
 			break
 		}
