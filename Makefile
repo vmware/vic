@@ -273,19 +273,19 @@ install-govmomi:
 test: install-govmomi portlayerapi $(TEST_JOBS)
 
 push:
-	./infra/scripts/replace-running-components.sh
+	$(BASE_DIR)/infra/scripts/replace-running-components.sh
 
 push-portlayer:
-	./infra/scripts/replace-running-components.sh port-layer-server
+	$(BASE_DIR)/infra/scripts/replace-running-components.sh port-layer-server
 
 push-docker:
-	./infra/scripts/replace-running-components.sh docker-engine-server
+	$(BASE_DIR)/infra/scripts/replace-running-components.sh docker-engine-server
 
 push-vic-init:
-	./infra/scripts/replace-running-components.sh vic-init
+	$(BASE_DIR)/infra/scripts/replace-running-components.sh vic-init
 
 push-vicadmin:
-	./infra/scripts/replace-running-components.sh vicadmin
+	$(BASE_DIR)/infra/scripts/replace-running-components.sh vicadmin
 
 focused-test:
 # test only those packages that have changes
