@@ -26,9 +26,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/tether"
+	"github.com/vmware/vic/lib/tether/msgs"
 	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
 )

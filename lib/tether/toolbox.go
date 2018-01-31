@@ -37,8 +37,8 @@ import (
 	"github.com/vmware/govmomi/toolbox"
 	"github.com/vmware/govmomi/toolbox/hgfs"
 	"github.com/vmware/govmomi/toolbox/vix"
-	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/tether/msgs"
 	"github.com/vmware/vic/lib/tether/shared"
 	"github.com/vmware/vic/pkg/trace"
 )
