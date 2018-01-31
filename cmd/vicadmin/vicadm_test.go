@@ -82,6 +82,19 @@ func init() {
 	}
 }
 
+func TestLogFiles(t *testing.T) {
+	logFileNames := []string{}
+	for _, name := range logFiles() {
+		logFileNames = append(logFileNames, name)
+	}
+	fileCount := 0
+	//files should be in same order, otherwise we have evidence of a suspected race
+	for _, name := range logFiles() {
+		assert.Equal(t, name, logFileNames[fileCount])
+		fileCount++
+	}
+}
+
 func testLogTar(t *testing.T, plainHTTP bool) {
 	t.SkipNow() // TODO FIXME auth is in place now
 

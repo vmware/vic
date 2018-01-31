@@ -17,6 +17,8 @@ package main
 import (
 	"flag"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var systemTest *bool
@@ -29,4 +31,8 @@ func TestSystem(t *testing.T) {
 	if *systemTest {
 		main()
 	}
+}
+
+func TestHandleFlags(t *testing.T) {
+	assert.True(t, handleFlags(), "Flags were not parsed correctly")
 }
