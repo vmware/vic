@@ -519,20 +519,20 @@ func (vm *VirtualMachine) Properties(ctx context.Context, r types.ManagedObjectR
 	defer trace.End(trace.Begin(fmt.Sprintf("VM(%s) Properties(%s)", r, ps), op))
 
 	contains := false
-	for i := range ps {
-		if ps[i] == "summary" || ps[i] == "summary.runtime" {
+	for _, v := range ps {
+		if strings.HasPrefix(v, "summary") {
 			contains = true
 			break
 		}
 	}
-	var newps []string
+
 	if !contains {
-		newps = append(ps, "summary.runtime.connectionState")
-	} else {
-		newps = append(newps, ps...)
+		ps = append(ps, "summary.runtime.connectionState")
 	}
-	op.Debugf("properties: %s", newps)
-	if err := vm.VirtualMachine.Properties(op, r, newps, o); err != nil {
+
+	op.Debugf("properties: %s", ps)
+
+	if err := vm.VirtualMachine.Properties(op, r, ps, o); err != nil {
 		return err
 	}
 	if o.Summary.Runtime.ConnectionState != types.VirtualMachineConnectionStateInvalid {
