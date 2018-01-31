@@ -42,7 +42,7 @@ const (
 	DefaultBridgeName = "bridge"
 )
 
-// Context denotes a networking context that represents a set of scopes, endpoints,
+// Context denotes a network context that represents a set of scopes, endpoints,
 // and containers. Each context has its own separate IPAM.
 type Context struct {
 	sync.Mutex

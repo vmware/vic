@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package backends
+package errors
 
 import (
 	"fmt"
@@ -31,16 +31,24 @@ type InvalidVolumeError struct {
 }
 
 func (e InvalidVolumeError) Error() string {
-	return fmt.Sprintf("%s does not support mounting directories as a data volume.", ProductName())
+	return fmt.Sprintf("mounting directories as a data volume is not supported.")
 }
 
 // InvalidBindError is returned when create/run -v has more params than allowed.
 type InvalidBindError struct {
-	volume string
+	Volume string
 }
 
 func (e InvalidBindError) Error() string {
-	return fmt.Sprintf("volume bind input is invalid: -v %s", e.volume)
+	return fmt.Sprintf("volume bind input is invalid: -v %s", e.Volume)
+}
+
+func APINotSupportedMsg(product, method string) error {
+	return fmt.Errorf("%s does not yet implement %s", product, method)
+}
+
+func NillPortlayerClientError(caller string) error {
+	return derr.NewErrorWithStatusCode(fmt.Errorf("%s failed to get a portlayer client", caller), http.StatusInternalServerError)
 }
 
 // VolumeJoinNotFoundError returns a 404 docker error for a volume join request.
@@ -63,8 +71,12 @@ func VolumeInternalServerError(err error) error {
 	return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 }
 
-func ResourceNotFoundError(cid, res string) error {
+func ContainerResourceNotFoundError(cid, res string) error {
 	return derr.NewRequestNotFoundError(fmt.Errorf("No such %s for container: %s", res, cid))
+}
+
+func ResourceNotFoundError(res string) error {
+	return derr.NewRequestNotFoundError(fmt.Errorf("No such %s", res))
 }
 
 // NotFoundError returns a 404 docker error when a container is not found.
@@ -104,7 +116,7 @@ func PluginNotFoundError(name string) error {
 }
 
 func SwarmNotSupportedError() error {
-	return derr.NewErrorWithStatusCode(fmt.Errorf("%s does not yet support Docker Swarm", ProductName()), http.StatusNotFound)
+	return derr.NewErrorWithStatusCode(fmt.Errorf("Docker Swarm is not yet supported"), http.StatusNotFound)
 }
 
 func StreamFormatNotRecognized() error {
@@ -147,4 +159,10 @@ func IsResourceInUse(err error) bool {
 	}
 
 	return false
+}
+
+type DetachError struct{}
+
+func (DetachError) Error() string {
+	return "detached from container"
 }

@@ -15,114 +15,114 @@
 package backends
 
 import (
-	"fmt"
-
 	"golang.org/x/net/context"
 
 	basictypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	types "github.com/docker/docker/api/types/swarm"
+
+	"github.com/vmware/vic/lib/apiservers/engine/errors"
 )
 
-type Swarm struct {
+type SwarmBackend struct {
 }
 
-func NewSwarmBackend() *Swarm {
-	return &Swarm{}
+func NewSwarmBackend() *SwarmBackend {
+	return &SwarmBackend{}
 }
 
-func (s *Swarm) Init(req types.InitRequest) (string, error) {
-	return "", fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+func (s *SwarmBackend) Init(req types.InitRequest) (string, error) {
+	return "", errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) Join(req types.JoinRequest) error {
-	return fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+func (s *SwarmBackend) Join(req types.JoinRequest) error {
+	return errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) Leave(force bool) error {
-	return fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+func (s *SwarmBackend) Leave(force bool) error {
+	return errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) Inspect() (types.Swarm, error) {
-	return types.Swarm{}, SwarmNotSupportedError()
+func (s *SwarmBackend) Inspect() (types.Swarm, error) {
+	return types.Swarm{}, errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) Update(uint64, types.Spec, types.UpdateFlags) error {
-	return fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+func (s *SwarmBackend) Update(uint64, types.Spec, types.UpdateFlags) error {
+	return errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) GetUnlockKey() (string, error) {
-	return "", fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+func (s *SwarmBackend) GetUnlockKey() (string, error) {
+	return "", errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) UnlockSwarm(req types.UnlockRequest) error {
-	return fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+func (s *SwarmBackend) UnlockSwarm(req types.UnlockRequest) error {
+	return errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) GetServices(basictypes.ServiceListOptions) ([]types.Service, error) {
-	return nil, SwarmNotSupportedError()
+func (s *SwarmBackend) GetServices(basictypes.ServiceListOptions) ([]types.Service, error) {
+	return nil, errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) GetService(string) (types.Service, error) {
-	return types.Service{}, SwarmNotSupportedError()
+func (s *SwarmBackend) GetService(string) (types.Service, error) {
+	return types.Service{}, errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) CreateService(types.ServiceSpec, string) (*basictypes.ServiceCreateResponse, error) {
-	return nil, fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+func (s *SwarmBackend) CreateService(types.ServiceSpec, string) (*basictypes.ServiceCreateResponse, error) {
+	return nil, errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) UpdateService(string, uint64, types.ServiceSpec, string, string) (*basictypes.ServiceUpdateResponse, error) {
-	return nil, fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+func (s *SwarmBackend) UpdateService(string, uint64, types.ServiceSpec, string, string) (*basictypes.ServiceUpdateResponse, error) {
+	return nil, errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) RemoveService(string) error {
-	return fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+func (s *SwarmBackend) RemoveService(string) error {
+	return errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) ServiceLogs(context.Context, string, *backend.ContainerLogsConfig, chan struct{}) error {
-	return fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+func (s *SwarmBackend) ServiceLogs(context.Context, string, *backend.ContainerLogsConfig, chan struct{}) error {
+	return errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) GetNodes(basictypes.NodeListOptions) ([]types.Node, error) {
-	return nil, SwarmNotSupportedError()
+func (s *SwarmBackend) GetNodes(basictypes.NodeListOptions) ([]types.Node, error) {
+	return nil, errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) GetNode(string) (types.Node, error) {
-	return types.Node{}, SwarmNotSupportedError()
+func (s *SwarmBackend) GetNode(string) (types.Node, error) {
+	return types.Node{}, errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) UpdateNode(string, uint64, types.NodeSpec) error {
-	return fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+func (s *SwarmBackend) UpdateNode(string, uint64, types.NodeSpec) error {
+	return errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) RemoveNode(string, bool) error {
-	return fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+func (s *SwarmBackend) RemoveNode(string, bool) error {
+	return errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) GetTasks(basictypes.TaskListOptions) ([]types.Task, error) {
-	return nil, SwarmNotSupportedError()
+func (s *SwarmBackend) GetTasks(basictypes.TaskListOptions) ([]types.Task, error) {
+	return nil, errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) GetTask(string) (types.Task, error) {
-	return types.Task{}, SwarmNotSupportedError()
+func (s *SwarmBackend) GetTask(string) (types.Task, error) {
+	return types.Task{}, errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) GetSecrets(opts basictypes.SecretListOptions) ([]types.Secret, error) {
-	return nil, fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+func (s *SwarmBackend) GetSecrets(opts basictypes.SecretListOptions) ([]types.Secret, error) {
+	return nil, errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) CreateSecret(sp types.SecretSpec) (string, error) {
-	return "", fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+func (s *SwarmBackend) CreateSecret(sp types.SecretSpec) (string, error) {
+	return "", errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) RemoveSecret(id string) error {
-	return fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+func (s *SwarmBackend) RemoveSecret(id string) error {
+	return errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) GetSecret(id string) (types.Secret, error) {
-	return types.Secret{}, fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+func (s *SwarmBackend) GetSecret(id string) (types.Secret, error) {
+	return types.Secret{}, errors.SwarmNotSupportedError()
 }
 
-func (s *Swarm) UpdateSecret(id string, version uint64, spec types.SecretSpec) error {
-	return fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+func (s *SwarmBackend) UpdateSecret(id string, version uint64, spec types.SecretSpec) error {
+	return errors.SwarmNotSupportedError()
 }
