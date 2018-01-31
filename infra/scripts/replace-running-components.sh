@@ -15,35 +15,21 @@
 
 set -e
 
-for x in $(echo GOVC_USERNAME GOVC_PASSWORD VCH_NAME GOVC_URL GOPATH GOVC_INSECURE); do
-    if [[ ! -v $x ]]; then
-        echo "Insufficient inputs. Please set $x environment variable and re-execute this script.";
-        echo "GOVC_USERNAME: username on ESX/vCenter target"
-        echo "GOVC_PASSWORD: password on ESX/vCenter target"
-        echo "VCH_NAME: name of VCH; matches --name argument for vic-machine"
-        echo "GOVC_URL: IP or FQDN of your vCenter/ESX target"
-        echo "GOPATH: your GOPATH, obviously"
-        echo "GOVC_INSECURE: set to 1 to disable tls verify when using govc to talk to ESX/vC"
-        exit 1
-    fi;
-done
+BASE_DIR=$(readlink -f ../../)
 
+# Grab vSphere's thumbprint for calling vic-machine
 function get-thumbprint () {
-    openssl s_client -connect $GOVC_URL:443 </dev/null 2>/dev/null \
-        | openssl x509 -fingerprint -noout \
-        | cut -d= -f2
+    govc about.cert | grep "SHA-1 Thumbprint" | awk '{print $NF}'
 }
 
-$GOPATH/src/github.com/vmware/vic/bin/vic-machine-linux debug --target=$GOVC_URL --name=$VCH_NAME --user=$GOVC_USERNAME --password=$GOVC_PASSWORD --thumbprint=$(get-thumbprint)
-
-on-vch() {
+# Run the command given on the VCH instead of locally
+function on-vch() {
     sshpass -ppassword ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@$VCH_IP -C $@ 2>/dev/null
 }
 
-VCH_IP="$(govc vm.ip $VCH_NAME)"
-
+# SCPs the component in $1 to the VCH, plops it in place, and brutally kills the previous running process
 function replace-component() {
-    sshpass -p 'password' scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no $GOPATH/src/github.com/vmware/vic/bin/$1 root@$VCH_IP:/tmp/$1
+    sshpass -p 'password' scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no $BASEDIR/bin/$1 root@$VCH_IP:/tmp/$1
     on-vch mv /sbin/$1 /tmp/old-$1
     on-vch mv /tmp/$1 /sbin/$1
     on-vch chmod 755 /sbin/$1
@@ -52,16 +38,39 @@ function replace-component() {
     on-vch rm -f /tmp/old-$1
 }
 
-if [[ $1 == "" ]]; then
+# Check GOVC vars
+if [[ ! $(govc ls 2>/dev/null) ]]; then
+        echo "GOVC environment variables are required to use this script. Set the necessary variables to allow govc to connect to your vSphere deployment:";
+        echo "GOVC_USERNAME: username on vSphere target"
+        echo "GOVC_PASSWORD: password on vSphere target"
+        echo "GOVC_URL: IP or FQDN of your vSphere target"
+        echo "GOVC_INSECURE: set to 1 to disable tls verify when using govc to talk to vSphere"
+        exit 1
+fi
+
+# Check for our one required argument
+if [[ -v $VIC_NAME ]]; then
+    echo "Please set the following environment variable to specify the VCH which you would like to reconfigure:"
+    echo "VIC_NAME: name of VCH; matches --name argument for vic-machine"
+    exit 1
+fi
+
+echo "Enabling SSH access on your VCH"
+$BASEDIR/bin/vic-machine-linux debug --target=$GOVC_URL --name=$VIC_NAME --user=$GOVC_USERNAME --password=$GOVC_PASSWORD --thumbprint=$(get-thumbprint)
+
+
+VCH_IP="$(govc vm.ip $VIC_NAME)"
+
+
+if [[ $1 == "" ]]; then # replace everything
     for x in port-layer-server docker-engine-server vicadmin vic-init; do
         replace-component $x
     done
-elif [[ $1 == "vic-init" ]]; then
-    replace-component vic-init
 else
-    replace-component $1
-    replace-component vic-init
+    for x in $@; do # replace provided list
+        replace-component $x
+    done
 fi
 
 on-vch vic-init &
-echo "IP address may change when appliance finishes re-initializing. Get the new IP with govc vm.ip"
+echo "IP address may change when appliance finishes re-initializing. Get the new IP with govc vm.ip $VIC_NAME"
