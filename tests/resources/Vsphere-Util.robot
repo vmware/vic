@@ -37,6 +37,12 @@ Destroy VM OOB
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy "${vm}"
     Should Be Equal As Integers  ${rc}  0
 
+Power On vApp
+    [Arguments]  ${vapp}
+    ${rc}  ${out}=  Run And Return Rc And Output  govc vapp.power -on ${vapp}
+    Should Be Equal As Integers  ${rc}  0
+    [Return]  ${out}
+
 Put Host Into Maintenance Mode
     ${rc}  ${output}=  Run And Return Rc And Output  govc host.maintenance.enter -host.ip=%{TEST_URL}
     Should Contain  ${output}  entering maintenance mode... OK
@@ -81,6 +87,14 @@ Wait Until VM Is Destroyed
     \   Return From Keyword If  ${status}
     \   Sleep  1
     Fail  VM was not destroyed within 30 seconds
+
+Wait Until vSphere Is Powered On
+    :FOR  ${idx}  IN RANGE  0  50
+    \   ${out}=  Run  govc about
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  VMware, Inc.
+    \   Return From Keyword If  ${status}
+    \   Sleep  6
+    Fail  vSphere server did not power on within 5 minutes
 
 Get VM IP
     [Arguments]  ${vm}

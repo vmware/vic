@@ -24,3 +24,5 @@ VIC Manual Test Suite
 -
 [Group 21 - Whitelist](Group21-Registries/TestCases.md)
 -
+[Group 22 - vSphere Restart](Group22-vSphere-Restart/TestCases.md)
+--

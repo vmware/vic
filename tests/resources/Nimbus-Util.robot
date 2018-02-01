@@ -211,6 +211,13 @@ Kill Nimbus Server
     Log  ${out}
     Close connection
 
+Reset Nimbus Server
+    [Arguments]  ${user}  ${password}  ${name}
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
+    ${out}=  Execute Command  nimbus-ctl reset ${name}
+    Close connection
+
 Cleanup Nimbus PXE folder
     [Arguments]  ${user}  ${password}
     Open Connection  %{NIMBUS_GW}
