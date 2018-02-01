@@ -31,6 +31,7 @@ elif [ -d "65" ]; then
     /usr/bin/zip -9 -r $outfile 65
 else
     echo "No output directories to upload!"
+    exit 1
 fi
 
 # GC credentials
