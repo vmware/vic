@@ -70,22 +70,28 @@ func Init(cfg *LoggingConfig) error {
 
 			logrus.Debugf("log cfg: %+v", *cfg)
 
-			if cfg.Syslog != nil {
-				logrus.Debugf("syslog cfg: %+v", *cfg.Syslog)
-				hook, err := syslog.NewHook(
-					cfg.Syslog.Network,
-					cfg.Syslog.RAddr,
-					cfg.Syslog.Priority,
-					cfg.Syslog.Tag,
-				)
-				if err != nil {
-					// not a fatal error, so just log a warning
-					logrus.Warnf("error trying to initialize syslog: %s", err)
-				} else {
-					logrus.AddHook(hook)
-				}
+			hook, err := GetSyslogHook(cfg)
+			if err == nil && hook != nil {
+				logrus.AddHook(hook)
 			}
 		})
 
 	return initializer.err
+}
+
+func GetSyslogHook(cfg *LoggingConfig) (logrus.Hook, error) {
+	if cfg.Syslog == nil {
+		return nil, nil
+	}
+	hook, err := syslog.NewHook(
+		cfg.Syslog.Network,
+		cfg.Syslog.RAddr,
+		cfg.Syslog.Priority,
+		cfg.Syslog.Tag,
+	)
+	if err != nil {
+		// not a fatal error, so just log a warning
+		logrus.Warnf("error trying to initialize syslog: %s", err)
+	}
+	return hook, err
 }
