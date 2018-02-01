@@ -48,7 +48,6 @@ all-files() {
 }
 
 for file in $(all-files); do
-  echo -n "Header check: $file... "
   # get the file extension / type
   ext=${file##*.}
 
@@ -106,15 +105,13 @@ for file in $(all-files); do
       mv ${file}.new ${file}
       # make permissions the same
       chmod $permissions ${file}
-      echo "$(tput -T xterm setaf 3)FIXING$(tput -T xterm sgr0)"
+      echo "$file.. $(tput -T xterm setaf 3)FIXING$(tput -T xterm sgr0)"
       ERR=false
     else
-      echo "$(tput -T xterm setaf 1)FAIL$(tput -T xterm sgr0)"
+      echo "$file.. $(tput -T xterm setaf 1)FAIL$(tput -T xterm sgr0)"
       ERR=false
       FAIL=true
     fi
-  else
-    echo "$(tput -T xterm setaf 2)OK$(tput -T xterm sgr0)"
   fi
 done
 
