@@ -314,7 +314,7 @@ $(vicadmin): $$(call godeps,cmd/vicadmin/*.go)
 
 $(archive): $$(call godeps,cmd/archive/*.go)
 	@echo building archive
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux CGO_ENABLED=0 $(TIME) $(GO) build $(RACE) -a -ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
