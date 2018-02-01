@@ -37,8 +37,8 @@ import (
 	"github.com/vmware/govmomi/toolbox"
 	"github.com/vmware/govmomi/toolbox/hgfs"
 	"github.com/vmware/govmomi/toolbox/vix"
-	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/tether/msgs"
 	"github.com/vmware/vic/lib/tether/shared"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -293,7 +293,7 @@ func toolboxOverrideArchiveRead(u *url.URL, tr *tar.Reader) error {
 
 		// no need to join on u.Path here. u.Path == spec.Rebase, but
 		// Unpack will rebase tar headers for us. :thumbsup:
-		err = archive.Unpack(op, tr, spec, diskPath)
+		err = archive.InvokeUnpack(op, tr, spec, diskPath)
 		if err != nil {
 			op.Errorf(err.Error())
 		}

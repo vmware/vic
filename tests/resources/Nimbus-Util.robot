@@ -44,6 +44,12 @@ Fetch POD
       ${pod}=  Fetch From Left  ${out}  :
       [return]  ${pod}
 
+Custom Testbed Keepalive
+    [Tags]  secret
+    [Arguments]  ${folder}
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  touch ${folder}
+    [Return]  ${out}
+
 Deploy Nimbus ESXi Server
     [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}  ${tls_disabled}=True
     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
@@ -232,6 +238,7 @@ Gather Host IPs
 
 Create a VSAN Cluster
     [Arguments]  ${name}=vic-vmotion
+    [Timeout]    110 minutes
     Log To Console  \nStarting basic VSAN cluster deploy...
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --lease 1 --noStatsDump --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName ${name}

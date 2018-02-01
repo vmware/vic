@@ -34,6 +34,7 @@ nightly_list_var="5-1-Distributed-Switch \
 5-21-Datastore-Path \
 5-22-NFS-Volume \
 5-24-Non-vSphere-Local-Cluster \
+5-25-OPS-User-Grant \
 13-1-vMotion-VCH-Appliance \
 13-2-vMotion-Container \
 21-1-Whitelist \
@@ -276,23 +277,4 @@ EOT
 # Emails an HTML report of the test run results using SendMail.
 sendmail -t < nightly_mail.html
 fi
-
-# Saves test results to reporting server
-testresultsdb="vic-nightly.db"
-rm $testresultsdb
-scp $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns-db/$testresultsdb .
-
-for i in $nightly_list_var; do
-python -m dbbot.run -k  -b $testresultsdb 65/$i/output.xml
-ssh $REPORTING_USER@$REPORTING_SERVER_URL mkdir -p /export/drone-test-results/testruns/$buildNumber-nightly/65/$i
-scp 65/$i/log.html $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns/$buildNumber-nightly/65/$i
-scp 65/$i/report.html $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns/$buildNumber-nightly/65/$i
-
-python -m dbbot.run -k  -b $testresultsdb 60/$i/output.xml
-ssh $REPORTING_USER@$REPORTING_SERVER_URL mkdir -p /export/drone-test-results/testruns/$buildNumber-nightly/60/$i
-scp 60/$i/log.html $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns/$buildNumber-nightly/60/$i
-scp 60/$i/report.html $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns/$buildNumber-nightly/60/$i
-done
-
-scp $testresultsdb $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns-db/$testresultsdb
 

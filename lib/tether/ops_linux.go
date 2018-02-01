@@ -778,7 +778,7 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 	fi, err := os.Stat(target)
 	if err != nil {
 		// #nosec
-		if err := os.MkdirAll(target, 0744); err != nil {
+		if err := os.MkdirAll(target, 0755); err != nil {
 			// same as MountFileSystem error for consistency
 			return fmt.Errorf("unable to create mount point %s: %s", target, err)
 		}
@@ -796,7 +796,7 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 
 	if (e1 == nil && e2 == nil) || os.IsNotExist(e1) {
 		// #nosec
-		if err := os.MkdirAll(bindTarget, 0744); err != nil {
+		if err := os.MkdirAll(bindTarget, 0755); err != nil {
 			return fmt.Errorf("unable to create mount point %s: %s", bindTarget, err)
 		}
 		if err := mountDeviceLabel(ctx, label, bindTarget); err != nil {
@@ -814,7 +814,7 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 	if err != nil {
 		if os.IsNotExist(err) {
 			// if there's not such directory then revert to using the device directly
-			log.Info("No " + volumeDataDir + " data directory in volume, mounting filesystem directly")
+			log.Info("No %s data directory in volume, mounting filesystem directly", volumeDataDir)
 			mntsrc = label
 			mnttype = ext4FileSystemType
 			mntflags = syscall.MS_NOATIME
@@ -838,8 +838,17 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 		uid := int(sys.Uid)
 		gid := int(sys.Gid)
 
+		log.Debugf("Setting target uid/gid to the mount source as %d/%d", uid, gid)
 		if err := os.Chown(target, uid, gid); err != nil {
 			return fmt.Errorf("unable to change the owner of the mount point %s: %s", target, err)
+		}
+
+		log.Debugf("Setting target %s permissions to the mount source as: %#o",
+			target, fi.Mode())
+		if err := os.Chmod(target, fi.Mode()); err != nil {
+			return fmt.Errorf("failed to set target %s mount permissions as %#o: %s",
+				target, fi.Mode(), err)
+
 		}
 	}
 	return nil
@@ -878,7 +887,8 @@ WaitForDevice:
 func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target string, mountOptions string) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", source.String(), target)))
 
-	if err := os.MkdirAll(target, 0644); err != nil {
+	// #nosec
+	if err := os.MkdirAll(target, 0755); err != nil {
 		// same as MountLabel error for consistency
 		return fmt.Errorf("unable to create mount point %s: %s", target, err)
 	}
@@ -915,7 +925,8 @@ func (t *BaseOperations) CopyExistingContent(source string) error {
 	}
 
 	log.Debugf("creating directory %s", bind)
-	if err := os.MkdirAll(bind, 0644); err != nil {
+	// #nosec
+	if err := os.MkdirAll(bind, 0755); err != nil {
 		log.Errorf("error creating directory %s: %+v", bind, err)
 		return err
 	}

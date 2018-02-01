@@ -17,6 +17,7 @@ package network
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/docker/go-connections/nat"
 )
@@ -24,6 +25,13 @@ import (
 type Port string
 
 const NilPort = Port("")
+
+// PortFromMapping constructs the full form of a port mapping
+// This has been added to help migrate towards consistent data returns for Endpoint structures
+func PortFromMapping(mapping nat.PortMapping) Port {
+	p := fmt.Sprintf("%s:%s", mapping.Binding.HostPort, string(mapping.Port))
+	return Port(p)
+}
 
 func ParsePort(p string) (Port, error) {
 	if _, err := Port(p).Port(); err != nil {
@@ -38,12 +46,14 @@ func ParsePort(p string) (Port, error) {
 }
 
 func (p Port) Proto() string {
-	proto, _ := nat.SplitProtoPort(string(p))
+	parts := strings.Split(string(p), ":")
+	proto, _ := nat.SplitProtoPort(parts[len(parts)-1])
 	return proto
 }
 
 func (p Port) Port() (uint16, error) {
-	_, port := nat.SplitProtoPort(string(p))
+	parts := strings.Split(string(p), ":")
+	_, port := nat.SplitProtoPort(parts[len(parts)-1])
 	if port == "" {
 		return 0, fmt.Errorf("bad port spec %s", p)
 	}
@@ -57,5 +67,10 @@ func (p Port) Port() (uint16, error) {
 }
 
 func (p Port) String() string {
+	parts := strings.Split(string(p), ":")
+	return string(parts[len(parts)-1])
+}
+
+func (p Port) FullString() string {
 	return string(p)
 }

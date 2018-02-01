@@ -151,19 +151,23 @@ func (s *Session) IsVSAN(ctx context.Context) bool {
 func (s *Session) Create(ctx context.Context) (*Session, error) {
 	op := trace.FromContext(ctx, "Create")
 
-	var vchExtraConfig config.VirtualContainerHostConfigSpec
+	var vchConfig config.VirtualContainerHostConfigSpec
+	var connConfig config.Connection
+
 	source, err := extraconfig.GuestInfoSource()
 	if err != nil {
 		return nil, err
 	}
 
-	extraconfig.Decode(source, &vchExtraConfig)
+	prefix := extraconfig.CalculateKeys(vchConfig, "Connection", "")
+	if len(prefix) != 1 {
+		return nil, fmt.Errorf("must be exactly one Connection defined in VCH configuration")
+	}
+	extraconfig.DecodeWithPrefix(source, &connConfig, prefix[0])
 
-	s.Service = vchExtraConfig.Target
-
-	s.User = url.UserPassword(vchExtraConfig.Username, vchExtraConfig.Token)
-
-	s.Thumbprint = vchExtraConfig.TargetThumbprint
+	s.Service = connConfig.Target
+	s.User = url.UserPassword(connConfig.Username, connConfig.Token)
+	s.Thumbprint = connConfig.TargetThumbprint
 
 	_, err = s.Connect(op)
 	if err != nil {

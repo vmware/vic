@@ -1,4 +1,4 @@
-# Copyright 2017 VMware, Inc. All Rights Reserved.
+# Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ def getEnvironment():
 
 def getName(image):
     return {TestEnvironment.DRONE: 'harbor.ci.drone.local/library/{}'.format(image),
-            TestEnvironment.LONGEVITY: 'willie.eng.vmware.com/library/{}'.format(image),
+            TestEnvironment.LONGEVITY: 'vic-executor1.vcna.io/library/{}'.format(image),
             TestEnvironment.LOCAL: image}[getEnvironment()]
 
 # this global variable (images) is used by the Longevity scripts. If you change this, change those!

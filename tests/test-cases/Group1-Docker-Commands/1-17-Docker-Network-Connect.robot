@@ -79,7 +79,7 @@ Connect to non-existent container
     Should Contain  ${output}  not found
 
 Connect to non-existent network
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name connectTest3 ${busybox} ifconfig
@@ -165,3 +165,37 @@ Check Name Resolution Between Containers On Internal Network
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  PING foo
     Should Contain  ${output}  3 packets transmitted, 3 packets received
+
+Connect container to multiple networks concurrently
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create foonet
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create barnet
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create baznet
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${c1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${pid1}=  Start Process  docker %{VCH-PARAMS} network connect foonet ${c1}  shell=True
+    ${pid2}=  Start Process  docker %{VCH-PARAMS} network connect barnet ${c1}  shell=True
+    ${pid3}=  Start Process  docker %{VCH-PARAMS} network connect baznet ${c1}  shell=True
+    ${res1}=  Wait For Process  ${pid1}
+    ${res2}=  Wait For Process  ${pid2}
+    ${res3}=  Wait For Process  ${pid3}
+    Should Be Equal As Integers  ${res1.rc}  0
+    Should Be Equal As Integers  ${res2.rc}  0
+    Should Be Equal As Integers  ${res3.rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${c1} | jq -c '.[0].NetworkSettings.Networks'
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  foonet
+    Should Contain  ${output}  barnet
+    Should Contain  ${output}  baznet
+
+    ${rc}  ${c1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${c1}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${c1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c1}
+    Should Be Equal As Integers  ${rc}  0

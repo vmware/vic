@@ -20,6 +20,7 @@ Suite Teardown  Nimbus Cleanup  ${list}
 
 *** Keywords ***
 DRS Setup
+    [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${ESX1}  ${esx1}

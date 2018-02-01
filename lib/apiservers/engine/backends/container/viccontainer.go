@@ -16,8 +16,10 @@ package container
 
 import (
 	"sync"
+	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 )
 
 // VicContainer is VIC's abridged version of Docker's container object.
@@ -28,17 +30,21 @@ type VicContainer struct {
 	ContainerID string
 	Config      *containertypes.Config //Working copy of config (with overrides from container create)
 	HostConfig  *containertypes.HostConfig
+	NATMap      nat.PortMap // the endpoint NAT mappings only
 
-	m     sync.RWMutex
-	execs map[string]struct{}
+	m        sync.RWMutex
+	execs    map[string]struct{}
+	lockChan chan bool
 }
 
 // NewVicContainer returns a reference to a new VicContainer
 func NewVicContainer() *VicContainer {
-	return &VicContainer{
-		Config: &containertypes.Config{},
-		execs:  make(map[string]struct{}),
+	vc := &VicContainer{
+		Config:   &containertypes.Config{},
+		execs:    make(map[string]struct{}),
+		lockChan: make(chan bool, 1),
 	}
+	return vc
 }
 
 // Add adds a new exec configuration to the container.
@@ -64,4 +70,25 @@ func (v *VicContainer) List() []string {
 	}
 	v.m.RUnlock()
 	return IDs
+}
+
+// Tries to lock the container.  Timeout argument defines how long the lock
+// attempt will be tried.  Returns true if locked, false if timed out.
+func (v *VicContainer) TryLock(timeout time.Duration) bool {
+	timeChan := time.After(timeout)
+	select {
+	case <-timeChan:
+		return false
+	case v.lockChan <- true:
+		return true
+	}
+}
+
+// Unlocks the container
+func (v *VicContainer) Unlock() {
+	select {
+	case <-v.lockChan:
+	default:
+		panic("Attempt to release container %s's lock that is not locked")
+	}
 }

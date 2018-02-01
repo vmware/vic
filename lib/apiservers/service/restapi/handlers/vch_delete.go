@@ -44,16 +44,15 @@ func (h *VCHDelete) Handle(params operations.DeleteTargetTargetVchVchIDParams, p
 	b := buildDataParams{
 		target:     params.Target,
 		thumbprint: params.Thumbprint,
+		vchID:      &params.VchID,
 	}
 
-	d, err := buildData(op, b, principal)
+	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
 		return operations.NewDeleteTargetTargetVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	d.ID = params.VchID
-
-	err = deleteVCH(op, d, params.DeletionSpecification)
+	err = deleteVCH(op, d, validator, params.DeletionSpecification)
 	if err != nil {
 		return operations.NewDeleteTargetTargetVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -68,16 +67,15 @@ func (h *VCHDatacenterDelete) Handle(params operations.DeleteTargetTargetDatacen
 		target:     params.Target,
 		thumbprint: params.Thumbprint,
 		datacenter: &params.Datacenter,
+		vchID:      &params.VchID,
 	}
 
-	d, err := buildData(op, b, principal)
+	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
 		return operations.NewDeleteTargetTargetDatacenterDatacenterVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	d.ID = params.VchID
-
-	err = deleteVCH(op, d, params.DeletionSpecification)
+	err = deleteVCH(op, d, validator, params.DeletionSpecification)
 	if err != nil {
 		return operations.NewDeleteTargetTargetDatacenterDatacenterVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -85,12 +83,7 @@ func (h *VCHDatacenterDelete) Handle(params operations.DeleteTargetTargetDatacen
 	return operations.NewDeleteTargetTargetDatacenterDatacenterVchVchIDAccepted()
 }
 
-func deleteVCH(op trace.Operation, d *data.Data, specification *models.DeletionSpecification) error {
-	validator, err := validateTarget(op, d)
-	if err != nil {
-		return util.WrapError(http.StatusBadRequest, err)
-	}
-
+func deleteVCH(op trace.Operation, d *data.Data, validator *validate.Validator, specification *models.DeletionSpecification) error {
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
@@ -110,8 +103,7 @@ func deleteVCH(op trace.Operation, d *data.Data, specification *models.DeletionS
 	// compare vch version and vic-machine version
 	installerBuild := version.GetBuild()
 	if vchConfig.Version == nil || !installerBuild.Equal(vchConfig.Version) {
-		err = fmt.Errorf("VCH version %q is different than API version %s", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
-		return util.WrapError(http.StatusBadRequest, err)
+		op.Debugf("VCH version %q is different than API version %s", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
 	}
 
 	deleteContainers, deleteVolumeStores := fromDeletionSpecification(specification)

@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import (
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/iolog"
 	"github.com/vmware/vic/lib/portlayer/event/events"
+	stateevents "github.com/vmware/vic/lib/portlayer/event/events/vsphere"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
@@ -253,14 +254,14 @@ func (c *Container) CurrentState() State {
 }
 
 // SetState changes container state.
-func (c *Container) SetState(s State) State {
+func (c *Container) SetState(op trace.Operation, s State) State {
 	c.m.Lock()
 	defer c.m.Unlock()
-	return c.updateState(s)
+	return c.updateState(op, s)
 }
 
-func (c *Container) updateState(s State) State {
-	log.Debugf("Setting container %s state: %s", c, s)
+func (c *Container) updateState(op trace.Operation, s State) State {
+	op.Debugf("Updating container %s state: %s->%s", c, c.state, s)
 	prevState := c.state
 	if s != c.state {
 		c.state = s
@@ -274,13 +275,13 @@ func (c *Container) updateState(s State) State {
 
 // transitionState changes the container state to finalState if the current state is initialState
 // and returns an error otherwise.
-func (c *Container) transitionState(initialState, finalState State) error {
+func (c *Container) transitionState(op trace.Operation, initialState, finalState State) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 
 	if c.state == initialState {
 		c.state = finalState
-		log.Debugf("Set container %s state: %s", c, finalState)
+		op.Debugf("Set container %s state: %s->%s", c, initialState, finalState)
 		return nil
 	}
 
@@ -339,26 +340,13 @@ func (c *Container) Refresh(op trace.Operation) error {
 		return err
 	}
 
-	var started bool
-	// determine if the containerVM has started
-	if session, exists := c.ExecConfig.Sessions[c.ExecConfig.ID]; exists {
-		if session.Started == "true" {
-			started = true
-		}
-	}
-
 	// conditionally sync state (see issue 4872, 6372)
-	switch c.containerBase.Runtime.PowerState {
-	case types.VirtualMachinePowerStatePoweredOn:
-		// only set to running if the container process has started
-		if started {
-			c.state = StateRunning
-		}
-	case types.VirtualMachinePowerStatePoweredOff:
-		if c.state != StateCreated {
-			c.state = StateStopped
-		}
-	}
+	event := stateevents.NewStateEvent(op, c.containerBase.Runtime.PowerState, c.VMReference())
+	state := eventedState(op, event, c.state)
+
+	// trigger internal event publishing if c.state -> state is a transition we care about
+	// this will update container state and trigger follow up port layer events as needed
+	c.onEvent(op, state, event)
 
 	return nil
 }
@@ -399,12 +387,12 @@ func (c *Container) start(op trace.Operation) error {
 		return fmt.Errorf("vm not set")
 	}
 	// Set state to Starting
-	c.SetState(StateStarting)
+	c.SetState(op, StateStarting)
 
 	err := c.containerBase.start(op)
 	if err != nil {
 		// change state to stopped because start task failed
-		c.SetState(StateStopped)
+		c.SetState(op, StateStopped)
 
 		// check if locked disk error
 		devices := disk.LockedDisks(err)
@@ -437,7 +425,7 @@ func (c *Container) start(op trace.Operation) error {
 	// Transition the state to Running only if it's Starting.
 	// The current state is already Stopped if the container's process has exited or
 	// a poweredoff event has been processed.
-	if err = c.transitionState(StateStarting, StateRunning); err != nil {
+	if err = c.transitionState(op, StateStarting, StateRunning); err != nil {
 		op.Debugf(err.Error())
 	}
 
@@ -451,14 +439,14 @@ func (c *Container) stop(op trace.Operation, waitTime *int32) error {
 
 	// get existing state and set to stopping
 	// if there's a failure we'll revert to existing
-	finalState := c.SetState(StateStopping)
+	finalState := c.SetState(op, StateStopping)
 
 	err := c.containerBase.stop(op, waitTime)
 	if err != nil {
 		// we've got no idea what state the container is in at this point
 		// running is an _optimistic_ statement
 		// If the current state is Stopping, revert it to the old state.
-		if stateErr := c.transitionState(StateStopping, finalState); stateErr != nil {
+		if stateErr := c.transitionState(op, StateStopping, finalState); stateErr != nil {
 			op.Debugf(stateErr.Error())
 		}
 
@@ -466,7 +454,7 @@ func (c *Container) stop(op trace.Operation, waitTime *int32) error {
 	}
 
 	// Transition the state to Stopped only if it's Stopping.
-	if err = c.transitionState(StateStopping, StateStopped); err != nil {
+	if err = c.transitionState(op, StateStopping, StateStopped); err != nil {
 		op.Debugf(err.Error())
 	}
 
@@ -598,7 +586,7 @@ func (c *Container) Remove(op trace.Operation, sess *session.Session) error {
 
 	// get existing state and set to removing
 	// if there's a failure we'll revert to existing
-	existingState := c.updateState(StateRemoving)
+	existingState := c.updateState(op, StateRemoving)
 
 	// get the folder the VM is in
 	url, err := c.vm.VMPathNameAsURL(op)
@@ -611,7 +599,7 @@ func (c *Container) Remove(op trace.Operation, sess *session.Session) error {
 		}
 
 		op.Errorf("Failed to get datastore path for %s: %s", c, err)
-		c.updateState(existingState)
+		c.updateState(op, existingState)
 		return err
 	}
 
@@ -636,7 +624,7 @@ func (c *Container) Remove(op trace.Operation, sess *session.Session) error {
 		if !ok {
 			op.Warnf("DeleteExceptDisks failed with non-fault error %s for %s.", err, c)
 
-			c.updateState(existingState)
+			c.updateState(op, existingState)
 			return err
 		}
 
@@ -655,7 +643,7 @@ func (c *Container) Remove(op trace.Operation, sess *session.Session) error {
 		default:
 			op.Debugf("Unhandled fault while attempting to destroy vm %s: %#v", c, f.Fault())
 
-			c.updateState(existingState)
+			c.updateState(op, existingState)
 			return err
 		}
 	}
@@ -685,8 +673,7 @@ func (c *Container) Remove(op trace.Operation, sess *session.Session) error {
 
 // eventedState will determine the target container
 // state based on the current container state and the vsphere event
-func eventedState(e events.Event, current State) State {
-	defer trace.End(trace.Begin(fmt.Sprintf("event %s received for id: %s", e.String(), e.EventID())))
+func eventedState(op trace.Operation, e events.Event, current State) State {
 	switch e.String() {
 	case events.ContainerPoweredOn:
 		// are we in the process of starting
@@ -694,8 +681,8 @@ func eventedState(e events.Event, current State) State {
 			return StateRunning
 		}
 	case events.ContainerPoweredOff:
-		// are we in the process of stopping
-		if current != StateStopping {
+		// are we in the process of stopping or just created
+		if current != StateStopping && current != StateCreated {
 			return StateStopped
 		}
 	case events.ContainerSuspended:
@@ -708,6 +695,7 @@ func eventedState(e events.Event, current State) State {
 			return StateRemoved
 		}
 	}
+
 	return current
 }
 
@@ -721,28 +709,91 @@ func (c *Container) OnEvent(e events.Event) {
 		op.Warnf("Event(%s) received for %s but no VM found", e.EventID(), e.Reference())
 		return
 	}
-	newState := eventedState(e, c.state)
-	// do we have a state change
+
+	newState := eventedState(op, e, c.state)
+	c.onEvent(op, newState, e)
+}
+
+// determine if the containerVM has started - this could pick up stale data in the started field for an out-of-band
+// power change such as HA or user intervention where we have not had an opportunity to reset the entry.
+func cleanStart(op trace.Operation, c *Container) bool {
+	if len(c.ExecConfig.Sessions) == 0 {
+		op.Warnf("Container %c has no sessions stored in in-memory config", c.ExecConfig.ID)
+		// if no sessions, then nothing to wait for
+		return true
+	}
+
+	for _, session := range c.ExecConfig.Sessions {
+		if session.Started != "true" {
+			return false
+		}
+	}
+	return true
+}
+
+// onEvent determines what needs to be done when receiving a state update. It filters duplicate state transitions
+// and publishes container events as needed in addition to performing necessary manipulations.
+// newState - this is the new state determined by eventedState
+// e - the source event used to derive the new State and reason for the transition
+func (c *Container) onEvent(op trace.Operation, newState State, e events.Event) {
+	// does local data report full start
+	started := cleanStart(op, c)
+	// do we need a refresh
+	refresh := e.String() == events.ContainerRelocated
+	// if it's a state event we've already done a refresh to end up here and dont need another
+	_, stateEvent := e.(*stateevents.StateEvent)
+	// the event we're going to publish - may be overridden/transformed by more context aware logic below
+	// the incoming event is from the very coarse vSphere events
+	publishEventType := e.String()
+
+	if !stateEvent {
+		if (newState == StateStarting && !started) || newState == StateStopping {
+			// inherently transient state. Starting with started == true is just accounting that will
+			// happen below and doesn't need a refresh.
+			refresh = true
+		}
+
+		if newState == StateRunning && !started {
+			// if we cannot confirm fully initialized
+			refresh = true
+		}
+	}
+
+	if refresh {
+		op, cancel := trace.WithTimeout(&op, constants.PropertyCollectorTimeout, "vSphere event triggered refresh")
+		defer cancel()
+
+		if err := c.refresh(op); err != nil {
+			op.Errorf("Container(%s) event driven update failed: %s", c, err)
+		}
+	}
+
+	started = cleanStart(op, c)
+	// it doesn't matter how the event was translated, if we're not fully started then we're starting
+	// if we are then we're running. Only exception is that we don't transition from Running->Starting
+	if newState == StateRunning && !started && c.state != StateRunning {
+		newState = StateStarting
+	}
+	if newState == StateStarting && started {
+		newState = StateRunning
+	}
+
 	if newState != c.state {
 		switch newState {
-		case StateStopping,
-			StateRunning,
+		case StateRunning:
+			// transform the PoweredOn event into Started
+			publishEventType = events.ContainerStarted
+			fallthrough
+
+		case StateStarting,
+			StateStopping,
 			StateStopped,
 			StateSuspended:
 
-			// container state has changed so we need to update the container attributes
-			op, cancel := trace.WithTimeout(&op, constants.PropertyCollectorTimeout, "Container State Event")
-			defer cancel()
-
-			if err := c.refresh(op); err != nil {
-				op.Errorf("Container(%s) Event driven update failed: %s", c, err)
-			}
-
-			c.updateState(newState)
+			c.updateState(op, newState)
 			if newState == StateStopped {
 				c.onStop()
 			}
-			op.Debugf("Container(%s) state set to %s via event activity", c, newState)
 		case StateRemoved:
 			if c.vm != nil && c.vm.IsFixing() {
 				// is fixing vm, which will be registered back soon, so do not remove from containers cache
@@ -766,23 +817,10 @@ func (c *Container) OnEvent(e events.Event) {
 			return
 		}
 
+		op.Debugf("Container (%s) publishing event (state=%s, event=%s) from event %s", c, newState, publishEventType, e.String())
 		// regardless of state update success or failure publish the container event
-		publishContainerEvent(op, c.ExecConfig.ID, e.Created(), e.String())
+		publishContainerEvent(op, c.ExecConfig.ID, e.Created(), publishEventType)
 		return
-	}
-
-	op.Debugf("Container(%s) state(%s) didn't change", c, newState)
-
-	switch e.String() {
-	case events.ContainerRelocated:
-		// container relocated so we need to update the container attributes
-		op, cancel := trace.WithTimeout(&op, constants.PropertyCollectorTimeout, "Container Relocated")
-		defer cancel()
-
-		err := c.refresh(op)
-		if err != nil {
-			op.Errorf("Container(%s) Relocation Event driven refresh failed: %s", c, err)
-		}
 	}
 }
 
