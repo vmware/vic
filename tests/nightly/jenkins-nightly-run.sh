@@ -73,14 +73,15 @@ fi
 if [[ $target == "6.0" ]]; then
     echo "Executing nightly tests on vSphere 6.0"
     pabot --processes 4 --removekeywords TAG:secret --exclude nsx --variable ESX_VERSION:$ESX_60_VERSION --variable VC_VERSION:$VC_60_VERSION -d 60/$i tests/manual-test-cases/Group5-Functional-Tests tests/manual-test-cases/Group13-vMotion tests/manual-test-cases/Group21-Registries
+    cat 60/pabot_results/*/stdout.txt | grep -E '::.*PASS|FAIL' > console.log
+    sed -i -e 's/^/<p>/g' console.log
 
 elif [[ $target == "6.5" ]]; then
     echo "Executing nightly tests on vSphere 6.5"
     #pabot --processes 4 --removekeywords TAG:secret -d 65/$i tests/manual-test-cases/Group5-Functional-Tests tests/manual-test-cases/Group13-vMotion tests/manual-test-cases/Group21-Registries
-    pabot --verbose --processes 4 --removekeywords TAG:secret -d 65/$i tests/manual-test-cases/Group5-Functional-Tests/5-19-ROBO-SKU.robot
-    cat 65/pabot_results/*/stdout.txt | grep ':: Test' | grep '|' > console.log
+    pabot --processes 4 --removekeywords TAG:secret -d 65/$i tests/manual-test-cases/Group5-Functional-Tests/5-19-ROBO-SKU.robot
+    cat 65/pabot_results/*/stdout.txt | grep -E '::.*PASS|FAIL' > console.log
     sed -i -e 's/^/<p>/g' console.log
-    #awk '{printf "%s<p>", $0}' raw-console.log > console.log
 fi
 
 # See if any VMs leaked
