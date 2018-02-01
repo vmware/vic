@@ -77,7 +77,7 @@ if [[ $target == "6.0" ]]; then
 elif [[ $target == "6.5" ]]; then
     echo "Executing nightly tests on vSphere 6.5"
     #pabot --processes 4 --removekeywords TAG:secret -d 65/$i tests/manual-test-cases/Group5-Functional-Tests tests/manual-test-cases/Group13-vMotion tests/manual-test-cases/Group21-Registries
-    pabot --processes 4 --removekeywords TAG:secret -d 65/$i tests/manual-test-cases/Group5-Functional-Tests/5-19-ROBO-SKU
+    pabot --processes 4 --removekeywords TAG:secret -d 65/$i tests/manual-test-cases/Group5-Functional-Tests/5-19-ROBO-SKU.robot
 fi
 
 # See if any VMs leaked
