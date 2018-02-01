@@ -81,6 +81,6 @@ elif [[ $target == "6.5" ]]; then
 fi
 
 # See if any VMs leaked
-sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking\=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl list
+timeout 30s sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking\=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl list
 
 sh tests/nightly/upload-logs.sh $target_$BUILD_TIMESTAMP
