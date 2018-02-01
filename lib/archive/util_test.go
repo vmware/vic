@@ -37,7 +37,6 @@ func TestNilSpecForAddInclusionExclusion(t *testing.T) {
 
 	err = AddMountInclusionsExclusions("", &emptySpec, emptyMounts, "")
 	assert.Error(t, err)
-
 }
 
 // COPY TO TESTS
