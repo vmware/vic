@@ -79,6 +79,7 @@ elif [[ $target == "6.5" ]]; then
     #pabot --processes 4 --removekeywords TAG:secret -d 65/$i tests/manual-test-cases/Group5-Functional-Tests tests/manual-test-cases/Group13-vMotion tests/manual-test-cases/Group21-Registries
     pabot --verbose --processes 4 --removekeywords TAG:secret -d 65/$i tests/manual-test-cases/Group5-Functional-Tests/5-19-ROBO-SKU.robot
     cat 65/pabot_results/*/stdout.txt > console.log
+    sed -i "s/\$/$CR/g" console.log
 fi
 
 # See if any VMs leaked
