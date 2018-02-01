@@ -77,10 +77,10 @@ if [[ $target == "6.0" ]]; then
 elif [[ $target == "6.5" ]]; then
     echo "Executing nightly tests on vSphere 6.5"
     #pabot --processes 4 --removekeywords TAG:secret -d 65/$i tests/manual-test-cases/Group5-Functional-Tests tests/manual-test-cases/Group13-vMotion tests/manual-test-cases/Group21-Registries
-    pabot --processes 4 --removekeywords TAG:secret -d 65/$i tests/manual-test-cases/Group5-Functional-Tests/5-19-ROBO-SKU.robot
+    pabot --xunit xunit.xml --processes 4 --removekeywords TAG:secret -d 65/$i tests/manual-test-cases/Group5-Functional-Tests/5-19-ROBO-SKU.robot
 fi
 
 # See if any VMs leaked
 timeout 60s sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking\=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl list
-echo $BUILD_TIMESTAMP
+
 tests/nightly/upload-logs.sh $target_$BUILD_TIMESTAMP

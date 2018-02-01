@@ -21,8 +21,6 @@ gsutil version -l
 set +x
 
 outfile="vic_nightly_logs_"$1".zip"
-
-echo $Build
 echo $outfile
 
 if [ -d "60" ]; then
