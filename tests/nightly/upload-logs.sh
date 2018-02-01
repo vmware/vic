@@ -25,9 +25,9 @@ outfile="vic_nightly_logs_"$1".zip"
 echo $Build
 echo $outfile
 
-if [ -f "60" ]; then
+if [ -d "60" ]; then
     /usr/bin/zip -9 -r $outfile 60
-elif [ -f "65" ]; then
+elif [ -d "65" ]; then
     /usr/bin/zip -9 -r $outfile 65
 else
     echo "No output directories to upload!"
