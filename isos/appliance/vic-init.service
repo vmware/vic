@@ -15,6 +15,7 @@ LimitNOFILE=65536
 # Instead there is a top level trigger to restart the VM - reverting to
 # known good VM state
 ExecStart=/sbin/vic-init
+Restart=always
 
 [Install]
 WantedBy=vic.target
