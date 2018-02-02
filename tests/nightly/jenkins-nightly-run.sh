@@ -74,18 +74,15 @@ if [[ $target == "6.0" ]]; then
     echo "Executing nightly tests on vSphere 6.0"
     pabot --processes 4 --removekeywords TAG:secret --exclude nsx --variable ESX_VERSION:$ESX_60_VERSION --variable VC_VERSION:$VC_60_VERSION -d 60/$i tests/manual-test-cases/Group5-Functional-Tests tests/manual-test-cases/Group13-vMotion tests/manual-test-cases/Group21-Registries
     cat 60/pabot_results/*/stdout.txt | grep '::' | grep -E 'PASS|FAIL' > console.log
-    sed -i -e 's/^/<p>/g' console.log
-    sed -i -e 's|PASS|<font color="green">PASS</font>|g' console.log
-    sed -i -e 's|FAIL|<font color="red">FAIL</font>|g' console.log
-
 elif [[ $target == "6.5" ]]; then
     echo "Executing nightly tests on vSphere 6.5"
     pabot --processes 4 --removekeywords TAG:secret -d 65/$i tests/manual-test-cases/Group5-Functional-Tests tests/manual-test-cases/Group13-vMotion tests/manual-test-cases/Group21-Registries
     cat 65/pabot_results/*/stdout.txt | grep '::' | grep -E 'PASS|FAIL' > console.log
-    sed -i -e 's/^/<p>/g' console.log
-    sed -i -e 's|PASS|<font color="green">PASS</font>|g' console.log
-    sed -i -e 's|FAIL|<font color="red">FAIL</font>|g' console.log
 fi
+# Pretty up the email results
+sed -i -e 's/^/<p>/g' console.log
+sed -i -e 's|PASS|<font color="green">PASS</font>|g' console.log
+sed -i -e 's|FAIL|<font color="red">FAIL</font>|g' console.log
 
 # See if any VMs leaked
 timeout 60s sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking\=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl list
