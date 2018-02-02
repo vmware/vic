@@ -297,8 +297,6 @@ pipeline:
      token: ${CODECOV_TOKEN}
      files:
        - .cover/cover.out
-     when:
-       status: success
 
   notify-slack-on-fail:
     image: plugins/slack
