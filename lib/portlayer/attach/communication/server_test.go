@@ -28,8 +28,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/lib/migration/feature"
+	"github.com/vmware/vic/lib/tether/msgs"
 	"github.com/vmware/vic/pkg/serial"
 )
 
