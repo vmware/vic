@@ -306,6 +306,7 @@ func toolboxOverrideArchiveRead(system System, u *url.URL, tr *tar.Reader) error
 		// no need to join on u.Path here. u.Path == spec.Rebase, but
 		// Unpack will rebase tar headers for us. :thumbsup:
 		op.Debugf("Unpacking tar archive to %s", diskPath)
+		// err = archive.InvokeUnpack(op, tr, spec, diskPath)
 		err = archive.Unpack(op, tr, spec, diskPath, "/.tether/unpack")
 		if err != nil {
 			op.Errorf(err.Error())

@@ -174,8 +174,34 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 	}
 	done := make(chan error)
 	go func() {
-		// copy the tarStream to the binary via stdin; the binary will stream it to InvokeUnpack unchanged
 		defer stdin.Close()
+		if tr, ok := tarStream.(*tar.Reader); ok {
+			op.Errorf("XXX tarstream is a tar.reader, not an io.reader")
+			tw := tar.NewWriter(stdin)
+			for {
+				th, err := tr.Next()
+				op.Errorf("XXX processing tar header: asset(%s), size(%d)", th.Name, th.Size)
+				if err == io.EOF {
+					break
+				}
+				err = tw.WriteHeader(th)
+				if err != nil {
+					done <- err
+					return
+				}
+				switch th.Typeflag {
+				case tar.TypeReg:
+					k, err := io.Copy(stdin, tr)
+					op.Errorf("XXX wrote %d bytes", k)
+					if err != nil {
+						break
+					}
+				}
+			}
+			done <- err
+			return
+		}
+		// copy the tarStream to the binary via stdin; the binary will stream it to InvokeUnpack unchanged
 		if _, err := io.Copy(stdin, tarStream); err != nil {
 			op.Errorf("Error copying tarStream: %s", err.Error())
 		}
