@@ -171,7 +171,12 @@ func initLogging() error {
 
 	tags.Logger = log.StandardLogger()
 
-	return viclog.Init(logcfg)
+	err := viclog.Init(logcfg)
+	if err != nil {
+		return err
+	}
+
+	return trace.InitLogger(logcfg)
 }
 
 func loadCAPool() *x509.CertPool {

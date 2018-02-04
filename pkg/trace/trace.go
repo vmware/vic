@@ -66,6 +66,17 @@ func (t *Message) delta() time.Duration {
 	return time.Now().Sub(t.startTime)
 }
 
+// Add Syslog hook
+// This method is not thread safe, this is currently
+// not a problem because it is only called once from main
+func InitLogger(cfg *log.LoggingConfig) error {
+	hook, err := log.CreateSyslogHook(cfg)
+	if err == nil && hook != nil {
+		Logger.Hooks.Add(hook)
+	}
+	return err
+}
+
 // begin a trace from this stack frame less the skip.
 func newTrace(msg string, skip int, opID string) *Message {
 	pc, _, line, ok := runtime.Caller(skip)

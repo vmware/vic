@@ -119,6 +119,7 @@ func main() {
 	log.Infof("%+v", *logcfg)
 	// #nosec: Errors unhandled.
 	viclog.Init(logcfg)
+	trace.InitLogger(logcfg)
 
 	server.ConfigureAPI()
 
