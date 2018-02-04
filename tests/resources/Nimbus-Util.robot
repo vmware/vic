@@ -437,3 +437,16 @@ Power Off Host
     Login  root  ${NIMBUS_ESX_PASSWORD}
     ${out}=  Execute Command  poweroff -d 0 -f
     Close connection
+
+Create Static IP Worker
+    ${out}=  Execute Command  nimbus-worker-deploy --enableStaticIpService static-worker
+    Should Contain  ${out}  "deploy_status": "success"
+    Set Environment Variable  STATIC_WORKER_NAME  %{NIMBUS_USER}-static-worker
+    ${ip}=  Get IP  static-worker
+    Set Environment Variable  STATIC_WORKER_IP  ${ip}
+
+Get Static IP Address
+    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  STATIC_WORKER_IP
+    Run Keyword If  '${status}' == 'FAIL'  Create Static IP Worker
+    ${out}=  Run  curl http://%{STATIC_WORKER_IP}:4827/nsips
+    [Return]  ${out}
