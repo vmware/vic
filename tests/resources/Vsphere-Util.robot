@@ -256,15 +256,23 @@ Get Session List
 
 Get Hostd ID
     [Tags]  secret
-    ${out}=  Run  sshpass -p %{TEST_PASSWORD} ssh %{TEST_USERNAME}@%{TEST_URL} "memstats -r group-stats | grep 'hostd '"
+    Return From Keyword If  '%{HOST_TYPE}' != 'ESXi'  Get Hostd ID keyword not valid for non-ESXi servers
+    Open Connection  %{TEST_URL}
+    Login  %{TEST_USERNAME}  %{TEST_PASSWORD}
+    ${out}=  Execute Command  memstats -r group-stats | grep 'hostd '
     ${out}=  Strip String  ${out}
     ${id}=  Fetch From Left  ${out}  ${SPACE}
+    Close Connection
     [Return]  ${id}
 
-Get HostD Memory Consumption
+Get Hostd Memory Consumption
     [Tags]  secret
+    Return From Keyword If  '%{HOST_TYPE}' != 'ESXi'  Get Hostd Memory Consumption keyword not valid for non-ESXi servers
     ${id}=  Get Hostd ID
     Log to console  ${id}
-    ${out}=  Run  sshpass -p %{TEST_PASSWORD} ssh %{TEST_USERNAME}@%{TEST_URL} "memstats -r group-stats -v -g ${id} -s name:min:max:consumed -l 2"
+    Open Connection  %{TEST_URL}
+    Login  %{TEST_USERNAME}  %{TEST_PASSWORD}
+    ${out}=  Execute Command  memstats -r group-stats -v -g ${id} -s name:min:max:consumed -l 2
     Log to console  ${out}
+    Close Connection
     [Return]  ${out}
