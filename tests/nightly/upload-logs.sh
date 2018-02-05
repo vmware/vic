@@ -24,9 +24,9 @@ outfile="vic_nightly_logs_"$1".zip"
 echo $outfile
 
 if [ -d "60" ]; then
-    /usr/bin/zip -9 -r $outfile 60
+    /usr/bin/zip -9 -r $outfile 60 *.zip
 elif [ -d "65" ]; then
-    /usr/bin/zip -9 -r $outfile 65
+    /usr/bin/zip -9 -r $outfile 65 *.zip
 else
     echo "No output directories to upload!"
     exit 1
