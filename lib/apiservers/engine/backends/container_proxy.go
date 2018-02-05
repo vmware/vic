@@ -93,6 +93,7 @@ type VicContainerProxy interface {
 	// TODO: we should not be returning a swagger model here, however we do not have a solid architected return for this yet.
 	InspectTask(op trace.Operation, handle string, eid string, cid string) (*models.TaskInspectResponse, error)
 	BindTask(op trace.Operation, handle string, eid string) (string, error)
+	WaitTask(op trace.Operation, cid string, cname string, eid string) error
 
 	BindInteraction(handle string, name string, id string) (string, error)
 	UnbindInteraction(handle string, name string, id string) (string, error)
@@ -388,6 +389,37 @@ func (c *ContainerProxy) BindTask(op trace.Operation, handle string, eid string)
 	}
 
 	return respHandle, nil
+}
+
+func (c *ContainerProxy) WaitTask(op trace.Operation, cid string, cname string, eid string) error {
+	handle, err := c.Handle(cid, cname)
+	if err != nil {
+		return err
+	}
+
+	// wait the Task to start
+	config := &models.TaskWaitConfig{
+		Handle: handle,
+		ID:     eid,
+	}
+
+	params := tasks.NewWaitParamsWithContext(ctx).WithConfig(config)
+	_, err = c.client.Tasks.Wait(params)
+	if err != nil {
+		switch err := err.(type) {
+		case *tasks.WaitNotFound:
+			return InternalServerError("the Container(%s) has been shutdown during execution ofthe exec operation")
+		case *tasks.WaitPreconditionRequired:
+			return InternalServerError("container(%s) must be powered on in order perform the desired exec operation")
+		case *tasks.WaitInternalServerError:
+			return InternalServerError(err.Payload.Message)
+		default:
+			return InternalServerError(err.Error())
+		}
+	}
+
+	return nil
+
 }
 
 // AddContainerToScope adds a container, referenced by handle, to a scope.

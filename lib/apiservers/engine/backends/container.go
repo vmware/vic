@@ -58,7 +58,6 @@ import (
 	"github.com/vmware/vic/lib/apiservers/engine/backends/portmap"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
-	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/config/executor"
@@ -189,52 +188,18 @@ const (
 	defaultEnvPath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 )
 
+// TODO: we should probably just make this purely a proxy thing. This is now just a passthrough
 func (c *Container) Handle(id, name string) (string, error) {
-	resp, err := c.containerProxy.Client().Containers.Get(containers.NewGetParamsWithContext(ctx).WithID(id))
-	if err != nil {
-		switch err := err.(type) {
-		case *containers.GetNotFound:
-			cache.ContainerCache().DeleteContainer(id)
-			return "", NotFoundError(name)
-		case *containers.GetDefault:
-			return "", InternalServerError(err.Payload.Message)
-		default:
-			return "", InternalServerError(err.Error())
-		}
-	}
-	return resp.Payload, nil
+	return c.containerProxy.Handle(id, name)
 }
 
 // docker's container.execBackend
 
 func (c *Container) TaskWaitToStart(cid, cname, eid string) error {
-	// obtain a portlayer client
-	client := c.containerProxy.Client()
+	op := trace.NewOperation(context.TODO(), "")
+	defer trace.End(trace.Begin(fmt.Sprintf("%s: cname=(%s), cid=(%s), eid=(%s)", op, cname, cid, eid)))
 
-	handle, err := c.Handle(cid, cname)
-	if err != nil {
-		return err
-	}
-
-	// wait the Task to start
-	config := &models.TaskWaitConfig{
-		Handle: handle,
-		ID:     eid,
-	}
-
-	params := tasks.NewWaitParamsWithContext(ctx).WithConfig(config)
-	// FIXME: NEEDS CONTAINER PROXY
-	_, err = client.Tasks.Wait(params)
-	if err != nil {
-		switch err := err.(type) {
-		case *tasks.WaitInternalServerError:
-			return InternalServerError(err.Payload.Message)
-		default:
-			return InternalServerError(err.Error())
-		}
-	}
-
-	return nil
+	return c.containerProxy.WaitTask(op, cid, cname, eid)
 }
 
 // ContainerExecCreate sets up an exec in a running container.
@@ -270,7 +235,7 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 		// NOTE: we should investigate what we can add or manipulate in the handle in the portlayer to make this check even more granular. Maybe Add the actually State into the handle config or part of the container info could be "snapshotted"
 		// This check is now done off of the handle.
 		if state != "RUNNING" {
-			return ConflictError(fmt.Sprintf("Container %s is restarting, wait until the container is running", id))
+			return ConflictError(fmt.Sprintf("Container (%s) is not powered on, please start the container before attempting to an exec an operation", name))
 		}
 
 		op.Debugf("State checks succeeded for exec operation on container(%s)", id)
