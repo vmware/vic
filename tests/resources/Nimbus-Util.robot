@@ -439,14 +439,26 @@ Power Off Host
     Close connection
 
 Create Static IP Worker
-    ${out}=  Execute Command  nimbus-worker-deploy --enableStaticIpService static-worker
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${out}=  Execute Command  nimbus-ctl kill '%{NIMBUS_USER}-static-worker' && nimbus-worker-deploy --enableStaticIpService static-worker
     Should Contain  ${out}  "deploy_status": "success"
     Set Environment Variable  STATIC_WORKER_NAME  %{NIMBUS_USER}-static-worker
     ${ip}=  Get IP  static-worker
     Set Environment Variable  STATIC_WORKER_IP  ${ip}
+    Close Connection
 
 Get Static IP Address
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  STATIC_WORKER_IP
     Run Keyword If  '${status}' == 'FAIL'  Create Static IP Worker
-    ${out}=  Run  curl http://%{STATIC_WORKER_IP}:4827/nsips
-    [Return]  ${out}
+    ${out}=  Run  curl -s http://%{STATIC_WORKER_IP}:4827/nsips
+
+    &{static}=  Create Dictionary
+    ${ip}=  Run  echo '${out}' | jq -r ".ip"
+    Set To Dictionary  ${static}  ip  ${ip}
+    ${netmask}=  Run  echo '${out}' | jq -r ".netmask"
+    ${netmask}=  Evaluate  sum([bin(int(x)).count("1") for x in "${netmask}".split(".")])
+    Set To Dictionary  ${static}  netmask  ${netmask}
+    ${gateway}=  Run  echo '${out}' | jq -r ".gateway"
+    Set To Dictionary  ${static}  gateway  ${gateway}
+    [Return]  ${static}
