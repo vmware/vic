@@ -441,7 +441,8 @@ Power Off Host
 Create Static IP Worker
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${out}=  Execute Command  nimbus-ctl kill '%{NIMBUS_USER}-static-worker' && nimbus-worker-deploy --enableStaticIpService static-worker
+    Log To Console  Create a new static ip address worker...
+    ${out}=  Execute Command  nimbus-ctl --silentObjectNotFoundError kill '%{NIMBUS_USER}-static-worker' && nimbus-worker-deploy --enableStaticIpService static-worker
     Should Contain  ${out}  "deploy_status": "success"
     Set Environment Variable  STATIC_WORKER_NAME  %{NIMBUS_USER}-static-worker
     ${ip}=  Get IP  static-worker
@@ -451,6 +452,7 @@ Create Static IP Worker
 Get Static IP Address
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  STATIC_WORKER_IP
     Run Keyword If  '${status}' == 'FAIL'  Create Static IP Worker
+    Log To Console  Curl a new static ip address from the created worker...
     ${out}=  Run  curl -s http://%{STATIC_WORKER_IP}:4827/nsips
 
     &{static}=  Create Dictionary
