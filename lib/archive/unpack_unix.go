@@ -176,24 +176,35 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 	go func() {
 		defer stdin.Close()
 		if tr, ok := tarStream.(*tar.Reader); ok {
-			op.Errorf("XXX tarstream is a tar.reader, not an io.reader")
 			tw := tar.NewWriter(stdin)
+			var th *tar.Header
 			for {
-				th, err := tr.Next()
-				op.Errorf("XXX processing tar header: asset(%s), size(%d)", th.Name, th.Size)
+				th, err = tr.Next()
 				if err == io.EOF {
+					err = nil // this just signals the end of the stream, so we don't want to pass it out to the parent process, as it doesn't signal a problem
+					tw.Close()
 					break
 				}
+				if err != nil {
+					op.Errorf("error reading tar header %s", err)
+					done <- err
+					break
+				}
+				op.Debugf("processing tar header: asset(%s), size(%d)", th.Name, th.Size)
 				err = tw.WriteHeader(th)
 				if err != nil {
+					op.Errorf("error writing tar header %s", err)
 					done <- err
-					return
+					break
 				}
 				switch th.Typeflag {
 				case tar.TypeReg:
-					k, err := io.Copy(stdin, tr)
-					op.Errorf("XXX wrote %d bytes", k)
+					var k int64
+					k, err = io.Copy(tw, tr)
+					op.Debugf("wrote %d bytes", k)
 					if err != nil {
+						op.Errorf("error writing file body bytes to stdin %s", err)
+						done <- err
 						break
 					}
 				}
@@ -201,7 +212,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 			done <- err
 			return
 		}
-		// copy the tarStream to the binary via stdin; the binary will stream it to InvokeUnpack unchanged
+		// if we're passed a stream that doesn't cast to a tar.Reader copy the tarStream to the binary via stdin; the binary will stream it to InvokeUnpack unchanged
 		if _, err := io.Copy(stdin, tarStream); err != nil {
 			op.Errorf("Error copying tarStream: %s", err.Error())
 		}

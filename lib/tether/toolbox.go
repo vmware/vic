@@ -310,7 +310,6 @@ func toolboxOverrideArchiveRead(system System, u *url.URL, tr *tar.Reader) error
 		err = archive.Unpack(op, tr, spec, diskPath, "/.tether/unpack")
 		if err != nil {
 			op.Errorf(err.Error())
-			return err
 		}
 		op.Debugf("Finished reading from tar archive to path %s: %s", u.Path, u.String())
 		return err
