@@ -28,7 +28,8 @@ Static IP Address Create
     Log To Console  Finished Creating Cluster ${vc}
     Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  %{NIMBUS_USER}-${vc}
 
-    ${static}=  Get Static IP Address
+    ${out}=  Get Static IP Address
+    Set Suite Variable  ${static}  ${out}
     Append To List  ${list}  %{STATIC_WORKER_NAME} 
 
 *** Test Cases ***
