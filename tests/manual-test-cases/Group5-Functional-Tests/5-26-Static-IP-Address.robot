@@ -35,7 +35,7 @@ Static IP Address Create
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
-    Install VIC Appliance To Test Server  additional-args=--public-network-ip &{static}[ip] --public-network-gateway &{static}[gateway]/&{static}[netmask]
+    Install VIC Appliance To Test Server  additional-args=--public-network-ip &{static}[ip]/&{static}[netmask] --public-network-gateway &{static}[gateway]
 
     Run Regression Tests
 
