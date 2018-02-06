@@ -275,15 +275,16 @@ func (handler *TaskHandlersImpl) WaitHandler(params tasks.WaitParams) middleware
 	}
 
 	// wait task to set started field to something
+	// wait task to set started field to something
 	err := task.Wait(&op, handle, params.Config.ID)
 	if err != nil {
 		switch err := err.(type) {
 		case *task.TaskPowerStateError:
-			op.Debugf("PowerStateError occured for task (%s) on handle (%s) while attempting to wait for the task to complete", params.Config.ID, handle)
+			op.Debugf("PowerStateError occurred for task (%s) on handle (%s) while attempting to wait for the task to complete", params.Config.ID, handle)
 			return tasks.NewWaitPreconditionRequired().WithPayload(
 				&models.Error{Message: err.Error()})
 		case *task.TaskNotFoundError:
-			op.Debugf("TaskNotFoundError occured for task (%s) on handle (%s) while attempting to wait for the task to complete", params.Config.ID, handle)
+			op.Debugf("TaskNotFoundError occurred for task (%s) on handle (%s) while attempting to wait for the task to complete", params.Config.ID, handle)
 			return tasks.NewWaitNotFound().WithPayload(
 				&models.Error{Message: err.Error()})
 		default:
