@@ -44,7 +44,11 @@ Group 5 - Functional Tests
 -
 [Test 5-22 - NFS Volume](5-22-NFS-Volume.md)
 -
-[Test 5-23 - Resource Pool Install](5-23-Resource-Pool-Install.md)
--
 [Test 5-24 - Non vSphere Local Cluster](5-24-Non-vSphere-Local-Cluster.md)
 -
+[Test 5-25 - OPS User Grant](5-25-OPS-User-Grant.md)
+-
+[Test 5-26 - Static IP Address](5-26-Static-IP-Address.md)
+-
+
+

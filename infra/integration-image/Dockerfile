@@ -48,7 +48,8 @@ RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
     rpm \
     ca-certificates \
     xz-utils \
-    xorriso && \
+    xorriso \
+    sendmail && \
 	# Cleanup
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
@@ -84,10 +85,10 @@ RUN curl -fsSLO https://releases.hashicorp.com/packer/0.12.2/packer_0.12.2_linux
 RUN curl http://downloads.drone.io/release/linux/amd64/drone.tar.gz | tar zx && \
     install -t /usr/local/bin drone
 
-RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.15.0/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc && \
+RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.16.0/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc && \
     chmod +x /usr/local/bin/govc
 
-RUN  wget http://mirrors.kernel.org/ubuntu/pool/main/w/wget/wget_1.18-2ubuntu1_amd64.deb && \
+RUN  wget https://launchpad.net/ubuntu/+source/wget/1.18-2ubuntu1/+build/10470166/+files/wget_1.18-2ubuntu1_amd64.deb && \
      dpkg -i wget_1.18-2ubuntu1_amd64.deb
 
 # Add docker in docker support

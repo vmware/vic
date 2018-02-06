@@ -26,7 +26,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/vmware/vic/cmd/tether/msgs"
+	"github.com/vmware/vic/lib/tether/msgs"
 	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
 )

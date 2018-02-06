@@ -34,11 +34,14 @@ type PatternToken string
 
 const (
 	// VM is the VM name - i.e. [ds] {vm}/{vm}.vmx
-	VM PatternToken = "{vm}"
+	VMToken PatternToken = "{vm}"
 	// ID is the container ID for the VM
-	ID PatternToken = "{id}"
+	IDToken PatternToken = "{id}"
 	// Name is the container name of the VM
-	Name PatternToken = "{name}"
+	NameToken PatternToken = "{name}"
+
+	// The default naming pattern that gets applied if no convention is supplied
+	DefaultNamePattern = "{name}-{id}"
 
 	// ID represents the VCH in creating status, which helps to identify VCH VM which still does not have a valid VM moref set
 	CreatingVCH = "CreatingVCH"
@@ -55,7 +58,13 @@ const (
 	GeneralHTTPSProxy  = "HTTPS_PROXY"
 	VICAdminHTTPProxy  = "VICADMIN_HTTP_PROXY"
 	VICAdminHTTPSProxy = "VICADMIN_HTTPS_PROXY"
+
+	AddPerms = "ADD"
 )
+
+func (p PatternToken) String() string {
+	return string(p)
+}
 
 // Can we just treat the VCH appliance as a containerVM booting off a specific bootstrap image
 // It has many of the same requirements (around networks being attached, version recorded,
@@ -95,6 +104,9 @@ type VirtualContainerHostConfigSpec struct {
 
 	// configuration for vic-machine
 	CreateBridgeNetwork bool `vic:"0.1" scope:"read-only" key:"create_bridge_network"`
+
+	// grant ops-user permissions, string instead of bool for future enhancements
+	GrantPermsLevel string `vic:"0.1" scope:"read-only" key:"grant_permissions"`
 
 	// vic-machine create options used to create or reconfigure the VCH
 	VicMachineCreateOptions []string `vic:"0.1" scope:"read-only" key:"vic_machine_create_options"`
@@ -246,6 +258,18 @@ func (t *VirtualContainerHostConfigSpec) SetIsCreating(creating bool) {
 // IsCreating is checking if this configuration is for one creating VCH VM
 func (t *VirtualContainerHostConfigSpec) IsCreating() bool {
 	return t.ExecutorConfig.ID == CreatingVCH
+}
+
+func (t *VirtualContainerHostConfigSpec) SetGrantPerms() {
+	t.GrantPermsLevel = AddPerms
+}
+
+func (t *VirtualContainerHostConfigSpec) ClearGrantPerms() {
+	t.GrantPermsLevel = ""
+}
+
+func (t *VirtualContainerHostConfigSpec) ShouldGrantPerms() bool {
+	return t.GrantPermsLevel == AddPerms
 }
 
 // AddNetwork adds a network that will be configured on the appliance VM

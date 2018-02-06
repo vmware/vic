@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,6 +63,7 @@ import (
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/convert"
 	epoint "github.com/vmware/vic/lib/apiservers/engine/backends/endpoint"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/filter"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/interaction"
@@ -104,6 +105,7 @@ type VicContainerProxy interface {
 	Signal(vc *viccontainer.VicContainer, sig uint64) error
 	Resize(id string, height, width int32) error
 	Rename(vc *viccontainer.VicContainer, newName string) error
+	Remove(vc *viccontainer.VicContainer, config *types.ContainerRmConfig) error
 
 	GetContainerChanges(op trace.Operation, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error)
 
@@ -371,9 +373,9 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 		return "", InternalServerError("ContainerProxy.AddVolumesToContainer failed to create a portlayer client")
 	}
 
-	//Volume Attachment Section
+	// Volume Attachment Section
 	log.Debugf("ContainerProxy.AddVolumesToContainer - VolumeSection")
-	log.Debugf("Raw Volume arguments : binds:  %#v : volumes : %#v", config.HostConfig.Binds, config.Config.Volumes)
+	log.Debugf("Raw volume arguments: binds:  %#v, volumes: %#v", config.HostConfig.Binds, config.Config.Volumes)
 
 	// Collect all volume mappings. In a docker create/run, they
 	// can be anonymous (-v /dir) or specific (-v vol-name:/dir).
@@ -388,8 +390,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 	if err != nil {
 		return handle, BadRequestError(err.Error())
 	}
-
-	log.Infof("Finalized Volume list : %#v", volList)
+	log.Infof("Finalized volume list: %#v", volList)
 
 	if len(config.Config.Volumes) > 0 {
 		// override anonymous volume list with generated volume id
@@ -405,8 +406,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 
 	// Create and join volumes.
 	for _, fields := range volList {
-
-		//we only set these here for volumes made on a docker create
+		// We only set these here for volumes made on a docker create
 		volumeData := make(map[string]string)
 		volumeData[DriverArgFlagKey] = fields.Flags
 		volumeData[DriverArgContainerKey] = config.Name
@@ -787,7 +787,7 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 		}
 
 		// unmap ports
-		if err = UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
+		if err = UnmapPorts(vc.ContainerID, vc); err != nil {
 			return err
 		}
 	}
@@ -981,7 +981,7 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 
 	if state, err := c.State(vc); !state.Running && err == nil {
 		// unmap ports
-		if err = UnmapPorts(vc.ContainerID, vc.HostConfig); err != nil {
+		if err = UnmapPorts(vc.ContainerID, vc); err != nil {
 			return err
 		}
 	}
@@ -1196,9 +1196,100 @@ func (c *ContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) e
 	return nil
 }
 
+// Remove calls the portlayer's ContainerRemove handler to remove the container and its
+// anonymous volumes if the remove flag is set.
+func (c *ContainerProxy) Remove(vc *viccontainer.VicContainer, config *types.ContainerRmConfig) error {
+	if c.client == nil {
+		return InternalServerError("ContainerProxy.Remove failed to get a portlayer client")
+	}
+
+	id := vc.ContainerID
+	_, err := c.client.Containers.ContainerRemove(containers.NewContainerRemoveParamsWithContext(ctx).WithID(id))
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.ContainerRemoveNotFound:
+			// Remove container from persona cache, but don't return error to the user.
+			cache.ContainerCache().DeleteContainer(id)
+			return nil
+		case *containers.ContainerRemoveDefault:
+			return InternalServerError(err.Payload.Message)
+		case *containers.ContainerRemoveConflict:
+			return derr.NewRequestConflictError(fmt.Errorf("You cannot remove a running container. Stop the container before attempting removal or use -f"))
+		case *containers.ContainerRemoveInternalServerError:
+			if err.Payload == nil || err.Payload.Message == "" {
+				return InternalServerError(err.Error())
+			}
+			return InternalServerError(err.Payload.Message)
+		default:
+			return InternalServerError(err.Error())
+		}
+	}
+
+	// Once the container is removed, remove anonymous volumes (vc.Config.Volumes) if
+	// the remove flag is set.
+	if config.RemoveVolume && len(vc.Config.Volumes) > 0 {
+		removeAnonContainerVols(c.client, id, vc)
+	}
+
+	return nil
+}
+
 //----------
 // Utility Functions
 //----------
+
+// removeAnonContainerVols removes anonymous volumes joined to a container. It is invoked
+// once the said container has been removed. It fetches a list of volumes that are joined
+// to at least one other container, and calls the portlayer to remove this container's
+// anonymous volumes if they are dangling. Errors, if any, are only logged.
+func removeAnonContainerVols(pl *client.PortLayer, cID string, vc *viccontainer.VicContainer) {
+	// NOTE: these strings come in the form of <volume id>:<destination>:<volume options>
+	volumes := vc.Config.Volumes
+	// NOTE: these strings come in the form of <volume id>:<destination path>
+	namedVolumes := vc.HostConfig.Binds
+
+	// assemble a mask of volume paths before processing binds. MUST be paths, as we want to move to honoring the proper metadata in the "volumes" section in the future.
+	namedMaskList := make(map[string]struct{}, 0)
+	for _, entry := range namedVolumes {
+		fields := strings.SplitN(entry, ":", 2)
+		if len(fields) != 2 {
+			log.Errorf("Invalid entry in the HostConfig.Binds metadata section for container %s: %s", cID, entry)
+			continue
+		}
+		destPath := fields[1]
+		namedMaskList[destPath] = struct{}{}
+	}
+
+	joinedVols, err := fetchJoinedVolumes()
+	if err != nil {
+		log.Errorf("Unable to obtain joined volumes from portlayer, skipping removal of anonymous volumes for %s: %s", cID, err.Error())
+		return
+	}
+
+	for vol := range volumes {
+		// Extract the volume ID from the full mount path, which is of form "id:mountpath:flags" - see getMountString().
+		volFields := strings.SplitN(vol, ":", 3)
+
+		// NOTE(mavery): this check will start to fail when we fix our metadata correctness issues
+		if len(volFields) != 3 {
+			log.Debugf("Invalid entry in the volumes metadata section for container %s: %s", cID, vol)
+			continue
+		}
+		volName := volFields[0]
+		volPath := volFields[1]
+
+		_, isNamed := namedMaskList[volPath]
+		_, joined := joinedVols[volName]
+		if !joined && !isNamed {
+			_, err := pl.Storage.RemoveVolume(storage.NewRemoveVolumeParamsWithContext(ctx).WithName(volName))
+			if err != nil {
+				log.Debugf("Unable to remove anonymous volume %s in container %s: %s", volName, cID, err.Error())
+				continue
+			}
+			log.Debugf("Successfully removed anonymous volume %s during remove operation against container(%s)", volName, cID)
+		}
+	}
+}
 
 func dockerContainerCreateParamsToTask(id string, cc types.ContainerCreateConfig) *tasks.JoinParams {
 	config := &models.TaskJoinConfig{}
@@ -1484,7 +1575,7 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 
 	if info.ContainerConfig != nil {
 		// set the status to the inspect expected values
-		containerState.Status = strings.ToLower(info.ContainerConfig.State)
+		containerState.Status = filter.DockerState(info.ContainerConfig.State)
 
 		// https://github.com/docker/docker/blob/master/container/state.go#L77
 		if containerState.Status == ContainerStopped {
@@ -1495,7 +1586,7 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 		inspectJSON.LogPath = info.ContainerConfig.LogPath
 		inspectJSON.RestartCount = int(info.ContainerConfig.RestartCount)
 		inspectJSON.ID = info.ContainerConfig.ContainerID
-		inspectJSON.Created = time.Unix(info.ContainerConfig.CreateTime, 0).Format(time.RFC3339Nano)
+		inspectJSON.Created = time.Unix(0, info.ContainerConfig.CreateTime).Format(time.RFC3339Nano)
 		if len(info.ContainerConfig.Names) > 0 {
 			inspectJSON.Name = fmt.Sprintf("/%s", info.ContainerConfig.Names[0])
 		}
@@ -1547,14 +1638,10 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 		hostConfig.NetworkMode = container.NetworkMode(info.Endpoints[0].Scope)
 	}
 
+	hostConfig.PortBindings = portMapFromContainer(vc, info)
+
 	// Set this to json-file to force the docker CLI to allow us to use docker logs
 	hostConfig.LogConfig.Type = forceLogType
-
-	var err error
-	_, hostConfig.PortBindings, err = nat.ParsePortSpecs(info.HostConfig.Ports)
-	if err != nil {
-		log.Errorf("Failed to parse port mapping %s: %s", info.HostConfig.Ports, err)
-	}
 
 	// get the autoremove annotation from the container annotations
 	convert.ContainerAnnotation(info.ContainerConfig.Annotations, convert.AnnotationKeyAutoRemove, &hostConfig.AutoRemove)
@@ -1688,7 +1775,7 @@ func networkFromContainerInfo(vc *viccontainer.VicContainer, info *models.Contai
 			HairpinMode:            false,
 			LinkLocalIPv6Address:   "",
 			LinkLocalIPv6PrefixLen: 0,
-			Ports:                  portMapFromVicContainer(vc),
+			Ports:                  portMapFromContainer(vc, info),
 			SandboxKey:             "",
 			SecondaryIPAddresses:   nil,
 			SecondaryIPv6Addresses: nil,
@@ -1745,68 +1832,202 @@ func networkFromContainerInfo(vc *viccontainer.VicContainer, info *models.Contai
 	return networks
 }
 
-// portMapFromVicContainer() constructs a docker portmap from both the container's
-// hostconfig and config (both stored in VicContainer).  They are added and modified
-// during docker create.  This function creates a new map that is adheres to docker's
-// structure for types.NetworkSettings.Ports.
-func portMapFromVicContainer(vc *viccontainer.VicContainer) nat.PortMap {
-	var portMap nat.PortMap
+// portMapFromContainer constructs a docker portmap from the container's
+// info as returned by the portlayer and adds nil entries for any exposed ports
+// that are unmapped
+func portMapFromContainer(vc *viccontainer.VicContainer, t *models.ContainerInfo) nat.PortMap {
+	var mappings nat.PortMap
 
-	if vc == nil {
+	if t != nil {
+		mappings = addDirectEndpointsToPortMap(t.Endpoints, mappings)
+	}
+	if vc != nil && vc.Config != nil {
+		if vc.NATMap != nil {
+			// if there's a NAT map for the container then just use that for the indirect port set
+			mappings = mergePortMaps(vc.NATMap, mappings)
+		} else {
+			// if there's no NAT map then we use the backend data every time
+			mappings = addIndirectEndpointsToPortMap(t.Endpoints, mappings)
+		}
+		mappings = addExposedToPortMap(vc.Config, mappings)
+	}
+
+	return mappings
+}
+
+// mergePortMaps creates a new map containing the union of the two arguments
+func mergePortMaps(map1, map2 nat.PortMap) nat.PortMap {
+	resultMap := make(map[nat.Port][]nat.PortBinding)
+	for k, v := range map1 {
+		resultMap[k] = v
+	}
+
+	for k, v := range map2 {
+		vr := resultMap[k]
+		resultMap[k] = append(vr, v...)
+	}
+
+	return resultMap
+}
+
+// addIndirectEndpointToPortMap constructs a docker portmap from the container's info as returned by the portlayer for those ports that
+// require NAT forward on the endpointVM.
+// The portMap provided is modified and returned - the return value should always be used.
+func addIndirectEndpointsToPortMap(endpoints []*models.EndpointConfig, portMap nat.PortMap) nat.PortMap {
+	if len(endpoints) == 0 {
 		return portMap
 	}
 
-	portMap = make(nat.PortMap)
-
-	// Iterate over the hostconfig that was set in docker create.  Get non-nil
-	// bindings and fix up ip addr and add to networks
-	if vc.HostConfig != nil && vc.HostConfig.PortBindings != nil {
-		//		networks.Ports = vc.HostConfig.PortBindings
-		for port, portbindings := range vc.HostConfig.PortBindings {
-
-			var newbindings []nat.PortBinding
-
-			for _, binding := range portbindings {
-				nb := binding
-
-				// Check host IP.  VIC only support 0.0.0.0
-				if nb.HostIP == "" {
-					nb.HostIP = "0.0.0.0"
-				}
-
-				newbindings = append(newbindings, nb)
-			}
-
-			portMap[port] = newbindings
-		}
+	// will contain a combined set of port mappings
+	if portMap == nil {
+		portMap = make(nat.PortMap)
 	}
 
-	// Iterate over the container's original image config.  This is the set of
-	// exposed ports.  For ports that were not in hostConfig, we assign value of
-	// nil.  This appears to be the behavior of regular docker.
-	if vc.Config != nil {
-		for port := range vc.Config.ExposedPorts {
-			if _, ok := portMap[port]; ok {
-				continue
+	// add IP address into port spec to allow direct usage of data returned by calls such as docker port
+	var ip string
+	ips, _ := publicIPv4Addrs()
+	if len(ips) > 0 {
+		ip = ips[0]
+	}
+
+	// Preserve the existing behaviour if we do not have an IP for some reason.
+	if ip == "" {
+		ip = "0.0.0.0"
+	}
+
+	for _, ep := range endpoints {
+		if ep.Direct {
+			continue
+		}
+
+		for _, port := range ep.Ports {
+			mappings, err := nat.ParsePortSpec(port)
+			if err != nil {
+				log.Error(err)
+				// just continue if we do have partial port data
 			}
 
-			portMap[port] = nil
+			for i := range mappings {
+				p := mappings[i].Port
+				b := mappings[i].Binding
+
+				if b.HostIP == "" {
+					b.HostIP = ip
+				}
+
+				if mappings[i].Binding.HostPort == "" {
+					// leave this undefined for dynamic assignment
+					// TODO: for port stability over VCH restart we would expect to set the dynamically assigned port
+					// recorded in containerVM annotations here, so that the old host->port mapping is preserved.
+				}
+
+				log.Debugf("Adding indirect mapping for port %v: %v (%s)", p, b, port)
+
+				current, _ := portMap[p]
+				portMap[p] = append(current, b)
+			}
 		}
 	}
 
 	return portMap
 }
 
-func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicContainer {
-	log.Debugf("Convert container info to vic container")
+// addDirectEndpointsToPortMap constructs a docker portmap from the container's info as returned by the portlayer for those
+// ports exposed directly from the containerVM via container network
+// The portMap provided is modified and returned - the return value should always be used.
+func addDirectEndpointsToPortMap(endpoints []*models.EndpointConfig, portMap nat.PortMap) nat.PortMap {
+	if len(endpoints) == 0 {
+		return portMap
+	}
 
+	if portMap == nil {
+		portMap = make(nat.PortMap)
+	}
+
+	for _, ep := range endpoints {
+		if !ep.Direct {
+			continue
+		}
+
+		// add IP address into the port spec to allow direct usage of data returned by calls such as docker port
+		var ip string
+		rawIP, _, _ := net.ParseCIDR(ep.Address)
+		if rawIP != nil {
+			ip = rawIP.String()
+		}
+
+		if ip == "" {
+			ip = "0.0.0.0"
+		}
+
+		for _, port := range ep.Ports {
+			mappings, err := nat.ParsePortSpec(port)
+			if err != nil {
+				log.Error(err)
+				// just continue if we do have partial port data
+			}
+
+			for i := range mappings {
+				if mappings[i].Binding.HostIP == "" {
+					mappings[i].Binding.HostIP = ip
+				}
+
+				if mappings[i].Binding.HostPort == "" {
+					// If there's no explicit host port and it's a direct endpoint, then
+					// mirror the actual port. It's a bit misleading but we're trying to
+					// pack extended function into an existing structure.
+					_, p := nat.SplitProtoPort(string(mappings[i].Port))
+					mappings[i].Binding.HostPort = p
+				}
+			}
+
+			for _, mapping := range mappings {
+				p := mapping.Port
+				current, _ := portMap[p]
+				portMap[p] = append(current, mapping.Binding)
+			}
+		}
+	}
+
+	return portMap
+}
+
+// addExposedToPortMap ensures that exposed ports are all present in the port map.
+// This means nil entries for any exposed ports that are not mapped.
+// The portMap provided is modified and returned - the return value should always be used.
+func addExposedToPortMap(config *container.Config, portMap nat.PortMap) nat.PortMap {
+	if config == nil || len(config.ExposedPorts) == 0 {
+		return portMap
+	}
+
+	if portMap == nil {
+		portMap = make(nat.PortMap)
+	}
+
+	for p := range config.ExposedPorts {
+		if _, ok := portMap[p]; ok {
+			continue
+		}
+
+		portMap[p] = nil
+	}
+
+	return portMap
+}
+
+func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicContainer {
 	vc := viccontainer.NewVicContainer()
 
-	var name string
+	if info.ContainerConfig.ContainerID != "" {
+		vc.ContainerID = info.ContainerConfig.ContainerID
+	}
+
+	log.Debugf("Convert container info to vic container: %s", vc.ContainerID)
+
 	if len(info.ContainerConfig.Names) > 0 {
 		vc.Name = info.ContainerConfig.Names[0]
+		log.Debugf("Container %q", vc.Name)
 	}
-	log.Debugf("Container %q", name)
 
 	if info.ContainerConfig.LayerID != "" {
 		vc.LayerID = info.ContainerConfig.LayerID
@@ -1814,10 +2035,6 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 
 	if info.ContainerConfig.ImageID != "" {
 		vc.ImageID = info.ContainerConfig.ImageID
-	}
-
-	if info.ContainerConfig.ContainerID != "" {
-		vc.ContainerID = info.ContainerConfig.ContainerID
 	}
 
 	tempVC := viccontainer.NewVicContainer()
@@ -1841,6 +2058,8 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 	return vc
 }
 
+// getMountString returns a colon-delimited string containing a volume's name/ID, mount
+// point and flags.
 func getMountString(mounts ...string) string {
 	return strings.Join(mounts, ":")
 }

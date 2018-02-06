@@ -43,9 +43,9 @@ Test
     ${vmName2}=  Get VM display name  ${container2}
     ${vmName3}=  Get VM display name  ${container3}
     
-    vMotion A VM  %{VCH-NAME}/${vmName1}
-    vMotion A VM  %{VCH-NAME}/${vmName2}
-    vMotion A VM  %{VCH-NAME}/${vmName3}
+    vMotion A VM  ${vmName1}
+    vMotion A VM  ${vmName2}
+    vMotion A VM  ${vmName3}
     
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container1}
     Should Be Equal As Integers  ${rc}  0

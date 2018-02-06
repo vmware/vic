@@ -1,4 +1,4 @@
-# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,19 +15,16 @@
 *** Settings ***
 Documentation  Test 1-10 - Docker PS
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Conditional Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
 *** Keywords ***
 Assert VM Power State
     [Arguments]  ${name}  ${state}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info -json %{VCH-NAME}/${name}-* | jq -r .VirtualMachines[].Runtime.PowerState
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal  ${output}  ${state}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info -json ${name}-* | jq -r .VirtualMachines[].Runtime.PowerState
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal  ${output}  ${state}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -json ${name}-* | jq -r .VirtualMachines[].Runtime.PowerState
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal  ${output}  ${state}
 
 Create several containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
@@ -97,7 +94,8 @@ Docker ps all containers
     Length Should Be  ${output}  ${len+3}
 
 Docker ps powerOn container OOB
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name jojo ${busybox} /bin/top
+    # supply an IP address or the container will not have one bound and will only report as Starting, not showing in plain ps output
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name jojo --ip=172.16.0.50 ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -q
     Should Be Equal As Integers  ${rc}  0
@@ -107,6 +105,9 @@ Docker ps powerOn container OOB
     Power On VM OOB  jojo*
 
     Wait Until Keyword Succeeds  10x  6s  Assert Number Of Containers  ${len+1}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop jojo
+    Should Be Equal As Integers  ${rc}  0
 
 Docker ps powerOff container OOB
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name koko ${busybox} /bin/top
@@ -138,20 +139,28 @@ Docker ps ports output
     ${rc}  ${containerC}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8001:80 --net=public ${nginx}
     Should Be Equal As Integers  ${rc}  0
 
+    # published via the endpointVM but connected to container-network
+    ${rc}  ${containerD}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8002:80 ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} network connect public ${containerD}
+    Should Be Equal As Integers  ${rc}  0
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
 
     ## Check that ports are not displayed before start
-    Should Not Contain  ${output}  :8000->80/tcp
-    Should Not Contain  ${output}  :8443->443/tcp
-    Should Not Contain  ${output}  :8000->8000/tcp
+    Should Not Contain  ${output}  80/tcp
+    Should Not Contain  ${output}  443/tcp
+    Should Not Contain  ${output}  8000/tcp
     Should Not Contain  ${output}  :8001->80/tcp
+    Should Not Contain  ${output}  :8002->80/tcp
 
     ## Check ports are displayed once started
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} start ${containerA} ${containerB} ${containerC}
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} start ${containerA} ${containerB} ${containerC} ${containerD}
     Should Be Equal As Integers  ${rc}  0
     ${ipB}=  Get Container IP  %{VCH-PARAMS}  ${containerB}  public
     ${ipC}=  Get Container IP  %{VCH-PARAMS}  ${containerC}  public
+    ${ipD}=  Get Container IP  %{VCH-PARAMS}  ${containerD}  public
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
@@ -159,20 +168,23 @@ Docker ps ports output
     Should Contain  ${output}  %{EXT-IP}:8000->80/tcp
     Should Contain  ${output}  %{EXT-IP}:8443->443/tcp
     Should Contain  ${output}  ${ipB}:8000->8000/tcp
-    Should Contain  ${output}  ${ipB}:8000->80/tcp
+    Should Contain  ${output}  ${ipC}:8001->80/tcp
+    Should Contain  ${output}  %{EXT-IP}:8002->80/tcp
+    Should Not Contain  ${output}  ${ipD}:8002->80/tcp
 
     ## Stop the containers and ensure ports are not listed
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} stop ${containerA} ${containerB} ${containerC}
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} stop ${containerA} ${containerB} ${containerC} ${containerD}
     Should Be Equal As Integers  ${rc}  0
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
 
     # forwarding via endpointVM.
-    Should Not Contain  ${output}  :8000->80/tcp
-    Should Not Contain  ${output}  :8443->443/tcp
-    Should Not Contain  ${output}  :8000->8000/tcp
-    Should Not Contain  ${output}  :8001->80/tcp
+    Should Not Contain  ${output}  80/tcp
+    Should Not Contain  ${output}  443/tcp
+    Should Not Contain  ${output}  8000/tcp
+    Should Not Contain  ${output}  8001->80/tcp
+    Should Not Contain  ${output}  8002->80/tcp
 
 
 Create reference containers for last container and status tests
@@ -201,9 +213,8 @@ Docker ps Remove container OOB
     ${len}=  Get Length  ${output}
 
     # Remove container VM out-of-band
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "lolo*"
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy "lolo*"
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}/"lolo*"
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  govc: ServerFaultCode: The method is disabled by 'VIC'
 

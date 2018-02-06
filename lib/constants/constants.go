@@ -24,6 +24,7 @@ import (
 /* VCH constants */
 const (
 	SerialOverLANPort  = 2377
+	VchAdminPortalPort = 2378
 	AttachServerPort   = 2379
 	ManagementHostName = "management.localhost"
 	ClientHostName     = "client.localhost"
@@ -62,6 +63,15 @@ const (
 
 	// NilSlot is an invalid PCI slot number
 	NilSlot int32 = 0
+
+	// All paths on the datastore for images are relative to <datastore>/VIC/
+	StorageParentDir = "VIC"
+
+	// Key-value storage directory.
+	KVStoreFolder = "kvStores"
+
+	// All volumes are stored in this directory.
+	VolumesDir = "volumes"
 )
 
 func DefaultAltVCHGuestName() string {

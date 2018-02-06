@@ -33,6 +33,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/d2g/dhcp4"
 	"github.com/docker/docker/pkg/archive"
+
 	// need to use libcontainer for user validation, for os/user package cannot find user here if container image is busybox
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/vishvananda/netlink"
@@ -416,14 +417,14 @@ func linkAddrUpdate(old, new *net.IPNet, t Netlink, link netlink.Link) error {
 	return nil
 }
 
-func updateRoutes(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error {
+func updateRoutes(newIP *net.IPNet, t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error {
 	gw := endpoint.Network.Assigned.Gateway
 	if ip.IsUnspecifiedIP(gw.IP) {
 		return nil
 	}
 
 	if endpoint.Network.Default {
-		return updateDefaultRoute(t, link, endpoint)
+		return updateDefaultRoute(newIP, t, link, endpoint)
 	}
 
 	for _, d := range endpoint.Network.Destinations {
@@ -456,8 +457,9 @@ func bridgeTableExists(t Netlink) bool {
 	return false
 }
 
-func updateDefaultRoute(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error {
+func updateDefaultRoute(newIP *net.IPNet, t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error {
 	gw := endpoint.Network.Assigned.Gateway
+
 	// Add routes
 	if !endpoint.Network.Default || ip.IsUnspecifiedIP(gw.IP) {
 		log.Debugf("not setting route for network: default=%v gateway=%s", endpoint.Network.Default, gw.IP)
@@ -490,6 +492,27 @@ func updateDefaultRoute(t Netlink, link netlink.Link, endpoint *NetworkEndpoint)
 	}
 
 	if bTablePresent {
+		// Gateway IP may not contain a network mask, so it is taken from the assigned interface configuration
+		// where network mask has to be defined.
+		gwNet := &net.IPNet{
+			IP:   gw.IP.Mask(newIP.Mask),
+			Mask: newIP.Mask,
+		}
+
+		log.Debugf("Adding route to default gateway network: %s/%s", gwNet.IP, gwNet.Mask)
+
+		route = &netlink.Route{LinkIndex: link.Attrs().Index, Dst: gwNet, Table: bridgeTableNumber}
+		if err := t.RouteAdd(route); err != nil {
+			// if IP address has changed and it stays within the same subnet it will cause already exists error,
+			// so we can safely ignore it.
+			errno, ok := err.(syscall.Errno)
+			if !ok || errno != syscall.EEXIST {
+				return fmt.Errorf(
+					"failed to add gateway network route for table bridge.out for endpoint %s: %s",
+					endpoint.Network.Name, err)
+			}
+		}
+
 		route = &netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Gw: gw.IP, Table: bridgeTableNumber}
 		if err := t.RouteAdd(route); err != nil {
 			return fmt.Errorf("failed to add gateway route for table bridge.out for endpoint %s: %s", endpoint.Network.Name, err)
@@ -633,7 +656,7 @@ func ApplyEndpoint(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) err
 
 	updateEndpoint(newIP, endpoint)
 
-	if err = updateRoutes(nl, link, endpoint); err != nil {
+	if err = updateRoutes(newIP, nl, link, endpoint); err != nil {
 		return err
 	}
 
@@ -755,7 +778,7 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 	fi, err := os.Stat(target)
 	if err != nil {
 		// #nosec
-		if err := os.MkdirAll(target, 0744); err != nil {
+		if err := os.MkdirAll(target, 0755); err != nil {
 			// same as MountFileSystem error for consistency
 			return fmt.Errorf("unable to create mount point %s: %s", target, err)
 		}
@@ -773,7 +796,7 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 
 	if (e1 == nil && e2 == nil) || os.IsNotExist(e1) {
 		// #nosec
-		if err := os.MkdirAll(bindTarget, 0744); err != nil {
+		if err := os.MkdirAll(bindTarget, 0755); err != nil {
 			return fmt.Errorf("unable to create mount point %s: %s", bindTarget, err)
 		}
 		if err := mountDeviceLabel(ctx, label, bindTarget); err != nil {
@@ -791,7 +814,7 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 	if err != nil {
 		if os.IsNotExist(err) {
 			// if there's not such directory then revert to using the device directly
-			log.Info("No " + volumeDataDir + " data directory in volume, mounting filesystem directly")
+			log.Info("No %s data directory in volume, mounting filesystem directly", volumeDataDir)
 			mntsrc = label
 			mnttype = ext4FileSystemType
 			mntflags = syscall.MS_NOATIME
@@ -815,8 +838,17 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 		uid := int(sys.Uid)
 		gid := int(sys.Gid)
 
+		log.Debugf("Setting target uid/gid to the mount source as %d/%d", uid, gid)
 		if err := os.Chown(target, uid, gid); err != nil {
 			return fmt.Errorf("unable to change the owner of the mount point %s: %s", target, err)
+		}
+
+		log.Debugf("Setting target %s permissions to the mount source as: %#o",
+			target, fi.Mode())
+		if err := os.Chmod(target, fi.Mode()); err != nil {
+			return fmt.Errorf("failed to set target %s mount permissions as %#o: %s",
+				target, fi.Mode(), err)
+
 		}
 	}
 	return nil
@@ -855,7 +887,8 @@ WaitForDevice:
 func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target string, mountOptions string) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", source.String(), target)))
 
-	if err := os.MkdirAll(target, 0644); err != nil {
+	// #nosec
+	if err := os.MkdirAll(target, 0755); err != nil {
 		// same as MountLabel error for consistency
 		return fmt.Errorf("unable to create mount point %s: %s", target, err)
 	}
@@ -892,7 +925,8 @@ func (t *BaseOperations) CopyExistingContent(source string) error {
 	}
 
 	log.Debugf("creating directory %s", bind)
-	if err := os.MkdirAll(bind, 0644); err != nil {
+	// #nosec
+	if err := os.MkdirAll(bind, 0755); err != nil {
 		log.Errorf("error creating directory %s: %+v", bind, err)
 		return err
 	}

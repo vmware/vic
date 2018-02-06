@@ -20,6 +20,7 @@ Test Teardown  Run Keyword If Test Failed  Longevity cleanup
 *** Keywords ***
 Longevity cleanup
     Run Keyword And Continue On Failure  Post Message To Slack Channel  mwilliamson-staff  Longevity has failed on %{GOVC_URL}
+    Run Keyword And Continue On Failure  Gather Logs From Test Server
     Run Keyword And Continue On Failure  Run  govc logs.download
 
 *** Test Cases ***
@@ -28,10 +29,12 @@ Longevity
     :FOR  ${idx}  IN RANGE  0  48
     \   ${rand}=  Evaluate  random.randint(10, 50)  modules=random
     \   Log To Console  \nLoop: ${idx}
-    \   Install VIC Appliance To Test Server  debug=0  additional-args=%{STATIC_VCH_OPTIONS}
+    \   Install VIC Appliance To Test Server  debug=%{DEBUG_VCH_LEVEL}  additional-args=%{STATIC_VCH_OPTIONS} %{SYSLOG_VCH_OPTION}
     \   Repeat Keyword  ${rand} times  Run Regression Tests
     \   Cleanup VIC Appliance On Test Server
     \   ${rand}=  Evaluate  random.randint(10, 50)  modules=random
-    \   Install VIC Appliance To Test Server  debug=0  certs=${true}  additional-args=%{STATIC_VCH_OPTIONS}
+    \   Install VIC Appliance To Test Server  debug=%{DEBUG_VCH_LEVEL}  certs=${true}  additional-args=%{STATIC_VCH_OPTIONS} %{SYSLOG_VCH_OPTION}
     \   Repeat Keyword  ${rand} times  Run Regression Tests
     \   Cleanup VIC Appliance On Test Server
+
+    Post Message To Slack Channel  mwilliamson-staff  Longevity has passed on %{GOVC_URL}

@@ -37,9 +37,8 @@ Set Test Environment Variables
     Set Environment Variable  GOVC_URL  %{TEST_URL}
     Set Environment Variable  GOVC_USERNAME  %{TEST_USERNAME}
     Set Environment Variable  GOVC_PASSWORD  %{TEST_PASSWORD}
-    # TODO: need an integration/vic-test image update to include the about.cert command
-    #${rc}  ${thumbprint}=  Run And Return Rc And Output  govc about.cert -k | jq -r .ThumbprintSHA1
-    ${rc}  ${thumbprint}=  Run And Return Rc And Output  openssl s_client -connect $(govc env -x GOVC_URL_HOST):443 </dev/null 2>/dev/null | openssl x509 -fingerprint -noout | cut -d= -f2
+
+    ${rc}  ${thumbprint}=  Run And Return Rc And Output  govc about.cert -k -json | jq -r .ThumbprintSHA1
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  TEST_THUMBPRINT  ${thumbprint}
     Log To Console  \nTEST_URL=%{TEST_URL}
@@ -49,7 +48,8 @@ Set Test Environment Variables
     ${server_date}=  Run  govc host.date.info
     Log To Console  \nTest_Server_Date=\n${server_date}\n
 
-    ${host}=  Run  govc ls host
+    ${rc}  ${host}=  Run And Return Rc And Output  govc ls host
+    Should Be Equal As Integers  ${rc}  0
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_RESOURCE
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_RESOURCE  ${host}/Resources
     Set Environment Variable  GOVC_RESOURCE_POOL  %{TEST_RESOURCE}
@@ -93,6 +93,12 @@ Set List Of Env Variables
 
 Parse Environment Variables
     [Arguments]  ${line}
+    # If using the default logrus format
+    ${status}=  Run Keyword And Return Status  Should Match Regexp  ${line}  msg\="([^"]*)"
+    ${match}  ${vars}=  Run Keyword If  ${status}  Should Match Regexp  ${line}  msg\="([^"]*)"
+    Run Keyword If  ${status}  Set List Of Env Variables  ${vars}
+    Return From Keyword If  ${status}
+
     #  If using the old logging format
     ${status}=  Run Keyword And Return Status  Should Contain  ${line}  mINFO
     ${logdeco}  ${vars}=  Run Keyword If  ${status}  Split String  ${line}  ${SPACE}  1
@@ -131,11 +137,17 @@ Get Docker Params
     \   ${idx} =  Evaluate  ${index} + 1
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${ext-ip}  @{output}[${idx}]
 
-    ${rest}  ${ext-ip} =  Split String From Right  ${ext-ip}  ${SPACE}  1
-    ${ext-ip} =  Strip String  ${ext-ip}
+
+    ${status}=             Run Keyword And Return Status  Should Match Regexp  ${ext-ip}  msg\=([^"]*)
+    ${ignore}  ${ext-ip}=  Run Keyword If      ${status}  Should Match Regexp  ${ext-ip}  msg\=([^"]*)
+                           ...  ELSE                      Split String From Right  ${ext-ip}  ${SPACE}  1
+    ${ext-ip}=  Strip String  ${ext-ip}
     Set Environment Variable  EXT-IP  ${ext-ip}
 
-    ${rest}  ${vic-admin}=  Split String From Right  ${line}  ${SPACE}  1
+
+    ${status}=                Run Keyword And Return Status  Should Match Regexp  ${line}  msg\="([^"]*)"
+    ${ignore}  ${vic-admin}=  Run Keyword If      ${status}  Should Match Regexp  ${line}  msg\="([^"]*)"
+                              ...  ELSE                      Split String From Right  ${line}  ${SPACE}  1
     Set Environment Variable  VIC-ADMIN  ${vic-admin}
 
     Run Keyword If  ${port} == 2376  Set Environment Variable  VCH-PARAMS  -H ${dockerHost} --tls
@@ -163,9 +175,107 @@ Get Docker Params
     Run Keyword If  ${tls_enabled} == ${true}  Set Environment Variable  COMPOSE_TLS_VERSION  TLSv1_2
     Run Keyword If  ${tls_enabled} == ${true}  Set Environment Variable  COMPOSE-PARAMS  -H ${dockerHost}
 
+Convert List to String
+    [Arguments]  @{list}
+    Should Not Be Empty  ${list}
+    ${list-string}=  Set Variable  ${EMPTY}
+    :FOR  ${item}  IN  @{list}
+    \   ${list-was-empty}=  Set Variable If  '${list-string}' == '${EMPTY}'  ${True}  ${false}
+    \   ${list-string}=  Run Keyword If  ${list-was-empty}  Set Variable  ${item}
+    \   ...  ELSE  Catenate  SEPARATOR=|  ${list-string}  ${item}
+
+    [Return]  ${list-string}
+
+Add VCH to Removal Exception List
+    [Arguments]  ${vch}=${EMPTY}
+    ${exceptions-string}=  Get Environment Variable  VM_EXCEPTIONS  ${EMPTY}
+    @{exceptions-list}=  Run Keyword If  '${exceptions-string}' == '${EMPTY}'  Create List
+    @{exceptions-list}=  Run Keyword Unless  '${exceptions-string}' == '${EMPTY}'  Split String  ${exceptions-string}  separator=|
+
+    ${set}=  Create Dictionary
+    Add List To Dictionary  ${set}  ${exceptions-list}
+    Set To Dictionary  ${set}  ${vch}  1
+
+    ${exceptions-list}=  Set Variable  ${set.keys()}
+
+    # Append To List  ${exceptions-list}  ${vch}
+    ${list-string}=  Convert List To String  @{exceptions-list}
+    Set Environment Variable  VM_EXCEPTIONS  ${list-string}
+    Log To Console  Saved '${list-string}' to removal exceptions
+
+Remove VCH from Removal Exception List
+    [Arguments]  ${vch}=${EMPTY}
+    ${exceptions-string}=  Get Environment Variable  VM_EXCEPTIONS  ${EMPTY}
+    Return From Keyword If  '${exceptions-string}' == '${EMPTY}'  No Exceptions Found
+    @{exceptions-list}=  Run Keyword Unless  '${exceptions-string}' == '${EMPTY}'  Split String  ${exceptions-string}  separator=|
+    ${idx}=  Get Index From List  ${exceptions-list}  ${vch}
+    Remove From List  ${exceptions-list}  ${idx}
+    ${len}=  Get Length  ${exceptions-list}
+    ${list-string}=  Run Keyword If  ${len} != 0  Convert List To String  @{exceptions-list}
+    ...  ELSE  Set Variable  ${EMPTY}
+    Set Environment Variable  VM_EXCEPTIONS  ${list-string}
+
+Check If VCH Is In Exception
+    [Arguments]  ${vch}=${EMPTY}  ${exceptions}=${EMPTY}
+    ${exceptions}=  Run Keyword If  '${exceptions}' == '${EMPTY}'  Get Environment Variable  VM_EXCEPTIONS  ${EMPTY}
+    ...  ELSE  Set Variable  ${exceptions}
+    Return From Keyword If  '${exceptions}' == '${EMPTY}'  ${false}
+    ${excluded}=  Set Variable  ${false}
+    ${exceptions-list}=  Split String  ${exceptions}  separator=|
+    : FOR  ${vm-exclude}  IN  @{exceptions-list}
+    \    Continue For Loop If  '${vm-exclude}' != '${vch}'
+    \    ${excluded}=  Set Variable  ${true}
+    \    Exit For Loop
+
+    [Return]  ${excluded}
+
+Dump Docker Debug Data From VCH
+    Log To Console  **********
+    List Existing Images On VCH
+    List Running Containers On VCH
+    Log To Console  **********
+
+Use Target VIC Appliance
+    # Use a VIC appliance created outside of CI
+    [Arguments]  ${target-vch}=${EMPTY}
+    Return From Keyword If  '${target-vch}' == '${EMPTY}'  ${False}
+
+    ${debug-vch}=  Get Environment Variable  DEBUG_VCH  ${EMPTY}
+    Set Test Environment Variables
+    Set Environment Variable  VCH-NAME  ${target-vch}
+    Log To Console  Reusing existing vch: ${target-vch}
+    Run VIC Machine Inspect Command
+    Add VCH to Removal Exception List  vch=${target-vch}
+    Run Keyword If  '${debug-vch}' != '${EMPTY}'  Dump Docker Debug Data From VCH
+
+    [Return]  ${True}
+
+Conditional Install VIC Appliance To Test Server
+    [Arguments]  ${certs}=${true}  ${init}=${False}
+    ${target-vch}=  Get Environment Variable  TARGET_VCH  ${EMPTY}
+    ${multi-vch}=  Get Environment Variable  MULTI_VCH  ${EMPTY}
+
+    # If TARGET_VCH was defined, use that VCH for tests and exit
+    Run Keyword If  '${target-vch}' != '${EMPTY}'  Use Target VIC Appliance  target-vch=${target-vch}
+    Return From Keyword If  '${target-vch}' != '${EMPTY}'  ${True}
+
+    Install VIC Appliance To Test Server  certs=${certs}
+
+    # If MULT_VCH set to 1, then we are in multi VCH mode, otherwise, we are in single VCH mode
+    ${single-vch-mode}=  Run Keyword If  '${multi-vch}' == '1'  Set Variable  ${False}
+    ...  ELSE  Set Variable  ${True}
+
+    # In single vch mode, save VCH name to TARGET_VCH and add VCH to exception removal list
+    Run Keyword If  ${init}  Set Environment Variable  TARGET_VCH  %{VCH-NAME}
+
 Install VIC Appliance To Test Server
     [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${additional-args}=${EMPTY}
     Set Test Environment Variables
+    ${output}=  Install VIC Appliance To Test Server With Current Environment Variables  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${cleanup}  ${debug}  ${additional-args}
+    [Return]  ${output}
+
+Install VIC Appliance To Test Server With Current Environment Variables
+    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${additional-args}=${EMPTY}
     # disable firewall
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
     # Attempt to cleanup old/canceled tests
@@ -207,7 +317,7 @@ Run Secret VIC Machine Delete Command
 Run Secret VIC Machine Inspect Command
     [Tags]  secret
     [Arguments]  ${name}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --thumbprint=%{TEST_THUMBPRINT}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --thumbprint=%{TEST_THUMBPRINT} --compute-resource=%{TEST_RESOURCE}
 
     [Return]  ${rc}  ${output}
 
@@ -220,7 +330,8 @@ Run VIC Machine Delete Command
     [Return]  ${output}
 
 Run VIC Machine Inspect Command
-    ${rc}  ${output}=  Run Secret VIC Machine Inspect Command  %{VCH-NAME}
+    [Arguments]  ${name}=%{VCH-NAME}
+    ${rc}  ${output}=  Run Secret VIC Machine Inspect Command  ${name}
     Get Docker Params  ${output}  ${true}
 
 Inspect VCH
@@ -228,6 +339,16 @@ Inspect VCH
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${expected}
+
+Wait For VCH Initialization
+    [Arguments]  ${attempts}=12x  ${interval}=10 seconds  ${name}=%{VCH-NAME}
+    Wait Until Keyword Succeeds  ${attempts}  ${interval}  VCH Docker Info  ${name}
+
+VCH Docker Info
+    [Arguments]  ${name}=%{VCH-NAME}
+    Run VIC Machine Inspect Command  ${name}
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} info
+    Should Be Equal As Integers  ${rc}  0
 
 Check UpdateInProgress
     [Arguments]  ${expected}
@@ -244,20 +365,24 @@ Portlayer Log Should Match Regexp
     Should Be Equal As Integers  ${rc}  0
 
 Gather Logs From Test Server
+    [Arguments]  ${name-suffix}=${EMPTY}
+    Run Keyword And Continue On Failure  Run  zip %{VCH-NAME}-certs -r %{VCH-NAME}
+    Secret Curl Container Logs  ${name-suffix}
+    ${host}=  Get VM Host Name  %{VCH-NAME}
+    ${out}=  Run  govc datastore.download -host ${host} %{VCH-NAME}/vmware.log %{VCH-NAME}-vmware${name-suffix}.log
+    Should Contain  ${out}  OK
+    ${out}=  Run  govc datastore.download -host ${host} %{VCH-NAME}/tether.debug %{VCH-NAME}-tether${name-suffix}.debug
+    Should Contain  ${out}  OK
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc logs -log=vmkernel -n=10000 > vmkernel${name-suffix}.log
+
+Secret Curl Container Logs
     [Tags]  secret
     [Arguments]  ${name-suffix}=${EMPTY}
-
-    Run Keyword And Continue On Failure  Run  zip %{VCH-NAME}-certs -r %{VCH-NAME}
     ${out}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
     Log  ${out}
     ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs${name-suffix}.zip
     Log  ${out}
     Remove File  vic-admin-cookies
-    ${out}=  Run  govc datastore.download %{VCH-NAME}/vmware.log %{VCH-NAME}-vmware${name-suffix}.log
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc datastore.download %{VCH-NAME}/tether.debug %{VCH-NAME}-tether${name-suffix}.debug
-    Should Contain  ${out}  OK
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc logs -log=vmkernel -n=10000 > vmkernel${name-suffix}.log
 
 Check For The Proper Log Files
     [Arguments]  ${container}
@@ -289,11 +414,20 @@ Scrape Logs For the Password
     Remove File  /tmp/cookies-%{VCH-NAME}
 
 Cleanup VIC Appliance On Test Server
+    ${sessions}=  Run Keyword And Ignore Error  Get Session List
+    Log  ${sessions}
+    ${memory}=  Run Keyword And Ignore Error  Get Hostd Memory Consumption
+    Log  ${memory}
     Log To Console  Gathering logs from the test server %{VCH-NAME}
     Gather Logs From Test Server
+    Wait Until Keyword Succeeds  3x  5 seconds  Remove All Containers
+    # Exit from Cleanup if VCH-NAME is currently in exception list
+    ${exclude}=  Check If VCH Is In Exception  vch=%{VCH-NAME}
+    Return From Keyword If  ${exclude}
     Log To Console  Deleting the VCH appliance %{VCH-NAME}
     ${output}=  Run VIC Machine Delete Command
     Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
+    Run Keyword And Ignore Error  Run  govc datastore.rm %{VCH-NAME}-VOL
     [Return]  ${output}
 
 Cleanup VCH Bridge Network
@@ -312,11 +446,16 @@ Remove VC Distributed Portgroup
 
 Cleanup Datastore On Test Server
     ${out}=  Run  govc datastore.ls
+    ${exceptions}=  Get Environment Variable  VM_EXCEPTIONS  ${EMPTY}
     ${items}=  Split To Lines  ${out}
     :FOR  ${item}  IN  @{items}
     \   ${build}=  Split String  ${item}  -
     \   # Skip any item that is not associated with integration tests
     \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   # Skip any item in the exception list
+    \   @{name}=  Split String  ${item}  -VOL
+    \   ${skip}=  Check If VCH Is In Exception  vch=@{name}[0]  exceptions=${exceptions}
+    \   Continue For Loop If  ${skip}
     \   # Skip any item that is still running
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
@@ -326,12 +465,15 @@ Cleanup Datastore On Test Server
 
 Cleanup Dangling VMs On Test Server
     ${out}=  Run  govc ls vm
+    ${exceptions}=  Get Environment Variable  VM_EXCEPTIONS  ${EMPTY}
     ${vms}=  Split To Lines  ${out}
     :FOR  ${vm}  IN  @{vms}
     \   ${vm}=  Fetch From Right  ${vm}  /
     \   ${build}=  Split String  ${vm}  -
     \   # Skip any VM that is not associated with integration tests
     \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   ${skip}=  Check If VCH Is In Exception  vch=${vm}  exceptions=${exceptions}
+    \   Continue For Loop If  ${skip}
     \   # Skip any VM that is still running
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
@@ -342,12 +484,16 @@ Cleanup Dangling VMs On Test Server
 
 Cleanup Dangling Resource Pools On Test Server
     ${out}=  Run  govc ls host/*/Resources/*
+    ${exceptions}=  Get Environment Variable  VM_EXCEPTIONS  ${EMPTY}
     ${pools}=  Split To Lines  ${out}
     :FOR  ${pool}  IN  @{pools}
     \   ${shortPool}=  Fetch From Right  ${pool}  /
     \   ${build}=  Split String  ${shortPool}  -
     \   # Skip any pool that is not associated with integration tests
     \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   # Skip Resource Pools belonging to VCHs in the exception list
+    \   ${skip}=  Check If VCH Is In Exception  vch=${shortPool}  exceptions=${exceptions}
+    \   Continue For Loop If  ${skip}
     \   # Skip any pool that is still running
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
@@ -357,12 +503,17 @@ Cleanup Dangling Resource Pools On Test Server
 
 Cleanup Dangling Networks On Test Server
     ${out}=  Run  govc ls network
+    ${exceptions}=  Get Environment Variable  VM_EXCEPTIONS  ${EMPTY}
     ${nets}=  Split To Lines  ${out}
     :FOR  ${net}  IN  @{nets}
     \   ${net}=  Fetch From Right  ${net}  /
     \   ${build}=  Split String  ${net}  -
     \   # Skip any Network that is not associated with integration tests
     \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   # Skip any Network that is attached to a VCH in the exception list
+    \   @{name}=  Split String  ${net}  -bridge
+    \   ${skip}=  Check If VCH Is In Exception  vch=@{name}[0]  exceptions=${exceptions}
+    \   Continue For Loop If  ${skip}
     \   # Skip any Network that is still running
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
@@ -370,12 +521,17 @@ Cleanup Dangling Networks On Test Server
 
 Cleanup Dangling vSwitches On Test Server
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.vswitch.info | grep VCH
+    ${exceptions}=  Get Environment Variable  VM_EXCEPTIONS  ${EMPTY}
     ${nets}=  Split To Lines  ${out}
     :FOR  ${net}  IN  @{nets}
     \   ${net}=  Fetch From Right  ${net}  ${SPACE}
     \   ${build}=  Split String  ${net}  -
     \   # Skip any vSwitch that is not associated with integration tests
     \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   # Skip any switch that is attached to a VCH in the exception list
+    \   @{name}=  Split String  ${net}  -bridge
+    \   ${skip}=  Check If VCH Is In Exception  vch=@{name}[0]  exceptions=${exceptions}
+    \   Continue For Loop If  ${skip}
     \   # Skip any vSwitch that is still running
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
@@ -430,12 +586,12 @@ Get VCH ID
 
 # VCH upgrade helpers
 Install VIC with version to Test Server
-    [Arguments]  ${version}=7315  ${insecureregistry}=
+    [Arguments]  ${version}=7315  ${insecureregistry}=  ${cleanup}=${true}
     Log To Console  \nDownloading vic ${version} from gcp...
     ${rc}  ${output}=  Run And Return Rc And Output  wget https://storage.googleapis.com/vic-engine-builds/vic_${version}.tar.gz -O vic.tar.gz
     ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
     Set Environment Variable  TEST_TIMEOUT  20m0s
-    Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}  vol=default ${insecureregistry}
+    Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}  cleanup=${cleanup}  vol=default ${insecureregistry}
 
     Set Environment Variable  VIC-ADMIN  %{VCH-IP}:2378
     Set Environment Variable  INITIAL-VERSION  ${version}

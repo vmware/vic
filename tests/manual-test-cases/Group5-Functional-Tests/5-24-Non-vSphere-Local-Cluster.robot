@@ -21,6 +21,7 @@ Test Teardown  Cleanup VIC Appliance On Test Server
 
 *** Keywords ***
 Non vSphere Local Cluster Install Setup
+    [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
 
     Log To Console  \nStarting simple VC cluster deploy...
@@ -30,12 +31,11 @@ Non vSphere Local Cluster Install Setup
     &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  3  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${ESX_VERSION}
     @{esx_names}=  Get Dictionary Keys  ${esxes}
     @{esx_ips}=  Get Dictionary Values  ${esxes}
+    Set Suite Variable  @{list}  @{esx_names}[0]  @{esx_names}[1]  @{esx_names}[2]  %{NIMBUS_USER}-${vc}
 
     # Finish vCenter deploy
     ${output}=  Wait For Process  ${pid}
     Should Contain  ${output.stdout}  Overall Status: Succeeded
-    
-    Set Suite Variable  @{list}  @{esx_names}[0]  @{esx_names}[1]  @{esx_names}[2]  ${vc}
 
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}

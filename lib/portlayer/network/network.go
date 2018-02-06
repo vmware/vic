@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -120,23 +120,31 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 func handleEvent(netctx *Context, ie events.Event) {
 	switch ie.String() {
 	case events.ContainerPoweredOff:
-		handle := exec.GetContainer(context.Background(), uid.Parse(ie.Reference()))
+		op := trace.NewOperation(context.Background(), fmt.Sprintf("handleEvent(%s)", ie.EventID()))
+		op.Infof("Handling Event: %s", ie.EventID())
+		// grab the operation from the event
+		handle := exec.GetContainer(op, uid.Parse(ie.Reference()))
 		if handle == nil {
-			_, err := netctx.RemoveIDFromScopes(ie.Reference())
+			_, err := netctx.RemoveIDFromScopes(op, ie.Reference())
 			if err != nil {
-				log.Errorf("Failed to remove container %s scope: %s", ie.Reference(), err)
+				op.Errorf("Failed to remove container %s scope: %s", ie.Reference(), err)
 			}
 			return
 		}
 		defer handle.Close()
 
-		if _, err := netctx.UnbindContainer(handle); err != nil {
-			log.Warnf("Failed to unbind container %s: %s", ie.Reference(), err)
+		if handle.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
+			op.Warnf("Live power state check on power off event shows %s: not unbinding network", ie.Reference(), handle.Runtime.PowerState)
 			return
 		}
 
-		if err := handle.Commit(context.Background(), nil, nil); err != nil {
-			log.Warnf("Failed to commit handle after network unbind for container %s: %s", ie.Reference(), err)
+		if _, err := netctx.UnbindContainer(op, handle); err != nil {
+			op.Warnf("Failed to unbind container %s: %s", ie.Reference(), err)
+			return
+		}
+
+		if err := handle.Commit(op, nil, nil); err != nil {
+			op.Warnf("Failed to commit handle after network unbind for container %s: %s", ie.Reference(), err)
 		}
 
 	}
@@ -174,6 +182,7 @@ func engageContext(ctx context.Context, netctx *Context, em event.EventManager) 
 		}
 	}()
 
+	op := trace.NewOperation(context.Background(), "engageContext")
 	s.Suspend(true)
 	defer s.Resume()
 	for _, c := range exec.Containers.Containers(nil) {
@@ -216,7 +225,7 @@ func engageContext(ctx context.Context, netctx *Context, em event.EventManager) 
 		}
 
 		if c.CurrentState() == exec.StateRunning {
-			if _, err = netctx.bindContainer(h); err != nil {
+			if _, err = netctx.bindContainer(op, h); err != nil {
 				return err
 			}
 		}

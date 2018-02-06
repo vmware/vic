@@ -87,6 +87,8 @@ portlayerapi := $(BIN)/port-layer-server
 portlayerapi-test := $(BIN)/port-layer-server-test
 portlayerapi-client := lib/apiservers/portlayer/client/port_layer_client.go
 portlayerapi-server := lib/apiservers/portlayer/restapi/server.go
+serviceapi := $(BIN)/vic-machine-server
+serviceapi-server := lib/apiservers/service/restapi/server.go
 
 imagec := $(BIN)/imagec
 vicadmin := $(BIN)/vicadmin
@@ -104,6 +106,7 @@ vic-init-test := $(BIN)/vic-init-test
 vic-dns-linux := $(BIN)/vic-dns-linux
 vic-dns-windows := $(BIN)/vic-dns-windows.exe
 vic-dns-darwin := $(BIN)/vic-dns-darwin
+archive := $(BIN)/unpack
 gandalf := $(BIN)/gandalf
 
 tether-linux := $(BIN)/tether-linux
@@ -123,6 +126,8 @@ portlayerapi: $(portlayerapi)
 portlayerapi-test: $(portlayerapi-test)
 portlayerapi-client: $(portlayerapi-client)
 portlayerapi-server: $(portlayerapi-server)
+serviceapi: $(serviceapi)
+serviceapi-server: $(serviceapi-server)
 admiralapi-client: $(admiralapi-client)
 
 imagec: $(imagec)
@@ -156,12 +161,12 @@ misspell: $(MISSPELL)
 all: components tethers isos vic-machine imagec vic-ui
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) $(MISSPELL) goversion
 check: goversion goimports gofmt misspell govet golint copyright whitespace gas
-apiservers: $(portlayerapi) $(docker-engine-api)
+apiservers: $(portlayerapi) $(docker-engine-api) $(serviceapi)
 components: check apiservers $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
 tethers: $(tether-linux)
 
-most: $(portlayerapi) $(docker-engine-api) $(vicadmin) $(tether-linux) $(appliance) $(bootstrap) $(vic-machine-linux)
+most: $(portlayerapi) $(docker-engine-api) $(vicadmin) $(tether-linux) $(appliance) $(bootstrap) $(vic-machine-linux) $(serviceapi)
 
 # utility targets
 goversion:
@@ -307,6 +312,10 @@ $(vicadmin): $$(call godeps,cmd/vicadmin/*.go)
 	@echo building vicadmin
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
+$(archive): $$(call godeps,cmd/archive/*.go)
+	@echo building archive
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
+
 $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
 	@$(TIME) $(GO) build $(RACE)  $(ldflags) -o ./$@ ./$(dir $<)
@@ -334,7 +343,20 @@ PORTLAYER_DEPS ?= lib/apiservers/portlayer/swagger.json \
 
 $(admiralapi-client): lib/config/dynamic/admiral/swagger.json $(SWAGGER)
 	@echo regenerating swagger models and operations for Admiral API client...
-	@$(SWAGGER) generate client -A Admiral --target lib/config/dynamic/admiral -f lib/config/dynamic/admiral/swagger.json --tags /projects --tags /resources/compute --tags /config/registries 2>>swagger-gen.log
+	@$(SWAGGER) generate client -A Admiral --target lib/config/dynamic/admiral \
+	    -f lib/config/dynamic/admiral/swagger.json \
+	    --tags /projects \
+	    --tags /resources/compute \
+	    --tags /config/registries \
+	    -O GetResourcesCompute \
+	    -O GetProjects \
+	    -O GetConfigRegistriesID \
+	    -M "com:vmware:photon:controller:model:resources:ComputeService:ComputeState" \
+	    -M "com:vmware:xenon:common:ServiceDocumentQueryResult" \
+	    -M "com:vmware:admiral:service:common:RegistryService:RegistryState" \
+	    -M "com:vmware:xenon:common:ServiceDocumentQueryResult:ContinuousResult" \
+	    -M "com:vmware:xenon:common:ServiceErrorResponse" \
+	    2>>swagger-gen.log
 	@echo done regenerating swagger models and operations for Admiral API client...
 
 $(portlayerapi-client): $(PORTLAYER_DEPS) $(SWAGGER)
@@ -355,6 +377,21 @@ $(portlayerapi-test): $$(call godeps,cmd/port-layer-server/*.go) $(portlayerapi-
 	@echo building Portlayer API server for test...
 	@$(TIME) $(GO) test -c -coverpkg github.com/vmware/vic/lib/...,github.com/vmware/vic/pkg/... -coverprofile port-layer-server.cov -outputdir /tmp -o $@ ./cmd/port-layer-server
 
+# Common service dependencies between client and server
+SERVICE_DEPS ?= lib/apiservers/service/swagger.json \
+				  lib/apiservers/service/restapi/configure_vic_machine.go \
+				  lib/apiservers/service/restapi/handlers/*.go
+
+$(serviceapi-server): $(SERVICE_DEPS) $(SWAGGER)
+	@echo regenerating swagger models and operations for vic-machine-as-a-service API server...
+	@$(SWAGGER) generate server --exclude-main --target lib/apiservers/service -f lib/apiservers/service/swagger.json 2>>service-swagger-gen.log
+	@echo done regenerating swagger models and operations for vic-machine-as-a-service API server...
+
+$(serviceapi): $$(call godeps,cmd/vic-machine-server/*.go) $(serviceapi-server)
+	@echo building vic-machine-as-a-service API server...
+	@$(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o $@ ./cmd/vic-machine-server
+
+
 $(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo building iso-base docker image
 	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $@
@@ -365,7 +402,7 @@ $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $(iso-base) -o $@
 
 # main appliance target - depends on all top level component targets
-$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
+$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging) $(archive)
 	@echo building VCH appliance ISO
 	@$(TIME) $< -p $(appliance-staging) -b $(BIN)
 
@@ -398,15 +435,15 @@ $(vic-machine-darwin): $$(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine darwin...
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
-$(vic-ui-linux): $$(call godeps,cmd/vic-ui/*.go)
+$(vic-ui-linux): $$(call godeps,cmd/vic-ui/*.go) $(admiralapi-client)
 	@echo building vic-ui linux...
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
 
-$(vic-ui-windows): $$(call godeps,cmd/vic-ui/*.go)
+$(vic-ui-windows): $$(call godeps,cmd/vic-ui/*.go) $(admiralapi-client)
 	@echo building vic-ui windows...
 	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
 
-$(vic-ui-darwin): $$(call godeps,cmd/vic-ui/*.go)
+$(vic-ui-darwin): $$(call godeps,cmd/vic-ui/*.go) $(admiralapi-client)
 	@echo building vic-ui darwin...
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
 
@@ -427,7 +464,7 @@ $(gandalf):  $$(call godeps,cmd/gandalf/*.go)
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
 distro: all
-	@tar czvf $(REV).tar.gz bin/*.iso bin/vic-machine-*
+	@tar czvf $(REV).tar.gz bin/*.iso bin/vic-machine-* --exclude=bin/vic-machine-server
 
 mrrobot:
 	@rm -rf *.xml *.html *.log *.zip VCH-0-*
@@ -449,6 +486,13 @@ clean:
 	@rm -rf ./lib/config/dynamic/admiral/client
 	@rm -rf ./lib/config/dynamic/admiral/models
 	@rm -rf ./lib/config/dynamic/admiral/operations
+
+	@rm -f ./lib/apiservers/service/restapi/doc.go
+	@rm -f ./lib/apiservers/service/restapi/embedded_spec.go
+	@rm -f ./lib/apiservers/service/restapi/server.go
+	@rm -rf ./lib/apiservers/service/restapi/cmd/
+	@rm -rf ./lib/apiservers/service/restapi/models/
+	@rm -rf ./lib/apiservers/service/restapi/operations/
 
 	@rm -f *.log
 	@rm -f *.pem

@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -77,15 +77,13 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 
 // CreateHandler creates a new container
 func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreateParams) middleware.Responder {
-	defer trace.End(trace.Begin(""))
+	id := uid.New().String()
+	defer trace.End(trace.Begin(id))
 
 	var err error
 
 	session := handler.handlerCtx.Session
-
 	ctx := context.Background()
-
-	id := uid.New().String()
 
 	// Init key for tether
 	// #nosec: RSA keys should be at least 2048 bits
@@ -105,7 +103,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 			ID:   id,
 			Name: params.CreateConfig.Name,
 		},
-		CreateTime: time.Now().UTC().Unix(),
+		CreateTime: time.Now().UTC().UnixNano(),
 		Version:    version.GetBuild(),
 		Key:        pem.EncodeToMemory(&privateKeyBlock),
 		LayerID:    params.CreateConfig.Layer,
@@ -217,15 +215,16 @@ func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) m
 }
 
 func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitParams) middleware.Responder {
-	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", params.Handle)))
+	op := trace.NewOperation(context.Background(), fmt.Sprintf("commit handle(%s)", params.Handle))
+	defer trace.End(trace.Begin(fmt.Sprintf("commit handle(%s)", params.Handle), op))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
 		return containers.NewCommitNotFound().WithPayload(&models.Error{Message: "container not found"})
 	}
 
-	if err := h.Commit(context.Background(), handler.handlerCtx.Session, params.WaitTime); err != nil {
-		log.Errorf("CommitHandler error on handle(%s) for %s: %s", h, h.ExecConfig.ID, err)
+	if err := h.Commit(op, handler.handlerCtx.Session, params.WaitTime); err != nil {
+		op.Errorf("CommitHandler error on handle(%s) for %s: %s", h, h.ExecConfig.ID, err)
 		switch err := err.(type) {
 		case exec.ConcurrentAccessError:
 			return containers.NewCommitConflict().WithPayload(&models.Error{Message: err.Error()})
@@ -240,7 +239,8 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 }
 
 func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.ContainerRemoveParams) middleware.Responder {
-	defer trace.End(trace.Begin(params.ID))
+	op := trace.NewOperation(context.Background(), params.ID)
+	defer trace.End(trace.Begin(params.ID, op))
 
 	// get the indicated container for removal
 	container := exec.Containers.Container(params.ID)
@@ -249,7 +249,7 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 	}
 
 	// NOTE: this should allowing batching of operations, as with Create, Start, Stop, et al
-	err := container.Remove(context.Background(), handler.handlerCtx.Session)
+	err := container.Remove(op, handler.handlerCtx.Session)
 	if err != nil {
 		switch err := err.(type) {
 		case exec.NotFoundError:
@@ -272,17 +272,18 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 }
 
 func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers.GetContainerInfoParams) middleware.Responder {
-	defer trace.End(trace.Begin(params.ID))
+	op := trace.NewOperation(context.Background(), params.ID)
+	defer trace.End(trace.Begin(params.ID, op))
 
 	container := exec.Containers.Container(params.ID)
 	if container == nil {
 		info := fmt.Sprintf("GetContainerInfoHandler ContainerCache miss for container(%s)", params.ID)
-		log.Error(info)
+		op.Errorf(info)
 		return containers.NewGetContainerInfoNotFound().WithPayload(&models.Error{Message: info})
 	}
 
 	// Refresh to get up to date network info
-	container.Refresh(context.Background())
+	container.Refresh(op)
 	containerInfo := convertContainerToContainerInfo(container)
 	return containers.NewGetContainerInfoOK().WithPayload(containerInfo)
 }
@@ -299,19 +300,29 @@ func (r containerByCreated) Less(i, j int) bool {
 func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers.GetContainerListParams) middleware.Responder {
 	defer trace.End(trace.Begin(""))
 
-	var state *exec.State
+	var states []exec.State
+	var include func(*models.ContainerInfo) bool
 	if params.All != nil && !*params.All {
-		state = new(exec.State)
-		*state = exec.StateRunning
+		// we include Starting in the query as it's transient but will filter out those that don't transition to running
+		// before returning.
+		// TODO: this is here solely due to the lack of a structured means of queuing a background refresh and should be
+		// eliminated as soon as that's available. If we don't do this at this point in time then the caller must look at
+		// all containers or inspect the Starting one directly to trigger a refresh
+		states = append(states, exec.StateRunning, exec.StateStarting)
+		include = func(info *models.ContainerInfo) bool {
+			return info.ContainerConfig.State == exec.StateRunning.String()
+		}
 	}
 
-	containerVMs := exec.Containers.Containers(state)
+	containerVMs := exec.Containers.Containers(states)
 	containerList := make([]*models.ContainerInfo, 0, len(containerVMs))
 
 	for _, container := range containerVMs {
 		// convert to return model
 		info := convertContainerToContainerInfo(container)
-		containerList = append(containerList, info)
+		if include == nil || include(info) {
+			containerList = append(containerList, info)
+		}
 	}
 
 	sort.Sort(sort.Reverse(containerByCreated(containerList)))
@@ -319,7 +330,8 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 }
 
 func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
-	defer trace.End(trace.Begin(params.ID))
+	op := trace.NewOperation(context.Background(), params.ID)
+	defer trace.End(trace.Begin(params.ID, op))
 
 	// NOTE: I feel that this should be in a Commit path for consistency
 	// it would allow phrasings such as:
@@ -331,7 +343,7 @@ func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.
 		return containers.NewContainerSignalNotFound().WithPayload(&models.Error{Message: fmt.Sprintf("container %s not found", params.ID)})
 	}
 
-	err := container.Signal(context.Background(), params.Signal)
+	err := container.Signal(op, params.Signal)
 	if err != nil {
 		return containers.NewContainerSignalInternalServerError().WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -394,7 +406,8 @@ func (handler *ContainersHandlersImpl) GetContainerStatsHandler(params container
 }
 
 func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers.GetContainerLogsParams) middleware.Responder {
-	defer trace.End(trace.Begin(params.ID))
+	op := trace.NewOperation(context.Background(), "Getting logs for %s", params.ID)
+	defer trace.End(trace.Begin(params.ID, op))
 
 	container := exec.Containers.Container(params.ID)
 	if container == nil {
@@ -417,7 +430,7 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 		since = *params.Since
 	}
 
-	reader, err := container.LogReader(context.Background(), tail, follow, since)
+	reader, err := container.LogReader(op, tail, follow, since)
 	if err != nil {
 		// Do not return an error here.  It's a workaround for a panic similar to #2594
 		return containers.NewGetContainerLogsInternalServerError()
@@ -475,12 +488,14 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 }
 
 func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.ContainerRenameParams) middleware.Responder {
-	defer trace.End(trace.Begin(fmt.Sprintf("Rename container to %s", params.Name)))
+	op := trace.NewOperation(context.Background(), "Rename container to %s", params.Name)
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil || h.ExecConfig == nil {
 		return containers.NewContainerRenameNotFound()
 	}
+
+	defer trace.End(trace.Begin(h.ExecConfig.ID, op))
 
 	// get the indicated container for rename
 	container := exec.Containers.Container(h.ExecConfig.ID)
@@ -504,7 +519,7 @@ func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.
 		return containers.NewContainerRenameInternalServerError().WithPayload(err)
 	}
 
-	h = h.Rename(params.Name)
+	h = h.Rename(op, params.Name)
 
 	return containers.NewContainerRenameOK().WithPayload(h.String())
 }
@@ -512,18 +527,28 @@ func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.
 // utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)
 func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 	container := c.Info()
-	defer trace.End(trace.Begin(container.ExecConfig.ID))
 
-	// ensure we have probably up-to-date info
-	for _, endpoint := range container.ExecConfig.Networks {
-		if !endpoint.Static && (endpoint.IP == nil || ip.IsUnspecifiedIP(endpoint.IP.IP)) {
-			// container has dynamic IP but we do not have a reported address
-			op := trace.NewOperation(context.Background(), "state refresh triggered by missing DHCP data")
-			c.Refresh(op)
-			container = c.Info()
-			// shouldn't need multiple refreshes if multiple dhcps
-			break
+	// ensure we have probably up-to-date info. Determine if we have transient state values
+	transient := false
+	if container.State() == exec.StateStarting || container.State() == exec.StateStopping {
+		transient = true
+	}
+
+	if container.State() != exec.StateStopped {
+		for _, endpoint := range container.ExecConfig.Networks {
+			if !endpoint.Static && ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
+				// container has dynamic IP but we do not have a reported address
+				// shouldn't need multiple refreshes if multiple dhcps
+				transient = true
+				break
+			}
 		}
+	}
+
+	if transient {
+		op := trace.NewOperation(context.Background(), "state refresh triggered by a transient data state")
+		c.Refresh(op)
+		container = c.Info()
 	}
 
 	// convert the container type to the required model
@@ -550,14 +575,13 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 	ccid := container.ExecConfig.ID
 	info.ContainerConfig.ContainerID = ccid
 
-	var state string
+	state := container.State().String()
 	if container.MigrationError != nil {
 		state = "error"
 		info.ProcessConfig.ErrorMsg = fmt.Sprintf("Migration failed: %s", container.MigrationError.Error())
 		info.ProcessConfig.Status = state
-	} else {
-		state = container.State().String()
 	}
+
 	info.ContainerConfig.State = state
 	info.ContainerConfig.LayerID = container.ExecConfig.LayerID
 	info.ContainerConfig.ImageID = container.ExecConfig.ImageID
@@ -613,15 +637,6 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 
 	info.HostConfig = &models.HostConfig{}
 	for _, endpoint := range container.ExecConfig.Networks {
-		// if an external type this will be the endpoint used to publish ports
-		if endpoint.Network.Type == constants.ExternalScopeType && !ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
-			info.HostConfig.Address = endpoint.Assigned.IP.String()
-			if endpoint.Network.TrustLevel == executor.Open {
-				// add all ports as port range
-				info.HostConfig.Ports = append(info.HostConfig.Ports, constants.PortsOpenNetwork)
-			}
-		}
-
 		ep := &models.EndpointConfig{
 			Address:     "",
 			Container:   ccid,
@@ -632,19 +647,20 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 			Scope:       endpoint.Network.Name,
 			Aliases:     make([]string, 0),
 			Nameservers: make([]string, 0),
+			Trust:       endpoint.Network.TrustLevel.String(),
+			Direct:      endpoint.Network.Type == constants.ExternalScopeType,
 		}
 
-		if len(endpoint.Network.Gateway.IP) > 0 {
+		if !ip.IsUnspecifiedIP(endpoint.Network.Gateway.IP) {
 			ep.Gateway = endpoint.Network.Gateway.String()
 		}
 
-		if len(endpoint.Assigned.IP) > 0 {
+		if !ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
 			ep.Address = endpoint.Assigned.String()
 		}
 
 		if len(endpoint.Ports) > 0 {
 			ep.Ports = append(ep.Ports, endpoint.Ports...)
-			info.HostConfig.Ports = append(info.HostConfig.Ports, endpoint.Ports...)
 		}
 
 		for _, alias := range endpoint.Network.Aliases {

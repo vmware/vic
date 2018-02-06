@@ -16,13 +16,12 @@ package backends
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"testing"
 	"time"
-
-	"context"
 
 	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
@@ -31,9 +30,8 @@ import (
 	dnetwork "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/reference"
 	"github.com/docker/go-connections/nat"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/go-openapi/runtime"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
@@ -42,6 +40,7 @@ import (
 	plscopes "github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	plmodels "github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -111,6 +110,18 @@ const (
 	dummyContainerIDTTY = "tty123"
 	fakeContainerID     = ""
 )
+
+var randomNames = []string{
+	"hello_world",
+	"hello_world",
+	"goodbye_world",
+	"goodbye_world",
+	"cruel_world",
+}
+
+func mockRandomName(retry int) string {
+	return randomNames[retry%len(randomNames)]
+}
 
 var dummyContainers = []string{dummyContainerID, dummyContainerIDTTY}
 
@@ -350,6 +361,10 @@ func (m *MockContainerProxy) Rename(vc *viccontainer.VicContainer, newName strin
 	return nil
 }
 
+func (m *MockContainerProxy) Remove(vc *viccontainer.VicContainer, config *types.ContainerRmConfig) error {
+	return nil
+}
+
 func (m *MockContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, clStdin io.ReadCloser, clStdout, clStderr io.Writer) error {
 	return nil
 }
@@ -473,6 +488,12 @@ func TestCreateHandle(t *testing.T) {
 	}
 
 	AddMockImageToCache()
+
+	// configure mock naming for just this test
+	defer func(fn func(int) string) {
+		randomName = fn
+	}(randomName)
+	randomName = mockRandomName
 
 	// mock a container create config
 	var config types.ContainerCreateConfig
@@ -700,14 +721,19 @@ func TestPortInformation(t *testing.T) {
 	mockHostConfig.PortBindings = portMap
 
 	mockContainerInfo.ContainerConfig = mockContainerConfig
-	mockContainerInfo.HostConfig = &plmodels.HostConfig{
-		Ports: []string{"8000/tcp"},
+	mockContainerInfo.Endpoints = []*plmodels.EndpointConfig{
+		{
+			Direct: true,
+			Trust:  executor.Published.String(),
+			Ports:  []string{"8000/tcp"},
+		},
 	}
 
 	ips := []string{"192.168.1.1"}
 
 	co := viccontainer.NewVicContainer()
 	co.HostConfig = mockHostConfig
+	co.NATMap = portMap
 	co.ContainerID = containerID
 	co.Name = "bar"
 	cache.ContainerCache().AddContainer(co)

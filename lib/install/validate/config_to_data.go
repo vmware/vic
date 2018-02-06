@@ -21,7 +21,6 @@ import (
 	"path"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/docker/go-units"
 
 	"github.com/vmware/govmomi/object"
@@ -30,6 +29,7 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
@@ -45,32 +45,30 @@ type Finder interface {
 
 // SetDataFromVM set value based on VCH VM properties
 func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d *data.Data) error {
+	op := trace.FromContext(ctx, "SetDataFromVM")
+
 	// display name
-	name, err := vm.Name(ctx)
+	name, err := vm.Name(op)
 	if err != nil {
 		return err
 	}
 	d.DisplayName = name
 
 	// compute resource
-	parent, err := vm.ResourcePool(ctx)
+	parent, err := vm.ResourcePool(op)
 	if err != nil {
 		return err
 	}
 
-	if parent.Reference().Type != "VirtualApp" {
-		d.UseRP = true
-	}
-
 	var mrp mo.ResourcePool
-	if err = parent.Properties(ctx, parent.Reference(), []string{"parent"}, &mrp); err != nil {
+	if err = parent.Properties(op, parent.Reference(), []string{"parent"}, &mrp); err != nil {
 		return err
 	}
 
 	if mrp.Parent == nil {
 		return fmt.Errorf("Failed to get parent resource pool")
 	}
-	or, err := finder.ObjectReference(ctx, *mrp.Parent)
+	or, err := finder.ObjectReference(op, *mrp.Parent)
 	if err != nil {
 		return err
 	}
@@ -81,16 +79,16 @@ func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d 
 	d.ComputeResourcePath = rp.InventoryPath
 
 	// Set VCH resource limits and VCH endpoint VM resource limits
-	setVCHResources(ctx, parent, d)
-	setApplianceResources(ctx, vm, d)
+	setVCHResources(op, parent, d)
+	setApplianceResources(op, vm, d)
 	return nil
 }
 
-func setApplianceResources(ctx context.Context, vm *vm.VirtualMachine, d *data.Data) error {
+func setApplianceResources(op trace.Operation, vm *vm.VirtualMachine, d *data.Data) error {
 	var m mo.VirtualMachine
 	ps := []string{"config.hardware.numCPU", "config.hardware.memoryMB"}
 
-	if err := vm.Properties(ctx, vm.Reference(), ps, &m); err != nil {
+	if err := vm.Properties(op, vm.Reference(), ps, &m); err != nil {
 		return err
 	}
 	if m.Config != nil {
@@ -101,11 +99,11 @@ func setApplianceResources(ctx context.Context, vm *vm.VirtualMachine, d *data.D
 }
 
 // setVCHResources will populate the configuration data based on the deployed VCH config
-func setVCHResources(ctx context.Context, vch *object.ResourcePool, d *data.Data) error {
+func setVCHResources(op trace.Operation, vch *object.ResourcePool, d *data.Data) error {
 	var p mo.ResourcePool
 	ps := []string{"config.cpuAllocation", "config.memoryAllocation"}
 
-	if err := vch.Properties(ctx, vch.Reference(), ps, &p); err != nil {
+	if err := vch.Properties(op, vch.Reference(), ps, &p); err != nil {
 		return err
 	}
 
@@ -137,8 +135,10 @@ func setVCHResources(ctx context.Context, vch *object.ResourcePool, d *data.Data
 }
 
 // NewDataFromConfig converts VirtualContainerHostConfigSpec back to data.Data object
-// This method does not touch any configuration for VCH VM or resource pool, which should be retrieved from VM or vApp attributes
+// This method does not touch any configuration for VCH VM or resource pool, which should be retrieved from VM attributes
 func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualContainerHostConfigSpec) (d *data.Data, err error) {
+	op := trace.FromContext(ctx, "NewDataFromConfig")
+
 	if conf == nil {
 		err = fmt.Errorf("configuration is empty")
 		return
@@ -154,7 +154,7 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 
 	d.AsymmetricRouting = conf.AsymmetricRouting
 
-	if err = setBridgeNetwork(ctx, finder, d, conf); err != nil {
+	if err = setBridgeNetwork(op, finder, d, conf); err != nil {
 		return
 	}
 
@@ -165,17 +165,17 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 	d.ClientCAs = conf.Certificate.CertificateAuthorities
 	d.RegistryCAs = conf.RegistryCertificateAuthorities
 
-	clientNet, err := getNetworkConfig(ctx, finder, conf.ExecutorConfig.Networks[config.ClientNetworkName])
+	clientNet, err := getNetworkConfig(op, finder, conf.ExecutorConfig.Networks[config.ClientNetworkName])
 	if err != nil {
 		return
 	}
 	d.ClientNetwork = *clientNet
-	publicNet, err := getNetworkConfig(ctx, finder, conf.ExecutorConfig.Networks[config.PublicNetworkName])
+	publicNet, err := getNetworkConfig(op, finder, conf.ExecutorConfig.Networks[config.PublicNetworkName])
 	if err != nil {
 		return
 	}
 	d.PublicNetwork = *publicNet
-	mgmtNet, err := getNetworkConfig(ctx, finder, conf.ExecutorConfig.Networks[config.ManagementNetworkName])
+	mgmtNet, err := getNetworkConfig(op, finder, conf.ExecutorConfig.Networks[config.ManagementNetworkName])
 	if err != nil {
 		return
 	}
@@ -190,7 +190,7 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 		d.ClientNetwork = data.NetworkConfig{}
 	}
 
-	if err = setContainerNetworks(ctx, finder, d, conf.Network.ContainerNetworks, conf.BridgeNetwork); err != nil {
+	if err = setContainerNetworks(op, finder, d, conf.Network.ContainerNetworks, conf.BridgeNetwork); err != nil {
 		return
 	}
 
@@ -206,7 +206,7 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 	if err = setImageStore(d, conf); err != nil {
 		return
 	}
-	setVolumeLocations(d, conf)
+	setVolumeLocations(op, d, conf)
 	d.InsecureRegistries = conf.InsecureRegistries
 	d.WhitelistRegistries = conf.RegistryWhitelist
 	if d.ScratchSize, err = getHumanSize(conf.ScratchSize, "KB"); err != nil {
@@ -253,13 +253,13 @@ func setImageStore(d *data.Data, conf *config.VirtualContainerHostConfigSpec) er
 	return nil
 }
 
-func setVolumeLocations(d *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+func setVolumeLocations(op trace.Operation, d *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	d.VolumeLocations = make(map[string]*url.URL, len(conf.VolumeLocations))
 
 	var dsURL object.DatastorePath
 	for k, v := range conf.VolumeLocations {
 		if ok := dsURL.FromString(v.Path); !ok {
-			log.Debugf("%s is not datastore path", v.Path)
+			op.Debugf("%s is not datastore path", v.Path)
 			d.VolumeLocations[k] = v
 			continue
 		}
@@ -307,13 +307,13 @@ func setHTTPProxies(d *data.Data, conf *config.VirtualContainerHostConfigSpec) e
 	return nil
 }
 
-func setContainerNetworks(ctx context.Context, finder Finder, d *data.Data, containerNetworks map[string]*executor.ContainerNetwork, bridge string) error {
+func setContainerNetworks(op trace.Operation, finder Finder, d *data.Data, containerNetworks map[string]*executor.ContainerNetwork, bridge string) error {
 	for k, v := range containerNetworks {
 		if k == bridge {
 			// bridge network is persisted in executor network as well, skip it here
 			continue
 		}
-		name, err := getNameFromID(ctx, finder, v.Common.ID)
+		name, err := getNameFromID(op, finder, v.Common.ID)
 		if err != nil {
 			return err
 		}
@@ -326,12 +326,12 @@ func setContainerNetworks(ctx context.Context, finder Finder, d *data.Data, cont
 	return nil
 }
 
-func getNetworkConfig(ctx context.Context, finder Finder, conf *executor.NetworkEndpoint) (net *data.NetworkConfig, err error) {
+func getNetworkConfig(op trace.Operation, finder Finder, conf *executor.NetworkEndpoint) (net *data.NetworkConfig, err error) {
 	net = &data.NetworkConfig{}
 	if conf == nil {
 		return
 	}
-	if net.Name, err = getNameFromID(ctx, finder, conf.Network.ID); err != nil {
+	if net.Name, err = getNameFromID(op, finder, conf.Network.ID); err != nil {
 		return
 	}
 	net.Destinations = conf.Network.Destinations
@@ -342,9 +342,9 @@ func getNetworkConfig(ctx context.Context, finder Finder, conf *executor.Network
 	return
 }
 
-func setBridgeNetwork(ctx context.Context, finder Finder, d *data.Data, conf *config.VirtualContainerHostConfigSpec) error {
+func setBridgeNetwork(op trace.Operation, finder Finder, d *data.Data, conf *config.VirtualContainerHostConfigSpec) error {
 	bridgeNet := conf.ExecutorConfig.Networks[conf.Network.BridgeNetwork]
-	name, err := getNameFromID(ctx, finder, bridgeNet.Network.ID)
+	name, err := getNameFromID(op, finder, bridgeNet.Network.ID)
 	if err != nil {
 		return err
 	}
@@ -354,7 +354,7 @@ func setBridgeNetwork(ctx context.Context, finder Finder, d *data.Data, conf *co
 	return nil
 }
 
-func getNameFromID(ctx context.Context, finder Finder, mobID string) (string, error) {
+func getNameFromID(op trace.Operation, finder Finder, mobID string) (string, error) {
 	moref := new(types.ManagedObjectReference)
 	ok := moref.FromString(mobID)
 	if !ok {
@@ -365,7 +365,7 @@ func getNameFromID(ctx context.Context, finder Finder, mobID string) (string, er
 		return "", fmt.Errorf("finder is not set")
 	}
 
-	obj, err := finder.ObjectReference(ctx, *moref)
+	obj, err := finder.ObjectReference(op, *moref)
 	if err != nil {
 		return "", err
 	}
@@ -375,6 +375,6 @@ func getNameFromID(ctx context.Context, finder Finder, mobID string) (string, er
 	}
 	name := obj.(common).Name()
 
-	log.Debugf("%s name: %s", mobID, name)
+	op.Debugf("%s name: %s", mobID, name)
 	return name, nil
 }

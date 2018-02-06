@@ -25,6 +25,7 @@
 package session
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -33,9 +34,7 @@ import (
 	"strings"
 	"time"
 
-	"context"
-
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
@@ -47,6 +46,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
@@ -61,6 +61,8 @@ type Config struct {
 	Service string
 	// Credentials
 	User *url.Userinfo
+	// CloneTicket is used to clone an existing session
+	CloneTicket string
 	// Allow insecure connection to Service
 	Insecure bool
 	// Target thumbprint
@@ -124,7 +126,6 @@ func LimitConcurrency(rt http.RoundTripper, limit int) http.RoundTripper {
 // it creates a Flags object from the command line arguments or
 // environment, and uses that instead to create a Session.
 func NewSession(config *Config) *Session {
-	log.Debugf("Creating VMOMI session with thumbprint %s", config.Thumbprint)
 	return &Session{Config: config}
 }
 
@@ -148,21 +149,27 @@ func (s *Session) IsVSAN(ctx context.Context) bool {
 
 // Create accepts a Config and returns a Session with the cached vSphere resources.
 func (s *Session) Create(ctx context.Context) (*Session, error) {
-	var vchExtraConfig config.VirtualContainerHostConfigSpec
+	op := trace.FromContext(ctx, "Create")
+
+	var vchConfig config.VirtualContainerHostConfigSpec
+	var connConfig config.Connection
+
 	source, err := extraconfig.GuestInfoSource()
 	if err != nil {
 		return nil, err
 	}
 
-	extraconfig.Decode(source, &vchExtraConfig)
+	prefix := extraconfig.CalculateKeys(vchConfig, "Connection", "")
+	if len(prefix) != 1 {
+		return nil, fmt.Errorf("must be exactly one Connection defined in VCH configuration")
+	}
+	extraconfig.DecodeWithPrefix(source, &connConfig, prefix[0])
 
-	s.Service = vchExtraConfig.Target
+	s.Service = connConfig.Target
+	s.User = url.UserPassword(connConfig.Username, connConfig.Token)
+	s.Thumbprint = connConfig.TargetThumbprint
 
-	s.User = url.UserPassword(vchExtraConfig.Username, vchExtraConfig.Token)
-
-	s.Thumbprint = vchExtraConfig.TargetThumbprint
-
-	_, err = s.Connect(ctx)
+	_, err = s.Connect(op)
 	if err != nil {
 		return nil, err
 	}
@@ -171,11 +178,11 @@ func (s *Session) Create(ctx context.Context) (*Session, error) {
 	defer func() {
 		if err != nil {
 			// #nosec: Errors unhandled.
-			s.Client.Logout(ctx)
+			s.Client.Logout(op)
 		}
 	}()
 
-	_, err = s.Populate(ctx)
+	_, err = s.Populate(op)
 	if err != nil {
 		return nil, err
 	}
@@ -185,6 +192,10 @@ func (s *Session) Create(ctx context.Context) (*Session, error) {
 
 // Connect establishes the connection for the session but nothing more
 func (s *Session) Connect(ctx context.Context) (*Session, error) {
+	op := trace.FromContext(ctx, "Connect")
+
+	op.Debugf("Creating VMOMI session with thumbprint %s", s.Thumbprint)
+
 	soapURL, err := soap.ParseURL(s.Service)
 	if soapURL == nil || err != nil {
 		return nil, SDKURLError{
@@ -202,6 +213,7 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 	}
 
 	soapClient := soap.NewClient(soapURL, s.Insecure)
+
 	soapClient.Version = "6.0" // Pin to 6.0 until we need 6.5+ specific API
 
 	var login func(context.Context) error
@@ -220,7 +232,7 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 			maxInFlight = i
 		}
 	}
-	// Limit the concurrenty of SOAP requests
+	// Limit the concurrency of SOAP requests
 	if t, ok := soapClient.Transport.(*http.Transport); ok {
 		t.MaxIdleConnsPerHost = maxInFlight
 		t.TLSHandshakeTimeout = tlsHandshakeTimeout
@@ -228,7 +240,7 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 	soapClient.Transport = LimitConcurrency(soapClient.Transport, maxInFlight)
 
 	// TODO: option to set http.Client.Transport.TLSClientConfig.RootCAs
-	vimClient, err := vim25.NewClient(ctx, soapClient)
+	vimClient, err := vim25.NewClient(op, soapClient)
 	if err != nil {
 		return nil, SoapClientError{
 			Host: soapURL.Host,
@@ -239,19 +251,21 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 	if s.Keepalive != 0 {
 		vimClient.RoundTripper = session.KeepAliveHandler(soapClient, s.Keepalive,
 			func(roundTripper soap.RoundTripper) error {
-				_, err := methods.GetCurrentTime(context.Background(), roundTripper)
+				cop := trace.FromOperation(op, "KeepAlive")
+
+				_, err := methods.GetCurrentTime(cop, roundTripper)
 				if err == nil {
 					return nil
 				}
 
-				log.Warnf("session keepalive error: %s", err)
+				cop.Warnf("session keepalive error: %s", err)
 
 				if isNotAuthenticated(err) {
 
-					if err = login(ctx); err != nil {
-						log.Errorf("session keepalive failed to re-authenticate: %s", err)
+					if err = login(cop); err != nil {
+						cop.Errorf("session keepalive failed to re-authenticate: %s", err)
 					} else {
-						log.Info("session keepalive re-authenticated")
+						cop.Info("session keepalive re-authenticated")
 					}
 				}
 
@@ -265,7 +279,13 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 		SessionManager: session.NewManager(vimClient),
 	}
 
-	err = login(ctx)
+	if s.CloneTicket != "" {
+		// clone a user session if we have a ticket
+		err = s.SessionManager.CloneSession(op, s.CloneTicket)
+	} else {
+		// otherwise login to create a new one
+		err = login(op)
+	}
 	if err != nil {
 		return nil, UserPassLoginError{
 			Host: soapURL.Host,
@@ -275,7 +295,7 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 
 	s.Finder = find.NewFinder(s.Vim25(), false)
 	// log high-level environment information
-	s.logEnvironmentInfo()
+	s.logEnvironmentInfo(op)
 	return s, nil
 }
 
@@ -283,74 +303,76 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 // This returns accumulated error detail if there is ambiguity, but sets all
 // unambiguous or correct resources.
 func (s *Session) Populate(ctx context.Context) (*Session, error) {
+	op := trace.FromContext(ctx, "Populate")
+
 	// Populate s
 	var errs []string
 	var err error
 
 	finder := s.Finder
 
-	log.Debug("vSphere resource cache populating...")
-	s.Datacenter, err = finder.DatacenterOrDefault(ctx, s.DatacenterPath)
+	op.Debugf("vSphere resource cache populating...")
+	s.Datacenter, err = finder.DatacenterOrDefault(op, s.DatacenterPath)
 	if err != nil {
 		errs = append(errs, fmt.Sprintf("Failure finding dc (%s): %s", s.DatacenterPath, err.Error()))
 	} else {
 		finder.SetDatacenter(s.Datacenter)
-		log.Debugf("Cached dc: %s", s.DatacenterPath)
+		op.Debugf("Cached dc: %s", s.DatacenterPath)
 	}
 
 	finder.SetDatacenter(s.Datacenter)
 
-	s.Cluster, err = finder.ComputeResourceOrDefault(ctx, s.ClusterPath)
+	s.Cluster, err = finder.ComputeResourceOrDefault(op, s.ClusterPath)
 	if err != nil {
 		errs = append(errs, fmt.Sprintf("Failure finding cluster (%s): %s", s.ClusterPath, err.Error()))
 	} else {
-		log.Debugf("Cached cluster: %s", s.ClusterPath)
+		op.Debugf("Cached cluster: %s", s.ClusterPath)
 	}
 
-	s.Datastore, err = finder.DatastoreOrDefault(ctx, s.DatastorePath)
+	s.Datastore, err = finder.DatastoreOrDefault(op, s.DatastorePath)
 	if err != nil {
 		errs = append(errs, fmt.Sprintf("Failure finding ds (%s): %s", s.DatastorePath, err.Error()))
 	} else {
-		log.Debugf("Cached ds: %s", s.DatastorePath)
+		op.Debugf("Cached ds: %s", s.DatastorePath)
 	}
 
-	s.Host, err = finder.HostSystemOrDefault(ctx, s.HostPath)
+	s.Host, err = finder.HostSystemOrDefault(op, s.HostPath)
 	if err != nil {
 		if _, ok := err.(*find.DefaultMultipleFoundError); !ok || !s.IsVC() {
 			errs = append(errs, fmt.Sprintf("Failure finding host (%s): %s", s.HostPath, err.Error()))
 		}
 	} else {
-		log.Debugf("Cached host: %s", s.HostPath)
+		op.Debugf("Cached host: %s", s.HostPath)
 	}
 
-	s.Pool, err = finder.ResourcePoolOrDefault(ctx, s.PoolPath)
+	s.Pool, err = finder.ResourcePoolOrDefault(op, s.PoolPath)
 	if err != nil {
 		errs = append(errs, fmt.Sprintf("Failure finding pool (%s): %s", s.PoolPath, err.Error()))
 	} else {
-		log.Debugf("Cached pool: %s", s.PoolPath)
+		op.Debugf("Cached pool: %s", s.PoolPath)
 	}
 
 	if s.Datacenter != nil {
-		folders, err := s.Datacenter.Folders(ctx)
+		folders, err := s.Datacenter.Folders(op)
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("Failure finding folders (%s): %s", s.DatacenterPath, err.Error()))
 		} else {
-			log.Debugf("Cached folders: %s", s.DatacenterPath)
+			op.Debugf("Cached folders: %s", s.DatacenterPath)
 		}
 		s.VMFolder = folders.VmFolder
 	}
 
 	if len(errs) > 0 {
-		log.Debugf("Error count populating vSphere cache: (%d)", len(errs))
+		op.Debugf("Error count populating vSphere cache: (%d)", len(errs))
 		return nil, errors.New(strings.Join(errs, "\n"))
 	}
-	log.Debug("vSphere resource cache populated...")
+	op.Debug("vSphere resource cache populated...")
 	return s, nil
 }
 
-func (s *Session) logEnvironmentInfo() {
+func (s *Session) logEnvironmentInfo(op trace.Operation) {
 	a := s.ServiceContent.About
-	log.WithFields(log.Fields{
+	op.WithFields(logrus.Fields{
 		"Name":        a.Name,
 		"Vendor":      a.Vendor,
 		"Version":     a.Version,

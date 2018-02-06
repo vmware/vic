@@ -20,6 +20,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -74,11 +75,9 @@ func (m *VirtualDiskManager) CreateVirtualDiskTask(req *types.CreateVirtualDisk_
 		return nil, m.createVirtualDisk(req)
 	})
 
-	task.Run()
-
 	return &methods.CreateVirtualDisk_TaskBody{
 		Res: &types.CreateVirtualDisk_TaskResponse{
-			Returnval: task.Self,
+			Returnval: task.Run(),
 		},
 	}
 }
@@ -101,11 +100,9 @@ func (m *VirtualDiskManager) DeleteVirtualDiskTask(req *types.DeleteVirtualDisk_
 		return nil, nil
 	})
 
-	task.Run()
-
 	return &methods.DeleteVirtualDisk_TaskBody{
 		Res: &types.DeleteVirtualDisk_TaskResponse{
-			Returnval: task.Self,
+			Returnval: task.Run(),
 		},
 	}
 }
@@ -133,11 +130,9 @@ func (m *VirtualDiskManager) MoveVirtualDiskTask(req *types.MoveVirtualDisk_Task
 		return nil, nil
 	})
 
-	task.Run()
-
 	return &methods.MoveVirtualDisk_TaskBody{
 		Res: &types.MoveVirtualDisk_TaskResponse{
-			Returnval: task.Self,
+			Returnval: task.Run(),
 		},
 	}
 }
@@ -165,11 +160,34 @@ func (m *VirtualDiskManager) CopyVirtualDiskTask(req *types.CopyVirtualDisk_Task
 		return nil, nil
 	})
 
-	task.Run()
-
 	return &methods.CopyVirtualDisk_TaskBody{
 		Res: &types.CopyVirtualDisk_TaskResponse{
-			Returnval: task.Self,
+			Returnval: task.Run(),
 		},
 	}
+}
+
+func (m *VirtualDiskManager) QueryVirtualDiskUuid(req *types.QueryVirtualDiskUuid) soap.HasFault {
+	body := new(methods.QueryVirtualDiskUuidBody)
+
+	fm := Map.FileManager()
+
+	file, fault := fm.resolve(req.Datacenter, req.Name)
+	if fault != nil {
+		body.Fault_ = Fault("", fault)
+		return body
+	}
+
+	_, err := os.Stat(file)
+	if err != nil {
+		fault = fm.fault(file, err, new(types.CannotAccessFile))
+		body.Fault_ = Fault("", fault)
+		return body
+	}
+
+	body.Res = &types.QueryVirtualDiskUuidResponse{
+		Returnval: uuid.NewSHA1(uuid.NameSpaceOID, []byte(file)).String(),
+	}
+
+	return body
 }

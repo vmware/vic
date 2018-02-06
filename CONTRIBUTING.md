@@ -179,11 +179,17 @@ discussion.
 For VIC engineers, you should set the priority based on the below guidelines.  Everyone else, do not set the priority of a new issue.
 
 #### Priorities
-Label: priority/high - critical customer issues, critical bugs that are blocking CI or development.  Research spikes are also considered high priority as they will block future feature development. Be careful with this label, as it will block sprint planning. We want to limit the number of priority/high issues as much as possible.
+Indicate the VMware business priority of the bug. Priority drives *when* a bug will be fixed. This field is optional for filers but must be filled out by bug owner.
 
-Label: priority/medium - features that we have committed to deliver in the current release cycle, bugs/tech debt that are important to fix but are not critically blocking anything.
+priority/p0 - Bugs that NEED to be fixed immediately as they either block meaningful testing or are release stoppers for the current release.
 
-Label: priotiy/low - everything else that is not blocking anything or critical, anything that has a fairly easy workaround, we will work on this as time permits but do not expect anything in this category to be fixed soon.
+priority/p1 - Bugs that NEED to be fixed by the assigned phase of the current release.
+
+priority/p2 - Bugs that SHOULD be fixed by the assigned phase of the current release, time permitting.
+
+priority/p3 - Bugs that SHOULD be fixed by a given release, time permitting.
+
+priority/p4 - Bugs that SHOULD be fixed in a future (to be determined) release.
 
 ### Backlog
 

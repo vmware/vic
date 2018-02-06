@@ -15,7 +15,6 @@
 package task
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/vmware/govmomi/vim25/types"
@@ -26,7 +25,7 @@ import (
 
 // Wait waits the task to start
 func Wait(op *trace.Operation, h interface{}, id string) error {
-	defer trace.End(trace.Begin(id))
+	defer trace.End(trace.Begin(id, op))
 
 	handle, ok := h.(*exec.Handle)
 	if !ok {
@@ -34,7 +33,9 @@ func Wait(op *trace.Operation, h interface{}, id string) error {
 	}
 
 	if handle.Runtime != nil && handle.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOn {
-		return fmt.Errorf("Unable to wait for task when container %s is not running", id)
+		err := fmt.Errorf("Unable to wait for task when container %s is not running", id)
+		op.Errorf("%s", err)
+		return err
 	}
 
 	_, okS := handle.ExecConfig.Sessions[id]
@@ -45,7 +46,7 @@ func Wait(op *trace.Operation, h interface{}, id string) error {
 	}
 
 	// wait task to set started field
-	ctx, cancel := context.WithTimeout(context.Background(), constants.PropertyCollectorTimeout)
+	timeout, cancel := trace.WithTimeout(op, constants.PropertyCollectorTimeout, "Wait")
 	defer cancel()
 
 	c := exec.Containers.Container(handle.ExecConfig.ID)
@@ -54,7 +55,7 @@ func Wait(op *trace.Operation, h interface{}, id string) error {
 	}
 
 	if okS {
-		return c.WaitForSession(ctx, id)
+		return c.WaitForSession(timeout, id)
 	}
-	return c.WaitForExec(ctx, id)
+	return c.WaitForExec(timeout, id)
 }

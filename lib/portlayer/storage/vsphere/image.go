@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
@@ -39,9 +40,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
-
-// All paths on the datastore for images are relative to <datastore>/VIC/
-var StorageParentDir = "VIC"
 
 // Set to false for unit tests
 var (
@@ -102,7 +100,7 @@ func NewImageStore(op trace.Operation, s *session.Session, u *url.URL) (*ImageSt
 		return nil, fmt.Errorf("Found %d datastores with provided datastore path %s. Cannot create image store.", len(datastores), u)
 	}
 
-	ds, err := datastore.NewHelper(op, s, datastores[0], path.Join(u.Path, StorageParentDir))
+	ds, err := datastore.NewHelper(op, s, datastores[0], path.Join(u.Path, constants.StorageParentDir))
 	if err != nil {
 		return nil, err
 	}
@@ -640,7 +638,7 @@ func (v *ImageStore) deleteImage(op trace.Operation, storeName, ID string) error
 
 // Find any image directories without the manifest file and remove them.
 func (v *ImageStore) cleanup(op trace.Operation, store *url.URL) error {
-	op.Infof("Checking for inconsistent images on %s", store.String())
+	defer trace.End(trace.Begin(fmt.Sprintf("Checking for inconsistent images on %s", store.String()), op))
 
 	storeName, err := util.ImageStoreName(store)
 	if err != nil {

@@ -25,10 +25,12 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/vmware/govmomi/session"
 	"github.com/vmware/govmomi/vim25"
@@ -70,9 +72,7 @@ type ClientFlag struct {
 	vimVersion    string
 	tlsCaCerts    string
 	tlsKnownHosts string
-	tlsHostHash   string
-
-	client *vim25.Client
+	client        *vim25.Client
 }
 
 var (
@@ -275,6 +275,18 @@ func (flag *ClientFlag) configure(sc *soap.Client) (soap.RoundTripper, error) {
 		return nil, err
 	}
 
+	if t, ok := sc.Transport.(*http.Transport); ok {
+		var err error
+
+		value := os.Getenv("GOVC_TLS_HANDSHAKE_TIMEOUT")
+		if value != "" {
+			t.TLSHandshakeTimeout, err = time.ParseDuration(value)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	// Retry twice when a temporary I/O error occurs.
 	// This means a maximum of 3 attempts.
 	return vim25.Retry(sc, vim25.TemporaryNetworkError(3)), nil
@@ -416,11 +428,15 @@ func (flag *ClientFlag) newClient() (*vim25.Client, error) {
 	m := session.NewManager(c)
 	u := flag.url.User
 
-	if u.Username() == "" {
-		// Assume we are running on an ESX or Workstation host if no username is provided
-		u, err = flag.localTicket(ctx, m)
-		if err != nil {
-			return nil, err
+	if u.Username() == "" && !c.IsVC() {
+		// If no username is provided, try to acquire a local ticket.
+		// When invoked remotely, ESX returns an InvalidRequestFault.
+		// So, rather than return an error here, fallthrough to Login() with the original User to
+		// to avoid what would be a confusing error message.
+		luser, lerr := flag.localTicket(ctx, m)
+		if lerr == nil {
+			// We are running directly on an ESX or Workstation host and can use the ticket with Login()
+			u = luser
 		}
 	}
 

@@ -57,11 +57,23 @@ func NewVirtualMachine(parent types.ManagedObjectReference, spec *types.VirtualM
 		return nil, &types.InvalidVmConfig{Property: "configSpec.files.vmPathName"}
 	}
 
+	rspec := types.DefaultResourceConfigSpec()
+	vm.Guest = &types.GuestInfo{}
 	vm.Config = &types.VirtualMachineConfigInfo{
-		ExtraConfig: []types.BaseOptionValue{&types.OptionValue{Key: "govcsim", Value: "TRUE"}},
+		ExtraConfig:      []types.BaseOptionValue{&types.OptionValue{Key: "govcsim", Value: "TRUE"}},
+		Tools:            &types.ToolsConfigInfo{},
+		MemoryAllocation: &rspec.MemoryAllocation,
+		CpuAllocation:    &rspec.CpuAllocation,
+	}
+	vm.Snapshot = &types.VirtualMachineSnapshotInfo{}
+	vm.Storage = &types.VirtualMachineStorageInfo{
+		Timestamp: time.Now(),
 	}
 	vm.Summary.Guest = &types.VirtualMachineGuestSummary{}
-	vm.Summary.Storage = &types.VirtualMachineStorageSummary{}
+	vm.Summary.Vm = &vm.Self
+	vm.Summary.Storage = &types.VirtualMachineStorageSummary{
+		Timestamp: time.Now(),
+	}
 
 	// Append VM Name as the directory name if not specified
 	if strings.HasSuffix(spec.Files.VmPathName, "]") { // e.g. "[datastore1]"
@@ -115,6 +127,12 @@ func (vm *VirtualMachine) apply(spec *types.VirtualMachineConfigSpec) {
 		src string
 		dst *string
 	}{
+		{spec.AlternateGuestName, &vm.Config.AlternateGuestName},
+		{spec.Annotation, &vm.Config.Annotation},
+		{spec.Firmware, &vm.Config.Firmware},
+		{spec.InstanceUuid, &vm.Config.InstanceUuid},
+		{spec.LocationId, &vm.Config.LocationId},
+		{spec.NpivWorldWideNameType, &vm.Config.NpivWorldWideNameType},
 		{spec.Name, &vm.Name},
 		{spec.Name, &vm.Config.Name},
 		{spec.Name, &vm.Summary.Config.Name},
@@ -137,6 +155,76 @@ func (vm *VirtualMachine) apply(spec *types.VirtualMachineConfigSpec) {
 		}
 	}
 
+	applyb := []struct {
+		src *bool
+		dst **bool
+	}{
+		{spec.NestedHVEnabled, &vm.Config.NestedHVEnabled},
+		{spec.CpuHotAddEnabled, &vm.Config.CpuHotAddEnabled},
+		{spec.CpuHotRemoveEnabled, &vm.Config.CpuHotRemoveEnabled},
+		{spec.GuestAutoLockEnabled, &vm.Config.GuestAutoLockEnabled},
+		{spec.MemoryHotAddEnabled, &vm.Config.MemoryHotAddEnabled},
+		{spec.MemoryReservationLockedToMax, &vm.Config.MemoryReservationLockedToMax},
+		{spec.MessageBusTunnelEnabled, &vm.Config.MessageBusTunnelEnabled},
+		{spec.NpivTemporaryDisabled, &vm.Config.NpivTemporaryDisabled},
+		{spec.NpivOnNonRdmDisks, &vm.Config.NpivOnNonRdmDisks},
+		{spec.ChangeTrackingEnabled, &vm.Config.ChangeTrackingEnabled},
+	}
+
+	for _, f := range applyb {
+		if f.src != nil {
+			*f.dst = f.src
+		}
+	}
+
+	if spec.Flags != nil {
+		vm.Config.Flags = *spec.Flags
+	}
+
+	if spec.LatencySensitivity != nil {
+		vm.Config.LatencySensitivity = spec.LatencySensitivity
+	}
+
+	if spec.ManagedBy != nil {
+		vm.Config.ManagedBy = spec.ManagedBy
+	}
+
+	if spec.BootOptions != nil {
+		vm.Config.BootOptions = spec.BootOptions
+	}
+
+	if spec.RepConfig != nil {
+		vm.Config.RepConfig = spec.RepConfig
+	}
+
+	if spec.Tools != nil {
+		vm.Config.Tools = spec.Tools
+	}
+
+	if spec.ConsolePreferences != nil {
+		vm.Config.ConsolePreferences = spec.ConsolePreferences
+	}
+
+	if spec.CpuAffinity != nil {
+		vm.Config.CpuAffinity = spec.CpuAffinity
+	}
+
+	if spec.CpuAllocation != nil {
+		vm.Config.CpuAllocation = spec.CpuAllocation
+	}
+
+	if spec.MemoryAffinity != nil {
+		vm.Config.MemoryAffinity = spec.MemoryAffinity
+	}
+
+	if spec.MemoryAllocation != nil {
+		vm.Config.MemoryAllocation = spec.MemoryAllocation
+	}
+
+	if spec.LatencySensitivity != nil {
+		vm.Config.LatencySensitivity = spec.LatencySensitivity
+	}
+
 	if spec.MemoryMB != 0 {
 		vm.Config.Hardware.MemoryMB = int32(spec.MemoryMB)
 		vm.Summary.Config.MemorySizeMB = vm.Config.Hardware.MemoryMB
@@ -147,6 +235,10 @@ func (vm *VirtualMachine) apply(spec *types.VirtualMachineConfigSpec) {
 		vm.Summary.Config.NumCpu = vm.Config.Hardware.NumCPU
 	}
 
+	if spec.NumCoresPerSocket != 0 {
+		vm.Config.Hardware.NumCoresPerSocket = spec.NumCoresPerSocket
+	}
+
 	vm.Config.ExtraConfig = append(vm.Config.ExtraConfig, spec.ExtraConfig...)
 
 	vm.Config.Modified = time.Now()
@@ -154,8 +246,36 @@ func (vm *VirtualMachine) apply(spec *types.VirtualMachineConfigSpec) {
 	vm.Summary.Config.Uuid = vm.Config.Uuid
 }
 
+func validateGuestID(id string) types.BaseMethodFault {
+	for _, x := range GuestID {
+		if id == string(x) {
+			return nil
+		}
+	}
+
+	return &types.InvalidArgument{InvalidProperty: "configSpec.guestId"}
+}
+
 func (vm *VirtualMachine) configure(spec *types.VirtualMachineConfigSpec) types.BaseMethodFault {
 	vm.apply(spec)
+
+	if spec.MemoryAllocation != nil {
+		if err := updateResourceAllocation("memory", spec.MemoryAllocation, vm.Config.MemoryAllocation); err != nil {
+			return err
+		}
+	}
+
+	if spec.CpuAllocation != nil {
+		if err := updateResourceAllocation("cpu", spec.CpuAllocation, vm.Config.CpuAllocation); err != nil {
+			return err
+		}
+	}
+
+	if spec.GuestId != "" {
+		if err := validateGuestID(spec.GuestId); err != nil {
+			return err
+		}
+	}
 
 	return vm.configureDevices(spec)
 }
@@ -481,33 +601,25 @@ func (c *powerVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 }
 
 func (vm *VirtualMachine) PowerOnVMTask(c *types.PowerOnVM_Task) soap.HasFault {
-	r := &methods.PowerOnVM_TaskBody{}
-
 	runner := &powerVMTask{vm, types.VirtualMachinePowerStatePoweredOn}
 	task := CreateTask(runner.Reference(), "powerOn", runner.Run)
 
-	r.Res = &types.PowerOnVM_TaskResponse{
-		Returnval: task.Self,
+	return &methods.PowerOnVM_TaskBody{
+		Res: &types.PowerOnVM_TaskResponse{
+			Returnval: task.Run(),
+		},
 	}
-
-	task.Run()
-
-	return r
 }
 
 func (vm *VirtualMachine) PowerOffVMTask(c *types.PowerOffVM_Task) soap.HasFault {
-	r := &methods.PowerOffVM_TaskBody{}
-
 	runner := &powerVMTask{vm, types.VirtualMachinePowerStatePoweredOff}
 	task := CreateTask(runner.Reference(), "powerOff", runner.Run)
 
-	r.Res = &types.PowerOffVM_TaskResponse{
-		Returnval: task.Self,
+	return &methods.PowerOffVM_TaskBody{
+		Res: &types.PowerOffVM_TaskResponse{
+			Returnval: task.Run(),
+		},
 	}
-
-	task.Run()
-
-	return r
 }
 
 func (vm *VirtualMachine) ReconfigVMTask(req *types.ReconfigVM_Task) soap.HasFault {
@@ -520,11 +632,9 @@ func (vm *VirtualMachine) ReconfigVMTask(req *types.ReconfigVM_Task) soap.HasFau
 		return nil, nil
 	})
 
-	task.Run()
-
 	return &methods.ReconfigVM_TaskBody{
 		Res: &types.ReconfigVM_TaskResponse{
-			Returnval: task.Self,
+			Returnval: task.Run(),
 		},
 	}
 }
@@ -552,11 +662,9 @@ func (vm *VirtualMachine) DestroyTask(req *types.Destroy_Task) soap.HasFault {
 		return nil, nil
 	})
 
-	task.Run()
-
 	return &methods.Destroy_TaskBody{
 		Res: &types.Destroy_TaskResponse{
-			Returnval: task.Self,
+			Returnval: task.Run(),
 		},
 	}
 }
@@ -623,11 +731,9 @@ func (vm *VirtualMachine) CloneVMTask(req *types.CloneVM_Task) soap.HasFault {
 		return ctask.Info.Result.(types.ManagedObjectReference), nil
 	})
 
-	task.Run()
-
 	return &methods.CloneVM_TaskBody{
 		Res: &types.CloneVM_TaskResponse{
-			Returnval: task.Self,
+			Returnval: task.Run(),
 		},
 	}
 }
@@ -660,11 +766,9 @@ func (vm *VirtualMachine) RelocateVMTask(req *types.RelocateVM_Task) soap.HasFau
 		return nil, nil
 	})
 
-	task.Run()
-
 	return &methods.RelocateVM_TaskBody{
 		Res: &types.RelocateVM_TaskResponse{
-			Returnval: task.Self,
+			Returnval: task.Run(),
 		},
 	}
 }
@@ -710,11 +814,9 @@ func (vm *VirtualMachine) CreateSnapshotTask(req *types.CreateSnapshot_Task) soa
 		return nil, nil
 	})
 
-	task.Run()
-
 	return &methods.CreateSnapshot_TaskBody{
 		Res: &types.CreateSnapshot_TaskResponse{
-			Returnval: task.Self,
+			Returnval: task.Run(),
 		},
 	}
 }
@@ -732,10 +834,8 @@ func (vm *VirtualMachine) RevertToCurrentSnapshotTask(req *types.RevertToCurrent
 		return nil, nil
 	})
 
-	task.Run()
-
 	body.Res = &types.RevertToCurrentSnapshot_TaskResponse{
-		Returnval: task.Self,
+		Returnval: task.Run(),
 	}
 
 	return body
@@ -759,11 +859,9 @@ func (vm *VirtualMachine) RemoveAllSnapshotsTask(req *types.RemoveAllSnapshots_T
 		return nil, nil
 	})
 
-	task.Run()
-
 	return &methods.RemoveAllSnapshots_TaskBody{
 		Res: &types.RemoveAllSnapshots_TaskResponse{
-			Returnval: task.Self,
+			Returnval: task.Run(),
 		},
 	}
 }

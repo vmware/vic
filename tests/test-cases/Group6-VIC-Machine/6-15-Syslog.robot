@@ -66,7 +66,7 @@ Verify VCH remote syslog
 
     ${syslog-conn}=  Open Connection  %{SYSLOG_SERVER}
     Login  %{SYSLOG_USER}  %{SYSLOG_PASSWD}
-    ${out}=  Execute Command  cat ${SYSLOG_FILE}
+    ${out}=  Wait Until Keyword Succeeds  10x  3s  Execute Command  cat ${SYSLOG_FILE}
     Close Connection
     Log  ${out}
 
@@ -77,6 +77,8 @@ Verify VCH remote syslog
     \     Should Contain  ${out}  ${host} ${proc}[${pid}]:
 
     ${pid}=  Get From Dictionary  ${proc-pids}  docker-engine-server
+    ${port-layer-pid}=  Get From Dictionary  ${proc-pids}  port-layer-server
+    ${vic-admin-pid}=  Get From Dictionary  ${proc-pids}  vicadmin
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling GET /v\\d.\\d{2}/containers/json\\?all\\=1
 
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling POST /v\\d.\\d{2}/containers/create
@@ -90,6 +92,11 @@ Verify VCH remote syslog
 
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling DELETE /v\\d.\\d{2}/containers/\\w{64}
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling DELETE /v\\d.\\d{2}/images/(\\S+)*busybox
+
+    # Check trace logger for docker-engine and port-layer
+    Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: op=${pid}.\\d+: Commit container \\w{64}
+    Should Match Regexp  ${out}  ${vch-ip} port-layer-server\\[${port-layer-pid}\\]: op=${port-layer-pid}.\\d+: Creating base file structure on disk
+    Should Match Regexp  ${out}  ${vch-ip} vicadmin\\[${vic-admin-pid}\\]: op=${vic-admin-pid}.\\d+: vSphere resource cache populating...
 
     Should Match Regexp  ${out}  ${shortID} ${shortID}\\[1\\]: bin
     Should Match Regexp  ${out}  ${shortID} ${shortID}\\[1\\]: home

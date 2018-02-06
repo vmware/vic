@@ -465,6 +465,20 @@ func (v VirtualMachine) Answer(ctx context.Context, id, answer string) error {
 	return nil
 }
 
+func (v VirtualMachine) AcquireTicket(ctx context.Context, kind string) (*types.VirtualMachineTicket, error) {
+	req := types.AcquireTicket{
+		This:       v.Reference(),
+		TicketType: kind,
+	}
+
+	res, err := methods.AcquireTicket(ctx, v.c, &req)
+	if err != nil {
+		return nil, err
+	}
+
+	return &res.Returnval, nil
+}
+
 // CreateSnapshot creates a new snapshot of a virtual machine.
 func (v VirtualMachine) CreateSnapshot(ctx context.Context, name string, description string, memory bool, quiesce bool) (*Task, error) {
 	req := types.CreateSnapshot_Task{
@@ -770,4 +784,18 @@ func (v VirtualMachine) Export(ctx context.Context) (*nfc.Lease, error) {
 	}
 
 	return nfc.NewLease(v.c, res.Returnval), nil
+}
+
+func (v VirtualMachine) UpgradeVM(ctx context.Context, version string) (*Task, error) {
+	req := types.UpgradeVM_Task{
+		This:    v.Reference(),
+		Version: version,
+	}
+
+	res, err := methods.UpgradeVM_Task(ctx, v.Client(), &req)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewTask(v.c, res.Returnval), nil
 }

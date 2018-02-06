@@ -48,7 +48,8 @@ Create VCH - custom base disk
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --base-image-size=6GB ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    # Deploy vic-machine with debug enabled to attempt to cache #7047
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --debug=1 --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --base-image-size=6GB ${vicmachinetls} --insecure-registry harbor.ci.drone.local
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
@@ -199,12 +200,12 @@ Create VCH - Existing VCH name
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} ${vicmachinetls}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} ${vicmachinetls}
     Should Contain  ${output}  already exists. Please delete it before reinstalling.
 
     Cleanup VIC Appliance On Test Server
@@ -254,8 +255,22 @@ Create VCH - Existing RP on ESX
     ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy %{TEST_RESOURCE}/%{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
 
-Create VCH - Existing vApp on vCenter
-    Pass execution  Test not implemented
+Creation log file uploaded to datastore
+
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+
+    ${filename}=  Run  GOVC_DATASTORE=%{TEST_DATASTORE} govc datastore.ls %{VCH-NAME} | grep vic-machine_
+    Should Not Be Empty  ${filename}
+    ${output}=  Run  govc datastore.tail -n 1 "%{VCH-NAME}/${filename}"
+    Should Contain  ${output}  Installer completed successfully
+
+    Cleanup VIC Appliance On Test Server
 
 Basic timeout
     Set Test Environment Variables
@@ -275,9 +290,6 @@ Basic VCH resource config
     Pass execution  Test not implemented
 
 Invalid VCH resource config
-    Pass execution  Test not implemented
-
-Use resource pool
     Pass execution  Test not implemented
 
 CPU reservation shares invalid

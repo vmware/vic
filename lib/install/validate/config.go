@@ -15,12 +15,9 @@
 package validate
 
 import (
+	"context"
 	"fmt"
 	"net"
-
-	"context"
-
-	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/govc/host/esxcli"
 	"github.com/vmware/govmomi/license"
@@ -32,7 +29,10 @@ import (
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/optmanager"
 )
+
+const persistNetworkBackingKey = "config.vpxd.SerialPort.PersistNetworkBacking"
 
 type FirewallStatus struct {
 	Rule                          types.HostFirewallRule
@@ -88,18 +88,20 @@ func (e *FirewallMisconfiguredAllowedIPError) Error() string {
 
 // CheckFirewall verifies that host firewall configuration allows tether traffic and outputs results
 func (v *Validator) CheckFirewall(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) {
-	defer trace.End(trace.Begin(""))
+	op := trace.FromContext(ctx, "CheckFirewall")
+	defer trace.End(trace.Begin("", op))
 
 	mgmtIP := v.GetMgmtIP(conf)
-	log.Debugf("Checking firewall with management network IP %s", mgmtIP)
-	fwStatus := v.CheckFirewallForTether(ctx, mgmtIP)
+	op.Debugf("Checking firewall with management network IP %s", mgmtIP)
+	fwStatus := v.CheckFirewallForTether(op, mgmtIP)
 
 	// log the results
-	v.FirewallCheckOutput(fwStatus)
+	v.FirewallCheckOutput(op, fwStatus)
 }
 
 // CheckFirewallForTether which host firewalls are configured to allow tether traffic
 func (v *Validator) CheckFirewallForTether(ctx context.Context, mgmtIP net.IPNet) FirewallStatus {
+	op := trace.FromContext(ctx, "CheckFirewallForTether")
 
 	var hosts []*object.HostSystem
 	var err error
@@ -114,24 +116,24 @@ func (v *Validator) CheckFirewallForTether(ctx context.Context, mgmtIP net.IPNet
 	status := FirewallStatus{Rule: requiredRule}
 
 	errMsg := "Firewall check SKIPPED"
-	if !v.sessionValid(errMsg) {
+	if !v.sessionValid(op, errMsg) {
 		return status
 	}
 
-	if hosts, err = v.Session.Datastore.AttachedClusterHosts(ctx, v.Session.Cluster); err != nil {
-		log.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
+	if hosts, err = v.Session.Datastore.AttachedClusterHosts(op, v.Session.Cluster); err != nil {
+		op.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
 		v.NoteIssue(err)
 		return status
 	}
 
 	for _, host := range hosts {
-		firewallEnabled, err := v.FirewallEnabled(host)
+		firewallEnabled, err := v.firewallEnabled(op, host)
 		if err != nil {
 			v.NoteIssue(err)
 			break
 		}
 
-		mgmtAllowed, err := v.ManagementNetAllowed(ctx, mgmtIP, host, requiredRule)
+		mgmtAllowed, err := v.ManagementNetAllowed(op, mgmtIP, host, requiredRule)
 		if mgmtAllowed && err == nil {
 			status.Correct = append(status.Correct, host.InventoryPath)
 		}
@@ -139,40 +141,40 @@ func (v *Validator) CheckFirewallForTether(ctx context.Context, mgmtIP net.IPNet
 			switch err.(type) {
 			case *FirewallMisconfiguredError:
 				if firewallEnabled {
-					log.Debugf("fw misconfigured with fw enabled %q", host.InventoryPath)
+					op.Debugf("fw misconfigured with fw enabled %q", host.InventoryPath)
 					status.MisconfiguredEnabled = append(status.MisconfiguredEnabled, host.InventoryPath)
 				} else {
-					log.Debugf("fw misconfigured with fw disabled %q", host.InventoryPath)
+					op.Debugf("fw misconfigured with fw disabled %q", host.InventoryPath)
 					status.MisconfiguredDisabled = append(status.MisconfiguredDisabled, host.InventoryPath)
 				}
 			case *FirewallUnknownDHCPAllowedIPError:
 				if firewallEnabled {
-					log.Debugf("fw unknown (dhcp) with fw enabled %q", host.InventoryPath)
+					op.Debugf("fw unknown (dhcp) with fw enabled %q", host.InventoryPath)
 					status.UnknownEnabled = append(status.UnknownEnabled, host.InventoryPath)
 				} else {
-					log.Debugf("fw unknown (dhcp) with fw disabled %q", host.InventoryPath)
+					op.Debugf("fw unknown (dhcp) with fw disabled %q", host.InventoryPath)
 					status.UnknownDisabled = append(status.UnknownDisabled, host.InventoryPath)
 				}
-				log.Warn(err)
+				op.Warn(err)
 			case *FirewallMisconfiguredAllowedIPError:
 				if firewallEnabled {
-					log.Debugf("fw misconfigured allowed IP with fw enabled %q", host.InventoryPath)
+					op.Debugf("fw misconfigured allowed IP with fw enabled %q", host.InventoryPath)
 					status.MisconfiguredAllowedIPEnabled = append(status.MisconfiguredAllowedIPEnabled, host.InventoryPath)
-					log.Error(err)
+					op.Error(err)
 				} else {
-					log.Debugf("fw misconfigured allowed IP with fw disabled %q", host.InventoryPath)
+					op.Debugf("fw misconfigured allowed IP with fw disabled %q", host.InventoryPath)
 					status.MisconfiguredDisabled = append(status.MisconfiguredDisabled, host.InventoryPath)
-					log.Warn(err)
+					op.Warn(err)
 				}
 			case *FirewallConfigUnavailableError:
 				if firewallEnabled {
-					log.Debugf("fw configuration unavailable %q", host.InventoryPath)
+					op.Debugf("fw configuration unavailable %q", host.InventoryPath)
 					status.UnknownEnabled = append(status.UnknownEnabled, host.InventoryPath)
-					log.Error(err)
+					op.Error(err)
 				} else {
-					log.Debugf("fw configuration unavailable %q", host.InventoryPath)
+					op.Debugf("fw configuration unavailable %q", host.InventoryPath)
 					status.UnknownDisabled = append(status.UnknownDisabled, host.InventoryPath)
-					log.Warn(err)
+					op.Warn(err)
 				}
 			default:
 				v.NoteIssue(err)
@@ -186,67 +188,69 @@ func (v *Validator) CheckFirewallForTether(ctx context.Context, mgmtIP net.IPNet
 
 // FirewallCheckOutput outputs firewall status messages associated
 // with the hosts in each of the status categories
-func (v *Validator) FirewallCheckOutput(status FirewallStatus) {
+func (v *Validator) FirewallCheckOutput(ctx context.Context, status FirewallStatus) {
+	op := trace.FromContext(ctx, "FirewallCheckOutput")
+
 	var err error
 	// TODO: when we can intelligently place containerVMs on hosts with proper config, install
 	// can proceed if there is at least one host properly configured. For now this prevents install.
 	if len(status.Correct) > 0 {
-		log.Info("Firewall configuration OK on hosts:")
+		op.Info("Firewall configuration OK on hosts:")
 		for _, h := range status.Correct {
-			log.Infof("\t%q", h)
+			op.Infof("\t%q", h)
 		}
 	}
 	if len(status.MisconfiguredEnabled) > 0 {
-		log.Error("Firewall configuration incorrect on hosts:")
+		op.Error("Firewall configuration incorrect on hosts:")
 		for _, h := range status.MisconfiguredEnabled {
-			log.Errorf("\t%q", h)
+			op.Errorf("\t%q", h)
 		}
 		err = fmt.Errorf("Firewall must permit %s %d/%s %s to the VCH management interface",
 			status.Rule.PortType, status.Rule.Port, status.Rule.Protocol, status.Rule.Direction)
-		log.Error(err)
+		op.Error(err)
 		v.NoteIssue(err)
 	}
 	if len(status.MisconfiguredAllowedIPEnabled) > 0 {
-		log.Error("Firewall configuration incorrect due to allowed IP restrictions on hosts:")
+		op.Error("Firewall configuration incorrect due to allowed IP restrictions on hosts:")
 		for _, h := range status.MisconfiguredAllowedIPEnabled {
-			log.Errorf("\t%q", h)
+			op.Errorf("\t%q", h)
 		}
 		err = fmt.Errorf("Firewall must permit %s %d/%s %s to the VCH management interface",
 			status.Rule.PortType, status.Rule.Port, status.Rule.Protocol, status.Rule.Direction)
-		log.Error(err)
+		op.Error(err)
 		v.NoteIssue(err)
 	}
 	if len(status.MisconfiguredDisabled) > 0 {
-		log.Warning("Firewall configuration will be incorrect if firewall is reenabled on hosts:")
+		op.Warn("Firewall configuration will be incorrect if firewall is reenabled on hosts:")
 		for _, h := range status.MisconfiguredDisabled {
-			log.Warningf("\t%q", h)
+			op.Warnf("\t%q", h)
 		}
-		log.Infof("Firewall must permit %s %d/%s %s to VCH management interface if firewall is reenabled",
+		op.Infof("Firewall must permit %s %d/%s %s to VCH management interface if firewall is reenabled",
 			status.Rule.PortType, status.Rule.Port, status.Rule.Protocol, status.Rule.Direction)
 	}
 
 	preMsg := "Firewall allowed IP configuration may prevent required connection on hosts:"
 	postMsg := fmt.Sprintf("Firewall must permit %s %d/%s %s to the VCH management interface",
 		status.Rule.PortType, status.Rule.Port, status.Rule.Protocol, status.Rule.Direction)
-	v.FirewallCheckDHCPMessage(status.UnknownEnabled, preMsg, postMsg)
+	v.firewallCheckDHCPMessage(op, status.UnknownEnabled, preMsg, postMsg)
 
 	preMsg = "Firewall configuration may be incorrect if firewall is reenabled on hosts:"
 	postMsg = fmt.Sprintf("Firewall must permit %s %d/%s %s to the VCH management interface if firewall is reenabled",
 		status.Rule.PortType, status.Rule.Port, status.Rule.Protocol, status.Rule.Direction)
-	v.FirewallCheckDHCPMessage(status.UnknownDisabled, preMsg, postMsg)
+	v.firewallCheckDHCPMessage(op, status.UnknownDisabled, preMsg, postMsg)
 }
 
-// FirewallCheckDHCPMessage outputs warning message when we are unable to check
+// firewallCheckDHCPMessage outputs warning message when we are unable to check
 // that the management interface is allowed by the host firewall allowed IP rules due to DHCP
-func (v *Validator) FirewallCheckDHCPMessage(hosts []string, preMsg, postMsg string) {
+func (v *Validator) firewallCheckDHCPMessage(op trace.Operation, hosts []string, preMsg, postMsg string) {
 	if len(hosts) > 0 {
-		log.Warn("Unable to fully verify firewall configuration due to DHCP use on management network")
-		log.Warn("VCH management interface IP assigned by DHCP must be permitted by allowed IP settings")
-		log.Warn(preMsg)
+		op.Warn("Unable to fully verify firewall configuration due to DHCP use on management network")
+		op.Warn("VCH management interface IP assigned by DHCP must be permitted by allowed IP settings")
+		op.Warn(preMsg)
 		for _, h := range hosts {
-			log.Warningf("\t%q", h)
+			op.Warnf("\t%q", h)
 		}
-		log.Infof(postMsg)
+		op.Info(postMsg)
 	}
 }
 
@@ -281,7 +285,7 @@ func isMethodNotFoundError(err error) bool {
 }
 
 // FirewallEnabled checks if the host firewall is enabled
-func (v *Validator) FirewallEnabled(host *object.HostSystem) (bool, error) {
+func (v *Validator) firewallEnabled(op trace.Operation, host *object.HostSystem) (bool, error) {
 	esxfw, err := esxcli.GetFirewallInfo(host)
 	if err != nil {
 		if isMethodNotFoundError(err) {
@@ -290,10 +294,10 @@ func (v *Validator) FirewallEnabled(host *object.HostSystem) (bool, error) {
 		return false, err
 	}
 	if esxfw.Enabled {
-		log.Infof("Firewall status: ENABLED on %q", host.InventoryPath)
+		op.Infof("Firewall status: ENABLED on %q", host.InventoryPath)
 		return true, nil
 	}
-	log.Infof("Firewall status: DISABLED on %q", host.InventoryPath)
+	op.Infof("Firewall status: DISABLED on %q", host.InventoryPath)
 	return false, nil
 }
 
@@ -316,12 +320,13 @@ func (v *Validator) GetMgmtIP(conf *config.VirtualContainerHostConfigSpec) net.I
 // on the host firewall's allowed IP settings
 func (v *Validator) ManagementNetAllowed(ctx context.Context, mgmtIP net.IPNet,
 	host *object.HostSystem, requiredRule types.HostFirewallRule) (bool, error) {
+	op := trace.FromContext(ctx, "ManagementNetAllowed")
 
-	fs, err := host.ConfigManager().FirewallSystem(ctx)
+	fs, err := host.ConfigManager().FirewallSystem(op)
 	if err != nil {
 		return false, err
 	}
-	info, err := fs.Info(ctx)
+	info, err := fs.Info(op)
 	if err != nil {
 		return false, err
 	}
@@ -336,13 +341,13 @@ func (v *Validator) ManagementNetAllowed(ctx context.Context, mgmtIP net.IPNet,
 	if err != nil {                                            // rule not enabled (fw is misconfigured)
 		return false, &FirewallMisconfiguredError{Host: host.InventoryPath, Rule: requiredRule}
 	}
-	log.Debugf("filtered rules: %v", filteredRules)
+	op.Debugf("filtered rules: %v", filteredRules)
 
 	// check that allowed IPs permit management IP
 	var allowedIPs []string
 	var allowedNets []string
 	for _, r := range filteredRules {
-		log.Debugf("filtered IPs: %v networks: %v allIP: %v rule: %v",
+		op.Debugf("filtered IPs: %v networks: %v allIP: %v rule: %v",
 			r.AllowedHosts.IpAddress, r.AllowedHosts.IpNetwork, r.AllowedHosts.AllIp, r.Key)
 
 		if r.AllowedHosts.AllIp { // this rule allows all hosts
@@ -380,20 +385,22 @@ func (v *Validator) ManagementNetAllowed(ctx context.Context, mgmtIP net.IPNet,
 }
 
 func (v *Validator) CheckLicense(ctx context.Context) {
+	op := trace.FromContext(ctx, "CheckLicense")
+
 	var err error
 
 	errMsg := "License check SKIPPED"
-	if !v.sessionValid(errMsg) {
+	if !v.sessionValid(op, errMsg) {
 		return
 	}
 
 	if v.IsVC() {
-		if err = v.checkAssignedLicenses(ctx); err != nil {
+		if err = v.checkAssignedLicenses(op); err != nil {
 			v.NoteIssue(err)
 			return
 		}
 	} else {
-		if err = v.checkLicense(ctx); err != nil {
+		if err = v.checkLicense(op); err != nil {
 			v.NoteIssue(err)
 			return
 		}
@@ -409,21 +416,21 @@ func (v *Validator) assignedLicenseHasFeature(la []types.LicenseAssignmentManage
 	return false
 }
 
-func (v *Validator) checkAssignedLicenses(ctx context.Context) error {
+func (v *Validator) checkAssignedLicenses(op trace.Operation) error {
 	var hosts []*object.HostSystem
 	var invalidLic []string
 	var validLic []string
 	var err error
 	client := v.Session.Client.Client
 
-	if hosts, err = v.Session.Datastore.AttachedClusterHosts(ctx, v.Session.Cluster); err != nil {
-		log.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
+	if hosts, err = v.Session.Datastore.AttachedClusterHosts(op, v.Session.Cluster); err != nil {
+		op.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
 		return err
 	}
 
 	lm := license.NewManager(client)
 
-	am, err := lm.AssignmentManager(ctx)
+	am, err := lm.AssignmentManager(op)
 	if err != nil {
 		return err
 	}
@@ -432,7 +439,7 @@ func (v *Validator) checkAssignedLicenses(ctx context.Context) error {
 
 	for _, host := range hosts {
 		valid := true
-		la, err := am.QueryAssigned(ctx, host.Reference().Value)
+		la, err := am.QueryAssigned(op, host.Reference().Value)
 		if err != nil {
 			return err
 		}
@@ -451,15 +458,15 @@ func (v *Validator) checkAssignedLicenses(ctx context.Context) error {
 	}
 
 	if len(validLic) > 0 {
-		log.Infof("License check OK on hosts:")
+		op.Info("License check OK on hosts:")
 		for _, h := range validLic {
-			log.Infof("  %q", h)
+			op.Infof("  %q", h)
 		}
 	}
 	if len(invalidLic) > 0 {
-		log.Errorf("License check FAILED on hosts:")
+		op.Error("License check FAILED on hosts:")
 		for _, h := range invalidLic {
-			log.Errorf("  %q", h)
+			op.Errorf("  %q", h)
 		}
 		msg := "License does not meet minimum requirements to use VIC"
 		return errors.New(msg)
@@ -467,16 +474,16 @@ func (v *Validator) checkAssignedLicenses(ctx context.Context) error {
 	return nil
 }
 
-func (v *Validator) checkLicense(ctx context.Context) error {
+func (v *Validator) checkLicense(op trace.Operation) error {
 	var invalidLic []string
 	client := v.Session.Client.Client
 
 	lm := license.NewManager(client)
-	licenses, err := lm.List(ctx)
+	licenses, err := lm.List(op)
 	if err != nil {
 		return err
 	}
-	v.checkEvalLicense(licenses)
+	v.checkEvalLicense(op, licenses)
 
 	features := []string{"serialuri"}
 
@@ -488,21 +495,21 @@ func (v *Validator) checkLicense(ctx context.Context) error {
 	}
 
 	if len(invalidLic) > 0 {
-		log.Errorf("License check FAILED:")
+		op.Error("License check FAILED:")
 		for _, h := range invalidLic {
-			log.Errorf("  %q", h)
+			op.Errorf("  %q", h)
 		}
 		msg := "License does not meet minimum requirements to use VIC"
 		return errors.New(msg)
 	}
-	log.Infof("License check OK")
+	op.Info("License check OK")
 	return nil
 }
 
-func (v *Validator) checkEvalLicense(licenses []types.LicenseManagerLicenseInfo) {
+func (v *Validator) checkEvalLicense(op trace.Operation, licenses []types.LicenseManagerLicenseInfo) {
 	for _, l := range licenses {
 		if l.EditionKey == "eval" {
-			log.Warning("Evaluation license detected. VIC may not function if evaluation expires or insufficient license is later assigned.")
+			op.Warn("Evaluation license detected. VIC may not function if evaluation expires or insufficient license is later assigned.")
 		}
 	}
 }
@@ -522,10 +529,11 @@ func (v *Validator) CheckDrs(ctx context.Context) {
 	if v.DisableDRSCheck {
 		return
 	}
-	defer trace.End(trace.Begin(""))
+	op := trace.FromContext(ctx, "CheckDrs")
+	defer trace.End(trace.Begin("", op))
 
 	errMsg := "DRS check SKIPPED"
-	if !v.sessionValid(errMsg) {
+	if !v.sessionValid(op, errMsg) {
 		return
 	}
 
@@ -533,13 +541,13 @@ func (v *Validator) CheckDrs(ctx context.Context) {
 	ref := cl.Reference()
 
 	if v.isStandaloneHost() {
-		log.Info("DRS check SKIPPED - target is standalone host")
+		op.Info("DRS check SKIPPED - target is standalone host")
 		return
 	}
 
 	var ccr mo.ClusterComputeResource
 
-	err := cl.Properties(ctx, ref, []string{"configurationEx"}, &ccr)
+	err := cl.Properties(op, ref, []string{"configurationEx"}, &ccr)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to validate DRS config: %s", err)
 		v.NoteIssue(errors.New(msg))
@@ -549,11 +557,42 @@ func (v *Validator) CheckDrs(ctx context.Context) {
 	z := ccr.ConfigurationEx.(*types.ClusterConfigInfoEx).DrsConfig
 
 	if !(*z.Enabled) {
-		log.Error("DRS check FAILED")
-		log.Errorf("  DRS must be enabled on cluster %q", v.Session.Cluster.InventoryPath)
+		op.Error("DRS check FAILED")
+		op.Errorf("  DRS must be enabled on cluster %q", v.Session.Cluster.InventoryPath)
 		v.NoteIssue(errors.New("DRS must be enabled to use VIC"))
 		return
 	}
-	log.Info("DRS check OK on:")
-	log.Infof("  %q", v.Session.Cluster.InventoryPath)
+	op.Info("DRS check OK on:")
+	op.Infof("  %q", v.Session.Cluster.InventoryPath)
+}
+
+// check that PersistNetworkBacking is set
+func (v *Validator) CheckPersistNetworkBacking(ctx context.Context, quiet bool) bool {
+	op := trace.FromContext(ctx, "Check vCenter serial port backing")
+	defer trace.End(trace.Begin("", op))
+
+	errMsg := "vCenter settings check SKIPPED"
+	if !v.sessionValid(op, errMsg) {
+		return false
+	}
+	if !v.IsVC() {
+		op.Debug(errMsg)
+		return true
+	}
+
+	val, err := optmanager.QueryOptionValue(ctx, v.Session, persistNetworkBackingKey)
+	if err != nil {
+		// the key is not set
+		val = "false"
+	}
+	if val != "true" {
+		if !quiet {
+			op.Errorf("vCenter settings check FAILED")
+			msg := fmt.Sprintf("vCenter advanced option %s=true must be set", persistNetworkBackingKey)
+			v.NoteIssue(errors.New(msg))
+		}
+		return false
+	}
+	op.Infof("vCenter settings check OK")
+	return true
 }

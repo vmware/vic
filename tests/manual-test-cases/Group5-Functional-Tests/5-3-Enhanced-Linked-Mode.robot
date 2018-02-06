@@ -29,6 +29,7 @@ Combine Dictionaries
     [Return]  ${dict1}
 
 Enhanced Link Mode Setup
+    [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${name}=  Evaluate  'els-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${user}  %{NIMBUS_USER}
@@ -93,6 +94,7 @@ Enhanced Link Mode Setup
     \   Set Environment Variable  GOVC_URL  root:@${ip}
     \   Wait Until Keyword Succeeds  10x  3 minutes  Change ESXi Server Password  e2eFunctionalTest
     \   ${license}=  Run  govc license.ls
+    \   Check License Features
 
     Set Environment Variable  GOVC_URL  ${vc1-ip}
     Set Environment Variable  GOVC_USERNAME  administrator@vsphere.local

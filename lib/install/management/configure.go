@@ -23,14 +23,13 @@ import (
 	"reflect"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/opsuser"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
@@ -55,17 +54,17 @@ var (
 
 // Configure will try to reconfigure vch appliance. If failed will try to roll back to original status.
 func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData, isConfigureOp bool) (err error) {
-	defer trace.End(trace.Begin(conf.Name))
+	defer trace.End(trace.Begin(conf.Name, d.op))
 
 	d.appliance = vch
 
 	// update the displayname to the actual folder name used
-	if d.vmPathName, err = d.appliance.FolderName(d.ctx); err != nil {
-		log.Errorf("Failed to get canonical name for appliance: %s", err)
+	if d.vmPathName, err = d.appliance.FolderName(d.op); err != nil {
+		d.op.Errorf("Failed to get canonical name for appliance: %s", err)
 		return err
 	}
 
-	ds, err := d.session.Finder.Datastore(d.ctx, conf.ImageStores[0].Host)
+	ds, err := d.session.Finder.Datastore(d.op, conf.ImageStores[0].Host)
 	if err != nil {
 		err = errors.Errorf("Failed to find image datastore %q", conf.ImageStores[0].Host)
 		return err
@@ -102,7 +101,7 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 
 	// check for old snapshot
 	// #nosec: Errors unhandled.
-	oldSnapshot, _ := d.appliance.GetCurrentSnapshotTree(d.ctx)
+	oldSnapshot, _ := d.appliance.GetCurrentSnapshotTree(d.op)
 
 	newSnapshotRef, err := d.tryCreateSnapshot(snapshotName, "configure snapshot")
 	if err != nil {
@@ -110,46 +109,58 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 		return err
 	}
 
-	if err = d.update(conf, settings, isConfigureOp); err == nil {
-		// compatible with old version's upgrade snapshot name
-		if oldSnapshot != nil && (vm.IsConfigureSnapshot(oldSnapshot, ConfigurePrefix) || vm.IsConfigureSnapshot(oldSnapshot, UpgradePrefix)) {
-			d.retryDeleteSnapshotByRef(&oldSnapshot.Snapshot, oldSnapshot.Name, conf.Name)
+	err = d.update(conf, settings, isConfigureOp)
+
+	// If successful try to grant permissions to the ops-user
+	if err == nil && conf.ShouldGrantPerms() {
+		err = opsuser.GrantOpsUserPerms(d.op, d.session.Vim25(), conf)
+		if err != nil {
+			// Update error message and fall through to roll back
+			err = errors.Errorf("Failed to grant permissions to ops-user, failure: %s", err)
 		}
-		return nil
 	}
 
-	log.Errorf("Failed to upgrade: %s", err)
-	log.Infof("Rolling back upgrade")
+	if err != nil {
+		// Roll back
+		d.op.Errorf("Failed to upgrade: %s", err)
+		d.op.Infof("Rolling back upgrade")
 
-	if rerr := d.rollback(conf, snapshotName, settings); rerr != nil {
-		log.Errorf("Failed to revert appliance to snapshot: %s", rerr)
+		if rerr := d.rollback(conf, snapshotName, settings); rerr != nil {
+			d.op.Errorf("Failed to revert appliance to snapshot: %s", rerr)
+			return err
+		}
+		d.op.Infof("Appliance is rolled back to old version")
+
+		d.deleteUpgradeImages(ds, settings)
+		d.retryDeleteSnapshotByRef(newSnapshotRef, snapshotName, conf.Name)
+
+		// return the error message for upgrade
 		return err
 	}
-	log.Infof("Appliance is rolled back to old version")
 
-	d.deleteUpgradeImages(ds, settings)
-	d.retryDeleteSnapshotByRef(newSnapshotRef, snapshotName, conf.Name)
-
-	// return the error message for upgrade
-	return err
+	// compatible with old version's upgrade snapshot name
+	if oldSnapshot != nil && (vm.IsConfigureSnapshot(oldSnapshot, ConfigurePrefix) || vm.IsConfigureSnapshot(oldSnapshot, UpgradePrefix)) {
+		d.retryDeleteSnapshotByRef(&oldSnapshot.Snapshot, oldSnapshot.Name, conf.Name)
+	}
+	return nil
 }
 
 func (d *Dispatcher) rollbackResourceSettings(poolName string, settings *data.InstallerData) error {
 	if !settings.VCHSizeIsSet || d.oldVCHResources == nil {
-		log.Debugf("VCH resource settings are not changed")
+		d.op.Debug("VCH resource settings are not changed")
 		return nil
 	}
-	return updateResourcePoolConfig(d.ctx, d.vchPool, poolName, d.oldVCHResources)
+	return updateResourcePoolConfig(d.op, d.vchPool, poolName, d.oldVCHResources)
 }
 
 func (d *Dispatcher) updateResourceSettings(poolName string, settings *data.InstallerData) error {
 	if !settings.VCHSizeIsSet {
-		log.Debugf("VCH resource settings are not changed")
+		d.op.Debug("VCH resource settings are not changed")
 		return nil
 	}
 	var err error
 	// compute resource
-	d.vchPool, err = d.appliance.ResourcePool(d.ctx)
+	d.vchPool, err = d.appliance.ResourcePool(d.op)
 	if err != nil {
 		err = errors.Errorf("Failed to get parent resource pool %q: %s", poolName, err)
 		return err
@@ -160,11 +171,11 @@ func (d *Dispatcher) updateResourceSettings(poolName string, settings *data.Inst
 		return err
 	}
 	if reflect.DeepEqual(oldSettings, &settings.VCHSize) {
-		log.Debugf("VCH resource settings are same as old value")
+		d.op.Debug("VCH resource settings are same as old value")
 		return nil
 	}
 	d.oldVCHResources = oldSettings
-	return updateResourcePoolConfig(d.ctx, d.vchPool, poolName, &settings.VCHSize)
+	return updateResourcePoolConfig(d.op, d.vchPool, poolName, &settings.VCHSize)
 }
 
 func (d *Dispatcher) Rollback(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
@@ -180,7 +191,7 @@ func (d *Dispatcher) Rollback(vch *vm.VirtualMachine, conf *config.VirtualContai
 	}
 
 	notfound := "A VCH version available from before the last upgrade could not be found."
-	snapshot, err := d.appliance.GetCurrentSnapshotTree(d.ctx)
+	snapshot, err := d.appliance.GetCurrentSnapshotTree(d.op)
 	if err != nil {
 		return errors.Errorf("%s An error was reported while trying to discover it: %s", notfound, err)
 	}
@@ -205,8 +216,8 @@ func (d *Dispatcher) retryDeleteSnapshotByRef(snapshot *types.ManagedObjectRefer
 	}
 	var err error
 	if err = retry.Do(operation, isSystemError); err != nil {
-		log.Errorf("Failed to clean up appliance upgrade snapshot %q: %s.", snapshotName, err)
-		log.Errorf("Snapshot %q of appliance virtual machine %q MUST be removed manually before upgrade again", snapshotName, applianceName)
+		d.op.Errorf("Failed to clean up appliance upgrade snapshot %q: %s.", snapshotName, err)
+		d.op.Errorf("Snapshot %q of appliance virtual machine %q MUST be removed manually before upgrade again", snapshotName, applianceName)
 	}
 	return err
 }
@@ -234,11 +245,11 @@ func isSystemError(err error) bool {
 }
 
 func (d *Dispatcher) deleteSnapshotByRef(snapshot *types.ManagedObjectReference, snapshotName, applianceName string) error {
-	defer trace.End(trace.Begin(snapshotName))
-	log.Infof("Deleting upgrade snapshot %q", snapshotName)
+	defer trace.End(trace.Begin(snapshotName, d.op))
+	d.op.Infof("Deleting upgrade snapshot %q", snapshotName)
 	// do clean up aggressively, even the previous operation failed with context deadline exceeded.
-	ctx := context.Background()
-	if _, err := d.appliance.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+	op := trace.NewOperationWithLoggerFrom(context.Background(), d.op, "deleteSnapshotByRef cleanup")
+	if _, err := d.appliance.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		consolidate := true
 		return d.appliance.RemoveSnapshotByRef(ctx, snapshot, false, &consolidate)
 	}); err != nil {
@@ -250,13 +261,13 @@ func (d *Dispatcher) deleteSnapshotByRef(snapshot *types.ManagedObjectReference,
 // tryCreateSnapshot try to create upgrade snapshot. It will check if upgrade snapshot already exists. If exists, return error.
 // if succeed, return snapshot refID
 func (d *Dispatcher) tryCreateSnapshot(name, desc string) (*types.ManagedObjectReference, error) {
-	defer trace.End(trace.Begin(name))
+	defer trace.End(trace.Begin(name, d.op))
 
 	// TODO detect whether another upgrade is in progress & bail if it is.
 	// Use solution from https://github.com/vmware/vic/issues/4069 to do this either as part of 4069 or once it's closed
 
-	info, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-		return d.appliance.CreateSnapshot(d.ctx, name, desc, true, false)
+	info, err := d.appliance.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
+		return d.appliance.CreateSnapshot(ctx, name, desc, true, false)
 	})
 	if err != nil {
 		return nil, errors.Errorf("Failed to create upgrade snapshot %q: %s.", name, err)
@@ -265,39 +276,39 @@ func (d *Dispatcher) tryCreateSnapshot(name, desc string) (*types.ManagedObjectR
 }
 
 func (d *Dispatcher) deleteUpgradeImages(ds *object.Datastore, settings *data.InstallerData) {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin("", d.op))
 
-	log.Infof("Deleting upgrade images")
+	d.op.Info("Deleting upgrade images")
 
 	// do clean up aggressively, even the previous operation failed with context deadline exceeded.
-	d.ctx = context.Background()
+	d.op = trace.NewOperation(context.Background(), "deleteUpgradeImages cleanup")
 
 	m := ds.NewFileManager(d.session.Datacenter, true)
 
 	file := ds.Path(path.Join(d.vmPathName, settings.ApplianceISO))
 	if err := d.deleteVMFSFiles(m, ds, file); err != nil {
-		log.Warnf("Image file %q is not removed for %s. Use the vSphere UI to delete content", file, err)
+		d.op.Warnf("Image file %q is not removed for %s. Use the vSphere UI to delete content", file, err)
 	}
 
 	file = ds.Path(path.Join(d.vmPathName, settings.BootstrapISO))
 	if err := d.deleteVMFSFiles(m, ds, file); err != nil {
-		log.Warnf("Image file %q is not removed for %s. Use the vSphere UI to delete content", file, err)
+		d.op.Warnf("Image file %q is not removed for %s. Use the vSphere UI to delete content", file, err)
 	}
 }
 
 func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData, isConfigureOp bool) error {
-	defer trace.End(trace.Begin(conf.Name))
+	defer trace.End(trace.Begin(conf.Name, d.op))
 
-	power, err := d.appliance.PowerState(d.ctx)
+	power, err := d.appliance.PowerState(d.op)
 	if err != nil {
-		log.Errorf("Failed to get vm power status %q: %s", d.appliance.Reference(), err)
+		d.op.Errorf("Failed to get vm power status %q: %s", d.appliance.Reference(), err)
 		return err
 	}
 	if power != types.VirtualMachinePowerStatePoweredOff {
-		if _, err = d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+		if _, err = d.appliance.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
 			return d.appliance.PowerOff(ctx)
 		}); err != nil {
-			log.Errorf("Failed to power off appliance: %s", err)
+			d.op.Errorf("Failed to power off appliance: %s", err)
 			return err
 		}
 	}
@@ -322,27 +333,27 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(d.ctx, settings.Timeout)
+	op, cancel := trace.WithTimeout(&d.op, settings.Timeout, "CheckServiceReady during update")
 	defer cancel()
-	if err = d.CheckServiceReady(ctx, conf, nil); err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
+	if err = d.CheckServiceReady(op, conf, nil); err != nil {
+		if op.Err() == context.DeadlineExceeded {
 			//context deadline exceeded, replace returned error message
 			err = errors.Errorf("Upgrading VCH exceeded time limit of %s. Please increase the timeout using --timeout to accommodate for a busy vSphere target", settings.Timeout)
 		}
 
-		log.Info("\tAPI may be slow to start - please retry with increased timeout using --timeout")
+		d.op.Info("\tAPI may be slow to start - please retry with increased timeout using --timeout")
 		return err
 	}
 	return nil
 }
 
 func (d *Dispatcher) rollback(conf *config.VirtualContainerHostConfigSpec, snapshot string, settings *data.InstallerData) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("old appliance iso: %q, snapshot: %q", d.oldApplianceISO, snapshot)))
+	defer trace.End(trace.Begin(fmt.Sprintf("old appliance iso: %q, snapshot: %q", d.oldApplianceISO, snapshot), d.op))
 
 	// do not power on appliance in this snapshot revert
-	log.Infof("Reverting to snapshot %s", snapshot)
-	if _, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-		return d.appliance.RevertToSnapshot(d.ctx, snapshot, true)
+	d.op.Infof("Reverting to snapshot %s", snapshot)
+	if _, err := d.appliance.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
+		return d.appliance.RevertToSnapshot(d.op, snapshot, true)
 	}); err != nil {
 		return errors.Errorf("Failed to roll back upgrade: %s.", err)
 	}
@@ -350,32 +361,32 @@ func (d *Dispatcher) rollback(conf *config.VirtualContainerHostConfigSpec, snaps
 }
 
 func (d *Dispatcher) ensureRollbackReady(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
-	defer trace.End(trace.Begin(conf.Name))
+	defer trace.End(trace.Begin(conf.Name, d.op))
 
-	power, err := d.appliance.PowerState(d.ctx)
+	power, err := d.appliance.PowerState(d.op)
 	if err != nil {
-		log.Errorf("Failed to get vm power status %q after rollback: %s", d.appliance.Reference(), err)
+		d.op.Errorf("Failed to get vm power status %q after rollback: %s", d.appliance.Reference(), err)
 		return err
 	}
 	if power == types.VirtualMachinePowerStatePoweredOff {
-		log.Infof("Roll back finished - Appliance is kept in powered off status")
+		d.op.Info("Roll back finished - Appliance is kept in powered off status")
 		return nil
 	}
 	if err = d.startAppliance(conf); err != nil {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(d.ctx, settings.Timeout)
+	op, cancel := trace.WithTimeout(&d.op, settings.Timeout, "CheckServiceReady during rollback")
 	defer cancel()
-	if err = d.CheckServiceReady(ctx, conf, nil); err != nil {
+	if err = d.CheckServiceReady(op, conf, nil); err != nil {
 		// do not return error in this case, to make sure clean up continues
-		log.Info("\tAPI may be slow to start - try to connect to API after a few minutes")
+		d.op.Info("\tAPI may be slow to start - try to connect to API after a few minutes")
 	}
 	return nil
 }
 
 func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, isoFile string) error {
-	defer trace.End(trace.Begin(isoFile))
+	defer trace.End(trace.Begin(isoFile, d.op))
 
 	spec := &types.VirtualMachineConfigSpec{}
 
@@ -401,22 +412,22 @@ func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, is
 
 	if spec.DeviceChange == nil && spec.ExtraConfig == nil {
 		// nothing need to do
-		log.Debugf("Nothing changed, no need to reconfigure appliance")
+		d.op.Debug("Nothing changed, no need to reconfigure appliance")
 		return nil
 	}
 
 	// reconfig
-	log.Infof("Setting VM configuration")
-	info, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	d.op.Info("Setting VM configuration")
+	info, err := d.appliance.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.Reconfigure(ctx, *spec)
 	})
 
 	if err != nil {
-		log.Errorf("Error while reconfiguring appliance: %s", err)
+		d.op.Errorf("Error while reconfiguring appliance: %s", err)
 		return err
 	}
 	if info.State != types.TaskInfoStateSuccess {
-		log.Errorf("Reconfiguring appliance reported: %s", info.Error.LocalizedMessage)
+		d.op.Errorf("Reconfiguring appliance reported: %s", info.Error.LocalizedMessage)
 		return err
 	}
 	return nil
@@ -450,27 +461,27 @@ func (d *Dispatcher) addExtraConfig(spec *types.VirtualMachineConfigSpec, conf *
 }
 
 func (d *Dispatcher) switchISO(filePath string) ([]types.BaseVirtualDeviceConfigSpec, error) {
-	defer trace.End(trace.Begin(filePath))
+	defer trace.End(trace.Begin(filePath, d.op))
 
 	var devices object.VirtualDeviceList
 	var err error
 
-	log.Infof("Switching appliance iso to %s", filePath)
-	devices, err = d.appliance.Device(d.ctx)
+	d.op.Infof("Switching appliance iso to %s", filePath)
+	devices, err = d.appliance.Device(d.op)
 	if err != nil {
-		log.Errorf("Failed to get vm devices for appliance: %s", err)
+		d.op.Errorf("Failed to get vm devices for appliance: %s", err)
 		return nil, err
 	}
 	// find the single cdrom
 	cd, err := devices.FindCdrom("")
 	if err != nil {
-		log.Errorf("Failed to get CD rom device from appliance: %s", err)
+		d.op.Errorf("Failed to get CD rom device from appliance: %s", err)
 		return nil, err
 	}
 
 	oldApplianceISO := cd.Backing.(*types.VirtualCdromIsoBackingInfo).FileName
 	if oldApplianceISO == filePath {
-		log.Debugf("Target file name %q is same to old one, no need to change.")
+		d.op.Debug("Target file name %q is same to old one, no need to change.")
 		return nil, nil
 	}
 	cd = devices.InsertIso(cd, filePath)
@@ -478,7 +489,7 @@ func (d *Dispatcher) switchISO(filePath string) ([]types.BaseVirtualDeviceConfig
 
 	deviceChange, err := changedDevices.ConfigSpec(types.VirtualDeviceConfigSpecOperationEdit)
 	if err != nil {
-		log.Errorf("Failed to create config spec for appliance: %s", err)
+		d.op.Errorf("Failed to create config spec for appliance: %s", err)
 		return nil, err
 	}
 
@@ -516,20 +527,20 @@ func extractSecretFromFile(rc io.ReadCloser) (string, error) {
 
 // GuestInfoSecret downloads the VCH's .vmx file and returns the GuestInfoSecretKey value.
 func (d *Dispatcher) GuestInfoSecret(vchName, vmPath string, ds *object.Datastore) (*extraconfig.SecretKey, error) {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin("", d.op))
 
 	if ds == nil {
 		return nil, errNilDatastore
 	}
 
-	helper, err := datastore.NewHelper(d.ctx, d.session, ds, vmPath)
+	helper, err := datastore.NewHelper(d.op, d.session, ds, vmPath)
 	if err != nil {
 		return nil, err
 	}
 
 	// Download the VCH's .vmx file
 	path := fmt.Sprintf("%s.vmx", vchName)
-	rc, err := helper.Download(d.ctx, path)
+	rc, err := helper.Download(d.op, path)
 	if err != nil {
 		return nil, err
 	}

@@ -15,12 +15,16 @@
 package trace
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/log"
 )
 
@@ -47,9 +51,10 @@ var Logger = &logrus.Logger{
 
 // trace object used to grab run-time state
 type Message struct {
-	msg      string
-	funcName string
-	lineNo   int
+	msg         string
+	funcName    string
+	lineNo      int
+	operationID string
 
 	startTime time.Time
 }
@@ -61,31 +66,62 @@ func (t *Message) delta() time.Duration {
 	return time.Now().Sub(t.startTime)
 }
 
+// Add Syslog hook
+// This method is not thread safe, this is currently
+// not a problem because it is only called once from main
+func InitLogger(cfg *log.LoggingConfig) error {
+	hook, err := log.CreateSyslogHook(cfg)
+	if err == nil && hook != nil {
+		Logger.Hooks.Add(hook)
+	}
+	return err
+}
+
 // begin a trace from this stack frame less the skip.
-func newTrace(msg string, skip int) *Message {
+func newTrace(msg string, skip int, opID string) *Message {
 	pc, _, line, ok := runtime.Caller(skip)
 	if !ok {
 		return nil
 	}
 
-	name := runtime.FuncForPC(pc).Name()
+	// lets only return the func name from the repo (vic)
+	// down - i.e. vic/lib/etc vs. github.com/vmware/vic/lib/etc
+	// if github.com/vmware doesn't match then the original is returned
+	name := strings.TrimPrefix(runtime.FuncForPC(pc).Name(), "github.com/vmware/")
 
-	return &Message{
-		msg:       msg,
-		funcName:  name,
-		lineNo:    line,
+	message := Message{
+		msg:      msg,
+		funcName: name,
+		lineNo:   line,
+
 		startTime: time.Now(),
 	}
+
+	// if we have an operationID then format the output
+	if opID != "" {
+		message.operationID = fmt.Sprintf("op=%s", opID)
+	}
+
+	return &message
 }
 
 // Begin starts the trace.  Msg is the msg to log.
-func Begin(msg string) *Message {
+// context provided to allow tracing of operationID
+// context added as optional to avoid breaking current usage
+func Begin(msg string, ctx ...context.Context) *Message {
 	if tracingEnabled && Logger.Level >= logrus.DebugLevel {
-		if t := newTrace(msg, 2); t != nil {
+		var opID string
+		// populate operationID if provided
+		if len(ctx) == 1 {
+			if id, ok := ctx[0].Value(types.ID{}).(string); ok {
+				opID = id
+			}
+		}
+		if t := newTrace(msg, 2, opID); t != nil {
 			if msg == "" {
-				Logger.Debugf("[BEGIN] [%s:%d]", t.funcName, t.lineNo)
+				Logger.Debugf("[BEGIN] %s [%s:%d]", t.operationID, t.funcName, t.lineNo)
 			} else {
-				Logger.Debugf("[BEGIN] [%s:%d] %s", t.funcName, t.lineNo, t.msg)
+				Logger.Debugf("[BEGIN] %s [%s:%d] %s", t.operationID, t.funcName, t.lineNo, t.msg)
 			}
 			return t
 
@@ -99,5 +135,5 @@ func End(t *Message) {
 	if t == nil {
 		return
 	}
-	Logger.Debugf("[ END ] [%s:%d] [%s] %s", t.funcName, t.lineNo, t.delta(), t.msg)
+	Logger.Debugf("[ END ] %s [%s:%d] [%s] %s", t.operationID, t.funcName, t.lineNo, t.delta(), t.msg)
 }

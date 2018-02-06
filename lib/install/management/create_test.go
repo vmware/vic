@@ -25,12 +25,13 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 func TestMain(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
-	ctx := context.Background()
+	op := trace.NewOperation(context.Background(), "TestMain")
 
 	for i, model := range []*simulator.Model{simulator.ESX(), simulator.VPX()} {
 		t.Logf("%d", i)
@@ -62,27 +63,38 @@ func TestMain(t *testing.T) {
 		installSettings.ApplianceSize.CPU.Limit = &cpu
 		installSettings.ApplianceSize.Memory.Limit = &memory
 
-		validator, err := validate.NewValidator(ctx, input)
+		validator, err := validate.NewValidator(op, input)
 		if err != nil {
 			t.Fatalf("Failed to validator: %s", err)
 		}
 
-		conf, err := validator.Validate(ctx, input)
+		conf, err := validator.Validate(op, input)
 		if err != nil {
 			log.Errorf("Failed to validate conf: %s", err)
-			validator.ListIssues()
+			validator.ListIssues(op)
 		}
 
-		testCreateNetwork(ctx, validator.Session, conf, t)
+		testCreateNetwork(op, validator.Session, conf, t)
 
-		testCreateVolumeStores(ctx, validator.Session, conf, false, t)
-		testDeleteVolumeStores(ctx, validator.Session, conf, 1, t)
+		testCreateVolumeStores(op, validator.Session, conf, false, t)
+		testDeleteVolumeStores(op, validator.Session, conf, 1, t)
 		errConf := &config.VirtualContainerHostConfigSpec{}
 		*errConf = *conf
 		errConf.VolumeLocations = make(map[string]*url.URL)
 		errConf.VolumeLocations["volume-store"], _ = url.Parse("ds://store_not_exist/volumes/test")
-		testCreateVolumeStores(ctx, validator.Session, errConf, true, t)
-		testCreateAppliance(ctx, validator.Session, conf, installSettings, false, t)
+		testCreateVolumeStores(op, validator.Session, errConf, true, t)
+
+		// FIXME: (pull vic/7088) have to make another VCH config from validator for negative test case and cleanup test
+		// If we re-use the previous validator like we did in the earlier test (*errConf = *conf), it's not a deep copy of conf
+		// This conf will get modified by appliance creation and cleanup test, and we can't test create appliance in positive case
+		// The other way around, if we test positive case first, the VCH data and session data are modified, so we are not able to test the negative case
+		conf2, err := validator.Validate(op, input)
+		conf2.ImageStores[0].Host = "http://non-exist"
+		testCreateAppliance(op, validator.Session, conf2, installSettings, true, t)
+		testCleanup(op, validator.Session, conf2, t)
+
+		testCreateAppliance(op, validator.Session, conf, installSettings, false, t)
+
 		// cannot run test for func not implemented in vcsim: ResourcePool:resourcepool-24 does not implement: UpdateConfig
 		// testUpdateResources(ctx, validator.Session, conf, installSettings, false, t)
 	}
@@ -125,10 +137,10 @@ func getVPXData(vcURL *url.URL) *data.Data {
 	return result
 }
 
-func testCreateNetwork(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
+func testCreateNetwork(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
 	d := &Dispatcher{
 		session: sess,
-		ctx:     ctx,
+		op:      op,
 		isVC:    sess.IsVC(),
 		force:   false,
 	}
@@ -151,10 +163,10 @@ func testCreateNetwork(ctx context.Context, sess *session.Session, conf *config.
 	}
 }
 
-func testCreateVolumeStores(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, hasErr bool, t *testing.T) {
+func testCreateVolumeStores(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, hasErr bool, t *testing.T) {
 	d := &Dispatcher{
 		session: sess,
-		ctx:     ctx,
+		op:      op,
 		isVC:    sess.IsVC(),
 		force:   false,
 	}
@@ -173,35 +185,70 @@ func testCreateVolumeStores(ctx context.Context, sess *session.Session, conf *co
 	}
 }
 
-func testDeleteVolumeStores(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, numVols int, t *testing.T) {
+func testDeleteVolumeStores(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, numVols int, t *testing.T) {
 	d := &Dispatcher{
 		session: sess,
-		ctx:     ctx,
+		op:      op,
 		isVC:    sess.IsVC(),
 		force:   true,
 	}
 
-	if removed := d.deleteVolumeStoreIfForced(conf); removed != numVols {
+	if removed := d.deleteVolumeStoreIfForced(conf, nil); removed != numVols {
 		t.Errorf("Did not successfully remove all specified volumes")
 	}
 
 }
 
-func testCreateAppliance(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, vConf *data.InstallerData, hasErr bool, t *testing.T) {
+func testCleanup(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
 	d := &Dispatcher{
 		session: sess,
-		ctx:     ctx,
+		op:      op,
+		isVC:    sess.IsVC(),
+		force:   true,
+	}
+
+	err := d.cleanupEmptyPool(conf)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = d.cleanupBridgeNetwork(conf)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+}
+
+func testCreateAppliance(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, vConf *data.InstallerData, hasErr bool, t *testing.T) {
+	d := &Dispatcher{
+		session: sess,
+		op:      op,
 		isVC:    sess.IsVC(),
 		force:   false,
 	}
 
 	err := d.createPool(conf, vConf)
 	if err != nil {
-		t.Fatal(err)
+		if hasErr {
+			t.Logf("Got expected err: %s", err)
+		} else {
+			t.Fatal(err)
+		}
+		return
 	}
 
 	err = d.createAppliance(conf, vConf)
 	if err != nil {
-		t.Error(err)
+		if hasErr {
+			t.Logf("Got expected err: %s", err)
+		} else {
+			t.Fatal(err)
+		}
+		return
+	}
+
+	if hasErr {
+		t.Errorf("No error when error is expected.")
 	}
 }

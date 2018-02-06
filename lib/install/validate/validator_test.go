@@ -23,8 +23,10 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
 
@@ -33,10 +35,13 @@ import (
 	"github.com/vmware/govmomi/simulator/esx"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/opsuser"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/rbac"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -148,6 +153,11 @@ func TestMain(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		opsUser := "ops-user-name"
+		opsPassword := "ops-user-password"
+		input.OpsCredentials.OpsUser = &opsUser
+		input.OpsCredentials.OpsPassword = &opsPassword
+
 		validator, err := NewValidator(ctx, input)
 		if err != nil {
 			t.Errorf("Failed to new validator: %s", err)
@@ -166,6 +176,121 @@ func TestMain(t *testing.T) {
 		conf := testCompute(validator, input, t)
 		testTargets(validator, input, conf, t)
 		testStorage(validator, input, conf, t)
+	}
+}
+
+func TestGrantPerms(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+	trace.Logger.Level = log.DebugLevel
+	op := trace.FromContext(context.Background(), "TestGrantPerms")
+
+	for i, model := range []*simulator.Model{simulator.ESX(), simulator.VPX()} {
+		t.Logf("%d", i)
+		model.Datastore = 3
+		defer model.Remove()
+		err := model.Create()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		s := model.Service.NewServer()
+		defer s.Close()
+
+		s.URL.User = url.UserPassword("user", "pass")
+		s.URL.Path = ""
+		t.Logf("server URL: %s", s.URL)
+
+		var input *data.Data
+		if i == 0 {
+			input = getESXData(s.URL)
+		} else {
+			input = getVPXData(s.URL)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		conf := &config.VirtualContainerHostConfigSpec{}
+		opsUser := "ops-user-name"
+		opsPassword := "ops-user-password"
+		opsGrantPermissions := true
+		input.OpsCredentials.OpsUser = &opsUser
+		input.OpsCredentials.OpsPassword = &opsPassword
+
+		// Test 1: current value in conf is the empty string,
+		// input is true, after validation
+		// the new GrantPerms value in conf should be
+		// "config.AddPerms"
+		conf.GrantPermsLevel = ""
+		input.OpsCredentials.GrantPerms = &opsGrantPermissions
+		validator, err := NewValidator(op, input)
+		require.NoError(t, err, "Failed to create validator")
+
+		validator.credentials(op, input, conf)
+		assert.Equal(t, conf.GrantPermsLevel, config.AddPerms)
+
+		// Test 2: current value in conf is the empty string,
+		// input is nil, after validation
+		// the new GrantPerms value in conf should be
+		// the empty string
+		conf.GrantPermsLevel = ""
+		input.OpsCredentials.GrantPerms = nil
+		validator, err = NewValidator(op, input)
+		require.NoError(t, err, "Failed to create validator")
+
+		validator.credentials(op, input, conf)
+		assert.Equal(t, conf.GrantPermsLevel, "")
+
+		// Test 3: current value in conf is the empty string,
+		// input is false, after validation
+		// the new GrantPerms value in conf should be
+		// the empty string
+		conf.GrantPermsLevel = ""
+		opsGrantPermissions = false
+		input.OpsCredentials.GrantPerms = &opsGrantPermissions
+		validator, err = NewValidator(op, input)
+		require.NoError(t, err, "Failed to create validator")
+
+		validator.credentials(op, input, conf)
+		assert.Equal(t, conf.GrantPermsLevel, "")
+
+		// Test 4: current value in conf is "config.AddPerms",
+		// input is true, after validation
+		// the new GrantPerms value in conf should be
+		// "config.AddPerms"
+		conf.GrantPermsLevel = config.AddPerms
+		opsGrantPermissions = true
+		input.OpsCredentials.GrantPerms = &opsGrantPermissions
+		validator, err = NewValidator(op, input)
+		require.NoError(t, err, "Failed to create validator")
+
+		validator.credentials(op, input, conf)
+		assert.Equal(t, conf.GrantPermsLevel, config.AddPerms)
+
+		// Test 5: current value in conf is "config.AddPerms",
+		// input is nil, after validation
+		// the new GrantPerms value in conf should be
+		// "config.AddPerms"
+		conf.GrantPermsLevel = config.AddPerms
+		input.OpsCredentials.GrantPerms = nil
+		validator, err = NewValidator(op, input)
+		require.NoError(t, err, "Failed to create validator")
+
+		validator.credentials(op, input, conf)
+		assert.Equal(t, conf.GrantPermsLevel, config.AddPerms)
+
+		// Test 6: current value in conf is "config.AddPerms",
+		// input is false, after validation
+		// the new GrantPerms value in conf should be
+		// the empty string
+		conf.GrantPermsLevel = config.AddPerms
+		opsGrantPermissions = false
+		input.OpsCredentials.GrantPerms = &opsGrantPermissions
+		validator, err = NewValidator(op, input)
+		require.NoError(t, err, "Failed to create validator")
+
+		validator.credentials(op, input, conf)
+		assert.Equal(t, conf.GrantPermsLevel, "")
 	}
 }
 
@@ -234,6 +359,8 @@ func createPool(ctx context.Context, sess *session.Session, poolPath string, nam
 }
 
 func testCompute(v *Validator, input *data.Data, t *testing.T) *config.VirtualContainerHostConfigSpec {
+	op := trace.FromContext(v.Context, "testCompute")
+
 	tests := []struct {
 		path   string
 		vc     bool
@@ -266,8 +393,8 @@ func testCompute(v *Validator, input *data.Data, t *testing.T) *config.VirtualCo
 		}
 		t.Logf("%+v", test)
 		input.ComputeResourcePath = test.path
-		v.compute(v.Context, input, conf)
-		v.ListIssues()
+		v.compute(op, input, conf)
+		v.ListIssues(op)
 		if !test.hasErr {
 			assert.Equal(t, 0, len(v.issues))
 		} else {
@@ -279,17 +406,22 @@ func testCompute(v *Validator, input *data.Data, t *testing.T) *config.VirtualCo
 }
 
 func testTargets(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
-	v.target(v.Context, input, conf)
-	v.credentials(v.Context, input, conf)
+	op := trace.FromContext(v.Context, "testTargets")
+
+	v.target(op, input, conf)
+	v.credentials(op, input, conf)
 
 	u, err := url.Parse(conf.Target)
 	assert.NoError(t, err)
 	assert.Nil(t, u.User)
 	assert.NotEmpty(t, conf.Token)
 	assert.NotEmpty(t, conf.Username)
+
 }
 
 func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
+	op := trace.FromContext(v.Context, "testStorage")
+
 	// specifically ignoring err here because we do not care about the parse result.
 	testURL1, _ := url.Parse("LocalDS_0/volumes/volume1")
 	testURL2, _ := url.Parse("LocalDS_0/volumes/volume2")
@@ -435,8 +567,8 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 		t.Logf("%+v", test)
 		input.ImageDatastorePath = test.image
 		input.VolumeLocations = test.volumes
-		v.storage(v.Context, input, conf)
-		v.ListIssues()
+		v.storage(op, input, conf)
+		v.ListIssues(op)
 		if !test.hasErr {
 			assert.Equal(t, 0, len(v.issues))
 			assert.Equal(t, test.expectImage, conf.ImageStores[0].String())
@@ -456,9 +588,22 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 	}
 }
 
+// TODO: vcsim should support UpdateOptions
+type testOptionManager struct {
+	*simulator.OptionManager
+}
+
+func (m *testOptionManager) UpdateOptions(req *types.UpdateOptions) soap.HasFault {
+	m.Setting = append(req.ChangedValue, m.Setting...)
+
+	return &methods.UpdateOptionsBody{
+		Res: new(types.UpdateOptionsResponse),
+	}
+}
+
 func TestValidateWithFolders(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	ctx := context.Background()
+	op := trace.NewOperation(context.Background(), "TestValidateWithFolders")
 
 	m := simulator.VPX()
 	m.Datacenter = 3
@@ -477,6 +622,9 @@ func TestValidateWithFolders(t *testing.T) {
 	m.Service.TLS = new(tls.Config)
 	s := m.Service.NewServer()
 	defer s.Close()
+
+	om := simulator.Map.Get(*m.ServiceContent.Setting).(*simulator.OptionManager)
+	simulator.Map.Put(&testOptionManager{om})
 
 	input := data.NewData()
 	input.URL = &url.URL{
@@ -509,7 +657,7 @@ func TestValidateWithFolders(t *testing.T) {
 			input.URL.Path = "/"
 			input.URL.User = s.URL.User
 			newShouldFail = false
-			if _, err = validator.ValidateCompute(ctx, input, false); err != nil {
+			if _, err = validator.ValidateCompute(op, input, false); err != nil {
 				t.Error(err)
 			}
 		},
@@ -524,7 +672,7 @@ func TestValidateWithFolders(t *testing.T) {
 			dc = input.URL.Path
 		},
 		func() {
-			if _, err = validator.ValidateCompute(ctx, input, true); err == nil {
+			if _, err = validator.ValidateCompute(op, input, true); err == nil {
 				t.Error("expected error")
 			}
 			input.ComputeResourcePath = "enoent"
@@ -573,7 +721,7 @@ func TestValidateWithFolders(t *testing.T) {
 		}
 		step()
 
-		validator, err = NewValidator(ctx, input)
+		validator, err = NewValidator(op, input)
 		if err != nil {
 			continue
 		}
@@ -582,7 +730,7 @@ func TestValidateWithFolders(t *testing.T) {
 			t.Fatalf("%d: expected error", i)
 		}
 
-		_, err = validator.Validate(ctx, input)
+		_, err = validator.Validate(op, input)
 		if i == len(steps)-1 {
 			if err != nil {
 				t.Fatal(err)
@@ -621,7 +769,7 @@ func TestValidateWithFolders(t *testing.T) {
 		vs.Cluster = nil
 		vs.ClusterPath = ""
 
-		_, err = validator.ResourcePoolHelper(ctx, cr.flag)
+		_, err = validator.ResourcePoolHelper(op, cr.flag)
 
 		if vs.ClusterPath != cr.cluster {
 			t.Errorf("%s ClusterPath=%s", cr.flag, vs.ClusterPath)
@@ -644,41 +792,41 @@ func TestValidateWithFolders(t *testing.T) {
 	}
 
 	// cover some other paths now that we have a valid config
-	spec, err := validator.ValidateTarget(ctx, input)
+	spec, err := validator.ValidateTarget(op, input)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	validator.AddDeprecatedFields(ctx, spec, input)
+	validator.AddDeprecatedFields(op, spec, input)
 
-	_, err = CreateFromVCHConfig(ctx, spec, vs)
+	_, err = CreateFromVCHConfig(op, spec, vs)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// force vim25.NewClient to fail
 	simulator.Map.Remove(methods.ServiceInstance)
-	validator.credentials(ctx, input, spec)
+	validator.credentials(op, input, spec)
 
 	// cover some of the return+error paths for certs (TODO: move this elsewhere and include valid data)
-	validator.certificate(ctx, input, spec)
-	validator.certificateAuthorities(ctx, input, spec)
+	validator.certificate(op, input, spec)
+	validator.certificateAuthorities(op, input, spec)
 
 	input.CertPEM = s.Certificate().Raw
-	validator.certificate(ctx, input, spec)
-	validator.certificateAuthorities(ctx, input, spec)
+	validator.certificate(op, input, spec)
+	validator.certificateAuthorities(op, input, spec)
 
 	input.ClientCAs = []byte{1}
-	validator.certificateAuthorities(ctx, input, spec)
+	validator.certificateAuthorities(op, input, spec)
 
-	validator.registries(ctx, input, spec)
+	validator.registries(op, input, spec)
 	input.RegistryCAs = input.ClientCAs
-	validator.registries(ctx, input, spec)
+	validator.registries(op, input, spec)
 }
 
 func TestValidateWithESX(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	ctx := context.Background()
+	op := trace.NewOperation(context.Background(), "TestValidateWithFolders")
 
 	m := simulator.ESX()
 	defer m.Remove()
@@ -730,14 +878,14 @@ func TestValidateWithESX(t *testing.T) {
 
 		step()
 
-		validator, err = NewValidator(ctx, input)
+		validator, err = NewValidator(op, input)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		validator.AllowEmptyDC()
 
-		_, err = validator.Validate(ctx, input)
+		_, err = validator.Validate(op, input)
 		if i == len(steps)-1 {
 			if err != nil {
 				t.Fatal(err)
@@ -766,7 +914,7 @@ func TestValidateWithESX(t *testing.T) {
 	for i, step := range steps {
 		step()
 
-		validator.managedbyVC(ctx)
+		validator.managedbyVC(op)
 		issues := validator.GetIssues()
 
 		if len(issues) != 1 {
@@ -776,5 +924,95 @@ func TestValidateWithESX(t *testing.T) {
 	}
 
 	simulator.Map.Remove(esx.Datacenter.Reference()) // goodnight now.
-	validator.suggestDatacenter()
+	validator.suggestDatacenter(op)
+}
+
+func TestDCReadOnlyPermsFromConfigSimulatorVPX(t *testing.T) {
+	ctx := context.Background()
+	m := simulator.VPX()
+
+	m.Datacenter = 3
+	m.Folder = 2
+	m.Pool = 1
+	m.App = 1
+	m.Pod = 1
+
+	defer m.Remove()
+
+	err := m.Create()
+	require.NoError(t, err)
+
+	s := m.Service.NewServer()
+	defer s.Close()
+
+	fmt.Println(s.URL.String())
+
+	input := GetVcsimInputConfig(ctx, s.URL)
+	require.NotNil(t, input)
+	v, err := NewValidator(ctx, input)
+	require.NoError(t, err)
+	require.NotNil(t, v)
+	configSpec, err := v.VcsimValidate(ctx, input)
+	require.NoError(t, err)
+	require.NotNil(t, configSpec)
+
+	// Set up the Authz Manager
+	mgr := opsuser.NewRBACManager(ctx, v.Session.Vim25(), v.Session, &opsuser.DCReadOnlyConf, configSpec)
+
+	resourcePermission, err := mgr.SetupDCReadOnlyPermissions(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, resourcePermission)
+	resourcePermissions := []rbac.ResourcePermission{*resourcePermission}
+	require.True(t, len(mgr.AuthzManager.Config.Resources) >= len(resourcePermissions))
+
+	rbac.VerifyResourcePermissions(ctx, t, mgr.AuthzManager, resourcePermissions)
+}
+
+func TestOpsUserPermsFromConfigSimulatorVPX(t *testing.T) {
+	ctx := context.Background()
+	m := simulator.VPX()
+
+	m.Datacenter = 3
+	m.Folder = 2
+	m.Pool = 1
+	m.App = 1
+	m.Pod = 1
+
+	defer m.Remove()
+
+	err := m.Create()
+	require.NoError(t, err)
+
+	s := m.Service.NewServer()
+	defer s.Close()
+
+	fmt.Println(s.URL.String())
+
+	config := &session.Config{
+		Service:   s.URL.String(),
+		Insecure:  true,
+		Keepalive: time.Duration(5) * time.Minute,
+	}
+	sess, err := session.NewSession(config).Connect(ctx)
+	require.NoError(t, err)
+
+	input := GetVcsimInputConfig(ctx, s.URL)
+	require.NotNil(t, input)
+	v, err := NewValidator(ctx, input)
+	require.NoError(t, err)
+	require.NotNil(t, v)
+	configSpec, err := v.VcsimValidate(ctx, input)
+	require.NoError(t, err)
+	require.NotNil(t, configSpec)
+
+	// Set up the Authz Manager
+	mgr := opsuser.NewRBACManager(ctx, sess.Vim25(), nil, &opsuser.OpsuserRBACConf, configSpec)
+
+	resourcePermissions, err := mgr.SetupRolesAndPermissions(ctx)
+	require.NoError(t, err)
+	am := mgr.AuthzManager
+	defer rbac.Cleanup(ctx, t, am, true)
+	require.True(t, len(am.Config.Resources) >= len(resourcePermissions))
+
+	rbac.VerifyResourcePermissions(ctx, t, mgr.AuthzManager, resourcePermissions)
 }

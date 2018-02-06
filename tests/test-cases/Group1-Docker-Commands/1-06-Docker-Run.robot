@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 1-06 - Docker Run
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Conditional Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
@@ -158,6 +158,25 @@ Docker run and auto remove
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  ${count}
+
+Docker run and auto remove with anonymous volumes and named volumes
+       ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+       Should Be Equal As Integers  ${rc}  0
+       ${output}=  Split To Lines  ${output}
+       ${count}=  Get Length  ${output}
+       ${suffix}=  Evaluate  '%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
+       Set Test Variable  ${namedImageVol}  non-anonymous-image-volume-${suffix}
+       Should Be Equal As Integers  ${rc}  0
+       Set Test Variable  ${imageVolumeContainer}  I-Have-Two-Anonymous-Volumes-${suffix}
+       ${rc}  ${c5}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --rm --name ${imageVolumeContainer} -v ${namedImageVol}:/data/db -v /I/AM/ANONYMOOOOSE mongo bash
+       Should Be Equal As Integers  ${rc}  0
+       ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+       Should Be Equal As Integers  ${rc}  0
+       ${output}=  Split To Lines  ${output}
+       Length Should Be  ${output}  ${count}
+       ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls
+       Should Contain  ${output}  ${namedImageVol}
+
 
 Docker run mysql container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v vol:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=pw --name test-mysql mysql

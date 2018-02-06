@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -141,7 +140,7 @@ func (h *Handle) Reload() {
 }
 
 // Rename updates the container name in ExecConfig as well as the vSphere display name
-func (h *Handle) Rename(newName string) *Handle {
+func (h *Handle) Rename(op trace.Operation, newName string) *Handle {
 	defer trace.End(trace.Begin(newName))
 
 	h.ExecConfig.Name = newName
@@ -150,13 +149,8 @@ func (h *Handle) Rename(newName string) *Handle {
 		ID:   h.ExecConfig.ID,
 		Name: newName,
 	}
-	// Only rename on vSphere when the containerNameConvention is name
-	var convention string
-	if strings.Contains(Config.ContainerNameConvention, "{name}") {
-		convention = Config.ContainerNameConvention
-	}
 
-	h.Spec.Spec().Name = util.DisplayName(s, convention)
+	h.Spec.Spec().Name = util.DisplayName(op, s, Config.ContainerNameConvention)
 
 	return h
 }
@@ -201,7 +195,8 @@ func (h *Handle) String() string {
 	return h.key
 }
 
-func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *int32) error {
+func (h *Handle) Commit(op trace.Operation, sess *session.Session, waitTime *int32) error {
+
 	cfg := make(map[string]string)
 
 	// Set timestamps based on target state
@@ -243,7 +238,7 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 	}
 	s.ExtraConfig = h.changes
 
-	if err := Commit(ctx, sess, h, waitTime); err != nil {
+	if err := Commit(op, sess, h, waitTime); err != nil {
 		return err
 	}
 
@@ -253,27 +248,15 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 
 // refresh is for internal use only - it's sole purpose at this time is to allow the stop path to update ChangeVersion
 // and corresponding state before performing any associated reconfigure
-func (h *Handle) refresh(ctx context.Context) {
+func (h *Handle) refresh(op trace.Operation) {
 	// update Config and Runtime to reflect current state
-	h.containerBase.refresh(ctx)
+	h.containerBase.refresh(op)
 
 	// reapply extraconfig changes
 	s := h.Spec.Spec()
 
 	s.ExtraConfig = h.changes
 	s.ChangeVersion = h.Config.ChangeVersion
-}
-
-// CommitWithoutSpec sets the handle's spec to nil so that Commit operation only does a state change and won't touch the extraconfig
-func (h *Handle) CommitWithoutSpec(ctx context.Context, sess *session.Session, waitTime *int32) error {
-	h.Spec = nil
-
-	if err := Commit(ctx, sess, h, waitTime); err != nil {
-		return err
-	}
-
-	h.Close()
-	return nil
 }
 
 func (h *Handle) Close() {
@@ -289,7 +272,8 @@ func (h *Handle) Close() {
 // TODO: either deep copy the configuration, or provide an alternative means of passing the data that
 // avoids the need for the caller to unpack/repack the parameters
 func Create(ctx context.Context, vmomiSession *session.Session, config *ContainerCreateConfig) (*Handle, error) {
-	defer trace.End(trace.Begin("Handle.Create"))
+	op := trace.FromContext(ctx, "Handle.Create")
+	defer trace.End(trace.Begin(config.Metadata.Name, op))
 
 	h := &Handle{
 		key:         newHandleKey(),
@@ -346,11 +330,11 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 	}
 
 	// if not vsan, set the datastore folder name to containerID
-	if !vmomiSession.IsVSAN(ctx) {
+	if !vmomiSession.IsVSAN(op) {
 		specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", vmomiSession.Datastore.Name(), specconfig.ID, specconfig.ID)
 	}
 
-	specconfig.VMFullName = util.DisplayName(specconfig, Config.ContainerNameConvention)
+	specconfig.VMFullName = util.DisplayName(op, specconfig, Config.ContainerNameConvention)
 
 	// log only core portions
 	s := specconfig
@@ -374,7 +358,7 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 	}
 
 	// Create a linux guest
-	linux, err := guest.NewLinuxGuest(ctx, vmomiSession, specconfig)
+	linux, err := guest.NewLinuxGuest(op, vmomiSession, specconfig)
 	if err != nil {
 		log.Errorf("Failed during linux specific spec generation during create of %s: %s", config.Metadata.ID, err)
 		return nil, err

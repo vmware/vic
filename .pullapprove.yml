@@ -5,7 +5,7 @@ group_defaults:
     auto: true
   approve_by_comment:
     enabled: true
-    approve_regex: 'Approved|:shipit:|:sheep::it:|:\+1:|LGTM|lgtm|yolo|YOLO'
+    approve_regex: 'Approved|:shipit:|:sheep::it:|:\+1:|LGTM|lgtm'
   reset_on_push:
     enabled: false
 
@@ -17,8 +17,8 @@ groups:
 
   tether:
     users:
-      - caglar10ur
       - hickeng
+      - vburenin
     conditions:
       files:
         include:
@@ -64,6 +64,7 @@ groups:
       - rajanashok
       - mhagen-vmware
       - rogeliosanchez
+      - mdharamadas1
     conditions:
       files:
         include:
@@ -71,7 +72,8 @@ groups:
 
   log:
     users:
-      - hmahmood
+      - cgtexmex
+      - zjs
     conditions:
       files:
         include:
@@ -82,6 +84,8 @@ groups:
       - sflxn
       - cgtexmex
       - jzt
+      - vburenin
+      - anchal-agrawal
     conditions:
       files:
         include:
@@ -92,8 +96,8 @@ groups:
 
   install:
     users:
-      - emlin
-      - andrewtchin
+      - zjs
+      - anchal-agrawal
     conditions:
       files:
         include:
@@ -101,15 +105,25 @@ groups:
           - "lib/install/*"
   upgrade:
     users:
-      - emlin
+      - zjs
+      - anchal-agrawal
     conditions:
       files:
         include:
           - "lib/migration/*"
 
+  vic-machine-service:
+    users:
+      - zjs
+      - AngieCris
+    conditions:
+      files:
+        include:
+          - "cmd/vic-machine-server/*"
+          - "lib/apiservers/service/*"
+
   config:
     users:
-      - emlin
       - hickeng
     conditions:
       files:
@@ -131,8 +145,9 @@ groups:
 
   port-layer-exec-interaction:
     users:
-      - caglar10ur
+      - cgtexmex
       - hickeng
+      - matthewavery
     conditions:
       files:
         include:
@@ -170,8 +185,7 @@ groups:
   port-layer-network:
     users:
       - hmahmood
-      - andrewtchin
-      - caglar10ur
+      - hickeng
     conditions:
       files:
         include:
@@ -183,6 +197,8 @@ groups:
   events:
     users:
       - cgtexmex
+      - hickeng
+      - dougm
     conditions:
       files:
         include:
@@ -236,6 +252,7 @@ groups:
       - jakedsouza
       - rajanashok
       - mhagen-vmware
+      - mdharamadas1
     conditions:
       files:
         include:

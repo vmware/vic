@@ -15,18 +15,19 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
 
-	"context"
-
 	"github.com/vmware/vic/cmd/vic-machine/common"
+	"github.com/vmware/vic/lib/install/ova"
 	"github.com/vmware/vic/lib/install/plugin"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 // Plugin has all input parameters for vic-ui ui command
@@ -34,8 +35,9 @@ type Plugin struct {
 	*common.Target
 	common.Debug
 
-	Force    bool
-	Insecure bool
+	Force     bool
+	Configure bool
+	Insecure  bool
 
 	Company               string
 	HideInSolutionManager bool
@@ -46,6 +48,7 @@ type Plugin struct {
 	Type                  string
 	URL                   string
 	Version               string
+	EntityType            string
 }
 
 func NewUI() *Plugin {
@@ -60,6 +63,11 @@ func (p *Plugin) Flags() []cli.Flag {
 			Name:        "force, f",
 			Usage:       "Force install",
 			Destination: &p.Force,
+		},
+		cli.BoolFlag{
+			Name:        "configure-ova",
+			Usage:       "Configure OVA ManagedBy information with plugin",
+			Destination: &p.Configure,
 		},
 		cli.StringFlag{
 			Name:        "company",
@@ -108,6 +116,12 @@ func (p *Plugin) Flags() []cli.Flag {
 			Usage:       "Plugin version (required)",
 			Destination: &p.Version,
 		},
+		cli.StringFlag{
+			Name:        "type",
+			Value:       "",
+			Usage:       "Managed entity type",
+			Destination: &p.EntityType,
+		},
 	}
 	flags = append(p.TargetFlags(), flags...)
 	flags = append(flags, p.DebugFlags(true)...)
@@ -131,10 +145,10 @@ func (p *Plugin) InfoFlags() []cli.Flag {
 	return flags
 }
 
-func (p *Plugin) processInstallParams() error {
-	defer trace.End(trace.Begin(""))
+func (p *Plugin) processInstallParams(op trace.Operation) error {
+	defer trace.End(trace.Begin("", op))
 
-	if err := p.HasCredentials(); err != nil {
+	if err := p.HasCredentials(op); err != nil {
 		return err
 	}
 
@@ -170,10 +184,10 @@ func (p *Plugin) processInstallParams() error {
 	return nil
 }
 
-func (p *Plugin) processRemoveParams() error {
-	defer trace.End(trace.Begin(""))
+func (p *Plugin) processRemoveParams(op trace.Operation) error {
+	defer trace.End(trace.Begin("", op))
 
-	if err := p.HasCredentials(); err != nil {
+	if err := p.HasCredentials(op); err != nil {
 		return err
 	}
 
@@ -185,10 +199,10 @@ func (p *Plugin) processRemoveParams() error {
 	return nil
 }
 
-func (p *Plugin) processInfoParams() error {
-	defer trace.End(trace.Begin(""))
+func (p *Plugin) processInfoParams(op trace.Operation) error {
+	defer trace.End(trace.Begin("", op))
 
-	if err := p.HasCredentials(); err != nil {
+	if err := p.HasCredentials(op); err != nil {
 		return err
 	}
 
@@ -199,8 +213,10 @@ func (p *Plugin) processInfoParams() error {
 }
 
 func (p *Plugin) Install(cli *cli.Context) error {
+	op := trace.NewOperation(context.Background(), "Install")
+
 	var err error
-	if err = p.processInstallParams(); err != nil {
+	if err = p.processInstallParams(op); err != nil {
 		return err
 	}
 
@@ -227,6 +243,13 @@ func (p *Plugin) Install(cli *cli.Context) error {
 		Type:                  "vsphere-client-serenity",
 		URL:                   p.URL,
 		Version:               p.Version,
+	}
+
+	if p.EntityType != "" {
+		pInfo.ManagedEntityInfo = &plugin.ManagedEntityInfo{
+			Description: p.Summary,
+			EntityType:  p.EntityType,
+		}
 	}
 
 	pl, err := plugin.NewPluginator(context.TODO(), p.Target.URL, p.Target.Thumbprint, pInfo)
@@ -270,12 +293,29 @@ func (p *Plugin) Install(cli *cli.Context) error {
 	}
 
 	log.Info("Installed UI plugin")
+
+	if p.Configure {
+		sessionConfig := &session.Config{
+			Service:    p.Target.URL.Scheme + "://" + p.Target.URL.Host,
+			User:       p.Target.URL.User,
+			Thumbprint: p.Thumbprint,
+			Insecure:   true,
+		}
+
+		// Configure the OVA vm to be managed by this plugin
+		if err = ova.ConfigureManagedByInfo(context.TODO(), sessionConfig, pInfo.URL); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func (p *Plugin) Remove(cli *cli.Context) error {
+	op := trace.NewOperation(context.Background(), "Remove")
+
 	var err error
-	if err = p.processRemoveParams(); err != nil {
+	if err = p.processRemoveParams(op); err != nil {
 		return err
 	}
 	if p.Debug.Debug != nil && *p.Debug.Debug > 0 {
@@ -336,8 +376,10 @@ func (p *Plugin) Remove(cli *cli.Context) error {
 }
 
 func (p *Plugin) Info(cli *cli.Context) error {
+	op := trace.NewOperation(context.Background(), "Info")
+
 	var err error
-	if err = p.processInfoParams(); err != nil {
+	if err = p.processInfoParams(op); err != nil {
 		return err
 	}
 

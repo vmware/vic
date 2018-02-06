@@ -1,4 +1,4 @@
-# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -48,8 +48,8 @@ Hit Nginx Endpoint
     Should Be Equal As Integers  ${rc}  0
 
 Get Container IP
-    [Arguments]  ${docker-params}  ${id}  ${network}=default  ${dockercmd}=docker
-    ${rc}  ${ip}=  Run And Return Rc And Output  ${dockercmd} ${docker-params} network inspect ${network} | jq '.[0].Containers."${id}".IPv4Address' | cut -d \\" -f 2 | cut -d \\/ -f 1
+    [Arguments]  ${docker-params}  ${id}  ${network}=bridge  ${dockercmd}=docker
+    ${rc}  ${ip}=  Run And Return Rc And Output  ${dockercmd} ${docker-params} inspect --format='{{(index .NetworkSettings.Networks "${network}").IPAddress}}' ${id}
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${ip}
 
@@ -202,3 +202,117 @@ Verify Volume Inspect Info
 
     :FOR  ${item}  IN  @{checkList}
     \   Should Contain  ${mountInfo}  ${item}
+
+Log All Containers
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    Run Keyword If  ${rc} != 0  Log To Console  Remaining containers - ${out}
+
+Do Images Exist
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -q
+    ${len}=  Get Length  ${output}
+    Return From Keyword If  ${len} == 0  ${false}
+    [Return]  ${true}
+
+Do Containers Exist
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -q
+    ${len}=  Get Length  ${output}
+    Return From Keyword If  ${len} == 0  ${false}
+    [Return]  ${true}
+
+Do Volumes Exist
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls -q
+    ${len}=  Get Length  ${output}
+    Return From Keyword If  ${len} == 0  ${false}
+    [Return]  ${true}
+
+Do Networks Exist
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network ls -q
+    ${len}=  Get Length  ${output}
+    Return From Keyword If  ${len} == 0  ${false}
+    [Return]  ${true}
+
+Remove All Containers
+    ${exist}=  Do Containers Exist
+    Run Keyword If  ${exist}  Log To Console  Stopping and removing all containers from %{VCH-NAME}
+    Return From Keyword If  ${exist} == ${false}  0
+
+    # Run Keyword If  ${exist}  Kill All Containers
+    Run Keyword If  ${exist}  Run  docker %{VCH-PARAMS} rm -f $(docker %{VCH-PARAMS} ps -a -q)
+
+    ${exist}=  Do Containers Exist
+    Return From Keyword If  ${exist} == ${false}  0
+    Run Keyword If  ${exist}  Log All Containers
+    [Return]  1
+
+Stop All Containers
+    Run  docker %{VCH-PARAMS} stop $(docker %{VCH-PARAMS} ps -q)
+
+Kill All Containers
+    Run  docker %{VCH-PARAMS} kill $(docker %{VCH-PARAMS} ps -q)
+
+Remove All Images
+    ${exist}=  Do Images Exist
+    Run Keyword If  ${exist}  Log To Console  Removing all images from %{VCH-NAME}
+    
+    Return From Keyword If  ${exist} == ${false}  0
+    Run Keyword If  ${exist}  Remove All Containers
+    Run Keyword If  ${exist}  Run  docker %{VCH-PARAMS} rmi $(docker %{VCH-PARAMS} images -q)
+
+    ${exist}=  Do Images Exist
+    Return From Keyword If  ${exist} == ${false}  0
+    [Return]  1
+
+Remove All Volumes
+    ${exist}=  Do Volumes Exist
+    Run Keyword If  ${exist}  Log To Console  Removing all volumes from %{VCH-NAME}
+
+    Return From Keyword If  ${exist} == ${false}  0
+    Run Keyword If  ${exist}  Run  docker %{VCH-PARAMS} volume rm $(docker %{VCH-PARAMS} volume ls -q)
+
+    ${exist}=  Do Volumes Exist
+    Return From Keyword If  ${exist} == ${false}  0
+    [Return]  1
+
+Remove All Container Networks
+    ${exist}=  Do Networks Exist
+    Run Keyword If  ${exist}  Log To Console  Removing all container networks from %{VCH-NAME}
+
+    Return From Keyword If  ${exist} == ${false}  0
+    Run Keyword If  ${exist}  Run  docker %{VCH-PARAMS} network rm $(docker %{VCH-PARAMS} network ls -q)
+
+    ${exist}=  Do Networks Exist
+    Return From Keyword If  ${exist} == ${false}  0
+    [Return]  1
+    
+Add List To Dictionary
+    [Arguments]  ${dict}  ${list}
+    : FOR  ${item}  IN  @{list}
+    \    Set To Dictionary  ${dict}  ${item}  1
+
+List Existing Images On VCH
+    # Get list of image IDs
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -q
+    ${len}=  Get Length  ${output}
+    Run Keyword If  ${len} != 0  Log To Console  Found images on %{VCH-NAME}:
+    ${image_ids}=  Run Keyword If  ${rc} == 0  Split String  ${output}
+    ${tags_dict}=  Create Dictionary
+    : FOR  ${id}  IN  @{image_ids}
+    \    ${rc}  ${repotags}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --format='{{.RepoTags}}' --type=image ${id}
+    \    ${clean_tags}  Strip String  ${repotags}  characters=[]
+    \    ${tags}=  Split String  ${clean_tags}
+    \    Add List To Dictionary  ${tags_dict}  ${tags}
+
+    : FOR  ${tag}  IN  @{tags_dict.keys()}
+    \    Log To Console  \t${tag}
+
+List Running Containers On VCH    
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -q
+    Log To Console  ${EMPTY}
+    ${len}=  Get Length  ${output}
+    Run Keyword If  ${len} != 0  Log To Console  Found running containers on %{VCH-NAME}:
+    ...  ELSE  Log To Console  No running containers on %{VCH-NAME}
+    Return From Keyword If  ${len} == 0
+
+    ${cids}=  Run Keyword If  ${len} != 0  Split String  ${output}
+    : FOR  ${id}  IN  @{cids}
+    \    Log To Console  \t${id}

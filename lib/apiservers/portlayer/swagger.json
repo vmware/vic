@@ -1817,6 +1817,12 @@
 							"$ref": "#/definitions/Error"
 						}
 					},
+            "409": {
+              "description": "Task failed due to power state change",
+              "schema": {
+                  "$ref": "#/definitions/Error"
+              }
+            },
 					"500": {
 						"description": "Inspect of task failed",
 						"schema": {
@@ -3014,6 +3020,14 @@
 					"items": {
 						"type": "string"
 					}
+				},
+				"trust": {
+					"x-nullable": false,
+					"type": "string"
+				},
+				"direct": {
+					"x-nullable": false,
+					"type": "boolean"
 				}
 			}
 		},
@@ -3301,7 +3315,8 @@
 					"type": "string"
 				},
 				"createTime": {
-					"type": "integer"
+					"type": "integer",
+					"format": "int64"
 				},
 				"names": {
 					"type": "array",
@@ -3393,15 +3408,6 @@
 				},
 				"reservation": {
 					"$ref": "#/definitions/ReservationConfig"
-				},
-				"address": {
-					"type": "string"
-				},
-				"ports": {
-					"type": "array",
-					"items": {
-						"type": "string"
-					}
 				}
 			}
 		},

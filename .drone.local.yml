@@ -11,7 +11,7 @@ pipeline:
     recursive: false
 
   vic-integration-test-on-pr:
-    image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.36}
+    image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.39}
     pull: true
     environment:
       BIN: bin
@@ -34,9 +34,11 @@ pipeline:
       GS_PROJECT_ID: ${GS_PROJECT_ID}
       GS_CLIENT_EMAIL: ${GS_CLIENT_EMAIL}
       GS_PRIVATE_KEY: ${GS_PRIVATE_KEY}
+      DEBUG_VCH:  ${DEBUG_VCH}
       DOMAIN: ${DOMAIN}
     commands:
       - tests/integration-test.sh
-      #- pybot tests/test-cases/Group1-Docker-Commands/1-13-Docker-Version.robot
+      # - pybot tests/test-cases/Group1-Docker-Commands
+      # - pybot tests/test-cases/Group1-Docker-Commands/1-01-Docker-Info.robot
     volumes:
       - /tmp

@@ -15,6 +15,7 @@
 package vsphere
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -34,7 +35,7 @@ func TestNewEvent(t *testing.T) {
 	assert.NotNil(t, vme)
 	assert.Equal(t, events.ContainerPoweredOn, vme.String())
 	assert.Equal(t, vm.String(), vme.Reference())
-	assert.Equal(t, k, vme.EventID())
+	assert.Equal(t, strconv.Itoa(k), vme.EventID())
 	assert.Equal(t, msg, vme.Message())
 	assert.Equal(t, "vsphere.VMEvent", vme.Topic())
 	assert.Equal(t, tt, vme.Created())

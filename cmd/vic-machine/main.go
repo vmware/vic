@@ -33,6 +33,7 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/update"
 	"github.com/vmware/vic/cmd/vic-machine/upgrade"
 	viclog "github.com/vmware/vic/pkg/log"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 )
 
@@ -143,14 +144,28 @@ func main() {
 	log.SetFormatter(viclog.NewTextFormatter())
 	// SetOutput to io.MultiWriter so that we can log to stdout and a file
 	log.SetOutput(io.MultiWriter(logs...))
+	// Set up the global trace logger to write to the file
+	trace.Logger.Out = f
+
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("--------------------")
-			log.Errorf("%s failed, please check log file %s for details", app.Name, LogFile)
+			// Output instructions to check log file for details to the user, but not the log file
+			logger := log.New()
+			logger.Out = app.Writer
+			logger.Errorf("--------------------")
+			logger.Errorf("%s failed, please check log file %s for details", app.Name, LogFile)
+
+			// Output the stack to the log file, but not the user
 			// #nosec: Errors unhandled.
 			fmt.Fprintf(f, "%s", runtime.Stack())
 		}
 	}()
+
+	// When writing log files (vic-machine.log and the datastore log), always log at debug.
+	defer func(old log.Level) {
+		trace.Logger.Level = old
+	}(trace.Logger.Level)
+	trace.Logger.Level = log.DebugLevel
 
 	// #nosec: Errors unhandled.
 	app.Run(os.Args)

@@ -27,6 +27,9 @@ import (
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
+	"github.com/vmware/vic/pkg/trace"
+
+	"context"
 
 	mdns "github.com/miekg/dns"
 )
@@ -86,6 +89,7 @@ func TestForwarding(t *testing.T) {
 
 func TestVIC(t *testing.T) {
 	t.Skipf("Failing with CI")
+	op := trace.NewOperation(context.Background(), "TestVIC")
 
 	log.SetLevel(log.PanicLevel)
 
@@ -137,7 +141,7 @@ func TestVIC(t *testing.T) {
 	}
 
 	// bind it
-	_, err = ctx.BindContainer(con)
+	_, err = ctx.BindContainer(op, con)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
