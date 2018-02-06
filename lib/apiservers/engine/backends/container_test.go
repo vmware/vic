@@ -356,6 +356,10 @@ func (m *MockContainerProxy) BindTask(op trace.Operation, handle string, eid str
 	return "", nil
 }
 
+func (m *MockContainerProxy) WaitTask(op trace.Operation, cid string, cname string, id string) error {
+	return nil
+}
+
 func (m *MockContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (*types.ContainerState, error) {
 	dockerState := &types.ContainerState{ExitCode: 0}
 	return dockerState, nil
