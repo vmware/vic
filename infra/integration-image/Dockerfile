@@ -16,6 +16,7 @@ RUN sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable 
 RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
     apt-get update && apt-get install -y --no-install-recommends \
     jq \
+    bc \
     time \
     gcc \
     python-dev \
