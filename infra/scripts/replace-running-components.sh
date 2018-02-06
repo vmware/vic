@@ -26,35 +26,29 @@ VIC_DIR=$(dirname $(readlink -f $BASE_DIR/..))
 
 # Run the command given on the VCH instead of locally
 function on-vch() {
-    sshpass -ppassword ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@$VCH_IP -C $@ 2>/dev/null
+   # sshpass -ppassword
+    ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -i $VIC_KEY root@$VCH_IP -C $@ 2>/dev/null
+}
+
+function get-thumbprint() {
+    govc about.cert -k -thumbprint | awk '{print $NF}'
 }
 
 # SCPs the component in $1 to the VCH, plops it in place, and brutally kills the previous running process
-function replace-component() {
-    sshpass -p 'password' scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no $VIC_DIR/bin/$1 root@$VCH_IP:/tmp/$1
-    on-vch mv /sbin/$1 /tmp/old-$1
-    on-vch mv /tmp/$1 /sbin/$1
-    on-vch chmod 755 /sbin/$1
-    pid=$(on-vch ps -e --format='pid,args' \
-              | grep $1 | grep -v grep | awk '{print $1}')
-    on-vch kill -9 $pid
-    on-vch rm -f /tmp/old-$1
-}
-
 # Determines whether the human VCH name is adequate to continue
-function vch-name-is-ambiguous () {
+function vch-name-is-ambiguous() {
     [ $($VIC_DIR/bin/vic-machine-linux \
             ls \
             --target=$target \
             --user=$username \
             --password=$password \
-            --thumbprint=$(govc about.cert -k thumbprint) \
+            --thumbprint=$(get-thumbprint) \
             | grep $VIC_NAME | wc -l) -ne 1 ] \
         && return 0 || return 1
 }
 
 # Check GOVC vars & print help text if not
-function check-govc-vars () {
+function check-govc-vars() {
     if [[ ! $(govc ls 2>/dev/null) ]]; then
         echo "ERROR:"
         echo "GOVC environment variables are required to use this command. Set the necessary variables to allow govc to connect to your vSphere deployment:";
@@ -94,7 +88,7 @@ function check-name-isnt-ambiguous ()  {
             --target $GOVC_URL \
             --user $GOVC_USER \
             --password=$GOVC_PASSWORD \
-            --thumbprint=$(govc about.cert -k thumbprint)
+            --thumbprint=$(get-thumbprint)
 
         if [[ $interactive -eq 0 ]]; then
             exit 1
@@ -105,15 +99,8 @@ function check-name-isnt-ambiguous ()  {
 
 # Translates VCH name to ID if necessary
 function get-vic-id () {
-    if [[ ! -v VIC_ID ]]; then
-        VIC_ID=$(\
-                 $VIC_DIR/bin/vic-machine-linux\
-                     ls \
-                     --target=$target \
-                     --user=$username \
-                     --password=$password \
-                     --thumbprint=$(govc about.cert -k thumbprint)\
-                     | grep $VIC_NAME | awk '{print $1}')
+    if [[ -z $VIC_ID ]]; then
+        export VIC_ID="$($VIC_DIR/bin/vic-machine-linux ls --target=$target --user=$username --password=$password --thumbprint=$(get-thumbprint) | grep $VIC_NAME | awk '{print $1}')"
     fi
 }
 
@@ -123,7 +110,8 @@ function get-ssh-keys() {
         if [[ $interactive -eq 0 ]]; then
             exit 1
         fi
-        read -p "Path to your public SSH key for access to VCH [/home/$USER/.ssh/id_rsa.pub]: " VIC_KEY
+        read -p "Path to your public SSH key for access to VCH [/home/$USER/.ssh/id_rsa.pub]: " key
+        export VIC_KEY=${key:-/home/$USER/.ssh/id_rsa.pub}
     fi
 }
 
@@ -136,32 +124,55 @@ function sanity-checks () {
     get-ssh-keys
 }
 
+# Enables SSH and saves off the VCH IP address
 function enable-debug () {
-    $VIC_DIR/bin/vic-machine-linux debug \
+    VCH_IP=$($VIC_DIR/bin/vic-machine-linux debug \
                                    --target=$target \
                                    --id=$VIC_ID \
                                    --user=$username \
                                    --password=$password \
-                                   --thumbprint=$(govc about.cert -k thumbprint)
+                                   --authorized-key=$VIC_KEY \
+                                   --thumbprint=$(get-thumbprint) \
+                 | grep -A1 "Published ports" | tail -n1 | awk '{print $NF}')
+}
+
+function replace-component() {
+    # sshpass -p 'password'
+    scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no $VIC_DIR/bin/$1 root@$VCH_IP:/tmp/$1 2>/dev/null
+    on-vch mv /sbin/$1 /tmp/old-$1
+    on-vch mv /tmp/$1 /sbin/$1
+    on-vch chmod 755 /sbin/$1
+    # pid=$(on-vch ps -e --format='pid,args' \
+    #          | grep $1 | grep -v grep | awk '{print $1}')
+    # on-vch kill -9 $pid
+    on-vch rm -f /tmp/old-$1
 }
 
 function replace-components () {
-    VCH_IP="$(govc vm.ip $VIC_NAME)"
+    echo "Killing vic-init (and not taking no for an answer)..."
+    on-vch systemctl kill vic-init
     if [[ $1 == "" ]]; then # replace everything
         for x in port-layer-server docker-engine-server vicadmin vic-init; do
+            echo "Replacing component $x..."
             replace-component $x
         done
     else
         for x in $@; do # replace provided list
+            echo "Replacing component $x..."
             replace-component $x
         done
     fi
+    echo "Starting vic-init.."
+    on-vch systemctl start vic-init
 }
 
 sanity-checks
 enable-debug
 replace-components $@
 
-# fix restart?
-on-vch vic-init &
-echo "IP address may change when appliance finishes re-initializing. Get the new IP with govc vm.ip $VIC_NAME"
+$VIC_DIR/bin/vic-machine-linux inspect \
+                               --target=$target \
+                               --id=$VIC_ID \
+                               --user=$username \
+                               --password=$password \
+                               --thumbprint=$(get-thumbprint)
