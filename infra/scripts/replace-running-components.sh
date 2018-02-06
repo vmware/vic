@@ -137,37 +137,29 @@ function enable-debug () {
 
 function replace-component() {
     scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no $VIC_DIR/bin/$1 root@$VCH_IP:/tmp/$1 2>/dev/null
-    on-vch mv /sbin/$1 /tmp/old-$1
+    on-vch chmod 755 /tmp/$1
     on-vch mv /tmp/$1 /sbin/$1
-    on-vch chmod 755 /sbin/$1
-    on-vch rm -f /tmp/old-$1
 }
 
 function replace-components () {
-    echo "Killing vic-init (and not taking no for an answer)..."
-    on-vch systemctl kill vic-init
     if [[ $1 == "" ]]; then # replace everything
-        for x in port-layer-server docker-engine-server vicadmin vic-init; do
-            echo "Replacing component $x..."
-            replace-component $x
-        done
+        services="port-layer-server docker-engine-server vicadmin vic-init"
     else
-        for x in $@; do # replace provided list
-            echo "Replacing component $x..."
-            replace-component $x
-        done
+        services="$@"
     fi
-    echo "Starting vic-init.."
-    on-vch systemctl start vic-init
+
+    for x in $services; do
+        echo "Replacing component $x..."
+        replace-component $x
+    done
+
+    # George swears you don't need to do this but if you don't, the new binaries are not launched
+    on-vch systemctl restart vic-init
 }
 
 sanity-checks
 enable-debug
 replace-components $@
 
-$VIC_DIR/bin/vic-machine-linux inspect \
-                               --target=$target \
-                               --id=$VIC_ID \
-                               --user=$username \
-                               --password=$password \
-                               --thumbprint=$(get-thumbprint)
+echo "Wait a few moments and run this to get the new IP of your VCH"
+echo "$VIC_DIR/bin/vic-machine-linux inspect --target=$target --id=$VIC_ID --user=$username            --password=$password --thumbprint=$(get-thumbprint)"
