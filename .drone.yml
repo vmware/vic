@@ -18,7 +18,7 @@ pipeline:
     recursive: false
 
   display-status:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.39
+    image: harbor.ci.drone.local/library/vic-integration-test:1.41
     pull: true
     environment:
       BIN: bin
@@ -30,7 +30,7 @@ pipeline:
       - git log -1 --pretty=oneline | grep "^${DRONE_COMMIT}" > /dev/null && echo 'Build matches' || (git log -1 --pretty=oneline | grep "Merge ${DRONE_COMMIT}" > /dev/null && echo 'Build is of a merge commit' || (echo 'Build does not match!' && exit 1))
 
   wait-for-build:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.39
+    image: harbor.ci.drone.local/library/vic-integration-test:1.41
     pull: true
     environment:
       BIN: bin
@@ -43,7 +43,7 @@ pipeline:
       - tests/wait_until_previous_builds_complete.sh
 
   vic-engine:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.39
+    image: harbor.ci.drone.local/library/vic-integration-test:1.41
     pull: true
     environment:
       BIN: bin
@@ -72,7 +72,7 @@ pipeline:
       status:  success
 
   vic-integration-test-on-pr:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.39
+    image: harbor.ci.drone.local/library/vic-integration-test:1.41
     pull: true
     privileged: true
     environment:
@@ -114,7 +114,7 @@ pipeline:
       status:  success
 
   vic-ui:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.39
+    image: harbor.ci.drone.local/library/vic-integration-test:1.41
     pull: true
     environment:
       BUILD_NUMBER: ${DRONE_BUILD_NUMBER}
@@ -135,7 +135,7 @@ pipeline:
       branch: [ master ]
 
   vic-ui-release:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.39
+    image: harbor.ci.drone.local/library/vic-integration-test:1.41
     pull: true
     environment:
       BUILD_NUMBER: ${DRONE_BUILD_NUMBER}
@@ -332,3 +332,14 @@ pipeline:
       repo: vmware/vic
       branch: [ refs/tags/* ]
       status: success
+
+  pass-rate:
+    image: harbor.ci.drone.local/library/vic-integration-test:1.41
+    pull: true
+    environment:
+      BIN: bin
+      SHELL: /bin/bash
+      GITHUB_AUTOMATION_API_KEY:  ${GITHUB_AUTOMATION_API_KEY}
+      SLACK_URL: ${SLACK_URL}
+    commands:
+      - tests/pass-rate.sh

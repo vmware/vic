@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 
-FROM gcr.io/eminent-nation-87317/vic-integration-test:1.39
+FROM gcr.io/eminent-nation-87317/vic-integration-test:1.41
 RUN mkdir -p /go/src/github.com/vmware/vic
 COPY secrets /go/src/github.com/vmware/vic
 ENV LONGEVITY=1
