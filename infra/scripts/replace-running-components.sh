@@ -26,7 +26,6 @@ VIC_DIR=$(dirname $(readlink -f $BASE_DIR/..))
 
 # Run the command given on the VCH instead of locally
 function on-vch() {
-   # sshpass -ppassword
     ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -i $VIC_KEY root@$VCH_IP -C $@ 2>/dev/null
 }
 
@@ -64,13 +63,13 @@ function check-govc-vars() {
 # Make sure we have at least one of VIC_NAME or VIC_ID
 function check-vch-name-or-id () {
     if [[ ! -v VIC_NAME ]] && [[ ! -v VIC_ID ]]; then
+        echo "Please set one of the following environment variables to specify the VCH which you would like to reconfigure:"
+        echo "VIC_NAME: name of VCH; matches --name argument for vic-machine"
+        echo "VIC_ID: ID of VCH, as displayed in output of vic-machine ls"
         if [[ $interactive -eq 0 ]]; then
-            echo "Please set one of the following environment variables to specify the VCH which you would like to reconfigure:"
-            echo "VIC_NAME: name of VCH; matches --name argument for vic-machine"
-            echo "VIC_ID: ID of VCH, as displayed in output of vic-machine ls"
             exit 1
         fi
-        read -p "Enter VCH name: " VIC_NAME
+        read -p "Or enter VCH name to continue: " VIC_NAME
     fi
 }
 
@@ -137,14 +136,10 @@ function enable-debug () {
 }
 
 function replace-component() {
-    # sshpass -p 'password'
     scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no $VIC_DIR/bin/$1 root@$VCH_IP:/tmp/$1 2>/dev/null
     on-vch mv /sbin/$1 /tmp/old-$1
     on-vch mv /tmp/$1 /sbin/$1
     on-vch chmod 755 /sbin/$1
-    # pid=$(on-vch ps -e --format='pid,args' \
-    #          | grep $1 | grep -v grep | awk '{print $1}')
-    # on-vch kill -9 $pid
     on-vch rm -f /tmp/old-$1
 }
 
