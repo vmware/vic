@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -e
+set -eo pipefail
 
 if [ -z "$PS1" ]; then
     interactive=1
@@ -33,7 +33,6 @@ function get-thumbprint() {
     govc about.cert -k -thumbprint | awk '{print $NF}'
 }
 
-# SCPs the component in $1 to the VCH, plops it in place, and brutally kills the previous running process
 # Determines whether the human VCH name is adequate to continue
 function vch-name-is-ambiguous() {
     [ $($VIC_DIR/bin/vic-machine-linux \
@@ -135,6 +134,7 @@ function enable-debug () {
                  | grep -A1 "Published ports" | tail -n1 | awk '{print $NF}')
 }
 
+# SCPs the component in $1 to the VCH, plops it in place, and brutally kills the previous running process
 function replace-component() {
     scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no $VIC_DIR/bin/$1 root@$VCH_IP:/tmp/$1 2>/dev/null
     on-vch chmod 755 /tmp/$1
@@ -162,4 +162,4 @@ enable-debug
 replace-components $@
 
 echo "Wait a few moments and run this to get the new IP of your VCH"
-echo "$VIC_DIR/bin/vic-machine-linux inspect --target=$target --id=$VIC_ID --user=$username            --password=$password --thumbprint=$(get-thumbprint)"
+echo "$VIC_DIR/bin/vic-machine-linux inspect --target=$target --id=$VIC_ID --user=$username --password=$password --thumbprint=$(get-thumbprint)"
