@@ -1,5 +1,5 @@
 #!/bin/bash -e
-# Copyright 2016 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -78,7 +78,7 @@ pipeline:
     # dont clone submodules
     recursive: false
   vic-integration-test-on-pr:
-    image: gcr.io/eminent-nation-87317/vic-integration-test:1.41
+    image: gcr.io/eminent-nation-87317/vic-integration-test:1.42
     pull: true
     environment:
       GITHUB_AUTOMATION_API_KEY: $GITHUB_TOKEN
