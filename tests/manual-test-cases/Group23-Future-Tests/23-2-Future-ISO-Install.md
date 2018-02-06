@@ -12,11 +12,11 @@ This test requires that a vSphere server is running and available
 
 # Test Steps:
 1. Adjust the vSphere system time more than 1 year into the future
-2. Install a VCH and create/run several different containers
-3. Verify that the VCH continues to function properly and the containers also are running
+2. Install a VCH
+3. Verify that the VCH functions properly
 
 # Expected Outcome:
-The VCH appliance install should function properly after a year along with the containers created as well
+The VCH appliance install should function properly after a year after ISOs were built
 
 # Possible Problems:
 None

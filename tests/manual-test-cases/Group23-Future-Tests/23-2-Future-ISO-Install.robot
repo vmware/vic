@@ -51,14 +51,8 @@ Test
     ${out}=  Run  govc host.esxcli hardware clock set -d 10 -H 10 -m 18 -M 04 -y ${future}
 
     Install VIC Appliance To Test Server
-    Run Regression Tests
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name nginx -d -p 8080:80 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl nginx endpoint  %{VCH-IP}:8080
-    Should Contain  ${output}  Welcome to nginx!
-
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name alp alpine ls
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ID: vSphere Integrated Containers
