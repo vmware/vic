@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2016 VMware, Inc. All Rights Reserved.
+# Copyright 2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,22 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+prNumber=$(drone build info --format "{{ .Ref }}" vmware/vic $DRONE_BUILD_NUMBER | cut -f 3 -d'/')
+prBody=$(curl https://api.github.com/repos/vmware/vic/pulls/$prNumber | jq -r ".body")
 
-# Get the latest code from vic-internal repo for nightly_secrets.sh file
-cd ~/vic-internal
-git clean -fd
-git fetch
-git pull
-source nightly_secrets.sh
-
-# Get the latest code from vmware/vic repo
-cd ~/vic
-git clean -fd
-git fetch https://github.com/vmware/vic master
-git pull
-
-# Kick off the nightly
-echo "Cleanup logs from previous run"
-sudo rm -rf *.zip *.log bin 60 65
-
-sudo -E ./tests/nightly/nightly-kickoff.sh > ./nightly_console.txt 2>&1
+if ! (echo $prBody | grep -q "\[skip unit\]"); then
+  make test
+fi

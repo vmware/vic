@@ -15,6 +15,7 @@
 package network
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"reflect"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 )
 
@@ -42,6 +44,7 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 		t.Errorf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return
 	}
+	op := trace.NewOperation(context.Background(), "TestScopeAddRemoveContainer")
 
 	s := ctx.defaultScope
 
@@ -146,7 +149,7 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 	}
 	bound := exec.TestHandle("bound")
 	ctx.AddContainer(bound, options)
-	ctx.BindContainer(bound)
+	ctx.BindContainer(op, bound)
 
 	// test RemoveContainer
 	var tests2 = []struct {

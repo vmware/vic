@@ -23,7 +23,6 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/kv"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
-	"github.com/vmware/vic/pkg/trace"
 
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/reference"
@@ -128,8 +127,6 @@ func init() {
 // NewRespositoryCache will create a new repoCache or rehydrate
 // an existing repoCache from the portlayer k/v store
 func NewRepositoryCache(client *client.PortLayer) error {
-	defer trace.End(trace.Begin(""))
-
 	rCache.client = client
 
 	val, err := kv.Get(client, repoKey)
@@ -165,8 +162,6 @@ func NewRepositoryCache(client *client.PortLayer) error {
 // Save will persist the repository cache to the
 // portlayer k/v
 func (store *repoCache) Save() error {
-	defer trace.End(trace.Begin(""))
-
 	b, err := json.Marshal(store)
 	if err != nil {
 		log.Errorf("Unable to marshal repository cache: %s", err.Error())
@@ -183,7 +178,6 @@ func (store *repoCache) Save() error {
 }
 
 func (store *repoCache) AddReference(ref reference.Named, imageID string, force bool, layerID string, save bool) error {
-	defer trace.End(trace.Begin(""))
 	if ref.Name() == string(digest.Canonical) {
 		return errors.New("refusing to create an ambiguous tag using digest algorithm as name")
 	}
@@ -253,7 +247,6 @@ func (store *repoCache) AddReference(ref reference.Named, imageID string, force 
 // Tags: busybox:1.25.1
 // Digest: nginx@sha256:7281cf7c854b0dfc7c68a6a4de9a785a973a14f1481bc028e2022bcd6a8d9f64
 func (store *repoCache) Remove(ref string, save bool) (string, error) {
-	defer trace.End(trace.Begin(""))
 	n, err := reference.ParseNamed(ref)
 	if err != nil {
 		return "", err
@@ -270,7 +263,6 @@ func (store *repoCache) Remove(ref string, save bool) (string, error) {
 // Delete deletes a reference from the store. It returns true if a deletion
 // happened, or false otherwise.
 func (store *repoCache) Delete(ref reference.Named, save bool) (bool, error) {
-	defer trace.End(trace.Begin(""))
 	ref = reference.WithDefaultTag(ref)
 
 	store.mu.Lock()
@@ -315,7 +307,6 @@ func (store *repoCache) Delete(ref reference.Named, save bool) (bool, error) {
 // GetImageID will return the imageID associated with the
 // specified layerID
 func (store *repoCache) GetImageID(layerID string) string {
-	defer trace.End(trace.Begin(layerID))
 	var imageID string
 	store.mu.RLock()
 	defer store.mu.RUnlock()
@@ -327,7 +318,6 @@ func (store *repoCache) GetImageID(layerID string) string {
 
 // Get returns the imageID for a parsed reference
 func (store *repoCache) Get(ref reference.Named) (string, error) {
-	defer trace.End(trace.Begin(""))
 	ref = reference.WithDefaultTag(ref)
 
 	store.mu.RLock()
@@ -347,8 +337,6 @@ func (store *repoCache) Get(ref reference.Named) (string, error) {
 
 // Tags returns a slice of tags for the specified imageID
 func (store *repoCache) Tags(imageID string) []string {
-	defer trace.End(trace.Begin(""))
-
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 	var tags []string
@@ -362,8 +350,6 @@ func (store *repoCache) Tags(imageID string) []string {
 
 // Digests returns a slice of digests for the specified imageID
 func (store *repoCache) Digests(imageID string) []string {
-	defer trace.End(trace.Begin(""))
-
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 	var digests []string
@@ -378,8 +364,6 @@ func (store *repoCache) Digests(imageID string) []string {
 // References returns a slice of references to the given imageID. The slice
 // will be nil if there are no references to this imageID.
 func (store *repoCache) References(imageID string) []reference.Named {
-	defer trace.End(trace.Begin(""))
-
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 
@@ -401,8 +385,6 @@ func (store *repoCache) References(imageID string) []reference.Named {
 // If there are no references known for this repository name,
 // ReferencesByName returns nil.
 func (store *repoCache) ReferencesByName(ref reference.Named) []Association {
-	defer trace.End(trace.Begin(""))
-
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 

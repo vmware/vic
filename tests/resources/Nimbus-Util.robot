@@ -44,6 +44,12 @@ Fetch POD
       ${pod}=  Fetch From Left  ${out}  :
       [return]  ${pod}
 
+Custom Testbed Keepalive
+    [Tags]  secret
+    [Arguments]  ${folder}
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  touch ${folder}
+    [Return]  ${out}
+
 Deploy Nimbus ESXi Server
     [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}  ${tls_disabled}=True
     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
@@ -232,6 +238,7 @@ Gather Host IPs
 
 Create a VSAN Cluster
     [Arguments]  ${name}=vic-vmotion
+    [Timeout]    110 minutes
     Log To Console  \nStarting basic VSAN cluster deploy...
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --lease 1 --noStatsDump --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName ${name}
@@ -430,3 +437,30 @@ Power Off Host
     Login  root  ${NIMBUS_ESX_PASSWORD}
     ${out}=  Execute Command  poweroff -d 0 -f
     Close connection
+
+Create Static IP Worker
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Log To Console  Create a new static ip address worker...
+    ${out}=  Execute Command  nimbus-ctl --silentObjectNotFoundError kill '%{NIMBUS_USER}-static-worker' && nimbus-worker-deploy --enableStaticIpService static-worker
+    Should Contain  ${out}  "deploy_status": "success"
+    Set Environment Variable  STATIC_WORKER_NAME  %{NIMBUS_USER}-static-worker
+    ${ip}=  Get IP  static-worker
+    Set Environment Variable  STATIC_WORKER_IP  ${ip}
+    Close Connection
+
+Get Static IP Address
+    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  STATIC_WORKER_IP
+    Run Keyword If  '${status}' == 'FAIL'  Create Static IP Worker
+    Log To Console  Curl a new static ip address from the created worker...
+    ${out}=  Run  curl -s http://%{STATIC_WORKER_IP}:4827/nsips
+
+    &{static}=  Create Dictionary
+    ${ip}=  Run  echo '${out}' | jq -r ".ip"
+    Set To Dictionary  ${static}  ip  ${ip}
+    ${netmask}=  Run  echo '${out}' | jq -r ".netmask"
+    ${netmask}=  Evaluate  sum([bin(int(x)).count("1") for x in "${netmask}".split(".")])
+    Set To Dictionary  ${static}  netmask  ${netmask}
+    ${gateway}=  Run  echo '${out}' | jq -r ".gateway"
+    Set To Dictionary  ${static}  gateway  ${gateway}
+    [Return]  ${static}

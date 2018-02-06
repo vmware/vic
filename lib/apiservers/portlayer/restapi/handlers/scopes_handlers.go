@@ -270,7 +270,8 @@ func (handler *ScopesHandlersImpl) ScopesRemoveContainer(params scopes.RemoveCon
 }
 
 func (handler *ScopesHandlersImpl) ScopesBindContainer(params scopes.BindContainerParams) middleware.Responder {
-	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", params.Handle)))
+	op := trace.NewOperation(context.Background(), params.Handle)
+	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", params.Handle), op))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
@@ -279,7 +280,7 @@ func (handler *ScopesHandlersImpl) ScopesBindContainer(params scopes.BindContain
 
 	var endpoints []*network.Endpoint
 	var err error
-	if endpoints, err = handler.netCtx.BindContainer(h); err != nil {
+	if endpoints, err = handler.netCtx.BindContainer(op, h); err != nil {
 		switch err := err.(type) {
 		case network.ResourceNotFoundError:
 			return scopes.NewBindContainerNotFound().WithPayload(errorPayload(err))
@@ -386,7 +387,7 @@ func toEndpointConfig(e *network.Endpoint) *models.EndpointConfig {
 	ports := e.Ports()
 	ecports := make([]string, len(ports))
 	for i, p := range e.Ports() {
-		ecports[i] = p.String()
+		ecports[i] = p.FullString()
 	}
 
 	return &models.EndpointConfig{

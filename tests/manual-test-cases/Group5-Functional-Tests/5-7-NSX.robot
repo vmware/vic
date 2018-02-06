@@ -15,6 +15,7 @@
 *** Settings ***
 Documentation  Test 5-7 - NSX
 Resource  ../../resources/Util.robot
+Force Tags  nsx
 
 *** Keywords ***
 NSX Install VIC Appliance To Test Server

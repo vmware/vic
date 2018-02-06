@@ -134,6 +134,7 @@ func Init() {
 	}
 
 	viclog.Init(logcfg)
+	trace.InitLogger(logcfg)
 
 	// We don't want to run this as root.
 	ud := syscall.Getuid()

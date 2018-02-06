@@ -25,6 +25,12 @@ This test requires that a vSphere server is running and available
 12. Issue docker rmi fakeImage to the VIC appliance
 13. Issue a docker pull by digest
 14. Issue a docker rmi by digest
+15. Issue docker pull for busybox and alpine
+16. Reboot the VCH and wait for it to initialize
+17. Obtain the image short ID for busybox
+18. Issue docker rmi using the short ID for busybox
+19. Obtain the image long ID for alpine
+20. Issue docker rmi using the long ID for alpine
 
 # Expected Outcome:
 * Step 3 and 7 should result in success and the image should be removed from inventory
@@ -38,6 +44,7 @@ Failed to remove image (busybox): Error response from daemon: conflict: unable t
 Failed to remove image (fakeImage): Error response from daemon: No such image: fakeImage:latest
 ```
 * Steps 13-14 should result in success and the output of step 14 should contain the digest of the rmi'd image
+* Steps 15-20 should succeed
 
 # Possible Problems:
 None

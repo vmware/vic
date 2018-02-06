@@ -106,6 +106,7 @@ vic-init-test := $(BIN)/vic-init-test
 vic-dns-linux := $(BIN)/vic-dns-linux
 vic-dns-windows := $(BIN)/vic-dns-windows.exe
 vic-dns-darwin := $(BIN)/vic-dns-darwin
+archive := $(BIN)/unpack
 gandalf := $(BIN)/gandalf
 
 tether-linux := $(BIN)/tether-linux
@@ -311,6 +312,10 @@ $(vicadmin): $$(call godeps,cmd/vicadmin/*.go)
 	@echo building vicadmin
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
+$(archive): $$(call godeps,cmd/archive/*.go)
+	@echo building archive
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
+
 $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
 	@$(TIME) $(GO) build $(RACE)  $(ldflags) -o ./$@ ./$(dir $<)
@@ -338,7 +343,20 @@ PORTLAYER_DEPS ?= lib/apiservers/portlayer/swagger.json \
 
 $(admiralapi-client): lib/config/dynamic/admiral/swagger.json $(SWAGGER)
 	@echo regenerating swagger models and operations for Admiral API client...
-	@$(SWAGGER) generate client -A Admiral --target lib/config/dynamic/admiral -f lib/config/dynamic/admiral/swagger.json --tags /projects --tags /resources/compute --tags /config/registries 2>>swagger-gen.log
+	@$(SWAGGER) generate client -A Admiral --target lib/config/dynamic/admiral \
+	    -f lib/config/dynamic/admiral/swagger.json \
+	    --tags /projects \
+	    --tags /resources/compute \
+	    --tags /config/registries \
+	    -O GetResourcesCompute \
+	    -O GetProjects \
+	    -O GetConfigRegistriesID \
+	    -M "com:vmware:photon:controller:model:resources:ComputeService:ComputeState" \
+	    -M "com:vmware:xenon:common:ServiceDocumentQueryResult" \
+	    -M "com:vmware:admiral:service:common:RegistryService:RegistryState" \
+	    -M "com:vmware:xenon:common:ServiceDocumentQueryResult:ContinuousResult" \
+	    -M "com:vmware:xenon:common:ServiceErrorResponse" \
+	    2>>swagger-gen.log
 	@echo done regenerating swagger models and operations for Admiral API client...
 
 $(portlayerapi-client): $(PORTLAYER_DEPS) $(SWAGGER)
@@ -384,7 +402,7 @@ $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $(iso-base) -o $@
 
 # main appliance target - depends on all top level component targets
-$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
+$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging) $(archive)
 	@echo building VCH appliance ISO
 	@$(TIME) $< -p $(appliance-staging) -b $(BIN)
 

@@ -18,7 +18,7 @@ pipeline:
     recursive: false
 
   display-status:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.38
+    image: harbor.ci.drone.local/library/vic-integration-test:1.39
     pull: true
     environment:
       BIN: bin
@@ -30,7 +30,7 @@ pipeline:
       - git log -1 --pretty=oneline | grep "^${DRONE_COMMIT}" > /dev/null && echo 'Build matches' || (git log -1 --pretty=oneline | grep "Merge ${DRONE_COMMIT}" > /dev/null && echo 'Build is of a merge commit' || (echo 'Build does not match!' && exit 1))
 
   wait-for-build:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.38
+    image: harbor.ci.drone.local/library/vic-integration-test:1.39
     pull: true
     environment:
       BIN: bin
@@ -43,12 +43,14 @@ pipeline:
       - tests/wait_until_previous_builds_complete.sh
 
   vic-engine:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.38
+    image: harbor.ci.drone.local/library/vic-integration-test:1.39
     pull: true
     environment:
       BIN: bin
       GOPATH: /go
       SHELL: /bin/bash
+      DRONE_SERVER:  ${DRONE_SERVER}
+      DRONE_TOKEN:  ${DRONE_TOKEN}
       TEST_URL_ARRAY:  ${TEST_URL_ARRAY}
       TEST_USERNAME:  ${TEST_USERNAME}
       TEST_PASSWORD:  ${TEST_PASSWORD}
@@ -64,13 +66,13 @@ pipeline:
       - echo `ls vendor/github.com/vmware/govmomi/vim25/types`
       - echo `ls vendor/github.com/docker/docker/vendor/github.com/opencontainers/runc/libcontainer/system`
       - export VIC_ESX_URL_ARRAY="`tests/get_test_url.sh`"
-      - make test
+      - tests/unit-test-check.sh
       - make sincemark
     when:
       status:  success
 
   vic-integration-test-on-pr:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.38
+    image: harbor.ci.drone.local/library/vic-integration-test:1.39
     pull: true
     privileged: true
     environment:
@@ -112,7 +114,7 @@ pipeline:
       status:  success
 
   vic-ui:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.38
+    image: harbor.ci.drone.local/library/vic-integration-test:1.39
     pull: true
     environment:
       BUILD_NUMBER: ${DRONE_BUILD_NUMBER}
@@ -133,7 +135,7 @@ pipeline:
       branch: [ master ]
 
   vic-ui-release:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.38
+    image: harbor.ci.drone.local/library/vic-integration-test:1.39
     pull: true
     environment:
       BUILD_NUMBER: ${DRONE_BUILD_NUMBER}
@@ -293,20 +295,17 @@ pipeline:
       status: success
 
   report-coverage:
-    image: plugins/coverage
-    server: https://coverage.vmware.run
-    pattern: .cover/cover.out
-    when:
-      branch: [ master, releases/*, refs/tags/* ]
-      repo: vmware/vic
-      status: success
+     image: robertstettner/drone-codecov
+     token: ${CODECOV_TOKEN}
+     files:
+       - .cover/cover.out
 
   notify-slack-on-fail:
     image: plugins/slack
     webhook: ${SLACK_URL}
     username: drone
     template: >
-      build https://ci.vcna.io/vmware/vic/{{ build.number }} finished with a {{ build.status }} status, find the logs here: https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/integration_logs_{{ build.number }}_{{ build.commit }}.zip?authuser=1
+      Build https://ci.vcna.io/vmware/vic/{{ build.number }} by {{ build.author }} finished with a {{ build.status }} status. Logs: https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/integration_logs_{{ build.number }}_{{ build.commit }}.zip?authuser=1
     when:
       repo: vmware/vic
       branch: [ master, releases/*, refs/tags/* ]
@@ -317,7 +316,7 @@ pipeline:
     webhook: ${SLACK_URL}
     username: drone
     template: >
-      build https://ci.vcna.io/vmware/vic/{{ build.number }} finished with a {{ build.status }} status, find the build here: https://storage.googleapis.com/vic-engine-builds/vic_{{ build.number }}.tar.gz
+      Build https://ci.vcna.io/vmware/vic/{{ build.number }} by {{ build.author }} finished with a {{ build.status }} status, find the build at: https://storage.googleapis.com/vic-engine-builds/vic_{{ build.number }}.tar.gz
     when:
       repo: vmware/vic
       branch: [ master, releases/* ]
