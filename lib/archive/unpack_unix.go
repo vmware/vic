@@ -177,12 +177,12 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		defer stdin.Close()
 		if tr, ok := tarStream.(*tar.Reader); ok {
 			tw := tar.NewWriter(stdin)
-			defer tw.Close()
 			var th *tar.Header
 			for {
 				th, err = tr.Next()
 				if err == io.EOF {
 					err = nil // this just signals the end of the stream, so we don't want to pass it out to the parent process, as it doesn't signal a problem
+					tw.Close()
 					break
 				}
 				if err != nil {
