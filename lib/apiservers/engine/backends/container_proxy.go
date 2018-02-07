@@ -406,7 +406,7 @@ func (c *ContainerProxy) WaitTask(op trace.Operation, cid string, cname string, 
 	if err != nil {
 		switch err := err.(type) {
 		case *tasks.WaitNotFound:
-			return InternalServerError("the Container(%s) has been shutdown during execution ofthe exec operation")
+			return InternalServerError("the Container(%s) has been shutdown during execution of the exec operation")
 		case *tasks.WaitPreconditionRequired:
 			return InternalServerError("container(%s) must be powered on in order perform the desired exec operation")
 		case *tasks.WaitInternalServerError:
