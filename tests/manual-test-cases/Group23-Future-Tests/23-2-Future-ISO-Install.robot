@@ -17,6 +17,7 @@ Documentation  Test 23-2-Future-ISO-Install
 Resource  ../../resources/Util.robot
 Suite Setup  Future ESXi Install Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Test Teardown  Reset Domain Variable
 
 *** Keywords ***
 Future ESXi Install Setup
@@ -42,8 +43,15 @@ Curl nginx endpoint
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${output}
 
+Reset Domain Variable
+    ${status}=  Run Keyword And Return Status  Environment Variable Should Be Set  ORIG_DOMAIN
+    Run Keyword If  ${status}  Set Environment Variable  DOMAIN  %{ORIG_DOMAIN}
+
 *** Test Cases ***
 Test
+    Set Environment Variable  ORIG_DOMAIN  %{DOMAIN}
+    Set Environment Variable  DOMAIN  ${EMPTY}
+
     ${cur_year}=  Run  date +%Y
     ${future}=  Evaluate  ${cur_year} + 2
 
