@@ -464,3 +464,11 @@ Get Static IP Address
     ${gateway}=  Run  echo '${out}' | jq -r ".gateway"
     Set To Dictionary  ${static}  gateway  ${gateway}
     [Return]  ${static}
+
+Is Nimbus Location WDC
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${out}=  Execute Command  env | grep NIMBUS_LOCATION=wdc
+    ${status}=  Run Keyword And Return Status  Should Not Be Empty  ${out}
+    Close Connection
+    [Return]  ${status}
