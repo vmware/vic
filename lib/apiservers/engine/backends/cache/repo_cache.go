@@ -61,6 +61,8 @@ type Repo interface {
 	// stringified Named if successful -- save bool instructs
 	// func to persist to portlayer k/v or not
 	Remove(ref string, save bool) (string, error)
+	// In memory cache only
+	SetEphemeral()
 }
 
 type repoCache struct {
@@ -80,6 +82,8 @@ type repoCache struct {
 	// TODO: much like the Layers map this might be able to be
 	// removed
 	images map[string]string
+	// in-memory only cache, used for unit tests
+	ephemeral bool
 }
 
 // Repository maps tags to image IDs. The key is a a stringified Reference,
@@ -159,9 +163,17 @@ func NewRepositoryCache(client *client.PortLayer) error {
 	return nil
 }
 
+func (store *repoCache) SetEphemeral() {
+	store.ephemeral = true
+}
+
 // Save will persist the repository cache to the
 // portlayer k/v
 func (store *repoCache) Save() error {
+	if store.ephemeral {
+		return nil
+	}
+
 	b, err := json.Marshal(store)
 	if err != nil {
 		log.Errorf("Unable to marshal repository cache: %s", err.Error())

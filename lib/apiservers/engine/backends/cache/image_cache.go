@@ -44,6 +44,8 @@ type ICache struct {
 	cacheByID   map[string]*metadata.ImageConfig
 	cacheByName map[string]*metadata.ImageConfig
 	dirty       bool
+	// In memory cache only, used for unit tests
+	ephemeral bool
 
 	client *client.PortLayer
 }
@@ -120,6 +122,10 @@ func InitializeImageCache(client *client.PortLayer) error {
 	}
 
 	return nil
+}
+
+func (ic *ICache) SetEphemeral() {
+	ic.ephemeral = true
 }
 
 // GetImages returns a slice containing metadata for all cached images
@@ -290,6 +296,11 @@ func (ic *ICache) Save() error {
 	defer ic.m.Unlock()
 
 	if !ic.dirty {
+		return nil
+	}
+
+	if ic.ephemeral {
+		ic.dirty = false
 		return nil
 	}
 

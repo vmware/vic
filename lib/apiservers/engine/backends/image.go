@@ -24,6 +24,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/vic/lib/apiservers/engine/proxy"
+
 	"golang.org/x/net/context"
 
 	"github.com/docker/distribution/digest"
@@ -41,6 +43,7 @@ import (
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
+	optrace "github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
@@ -60,10 +63,13 @@ var unSupportedImageFilters = map[string]bool{
 }
 
 type Image struct {
+	proxy proxy.VicImageProxy
 }
 
 func NewImageBackend() *Image {
-	return &Image{}
+	return &Image{
+		proxy: proxy.NewImageProxy(PortLayerClient()),
+	}
 }
 
 func (i *Image) Exists(containerName string) bool {
@@ -73,6 +79,11 @@ func (i *Image) Exists(containerName string) bool {
 // TODO fix the errors so the client doesnt print the generic POST or DELETE message
 func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDelete, error) {
 	defer trace.End(trace.Begin(imageRef))
+
+	// This API is called by the docker front end, create
+	// operation and child context here
+	op := optrace.NewOperation(context.Background(), "ImageDelete: %s", imageRef)
+	lCtx := context.WithValue(context.Background(), trace.OpTraceKey, op)
 
 	var (
 		deletedRes  []types.ImageDelete
@@ -122,11 +133,10 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 			keepNodes[idx] = imgURL.String()
 		}
 
-		params := storage.NewDeleteImageParamsWithContext(ctx).WithStoreName(storeName).WithID(img.ID).WithKeepNodes(keepNodes)
 		// TODO: This will fail if any containerVMs are referencing the vmdk - vanilla docker
 		// allows the removal of an image (via force flag) even if a container is referencing it
 		// should vic?
-		res, err := PortLayerClient().Storage.DeleteImage(params)
+		res, err := i.proxy.DeleteImage(lCtx, storeName, img, keepNodes)
 
 		// We may have deleted images despite error.  Account for that in the cache.
 		if res != nil {

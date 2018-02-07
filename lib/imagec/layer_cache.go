@@ -35,6 +35,9 @@ type LCache struct {
 
 	client *client.PortLayer
 	dirty  bool
+
+	// In memory only cache, used in unit tests
+	ephemeral bool
 }
 
 // LayerNotFoundError is returned when a layer does not exist in the cache
@@ -92,6 +95,10 @@ func InitializeLayerCache(client *client.PortLayer) error {
 	return nil
 }
 
+func (lc *LCache) SetEphemeral() {
+	lc.ephemeral = true
+}
+
 // Add adds a new layer to the cache
 func (lc *LCache) Add(layer *ImageWithMeta) {
 	defer trace.End(trace.Begin(""))
@@ -145,6 +152,11 @@ func (lc *LCache) save() error {
 	defer trace.End(trace.Begin(""))
 
 	if !lc.dirty {
+		return nil
+	}
+
+	if lc.ephemeral {
+		lc.dirty = false
 		return nil
 	}
 

@@ -20,7 +20,19 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/daemon/events"
 	v1 "github.com/docker/docker/image"
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/require"
+
+	"github.com/vmware/vic/lib/imagec"
+
+	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
+	"github.com/vmware/vic/lib/apiservers/engine/proxy/mocks"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
+	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/portlayer/util"
+	"github.com/vmware/vic/pkg/vsphere/sys"
 
 	"github.com/stretchr/testify/assert"
 
@@ -59,4 +71,103 @@ func TestConvertV1ImageToDockerImage(t *testing.T) {
 	assert.Equal(t, image.Config.Labels, dockerImage.Labels, "Error: expected labels %s, got %s", image.Config.Labels, dockerImage.Labels)
 	assert.Equal(t, image.Digests[0], dockerImage.RepoDigests[0], "Error: expected digest %s, got %s", image.Digests[0], dockerImage.RepoDigests[0])
 	assert.Equal(t, image.Tags[0], dockerImage.RepoTags[0], "Error: expected tag %s, got %s", image.Tags[0], dockerImage.RepoTags[0])
+}
+
+func NewMockImageBackend(t *testing.T) (*gomock.Controller, *mocks.MockVicImageProxy, *Image) {
+	// Get mock for the image proxy
+	mockCtrl := gomock.NewController(t)
+	mockProxy := mocks.NewMockVicImageProxy(mockCtrl)
+	image := &Image{
+		proxy: mockProxy,
+	}
+	return mockCtrl, mockProxy, image
+}
+
+func TestImageDelete(t *testing.T) {
+	mockController, mockProxy, imageBackend := NewMockImageBackend(t)
+	defer mockController.Finish()
+
+	// Image ID
+	imageID := "sha256:e27e9d7f7f28d67aa9e2d7540bdc2b33254b452ee8e60f388875e5b7d9b2b696"
+
+	// Setup event service
+	eventService = events.New()
+
+	// Setup Image cache
+	imageCache := cache.ImageCache()
+	imageCache.SetEphemeral()
+	image := &metadata.ImageConfig{
+		V1Image: v1.V1Image{
+			Config: &container.Config{},
+		},
+		ImageID: imageID,
+		Name:    "my-image-name",
+		Tags:    make([]string, 0),
+		Digests: make([]string, 0),
+	}
+	imageCache.Add(image)
+
+	image.Digests = []string{"<none>@<none>"}
+	image.Tags = []string{"<none>:<none>"}
+
+	// Setup Layer cache
+	layerCache := imagec.LayerCache()
+	layerCache.SetEphemeral()
+	layer := &imagec.ImageWithMeta{
+		Image: &models.Image{
+			ID: "LayerOne",
+		},
+	}
+	layerCache.Add(layer)
+	layer = &imagec.ImageWithMeta{
+		Image: &models.Image{
+			ID: "LayerTwo",
+		},
+	}
+	layerCache.Add(layer)
+
+	// Setup Repo Cache
+	repoCache := cache.RepositoryCache()
+	repoCache.SetEphemeral()
+
+	storeName, err := sys.UUID()
+	require.Nil(t, err)
+	keepNodes := make([]string, 1)
+	imageURL, err := util.ImageURL(storeName, image.ImageID)
+	require.Nil(t, err)
+	keepNodes[0] = imageURL.String()
+
+	// Build return value
+	layers := []*models.Image{
+		{
+			ID: "LayerOne",
+		},
+		{
+			ID: "LayerTwo",
+		},
+	}
+	ret := &storage.DeleteImageOK{
+		Payload: layers,
+	}
+
+	// Mock check parameters
+	mockProxy.EXPECT().DeleteImage(gomock.Any(), gomock.Eq(storeName), gomock.Eq(image), keepNodes).Return(ret, nil)
+
+	// Call the backend method
+	imageBackend.ImageDelete(imageID, false, false)
+
+	// Verify Image Cache
+	img, err := imageCache.Get(imageID)
+	require.Nil(t, img)
+	errorString := fmt.Sprintf("No such image: %s", imageID)
+	require.Equal(t, err.Error(), errorString)
+
+	// Verify Layer Cache
+	layer, err = layerCache.Get("LayerOne")
+	require.Nil(t, layer)
+	_, ok := err.(imagec.LayerNotFoundError)
+	require.True(t, ok)
+	layer, err = layerCache.Get("LayerTwo")
+	_, ok = err.(imagec.LayerNotFoundError)
+	require.True(t, ok)
 }
