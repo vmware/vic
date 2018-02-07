@@ -282,12 +282,11 @@ pipeline:
       status: success
 
   trigger-downstream:
-    image: plugins/downstream
-    server: https://ci.vcna.io
-    token: ${DRONE_TOKEN}
-    fork: true
-    repositories:
-      - vmware/vic-product
+    image: harbor.ci.drone.local/library/vic-downstream-trigger:1.0
+    environment:
+      DRONE_SERVER: ${DRONE_SERVER}
+      DRONE_TOKEN: ${DRONE_TOKEN}
+      SHELL: /bin/bash
     when:
       repo: vmware/vic
       event: [ push, tag ]
