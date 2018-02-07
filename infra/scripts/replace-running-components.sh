@@ -137,8 +137,15 @@ function enable-debug () {
 # SCPs the component in $1 to the VCH, plops it in place, and brutally kills the previous running process
 function replace-component() {
     scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no $VIC_DIR/bin/$1 root@$VCH_IP:/tmp/$1 2>/dev/null
+    pid=$(on-vch ps -e --format='pid,args' \
+                 | grep $1 | grep -v grep | awk '{print $1}')
     on-vch chmod 755 /tmp/$1
     on-vch mv /tmp/$1 /sbin/$1
+    if [[ $1 == "vic-init" ]]; then
+        on-vch systemctl restart vic-init
+    else
+        on-vch kill -9 $pid
+    fi
 }
 
 function replace-components () {
@@ -152,14 +159,11 @@ function replace-components () {
         echo "Replacing component $x..."
         replace-component $x
     done
-
-    # George swears you don't need to do this but if you don't, the new binaries are not launched
-    on-vch systemctl restart vic-init
 }
 
 sanity-checks
 enable-debug
 replace-components $@
 
-echo "Wait a few moments and run this to get the new IP of your VCH"
+echo "If you ran make push with no arguments or replaced vic-init, wait a few moments and run this to get the new IP of your VCH:"
 echo "$VIC_DIR/bin/vic-machine-linux inspect --target=$target --id=$VIC_ID --user=$username --password=$password --thumbprint=$(get-thumbprint)"
