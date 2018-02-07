@@ -35,7 +35,9 @@ Static IP Address Create
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
-    Install VIC Appliance To Test Server  additional-args=--public-network-ip &{static}[ip]/&{static}[netmask] --public-network-gateway &{static}[gateway] --dns-server 10.170.16.48 --dns-server 10.162.204.1
+    ${status}=  Is Nimbus Location WDC
+    ${dns}=  Set Variable If  ${status}    10.170.16.48    10.162.204.1
+    Install VIC Appliance To Test Server  additional-args=--public-network-ip &{static}[ip]/&{static}[netmask] --public-network-gateway &{static}[gateway] --dns-server ${dns}
 
     Run Regression Tests
 
