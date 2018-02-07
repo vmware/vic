@@ -31,8 +31,6 @@ func toggleActive(op *trace.Operation, h interface{}, id string, active bool) (i
 	if !ok {
 		return nil, fmt.Errorf("Type assertion failed for %#+v", handle)
 	}
-	taskS, okS := handle.ExecConfig.Sessions[id]
-	taskE, okE := handle.ExecConfig.Execs[id]
 
 	op.Debugf("target task ID: %s", id)
 	op.Debugf("session tasks during inspect: %s", handle.ExecConfig.Sessions)
@@ -42,11 +40,9 @@ func toggleActive(op *trace.Operation, h interface{}, id string, active bool) (i
 	op.Debugf("exec tasks during inspect: %s", handle.ExecConfig.Execs)
 
 	var task *executor.SessionConfig
-	if okS {
+	if taskS, okS := handle.ExecConfig.Sessions[id]; okS {
 		task = taskS
-	}
-
-	if okE {
+	} else if taskE, okE := handle.ExecConfig.Execs[id]; okE {
 		task = taskE
 	}
 

@@ -128,8 +128,9 @@ Exec During PowerOff
      ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
      Should Be Equal As Integers  ${rc}  0
      Should Not Contain  ${output}  Error
+
      ${suffix}=  Evaluate  '%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
-     Set Test Variable  ${ExecPowerOffContainer}  I-Have-Two-Anonymous-Volumes-${suffix}
+     Set Test Variable  ${ExecPowerOffContainer}  Exec-Poweroff-${suffix}
      ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecPoweroffContainer} ${busybox} /bin/top
      Should Be Equal As Integers  ${rc}  0
 

@@ -188,19 +188,18 @@ const (
 	defaultEnvPath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 )
 
-// TODO: we should probably just make this purely a proxy thing. This is now just a passthrough
 func (c *Container) Handle(id, name string) (string, error) {
-	return c.containerProxy.Handle(id, name)
+	handle, err := c.containerProxy.Handle(id, name)
+	if err != nil {
+		if IsNotFoundError(err) {
+			cache.ContainerCache().DeleteContainer(id)
+		}
+		return "", err
+	}
+	return handle, nil
 }
 
 // docker's container.execBackend
-
-func (c *Container) TaskWaitToStart(cid, cname, eid string) error {
-	op := trace.NewOperation(context.TODO(), "")
-	defer trace.End(trace.Begin(fmt.Sprintf("%s: cname=(%s), cid=(%s), eid=(%s)", op, cname, cid, eid)))
-
-	return c.containerProxy.WaitTask(op, cid, cname, eid)
-}
 
 // ContainerExecCreate sets up an exec in a running container.
 func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (string, error) {
@@ -238,7 +237,6 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 			return ConflictError(fmt.Sprintf("Container (%s) is not powered on, please start the container before attempting to an exec an operation", name))
 		}
 
-		op.Debugf("State checks succeeded for exec operation on container(%s)", id)
 		handle, eid, err = c.containerProxy.CreateExecTask(handle, config)
 		if err != nil {
 			op.Errorf("Failed to create exec task for container(%s) due to error(%s)", id, err)
@@ -410,9 +408,8 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		go func() {
 			defer trace.End(trace.Begin(eid))
 
-			// FIXME: NEEDS CONTAINER PROXY
 			// wait property collector
-			if err := c.TaskWaitToStart(id, name, eid); err != nil {
+			if err := c.containerProxy.WaitTask(op, id, name, eid); err != nil {
 				op.Errorf("Task wait returned %s, canceling the context", err)
 
 				// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly

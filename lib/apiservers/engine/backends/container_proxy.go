@@ -191,7 +191,6 @@ func (c *ContainerProxy) Handle(id, name string) (string, error) {
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetNotFound:
-			cache.ContainerCache().DeleteContainer(id)
 			return "", NotFoundError(name)
 		case *containers.GetDefault:
 			return "", InternalServerError(err.Payload.Message)
@@ -371,7 +370,6 @@ func (c *ContainerProxy) BindTask(op trace.Operation, handle string, eid string)
 			op.Errorf("received TaskNotFound error during task bind: %s", err.Payload.Message)
 			return "", NotFoundError("container (%s) has been poweredoff")
 		case *tasks.BindInternalServerError:
-
 			op.Errorf("received unexpected error attempting to bind task(%s) for handle(%s): %s", eid, handle, err.Payload.Message)
 			return "", InternalServerError(err.Payload.Message)
 		default:
