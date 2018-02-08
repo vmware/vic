@@ -193,9 +193,9 @@ Indicate the VMware business priority of the bug. Priority drives *when* a bug w
 ##### Features and non-bug issues
 Indicate the VMware priority of a feature or non-bug issue. Priority drives when a feature or non-bug issue will be resolved in a release. This field must be filled out by the issue owner and in most cases verified with the product owner.
 
-- priority/p0 - An issue that is not a bug and is blocking meaningful testing. No feature should be p0. eg. builds are failing because the syslog server is
+- priority/p0 - An issue that is not a bug and is blocking meaningful testing. No feature should be p0. eg. builds are failing because the syslog server is out of space
 - priority/p1 - An issue or feature that is required for the next release, typically an anchor feature; a large feature that is the focus for the release and drives the release date.
-- prority/p2 - An issue or feature that is desired for the next release, typically a pebble;, a feature that has been approved for inclusion but is not considered the anchor feature.
+- priority/p2 - An issue or feature that is desired for the next release, typically a pebble; a feature that has been approved for inclusion but is not considered the anchor feature.
 - priority/p3 - An issue or feature that can be fixed in the next release, low hanging fruit work for example.
 - priority/p4 - An issue or feature that will be fixed in a future release.
 
