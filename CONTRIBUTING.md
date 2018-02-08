@@ -184,7 +184,7 @@ For VIC engineers, you should set the priority based on the below guidelines. Ev
 
 | Priority | Bugs | Features | Non Bugs |
 | -------- | ---- | -------- | -------- |
-| priority/p0 | Bugs that NEED to be fixed immediately as they either block meaningful testing or are release stoppers for the current release. | No Feature should be p0. | n issue that is not a bug and is blocking meaningful testing. eg. builds are failing because the syslog server is out of space. |
+| priority/p0 | Bugs that NEED to be fixed immediately as they either block meaningful testing or are release stoppers for the current release. | No Feature should be p0. | An issue that is not a bug and is blocking meaningful testing. eg. builds are failing because the syslog server is out of space. |
 | priority/p1 | Bugs that NEED to be fixed by the assigned phase of the current release. | A feature that is required for the next release, typically an anchor feature; a large feature that is the focus for the release and drives the release date. | An issue that must be fixed for the next release. eg. Track build success rates. |
 | priority/p2 | Bugs that SHOULD be fixed by the assigned phase of the current release, time permitting. | A feature that is desired for the next release, typically a pebble; a feature that has been approved for inclusion but is not considered the anchor feature. | An issue that we should fix in the next release. eg. A typo in the UI. |
 | priority/p3 | Bugs that SHOULD be fixed by a given release, time permitting. | A feature that can be fixed in the next release. eg. Migrate to a new kernel version. | An issue that can be fixed in the next release. eg. Low hanging productivity improvements. |
