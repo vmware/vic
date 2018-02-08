@@ -22,8 +22,8 @@ pipeline:
     image: harbor.ci.drone.local/library/git-clone:1.0
     pull: true
     environment:
-      DRONE_REMOTE_URL:  ${DRONE_REMOTE_URL}
-      DRONE_WORKSPACE:  ${DRONE_WORKSPACE}
+      DRONE_REMOTE_URL:  https://github.com/vmware/vic
+      DRONE_WORKSPACE:  /go/src/github.com/vmware/vic
       DRONE_PULL_REQUEST:  ${DRONE_PULL_REQUEST}
     when:
       event: [ pull_request ]
