@@ -16,6 +16,13 @@ pipeline:
     tags: true
     # dont clone submodules
     recursive: false
+  clone-pr:
+    image: harbor.ci.drone.local/library/git-clone:1.0
+    pull: true
+    environment:
+      DRONE_PULL_REQUEST:  ${DRONE_PULL_REQUEST}
+    when:
+      event: [ pull_request ]
 
   display-status:
     image: harbor.ci.drone.local/library/vic-integration-test:1.42
