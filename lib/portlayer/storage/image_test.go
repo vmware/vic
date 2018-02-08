@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vmware/vic/lib/constants"
 
 	"github.com/vmware/vic/lib/portlayer/util"
 )
@@ -31,7 +32,7 @@ func TestImageCopy(t *testing.T) {
 		return
 	}
 
-	parentURL, err := util.ImageURL(storeName, Scratch.ID)
+	parentURL, err := util.ImageURL(storeName, constants.ScratchLayerID)
 	if !assert.NoError(t, err) {
 		return
 	}
