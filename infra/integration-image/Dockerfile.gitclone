@@ -10,19 +10,9 @@ FROM ubuntu
 
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates
 
-ENV DRONE_REMOTE_URL https://github.com/vmware/vic
-ENV DRONE_WORKSPACE /go/src/github.com/vmware/vic
-ENV DRONE_PULL_REQUEST 1
-
-RUN git clone $DRONE_REMOTE_URL $DRONE_WORKSPACE
-
-WORKDIR $DRONE_WORKSPACE
-
-RUN sed -i 's|remotes/origin/*|remotes/origin/*\n\tfetch = +refs/pull/*/head:refs/remotes/origin/pr/|g' .git/config
-
 RUN echo "#!/bin/bash" >> /usr/bin/git-clone
+RUN echo "sed -i 's|remotes/origin/*|remotes/origin/*\n\tfetch = +refs/pull/*/head:refs/remotes/origin/pr/|g' .git/config" >> /usr/bin/git-clone
 RUN echo "git fetch origin && git checkout pr/\$DRONE_PULL_REQUEST" >> /usr/bin/git-clone
-
 RUN chmod +x /usr/bin/git-clone
 
 ENTRYPOINT ["git-clone"]
