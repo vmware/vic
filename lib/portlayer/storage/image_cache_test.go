@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -22,14 +23,12 @@ import (
 	"strconv"
 	"testing"
 
-	"context"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/vic/lib/constants"
 
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"

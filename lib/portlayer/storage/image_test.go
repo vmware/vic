@@ -18,8 +18,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/vic/lib/constants"
 
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/util"
 )
 
