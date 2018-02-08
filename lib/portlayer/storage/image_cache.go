@@ -25,6 +25,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/index"
 	"github.com/vmware/vic/pkg/retry"
@@ -32,10 +33,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
-
-var Scratch = Image{
-	ID: "scratch",
-}
 
 var ErrCorruptImageStore = errors.New("Corrupt image store")
 
@@ -104,7 +101,7 @@ func (c *NameLookupCache) GetImageStore(op trace.Operation, storeName string) (*
 		c.storeCache[*store] = indx
 
 		// Add Scratch
-		scratch, err := c.DataStore.GetImage(op, store, Scratch.ID)
+		scratch, err := c.DataStore.GetImage(op, store, constants.ScratchLayerID)
 		if err != nil {
 			op.Errorf("ImageCache Error: looking up scratch on %s: %s", store.String(), err)
 			if c.isRetry(op, err) {
@@ -132,7 +129,7 @@ func (c *NameLookupCache) GetImageStore(op trace.Operation, storeName string) (*
 		// Build image map to simplify tree traversal.
 		imageMap := make(map[string]*Image, len(images))
 		for _, img := range images {
-			if img.ID == Scratch.ID {
+			if img.ID == constants.ScratchLayerID {
 				continue
 			}
 			imageMap[img.Self()] = img
@@ -212,7 +209,7 @@ func (c *NameLookupCache) CreateImageStore(op trace.Operation, storeName string)
 	}
 
 	// Create the root image
-	scratch, err := c.DataStore.WriteImage(op, &Image{Store: store}, Scratch.ID, nil, "", nil)
+	scratch, err := c.DataStore.WriteImage(op, &Image{Store: store}, constants.ScratchLayerID, nil, "", nil)
 	if err != nil {
 		// if we failed here, remove the image store
 		op.Infof("Removing failed image store %s", storeName)
@@ -382,7 +379,7 @@ func (c *NameLookupCache) ListImages(op trace.Operation, store *url.URL, IDs []s
 		for _, v := range images {
 			img, _ := v.(*Image)
 			// filter out scratch
-			if img.ID == Scratch.ID {
+			if img.ID == constants.ScratchLayerID {
 				continue
 			}
 
@@ -397,7 +394,7 @@ func (c *NameLookupCache) ListImages(op trace.Operation, store *url.URL, IDs []s
 // being inheritted from, then this will return an error.
 func (c *NameLookupCache) DeleteImage(op trace.Operation, image *Image) (*Image, error) {
 	// prevent deletes of scratch
-	if image.ID == Scratch.ID {
+	if image.ID == constants.ScratchLayerID {
 		return nil, nil
 	}
 
@@ -500,7 +497,7 @@ func (c *NameLookupCache) DeleteBranch(op trace.Operation, image *Image, keepNod
 			return deletedImages, err
 		}
 
-		if image.ID == Scratch.ID {
+		if image.ID == constants.ScratchLayerID {
 			op.Infof("DeleteBranch: Done deleting images")
 			break
 		}
