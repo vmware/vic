@@ -40,8 +40,8 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/metadata"
-	"github.com/vmware/vic/lib/portlayer/storage"
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/sys"
@@ -152,9 +152,6 @@ const (
 	// DefaultHTTPTimeout specifies the default HTTP timeout
 	DefaultHTTPTimeout = 3600 * time.Second
 
-	// Scratch layer ID
-	ScratchLayerID = "scratch"
-
 	// attribute update actions
 	Add = iota + 1
 )
@@ -246,7 +243,7 @@ func (ic *ImageC) LayersToDownload() ([]*ImageWithMeta, error) {
 		}
 
 		// if parent is empty set it to scratch
-		parent := ScratchLayerID
+		parent := constants.ScratchLayerID
 		if v1.Parent != "" {
 			parent = v1.Parent
 		}
@@ -529,7 +526,7 @@ func (ic *ImageC) ListLayers() error {
 		return err
 	}
 
-	progress.Message(ic.progressOutput, "", storage.Scratch.ID)
+	progress.Message(ic.progressOutput, "", constants.ScratchLayerID)
 	for i := len(layers) - 1; i >= 0; i-- {
 		progress.Message(ic.progressOutput, "", layers[i].ID)
 	}

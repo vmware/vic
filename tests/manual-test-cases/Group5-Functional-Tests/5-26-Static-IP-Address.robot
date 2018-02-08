@@ -21,6 +21,7 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 *** Keywords ***
 Static IP Address Create
     [Timeout]    110 minutes
+    Set Suite Variable  ${NIMBUS_LOCATION}  NIMBUS_LOCATION=wdc
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
@@ -35,10 +36,5 @@ Static IP Address Create
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
-    ${status}=  Is Nimbus Location WDC
-    ${dns}=  Set Variable If  ${status}    10.170.16.48    10.162.204.1
-    Install VIC Appliance To Test Server  additional-args=--public-network-ip &{static}[ip]/&{static}[netmask] --public-network-gateway &{static}[gateway] --dns-server ${dns}
-
+    Install VIC Appliance To Test Server  additional-args=--public-network-ip &{static}[ip]/&{static}[netmask] --public-network-gateway &{static}[gateway] --dns-server 10.170.16.48
     Run Regression Tests
-
-    Cleanup VIC Appliance On Test Server
