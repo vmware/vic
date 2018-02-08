@@ -184,28 +184,20 @@ For VIC engineers, you should set the priority based on the below guidelines. Ev
 ##### Bugs
 Indicate the VMware business priority of the bug. Priority drives *when* a bug will be fixed. This field is optional for filers but must be filled out by bug owner.
 
-priority/p0 - Bugs that NEED to be fixed immediately as they either block meaningful testing or are release stoppers for the current release.
-
-priority/p1 - Bugs that NEED to be fixed by the assigned phase of the current release.
-
-priority/p2 - Bugs that SHOULD be fixed by the assigned phase of the current release, time permitting.
-
-priority/p3 - Bugs that SHOULD be fixed by a given release, time permitting.
-
-priority/p4 - Bugs that SHOULD be fixed in a future (to be determined) release.
+- priority/p0 - Bugs that NEED to be fixed immediately as they either block meaningful testing or are release stoppers for the current release.
+- priority/p1 - Bugs that NEED to be fixed by the assigned phase of the current release.
+- priority/p2 - Bugs that SHOULD be fixed by the assigned phase of the current release, time permitting.
+- priority/p3 - Bugs that SHOULD be fixed by a given release, time permitting.
+- priority/p4 - Bugs that SHOULD be fixed in a future (to be determined) release.
 
 ##### Features and non-bug issues
 Indicate the VMware priority of a feature or non-bug issue. Priority drives when a feature or non-bug issue will be resolved in a release. This field must be filled out by the issue owner and in most cases verified with the product owner.
 
-priority/p0 - An issue that is not a bug and is blocking meaningful testing. No feature should be p0. eg. builds are failing because the syslog server is
-
-priority/p1 - An issue or feature that is required for the next release, typically an anchor feature; a large feature that is the focus for the release and drives the release date.
-
-prority/p2 - An issue or feature that is desired for the next release, typically a pebble;, a feature that has been approved for inclusion but is not considered the anchor feature.
-
-priority/p3 - An issue or feature that can be fixed in the next release, low hanging fruit work for example.
-
-priority/p4 - An issue or feature that will be fixed in a future release.
+- priority/p0 - An issue that is not a bug and is blocking meaningful testing. No feature should be p0. eg. builds are failing because the syslog server is
+- priority/p1 - An issue or feature that is required for the next release, typically an anchor feature; a large feature that is the focus for the release and drives the release date.
+- prority/p2 - An issue or feature that is desired for the next release, typically a pebble;, a feature that has been approved for inclusion but is not considered the anchor feature.
+- priority/p3 - An issue or feature that can be fixed in the next release, low hanging fruit work for example.
+- priority/p4 - An issue or feature that will be fixed in a future release.
 
 ### Not Ready
 
