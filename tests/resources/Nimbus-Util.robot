@@ -19,11 +19,12 @@ Documentation  This resource contains any keywords related to using the Nimbus c
 ${ESX_VERSION}  ob-5969303  #6.5 RTM vsphere65u1
 ${VC_VERSION}  ob-5973321   #6.5 RTM vsphere65u1
 ${NIMBUS_ESX_PASSWORD}  e2eFunctionalTest
+${NIMBUS_LOCATION}  ${EMPTY}
 
 *** Keywords ***
 Fetch IP
     [Arguments]  ${name}
-    ${out}=  Execute Command  nimbus-ctl ip %{NIMBUS_USER}-${name} | grep %{NIMBUS_USER}-${name}
+    ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-ctl ip %{NIMBUS_USER}-${name} | grep %{NIMBUS_USER}-${name}
     Should Not Be Empty  ${out}
     ${len}=  Get Line Count  ${out}
     Should Be Equal As Integers  ${len}  1
@@ -37,7 +38,7 @@ Get IP
 
 Fetch POD
       [Arguments]  ${name}
-      ${out}=  Execute Command  nimbus-ctl list | grep ${name}
+      ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-ctl list | grep ${name}
       Should Not Be Empty  ${out}
       ${len}=  Get Line Count  ${out}
       Should Be Equal As Integers  ${len}  1
@@ -58,7 +59,7 @@ Deploy Nimbus ESXi Server
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
-    \   ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --lease=1 --nics 2 ${version}
+    \   ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --lease=1 --nics 2 ${version}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  To manage this VM use
     \   Exit For Loop If  ${status}
@@ -144,7 +145,7 @@ Deploy Nimbus vCenter Server
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
-    \   ${out}=  Execute Command  nimbus-vcvadeploy --lease=1 --vcvaBuild ${version} ${name}
+    \   ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-vcvadeploy --lease=1 --vcvaBuild ${version} ${name}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  Overall Status: Succeeded
     \   Exit For Loop If  ${status}
@@ -170,7 +171,7 @@ Deploy Nimbus ESXi Server Async
     [Tags]  secret
     [Arguments]  ${name}  ${version}=${ESX_VERSION}
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
-    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --lease=1 --nics 2 ${version}'
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  '${NIMBUS_LOCATION} nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --lease=1 --nics 2 ${version}'
     [Return]  ${out}
 
 Run Secret SSHPASS command
@@ -185,7 +186,7 @@ Deploy Nimbus vCenter Server Async
     [Arguments]  ${name}  ${version}=${VC_VERSION}
     Log To Console  \nDeploying Nimbus VC server: ${name}
 
-    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-vcvadeploy --lease=1 --vcvaBuild ${version} ${name}'
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  '${NIMBUS_LOCATION} nimbus-vcvadeploy --lease=1 --vcvaBuild ${version} ${name}'
     [Return]  ${out}
 
 Deploy Nimbus Testbed
@@ -194,7 +195,7 @@ Deploy Nimbus Testbed
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
-    \   ${out}=  Execute Command  nimbus-testbeddeploy --lease=1 ${testbed}
+    \   ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-testbeddeploy --lease=1 ${testbed}
     \   Log  ${out}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  "deployment_result"=>"PASS"
@@ -207,7 +208,7 @@ Kill Nimbus Server
     [Arguments]  ${user}  ${password}  ${name}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
-    ${out}=  Execute Command  nimbus-ctl kill ${name}
+    ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-ctl kill ${name}
     Log  ${out}
     Close connection
 
@@ -215,7 +216,7 @@ Cleanup Nimbus PXE folder
     [Arguments]  ${user}  ${password}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
-    ${out}=  Execute Command  rm -rf public_html/pxe/*
+    ${out}=  Execute Command  ${NIMBUS_LOCATION} rm -rf public_html/pxe/*
     Close connection
 
 Nimbus Cleanup
@@ -405,7 +406,7 @@ Deploy Nimbus NFS Datastore
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
-    ${out}=  Execute Command  nimbus-nfsdeploy ${name} ${additional-args}
+    ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-nfsdeploy ${name} ${additional-args}
     # Make sure the deploy actually worked
     Should Contain  ${out}  To manage this VM use
     # Now grab the IP address and return the name and ip for later use
@@ -442,7 +443,7 @@ Create Static IP Worker
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Log To Console  Create a new static ip address worker...
-    ${out}=  Execute Command  nimbus-ctl --silentObjectNotFoundError kill '%{NIMBUS_USER}-static-worker' && nimbus-worker-deploy --enableStaticIpService static-worker
+    ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-ctl --silentObjectNotFoundError kill '%{NIMBUS_USER}-static-worker' && ${NIMBUS_LOCATION} nimbus-worker-deploy --enableStaticIpService static-worker
     Should Contain  ${out}  "deploy_status": "success"
     Set Environment Variable  STATIC_WORKER_NAME  %{NIMBUS_USER}-static-worker
     ${ip}=  Get IP  static-worker
