@@ -10,9 +10,6 @@ FROM ubuntu
 
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates
 
-RUN echo "#!/bin/bash" >> /usr/bin/git-clone
-RUN echo "sed -i 's|remotes/origin/*|remotes/origin/*\n\tfetch = +refs/pull/*/head:refs/remotes/origin/pr/|g' .git/config" >> /usr/bin/git-clone
-RUN echo "git fetch origin && git checkout pr/\$DRONE_PULL_REQUEST" >> /usr/bin/git-clone
-RUN chmod +x /usr/bin/git-clone
+ADD git-clone.sh /usr/bin/git-clone.sh
 
-ENTRYPOINT ["git-clone"]
+ENTRYPOINT ["git-clone.sh"]
