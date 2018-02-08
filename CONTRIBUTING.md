@@ -181,23 +181,14 @@ discussion.
 For VIC engineers, you should set the priority based on the below guidelines. Everyone else, do not set the priority of a new issue.
 
 #### Priorities
-##### Bugs
-Indicate the VMware business priority of the bug. Priority drives *when* a bug will be fixed. This field is optional for filers but must be filled out by bug owner.
 
-- priority/p0 - Bugs that NEED to be fixed immediately as they either block meaningful testing or are release stoppers for the current release.
-- priority/p1 - Bugs that NEED to be fixed by the assigned phase of the current release.
-- priority/p2 - Bugs that SHOULD be fixed by the assigned phase of the current release, time permitting.
-- priority/p3 - Bugs that SHOULD be fixed by a given release, time permitting.
-- priority/p4 - Bugs that SHOULD be fixed in a future (to be determined) release.
-
-##### Features and non-bug issues
-Indicate the VMware priority of a feature or non-bug issue. Priority drives when a feature or non-bug issue will be resolved in a release. This field must be filled out by the issue owner and in most cases verified with the product owner.
-
-- priority/p0 - An issue that is not a bug and is blocking meaningful testing. No feature should be p0. eg. builds are failing because the syslog server is out of space
-- priority/p1 - An issue or feature that is required for the next release, typically an anchor feature; a large feature that is the focus for the release and drives the release date.
-- priority/p2 - An issue or feature that is desired for the next release, typically a pebble; a feature that has been approved for inclusion but is not considered the anchor feature.
-- priority/p3 - An issue or feature that can be fixed in the next release, low hanging fruit work for example.
-- priority/p4 - An issue or feature that will be fixed in a future release.
+| Priority | Bugs | Features | Non Bugs |
+| -------- | ---- | -------- | -------- |
+| priority/p0 | Bugs that NEED to be fixed immediately as they either block meaningful testing or are release stoppers for the current release. | No Feature should be p0. | n issue that is not a bug and is blocking meaningful testing. eg. builds are failing because the syslog server is out of space. |
+| priority/p1 | Bugs that NEED to be fixed by the assigned phase of the current release. | A feature that is required for the next release, typically an anchor feature; a large feature that is the focus for the release and drives the release date. | An issue that must be fixed for the next release. eg. Track build success rates. |
+| priority/p2 | Bugs that SHOULD be fixed by the assigned phase of the current release, time permitting. | A feature that is desired for the next release, typically a pebble; a feature that has been approved for inclusion but is not considered the anchor feature. | An issue that we should fix in the next release. eg. A typo in the UI. |
+| priority/p3 | Bugs that SHOULD be fixed by a given release, time permitting. | A feature that can be fixed in the next release. eg. Migrate to a new kernel version. | An issue that can be fixed in the next release. eg. Low hanging productivity improvements. |
+| priority/p4 | Bugs that SHOULD be fixed in a future (to be determined) release. | An issue or feature that will be fixed in a future release. | An issue or feature that will be fixed in a future release. |
 
 ### Not Ready
 
