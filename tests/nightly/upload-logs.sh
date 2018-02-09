@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2016 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,9 +24,9 @@ outfile="vic_nightly_logs_"$1".zip"
 echo $outfile
 
 if [ -d "60" ]; then
-    /usr/bin/zip -9 -r $outfile 60
+    /usr/bin/zip -9 -r $outfile 60 *.zip *.log *.debug
 elif [ -d "65" ]; then
-    /usr/bin/zip -9 -r $outfile 65
+    /usr/bin/zip -9 -r $outfile 65 *.zip *.log *.debug
 else
     echo "No output directories to upload!"
     exit 1

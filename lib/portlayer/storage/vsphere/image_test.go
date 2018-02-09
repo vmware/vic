@@ -203,7 +203,7 @@ func TestCreateImageLayers(t *testing.T) {
 	}
 
 	// base this image off scratch
-	parent, err := cacheStore.GetImage(op, storeURL, portlayer.Scratch.ID)
+	parent, err := cacheStore.GetImage(op, storeURL, constants.ScratchLayerID)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -371,7 +371,7 @@ func TestBrokenPull(t *testing.T) {
 	}
 
 	// base this image off scratch
-	parent, err := cacheStore.GetImage(op, storeURL, portlayer.Scratch.ID)
+	parent, err := cacheStore.GetImage(op, storeURL, constants.ScratchLayerID)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -435,7 +435,7 @@ func TestParallel(t *testing.T) {
 	}
 
 	// base this image off scratch
-	parent, err := cacheStore.GetImage(op, storeURL, portlayer.Scratch.ID)
+	parent, err := cacheStore.GetImage(op, storeURL, constants.ScratchLayerID)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -479,7 +479,7 @@ func TestInProgressCleanup(t *testing.T) {
 	}
 
 	// base this image off scratch
-	parent, err := cacheStore.GetImage(op, storeURL, portlayer.Scratch.ID)
+	parent, err := cacheStore.GetImage(op, storeURL, constants.ScratchLayerID)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -522,7 +522,7 @@ func TestInProgressCleanup(t *testing.T) {
 
 	// Make sure list is now empty.
 	listedImages, err := vsStore.ListImages(op, parent.Store, nil)
-	if !assert.NoError(t, err) || !assert.Equal(t, len(listedImages), 1) || !assert.Equal(t, listedImages[0].ID, portlayer.Scratch.ID) {
+	if !assert.NoError(t, err) || !assert.Equal(t, len(listedImages), 1) || !assert.Equal(t, listedImages[0].ID, constants.ScratchLayerID) {
 		return
 	}
 }
