@@ -440,10 +440,11 @@ Power Off Host
     Close connection
 
 Create Static IP Worker
+    [Arguments]  ${suggested-gateway}=${EMPTY}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Log To Console  Create a new static ip address worker...
-    ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-ctl --silentObjectNotFoundError kill '%{NIMBUS_USER}-static-worker' && ${NIMBUS_LOCATION} nimbus-worker-deploy --enableStaticIpService static-worker
+    ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-ctl --silentObjectNotFoundError kill '%{NIMBUS_USER}-static-worker' && ${NIMBUS_LOCATION} nimbus-worker-deploy --enableStaticIpService static-worker ${suggested-gateway}
     Should Contain  ${out}  "deploy_status": "success"
     Set Environment Variable  STATIC_WORKER_NAME  %{NIMBUS_USER}-static-worker
     ${ip}=  Get IP  static-worker
@@ -451,8 +452,9 @@ Create Static IP Worker
     Close Connection
 
 Get Static IP Address
+    [Arguments]  ${suggested-gateway}=${EMPTY}
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  STATIC_WORKER_IP
-    Run Keyword If  '${status}' == 'FAIL'  Create Static IP Worker
+    Run Keyword If  '${status}' == 'FAIL'  Create Static IP Worker  ${suggested-gateway}
     Log To Console  Curl a new static ip address from the created worker...
     ${out}=  Run  curl -s http://%{STATIC_WORKER_IP}:4827/nsips
 
