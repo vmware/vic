@@ -37,7 +37,10 @@ Static IP Address Create
     Set Suite Variable  @{list}  %{NIMBUS_USER}-${name}.esx.0  %{NIMBUS_USER}-${name}.esx.1  %{NIMBUS_USER}-${name}.esx.2  %{NIMBUS_USER}-${name}.nfs.0  %{NIMBUS_USER}-${name}.vc.0
     Log To Console  Finished Creating Cluster ${name}
 
-    ${out}=  Get Static IP Address
+    #  Need to suggest which subnet/gateway to install the static IP address worker into
+    ${pre}  ${post}=  Split String From Right  ${vc-ip}  .  1
+
+    ${out}=  Get Static IP Address  --gateway ${pre}.253
     Set Suite Variable  ${static}  ${out}
     Append To List  ${list}  %{STATIC_WORKER_NAME}
     
