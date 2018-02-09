@@ -33,10 +33,50 @@ initialize_bundle() {
     # - variable replacement occurs during generation step however
     cp $BASE_DIR/xorriso-options.cfg $1/xorriso-options.cfg
 
-    mkdir -p $1/rootfs/var/lib/rpm $1/bootfs/boot
-
-    rpm --root=$1/rootfs --initdb
+    mkdir -p $1/{rootfs,bootfs/boot}
     cp -a $BASE_DIR/isolinux $1/bootfs/boot/isolinux
+}
+
+# Install the necessary package manager to the package root
+# All following calls to package_cached will call $PACKAGE_MANAGER from chroot $PKGDIR
+# 1: repository directory, containing repo files
+# 2: package directory
+# 3: package manager to use
+# 4: repo name
+setup_pm() {
+    local REPODIR=$1
+    local PKGDIR=$2
+    local PACKAGE_MANAGER=$3
+    local REPO=$4
+    local VER=$(echo $REPO | cut -d '-' -f2)
+
+    mkdir -p $(rootfs_dir $PKGDIR)/var/lib/rpm
+    rpm --root=$(rootfs_dir $PKGDIR) --initdb
+
+    # select the repo directory and populate the basic yum config
+    mkdir -p $(rootfs_dir $PKGDIR)/{etc/$PACKAGE_MANAGER,etc/yum.repos.d}
+    cp -a $REPODIR/*.repo $(rootfs_dir $PKGDIR)/etc/yum.repos.d/
+
+    # Copy tdnf config to iso for later use
+    cp $BASE_DIR/$PACKAGE_MANAGER.conf          $(rootfs_dir $PKGDIR)/etc/$PACKAGE_MANAGER/$PACKAGE_MANAGER.conf
+    sed -i "s|\$ROOTFS||g"                      $(rootfs_dir $PKGDIR)/etc/$PACKAGE_MANAGER/$PACKAGE_MANAGER.conf
+    sed -i "s|\$VER|$VER|g"                     $(rootfs_dir $PKGDIR)/etc/$PACKAGE_MANAGER/$PACKAGE_MANAGER.conf
+
+    # Copy and parse tdnf config for use by package_cached
+    cp $BASE_DIR/$PACKAGE_MANAGER.conf          /etc/$PACKAGE_MANAGER/$PACKAGE_MANAGER-$REPO.conf
+    sed -i "s|\$ROOTFS|$(rootfs_dir $PKGDIR)|g" /etc/$PACKAGE_MANAGER/$PACKAGE_MANAGER-$REPO.conf
+    sed -i "s|\$VER|$VER|g"                     /etc/$PACKAGE_MANAGER/$PACKAGE_MANAGER-$REPO.conf
+
+    # allow future stages to know which repo this is using
+    echo "$REPO" > $PKGDIR/repo.cfg
+    echo "$PACKAGE_MANAGER" > $PKGDIR/package.cfg
+    
+    # tdnf -c $(rootfs_dir $PKGDIR)/etc/tdnf/tdnf.conf \
+    #     --releasever 2.0 \
+    #     --installroot $(rootfs_dir $PKGDIR) \
+    #     --nogpgcheck \
+    #     install -y $PACKAGE_MANAGER
+
 }
 
 # unpackage working ISO filesystem bundle
@@ -174,34 +214,6 @@ END {
     return $?
 }
 
-# Helper to ensure, if possible, that the specified packages are installed
-# ...: space separted list of packages
-ensure_apt_packages() {
-    local install
-
-    # ensure we've got the utils we need
-    for pkg in "$@"; do
-        dpkg -s $pkg >/dev/null 2>&1 || install="$install $pkg"
-    done
-
-    if [ -n "$install" ]; then
-        if [ "$(id -u)" != "0" ]; then
-            echo "Need to install packages - rerun as root" 1>&2
-            echo "packages: $install" 1>&2
-            return 1
-        fi
-
-        # try without update first
-        echo "Installing necessary packages: $install"
-        apt-get -y install $install >/dev/null 2>&1 || {
-            (apt-get update && apt-get -y install $install) || {
-                echo "Failed to install $install packages: $?" 1>&2
-                return 1
-            }
-        }
-    fi
-}
-
 # build an ISO from the specified bundle directory.
 # 1: bundle base directory
 # 2: output file for ISO image - stdio:/dev/fd/1 can be used for stdout
@@ -212,17 +224,12 @@ generate_iso() {
         return 1
     }
 
-    ensure_apt_packages cpio xorriso || {
-        echo "cpio and xorriso packages must be installed for ISO authoring: $?" 1>&2
-        return 1
-    }
-
     out=$(readlink -f $2)
     # subshell to avoid changing directory for invoker in failure cases
     (
         # operate relative to the package
         cd $1
-
+        
         test -r bootfs/boot/isolinux/isolinux.bin -a -w bootfs/boot/isolinux/isolinux.cfg || {
             echo "isolinux files must exist in $1/boot/isolinux: $?" 1>&2
             return 2
@@ -257,6 +264,7 @@ generate_iso() {
             echo "Failed to generate ISO file from package: $?" 1>&2
             return 6
         }
+
     )
 
     return
@@ -267,12 +275,12 @@ generate_iso() {
 # This has been written to use getopts to:
 # a. allow the cache to be optional
 # b. as a reference for other functions
-yum_cached() {
-    usage() { echo "Usage: yum_cached [-c yum-cache(tgz)] [-u (update cache if present)] -p package-dir <options>" 1>&2; }
+package_cached () {
+    usage() { echo "Usage: package_cached [-c package-cache(tgz)] [-u (update cache if present)] -p package-dir <options>" 1>&2; }
 
     # must ensure OPTIND is local, along with any set by processing
-    local OPTIND flag cache update INSTALLROOT cmds
-    while getopts "c:up:a:" flag; do
+    local OPTIND flag cache update INSTALLROOT cmds MANAGER
+    while getopts "c:up:a:m:" flag; do
         case $flag in
             c)
             # Optional. Cache name (tgz)
@@ -302,47 +310,62 @@ yum_cached() {
 
     # check there were no extra args and the required ones are set to sane values
     [ -e "$PKGDIR" ] || {
-        echo "Specified package directory must exist" 1>&2
+        echo "Specified package directory '$PKGDIR' must exist" 1>&2
         return 1
     }
 
-    CACHE_DIR=${INSTALLROOT}/var/cache/yum
+    # get the package manager from it's populated filepath in base.sh
+    MANAGER=$(cat $PKGDIR/package.cfg)
+    [ -n "$MANAGER" ] || {
+        echo "Package config file '$PKGDIR/package.cfg' must be populated" 1>&2
+        return 1
+    }
+    [ -e "/usr/bin/$MANAGER" ] || {
+        echo "Specified package manager '/usr/bin/$MANAGER' must exist" 1>&2
+        return 1
+    }
+    MANAGER_OPTS=""
+    if [ "$MANAGER" == "tdnf" ]; then
+        CACHE_DIR=var/cache/tdnf
+        MANAGER_OPTS="-c /etc/tdnf/tdnf-$(cat $PKGDIR/repo.cfg).conf --installroot $INSTALLROOT"
+    elif [ "$MANAGER" == "yum" ]; then
+        CACHE_DIR=var/cache/yum
+    else 
+        echo "Specified package manager '$MANAGER' must be one of [yum|tdnf]" 1>&2
+        return 1
+    fi
+    
     # bundle specific - if we're cleaning the cache and we want it all gone
     # $1 because of the shift after getopts
     if [ "$1" == "clean" -a "$2" == "all" ]; then
-        rm -fr ${CACHE_DIR}/*
+        rm -fr ${INSTALLROOT}/${CACHE_DIR}/*
     else
-        # do this before we bother unpacking the cache
-        ensure_apt_packages yum || {
-            echo "cpio and xorriso packages must be installed for ISO authoring: $?" 1>&2
-            return 2
-        }
-
         # unpack cache
         if [ -n "${cache}" -a -e "${cache}" ]; then
-            echo "Unpacking yum cache into ${INSTALLROOT}"
+            echo "Unpacking package cache into ${INSTALLROOT}"
 
             tar -C ${INSTALLROOT} -zxf $cache || {
-                echo "Unpacking yum cache $cache failed: $?" 1>&2
+                echo "Unpacking package cache $cache failed: $?" 1>&2
                 return 3
             }
         else
-            mkdir -p ${CACHE_DIR}
+            mkdir -p ${INSTALLROOT}/${CACHE_DIR}
         fi
 
-        touch ${CACHE_DIR}/.unpack
+        touch ${INSTALLROOT}/${CACHE_DIR}/.unpack
 
         # we set home so that it doesn't inherit path from caller if invoked with sudo -E
-        HOME=root /usr/bin/yum --installroot $INSTALLROOT $ACTION $cmds || {
-            echo "Error while running yum command \"$cmds\": $?" 1>&2
+        # use a chroot to use whatever package manager was isntalled by base.sh
+        HOME=root /usr/bin/$MANAGER $MANAGER_OPTS $ACTION $cmds || {
+            echo "Error while running package manager command \"$cmds\": $?" 1>&2
             return 4
         }
     fi
 
     # repack cache
-    find ${CACHE_DIR} -type f -newer ${CACHE_DIR}/.unpack -exec touch ${CACHE_DIR}/.update-cache \;
-    if [ -n "$update" -a -n "${cache}" -a -f ${CACHE_DIR}/.update-cache ]; then
-        tar -C ${INSTALLROOT} -zcf $cache var/cache/yum
+    find ${INSTALLROOT}/${CACHE_DIR} -type f -newer ${INSTALLROOT}/${CACHE_DIR}/.unpack -exec touch ${INSTALLROOT}/${CACHE_DIR}/.update-cache \;
+    if [ -n "$update" -a -n "${cache}" -a -f ${INSTALLROOT}/${CACHE_DIR}/.update-cache ]; then
+        tar -C ${INSTALLROOT} -zcf $cache ${CACHE_DIR}
     fi
 }
 

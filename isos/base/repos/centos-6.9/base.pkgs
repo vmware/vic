@@ -1,4 +1,0 @@
-# filesystem for basic filesystem structure
-# coreutils for shell script support
-# kmod for depmod and modprobe
-filesystem coreutils module-init-tools

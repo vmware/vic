@@ -1,5 +1,0 @@
-# filesystem for basic filesystem structure
-# coreutils for shell script support
-#   toybox - instead of coreutils
-# kmod for depmod
-filesystem toybox kmod

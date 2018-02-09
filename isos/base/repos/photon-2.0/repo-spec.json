@@ -1,0 +1,15 @@
+{
+    "name": "photon-2.0",
+    "packagemanager": "tdnf",
+    "kernel": "linux-esx",
+    "init": "/lib/systemd/systemd",
+    "packages_script_staging": {
+        "bootstrap": "",
+        "appliance": "erase toybox"
+    },
+    "packages": {
+        "base": "filesystem toybox kmod haveged iptables",
+        "bootstrap": "",
+        "appliance": "procps-ng e2fsprogs shadow systemd iputils iproute2 tdnf gzip lsof logrotate photon-release mingetty rpm dbus net-tools openssh ca-certificates sudo vim lsof"
+    }
+}

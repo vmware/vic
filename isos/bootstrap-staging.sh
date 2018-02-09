@@ -16,17 +16,12 @@
 # Build the bootstrap filesystem ontop of the base
 
 # exit on failure
-set -e
-
-if [ -n "$DEBUG" ]; then
-    set -x
-fi
-
+set -e && [ -n "$DEBUG" ] && set -x
 DIR=$(dirname $(readlink -f "$0"))
 . $DIR/base/utils.sh
 
 function usage() {
-echo "Usage: $0 -c yum-cache(tgz) -p base-package(tgz) -o output-package(tgz) -d <activates debug when set>" 1>&2
+echo "Usage: $0 -c package-cache(tgz) -p base-package(tgz) -o output-package(tgz) -d <activates debug when set>" 1>&2
 exit 1
 }
 
@@ -50,7 +45,7 @@ do
             ;;
 
         c)
-            # Optional. Offline cache of yum packages
+            # Optional. Offline cache of package packages
             cache="$OPTARG"
             ;;
 
@@ -79,6 +74,10 @@ unpack $package $PKGDIR
 # load the repo to use from the package if not explicit in env
 REPODIR="$DIR/base/repos/${REPO:-$(cat $PKGDIR/repo.cfg)}/"
 
+# Run a staging script if needed
+script=$(cat $REPODIR/repo-spec.json | jq -r '.packages_script_staging.bootstrap')
+[ -n "$script" ] && package_cached -c $cache -u -p $PKGDIR $script --nogpgcheck -y
+
 if [ -v debug ]; then
     # These are the packages we install to create an interactive bootstrapVM
     # Install bootstrap base packages
@@ -86,7 +85,7 @@ if [ -v debug ]; then
     # packages list here
     #   tndf      # allows package install during debugging.
     #   vim       # basic editing function for debugging.
-    yum_cached -c $cache -u -p $PKGDIR install \
+    package_cached -c $cache -u -p $PKGDIR install \
         bash \
         shadow \
         tdnf \
@@ -105,13 +104,12 @@ fi
 #   libtirpc    # due to a previous package reliance on rpc
 #   util-linux  # photon2 for /bin/mount
 #
-STAGING_PKGS=$(cat $REPODIR/staging.pkgs | awk '/^[^#]/{print}')
-yum_cached -c $cache -u -p $PKGDIR install $STAGING_PKGS --nogpgcheck -y
-
+STAGING_PKGS=$(cat $REPODIR/repo-spec.json | jq -r '.packages.bootstrap')
+package_cached -c $cache -u -p $PKGDIR install $STAGING_PKGS --nogpgcheck -y
 
 # ensure we're not including a cache in the staging bundle
 # but don't update the cache bundle we're using to install
-yum_cached -p $PKGDIR clean all
+package_cached -p $PKGDIR clean all
 
 # package up the result
 pack $PKGDIR $OUT

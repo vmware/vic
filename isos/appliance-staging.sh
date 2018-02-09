@@ -20,9 +20,8 @@ set -e && [ -n "$DEBUG" ] && set -x
 DIR=$(dirname $(readlink -f "$0"))
 . $DIR/base/utils.sh
 
-
 function usage() {
-echo "Usage: $0 -c yum-cache(tgz) -p base-package(tgz) -o output-package(tgz)" 1>&2
+echo "Usage: $0 -c package-cache(tgz) -p base-package(tgz) -o output-package(tgz)" 1>&2
 exit 1
 }
 
@@ -41,7 +40,7 @@ do
             ;;
 
         c)
-            # Optional. Offline cache of yum packages
+            # Optional. Offline cache of packages
             cache="$OPTARG"
             ;;
 
@@ -67,79 +66,48 @@ unpack $PACKAGE $PKGDIR
 # Below: the image authoring
 #################################################################
 
-# Install VCH base packages
-#
-# List stable packages here
-#   e2fsprogs # for mkfs.ext4
-#   procps-ng # for ps
-#   iputils   # for ping
-#   iproute2  # for ip
-#   iptables  # for iptables
-#   net-tools # for netstat
-#   openssh   # for ssh server
-#   sudo      # for sudo
-#
-# Temporary packages list here
-#   systemd   # for convenience only at this time
-#   tndf      # so we can deploy other packages into the appliance live - MUST BE REMOVED FOR SHIPPING
-#   vim       # basic editing function
-#   lsof      # for debugging issues unmounting disks for the copy/diff paths
-# yum_cached -c $cache -u -p $PKGDIR install \
-#     haveged \
-#     systemd \
-#     openssh \
-#     iptables \
-#     e2fsprogs \
-#     procps-ng \
-#     iputils \
-#     iproute2 \
-#     iptables \
-#     net-tools \
-#     sudo \
-#     tdnf \
-#     vim \
-#     gzip \
-#     lsof \
-#     logrotate \
-# 	photon-release \
-#    -y --nogpgcheck
+# Install VCH packages
+REPODIR="$DIR/base/repos/${REPO:-$(cat $PKGDIR/repo.cfg)}/"
 
-yum_cached -c $cache -u -p $PKGDIR install \
-    haveged systemd iptables iputils iproute2 tdnf vim gzip lsof logrotate photon-release \
--y --nogpgcheck
+script=$(cat $REPODIR/repo-spec.json | jq -r '.packages_script_staging.appliance')
+[ -n "$script" ] && package_cached -c $cache -u -p $PKGDIR $script --nogpgcheck -y
 
-#yum_cached -c $cache -u -p $PKGDIR install shadow -y --nogpgcheck || echo expected error
+STAGING_PKGS=$(cat $REPODIR/repo-spec.json | jq -r '.packages.appliance')
+package_cached -c $cache -u -p $PKGDIR install $STAGING_PKGS --nogpgcheck -y
 
 # hack around toybox issues
-#rm $(rootfs_dir $PKGDIR)/bin/{passwd,login,su}
-#chroot $(rootfs_dir $PKGDIR) rpm -i --replacefiles /var/cache/yum/photon-2.0/packages/shadow-4.2.1-13.ph2.x86_64.rpm
+# rm $(rootfs_dir $PKGDIR)/bin/{passwd,login,su}
+# chroot $(rootfs_dir $PKGDIR) rpm -i --replacefiles /var/cache/tdnf/photon-2.0/packages/shadow-4.2.1-13.ph2.x86_64.rpm || true
 
 # Give a permission to vicadmin to run iptables.
 echo "vicadmin ALL=NOPASSWD: /sbin/iptables --list" >> $(rootfs_dir $PKGDIR)/etc/sudoers
 
 # ensure we're not including a cache in the staging bundle
 # but don't update the cache bundle we're using to install
-yum_cached -p $PKGDIR clean all
+package_cached  -p $PKGDIR clean all
 
 # configure us for autologin of root
-#COPY override.conf $ROOTFS/etc/systemd/system/getty@.service.d/
-# HACK until the issues with override.conf above are dealt with
-#pwhash=$(openssl passwd -1 -salt vic password)
-#sed -i -e "s/^root:[^:]*:/root:${pwhash}:/" $(rootfs_dir $PKGDIR)/etc/shadow
+getty_dir=$(rootfs_dir $PKGDIR)/usr/lib/systemd/system/getty@tty1.service.d/
+mkdir -p $getty_dir
+cp ${DIR}/appliance/override.conf $getty_dir
+# Use mingetty as our getty provider
+ln -sf $(rootfs_dir $PKGDIR)/sbin/mingetty $(rootfs_dir $PKGDIR)/usr/bin/agetty 
 
 # Disable SSH by default - this can be enabled via guest operations
-#rm $(rootfs_dir $PKGDIR)/usr/lib/systemd/system/sshd@.service                          # TEMP - openssh wont install with photon2
-#rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/sshd.service
+rm $(rootfs_dir $PKGDIR)/usr/lib/systemd/system/sshd@.service
+rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/sshd.service
 # Allow root login via ssh
-#sed -i -e "s/\#*PermitRootLogin\s.*/PermitRootLogin yes/" $(rootfs_dir $PKGDIR)/etc/ssh/sshd_config
+sed -i -e "s/\#*PermitRootLogin\s.*/PermitRootLogin yes/" $(rootfs_dir $PKGDIR)/etc/ssh/sshd_config
 
 # Disable root login
-sed -i -e 's@:/bin/bash$@:/bin/false@' $(rootfs_dir $PKGDIR)/etc/passwd
+# sed -i -e 's@:/bin/bash$@:/bin/false@' $(rootfs_dir $PKGDIR)/etc/passwd
 
 # Allow chpasswd to change expired password when launched from vic-init
 cp -f ${DIR}/appliance/chpasswd.pam $(rootfs_dir $PKGDIR)/etc/pam.d/chpasswd
 # Allow chage to be used with expired password when launched from vic-init
 cp -f ${DIR}/appliance/chage.pam $(rootfs_dir $PKGDIR)/etc/pam.d/chage
-
+# # Set shadow defaults
+# cp -f ${DIR}/appliance/login.defs $(rootfs_dir $PKGDIR)/etc/
+# cp -f ${DIR}/appliance/boot.local $(rootfs_dir $PKGDIR)/etc/rc.d/init.d/boot.local
 # package up the result
 pack $PKGDIR $OUT

@@ -34,12 +34,7 @@ tempfs_target_list=('/lib/modules/*' \
 # Build the bootstrap filesystem ontop of the base
 
 # exit on failure
-set -e
-
-if [ -n "$DEBUG" ]; then
-    set -x
-fi
-
+set -e && [ -n "$DEBUG" ] && set -x
 DIR=$(dirname $(readlink -f "$0"))
 . $DIR/base/utils.sh
 
@@ -151,5 +146,5 @@ echo Total tempfs size: ${size}
 echo "${tempfs_target_list[@]}" > $(rootfs_dir $PKGDIR)/.tempfs_list
 echo ${size} > $(rootfs_dir $PKGDIR)/.tempfs_size
 
-INIT=$(cat $REPODIR/init.cfg | awk '/^[^#]/{print}')
+INIT=$(cat $REPODIR/repo-spec.json | jq -r '.init')
 generate_iso $PKGDIR $BIN/$ISONAME $INIT

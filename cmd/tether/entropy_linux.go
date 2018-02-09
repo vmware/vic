@@ -16,28 +16,37 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/tether"
 )
 
-// Haveged is a tether extension that wraps command
-type Haveged struct {
+// TODO(morris-jason): Not sure this is the best file path. Open to suggestions.
+const entropyConfigPath = "/.tether/opt/config/entropy.txt"
+
+// Entropy is a tether extension that wraps command
+type Entropy struct {
 	p    *os.Process
 	exec func() (*os.Process, error)
 }
 
-// NewHaveged returns a tether.Extension that wraps haveged
-func NewHaveged() *Haveged {
-	return &Haveged{
+// NewEntropy returns a tether.Extension that wraps entropy
+func NewEntropy() *Entropy {
+	return &Entropy{
 		exec: func() (*os.Process, error) {
-			//args := []string{"/.tether/lib/ld-linux-x86-64.so.2", "--library-path", "/.tether/lib", "/.tether/haveged", "-w", "1024", "-v", "1", "-F"}
+			entropyConfig, err := ioutil.ReadFile(entropyConfigPath)
+			if err != nil {
+				log.Errorf("Cannot read entropy configuration %q", err.Error())
+				return nil, err
+			}
+			args := strings.Split(string(entropyConfig), " ")
 			// #nosec: Subprocess launching with variable
-			cmd := exec.Command("/.tether/bin/entropy")
-
+			cmd := exec.Command(args[0], args[1:]...)
 			log.Infof("Starting entropy daemon")
 			if err := cmd.Start(); err != nil {
 				log.Errorf("Starting entropy failed with %q", err.Error())
@@ -49,26 +58,26 @@ func NewHaveged() *Haveged {
 }
 
 // Start implementation of the tether.Extension interface
-func (h *Haveged) Start(system tether.System) error {
+func (e *Entropy) Start(system tether.System) error {
 	log.Infof("Starting entropy")
 
 	var err error
-	h.p, err = h.exec()
+	e.p, err = e.exec()
 	return err
 }
 
 // Stop implementation of the tether.Extension interface
-func (h *Haveged) Stop() error {
+func (e *Entropy) Stop() error {
 	log.Infof("Stopping entropy")
 
-	if h.p != nil {
-		return h.p.Kill()
+	if e.p != nil {
+		return e.p.Kill()
 	}
-	return fmt.Errorf("entropy process is missing")
+	return fmt.Errorf("Entropy process is missing")
 }
 
 // Reload implementation of the tether.Extension interface
-func (h *Haveged) Reload(config *tether.ExecutorConfig) error {
-	// haveged doesn't support reloading
+func (e *Entropy) Reload(config *tether.ExecutorConfig) error {
+	// entropy doesn't support reloading
 	return nil
 }
