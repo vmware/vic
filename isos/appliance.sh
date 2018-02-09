@@ -26,7 +26,7 @@ echo "Usage: $0 -p staged-package(tgz) -b binary-dir" 1>&2
 exit 1
 }
 
-while getopts "p:b:" flag
+while getopts "p:b:x:o:" flag
 do
     case $flag in
 
@@ -40,6 +40,14 @@ do
             BIN="$OPTARG"
             ;;
 
+        x)
+            XTRABINS+="$OPTARG "
+            ;;
+
+        o)
+            OUTPUTFILE="$OPTARG"
+            ;;
+
         *)
             usage
             ;;
@@ -47,6 +55,8 @@ do
 done
 
 shift $((OPTIND-1))
+
+echo XTRABINS: ${XTRABINS}
 
 # check there were no extra args and the required ones are set
 if [ ! -z "$*" -o -z "$PACKAGE" -o -z "${BIN}" ]; then
@@ -62,6 +72,8 @@ unpack $PACKAGE $PKGDIR
 # Above: arg parsing and setup
 # Below: the image authoring
 #################################################################
+
+echo RootFsDir $(rootfs_dir $PKGDIR)
 
 # sysctl
 cp ${DIR}/appliance/sysctl.conf $(rootfs_dir $PKGDIR)/etc/
@@ -126,6 +138,39 @@ cp ${BIN}/vic-init $(rootfs_dir $PKGDIR)/sbin/vic-init
 cp ${BIN}/{docker-engine-server,port-layer-server,vicadmin} $(rootfs_dir $PKGDIR)/sbin/
 cp ${BIN}/unpack $(rootfs_dir $PKGDIR)/bin/
 
+APPLIANCE_NAME=appliance.iso
+
+if [ -n "${OUTPUTFILE}" ]; then
+	APPLIANCE_NAME=${OUTPUTFILE}
+else
+	APPLIANCE_NAME=appliance.iso
+fi
+
+echo Appliance name: $APPLIANCE_NAME
+
+if [ -n "${XTRABINS}" ]; then
+    for XBIN in $XTRABINS; do
+        GS=$(echo ${XBIN} | grep '^gs://' | cat)
+        if [ -n "$GS" ]; then
+            XBIN_LATEST_BUILD="$(gsutil ls -l ${XBIN} | grep -v TOTAL | sort -k2 -r | (trap ' ' PIPE; head -1))"
+			echo ${XBIN_LATEST_BUILD}
+            XBIN_URL=$(echo ${XBIN_LATEST_BUILD} | xargs | cut -d " " -f 3 | sed "s/gs:\/\//https:\/\/storage.googleapis.com\//")
+            XBIN_FILE_NAME=$(basename ${XBIN})
+			XBIN_FILE_NAME=$(echo ${XBIN_FILE_NAME} | sed 's/-builds//')
+            wget -nv ${XBIN_URL} -O ${BIN}/${XBIN_FILE_NAME}
+        else
+			if [ -f ${XBIN} ]; then
+				cp ${XBIN} ${BIN}
+				XBIN_FILE_NAME=$(basename ${XBIN})
+			else
+				echo "Error while adding extra files to the appliance ISO: file ${XBIN} not found"
+				exit -1
+			fi
+        fi
+        cp ${BIN}/${XBIN_FILE_NAME} $(rootfs_dir $PKGDIR)/sbin/
+    done
+fi
+
 ## Generate the ISO
 # Select systemd for our init process
-generate_iso $PKGDIR $BIN/appliance.iso /lib/systemd/systemd
+generate_iso $PKGDIR $BIN/${APPLIANCE_NAME} /lib/systemd/systemd

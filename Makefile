@@ -40,6 +40,12 @@ GOVC ?= $(GOPATH)/bin/govc$(BIN_ARCH)
 GAS ?= $(GOPATH)/bin/gas$(BIN_ARCH)
 MISSPELL ?= $(GOPATH)/bin/misspell$(BIN_ARCH)
 
+ifeq ($(VIRTUAL_KUBELET_PATH),)
+	VIRTUAL_KUBELET := virtual-kubelet
+else
+	VIRTUAL_KUBELET := $(VIRTUAL_KUBELET_PATH)
+endif
+
 .PHONY: all tools clean test check distro \
 	goversion goimports gopath govet gofmt misspell gas golint \
 	isos tethers apiservers copyright
@@ -112,6 +118,7 @@ gandalf := $(BIN)/gandalf
 tether-linux := $(BIN)/tether-linux
 
 appliance := $(BIN)/appliance.iso
+appliance-vkube := $(BIN)/appliance-vkube.iso
 appliance-staging := $(BIN)/.appliance-staging.tgz
 bootstrap := $(BIN)/bootstrap.iso
 bootstrap-staging := $(BIN)/.bootstrap-staging.tgz
@@ -140,6 +147,7 @@ tether-linux: $(tether-linux)
 
 appliance: $(appliance)
 appliance-staging: $(appliance-staging)
+appliance-vkube: $(appliance-vkube) 
 bootstrap: $(bootstrap)
 bootstrap-staging: $(bootstrap-staging)
 bootstrap-debug: $(bootstrap-debug)
@@ -419,6 +427,12 @@ $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 $(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging) $(archive)
 	@echo building VCH appliance ISO
 	@$(TIME) $< -p $(appliance-staging) -b $(BIN)
+
+# main appliance target + kubelet - depends on all top level component targets
+$(appliance-vkube): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging) $(archive)
+	@echo building VCH appliance ISO
+	@$(TIME) $< -p $(appliance-staging) -b $(BIN) -x $(VIRTUAL_KUBELET) -o appliance.vkube
+
 
 # main bootstrap target
 $(bootstrap): isos/bootstrap.sh $(tether-linux) $(bootstrap-staging) isos/bootstrap/*
