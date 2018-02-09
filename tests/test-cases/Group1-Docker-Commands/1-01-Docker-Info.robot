@@ -72,12 +72,9 @@ Basic Info
     Should Contain  ${volpluginline}  vsphere
 
 Debug Info
-    ${status}=  Get State Of Github Issue  780
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-1-Docker-Info.robot needs to be updated now that Issue #780 has been resolved
-    #Log To Console  \nRunning docker -D info command...
-    #${output}=  Run  docker %{VCH-PARAMS} -D info
-    #Log  ${output}
-    #Should Contain  ${output}  Debug mode
+    ${output}=  Run  docker %{VCH-PARAMS} -D info
+    Log  ${output}
+    Should Contain  ${output}  Debug Mode (client): true
 
 Correct container count
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info

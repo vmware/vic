@@ -30,9 +30,22 @@ Cleanup Container Network Test
     Cleanup Container Network Test Networks
 
 *** Test Cases ***
-Inspect VCH Configuration
+Inspect VCH Basic
     Install VIC Appliance To Test Server
 
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME}
+    Should Be Equal As Integers  0  ${rc}
+    Should Contain  ${output}  VCH ID
+    Should Contain  ${output}  Installer version
+    Should Contain  ${output}  VCH version
+    Should Contain  ${output}  VCH upgrade status
+    Should Contain  ${output}  Installer has same version as VCH
+    Should Contain  ${output}  No upgrade available with this installer version
+    Should Contain  ${output}  VCH Admin Portal
+    Should Contain  ${output}  Published ports can be reached at
+    Should Contain  ${output}  Connect to docker
+
+Inspect VCH Configuration
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect config --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME}
     Should Contain  ${output}  --debug=1
     Should Contain  ${output}  --name=%{VCH-NAME}
