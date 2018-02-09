@@ -20,9 +20,8 @@ set -e && [ -n "$DEBUG" ] && set -x
 DIR=$(dirname $(readlink -f "$0"))
 . $DIR/base/utils.sh
 
-
 function usage() {
-echo "Usage: $0 -p package-name(tgz) [-c yum-cache]" 1>&2
+echo "Usage: $0 -p package-name(tgz) [-c package-cache]" 1>&2
 exit 1
 }
 
@@ -47,7 +46,7 @@ do
             ;;
 
         c)
-            # Optional. Offline cache of yum packages
+            # Optional. Offline cache of package packages
             cache="$OPTARG"
             ;;
 
@@ -64,18 +63,25 @@ if [ ! -z "$*" -o -z "$PACKAGE" ]; then
     usage
 fi
 
-REPO=${REPO:-photon-1.0}
+REPO=${REPO:-photon-2.0}
+
+if [[ $DRONE_BUILD_NUMBER && $DRONE_BUILD_NUMBER > 0 ]]; then
+    # THIS SHOULD BE MOVED TO .drone.yml AS IT OVERRIDES THE -r OPTION
+    REPO="ci"
+fi
+
+REPODIR="$DIR/base/repos/${REPO}/"
+PACKAGE_MANAGER=$(cat $REPODIR/repo-spec.json | jq -r '.packagemanager')
+PACKAGE_MANAGER=${PACKAGE_MANAGER:-yum}
 
 # prep the build system
-ensure_apt_packages cpio rpm tar ca-certificates xz-utils
+# ensure_apt_packages cpio rpm tar ca-certificates xz-utils
 
 PKGDIR=$(mktemp -d)
 
 # initialize the bundle
 initialize_bundle $PKGDIR
 
-# base filesystem setup
-mkdir -p $(rootfs_dir $PKGDIR)/{etc/yum,etc/yum.repos.d}
 ln -s /lib $(rootfs_dir $PKGDIR)/lib64
 
 # TODO: look at moving these prep pieces into the repo as functions
@@ -96,20 +102,10 @@ if [ "$REPO" == "centos-6.9" ]; then
     chmod 666 $(rootfs_dir $PKGDIR)/dev/null
 fi
 
-if [[ $DRONE_BUILD_NUMBER && $DRONE_BUILD_NUMBER > 0 ]]; then
-    # THIS SHOULD BE MOVED TO .drone.yml AS IT OVERRIDES THE -r OPTION
-    REPOS="ci"
-fi
-
-# select the repo directory and populate the basic yum config
-REPODIR="$DIR/base/repos/${REPO}/"
-cp -a $REPODIR/*.repo $(rootfs_dir $PKGDIR)/etc/yum.repos.d/
-cp $DIR/base/yum.conf $(rootfs_dir $PKGDIR)/etc/yum/
-# allow future stages to know which repo this is using
-echo "$REPO" > $PKGDIR/repo.cfg
+setup_pm $REPODIR $PKGDIR $PACKAGE_MANAGER $REPO
 
 # determine the kernel package
-KERNEL=$(cat $REPODIR/kernel.pkg | awk '/^[^#]/{print}')
+KERNEL=$(cat $REPODIR/repo-spec.json | jq -r '.kernel')
 # if the kernel isn't a file then install it with the other packages
 if [ -n "$CUSTOM_KERNEL_RPM" ]; then
     echo "Using kernel package from environment: $CUSTOM_KERNEL_RPM"
@@ -122,9 +118,9 @@ else
     KERNEL="$(pwd)/$KERNEL"
 fi
 
-# install the core packages - strip lines starting with #
-CORE_PKGS=$(cat $REPODIR/base.pkgs | awk '/^[^#]/{print}')
-yum_cached -c $cache -u -p $PKGDIR install $CORE_PKGS $KERNEL_PKG --nogpgcheck -y
+# install the core packages
+CORE_PKGS=$(cat $REPODIR/repo-spec.json | jq -r '.packages.base')
+package_cached -c $cache -u -p $PKGDIR install $CORE_PKGS $KERNEL_PKG --nogpgcheck -y
 
 # check for raw kernel override
 if [ -z "$KERNEL_PKG" ]; then
@@ -140,12 +136,12 @@ KERNEL_VERSION=$(basename $(rootfs_dir $PKGDIR)/lib/modules/*)
 chroot $(rootfs_dir $PKGDIR) depmod $KERNEL_VERSION 
 
 # strip the cache from the resulting image
-yum_cached -c $cache -p $PKGDIR clean all
+package_cached -c $cache -p $PKGDIR clean all
 
 # move kernel into bootfs /boot directory so that syslinux could load it
 mv $(rootfs_dir $PKGDIR)/boot/vmlinuz-* $(bootfs_dir $PKGDIR)/boot/vmlinuz64
 # try copying over the other boot files - rhel kernel seems to need a side car configuration file
-find $(rootfs_dir $PKGDIR)/boot -type f | xargs cp -t $(bootfs_dir $PKGDIR)/boot/
+find $(rootfs_dir $PKGDIR)/boot -type f  -exec cp {} $(bootfs_dir $PKGDIR)/boot/ \;
 
 # https://www.freedesktop.org/wiki/Software/systemd/InitrdInterface/
 touch $(rootfs_dir $PKGDIR)/etc/initrd-release
