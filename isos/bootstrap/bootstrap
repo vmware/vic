@@ -42,7 +42,7 @@ echo "Waiting for rootfs"
 while [ ! -e /dev/disk/by-label/containerfs ]; do sleep 0.1;done
 # https://github.com/vmware/vic/issues/6379
 # grab dmesg output and dump to debug log if mount doesn't occur in a useful timeframe (2min)
-if timeout --signal=KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
+if timeout -s KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # ensure mountpoint exists
     mkdir -p ${MOUNTPOINT}/.tether
 
