@@ -14,5 +14,5 @@
 # limitations under the License.
 #
 sed -i 's|remotes/origin/*|remotes/origin/*\n\tfetch = +refs/pull/*/head:refs/remotes/origin/pr/|g' .git/config
-git fetch --tags origin --depth=1 -v refs/pull/$DRONE_PULL_REQUEST/head:refs/remotes/origin/pr/$DRONE_PULL_REQUEST
+git fetch --tags origin -v refs/pull/$DRONE_PULL_REQUEST/head:refs/remotes/origin/pr/$DRONE_PULL_REQUEST
 git checkout pr/$DRONE_PULL_REQUEST
