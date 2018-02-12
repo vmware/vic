@@ -37,6 +37,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/engine/proxy"
 	apiclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
 	vicarchive "github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/imagec"
 	optrace "github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
@@ -232,7 +233,7 @@ func saveImage(ap proxy.VicArchiveProxy, ic *imagec.ImageC) error {
 	errChan := make(chan error, len(layers))
 
 	for i := len(layers) - 1; i >= 0; i-- {
-		if layers[i].ID == imagec.ScratchLayerID {
+		if layers[i].ID == constants.ScratchLayerID {
 			continue
 		}
 		wg.Add(1)

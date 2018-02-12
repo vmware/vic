@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/storage"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/constants"
 	spl "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
@@ -226,7 +227,7 @@ func (c *MockDataStore) WriteMetadata(op trace.Operation, storeName string, ID s
 
 // GetImage gets the specified image from the given store by retreiving it from the cache.
 func (c *MockDataStore) GetImage(op trace.Operation, store *url.URL, ID string) (*spl.Image, error) {
-	if ID == spl.Scratch.ID {
+	if ID == constants.ScratchLayerID {
 		return &spl.Image{Store: store}, nil
 	}
 
@@ -389,7 +390,9 @@ func TestListImages(t *testing.T) {
 
 	// create a set of images
 	images := make(map[string]*spl.Image)
-	parent := spl.Scratch
+	parent := spl.Image{
+		ID: constants.ScratchLayerID,
+	}
 	parent.Store = &testStoreURL
 	for i := 1; i < 50; i++ {
 		id := fmt.Sprintf("id-%d", i)
