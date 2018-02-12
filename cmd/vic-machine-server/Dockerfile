@@ -18,8 +18,8 @@ ENV TLS_PORT 443
 
 # Default location for TLS - Specify `-v /host/cert/path:/certs` to use defaults
 # Override by providing a volume and values for `-e TLS_CERTIFICATE` and `-e TLS_PRIVATE_KEY`
-ENV TLS_CERTIFICATE=/certs/server.cert.pem
-ENV TLS_PRIVATE_KEY=/certs/server.key.pem
+ENV TLS_CERTIFICATE=/certs/server.crt
+ENV TLS_PRIVATE_KEY=/certs/server.key
 
 EXPOSE $PORT
 EXPOSE $TLS_PORT
