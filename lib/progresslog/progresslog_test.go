@@ -24,15 +24,6 @@ import (
 	"github.com/vmware/govmomi/vim25/progress"
 )
 
-/*
-type Report interface {
-	Percentage() float32
-	Detail() string
-	Error() error
-}
-
-*/
-
 type ProgressResults struct {
 	percentage float32
 }
@@ -74,7 +65,6 @@ func TestNewUploadLoggerComplete(t *testing.T) {
 		assert.Contains(t, logs[last-1], "100.00%")
 		assert.Contains(t, logs[last], "complete")
 	}
-
 }
 
 func TestNewUploadLoggerNotComplete(t *testing.T) {

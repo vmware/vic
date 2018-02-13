@@ -29,7 +29,7 @@ func UploadParams(ul *UploadLogger) *soap.Upload {
 	return &params
 }
 
-// UploadLogger io used to track upload progress to ESXi/VC of a specific file.
+// UploadLogger is used to track upload progress to ESXi/VC of a specific file.
 type UploadLogger struct {
 	wg       sync.WaitGroup
 	filename string
@@ -64,7 +64,7 @@ func (ul *UploadLogger) Sink() chan<- progress.Report {
 		mu := sync.Mutex{}
 		ticker := time.NewTicker(ul.interval)
 
-		// Print progress every 3
+		// Print progress every ul.interval seconds.
 		go func() {
 			for range ticker.C {
 				mu.Lock()
@@ -94,7 +94,7 @@ func (ul *UploadLogger) Sink() chan<- progress.Report {
 	return ch
 }
 
-// Wait is waiting for Sink to complete its work, due to it async nature logging messages may be not sequential.
+// Wait waits for Sink to complete its work, due to its async nature logging messages may be not sequential.
 func (ul *UploadLogger) Wait() {
 	ul.wg.Wait()
 }
