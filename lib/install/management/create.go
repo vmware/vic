@@ -194,7 +194,7 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 				finalMessage = fmt.Sprintf("%s\t\tNote: The VCH will not function without %q...", finalMessage, image)
 			}
 			d.op.Error(finalMessage)
-			return errors.New("Failed to upload iso images successfully.")
+			return errors.New("Failed to upload iso images.")
 		}
 
 	}
