@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/govmomi/vim25/progress"
 )
 
