@@ -40,6 +40,24 @@ Static IP Address Create
     ${out}=  Get Static IP Address
     Set Suite Variable  ${static}  ${out}
     Append To List  ${list}  %{STATIC_WORKER_NAME}
+    
+    Log To Console  Set environment variables up for GOVC
+    Set Environment Variable  GOVC_URL  ${vc-ip}
+    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  GOVC_PASSWORD  Admin\!23
+
+    Add Host To Distributed Switch  /dc1/host/cls
+
+    Log To Console  Deploy VIC to the VC cluster
+    Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
+    Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  TEST_PASSWORD  Admin\!23
+    Set Environment Variable  BRIDGE_NETWORK  bridge
+    Set Environment Variable  PUBLIC_NETWORK  vm-network
+    Remove Environment Variable  TEST_DATACENTER
+    Set Environment Variable  TEST_DATASTORE  nfs0-1
+    Set Environment Variable  TEST_RESOURCE  cls
+    Set Environment Variable  TEST_TIMEOUT  15m
 
 *** Test Cases ***
 Test
