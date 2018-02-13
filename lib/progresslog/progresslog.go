@@ -87,7 +87,7 @@ func (ul *UploadLogger) Sink() chan<- progress.Report {
 		}
 
 		if curProgress == 100.0 {
-			ul.logTo("Uploading of %s has been complete", ul.filename)
+			ul.logTo("Uploading of %s has been completed", ul.filename)
 		}
 		ul.wg.Done()
 	}()
