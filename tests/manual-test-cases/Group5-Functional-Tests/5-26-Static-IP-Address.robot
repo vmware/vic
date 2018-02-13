@@ -29,12 +29,15 @@ Static IP Address Create
     Log To Console  Finished Creating Cluster ${vc}
     Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  %{NIMBUS_USER}-${vc}
 
-    ${pod}=  Fetch POD  %{NIMBUS_USER}-${vc}
-    Set Suite Variable  ${NIMBUS_POD}  NIMBUS_POD=${pod}
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${pod}=  Fetch POD  ${vc}
+    Set Suite Variable  ${NIMBUS_POD}  ${pod}
+    Close Connection
 
     ${out}=  Get Static IP Address
     Set Suite Variable  ${static}  ${out}
-    Append To List  ${list}  %{STATIC_WORKER_NAME} 
+    Append To List  ${list}  %{STATIC_WORKER_NAME}
 
 *** Test Cases ***
 Test

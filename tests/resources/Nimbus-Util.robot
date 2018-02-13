@@ -443,16 +443,23 @@ Create Static IP Worker
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Log To Console  Create a new static ip address worker...
-    ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-ctl --silentObjectNotFoundError kill '%{NIMBUS_USER}-static-worker' && ${NIMBUS_POD} ${NIMBUS_LOCATION} nimbus-worker-deploy --enableStaticIpService static-worker
+    ${name}=  Evaluate  'static-worker-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
+    Log To Console  \nDeploying static ip worker: ${name}
+    ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-ctl --silentObjectNotFoundError kill '%{NIMBUS_USER}-static-worker' && ${NIMBUS_LOCATION} nimbus-worker-deploy --nimbus ${NIMBUS_POD} --enableStaticIpService ${name}
     Should Contain  ${out}  "deploy_status": "success"
-    Set Environment Variable  STATIC_WORKER_NAME  %{NIMBUS_USER}-static-worker
-    ${ip}=  Get IP  static-worker
+
+    ${pod}=  Fetch POD  ${name}
+    Run Keyword If  '${pod}' != '${NIMBUS_POD}'  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  %{NIMBUS_USER}-${name}
+    Run Keyword If  '${pod}' != '${NIMBUS_POD}'  Fail  Nimbus pod suggestion failed
+
+    Set Environment Variable  STATIC_WORKER_NAME  %{NIMBUS_USER}-${name}
+    ${ip}=  Get IP  ${name}
     Set Environment Variable  STATIC_WORKER_IP  ${ip}
     Close Connection
 
 Get Static IP Address
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  STATIC_WORKER_IP
-    Run Keyword If  '${status}' == 'FAIL'  Create Static IP Worker
+    Run Keyword If  '${status}' == 'FAIL'  Wait Until Keyword Succeeds  10x  10s  Create Static IP Worker
     Log To Console  Curl a new static ip address from the created worker...
     ${out}=  Run  curl -s http://%{STATIC_WORKER_IP}:4827/nsips
 
