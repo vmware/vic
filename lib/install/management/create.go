@@ -22,12 +22,11 @@ import (
 	"time"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/vic/lib/progresslog"
-
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/opsuser"
 	"github.com/vmware/vic/lib/install/vchlog"
+	"github.com/vmware/vic/lib/progresslog"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
