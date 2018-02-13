@@ -176,7 +176,7 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 				d.op.Warnf("Attempted upload a total of %d times without success, Upload process failed.", uploadRetryLimit)
 				return false
 			}
-			d.op.Warnf("failed an attempt to upload isos with err (%s), %d retries remain", err.Error(), retryCount)
+			d.op.Warnf("Failed an attempt to upload isos with err (%s), %d retries remain", err.Error(), retryCount)
 			return true
 		}
 
