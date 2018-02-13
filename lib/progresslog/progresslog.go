@@ -8,27 +8,27 @@ import (
 	"github.com/vmware/govmomi/vim25/soap"
 )
 
-// UploadParams uses default upload settings as initial input and set uploadLogger as a logger.
-func UploadParams(ul *uploadLogger) *soap.Upload {
+// UploadParams uses default upload settings as initial input and set UploadLogger as a logger.
+func UploadParams(ul *UploadLogger) *soap.Upload {
 	params := soap.DefaultUpload
 	params.Progress = ul
 	return &params
 }
 
-// uploadLogger io used to track upload progress to ESXi/VC of a specific file.
-type uploadLogger struct {
+// UploadLogger io used to track upload progress to ESXi/VC of a specific file.
+type UploadLogger struct {
 	wg       sync.WaitGroup
 	filename string
 	interval time.Duration
 	logTo    func(format string, args ...interface{})
 }
 
-// NewUploadLogger returns a new instance of uploadLogger. User can provide a logger interface
+// NewUploadLogger returns a new instance of UploadLogger. User can provide a logger interface
 // that will be used to dump output of the current upload status.
 func NewUploadLogger(logTo func(format string, args ...interface{}),
-	filename string, progressInterval time.Duration) *uploadLogger {
+	filename string, progressInterval time.Duration) *UploadLogger {
 
-	return &uploadLogger{
+	return &UploadLogger{
 		logTo:    logTo,
 		filename: filename,
 		interval: progressInterval,
@@ -37,7 +37,7 @@ func NewUploadLogger(logTo func(format string, args ...interface{}),
 
 // Sink returns a channel that receives current upload progress status.
 // Channel has to be closed by the caller.
-func (ul *uploadLogger) Sink() chan<- progress.Report {
+func (ul *UploadLogger) Sink() chan<- progress.Report {
 	ul.wg.Add(1)
 	ch := make(chan progress.Report)
 	fmtStr := "Uploading %s. Progress: %.2f%%"
@@ -81,6 +81,6 @@ func (ul *uploadLogger) Sink() chan<- progress.Report {
 }
 
 // Wait is waiting for Sink to complete its work, due to it async nature logging messages may be not sequential.
-func (ul *uploadLogger) Wait() {
+func (ul *UploadLogger) Wait() {
 	ul.wg.Wait()
 }
