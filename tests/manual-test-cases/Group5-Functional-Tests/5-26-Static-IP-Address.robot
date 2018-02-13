@@ -21,19 +21,21 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 *** Keywords ***
 Static IP Address Create
     [Timeout]    110 minutes
+    Log To Console  Starting Static IP Address test...
     Set Suite Variable  ${NIMBUS_LOCATION}  NIMBUS_LOCATION=wdc
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
-    Open Connection  %{NIMBUS_GW}
-    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${esx1}  ${esx2}  ${esx3}  ${vc}  ${esx1-ip}  ${esx2-ip}  ${esx3-ip}  ${vc-ip}=  Create a Simple VC Cluster  dc1  cls
-    Log To Console  Finished Creating Cluster ${vc}
-    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  %{NIMBUS_USER}-${vc}
+    ${name}=  Evaluate  'vic-5-26-' + str(random.randint(1000,9999))  modules=random
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-simple-cluster --testbedSpecRubyFile /dbc/pa-dbc1111/mhagen/nimbus-testbeds/testbeds/vic-simple-cluster.rb --runName ${name}
 
     Open Connection  %{NIMBUS_GW}
-    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${pod}=  Fetch POD  ${vc}
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc-ip}=  Get IP  ${name}.vc.0
+    ${pod}=  Fetch POD  ${name}.vc.0
     Set Suite Variable  ${NIMBUS_POD}  ${pod}
     Close Connection
+
+    Set Suite Variable  @{list}  %{NIMBUS_USER}-${name}.esx.0  %{NIMBUS_USER}-${name}.esx.1  %{NIMBUS_USER}-${name}.esx.2  %{NIMBUS_USER}-${name}.nfs.0  %{NIMBUS_USER}-${name}.vc.0
+    Log To Console  Finished Creating Cluster ${name}
 
     ${out}=  Get Static IP Address
     Set Suite Variable  ${static}  ${out}
