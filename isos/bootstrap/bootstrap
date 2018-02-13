@@ -31,7 +31,9 @@ mkdir -p /mnt/containerfs
 
 echo "Waiting for rootfs"
 while [ ! -e /dev/disk/by-label/containerfs ]; do sleep 0.1;done
-if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
+# https://github.com/vmware/vic/issues/6379
+# grab dmesg output and dump to debug log if mount doesn't occur in a useful timeframe (2min)
+if timeout --signal=KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # ensure mountpoint exists
     mkdir -p ${MOUNTPOINT}/.tether
 
@@ -105,6 +107,11 @@ else
     # TODO: what do we do here? we really need to somehow report an error
     # fail hard
     echo "Unable to chroot into container filesystem"
+
+    # dump dmesg data in case there's a system problem injecting or loading the root filesystem
+    dmesg
+    # because dmesg is long and will wrap over console
+    echo "dmesg dump due to root filesystem mount failure"
 fi
 
 # Shut the system down

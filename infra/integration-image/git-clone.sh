@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2016 VMware, Inc. All Rights Reserved.
+# Copyright 2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,22 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-# Get the latest code from vic-internal repo for nightly_secrets.sh file
-cd ~/vic-internal
-git clean -fd
-git fetch
-git pull
-source nightly_secrets.sh
-
-# Get the latest code from vmware/vic repo
-cd ~/vic
-git clean -fd
-git fetch https://github.com/vmware/vic master
-git pull
-
-# Kick off the nightly
-echo "Cleanup logs from previous run"
-sudo rm -rf *.zip *.log bin 60 65
-
-sudo -E ./tests/nightly/nightly-kickoff.sh > ./nightly_console.txt 2>&1
+sed -i 's|remotes/origin/*|remotes/origin/*\n\tfetch = +refs/pull/*/head:refs/remotes/origin/pr/|g' .git/config
+git fetch --tags origin -v refs/pull/$DRONE_PULL_REQUEST/head:refs/remotes/origin/pr/$DRONE_PULL_REQUEST
+git checkout pr/$DRONE_PULL_REQUEST

@@ -416,7 +416,7 @@ Scrape Logs For the Password
 Cleanup VIC Appliance On Test Server
     ${sessions}=  Run Keyword And Ignore Error  Get Session List
     Log  ${sessions}
-    ${memory}=  Run Keyword And Ignore Error  Get HostD Memory Consumption
+    ${memory}=  Run Keyword And Ignore Error  Get Hostd Memory Consumption
     Log  ${memory}
     Log To Console  Gathering logs from the test server %{VCH-NAME}
     Gather Logs From Test Server

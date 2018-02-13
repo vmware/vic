@@ -24,3 +24,5 @@ VIC Manual Test Suite
 -
 [Group 21 - Whitelist](Group21-Registries/TestCases.md)
 -
+[Group 23 - Future Tests](Group23-Future-Tests/TestCases.md)
+-
