@@ -139,14 +139,16 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 
 				isoTargetPath := path.Join(d.vmPathName, key)
 				// check iso first
+				d.op.Debugf("target delete path = %s", isoTargetPath)
 				_, err := ds.Stat(d.op, isoTargetPath)
 				if err != nil {
 					switch err.(type) {
 					case object.DatastoreNoSuchFileError:
-						// if not found, do nothing
+						d.op.Debug("File not found. Nothing to do.")
+					case object.DatastoreNoSuchDirectoryError:
+						d.op.Debug("Directory not found. Nothing to do.")
 					default:
 						// otherwise force delete
-						d.op.Debugf("target delete path = %s", isoTargetPath)
 						err := fm.Delete(d.op, isoTargetPath)
 						if err != nil {
 							d.op.Debugf("Failed to delete image (%s) with error (%s)", image, err.Error())
