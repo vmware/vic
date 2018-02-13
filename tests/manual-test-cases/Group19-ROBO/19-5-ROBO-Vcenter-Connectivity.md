@@ -16,20 +16,26 @@ See https://confluence.eng.vmware.com/display/CNA/VIC+ROBO for more details.
 
 # Test Steps:
 1. Deploy a ROBO Advanced vCenter testbed for both environments above
-2. Install the VIC appliance on vCenter
-3. Create and start some container services such as nginx, wordpress or a database
-4. Run a multi-container application exercising network links with docker-compose
-5. To simulate a WAN link outage, _abruptly_ disconnect each ESX host from vCenter (possibly by changing firewall rules)
-6. Verify that the containers/services/applications started in Steps 3 and 4 are still alive and responding
-7. Create/start a container
-8. For each ESXi host that hosts containerVM(s), re-connect it to vCenter
-9. Create/start a container
-10. Delete the VCH
+2. Deploy the VIC appliance OVA on vCenter for testing VIC Product as well
+3. Once the OVA is powered on and initialized, populate Harbor with some images
+4. Install a VCH on a cluster in vCenter
+5. Log in to the Admiral UI
+6. Add the VCH to the default project in Admiral
+7. Using Admiral, deploy some containers through the VCH
+8. Create and start some container services such as nginx, wordpress or a database
+9. Run a multi-container application exercising network links with docker-compose
+10. To simulate a WAN link outage, _abruptly_ disconnect each ESX host in the cluster from vCenter (possibly by changing firewall rules)
+11. Verify that the containers/services/applications started in Steps 7-9 are still alive and responding
+12. Pull an image from Harbor
+13. Create/start a container
+14. Re-connect all hosts in the cluster to vCenter
+15. Create/start a container
+16. Delete the VCH
 
 # Expected Outcome:
-* Steps 1-6 should succeed
-* Step 7 should fail since the vCenter host is disconnected from the VCH's host
-* Steps 8-10 should succeed
+* Steps 1-12 should succeed
+* Step 13 should fail since the vCenter host is disconnected from the VCH's host
+* Steps 14-16 should succeed
 
 # Possible Problems:
 None

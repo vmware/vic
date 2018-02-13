@@ -14,7 +14,7 @@ This test requires access to VMware Nimbus cluster for dynamic ESXi and vCenter 
 1. Deploy a new vCenter with stand alone hosts
 2. Add the Enterprise license to the vCenter appliance
 3. Assign the ROBO SKU license to each of the hosts within the vCenter
-4. Install the VIC appliance onto a particular multi-host cluster in the vCenter
+4. Install a VCH onto a particular multi-host cluster in the vCenter
 5. Run a variety of docker operations on the VCH, including the regression test suite
 
 # Expected Outcome:

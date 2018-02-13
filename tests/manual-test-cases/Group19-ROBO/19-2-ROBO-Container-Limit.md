@@ -18,7 +18,7 @@ See https://confluence.eng.vmware.com/display/CNA/VIC+ROBO for more details.
 
 # Test Steps:
 1. Deploy a ROBO Advanced vCenter testbed for both environments above
-2. Install the VIC appliance on a particular cluster in vCenter with a container VM limit of `y`
+2. Install a VCH on a particular cluster in vCenter with a container VM limit of `y`
 3. Use vic-machine inspect to verify the set container VM limit
 4. Visit the VCH Admin page and verify the container VM limit is displayed in the VCH Info section
 5. Create and run `y` (long-running) containers with the VCH

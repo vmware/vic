@@ -18,10 +18,10 @@ See https://confluence.eng.vmware.com/display/CNA/VIC+ROBO for more details.
 
 # Test Steps:
 1. Deploy a ROBO Advanced vCenter testbed for both environments above
-2. Install the VIC appliance on vCenter
+2. Install a VCH on vCenter
 3. Visit the VCH Admin page and verify that the License and Feature Status sections show that required license and features are present
 4. Assign a more restrictive license such as ROBO Standard or Standard that does not have the required features (VDS, VSPC) to vCenter
-5. Assign the above license to each of the hosts within the vCenter host
+5. Assign the above license to each of the hosts within the vCenter cluster
 6. Refresh the VCH Admin page and verify that the License and Feature Status sections show that required license and features are not present
 7. Delete the VCH
 
