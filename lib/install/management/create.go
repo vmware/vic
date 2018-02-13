@@ -121,6 +121,12 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 	// upload the images
 	d.op.Info("Uploading images for container")
 
+	// Build retry config
+	backoffConf := retry.NewBackoffConfig()
+	backoffConf.InitialInterval = uploadInitialInterval
+	backoffConf.MaxInterval = uploadMaxInterval
+	backoffConf.MaxElapsedTime = uploadMaxElapsedTime
+
 	for key, image := range files {
 		baseName := filepath.Base(image)
 		finalMessage := ""
@@ -179,12 +185,6 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 			d.op.Warnf("Failed an attempt to upload isos with err (%s), %d retries remain", err.Error(), retryCount)
 			return true
 		}
-
-		// Build retry config
-		backoffConf := retry.NewBackoffConfig()
-		backoffConf.InitialInterval = uploadInitialInterval
-		backoffConf.MaxInterval = uploadMaxInterval
-		backoffConf.MaxElapsedTime = uploadMaxElapsedTime
 
 		uploadErr := retry.DoWithConfig(operationForRetry, uploadRetryDecider, backoffConf)
 		if uploadErr != nil {
