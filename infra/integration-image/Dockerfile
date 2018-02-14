@@ -16,6 +16,7 @@ RUN sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable 
 RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
     apt-get update && apt-get install -y --no-install-recommends \
     jq \
+    bc \
     time \
     gcc \
     python-dev \
@@ -48,7 +49,8 @@ RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
     rpm \
     ca-certificates \
     xz-utils \
-    xorriso && \
+    xorriso \
+    sendmail && \
 	# Cleanup
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
@@ -56,7 +58,7 @@ RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
 
 RUN wget https://bootstrap.pypa.io/get-pip.py && \
     python ./get-pip.py  && \
-    pip install pyasn1 google-apitools==0.5.15 gsutil robotframework robotframework-sshlibrary robotframework-httplibrary requests dbbot robotframework-selenium2library --upgrade
+    pip install pyasn1 google-apitools==0.5.15 gsutil robotframework robotframework-sshlibrary robotframework-httplibrary requests dbbot robotframework-selenium2library robotframework-pabot --upgrade
 
 # Install docker, docker clients 1.11,1.12 and 1.13
 # Also install docker compose 1.13
@@ -87,7 +89,7 @@ RUN curl http://downloads.drone.io/release/linux/amd64/drone.tar.gz | tar zx && 
 RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.16.0/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc && \
     chmod +x /usr/local/bin/govc
 
-RUN  wget http://mirrors.kernel.org/ubuntu/pool/main/w/wget/wget_1.18-2ubuntu1_amd64.deb && \
+RUN  wget https://launchpad.net/ubuntu/+source/wget/1.18-2ubuntu1/+build/10470166/+files/wget_1.18-2ubuntu1_amd64.deb && \
      dpkg -i wget_1.18-2ubuntu1_amd64.deb
 
 # Add docker in docker support

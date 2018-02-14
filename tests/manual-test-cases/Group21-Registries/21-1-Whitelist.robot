@@ -17,11 +17,12 @@ Documentation  Test 21-01 - Whitelist
 Resource  ../../resources/Util.robot
 Resource  ../../resources/Harbor-Util.robot
 Suite Setup  Setup Harbor
-Suite Teardown  Nimbus Cleanup  ${list}
+Suite Teardown  Nimbus Cleanup  ${list}  ${false}
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
 *** Keywords ***
 Simple ESXi Setup
+    [Timeout]    110 minutes
     ${esx}  ${esx-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  @{list}  ${esx}
 

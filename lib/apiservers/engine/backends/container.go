@@ -45,7 +45,7 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/utils"
-	gonat "github.com/docker/go-connections/nat"
+	"github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/portallocator"
@@ -61,6 +61,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
@@ -564,8 +565,6 @@ func (c *Container) ExecExists(eid string) (bool, error) {
 	return true, nil
 }
 
-// docker's container.stateBackend
-
 // ContainerCreate creates a container.
 func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
 	defer trace.End(trace.Begin(""))
@@ -752,7 +751,8 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 // stop. Returns an error if the container cannot be found, or if
 // there is an underlying error at any stage of the restart.
 func (c *Container) ContainerRestart(name string, seconds *int) error {
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "ContainerRestart - %s", name)
+	defer trace.End(trace.Begin(name, op))
 
 	// Look up the container name in the metadata cache ot get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -768,7 +768,7 @@ func (c *Container) ContainerRestart(name string, seconds *int) error {
 	}
 
 	operation = func() error {
-		return c.containerStart(name, nil, true)
+		return c.containerStart(op, name, nil, true)
 	}
 	if err := retry.Do(operation, IsConflictError); err != nil {
 		return InternalServerError(fmt.Sprintf("Start failed with: %s", err))
@@ -890,7 +890,7 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 			}
 
 			log.Debugf("Unmapping ports for powered off / removed container %q", mappedCtr)
-			err = UnmapPorts(cc.ContainerID, cc.HostConfig)
+			err = UnmapPorts(cc.ContainerID, vc)
 			if err != nil {
 				return fmt.Errorf("Failed to unmap host port %s for container %q: %s",
 					hPort, mappedCtr, err)
@@ -902,19 +902,21 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 
 // ContainerStart starts a container.
 func (c *Container) ContainerStart(name string, hostConfig *containertypes.HostConfig, checkpoint string, checkpointDir string) error {
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "ContainerStart - %s", name)
+	defer trace.End(trace.Begin(name, op))
 
 	operation := func() error {
-		return c.containerStart(name, hostConfig, true)
+		return c.containerStart(op, name, hostConfig, true)
 	}
 	if err := retry.Do(operation, IsConflictError); err != nil {
+		op.Debugf("Container start failed due to error - %s", err.Error())
 		return err
 	}
 
 	return nil
 }
 
-func (c *Container) containerStart(name string, hostConfig *containertypes.HostConfig, bind bool) error {
+func (c *Container) containerStart(op trace.Operation, name string, hostConfig *containertypes.HostConfig, bind bool) error {
 	var err error
 
 	// Get an API client to the portlayer
@@ -925,7 +927,12 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 	if vc == nil {
 		return NotFoundError(name)
 	}
+	if !vc.TryLock(APITimeout) {
+		return ConcurrentAPIError(name, "ContainerStart")
+	}
+	defer vc.Unlock()
 	id := vc.ContainerID
+	op.Debugf("Obtained container lock for %s", id)
 
 	// handle legacy hostConfig
 	if hostConfig != nil {
@@ -948,6 +955,8 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 	var endpoints []*models.EndpointConfig
 	// bind network
 	if bind {
+		op.Debugf("Binding network to container %s", id)
+
 		var bindRes *scopes.BindContainerOK
 		bindRes, err = client.Scopes.BindContainer(scopes.NewBindContainerParamsWithContext(ctx).WithHandle(handle))
 		if err != nil {
@@ -968,6 +977,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 		// unbind in case we fail later
 		defer func() {
 			if err != nil {
+				op.Debugf("Unbinding %s due to error - %s", id, err.Error())
 				client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle))
 			}
 		}()
@@ -981,6 +991,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 
 	// change the state of the container
 	// TODO: We need a resolved ID from the name
+	op.Debugf("Setting container %s state to running", id)
 	var stateChangeRes *containers.StateChangeOK
 	stateChangeRes, err = client.Containers.StateChange(containers.NewStateChangeParamsWithContext(ctx).WithHandle(handle).WithState("RUNNING"))
 	if err != nil {
@@ -1001,19 +1012,21 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 	if bind {
 		scope, e := c.findPortBoundNetworkEndpoint(hostConfig, endpoints)
 		if scope != nil && scope.ScopeType == constants.BridgeScopeType {
-			if err = MapPorts(hostConfig, e, id); err != nil {
+			if err = MapPorts(vc, e, id); err != nil {
 				return InternalServerError(fmt.Sprintf("error mapping ports: %s", err))
 			}
 
 			defer func() {
 				if err != nil {
-					UnmapPorts(id, hostConfig)
+					op.Debugf("Unbinding ports for %s due to error - %s", id, err.Error())
+					UnmapPorts(id, vc)
 				}
 			}()
 		}
 	}
 
 	// commit the handle; this will reconfigure and start the vm
+	op.Debugf("Commit container %s", id)
 	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
 	if err != nil {
 		switch err := err.(type) {
@@ -1029,8 +1042,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 		}
 	}
 
-	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-	EventService().Log(containerStartEvent, eventtypes.ContainerEventType, actor)
+	// Started event will be published on confirmation of successful start, triggered by port layer event stream
 
 	return nil
 }
@@ -1044,16 +1056,16 @@ func requestHostPort(proto string) (int, error) {
 type portMapping struct {
 	intHostPort int
 	strHostPort string
-	portProto   gonat.Port
+	portProto   nat.Port
 }
 
 // unrollPortMap processes config for mapping/unmapping ports e.g. from hostconfig.PortBindings
-func unrollPortMap(portMap gonat.PortMap) ([]*portMapping, error) {
+func unrollPortMap(portMap nat.PortMap) ([]*portMapping, error) {
 	var portMaps []*portMapping
 	for i, pb := range portMap {
 
-		proto, port := gonat.SplitProtoPort(string(i))
-		nport, err := gonat.NewPort(proto, port)
+		proto, port := nat.SplitProtoPort(string(i))
+		nport, err := nat.NewPort(proto, port)
 		if err != nil {
 			return nil, err
 		}
@@ -1091,13 +1103,8 @@ func unrollPortMap(portMap gonat.PortMap) ([]*portMapping, error) {
 	return portMaps, nil
 }
 
-// MapPorts maps ports defined in hostconfig for containerID
-func MapPorts(hostconfig *containertypes.HostConfig, endpoint *models.EndpointConfig, containerID string) error {
-	log.Debugf("mapPorts for %q: %v", containerID, hostconfig.PortBindings)
-
-	if len(hostconfig.PortBindings) == 0 {
-		return nil
-	}
+// MapPorts maps ports defined in bridge endpoint for containerID
+func MapPorts(vc *viccontainer.VicContainer, endpoint *models.EndpointConfig, containerID string) error {
 	if endpoint == nil {
 		return fmt.Errorf("invalid endpoint")
 	}
@@ -1108,14 +1115,36 @@ func MapPorts(hostconfig *containertypes.HostConfig, endpoint *models.EndpointCo
 		return fmt.Errorf("invalid endpoint address %s", endpoint.Address)
 	}
 
-	portMap, err := unrollPortMap(hostconfig.PortBindings)
+	portMap := addIndirectEndpointsToPortMap([]*models.EndpointConfig{endpoint}, nil)
+	log.Debugf("Mapping ports of %q on endpoint %s: %v", containerID, endpoint.Name, portMap)
+	if len(portMap) == 0 {
+		return nil
+	}
+
+	mappings, err := unrollPortMap(portMap)
 	if err != nil {
 		return err
 	}
 
+	// cannot occur direct under the lock below because unmap ports take a lock.
+	defer func() {
+		if err != nil {
+			// if we didn't succeed then make sure we clean up
+			UnmapPorts(containerID, vc)
+		}
+	}()
+
 	cbpLock.Lock()
 	defer cbpLock.Unlock()
-	for _, p := range portMap {
+	vc.NATMap = portMap
+
+	for _, p := range mappings {
+		// update mapped ports
+		if containerByPort[p.strHostPort] == containerID {
+			log.Debugf("Skipping mapping for already mapped port %s for %s", p.strHostPort, containerID)
+			continue
+		}
+
 		if err = portMapper.MapPort(nil, p.intHostPort, p.portProto.Proto(), containerIP.String(), p.portProto.Int(), publicIfaceName, bridgeIfaceName); err != nil {
 			return err
 		}
@@ -1133,21 +1162,24 @@ func MapPorts(hostconfig *containertypes.HostConfig, endpoint *models.EndpointCo
 }
 
 // UnmapPorts unmaps ports defined in hostconfig if it's mapped for this container
-func UnmapPorts(id string, hostconfig *containertypes.HostConfig) error {
-	log.Debugf("UnmapPorts: %v", hostconfig.PortBindings)
+func UnmapPorts(id string, vc *viccontainer.VicContainer) error {
+	portMap := vc.NATMap
+	log.Debugf("UnmapPorts for %s: %v", vc.ContainerID, portMap)
 
-	if len(hostconfig.PortBindings) == 0 {
+	if len(portMap) == 0 {
 		return nil
 	}
 
-	portMap, err := unrollPortMap(hostconfig.PortBindings)
+	mappings, err := unrollPortMap(vc.NATMap)
 	if err != nil {
 		return err
 	}
 
 	cbpLock.Lock()
 	defer cbpLock.Unlock()
-	for _, p := range portMap {
+	vc.NATMap = nil
+
+	for _, p := range mappings {
 		// check if we should actually unmap based on current mappings
 		mappedID, mapped := containerByPort[p.strHostPort]
 		if !mapped {
@@ -1160,12 +1192,14 @@ func UnmapPorts(id string, hostconfig *containertypes.HostConfig) error {
 		}
 
 		if err = portMapper.UnmapPort(nil, p.intHostPort, p.portProto.Proto(), p.portProto.Int(), publicIfaceName, bridgeIfaceName); err != nil {
-			return err
+			log.Warnf("failed to unmap port %s: %s", p.strHostPort, err)
+			continue
 		}
 
 		// bridge-to-bridge pin hole for traffic from containers for exposed port
 		if err = interBridgeTraffic(portmap.Unmap, p.strHostPort, "", "", ""); err != nil {
-			return err
+			log.Warnf("failed to undo bridge-to-bridge pinhole %s: %s", p.strHostPort, err)
+			continue
 		}
 
 		// update mapped ports
@@ -1612,17 +1646,19 @@ payloadLoop:
 		}
 
 		var ports []types.Port
-		if t.HostConfig.Address != "" {
+		if dockerState.Running {
+			// we only present port information in ps output when the container is running and
+			// should be responsive at that address:port
 			ports = directPortInformation(t)
-		}
 
-		ips, err := publicIPv4Addrs()
-		if err != nil {
-			log.Errorf("Could not get IP information for reporting port bindings: %s", err)
-			// display port mappings without IP data if we cannot get it
-			ips = []string{""}
+			ips, err := publicIPv4Addrs()
+			if err != nil {
+				log.Errorf("Could not get IP information for reporting port bindings: %s", err)
+				// display port mappings without IP data if we cannot get it
+				ips = []string{""}
+			}
+			ports = append(ports, portForwardingInformation(t, ips)...)
 		}
-		ports = append(ports, portForwardingInformation(t, ips)...)
 
 		// verify that the repo:tag exists for the container -- if it doesn't then we should present the
 		// truncated imageID -- if we have a failure determining then we'll show the data we have
@@ -2027,7 +2063,7 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 			}
 
 			// #nosec: Errors unhandled.
-			start, end, _ := gonat.ParsePortRangeToInt(pb.HostPort)
+			start, end, _ := nat.ParsePortRangeToInt(pb.HostPort)
 			if start != end {
 				return InternalServerError("host port ranges are not supported for port bindings")
 			}
@@ -2080,67 +2116,72 @@ func publicIPv4Addrs() ([]string, error) {
 }
 
 func directPortInformation(t *models.ContainerInfo) []types.Port {
-	var redirectPorts []types.Port
-	var directPorts []types.Port
+	var resultPorts []types.Port
 
-	ip := t.HostConfig.Address
-
-	openNetwork := false
-	for _, p := range t.HostConfig.Ports {
-		port := types.Port{IP: ip}
-
-		// see if it's an open network
-		if p == constants.PortsOpenNetwork {
-			openNetwork = true
-			port.Type = "*"
-			// we're presenting this in redirect ports as that's assured to be returned
-			redirectPorts = append(redirectPorts, port)
+	for _, ne := range t.Endpoints {
+		trust, _ := executor.ParseTrustLevel(ne.Trust)
+		if !ne.Direct || trust == executor.Closed || trust == executor.Outbound || trust == executor.Peers {
+			// we don't publish port info for ports that are not directly accessible from outside of the VCH
 			continue
 		}
 
-		portsAndType := strings.SplitN(p, "/", 2)
-		port.Type = portsAndType[1]
+		ip := strings.SplitN(ne.Address, "/", 2)[0]
 
-		mapping := strings.Split(portsAndType[0], ":")
-		// if no mapping is supplied then there's only one and that's public. If there is a mapping then the first
-		// entry is the public
-		public, err := strconv.Atoi(mapping[0])
-		if err != nil {
-			log.Errorf("Got an error trying to convert public port number \"%s\" to an int: %s", mapping[0], err)
-			continue
-		}
-		port.PublicPort = uint16(public)
-
-		// If port is on container network then a different container could be forwarding the same port via the endpoint
-		// so must check for explicit ID match. If no match, definitely not forwarded via endpoint.
-		if containerByPort[mapping[0]] == t.ContainerConfig.ContainerID {
-			continue
+		// if it's an open network then inject an "all ports" entry
+		if trust == executor.Open {
+			resultPorts = append(resultPorts, types.Port{
+				IP:          ip,
+				PrivatePort: 0,
+				PublicPort:  0,
+				Type:        "*",
+			})
 		}
 
-		// did not find a way to have the client not render both ports so setting them the same even if there's not
-		// redirect occurring
-		port.PrivatePort = port.PublicPort
+		for _, p := range ne.Ports {
+			port := types.Port{IP: ip}
 
-		if len(mapping) == 1 {
-			directPorts = append(directPorts, port)
-			continue
-		}
+			portsAndType := strings.SplitN(p, "/", 2)
+			port.Type = portsAndType[1]
 
-		private, err := strconv.Atoi(mapping[1])
-		if err != nil {
-			log.Errorf("Got an error trying to convert private port number \"%s\" to an int: %s", mapping[1], err)
-			continue
+			mapping := strings.Split(portsAndType[0], ":")
+			// if no mapping is supplied then there's only one and that's public. If there is a mapping then the first
+			// entry is the public
+			public, err := strconv.Atoi(mapping[0])
+			if err != nil {
+				log.Errorf("Got an error trying to convert public port number \"%s\" to an int: %s", mapping[0], err)
+				continue
+			}
+			port.PublicPort = uint16(public)
+
+			// If port is on container network then a different container could be forwarding the same port via the endpoint
+			// so must check for explicit ID match. If a match then it's definitely not accessed directly.
+			if containerByPort[mapping[0]] == t.ContainerConfig.ContainerID {
+				continue
+			}
+
+			// did not find a way to have the client not render both ports so setting them the same even if there's not
+			// redirect occurring
+			port.PrivatePort = port.PublicPort
+
+			// for open networks we don't bother listing direct ports
+			if len(mapping) == 1 {
+				if trust != executor.Open {
+					resultPorts = append(resultPorts, port)
+				}
+				continue
+			}
+
+			private, err := strconv.Atoi(mapping[1])
+			if err != nil {
+				log.Errorf("Got an error trying to convert private port number \"%s\" to an int: %s", mapping[1], err)
+				continue
+			}
+			port.PrivatePort = uint16(private)
+			resultPorts = append(resultPorts, port)
 		}
-		port.PrivatePort = uint16(private)
-		redirectPorts = append(redirectPorts, port)
 	}
 
-	// if it's an open network then don't bother detailing ports without a redirection as all ports are exposed
-	if !openNetwork {
-		redirectPorts = append(redirectPorts, directPorts...)
-	}
-
-	return redirectPorts
+	return resultPorts
 }
 
 // returns port bindings as a slice of Docker Ports for return to the client
@@ -2154,7 +2195,7 @@ func portForwardingInformation(t *models.ContainerInfo, ips []string) []types.Po
 		return nil
 	}
 
-	portBindings := c.HostConfig.PortBindings
+	portBindings := c.NATMap
 	var resultPorts []types.Port
 
 	// create a port for each IP on the interface (usually only 1, but could be more)
@@ -2163,26 +2204,26 @@ func portForwardingInformation(t *models.ContainerInfo, ips []string) []types.Po
 		port := types.Port{IP: ip}
 
 		for portBindingPrivatePort, hostPortBindings := range portBindings {
-			portAndType := strings.SplitN(string(portBindingPrivatePort), "/", 2)
-			portNum, err := strconv.Atoi(portAndType[0])
+			proto, pnum := nat.SplitProtoPort(string(portBindingPrivatePort))
+			portNum, err := strconv.Atoi(pnum)
 			if err != nil {
-				log.Infof("Got an error trying to convert private port number to an int")
+				log.Warnf("Unable to convert private port %q to an int", pnum)
 				continue
 			}
 			port.PrivatePort = uint16(portNum)
-			port.Type = portAndType[1]
+			port.Type = proto
 
 			for i := 0; i < len(hostPortBindings); i++ {
+				// If port is on container network then a different container could be forwarding the same port via the endpoint
+				// so must check for explicit ID match. If no match, definitely not forwarded via endpoint.
+				if containerByPort[hostPortBindings[i].HostPort] != t.ContainerConfig.ContainerID {
+					continue
+				}
+
 				newport := port
 				publicPort, err := strconv.Atoi(hostPortBindings[i].HostPort)
 				if err != nil {
 					log.Infof("Got an error trying to convert public port number to an int")
-					continue
-				}
-
-				// If port is on container network then a different container could be forwarding the same port via the endpoint
-				// so must check for explicit ID match. If no match, definitely not forwarded via endpoint.
-				if containerByPort[hostPortBindings[i].HostPort] != t.ContainerConfig.ContainerID {
 					continue
 				}
 

@@ -55,9 +55,7 @@ Delete VCH with new vic-machine
     Should Contain  ${ret}  is different than installer version
 
     # Delete with force
-    ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --force
-    Should Contain  ${ret}  Completed successfully
-    Should Not Contain  ${ret}  delete failed
+    Run VIC Machine Delete Command
 
     # Check VM is removed
     ${ret}=  Run  govc vm.info -json=true ${containerName}-*

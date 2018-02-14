@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -79,6 +79,19 @@ func init() {
 	vchConfig.HostCertificate = &vchconfig.RawCertificate{
 		Cert: cert,
 		Key:  key,
+	}
+}
+
+func TestLogFiles(t *testing.T) {
+	logFileNames := []string{}
+	for _, name := range logFiles() {
+		logFileNames = append(logFileNames, name)
+	}
+	fileCount := 0
+	//files should be in same order, otherwise we have evidence of a suspected race
+	for _, name := range logFiles() {
+		assert.Equal(t, name, logFileNames[fileCount])
+		fileCount++
 	}
 }
 

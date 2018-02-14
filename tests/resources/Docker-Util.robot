@@ -1,4 +1,4 @@
-# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -48,8 +48,8 @@ Hit Nginx Endpoint
     Should Be Equal As Integers  ${rc}  0
 
 Get Container IP
-    [Arguments]  ${docker-params}  ${id}  ${network}=default  ${dockercmd}=docker
-    ${rc}  ${ip}=  Run And Return Rc And Output  ${dockercmd} ${docker-params} network inspect ${network} | jq '.[0].Containers."${id}".IPv4Address' | cut -d \\" -f 2 | cut -d \\/ -f 1
+    [Arguments]  ${docker-params}  ${id}  ${network}=bridge  ${dockercmd}=docker
+    ${rc}  ${ip}=  Run And Return Rc And Output  ${dockercmd} ${docker-params} inspect --format='{{(index .NetworkSettings.Networks "${network}").IPAddress}}' ${id}
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${ip}
 
@@ -226,7 +226,7 @@ Do Volumes Exist
     [Return]  ${true}
 
 Do Networks Exist
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} networks ls -q
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network ls -q
     ${len}=  Get Length  ${output}
     Return From Keyword If  ${len} == 0  ${false}
     [Return]  ${true}

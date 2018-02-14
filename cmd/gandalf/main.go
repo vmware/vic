@@ -46,7 +46,7 @@ const (
 	DefaultRepo   = "vic"
 	DefaultBranch = "master"
 
-	DefaultFellows = "caglar10ur,mhagen,mwilliamson,fabio"
+	DefaultFellows = "mhagen,mwilliamson,ghicken"
 
 	// 4 disabling merges to master automagically
 	DroneFailureMessage = "finished with a failure status, find the logs"

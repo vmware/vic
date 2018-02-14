@@ -55,16 +55,15 @@ func (h *VCHGet) Handle(params operations.GetTargetTargetVchVchIDParams, princip
 	b := buildDataParams{
 		target:     params.Target,
 		thumbprint: params.Thumbprint,
+		vchID:      &params.VchID,
 	}
 
-	d, err := buildData(op, b, principal)
+	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	d.ID = params.VchID
-
-	vch, err := getVCH(op, d)
+	vch, err := getVCH(op, d, validator)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -79,16 +78,15 @@ func (h *VCHDatacenterGet) Handle(params operations.GetTargetTargetDatacenterDat
 		target:     params.Target,
 		thumbprint: params.Thumbprint,
 		datacenter: &params.Datacenter,
+		vchID:      &params.VchID,
 	}
 
-	d, err := buildData(op, b, principal)
+	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	d.ID = params.VchID
-
-	vch, err := getVCH(op, d)
+	vch, err := getVCH(op, d, validator)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -96,12 +94,7 @@ func (h *VCHDatacenterGet) Handle(params operations.GetTargetTargetDatacenterDat
 	return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDOK().WithPayload(vch)
 }
 
-func getVCH(op trace.Operation, d *data.Data) (*models.VCH, error) {
-	validator, err := validateTarget(op, d)
-	if err != nil {
-		return nil, util.WrapError(http.StatusBadRequest, err)
-	}
-
+func getVCH(op trace.Operation, d *data.Data, validator *validate.Validator) (*models.VCH, error) {
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {

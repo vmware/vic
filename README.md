@@ -1,4 +1,4 @@
-[![Build Status](https://ci.vcna.io/api/badges/vmware/vic/status.svg)](https://ci.vcna.io/vmware/vic) [![Coverage Status](https://coverage.vmware.run/badges/vmware/vic/coverage.svg)](https://coverage.vmware.run/vmware/vic) [![Download](https://img.shields.io/badge/download-latest-blue.svg)](https://github.com/vmware/vic/releases/latest) [![Go Report Card](https://goreportcard.com/badge/github.com/vmware/vic)](https://goreportcard.com/report/github.com/vmware/vic)
+[![Build Status](https://ci.vcna.io/api/badges/vmware/vic/status.svg)](https://ci.vcna.io/vmware/vic) [![codecov](https://codecov.io/gh/vmware/vic/branch/master/graph/badge.svg)](https://codecov.io/gh/vmware/vic) [![Download](https://img.shields.io/badge/download-latest-blue.svg)](https://github.com/vmware/vic/releases/latest) [![Go Report Card](https://goreportcard.com/badge/github.com/vmware/vic)](https://goreportcard.com/report/github.com/vmware/vic)
 
 # vSphere Integrated Containers Engine
 
@@ -6,69 +6,63 @@ vSphere Integrated Containers Engine (VIC Engine) is a container runtime for vSp
 
 See [VIC Engine Architecture](doc/design/arch/arch.md) for a high level overview.
 
-
 ## Project Status
 
+[commands]:https://vmware.github.io/vic-product/assets/files/html/1.3/vic_app_dev/container_operations.html
+[ctrust]:https://docs.docker.com/engine/security/trust/content_trust
+[wizard]:https://vmware.github.io/vic-product/assets/files/html/1.3/vic_vsphere_admin/deploy_vch_client.html
+[dch]:https://vmware.github.io/vic-product/assets/files/html/1.3/vic_vsphere_admin/deploy_vch_dchphoton.html
+
 VIC Engine now provides:
-* basic function for most of the core lifecycle operations: pull, create, start, attach, run, kill, stop, wait, rm, logs.
-* early vCenter support, leveraging DRS for initial placement.
-* volume support [--volume-store](doc/user/usage.md#configuring-volumes-in-a-virtual-container-host) - SIOC is not integrated but can be set as normal.
+* support for most of the Docker commands for core container, image, volume and network lifecycle operations. Several `docker compose` commands are also supported. See the complete list of supported commands [here][commands].
+* vCenter support, leveraging DRS for initial placement. vMotion is also supported.
+* volume support for standard datastores such as vSAN and iSCSI datastores. NFS shares are also supported. See [--volume-store](doc/user/usage.md#configuring-volumes-in-a-virtual-container-host) - SIOC is not integrated but can be set as normal.
 * direct mapping of vSphere networks [--container-network](doc/user/usage.md#exposing-vsphere-networks-within-a-virtual-container-host) - NIOC is not integrated but can be set as normal.
 * dual-mode management - IP addresses are reported as normal via vSphere UI, guest shutdown via the UI will trigger delivery of container STOPSIGNAL, restart will relaunch container process.
-* logs command - follow is available however timestamps and corresponding filtering are not
-* client authentication - basic authentication via client certificates known as _tlsverify_
+* client authentication - basic authentication via client certificates known as _tlsverify_.
+* integration with the VIC Management Portal (Admiral) for Docker image [content trust][ctrust].
+* integration with the vSphere Platform Services Controller (PSC) for Single Sign-on (SSO) for docker commands such as `docker login`.
+* an install wizard in the vSphere HTML5 client, as a more interactive alternative to installing via the command line. See details [here][wizard].
+* support for a standard Docker Container Host (DCH) deployed and managed as a container on VIC Engine. This can be used to run docker commands that are not currently supported by VIC Engine (`docker build, docker push`). See details [here][dch].
 
 We are working hard to add functionality while building out our [foundation](doc/design/arch/arch.md#port-layer-abstractions) so continue to watch the repo for new features. Initial focus is on the production end of the CI pipeline, building backwards towards developer laptop scenarios.
 
-This limited set of current capabilities may come as a surprise to people who are familiar with [Project Bonneville](http://blogs.vmware.com/cloudnative/introducing-project-bonneville/) that was [reasonably fully featured](https://www.youtube.com/watch?v=XkFQw8ueT1w) when demonstrated at VMworld in 2015.
-Project Bonneville was research aimed at determining best approaches to enabling container workflows in a vSphere environment and therefore enabled a broad set of features, but not in a manner that made it a viable product for large scale consumption. Building on top of research code is a great shortcut for fast time-to-market, but does not provide a good foundation for an enterprise quality product. vSphere Integrated Containers Engine is a full re-architecture and re-write, building off the knowledge gained during Project Bonneville while keeping almost zero code.
-
-
 ## Installing
 
-Once built, pick up the correct binary based on your OS, and then the result can be installed with the following command.
+After building the binaries (see the [Building](#building) section), pick up the correct binary based on your OS, and install the Virtual Container Host (VCH) with the following command. For Linux:
 
-```
+```shell
 bin/vic-machine-linux create --target <target-host>[/datacenter] --image-store <datastore name> --name <vch-name> --user <username> --password <password> --thumbprint <certificate thumbprint> --compute-resource <cluster or resource pool name> --tls-cname <FQDN, *.wildcard.domain, or static IP>
 ```
 
-See `vic-machine-XXX create --help` for usage information.
-
-A more indepth example can be found [here](doc/user/usage.md)
-
-Container output is found in a log file on the datastore ([datastore]/containerid/containerid.log).
-
+See `vic-machine-$OS create --help` for usage information. A more in-depth example can be found [here](doc/user/usage.md#deploying-a-virtual-container-host).
 
 ## Deleting
 
-The installed Virtual Container Host can be deleted through vic-machine-XXX delete.
+The installed VCH can be deleted using `vic-machine-$OS delete`.
 
-See `vic-machine-XXX delete --help` for usage information.
-
-A more indepth example can be found [here](doc/user/usage.md)
-
+See `vic-machine-$OS delete --help` for usage information. A more in-depth example can be found [here](doc/user/usage.md#deleting-a-virtual-container-host).
 
 ## Contributing
 
 See [CONTRIBUTING](CONTRIBUTING.md) for details on submitting changes and the contribution workflow.
-
 
 ## Building
 
 Building the project is done with a combination of make and containers, with golang:1.8 being the common container base. This is done so that it's possible to build directly, without a functional docker, if using a Debian based system with the Go 1.8 toolchain and Drone.io installed.
 
 To build as closely as possible to the formal build:
-```
+```shell
 drone exec --repo.trusted
 ```
 
-To build without modifying the local system:
-```
+To build inside a Docker container:
+```shell
 docker run -v $(pwd):/go/src/github.com/vmware/vic -w /go/src/github.com/vmware/vic golang:1.8 make all
 ```
 
 To build directly:
-```
+```shell
 make all
 ```
 
@@ -77,50 +71,48 @@ There are three primary components generated by a full build, found in `$BIN` (t
  2. appliance.iso - `make appliance`
  3. bootstrap.iso - `make bootstrap`
 
-
 ## Building binaries for development
 
 Some of the project binaries can only be built on Linux.  If you are developing on a Mac or Windows OS, then the easiest way to facilitate a build is by utilizing the project's Vagrantfile.  The Vagrantfile will share the directory where the file is executed and set the GOPATH based on that share.
 
 To build the component binaries, ensure `GOPATH` is set, then issue the following command in the root directory:
-```
-$ make components
+```shell
+make components
 ```
 This will install required tools and build the component binaries `tether-linux`, `rpctool` and server binaries `docker-engine-server`, `port-layer-server`.  The binaries will be created in the `$BIN` directory, ./bin by default.
 
-To run tests after a successful build, issue the following:
-```
-$ make test
+To run unit tests after a successful build, issue the following:
+```shell
+make test
 ```
 
 ## Managing vendor/ directory
 
 To build the VIC Engine dependencies, ensure `GOPATH` is set, then issue the following.
-``
-$ make gvt vendor
-``
+```shell
+make gvt vendor
+```
 
-This will install the [gvt](https://github.com/FiloSottile/gvt) utility and retrieve the build dependencies via `gvt restore`
-
+This will install the [gvt](https://github.com/FiloSottile/gvt) utility and retrieve the build dependencies via `gvt restore`.
 
 ## Building the ISOs
 
 The component binaries above are packaged into ISO files, appliance.iso and bootstrap.iso, that are used by the installer. The generation of the ISOs is split into the following targets:
 iso-base, appliance-staging, bootstrap-staging, appliance, and bootstrap. Generation of the ISOs involves authoring a new root filesystem, meaning running a package manager (currently yum) and packing/unpacking archives. To install packages and preserve file permissions while unpacking these steps should be run as root, whether directly or in a container. To generate the ISOs:
 
-```
-$ make isos
+```shell
+make isos
 ```
 
 The appliance and bootstrap ISOs are bootable CD images used to start the VMs that make up VIC Engine. To build the image using [docker](https://www.docker.com/), ensure `GOPATH` is set and `docker` is installed, then issue the following.
 
-```
+```shell
 docker run -v $(pwd):/go/src/github.com/vmware/vic -w /go/src/github.com/vmware/vic golang:1.8 make isos
 ```
 
 Alternatively, the iso image can be built locally.  Again, ensure `GOPATH` is set, but also ensure the following packages are installed. This will attempt to install the following packages if not present using apt-get:
 
-```
+```shell
 apt-get install \
 	curl \
 	cpio \
@@ -133,7 +125,7 @@ apt-get install \
 
 Package names may vary depending on the distribution being used.  Once installed, issue the following (the targets listed here are those executed when using the `iso` target.
 
-```
+```shell
 make iso-base appliance-staging appliance bootstrap-staging bootstrap
 ```
 
@@ -176,7 +168,6 @@ From the root directory of the `vic` repository run `drone exec --repo.trusted`
 ## Integration Tests
 
 [VIC Engine Integration Test Suite](tests/README.md) includes instructions to run locally.
-
 
 ## License
 

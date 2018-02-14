@@ -1,4 +1,4 @@
-# Copyright 2017 VMware, Inc. All Rights Reserved.
+# Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 
-FROM gcr.io/eminent-nation-87317/vic-integration-test:1.38
+FROM gcr.io/eminent-nation-87317/vic-integration-test:1.42
 RUN mkdir -p /go/src/github.com/vmware/vic
 COPY secrets /go/src/github.com/vmware/vic
 ENV LONGEVITY=1

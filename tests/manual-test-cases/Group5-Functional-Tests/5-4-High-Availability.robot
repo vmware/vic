@@ -90,6 +90,7 @@ Run Regression Test With More Log Information
     Scrape Logs For The Password
 
 High Availability Setup
+    [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     ${pid}=  Deploy Nimbus vCenter Server Async  ${vc}
@@ -209,7 +210,7 @@ Test
     Wait Until Keyword Succeeds  24x  10s  VM Host Has Changed  ${curHost}  %{VCH-NAME}
 
     # Wait for the VCH to come back up fully - if it's not completely reinitialized it will still report the old IP address 
-    Wait For VCH Initialization
+    Wait For VCH Initialization  12x  20 seconds
 
     ${info}=  Run  govc vm.info \\*
     Log  ${info}

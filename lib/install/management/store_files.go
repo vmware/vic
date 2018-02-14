@@ -25,8 +25,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/config"
-	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
-	"github.com/vmware/vic/lib/portlayer/store"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
@@ -59,13 +58,13 @@ func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) e
 		}
 
 		// delete images subfolder
-		imagePath := path.Join(imageDir.Path, vsphere.StorageParentDir)
+		imagePath := path.Join(imageDir.Path, constants.StorageParentDir)
 		if _, err = d.deleteDatastoreFiles(imageDSes[0], imagePath, true); err != nil {
 			errs = append(errs, err.Error())
 		}
 
 		// delete kvStores subfolder
-		kvPath := path.Join(imageDir.Path, store.KVStoreFolder)
+		kvPath := path.Join(imageDir.Path, constants.KVStoreFolder)
 		if _, err = d.deleteDatastoreFiles(imageDSes[0], kvPath, true); err != nil {
 			errs = append(errs, err.Error())
 		}
@@ -159,23 +158,26 @@ func (d *Dispatcher) isVSAN(ds *object.Datastore) bool {
 func (d *Dispatcher) deleteFilesIteratively(m *object.DatastoreFileManager, ds *object.Datastore, dsPath string) error {
 	defer trace.End(trace.Begin(dsPath, d.op))
 
-	// Get sorted result to make sure children files listed ahead of folder. Then we can empty folder before delete it
-	// This function specifically designed for vSan, as vSan sometimes will throw error to delete folder is the folder is not empty
-	res, err := d.getSortedChildren(ds, dsPath)
-	if err != nil {
-		if !types.IsFileNotFound(err) {
-			err = errors.Errorf("Failed to browse sub folders %q: %s", dsPath, err)
-			return err
+	if d.isVSAN(ds) {
+		// Get sorted result to make sure child files are listed ahead of their parent folder so we empty the folder before deleting it.
+		// This behaviour is specifically for vSan, as vSan sometimes throws an error when deleting a folder that is not empty.
+		res, err := d.getSortedChildren(ds, dsPath)
+		if err != nil {
+			if !types.IsFileNotFound(err) {
+				err = errors.Errorf("Failed to browse sub folders %q: %s", dsPath, err)
+				return err
+			}
+			d.op.Debugf("Folder %q is not found", dsPath)
+			return nil
 		}
-		d.op.Debugf("Folder %q is not found", dsPath)
-		return nil
+
+		for _, path := range res {
+			if err = d.deleteVMFSFiles(m, ds, path); err != nil {
+				return err
+			}
+		}
 	}
 
-	for _, path := range res {
-		if err = d.deleteVMFSFiles(m, ds, path); err != nil {
-			return err
-		}
-	}
 	return d.deleteVMFSFiles(m, ds, dsPath)
 }
 
@@ -292,7 +294,7 @@ func (d *Dispatcher) createVolumeStores(conf *config.VirtualContainerHostConfigS
 		}
 
 		if url.Path == "/" || url.Path == "" {
-			url.Path = vsphere.StorageParentDir
+			url.Path = constants.StorageParentDir
 		}
 
 		nds, err := datastore.NewHelper(d.op, d.session, ds, url.Path)
@@ -347,12 +349,14 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHost
 			continue
 		}
 
-		if dsURL.Path == vsphere.StorageParentDir {
-			dsURL.Path = path.Join(dsURL.Path, vsphere.VolumesDir)
+		if dsURL.Path == constants.StorageParentDir {
+			dsURL.Path = path.Join(dsURL.Path, constants.VolumesDir)
 		}
 
-		d.op.Debugf("Provided datastore URL: %q\nParsed volume store path: %q", url.Path, dsURL.Path)
-		d.op.Infof("Deleting volume store %q on Datastore %q at path %q", label, dsURL.Host, dsURL.Path)
+		d.op.Debugf("Provided datastore URL: %q", url.Path)
+		d.op.Debugf("Parsed volume store path: %q", dsURL.Path)
+		d.op.Infof("Deleting volume store %q on Datastore %q at path %q",
+			label, dsURL.Host, dsURL.Path)
 
 		datastores, err := d.session.Finder.DatastoreList(d.op, dsURL.Host)
 

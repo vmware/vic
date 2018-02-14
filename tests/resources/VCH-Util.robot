@@ -48,7 +48,8 @@ Set Test Environment Variables
     ${server_date}=  Run  govc host.date.info
     Log To Console  \nTest_Server_Date=\n${server_date}\n
 
-    ${host}=  Run  govc ls host
+    ${rc}  ${host}=  Run And Return Rc And Output  govc ls host
+    Should Be Equal As Integers  ${rc}  0
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_RESOURCE
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_RESOURCE  ${host}/Resources
     Set Environment Variable  GOVC_RESOURCE_POOL  %{TEST_RESOURCE}
@@ -316,7 +317,7 @@ Run Secret VIC Machine Delete Command
 Run Secret VIC Machine Inspect Command
     [Tags]  secret
     [Arguments]  ${name}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --thumbprint=%{TEST_THUMBPRINT}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --thumbprint=%{TEST_THUMBPRINT} --compute-resource=%{TEST_RESOURCE}
 
     [Return]  ${rc}  ${output}
 
@@ -329,7 +330,8 @@ Run VIC Machine Delete Command
     [Return]  ${output}
 
 Run VIC Machine Inspect Command
-    ${rc}  ${output}=  Run Secret VIC Machine Inspect Command  %{VCH-NAME}
+    [Arguments]  ${name}=%{VCH-NAME}
+    ${rc}  ${output}=  Run Secret VIC Machine Inspect Command  ${name}
     Get Docker Params  ${output}  ${true}
 
 Inspect VCH
@@ -339,11 +341,12 @@ Inspect VCH
     Should Contain  ${output}  ${expected}
 
 Wait For VCH Initialization
-    [Arguments]  ${attempts}=12x  ${interval}=10 seconds
-    Wait Until Keyword Succeeds  ${attempts}  ${interval}  VCH Docker Info
+    [Arguments]  ${attempts}=12x  ${interval}=10 seconds  ${name}=%{VCH-NAME}
+    Wait Until Keyword Succeeds  ${attempts}  ${interval}  VCH Docker Info  ${name}
 
 VCH Docker Info
-    Run VIC Machine Inspect Command
+    [Arguments]  ${name}=%{VCH-NAME}
+    Run VIC Machine Inspect Command  ${name}
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} info
     Should Be Equal As Integers  ${rc}  0
 
@@ -362,21 +365,24 @@ Portlayer Log Should Match Regexp
     Should Be Equal As Integers  ${rc}  0
 
 Gather Logs From Test Server
-    [Tags]  secret
     [Arguments]  ${name-suffix}=${EMPTY}
-
     Run Keyword And Continue On Failure  Run  zip %{VCH-NAME}-certs -r %{VCH-NAME}
-    ${out}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
-    Log  ${out}
-    ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs${name-suffix}.zip
-    Log  ${out}
-    Remove File  vic-admin-cookies
+    Secret Curl Container Logs  ${name-suffix}
     ${host}=  Get VM Host Name  %{VCH-NAME}
     ${out}=  Run  govc datastore.download -host ${host} %{VCH-NAME}/vmware.log %{VCH-NAME}-vmware${name-suffix}.log
     Should Contain  ${out}  OK
     ${out}=  Run  govc datastore.download -host ${host} %{VCH-NAME}/tether.debug %{VCH-NAME}-tether${name-suffix}.debug
     Should Contain  ${out}  OK
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc logs -log=vmkernel -n=10000 > vmkernel${name-suffix}.log
+
+Secret Curl Container Logs
+    [Tags]  secret
+    [Arguments]  ${name-suffix}=${EMPTY}
+    ${out}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
+    Log  ${out}
+    ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs${name-suffix}.zip
+    Log  ${out}
+    Remove File  vic-admin-cookies
 
 Check For The Proper Log Files
     [Arguments]  ${container}
@@ -408,6 +414,10 @@ Scrape Logs For the Password
     Remove File  /tmp/cookies-%{VCH-NAME}
 
 Cleanup VIC Appliance On Test Server
+    ${sessions}=  Run Keyword And Ignore Error  Get Session List
+    Log  ${sessions}
+    ${memory}=  Run Keyword And Ignore Error  Get Hostd Memory Consumption
+    Log  ${memory}
     Log To Console  Gathering logs from the test server %{VCH-NAME}
     Gather Logs From Test Server
     Wait Until Keyword Succeeds  3x  5 seconds  Remove All Containers
@@ -417,6 +427,7 @@ Cleanup VIC Appliance On Test Server
     Log To Console  Deleting the VCH appliance %{VCH-NAME}
     ${output}=  Run VIC Machine Delete Command
     Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
+    Run Keyword And Ignore Error  Run  govc datastore.rm %{VCH-NAME}-VOL
     [Return]  ${output}
 
 Cleanup VCH Bridge Network
