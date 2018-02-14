@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"sync"
+	"path/filepath"
 	"time"
 
 	"github.com/vmware/govmomi/object"
@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/opsuser"
 	"github.com/vmware/vic/lib/install/vchlog"
+	"github.com/vmware/vic/lib/progresslog"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
@@ -120,100 +121,85 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 	// upload the images
 	d.op.Info("Uploading images for container")
 
-	results := make(chan error, len(files))
-	var wg sync.WaitGroup
+	// Build retry config
+	backoffConf := retry.NewBackoffConfig()
+	backoffConf.InitialInterval = uploadInitialInterval
+	backoffConf.MaxInterval = uploadMaxInterval
+	backoffConf.MaxElapsedTime = uploadMaxElapsedTime
 
 	for key, image := range files {
+		baseName := filepath.Base(image)
+		finalMessage := ""
+		// upload function that is passed to retry
+		isoTargetPath := path.Join(d.vmPathName, key)
 
-		wg.Add(1)
-		go func(key string, image string) {
-			finalMessage := ""
-			d.op.Infof("\t%q", image)
+		operationForRetry := func() error {
+			// attempt to delete the iso image first in case of failed upload
+			dc := d.session.Datacenter
+			fm := d.session.Datastore.NewFileManager(dc, false)
+			ds := d.session.Datastore
 
-			// upload function that is passed to retry
-			operationForRetry := func() error {
-				// attempt to delete the iso image first in case of failed upload
-				dc := d.session.Datacenter
-				fm := d.session.Datastore.NewFileManager(dc, false)
-				ds := d.session.Datastore
-
-				isoTargetPath := path.Join(d.vmPathName, key)
-				// check iso first
-				d.op.Debugf("target delete path = %s", isoTargetPath)
-				_, err := ds.Stat(d.op, isoTargetPath)
-				if err != nil {
-					switch err.(type) {
-					case object.DatastoreNoSuchFileError:
-						d.op.Debug("File not found. Nothing to do.")
-					case object.DatastoreNoSuchDirectoryError:
-						d.op.Debug("Directory not found. Nothing to do.")
-					default:
-						// otherwise force delete
-						err := fm.Delete(d.op, isoTargetPath)
-						if err != nil {
-							d.op.Debugf("Failed to delete image (%s) with error (%s)", image, err.Error())
-							return err
-						}
+			// check iso first
+			d.op.Debugf("Checking if file already exists: %s", isoTargetPath)
+			_, err := ds.Stat(d.op, isoTargetPath)
+			if err != nil {
+				switch err.(type) {
+				case object.DatastoreNoSuchFileError:
+					d.op.Debug("File not found. Nothing to do.")
+				case object.DatastoreNoSuchDirectoryError:
+					d.op.Debug("Directory not found. Nothing to do.")
+				default:
+					d.op.Debugf("ISO file already exists, deleting: %s", isoTargetPath)
+					err := fm.Delete(d.op, isoTargetPath)
+					if err != nil {
+						d.op.Debugf("Failed to delete image (%s) with error (%s)", image, err.Error())
+						return err
 					}
 				}
-
-				return d.session.Datastore.UploadFile(d.op, image, path.Join(d.vmPathName, key), nil)
 			}
 
-			// counter for retry decider
-			retryCount := uploadRetryLimit
+			d.op.Infof("Uploading %s as %s", baseName, key)
 
-			// decider for our retry, will retry the upload uploadRetryLimit times
-			uploadRetryDecider := func(err error) bool {
-				if err == nil {
-					return false
-				}
+			ul := progresslog.NewUploadLogger(d.op.Infof, baseName, time.Second*3)
+			// need to wait since UploadLogger is asynchronous.
+			defer ul.Wait()
 
-				retryCount--
-				if retryCount < 0 {
-					d.op.Warnf("Attempted upload a total of %d times without success, Upload process failed.", uploadRetryLimit)
-					return false
-				}
-				d.op.Warnf("failed an attempt to upload isos with err (%s), %d retries remain", err.Error(), retryCount)
-				return true
-			}
-
-			// Build retry config
-			backoffConf := retry.NewBackoffConfig()
-			backoffConf.InitialInterval = uploadInitialInterval
-			backoffConf.MaxInterval = uploadMaxInterval
-			backoffConf.MaxElapsedTime = uploadMaxElapsedTime
-
-			uploadErr := retry.DoWithConfig(operationForRetry, uploadRetryDecider, backoffConf)
-			if uploadErr != nil {
-				finalMessage = fmt.Sprintf("\t\tUpload failed for %q: %s\n", image, uploadErr)
-				if d.force {
-					finalMessage = fmt.Sprintf("%s\t\tContinuing despite failures (due to --force option)\n", finalMessage)
-					finalMessage = fmt.Sprintf("%s\t\tNote: The VCH will not function without %q...", finalMessage, image)
-					results <- errors.New(finalMessage)
-				} else {
-					results <- errors.New(finalMessage)
-				}
-			}
-			wg.Done()
-		}(key, image)
-	}
-
-	wg.Wait()
-	close(results)
-
-	uploadFailed := false
-	for err := range results {
-		if err != nil {
-			d.op.Error(err)
-			uploadFailed = true
+			return d.session.Datastore.UploadFile(d.op, image, path.Join(d.vmPathName, key),
+				progresslog.UploadParams(ul))
 		}
-	}
 
-	if uploadFailed {
-		return errors.New("Failed to upload iso images successfully.")
+		// counter for retry decider
+		retryCount := uploadRetryLimit
+
+		// decider for our retry, will retry the upload uploadRetryLimit times
+		uploadRetryDecider := func(err error) bool {
+			if err == nil {
+				return false
+			}
+
+			retryCount--
+			if retryCount < 0 {
+				d.op.Warnf("Attempted upload a total of %d times without success, Upload process failed.", uploadRetryLimit)
+				return false
+			}
+			d.op.Warnf("Failed an attempt to upload isos with err (%s), %d retries remain", err.Error(), retryCount)
+			return true
+		}
+
+		uploadErr := retry.DoWithConfig(operationForRetry, uploadRetryDecider, backoffConf)
+		if uploadErr != nil {
+			finalMessage = fmt.Sprintf("\t\tUpload failed for %q: %s\n", image, uploadErr)
+			if d.force {
+				finalMessage = fmt.Sprintf("%s\t\tContinuing despite failures (due to --force option)\n", finalMessage)
+				finalMessage = fmt.Sprintf("%s\t\tNote: The VCH will not function without %q...", finalMessage, image)
+			}
+			d.op.Error(finalMessage)
+			return errors.New("Failed to upload iso images.")
+		}
+
 	}
 	return nil
+
 }
 
 // cleanupAfterCreationFailed cleans up the dangling resource pool for the failed VCH and any bridge network if there is any.
