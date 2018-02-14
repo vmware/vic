@@ -78,6 +78,7 @@ endef
 endif
 
 LDFLAGS := $(shell BUILD_NUMBER=${BUILD_NUMBER} $(BASE_DIR)/infra/scripts/version-linker-flags.sh)
+NETGO := -tags netgo -installsuffix netgo
 
 # target aliases - environment variable definition
 docker-engine-api := $(BIN)/docker-engine-server
@@ -308,40 +309,40 @@ endif
 
 $(vic-init): $$(call godeps,cmd/vic-init/*.go)
 	@echo building vic-init
-	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -tags netgo -installsuffix netgo -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build $(RACE) -ldflags "$(LDFLAGS)" $(NETGO) -o ./$@ ./$(dir $<)
 
 $(vic-init-test): $$(call godeps,cmd/vic-init/*.go)
 	@echo building vic-init-test
-	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) test -c -coverpkg github.com/vmware/vic/lib/...,github.com/vmware/vic/pkg/... -outputdir /tmp -coverprofile init.cov -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) test -c -coverpkg github.com/vmware/vic/lib/...,github.com/vmware/vic/pkg/... -outputdir /tmp -coverprofile init.cov -o ./$@ ./$(dir $<)
 
 $(tether-linux): $$(call godeps,cmd/tether/*.go)
 	@echo building tether-linux
-	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '$(LDFLAGS) -extldflags "-static"' -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(TIME) $(GO) build $(RACE) $(NETGO) -ldflags '$(LDFLAGS)' -o ./$@ ./$(dir $<)
 
 $(rpctool): $$(call godeps,cmd/rpctool/*.go)
 ifeq ($(OS),linux)
 	@echo building rpctool
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=0 GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 else
 	@echo skipping rpctool, cannot cross compile cgo
 endif
 
 $(vicadmin): $$(call godeps,cmd/vicadmin/*.go)
 	@echo building vicadmin
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=0 GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(NETGO) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
 $(archive): $$(call godeps,cmd/archive/*.go)
 	@echo building archive
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=0 GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(NETGO) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
 $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
-	@$(TIME) $(GO) build $(RACE)  $(ldflags) -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=0 $(TIME) $(GO) build $(RACE) $(NETGO) $(ldflags) -o ./$@ ./$(dir $<)
 
 $(docker-engine-api): $(portlayerapi-client) $(admiralapi-client) $$(call godeps,cmd/docker/*.go)
 ifeq ($(OS),linux)
 	@echo building docker-engine-api server...
-	@$(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o $@ ./cmd/docker
+	@CGO_ENABLED=0 $(TIME) $(GO) build $(RACE) $(NETGO) -ldflags "$(LDFLAGS)" -o $@ ./cmd/docker
 else
 	@echo skipping docker-engine-api server, cannot build on non-linux
 endif
@@ -349,7 +350,7 @@ endif
 $(docker-engine-api-test): $$(call godeps,cmd/docker/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)
 	@echo building docker-engine-api server for test...
-	@$(TIME) $(GO) test -c -coverpkg github.com/vmware/vic/lib/...,github.com/vmware/vic/pkg/... -outputdir /tmp -coverprofile docker-engine-api.cov -o $@ ./cmd/docker
+	@CGO_ENABLED=0 $(TIME) $(GO) test -c -coverpkg github.com/vmware/vic/lib/...,github.com/vmware/vic/pkg/... -outputdir /tmp -coverprofile docker-engine-api.cov -o $@ ./cmd/docker
 else
 	@echo skipping docker-engine-api server for test, cannot build on non-linux
 endif
@@ -390,11 +391,11 @@ $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 
 $(portlayerapi): $(portlayerapi-server) $(portlayerapi-client) $$(call godeps,cmd/port-layer-server/*.go)
 	@echo building Portlayer API server...
-	@$(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o $@ ./cmd/port-layer-server
+	@CGO_ENABLED=0 $(TIME) $(GO) build $(RACE) $(NETGO) -ldflags "$(LDFLAGS)" -o $@ ./cmd/port-layer-server
 
 $(portlayerapi-test): $$(call godeps,cmd/port-layer-server/*.go) $(portlayerapi-server) $(portlayerapi-client)
 	@echo building Portlayer API server for test...
-	@$(TIME) $(GO) test -c -coverpkg github.com/vmware/vic/lib/...,github.com/vmware/vic/pkg/... -coverprofile port-layer-server.cov -outputdir /tmp -o $@ ./cmd/port-layer-server
+	@CGO_ENABLED=0 $(TIME) $(GO) test -c -coverpkg github.com/vmware/vic/lib/...,github.com/vmware/vic/pkg/... -coverprofile port-layer-server.cov -outputdir /tmp -o $@ ./cmd/port-layer-server
 
 # Common service dependencies between client and server
 SERVICE_DEPS ?= lib/apiservers/service/swagger.json \
@@ -408,7 +409,7 @@ $(serviceapi-server): $(SERVICE_DEPS) $(SWAGGER)
 
 $(serviceapi): $$(call godeps,cmd/vic-machine-server/*.go) $(serviceapi-server)
 	@echo building vic-machine-as-a-service API server...
-	@$(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o $@ ./cmd/vic-machine-server
+	@CGO_ENABLED=0 $(TIME) $(GO) build $(RACE) $(NETGO) -ldflags "$(LDFLAGS)" -o $@ ./cmd/vic-machine-server
 
 
 $(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
@@ -444,7 +445,7 @@ $(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base)
 
 $(vic-machine-linux): $$(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine linux...
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=0 GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(NETGO) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
 $(vic-machine-windows): $$(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine windows...
@@ -468,7 +469,7 @@ $(vic-ui-darwin): $$(call godeps,cmd/vic-ui/*.go) $(admiralapi-client)
 
 $(vic-dns-linux): $$(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns linux...
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=0 GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(NETGO) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
 $(vic-dns-windows): $$(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns windows...
