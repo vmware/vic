@@ -35,6 +35,12 @@ $testbed = Proc.new do
     ],
 
     "postBoot" => Proc.new do |runId, testbedSpec, vmList, catApi, logDir|
+      esxList = vmList['esx']
+        esxList.each do |host|
+          host.ssh do |ssh|
+            ssh.exec!("esxcli network firewall set -e false")
+          end
+      end
       vc = vmList['vc'][0]
       vim = VIM.connect vc.rbvmomiConnectSpec
       datacenters = vim.serviceInstance.content.rootFolder.childEntity.grep(RbVmomi::VIM::Datacenter)
@@ -90,3 +96,4 @@ $testbed = Proc.new do
     end
   }
 end
+

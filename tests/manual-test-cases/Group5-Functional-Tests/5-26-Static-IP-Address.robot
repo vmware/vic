@@ -30,12 +30,25 @@ Static IP Address Create
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     ${vc-ip}=  Get IP  ${name}.vc.0
+    ${esx1-ip}=  Get IP  ${name}.esx.0
+    ${esx2-ip}=  Get IP  ${name}.esx.1
+    ${esx3-ip}=  Get IP  ${name}.esx.2
     ${pod}=  Fetch POD  ${name}.vc.0
     Set Suite Variable  ${NIMBUS_POD}  ${pod}
     Close Connection
 
     Set Suite Variable  @{list}  %{NIMBUS_USER}-${name}.esx.0  %{NIMBUS_USER}-${name}.esx.1  %{NIMBUS_USER}-${name}.esx.2  %{NIMBUS_USER}-${name}.nfs.0  %{NIMBUS_USER}-${name}.vc.0
     Log To Console  Finished Creating Cluster ${name}
+
+    Log To Console  Disable firewall for the ESX servers...
+    Set Environment Variable  GOVC_USERNAME  root
+    Set Environment Variable  GOVC_PASSWORD  e2eFunctionalTest
+    Set Environment Variable  GOVC_URL  ${esx1-ip}
+    Run  govc host.esxcli network firewall set -e false
+    Set Environment Variable  GOVC_URL  ${esx2-ip}
+    Run  govc host.esxcli network firewall set -e false
+    Set Environment Variable  GOVC_URL  ${esx3-ip}
+    Run  govc host.esxcli network firewall set -e false
 
     ${out}=  Get Static IP Address
     Set Suite Variable  ${static}  ${out}
@@ -62,5 +75,7 @@ Static IP Address Create
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
+    Custom Testbed Keepalive  /dbc/pa-dbc1111/mhagen
+
     Install VIC Appliance To Test Server  additional-args=--public-network-ip &{static}[ip]/&{static}[netmask] --public-network-gateway &{static}[gateway] --dns-server 10.170.16.48
     Run Regression Tests
