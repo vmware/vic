@@ -146,11 +146,12 @@ func (am *AuthzManager) PrincipalBelongsToGroup(ctx context.Context, group strin
 	}
 
 	results, err := methods.RetrieveUserGroups(ctx, am.client, &req)
+
 	// This is to work around a bug in vSphere, when AD is added to
 	// the identity source list, the API returns Object Not Found,
 	// In this case, we ignore the error and return false (BUG: 2037706)
-	if err != nil && isNotFoundError(ctx, err) {
-		op.Debugf("Received Not Found Error from PrincipalBelongsToGroup(), could not verify user %s is not a member of the Administrators group", am.Principal)
+	if err != nil && (isNotSupportedError(ctx, err) || isNotFoundError(ctx, err)) {
+		op.Debugf("Received Error (%s) from PrincipalBelongsToGroup(), could not verify user %s is not a member of the Administrators group", err.Error(), am.Principal)
 		op.Warnf("If ops-user (%s) belongs to the Administrators group, permissions on some resources might have been restricted", am.Principal)
 		return false, nil
 	}
@@ -391,6 +392,20 @@ func (am *AuthzManager) getRoleName(resource *Resource) string {
 	default:
 		return am.RolePrefix + resource.Role.Name
 	}
+}
+
+func isNotSupportedError(ctx context.Context, err error) bool {
+	op := trace.FromContext(ctx, "isNotSupportedError")
+
+	if soap.IsSoapFault(err) {
+		vimFault := soap.ToSoapFault(err).VimFault()
+		op.Debugf("Error type: %s", reflect.TypeOf(vimFault))
+
+		_, ok := soap.ToSoapFault(err).VimFault().(types.NotSupported)
+		return ok
+	}
+
+	return false
 }
 
 func isNotFoundError(ctx context.Context, err error) bool {
