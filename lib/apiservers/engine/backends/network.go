@@ -38,6 +38,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+	"github.com/vmware/vic/pkg/retry"
 )
 
 type Network struct {
@@ -182,12 +183,15 @@ func (n *Network) CreateNetwork(nc types.NetworkCreateRequest) (*types.NetworkCr
 	return ncResponse, nil
 }
 
-func (n *Network) ConnectContainerToNetwork(containerName, networkName string, endpointConfig *apinet.EndpointSettings) error {
-	vc := cache.ContainerCache().GetContainer(containerName)
-	if vc != nil {
-		containerName = vc.ContainerID
-	}
+// isCommitConflictError returns true if err is a conflict error from the portlayer's
+// handle commit operation, and false otherwise.
+func isCommitConflictError(err error) bool {
+	_, isConflictErr := err.(*containers.CommitConflict)
+	return isConflictErr
+}
 
+// connectContainerToNetwork performs portlayer operations to connect a container to a container network.
+func connectContainerToNetwork(containerName, networkName string, endpointConfig *apinet.EndpointSettings) error {
 	client := PortLayerClient()
 	getRes, err := client.Containers.Get(containers.NewGetParamsWithContext(ctx).WithID(containerName))
 	if err != nil {
@@ -211,7 +215,7 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 
 		}
 
-		// Pass Links and Aliases to PL
+		// Pass Links and Aliases to PL.
 		nc.Aliases = vicendpoint.Alias(endpointConfig)
 	}
 
@@ -236,8 +240,7 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 
 	h = addConRes.Payload
 
-	// only bind if the container is running
-	// get the state of the container
+	// Get the power state of the container.
 	getStateRes, err := client.Containers.GetState(containers.NewGetStateParamsWithContext(ctx).WithHandle(h))
 	if err != nil {
 		switch err := err.(type) {
@@ -253,6 +256,7 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 	}
 
 	h = getStateRes.Payload.Handle
+	// Only bind if the container is running.
 	if getStateRes.Payload.State == "RUNNING" {
 		bindRes, err := client.Scopes.BindContainer(scopes.NewBindContainerParamsWithContext(ctx).WithHandle(h))
 		if err != nil {
@@ -280,8 +284,26 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 		h = bindRes.Payload.Handle
 	}
 
-	// commit handle
+	// Commit the handle.
 	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(h))
+	return err
+}
+
+// ConnectContainerToNetwork connects a container to a container network. It wraps the portlayer operations
+// in a retry for when there's a conflict error received, such as one during a similar concurrent operation.
+func (n *Network) ConnectContainerToNetwork(containerName, networkName string, endpointConfig *apinet.EndpointSettings) error {
+	vc := cache.ContainerCache().GetContainer(containerName)
+	if vc != nil {
+		containerName = vc.ContainerID
+	}
+
+	operation := func() error {
+		return connectContainerToNetwork(containerName, networkName, endpointConfig)
+	}
+
+	config := retry.NewBackoffConfig()
+	config.MaxElapsedTime = maxElapsedTime
+	err := retry.DoWithConfig(operation, isCommitConflictError, config)
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.CommitNotFound:
