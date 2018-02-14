@@ -38,7 +38,24 @@ vic-create () {
         "$(vic-path)"/bin/vic-machine-"$OS" create --target="$GOVC_URL" "${OPS_CREDS[@]}" --image-store="$IMAGE_STORE" --compute-resource="$COMPUTE" "${TLS[@]}" ${TLS_OPTS} --name="${VIC_NAME:-${USER}test}" "${MAPPED_NETWORKS[@]}" "${VOLUME_STORES[@]}" "${NETWORKS[@]}" ${IPADDR} ${TIMEOUT} --thumbprint="$THUMBPRINT" "$@"
     )
 
-    unset DOCKER_CERT_PATH DOCKER_TLS_VERIFY
+    vic-select
+
+    cd "$base" || exit
+}
+
+vic-delete () {
+    force="true"
+    if [ -n "${PRESERVE_VOLUMES}" ]; then
+        force="false"
+    fi
+
+    "$(vic-path)"/bin/vic-machine-"$OS" delete --target="$GOVC_URL" --compute-resource="$COMPUTE" --name="${VIC_NAME:-${USER}test}" --thumbprint="$THUMBPRINT" --force=${force} "$@"
+}
+
+vic-select () {
+    base=$(pwd)
+
+    unset DOCKER_HOST DOCKER_CERT_PATH DOCKER_TLS_VERIFY
     unalias docker 2>/dev/null
 
     envfile=$(vic-path)/bin/${VIC_NAME:-${USER}test}/${VIC_NAME:-${USER}test}.env
@@ -49,15 +66,9 @@ vic-create () {
     fi
 
     # Something of a hack, but works for --no-tls so long as that's enabled via TLS_OPTS
-    if [ -z "${DOCKER_TLS_VERIFY+x}" ] && [ -z "${TLS_OPTS+x}" ]; then
+    if [ -z "${DOCKER_TLS_VERIFY+x}" ] && [[ "${DOCKER_HOST+x}" != "*:2375" ]]; then
         alias docker='docker --tls'
     fi
-
-    cd "$base" || exit
-}
-
-vic-delete () {
-    "$(vic-path)"/bin/vic-machine-"$OS" delete --target="$GOVC_URL" --compute-resource="$COMPUTE" --name="${VIC_NAME:-${USER}test}" --thumbprint="$THUMBPRINT" --force "$@"
 }
 
 vic-inspect () {
@@ -78,7 +89,7 @@ vic-ssh () {
         keyarg="--authorized-key=$HOME/.ssh/authorized_keys"
     fi
 
-    out=$("$(vic-path)"/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name="${VIC_NAME:-${USER}test}" --enable-ssh "$keyarg" --rootpw=password --thumbprint="$THUMBPRINT" "$@")
+    out=$("$(vic-path)"/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name="${VIC_NAME:-${USER}test}" --enable-ssh $keyarg --rootpw=password --thumbprint="$THUMBPRINT" "$@")
     host=$(echo "$out" | grep DOCKER_HOST | awk -F"DOCKER_HOST=" '{print $2}' | cut -d ":" -f1 | cut -d "=" -f2)
 
     echo "SSH to ${host}"

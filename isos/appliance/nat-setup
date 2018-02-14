@@ -81,6 +81,8 @@ COMMIT
 -A INPUT -p tcp -m tcp --dport 2378 -j ACCEPT
 -A INPUT -p tcp -m tcp --dport 2380 -j ACCEPT
 
+-A INPUT -p tcp -m tcp --dport 6060 -j ACCEPT
+-A INPUT -p tcp -m tcp --dport 6061 -j ACCEPT
 -A INPUT -p tcp -m tcp --dport 6062 -j ACCEPT
 -A INPUT -p tcp -m tcp --dport 6063 -j ACCEPT
 
@@ -96,3 +98,8 @@ COMMIT
 -A VIC -i bridge -o bridge -j REJECT --reject-with icmp-port-unreachable
 COMMIT
 RULES
+
+# TODO: adjust this rule configuration for TLS and debug configuration
+# 2375 should not be open by default with TLS configs
+# 6061-6063 should not be open without debug>=2
+# 2380 I don't know why this is open at all
