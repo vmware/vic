@@ -60,6 +60,6 @@ Workflow-based
 
 These tests are designed to mimic realistic customer scenarios. These tests will usually duplicate coverage provided by a test above, but provide additional validation around specific important workflows.
 
-###  1. Create a representative VCH, deploy a container, attempt an upgrade, roll back, and then succesfully upgrade (verifying that the container's workload is operational throughout)
+###  1. Create a representative VCH, deploy a container, attempt an upgrade, roll back, and then successfully upgrade (verifying that the container's workload is operational throughout)
 
 

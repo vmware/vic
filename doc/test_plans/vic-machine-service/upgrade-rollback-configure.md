@@ -15,7 +15,7 @@ Each API operation is implemented by a handler method. Currently, this results i
 Testing Scope
 =============
 
-The primary focuses of testing will the combinatorial correctness of the re-configuration operation (including appropriate error handling for properties whcih may not be modified) and the end-to-end behavior of API workflows in a variety of realistic scenarios.
+The primary focuses of testing will the combinatorial correctness of the re-configuration operation (including appropriate error handling for properties which may not be modified) and the end-to-end behavior of API workflows in a variety of realistic scenarios.
 
 As the API handler methods are invoked by go-swagger, testing of call routing and similar logic is out of scope.
 
@@ -96,7 +96,7 @@ Environment: multi-datacenter VC
 1. Generate two client certificates (C and C') and two server certificates (S and S')
 2. Create a VCH using the VCH Management API with certificates C and S 
 3. Verify the configuration by:
-    a) sucessfully connecting to the VCH via Docker using the --tlsverify flag with C and S
+    a) successfully connecting to the VCH via Docker using the --tlsverify flag with C and S
     b) failing to connect to the VCH via Docker using the --tlsverify flag with C' and S
     c) failing to connect to the VCH via Docker using the --tlsverify flag with C and S'
     d) failing to connect to the VCH via Docker using the --tlsverify flag with C' and S'
