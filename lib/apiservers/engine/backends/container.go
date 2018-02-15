@@ -356,8 +356,8 @@ func (c *Container) ContainerExecResize(eid string, height, width int) error {
 // ContainerExecStart starts a previously set up exec instance. The
 // std streams are set up.
 func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error {
-	op := trace.NewOperation(ctx, "")
-	defer trace.End(trace.Begin(fmt.Sprintf("opID=(%s) eid=(%s)", op, eid)))
+	op := trace.FromContext(ctx, "exec start")
+	defer trace.End(trace.Begin("", op))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainerFromExec(eid)
@@ -366,6 +366,8 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	}
 	id := vc.ContainerID
 	name := vc.Name
+
+	op.Debugf("exec start of %s in container %d", eid, id)
 
 	operation := func() error {
 		handle, err := c.Handle(id, name)
@@ -400,7 +402,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		}
 
 		// we need to be able to cancel it
-		ctx, cancel := context.WithCancel(ctx)
+		taskCtx, cancel := trace.WithCancel(&op, "exec task wait on %s", eid)
 		defer cancel()
 
 		// we do not return an error here if this fails. TODO: Investigate what exactly happens on error here...
@@ -409,7 +411,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 			defer trace.End(trace.Begin(eid))
 
 			// wait property collector
-			if err := c.containerProxy.WaitTask(op, id, name, eid); err != nil {
+			if err := c.containerProxy.WaitTask(taskCtx, id, name, eid); err != nil {
 				op.Errorf("Task wait returned %s, canceling the context", err)
 
 				// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly
@@ -432,6 +434,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 			op.Debugf("Detached mode. Returning early.")
 			return nil
 		}
+
 		EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
 		ca := &backend.ContainerAttachConfig{
 			UseStdin:  ec.OpenStdin,
