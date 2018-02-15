@@ -25,8 +25,6 @@ Image Store Delete - Image store not found
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-    Set Test VCH Name
-    ${output}=  Run  rm -rf %{VCH-NAME}
 
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --image-store=%{TEST_DATASTORE}/images --password=%{TEST_PASSWORD} --force --kv
