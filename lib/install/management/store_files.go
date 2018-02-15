@@ -158,23 +158,26 @@ func (d *Dispatcher) isVSAN(ds *object.Datastore) bool {
 func (d *Dispatcher) deleteFilesIteratively(m *object.DatastoreFileManager, ds *object.Datastore, dsPath string) error {
 	defer trace.End(trace.Begin(dsPath, d.op))
 
-	// Get sorted result to make sure children files listed ahead of folder. Then we can empty folder before delete it
-	// This function specifically designed for vSan, as vSan sometimes will throw error to delete folder is the folder is not empty
-	res, err := d.getSortedChildren(ds, dsPath)
-	if err != nil {
-		if !types.IsFileNotFound(err) {
-			err = errors.Errorf("Failed to browse sub folders %q: %s", dsPath, err)
-			return err
+	if d.isVSAN(ds) {
+		// Get sorted result to make sure child files are listed ahead of their parent folder so we empty the folder before deleting it.
+		// This behaviour is specifically for vSan, as vSan sometimes throws an error when deleting a folder that is not empty.
+		res, err := d.getSortedChildren(ds, dsPath)
+		if err != nil {
+			if !types.IsFileNotFound(err) {
+				err = errors.Errorf("Failed to browse sub folders %q: %s", dsPath, err)
+				return err
+			}
+			d.op.Debugf("Folder %q is not found", dsPath)
+			return nil
 		}
-		d.op.Debugf("Folder %q is not found", dsPath)
-		return nil
+
+		for _, path := range res {
+			if err = d.deleteVMFSFiles(m, ds, path); err != nil {
+				return err
+			}
+		}
 	}
 
-	for _, path := range res {
-		if err = d.deleteVMFSFiles(m, ds, path); err != nil {
-			return err
-		}
-	}
 	return d.deleteVMFSFiles(m, ds, dsPath)
 }
 
