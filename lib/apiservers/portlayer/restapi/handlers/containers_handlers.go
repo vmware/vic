@@ -166,8 +166,12 @@ func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.Stat
 	return containers.NewStateChangeOK().WithPayload(h.String())
 }
 
+// GetStateHandler returns the state AS HELD IN THE HANDLE. This state is not updated and should not be assumed
+// to represent actual state at the time of call. This method is provided so that a single consistent view of
+// state data can be used for making decisions. The handle used contains a changeVersion that will protect against
+// underlying state changes if attempting to apply modifications.
 func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStateParams) middleware.Responder {
-	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", params.Handle)))
+	op := trace.NewOperation(context.Background(), "get state from handle: %s", params.Handle)
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil || h.ExecConfig == nil {
@@ -175,12 +179,16 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 	}
 
 	var state string
-	switch h.Runtime.PowerState {
-	case types.VirtualMachinePowerStatePoweredOn:
+	switch h.State(op) {
+	case exec.StateRunning:
 		state = "RUNNING"
 
-	case types.VirtualMachinePowerStatePoweredOff:
+	case exec.StateStopped:
 		state = "STOPPED"
+
+	case exec.StateCreated:
+		state = "CREATED"
+
 	default:
 		// This will occur if the container is suspended... Those are the only types covered in the runtime types right now.
 		return containers.NewGetStateDefault(http.StatusServiceUnavailable)
