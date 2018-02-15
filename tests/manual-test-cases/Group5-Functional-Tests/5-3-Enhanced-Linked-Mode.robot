@@ -62,7 +62,7 @@ Enhanced Link Mode Setup
     ${esx6-ip}=  Get From List  ${esx-ips}  2
 
     # Finish test bed deploy
-    ${output}=  Wait For Process  ${pid}  timeout=40 minutes  on_timeout=terminate
+    ${output}=  Wait For Process  ${pid}  timeout=70 minutes  on_timeout=terminate
     Log  ${output.stdout}
     Log  ${output.stderr}
     Should Be Equal As Integers  ${output.rc}  0
