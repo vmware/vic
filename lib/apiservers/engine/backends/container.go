@@ -234,7 +234,7 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 		// NOTE: we should investigate what we can add or manipulate in the handle in the portlayer to make this check even more granular. Maybe Add the actually State into the handle config or part of the container info could be "snapshotted"
 		// This check is now done off of the handle.
 		if state != "RUNNING" {
-			return ConflictError(fmt.Sprintf("Container (%s) is not powered on, please start the container before attempting to an exec an operation", name))
+			return ConflictError(fmt.Sprintf("Container (%s) is not powered on", name))
 		}
 
 		handle, eid, err = c.containerProxy.CreateExecTask(handle, config)

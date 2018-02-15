@@ -341,7 +341,7 @@ func (c *ContainerProxy) InspectTask(op trace.Operation, handle string, eid stri
 		case *tasks.InspectNotFound:
 			// These error types may need to be expanded. NotFoundError does not fit here.
 			op.Errorf("received a TaskNotFound error during task inspect: %s", err.Payload.Message)
-			return nil, ConflictError(fmt.Sprintf("container (%s) has been poweredoff", cid))
+			return nil, NotFoundError(fmt.Sprintf("container (%s) has been poweredoff", cid))
 		case *tasks.InspectInternalServerError:
 			op.Errorf("received an internal server error during task inspect: %s", err.Payload.Message)
 			return nil, InternalServerError(err.Payload.Message)

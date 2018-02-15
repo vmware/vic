@@ -48,7 +48,7 @@ None
 # Exec Power Off test for short Running Process
 ## Test Steps
 1. Pull an image that contains `sleep`. Busybox suffices here.
-2. Create a container running `sleep` to simulate a long running process.
+2. Create a container running `sleep` to simulate a short running process.
 3. Run the container and detach from it.
 4. Start 20 simple exec operations in parallel against the detached container.
 5. Wait(`docker wait`) for the container to exit just in case it has not(20 execs should be ample stress).

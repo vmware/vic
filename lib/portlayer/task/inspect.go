@@ -36,10 +36,6 @@ func Inspect(op *trace.Operation, h interface{}, id string) (*executor.SessionCo
 
 	op.Debugf("target task ID: %s", id)
 	op.Debugf("session tasks during inspect: %s", stasks)
-
-	// print all of them, otherwise we will have to assemble the id list regardless of
-	// the log level at the moment. If there is a way to check the log level we should
-	// do that.
 	op.Debugf("exec tasks during inspect: %s", etasks)
 
 	if _, ok := stasks[id]; ok {
