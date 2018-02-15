@@ -48,6 +48,7 @@ Install Harbor To Test Server
 
     Log To Console  \nDeploying ova...
     ${out}=  Secret Install Harbor To Test Server  ${name}  ${protocol}  ${verify}  ${host}  ${datastore}  ${network}
+    Log  ${out}
     Should Contain  ${out}  Received IP address:
     Should Not Contain  ${out}  None
 
