@@ -26,9 +26,14 @@ ${harbor_cert}  getcert
 ${ova_harbor_admin_password}  harbor-admin-passwd
 
 *** Keywords ***
-Install Harbor To Test Server
+Secret Install Harbor To Test Server
     [Tags]  secret
-    [Arguments]  ${name}=harbor  ${protocol}=http  ${verify}=off  ${db_password}=%{TEST_PASSWORD}  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}  ${host}=%{TEST_URL_ARRAY}  ${datastore}=%{TEST_DATASTORE}  ${network}=VM Network
+    [Arguments]  ${name}  ${protocol}  ${verify}  ${host}  ${datastore}  ${network}
+    ${out}=  Run  ovftool --noSSLVerify --acceptAllEulas --datastore=${datastore} --name=${name} --net:"Network 1"='${network}' --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --prop:root_pwd=%{TEST_PASSWORD} --prop:harbor_admin_password=%{TEST_PASSWORD} --prop:db_password=%{TEST_PASSWORD} --prop:auth_mode=db_auth --prop:verify_remote_cert=${verify} --prop:protocol=${protocol} ${HARBOR_VERSION}.ova 'vi://%{TEST_USERNAME}:%{TEST_PASSWORD}@${host}'
+    [Return]  ${out}
+
+Install Harbor To Test Server
+    [Arguments]  ${name}=harbor  ${protocol}=http  ${verify}=off  ${host}=%{TEST_URL_ARRAY}  ${datastore}=%{TEST_DATASTORE}  ${network}=VM Network
     Log To Console  \nFetching harbor ova...
     ${status}  ${message}=  Run Keyword And Ignore Error  OperatingSystem.File Should Exist  ${HARBOR_VERSION}.ova
     ${out}=  Run Keyword If  '${status}' == 'FAIL'  Run  wget https://github.com/vmware/harbor/releases/download/${HARBOR_SHORT_VERSION}/${HARBOR_VERSION}.ova
@@ -42,7 +47,7 @@ Install Harbor To Test Server
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Suite Variable  ${host}  @{URLs}[${IDX}]%{TEST_DATACENTER}/host/%{TEST_RESOURCE}
 
     Log To Console  \nDeploying ova...
-    ${out}=  Run  ovftool --noSSLVerify --acceptAllEulas --datastore=${datastore} --name=${name} --net:"Network 1"='${network}' --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --prop:root_pwd=${password} --prop:harbor_admin_password=${password} --prop:db_password=${db_password} --prop:auth_mode=db_auth --prop:verify_remote_cert=${verify} --prop:protocol=${protocol} ${HARBOR_VERSION}.ova 'vi://${user}:${password}@${host}'
+    ${out}=  Secret Install Harbor To Test Server  ${name}  ${protocol}  ${verify}  ${host}  ${datastore}  ${network}
     Should Contain  ${out}  Received IP address:
     Should Not Contain  ${out}  None
 
