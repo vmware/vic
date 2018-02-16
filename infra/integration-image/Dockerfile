@@ -16,6 +16,7 @@ RUN sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable 
 RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
     apt-get update && apt-get install -y --no-install-recommends \
     jq \
+    bc \
     time \
     gcc \
     python-dev \
@@ -57,7 +58,7 @@ RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
 
 RUN wget https://bootstrap.pypa.io/get-pip.py && \
     python ./get-pip.py  && \
-    pip install pyasn1 google-apitools==0.5.15 gsutil robotframework robotframework-sshlibrary robotframework-httplibrary requests dbbot robotframework-selenium2library --upgrade
+    pip install pyasn1 google-apitools==0.5.15 gsutil robotframework robotframework-sshlibrary robotframework-httplibrary requests dbbot robotframework-selenium2library robotframework-pabot --upgrade
 
 # Install docker, docker clients 1.11,1.12 and 1.13
 # Also install docker compose 1.13

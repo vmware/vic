@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -22,13 +23,12 @@ import (
 	"strconv"
 	"testing"
 
-	"context"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -192,7 +192,9 @@ func TestListImages(t *testing.T) {
 
 	// Create a set of images
 	images := make(map[string]*Image)
-	parent := Scratch
+	parent := Image{
+		ID: constants.ScratchLayerID,
+	}
 	parent.Store = storeURL
 	testSum := "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 	for i := 1; i < 50; i++ {
@@ -261,7 +263,9 @@ func TestOutsideCacheWriteImage(t *testing.T) {
 
 	// Create a set of images
 	images := make(map[string]*Image)
-	parent := Scratch
+	parent := Image{
+		ID: constants.ScratchLayerID,
+	}
 	parent.Store = storeURL
 	for i := 1; i < 50; i++ {
 		id := fmt.Sprintf("ID-%d", i)
@@ -321,7 +325,7 @@ func TestImageStoreRestart(t *testing.T) {
 	// Create a set of images
 	expectedImages := make(map[string]*Image)
 
-	parent, err := firstCache.GetImage(op, storeURL, Scratch.ID)
+	parent, err := firstCache.GetImage(op, storeURL, constants.ScratchLayerID)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -388,7 +392,7 @@ func TestDeleteImage(t *testing.T) {
 		return
 	}
 
-	scratch, err := imageCache.GetImage(op, storeURL, Scratch.ID)
+	scratch, err := imageCache.GetImage(op, storeURL, constants.ScratchLayerID)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -476,7 +480,7 @@ func TestDeleteBranch(t *testing.T) {
 		return
 	}
 
-	scratch, err := imageCache.GetImage(op, storeURL, Scratch.ID)
+	scratch, err := imageCache.GetImage(op, storeURL, constants.ScratchLayerID)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -649,14 +653,14 @@ func TestPopulateCacheInExpectedOrder(t *testing.T) {
 	url2, _ := url.Parse(storageURLStr + "/id2")
 	url3, _ := url.Parse(storageURLStr + "/id3")
 	url4, _ := url.Parse(storageURLStr + "/id4")
-	scratchURL, _ := url.Parse(storageURLStr + Scratch.ID)
+	scratchURL, _ := url.Parse(storageURLStr + constants.ScratchLayerID)
 
 	img1 := &Image{ID: "id1", SelfLink: url1, ParentLink: scratchURL, Store: storeURL}
 	img2 := &Image{ID: "id2", SelfLink: url2, ParentLink: url1, Store: storeURL}
 	img3 := &Image{ID: "id3", SelfLink: url3, ParentLink: url2, Store: storeURL}
 	img4 := &Image{ID: "id4", SelfLink: url4, ParentLink: url3, Store: storeURL}
 	scratchImg := &Image{
-		ID:         Scratch.ID,
+		ID:         constants.ScratchLayerID,
 		SelfLink:   scratchURL,
 		ParentLink: scratchURL,
 		Store:      storeURL,

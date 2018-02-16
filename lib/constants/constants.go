@@ -72,6 +72,9 @@ const (
 
 	// All volumes are stored in this directory.
 	VolumesDir = "volumes"
+
+	// Scratch layer ID
+	ScratchLayerID = "scratch"
 )
 
 func DefaultAltVCHGuestName() string {

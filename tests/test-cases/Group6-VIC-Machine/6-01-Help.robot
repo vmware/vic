@@ -18,6 +18,10 @@ Resource  ../../resources/Util.robot
 Test Timeout  20 minutes
 
 *** Test Cases ***
+Inspect help basic
+    ${ret}=  Run  bin/vic-machine-linux inspect -h
+    Should Contain  ${ret}  vic-machine-linux inspect - Inspect VCH
+
 Delete help basic
     ${ret}=  Run  bin/vic-machine-linux delete -h
     Should Contain  ${ret}  vic-machine-linux delete - Delete VCH

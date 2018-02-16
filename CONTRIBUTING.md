@@ -2,12 +2,14 @@
 
 ## Community
 
-Contributors and users are encouraged to collaborate using the following resources in addition to the GitHub issue
-tracker:
+In addition to using the GitHub issue tracker, contributors and users are encouraged to collaborate using the following
+resources:
 
-- [Slack](https://vmwarecode.slack.com/messages/vic-engine): This is the primary community channel. If you don't have an @vmware.com or @emc.com email, please sign up at https://code.vmware.com/slack to get a Slack invite.
+- [Slack](https://vmwarecode.slack.com/messages/vic-engine): This is the primary community channel. **If you don't have
+an @vmware.com or @emc.com email, please sign up at https://code.vmware.com/join to get a Slack invite.**
 
-- [Gitter](https://gitter.im/vmware/vic): Gitter is monitored but go to Slack if you need a response quickly.
+- [Gitter](https://gitter.im/vmware/vic): Gitter is monitored, but please use the Slack channel if you need a response
+quickly.
 
 ## Getting started
 
@@ -51,7 +53,7 @@ git push $USER my-new-feature
 
 ### Stay in sync with upstream
 
-When your branch gets out of sync with the vmware/master branch, use the following to update:
+When your branch gets out of sync with the vmware/master branch, use the following to update it:
 
 ``` shell
 git checkout my-new-feature
@@ -88,7 +90,7 @@ notification when you git push.
 
 ### Code style
 
-The coding style suggested by the Golang community is used in VIC. See the
+VIC Engine uses the coding style suggested by the Golang community. See the
 [style doc](https://github.com/golang/go/wiki/CodeReviewComments) for details.
 
 Try to limit column width to 120 characters for both code and markdown documents such as this one.
@@ -98,10 +100,11 @@ Try to limit column width to 120 characters for both code and markdown documents
 We follow the conventions on [How to Write a Git Commit Message](http://chris.beams.io/posts/git-commit/).
 
 Be sure to include any related GitHub issue references in the commit message. See
-[GFM syntax](https://guides.github.com/features/mastering-markdown/#GitHub-flavored-markdown) for referencing issues
-and commits.
+[GFM syntax](https://guides.github.com/features/mastering-markdown/#GitHub-flavored-markdown) for referencing issues and
+commits.
 
-To help write conforming commit messages, it is recommended to set up the [git-good-commit][commithook] commit hook. Run this command in the VIC repo's root directory:
+To help write conforming commit messages, we recommend setting up the [git-good-commit][commithook] commit hook. Run this
+command in the VIC repo's root directory:
 
 ```shell
 curl https://cdn.rawgit.com/tommarshall/git-good-commit/v0.6.1/hook.sh > .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
@@ -116,17 +119,17 @@ curl https://cdn.rawgit.com/tommarshall/git-good-commit/v0.6.1/hook.sh > .git/ho
 
 Automated testing uses [Drone][dronesrc].
 
-PRs must pass unit tests and integration tests before being merged into `master`.
+Pull requests must pass unit tests and integration tests before being merged into the master branch. A standard PR builds
+the project and runs unit and regression tests. To customize the integration test suite that runs in your pull request,
+you can use three keywords in your PR title or commit message:
 
-There are three keywords to trigger custom CI builds:
-- To skip running tests (e.g. for a work-in-progress PR), add `[ci skip]` or `[skip ci]`
-to the commit message or the PR title.
+- To skip running tests (e.g. for a work-in-progress PR), use `[ci skip]` or `[skip ci]`.
 - To run the full test suite, use `[full ci]`.
-- To run _one_ integration test or group, use `[specific ci=$test]`. Examples:
+- To run _one_ integration test or group, use `[specific ci=$test]`. This will run the regression test as well. Examples:
   - To run the `1-01-Docker-Info` suite: `[specific ci=1-01-Docker-Info]`
   - To run all suites under the `Group1-Docker-Commands` group: `[specific ci=Group1-Docker-Commands]`
 
-You can run the tests locally before making a PR or view the Drone build results for [unit tests and integration tests][dronevic]
+You can run the tests locally before making a PR or view the Drone build results for [unit tests and integration tests][dronevic].
 
 If you don't have a running ESX required for tests, you can leverage the automated Drone servers for
 running tests. Add `WIP` (work in progress) to the PR title to alert reviewers that the PR is not ready to be merged.
@@ -159,7 +162,6 @@ drone exec --repo.trusted
 
 Integration tests require a running ESX on which to deploy VIC Engine. See [VIC Integration & Functional Test Suite](tests/README.md).
 
-
 ## Reporting Bugs and Creating Issues
 
 When opening a new issue, try to roughly follow the commit message format conventions above.
@@ -173,89 +175,91 @@ Our task board practices are as follows:
 ### New Issues
 
 The New Issues are triaged by the team at least once a week.  We try to keep issues from staying in this pipeline for
-too long.  After triaging and issue, it will likely be moved to the backlog or stay under New Issues for deferred
+too long.  After triaging and issue, it will likely be moved to the backlog or stay under [Not Ready](#not-ready) for deferred
 discussion.
 
-For VIC engineers, you should set the priority based on the below guidelines.  Everyone else, do not set the priority of a new issue.
+For VIC engineers, you should set the priority based on the below guidelines. Everyone else, do not set the priority of a new issue.
 
 #### Priorities
-Indicate the VMware business priority of the bug. Priority drives *when* a bug will be fixed. This field is optional for filers but must be filled out by bug owner.
 
-priority/p0 - Bugs that NEED to be fixed immediately as they either block meaningful testing or are release stoppers for the current release.
+| Priority | Bugs | Features | Non Bugs |
+| -------- | ---- | -------- | -------- |
+| priority/p0 | Bugs that NEED to be fixed immediately as they either block meaningful testing or are release stoppers for the current release. | No Feature should be p0. | An issue that is not a bug and is blocking meaningful testing. eg. builds are failing because the syslog server is out of space. |
+| priority/p1 | Bugs that NEED to be fixed by the assigned phase of the current release. | A feature that is required for the next release, typically an anchor feature; a large feature that is the focus for the release and drives the release date. | An issue that must be fixed for the next release. eg. Track build success rates. |
+| priority/p2 | Bugs that SHOULD be fixed by the assigned phase of the current release, time permitting. | A feature that is desired for the next release, typically a pebble; a feature that has been approved for inclusion but is not considered the anchor feature or is considered good to have for the anchor feature. | An issue that we should fix in the next release. eg. A typo in the UI. |
+| priority/p3 | Bugs that SHOULD be fixed by a given release, time permitting. | A feature that can be fixed in the next release. eg. Migrate to a new kernel version. Or a feature that is nice to have for a pebble. | An issue that can be fixed in the next release. eg. Low hanging productivity improvements. |
+| priority/p4 | Bugs that SHOULD be fixed in a future (to be determined) release. | An issue or feature that will be fixed in a future release. | An issue or feature that will be fixed in a future release. |
 
-priority/p1 - Bugs that NEED to be fixed by the assigned phase of the current release.
+### Not Ready
 
-priority/p2 - Bugs that SHOULD be fixed by the assigned phase of the current release, time permitting.
-
-priority/p3 - Bugs that SHOULD be fixed by a given release, time permitting.
-
-priority/p4 - Bugs that SHOULD be fixed in a future (to be determined) release.
+The Not Ready column is for issues that need more discussion, details and/or triaging before being put in the [Backlog](#backlog). Issues in Not Ready should have assignee(s) to track whose input is needed to put the issue in the Backlog. For issues reported by VIC engineers: if the issue's details aren't fleshed out, the reporter should set themselves as the assignee.
 
 ### Backlog
 
-Issues in Backlog are not a current focus. For example, they may be feature requests or ideas for a future version of
-your project.
-
-When moving issues to the Backlog, add more information (like requirements and outlines) into each issue. It’s useful to
+Issues in Backlog should be ready to be worked on in future sprints. For example, they may be feature requests or ideas for a future version of
+the project. When moving issues to the Backlog, add more information (like requirements and outlines) into each issue. It's useful to
 get ideas out of your head, even if you will not be touching them for a while.
+
+To move an issue into the Backlog swim lane, it must have:
+
+1. a `priority/...` label
+2. a `team/...` label
+3. an estimated level of effort (see [Story point estimates](#story-point-estimates) for guidance for mapping effort to story points)
+4. no assignee (assignees are set when the issue is selected to work on)
+
+Other labels should be added as needed.
 
 Prioritize issues by dragging and dropping their placement in the pipeline. Issues higher in the pipeline are higher
 priority; accordingly, they should contain all the information necessary to get started when the time
-comes.  Low-priority issues should still contain at least a short description.
+comes. Low-priority issues should still contain at least a short description.
 
 ### To Do
 
-This is the team’s current focus and issues should be well-defined.  This pipeline should contain the high-priority
-items for the current milestone.  These issues must have an assignee, milestone, estimate and tags.  Items are moved
+This is the team's current focus and the issues should be well-defined. This pipeline should contain the high-priority
+items for the current milestone. These issues must have an assignee, milestone, estimate and tags. Items are moved
 from this pipeline to In Progress when work has been started.
+
+To move an issue into the To Do swim lane, the assignee and milestone fields should be set.
 
 ### In Progress
 
-This is the answer to, "What are you working on right now? Ideally, this pipeline will not contain more issues than
+This is the answer to, "What are you working on right now?" Ideally, this pipeline will not contain more issues than
 members of the team; each team member should be working on one thing at a time.
 
-This pipeline is a good candidate for WIP (work-in-progress) limits. WIP limits help ensure your work flows smoothly,
-and help bring to light any blockers or bottlenecks. Adjust WIP limits according to the size of your team.
+Issues in the In Progress swim lane must have an assignee.
 
-To move an issue into the In Progress swim lane several steps must be taken.
+After an issue is In Progress, it is best practice to update the issue with current progress and any discussions that may occur via the various collaboration tools used. An issue that is in progress should not go more than 2 days without updates.
 
-1. Assign yourself as the owner.
-2. Ensure the milestone is set (if there is one) and also review the labels to ensure they accurately reflect the issue.
-3. Assign an estimated level of effort. See the below table for guidance for effort mapping.
-
-After an issue is In Progress it is the best practice to update the issue with current progress and any discussions that may occur via the various collaboration tools used. An issue that is in progress should not go more than 2 days without updates.
-
-Story Points | Story Size
------------- | -------------------------------------------------------
-1            | Less than 1 day of effort
-2            | 2 - 3 days of effort
-3            | 3 - 5 days of effort
-5            | 5 - 10 days of effort, consider splitting this if it's 7 - 10 days
-8            | > 10 days, anything of this size should be split before moving into In Progress
-
-Note: Epics should never be In Progress
+Note: Epics should never be In Progress.
 
 ### Verify
 
-A "Verify" issue normally means the feature or fix is in code review and/or awaiting further testing.  These issues require one final QE sign off or at the end of a sprint another dev that didn't work on the issue can verify the issue.
+A "Verify" issue normally means the feature or fix is in code review and/or awaiting further testing. These issues require one final QE sign off or at the end of a sprint another dev that didn't work on the issue can verify the issue.
 
 In most cases, an issue should be in Verify _before_ the corresponding PR is merged. The developer can then close the issue while merging the PR.
 
 ### Closed
 
-This pipeline includes all closed issues, it can be filtered like the rest of the Board – by Label, Assignee or
-Milestone.
+This pipeline includes all closed issues. It can be filtered like the rest of the Board – by Label, Assignee or Milestone.
 
-This pipeline is also interactive: dragging issues into this pipeline will close them, while dragging them out will
-re-open them.
+This pipeline is also interactive: dragging issues into this pipeline will close them, while dragging them out will re-open them.
+
+## Story point estimates
+
+* Use the fibonacci pattern
+* All bugs are a 2 unless we know it is significantly more or less work than the average bug
+* 1 is easier than the average bug
+* 3 is slightly more work than the average bug and probably should be about an average feature work for an easy feature (which includes design doc, implementation, testing, review)
+* 5 is about 2x more work than the average bug and the highest single issue value we want
+* Issues with an estimate higher than 5 should be decomposed further
+* Unless otherwise necessary, estimates for EPICs are the sum of their sub-issues' estimates - EPICs aren't assigned an estimate themselves
 
 ## High level project planning
 
-We use the following structure for higher level project management
+We use the following structure for higher level project management:
 * Epic (zenhub) - implements a functional change - for example 'attach, stdout only', may span milestones and releases. Expected to be broken down from larger Epics into smaller epics prior to commencement.
 * Milestones - essentially higher level user stories
 * Labels - either by functional area (`component/...`) or feature (`feature/...`)
-
 
 ## Repository structure
 
@@ -271,5 +275,5 @@ The layout in the repo is as follows - this is a recent reorganisation so there 
 
 ## Troubleshooting
 
-* If you're building the project in a VM, ensure that it has at least 4GB memory to avoid issues while running the build.
+* If you're building the project in a VM, ensure that it has at least 4GB memory to avoid memory issues during a build.
 
