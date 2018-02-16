@@ -133,10 +133,10 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 
 	d.op.Debug("Appliance is found")
 	if ok, verr := d.isVCH(vm); !ok {
-		verr = errors.Errorf("Found virtual machine %q, but it is not a VCH. Please choose a different virtual app.", conf.Name)
+		verr = errors.Errorf("Found virtual machine %q, but it is not a VCH. Please choose a different name.", conf.Name)
 		return verr
 	}
-	err = errors.Errorf("Virtual app %q already exists. Please delete it before reinstalling.", conf.Name)
+	err = errors.Errorf("VCH %q already exists. Please delete it before reinstalling.", conf.Name)
 	return err
 }
 
@@ -1063,18 +1063,20 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 
 // ensureApplianceInitializes checks if the appliance component processes are launched correctly
 func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHostConfigSpec) error {
-	defer trace.End(trace.Begin(""))
+	// Get a new opid
+	op := trace.NewOperation(d.op.Context, "")
+	defer trace.End(trace.Begin("", op))
 
 	if d.appliance == nil {
 		return errors.New("cannot validate appliance due to missing VM reference")
 	}
 
-	d.op.Info("Waiting for IP information")
+	op.Info("Waiting for IP information")
 	d.waitForKey(extraconfig.CalculateKeys(conf, "ExecutorConfig.Networks.client.Assigned.IP", "")[0])
-	ctxerr := d.op.Err()
+	ctxerr := op.Err()
 
 	if ctxerr == nil {
-		d.op.Info("Waiting for major appliance components to launch")
+		op.Info("Waiting for major appliance components to launch")
 		for _, k := range extraconfig.CalculateKeys(conf, "ExecutorConfig.Sessions.*.Started", "") {
 			d.waitForKey(k)
 		}
@@ -1085,45 +1087,45 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	updateErr := d.applianceConfiguration(conf)
 
 	// confirm components launched correctly
-	d.op.Debug("  State of components:")
+	op.Debug("  State of components:")
 	for name, session := range conf.ExecutorConfig.Sessions {
 		status := "waiting to launch"
 		if session.Started == "true" {
 			status = "started successfully"
 		} else if session.Started != "" {
 			status = session.Started
-			d.op.Errorf("  Component did not launch successfully - %s: %s", name, status)
+			op.Errorf("  Component did not launch successfully - %s: %s", name, status)
 		}
 
-		d.op.Debugf("    %q: %q", name, status)
+		op.Debugf("    %q: %q", name, status)
 	}
 
 	// TODO: we should call to the general vic-machine inspect implementation here for more detail
 	// but instead...
 	if !ip.IsUnspecifiedIP(conf.ExecutorConfig.Networks["client"].Assigned.IP) {
 		d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.IP.String()
-		d.op.Infof("Obtained IP address for client interface: %q", d.HostIP)
+		op.Infof("Obtained IP address for client interface: %q", d.HostIP)
 		return nil
 	}
 
 	// it's possible we timed out... get updated info having adjusted context to allow it
 	// keeping it short
-	ctxerr = d.op.Err()
+	ctxerr = op.Err()
 
-	baseOp := trace.NewOperationWithLoggerFrom(context.Background(), d.op, "ensureApplianceInitializes")
-	op, cancel := trace.WithTimeout(&baseOp, 10*time.Second, "ensureApplianceInitializes timeout")
+	baseOp := trace.NewOperationWithLoggerFrom(context.Background(), op, "ensureApplianceInitializes")
+	toop, cancel := trace.WithTimeout(&baseOp, 10*time.Second, "ensureApplianceInitializes timeout")
 	defer cancel()
-	d.op = op
+	op = toop
 	err := d.applianceConfiguration(conf)
 	if err != nil {
 		return fmt.Errorf("unable to retrieve updated configuration from appliance for diagnostics: %s", err)
 	}
 
 	if ctxerr == context.DeadlineExceeded {
-		d.op.Info("")
-		d.op.Error("Failed to obtain IP address for client interface")
-		d.op.Info("Use vic-machine inspect to see if VCH has received an IP address at a later time")
-		d.op.Info("  State of all interfaces:")
+		op.Info("")
+		op.Error("Failed to obtain IP address for client interface")
+		op.Info("Use vic-machine inspect to see if VCH has received an IP address at a later time")
+		op.Info("  State of all interfaces:")
 
 		// if we timed out, then report status - if cancelled this doesn't need reporting
 		for name, net := range conf.ExecutorConfig.Networks {
@@ -1131,11 +1133,11 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 			if ip.IsUnspecifiedIP(net.Assigned.IP) {
 				addr = "waiting for IP"
 			}
-			d.op.Infof("    %q IP: %q", name, addr)
+			op.Infof("    %q IP: %q", name, addr)
 		}
 
 		// if we timed out, then report status - if cancelled this doesn't need reporting
-		d.op.Info("  State of components:")
+		op.Info("  State of components:")
 		for name, session := range conf.ExecutorConfig.Sessions {
 			status := "waiting to launch"
 			if session.Started == "true" {
@@ -1143,7 +1145,7 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 			} else if session.Started != "" {
 				status = session.Started
 			}
-			d.op.Infof("    %q: %q", name, status)
+			op.Infof("    %q: %q", name, status)
 		}
 
 		return errors.New("Failed to obtain IP address for client interface (timed out)")
