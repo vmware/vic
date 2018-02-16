@@ -182,13 +182,14 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 	switch h.State(op) {
 	case exec.StateRunning:
 		state = "RUNNING"
-
 	case exec.StateStopped:
 		state = "STOPPED"
-
 	case exec.StateCreated:
 		state = "CREATED"
-
+	case exec.StateStarting:
+		state = "STARTING"
+	case exec.StateSuspended:
+		state = "SUSPENDED"
 	default:
 		// This will occur if the container is suspended... Those are the only types covered in the runtime types right now.
 		return containers.NewGetStateDefault(http.StatusServiceUnavailable)
