@@ -284,12 +284,13 @@ func (c *Create) Flags() []cli.Flag {
 	cNetwork := c.containerNetworks.CNetworkFlags()
 	dns := c.Nameservers.DNSFlags()
 	proxies := c.Proxies.ProxyFlags()
+	kubelet := c.Kubelet.Flags()
 	debug := c.DebugFlags(true)
 	help := c.help.HelpFlags()
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, compute, ops, create, affinity, container, volume, dns, networks, cNetwork, memory, cpu, tls, registries, proxies, syslog, iso, util, debug, help} {
+	for _, f := range [][]cli.Flag{target, compute, ops, create, affinity, container, volume, dns, networks, cNetwork, memory, cpu, tls, registries, proxies, syslog, iso, util, kubelet, debug, help} {
 		flags = append(flags, f...)
 	}
 
@@ -318,6 +319,10 @@ func (c *Create) ProcessParams(op trace.Operation) error {
 
 	// Pass admin credentials for use as ops credentials if ops credentials are not supplied.
 	if err := c.OpsCredentials.ProcessOpsCredentials(op, true, c.Target.User, c.Target.Password); err != nil {
+		return err
+	}
+
+	if err := c.Kubelet.ProcessKubelet(op, true); err != nil {
 		return err
 	}
 

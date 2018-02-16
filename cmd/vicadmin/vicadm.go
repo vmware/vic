@@ -76,6 +76,8 @@ var (
 		"port-layer.log",
 		"vicadmin.log",
 		"init.log",
+		"kubelet-starter.log",
+		"virtual-kubelet.log",
 	}
 
 	// VMFiles is the set of files to collect per VM associated with the VCH

@@ -38,6 +38,12 @@ GOVC ?= $(GOPATH)/bin/govc$(BIN_ARCH)
 GAS ?= $(GOPATH)/bin/gas$(BIN_ARCH)
 MISSPELL ?= $(GOPATH)/bin/misspell$(BIN_ARCH)
 
+ifeq ($(VIRTUAL_KUBELET_PATH),)
+	VIRTUAL_KUBELET := virtual-kubelet
+else
+	VIRTUAL_KUBELET := $(VIRTUAL_KUBELET_PATH)
+endif
+
 .PHONY: all tools clean test check distro \
 	goversion goimports gopath govet gofmt misspell gas golint \
 	isos tethers apiservers copyright
@@ -75,7 +81,11 @@ define godeps
 endef
 endif
 
-LDFLAGS := $(shell BUILD_NUMBER=${BUILD_NUMBER} $(BASE_DIR)/infra/scripts/version-linker-flags.sh)
+ifeq ($(VIC_DEBUG_BUILD),)
+	LDFLAGS := $(shell BUILD_NUMBER=${BUILD_NUMBER} $(BASE_DIR)/infra/scripts/version-linker-flags.sh)
+else
+	LDFLAGS := $(shell BUILD_NUMBER=${BUILD_NUMBER} $(BASE_DIR)/infra/scripts/version-debug-linker-flags.sh)
+endif
 
 # target aliases - environment variable definition
 docker-engine-api := $(BIN)/docker-engine-server
@@ -99,6 +109,7 @@ vic-ui-windows := $(BIN)/vic-ui-windows.exe
 vic-ui-darwin := $(BIN)/vic-ui-darwin
 vic-init := $(BIN)/vic-init
 vic-init-test := $(BIN)/vic-init-test
+kubelet-starter := $(BIN)/kubelet-starter
 # NOT BUILT WITH make all TARGET
 # vic-dns variants to create standalone DNS service.
 vic-dns-linux := $(BIN)/vic-dns-linux
@@ -110,6 +121,7 @@ gandalf := $(BIN)/gandalf
 tether-linux := $(BIN)/tether-linux
 
 appliance := $(BIN)/appliance.iso
+appliance-vkubelet := $(BIN)/appliance-vkubelet.iso
 appliance-staging := $(BIN)/.appliance-staging.tgz
 bootstrap := $(BIN)/bootstrap.iso
 bootstrap-staging := $(BIN)/.bootstrap-staging.tgz
@@ -133,11 +145,13 @@ vicadmin: $(vicadmin)
 rpctool: $(rpctool)
 vic-init: $(vic-init)
 vic-init-test: $(vic-init-test)
+kubelet-starter: $(kubelet-starter)
 
 tether-linux: $(tether-linux)
 
 appliance: $(appliance)
 appliance-staging: $(appliance-staging)
+appliance-vkubelet: $(appliance-vkubelet) 
 bootstrap: $(bootstrap)
 bootstrap-staging: $(bootstrap-staging)
 bootstrap-debug: $(bootstrap-debug)
@@ -165,6 +179,8 @@ isos: $(appliance) $(bootstrap)
 tethers: $(tether-linux)
 
 most: $(portlayerapi) $(docker-engine-api) $(vicadmin) $(tether-linux) $(appliance) $(bootstrap) $(vic-machine-linux) $(serviceapi)
+
+most-vkubelet: $(portlayerapi) $(docker-engine-api) $(vicadmin) $(tether-linux) $(appliance-vkubelet) $(bootstrap) $(vic-machine-linux) $(serviceapi)
 
 # utility targets
 goversion:
@@ -310,6 +326,10 @@ $(vic-init-test): $$(call godeps,cmd/vic-init/*.go)
 	@echo building vic-init-test
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) test -c -coverpkg github.com/vmware/vic/lib/...,github.com/vmware/vic/pkg/... -outputdir /tmp -coverprofile init.cov -o ./$@ ./$(dir $<)
 
+$(kubelet-starter): $$(call godeps,cmd/kubelet-starter/*.go)
+	@echo building kubelet-starter
+	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -tags netgo -installsuffix netgo -o ./$@ ./$(dir $<)
+
 $(tether-linux): $$(call godeps,cmd/tether/*.go)
 	@echo building tether-linux
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '$(LDFLAGS) -extldflags "-static"' -o ./$@ ./$(dir $<)
@@ -420,6 +440,12 @@ $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 $(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging) $(archive)
 	@echo building VCH appliance ISO
 	@$(TIME) $< -p $(appliance-staging) -b $(BIN)
+
+.PHONY: $(appliance-vkubelet)
+# main appliance target + virtual kubelet - depends on all top level component targets
+$(appliance-vkubelet): isos/appliance-virtual-kubelet.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(kubelet-starter) $(portlayerapi) $(docker-engine-api) $(appliance-staging) $(archive)
+	@echo building VCH appliance ISO
+	@$(TIME) $< -p $(appliance-staging) -b $(BIN) -x $(VIRTUAL_KUBELET) -f virtual-kubelet -o $@
 
 # main bootstrap target
 $(bootstrap): isos/bootstrap.sh $(tether-linux) $(bootstrap-staging) isos/bootstrap/*
