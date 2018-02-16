@@ -93,6 +93,23 @@ $testbed = Proc.new do
         ]
       ).wait_for_completion
       Log.info "bridge DPG created"
+
+      Log.info "Add hosts to the DVS"
+      onecluster_pnic_spec = [ VIM::DistributedVirtualSwitchHostMemberPnicSpec({:pnicDevice => 'vmnic1'}) ]
+      dvs_config = VIM::DVSConfigSpec({
+        :configVersion => dvs.config.configVersion,
+        :host => cluster.host.map do |host|
+        {
+          :operation => :add,
+          :host => host,
+          :backing => VIM::DistributedVirtualSwitchHostMemberPnicBacking({
+            :pnicSpec => onecluster_pnic_spec
+          })
+        }
+        end
+      })
+      dvs.ReconfigureDvs_Task(:spec => dvs_config).wait_for_completion
+      Log.info "Hosts added to DVS successfully"
     end
   }
 end
