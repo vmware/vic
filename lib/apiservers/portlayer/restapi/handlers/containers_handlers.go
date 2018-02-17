@@ -178,18 +178,13 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 		return containers.NewGetStateNotFound()
 	}
 
-	var state string
-	switch h.State(op) {
+	state := h.State(op)
+	switch state {
 	case exec.StateRunning:
-		state = "RUNNING"
 	case exec.StateStopped:
-		state = "STOPPED"
 	case exec.StateCreated:
-		state = "CREATED"
 	case exec.StateStarting:
-		state = "STARTING"
 	case exec.StateSuspended:
-		state = "SUSPENDED"
 	default:
 		return containers.NewGetStateDefault(http.StatusServiceUnavailable)
 	}
@@ -197,7 +192,7 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 	return containers.NewGetStateOK().WithPayload(
 		&models.ContainerGetStateResponse{
 			Handle: h.String(),
-			State:  state,
+			State:  state.String(),
 		})
 }
 

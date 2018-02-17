@@ -964,6 +964,7 @@ func (c *ContainerProxy) GetStateFromHandle(op trace.Operation, handle string) (
 			return handle, "", InternalServerError(err.Error())
 		}
 	}
+
 	return resp.Payload.Handle, resp.Payload.State, nil
 }
 

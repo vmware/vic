@@ -114,6 +114,15 @@ const (
 	maxElapsedTime = 2 * time.Minute
 )
 
+// These are the constants used for the portlayer exec states checks returned when obtaining the state of a container handle
+const (
+	RunningState   = "Running"
+	CreatedState   = "Created"
+	SuspendedState = "Suspended"
+	StartingState  = "Starting"
+	StoppedState   = "Stopped"
+)
+
 var (
 	publicIfaceName = "public"
 
@@ -232,16 +241,16 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 		}
 
 		switch state {
-		case "STOPPED":
+		case StoppedState:
 			return InternalServerError(fmt.Sprintf("Container (%s) is not running", name))
-		case "CREATED":
+		case CreatedState:
 			return InternalServerError(fmt.Sprintf("Container (%s) is not running", name))
-		case "SUSPENDED":
+		case SuspendedState:
 			return InternalServerError(fmt.Sprintf("Container (%s) is not running", name))
-		case "STARTING":
+		case StartingState:
 			// This is a transient state, returning conflict error to trigger a retry in the operation.
 			return ConflictError(fmt.Sprintf("container (%s) is still starting", id))
-		case "RUNNING":
+		case RunningState:
 			// NO-OP - this is the state that allows an exec to occur.
 		default:
 			return InternalServerError(fmt.Sprintf("Container (%s) is in an unknown state: %s", id, state))
