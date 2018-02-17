@@ -1219,6 +1219,7 @@ func (t *BaseOperations) LaunchUtility(fn UtilityFn) (<-chan int, error) {
 }
 
 func launchUtility(t *BaseOperations, fn UtilityFn) (<-chan int, error) {
+	log.Debugf("XXX locking utilityPidMutex")
 	t.utilityPidMutex.Lock()
 	defer t.utilityPidMutex.Unlock()
 
@@ -1242,6 +1243,7 @@ func launchUtility(t *BaseOperations, fn UtilityFn) (<-chan int, error) {
 }
 
 func (t *BaseOperations) HandleUtilityExit(pid, exitCode int) bool {
+	log.Errorf("XXX HandleUtilityExit for %d pid with exit code %d", pid, exitCode)
 	return handleUtilityExit(t, pid, exitCode)
 }
 

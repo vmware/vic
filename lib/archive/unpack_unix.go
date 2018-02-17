@@ -131,26 +131,50 @@ func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, r
 	return nil
 }
 
+func OfflineUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string, binPath string) error {
+	d := &DoneChannel{Done: make(chan error)}
+
+	var cmd *exec.Cmd
+	var err error
+	if cmd, err = d.Unpack(op, tarStream, filter, root, binPath); err != nil {
+		return err
+	}
+
+	if err = cmd.Wait(); err != nil {
+		return err
+	}
+
+	if err = <-d.Done; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type DoneChannel struct {
+	Done chan (error)
+}
+
 // Unpack hooks into a binary present in the appliance vm called unpack in order to execute InvokeUnpack inside of a chroot. This method works identically to InvokeUnpack, except that it will not function in areas where the binary is not present at /bin/unpack
-func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string, binPath string) error {
+func (d *DoneChannel) Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string, binPath string) (*exec.Cmd, error) {
 
 	fi, err := os.Stat(root)
 	if err != nil {
 		// the target unpack path does not exist. We should not get here.
 		op.Errorf("tar unpack target does not exist: %s", root)
-		return err
+		return nil, err
 	}
 
 	if !fi.IsDir() {
 		err := fmt.Errorf("unpack root target is not a directory: %s", root)
 		op.Error(err)
-		return err
+		return nil, err
 	}
 
 	encodedFilter, err := EncodeFilterSpec(op, filter)
 	if err != nil {
 		op.Error(err)
-		return err
+		return nil, err
 	}
 
 	// Prepare to launch the binary, which will create a chroot at root and then invoke InvokeUnpack
@@ -164,17 +188,20 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 
 	if err != nil {
 		op.Error(err)
-		return err
+		return cmd, err
 	}
 
 	if stdin == nil {
 		err = errors.New("stdin was nil")
 		op.Error(err)
-		return err
+		return cmd, err
 	}
-	done := make(chan error)
+
+	if d.Done == nil {
+		return nil, errors.New("initialize the Done channel in the receiver before calling Unpack")
+	}
+
 	go func() {
-		defer stdin.Close()
 		if tr, ok := tarStream.(*tar.Reader); ok {
 			tw := tar.NewWriter(stdin)
 			var th *tar.Header
@@ -183,19 +210,20 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 				if err == io.EOF {
 					err = nil // this just signals the end of the stream, so we don't want to pass it out to the parent process, as it doesn't signal a problem
 					tw.Close()
-					break
+					d.Done <- err
+					return
 				}
 				if err != nil {
 					op.Errorf("error reading tar header %s", err)
-					done <- err
-					break
+					d.Done <- err
+					return
 				}
 				op.Debugf("processing tar header: asset(%s), size(%d)", th.Name, th.Size)
 				err = tw.WriteHeader(th)
 				if err != nil {
 					op.Errorf("error writing tar header %s", err)
-					done <- err
-					break
+					d.Done <- err
+					return
 				}
 				switch th.Typeflag {
 				case tar.TypeReg:
@@ -204,37 +232,22 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 					op.Debugf("wrote %d bytes", k)
 					if err != nil {
 						op.Errorf("error writing file body bytes to stdin %s", err)
-						done <- err
-						break
+						d.Done <- err
+						return
 					}
 				}
 			}
-			done <- err
-			return
 		}
 		// if we're passed a stream that doesn't cast to a tar.Reader copy the tarStream to the binary via stdin; the binary will stream it to InvokeUnpack unchanged
+
 		if _, err := io.Copy(stdin, tarStream); err != nil {
 			op.Errorf("Error copying tarStream: %s", err.Error())
 		}
-		done <- err
+		d.Done <- err
 	}()
 
-	out, err := cmd.CombinedOutput()
-	if len(out) == 0 {
-		op.Debug("No output from command")
-	} else {
-		// output should just be trace messages
-		op.Debugf("%s", string(out))
+	if err = cmd.Start(); err != nil {
+		return nil, err
 	}
-
-	if err != nil {
-		stdin.Close()
-		op.Errorf("Command returned error %s", err.Error())
-		return err
-	}
-
-	// This error gets logged by the goroutine if it is non-nil.
-	// This receive is just functioning as a wait
-	err = <-done
-	return err
+	return cmd, err
 }
