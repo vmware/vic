@@ -191,7 +191,6 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 	case exec.StateSuspended:
 		state = "SUSPENDED"
 	default:
-		// This will occur if the container is suspended... Those are the only types covered in the runtime types right now.
 		return containers.NewGetStateDefault(http.StatusServiceUnavailable)
 	}
 

@@ -231,10 +231,20 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 			return InternalServerError(err.Error())
 		}
 
-		// NOTE: we should investigate what we can add or manipulate in the handle in the portlayer to make this check even more granular. Maybe Add the actually State into the handle config or part of the container info could be "snapshotted"
-		// This check is now done off of the handle.
-		if state != "RUNNING" {
-			return ConflictError(fmt.Sprintf("Container (%s) is not powered on", name))
+		switch state {
+		case "STOPPED":
+			return InternalServerError(fmt.Sprintf("Container (%s) is not running", name))
+		case "CREATED":
+			return InternalServerError(fmt.Sprintf("Container (%s) is not running", name))
+		case "SUSPENDED":
+			return InternalServerError(fmt.Sprintf("Container (%s) is not running", name))
+		case "STARTING":
+			// This is a transient state, returning conflict error to trigger a retry in the operation.
+			return ConflictError(fmt.Sprintf("container (%s) is still starting", id))
+		case "RUNNING":
+			// NO-OP - this is the state that allows an exec to occur.
+		default:
+			return InternalServerError(fmt.Sprintf("Container (%s) is in an unknown state: %s", id, state))
 		}
 
 		handle, eid, err = c.containerProxy.CreateExecTask(handle, config)
@@ -252,7 +262,6 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 		return nil
 	}
 
-	// FIXME: We cannot necessarily check for IsConflictError here yet since the state check also returns conflict error
 	if err := retry.Do(operation, IsConflictError); err != nil {
 		op.Errorf("Failed to start Exec task for container(%s) due to error (%s)", id, err)
 		return "", err
@@ -289,7 +298,7 @@ func (c *Container) ContainerExecInspect(eid string) (*backend.ExecInspect, erro
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainerFromExec(eid)
 	if vc == nil {
-		return nil, NotFoundError(eid)
+		return nil, InternalServerError(fmt.Sprintf("No container was found with exec id: %s", eid))
 	}
 	id := vc.ContainerID
 	name := vc.Name
@@ -362,7 +371,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainerFromExec(eid)
 	if vc == nil {
-		return NotFoundError(eid)
+		return InternalServerError(fmt.Sprintf("No container was found with exec id: %s", eid))
 	}
 	id := vc.ContainerID
 	name := vc.Name

@@ -146,7 +146,7 @@ Exec During Poweroff Of A Container Performing A Long Running Task
      \   ${result}=  Wait For Process  exec-%{VCH-NAME}-${idx}  timeout=2 mins
      \   ${combinedOutput}=  Catenate  ${combinedOutput}  ${result.stderr}${\n}
 
-     Should Contain  ${combinedOutput}  Conflict error from portlayer: Container (${ExecPoweroffContainerLong}) is not powered on, please start the container before attempting to an exec an operation
+     Should Contain  ${combinedOutput}  Container (${id}) is not powered on
 
 Exec During Poweroff Of A Container Performing A Short Running Task
      ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
@@ -155,13 +155,13 @@ Exec During Poweroff Of A Container Performing A Short Running Task
 
      ${suffix}=  Evaluate  '%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
      Set Test Variable  ${ExecPoweroffContainerShort}  Exec-Poweroff-${suffix}
-     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecPoweroffContainerShort} ${busybox} sleep 5
+     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecPoweroffContainerShort} ${busybox} /bin/ls /; sleep 20;
      Should Be Equal As Integers  ${rc}  0
 
      :FOR  ${idx}  IN RANGE  1  20
      \   Start Process  docker %{VCH-PARAMS} exec ${id} /bin/top  alias=exec-%{VCH-NAME}-${idx}  shell=true
 
-     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} wait ${id}
+     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} wait ${id}
      Should Be Equal As Integers  ${rc}  0
 
      ${combinedoutput}=  Set Variable
@@ -170,4 +170,4 @@ Exec During Poweroff Of A Container Performing A Short Running Task
      \   ${result}=  Wait For Process  exec-%{VCH-NAME}-${idx}  timeout=2 mins
      \   ${combinedOutput}=  Catenate  ${combinedOutput}  ${result.stderr}${\n}
 
-     Should Contain  ${combinedOutput}  Conflict error from portlayer: Container (${ExecPoweroffContainerShort}) is not powered on, please start the container before attempting to an exec an operation
+     Should Contain  ${combinedOutput}  Container (${id}) is not powered on
