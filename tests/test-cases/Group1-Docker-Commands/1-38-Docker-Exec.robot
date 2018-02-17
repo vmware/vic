@@ -146,7 +146,7 @@ Exec During Poweroff Of A Container Performing A Long Running Task
      \   ${result}=  Wait For Process  exec-%{VCH-NAME}-${idx}  timeout=2 mins
      \   ${combinedOutput}=  Catenate  ${combinedOutput}  ${result.stderr}${\n}
 
-     Should Contain  ${combinedOutput}  Container (${id}) is not powered on
+     Should Contain  ${combinedOutput}  Container (${id}) is not running
 
 Exec During Poweroff Of A Container Performing A Short Running Task
      ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
@@ -170,4 +170,4 @@ Exec During Poweroff Of A Container Performing A Short Running Task
      \   ${result}=  Wait For Process  exec-%{VCH-NAME}-${idx}  timeout=2 mins
      \   ${combinedOutput}=  Catenate  ${combinedOutput}  ${result.stderr}${\n}
 
-     Should Contain  ${combinedOutput}  Container (${id}) is not powered on
+     Should Contain  ${combinedOutput}  Container (${id}) is not running

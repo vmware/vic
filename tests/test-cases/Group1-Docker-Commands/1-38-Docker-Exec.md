@@ -23,8 +23,6 @@ This test requires that a vSphere server is running and available
 * Step 2-6 should echo the ID given
 * Step 7 should return an error
 
-## Exec
-
 # Possible Problems:
 None
 
