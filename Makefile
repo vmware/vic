@@ -15,7 +15,7 @@
 SHELL=/bin/bash
 
 GO ?= go
-GOVERSION ?= go1.8
+GOVERSION ?= go1.10
 OS := $(shell uname | tr '[:upper:]' '[:lower:]')
 ifeq (vagrant, $(filter vagrant,$(USER) $(SUDO_USER)))
 	# assuming we are in a shared directory where host arch is different from the guest
@@ -488,7 +488,7 @@ distro: all
 mrrobot:
 	@rm -rf *.xml *.html *.log *.zip VCH-0-*
 
-clean:
+clean: cleandeps
 	@echo removing binaries
 	@rm -rf $(BIN)/*
 	@echo removing Go object files
@@ -520,3 +520,7 @@ clean:
 distclean: clean
 	@echo removing binaries
 	@rm -rf $(BIN)
+
+cleandeps:
+	@echo removing dependency cache
+	@rm -rf .godeps_cache
