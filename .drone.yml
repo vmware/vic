@@ -163,7 +163,7 @@ pipeline:
       branch: [ releases/*, refs/tags/* ]
 
   bundle:
-    image: harbor.ci.drone.local/library/golang:1.8
+    image: harbor.ci.drone.local/library/golang:1.10
     pull: true
     environment:
       BIN: bin
