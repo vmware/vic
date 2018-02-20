@@ -20,6 +20,9 @@
 #
 #     pkg       This is github.com/vmware/vic/cmd/imagec for example
 #
+# If VIC_CACHE_DEPS environment variable is defined, this script will attempt to read
+# cached dependencies from disk if those exist. If they are not cached, dependencies will be
+# regenerated and cached.
 
 cache_dir=.godeps_cache
 
