@@ -41,7 +41,7 @@ These tests are intended to verify the behavior in various failure cases. We mus
 
 ###  3. Attempt to reconfigure a VCH with a malformed body
 
-###  4. Attempt to reconfigure a VCH in a different datacenter
+###  4. Attempt to reconfigure a VCH in one datacenter, but specifying another datacenter
 
 ###  5. Attempt to reconfigure each immutable property of a VCH *(one per request)*
 
@@ -54,6 +54,22 @@ These tests are intended to verify that the API and CLI can coexist without issu
 ###  1. Use the API to reconfigure a VCH created via the CLI
 
 ###  2. Use the CLI to reconfigure a VCH created via the API
+
+
+Concurrency
+-----------
+
+These tests are intended to verify that the API behaves as expected when performing concurrent operations.
+
+###  1. Attempt to perform two conflicting reconfigurations concurrently
+
+###  2. Attempt to perform two non-conflicting reconfigurations concurrently
+
+###  3. Attempt to reconfigure a VCH while it is being deleted
+
+###  4. Attempt to reconfigure a VCH while an out-of-band deletion is occurring
+
+###  5. Attempt to reconfigure a VCH while an out-of-band power operation is occurring
 
 
 Workflow-based
