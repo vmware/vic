@@ -241,11 +241,7 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 		}
 
 		switch state {
-		case StoppedState:
-			return InternalServerError(fmt.Sprintf("Container (%s) is not running", name))
-		case CreatedState:
-			return InternalServerError(fmt.Sprintf("Container (%s) is not running", name))
-		case SuspendedState:
+		case StoppedState, CreatedState, SuspendedState:
 			return InternalServerError(fmt.Sprintf("Container (%s) is not running", name))
 		case StartingState:
 			// This is a transient state, returning conflict error to trigger a retry in the operation.
