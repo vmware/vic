@@ -488,7 +488,7 @@ distro: all
 mrrobot:
 	@rm -rf *.xml *.html *.log *.zip VCH-0-*
 
-clean:
+clean: cleandeps
 	@echo removing binaries
 	@rm -rf $(BIN)/*
 	@echo removing Go object files
@@ -520,3 +520,7 @@ clean:
 distclean: clean
 	@echo removing binaries
 	@rm -rf $(BIN)
+
+cleandeps:
+	@echo removing dependency cache
+	@rm -rf .godeps_cache
