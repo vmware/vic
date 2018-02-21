@@ -23,7 +23,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"errors"
 
@@ -94,8 +93,8 @@ func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, r
 		}
 
 		// fix up path
-		stripped := strings.TrimPrefix(header.Name, filter.StripPath)
-		rebased := filepath.Join(filter.RebasePath, stripped)
+		// stripped := strings.TrimPrefix(header.Name, filter.StripPath)
+		rebased := filepath.Join(filter.RebasePath, header.Name)
 		absPath := filepath.Join(root, rebased)
 
 		switch header.Typeflag {
@@ -177,6 +176,7 @@ func (d *DoneChannel) Unpack(op trace.Operation, tarStream io.Reader, filter *Fi
 		return nil, err
 	}
 
+	op.Debugf("XXX calling binary with %s", root)
 	// Prepare to launch the binary, which will create a chroot at root and then invoke InvokeUnpack
 	// #nosec: Subprocess launching with variable. -- neither variable is user input & both are bounded inputs so this is fine
 	// "/bin/unpack" on appliance
@@ -246,8 +246,6 @@ func (d *DoneChannel) Unpack(op trace.Operation, tarStream io.Reader, filter *Fi
 		d.Done <- err
 	}()
 
-	if err = cmd.Start(); err != nil {
-		return nil, err
-	}
-	return cmd, err
+	return cmd, cmd.Start()
+
 }
