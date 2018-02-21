@@ -260,7 +260,7 @@ Bridge network - vCenter none
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} ${vicmachinetls}
-    Should Contain  ${output}  ERROR
+    Should Contain  ${output}  error
     Should Contain  ${output}  An existing distributed port group must be specified for bridge network on vCenter
 
     # Delete the portgroup added by env vars keyword
