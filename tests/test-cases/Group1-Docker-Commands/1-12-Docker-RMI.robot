@@ -29,7 +29,7 @@ Basic docker pull, restart, and remove image
     # Gather logs before rebooting
     Run Keyword And Continue On Failure  Gather Logs From Test Server  -before-reboot-1
     Reboot VM  %{VCH-NAME}
-    Wait For VCH Initialization  20x  5 seconds
+    Wait For VCH Initialization  30x  10 seconds
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
     Should Be Equal As Integers  ${rc}  0
