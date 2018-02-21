@@ -53,4 +53,7 @@ type Configuration struct {
 
 	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
 	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"storage/image_stores"`
+
+	// Inventory Folder Path for creating cVMs
+	VCHFolderPath string `vic:"0.1" scope:"read-only" key:"container/VCHFolderPath"`
 }

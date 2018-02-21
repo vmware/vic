@@ -498,7 +498,40 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	} else {
 		// if vapp is not created, fall back to create VM under default resource pool
 		info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-			return d.session.VMFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
+			// Default behavior is to check if the VCH folder already exists in the VMFolder. If so reject.
+			// Otherwise make a folder with the VCH name and create the VCH VM there.
+
+			vmFolderPath := d.session.VMFolder.InventoryPath
+			vchName := spec.Name
+			vchFolderPath := fmt.Sprintf("%s/%s", vmFolderPath, vchName)
+			_, err := d.session.Finder.Folder(ctx, vchFolderPath)
+			if err == nil {
+				// This should mean that the folder existed or that we could find it at the very least.
+				// in this case we should reject since the folder is already there? It should be cleaned up on a delete normally...
+				// we should check for the govmomi define NotFoundError here. see reference of `folderList` function within the `Folder` function
+				return nil, fmt.Errorf("the path %s already exists for an existing VCH", vchFolderPath)
+			}
+
+			vchVMPath := fmt.Sprintf("%s/%s", vchFolderPath, vchName)
+			vchVM, err := d.session.Finder.VirtualMachine(ctx, vchVMPath)
+			if vchVM != nil {
+				// We have found another VCH at the target path that we intended to install to.
+			}
+
+			vchFolder, err := d.session.VMFolder.CreateFolder(ctx, vchName)
+			if err != nil {
+				// POSSIBLE FAULTS HERE:
+				// - InvalidName
+				// - DuplicateName
+				// - Runtime
+				return nil, fmt.Errorf("failed to create vch folder under the VMFolder in vsphere: %s", err)
+			}
+
+			// we should also be storing this path somewhere. rather than just looking at the VMFolder.
+			// This should be stored in GuestInfo right now since we will need it in guest info eventually and it will
+			// provide that functionality now.
+
+			return vchFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
 		})
 	}
 
