@@ -72,6 +72,10 @@ func NotFoundError(msg string) error {
 	return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", msg))
 }
 
+func TaskInspectNotFoundError(msg) error {
+	return derr.NewRequestNotFoundError(fmt.Errorf("No container was found with exec id: %s", eid))
+}
+
 func ImageNotFoundError(image, tag string) error {
 	return derr.NewRequestNotFoundError(fmt.Errorf("An image does not exist locally with the tag: %s", image))
 }

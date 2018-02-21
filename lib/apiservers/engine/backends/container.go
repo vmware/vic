@@ -307,7 +307,7 @@ func (c *Container) ContainerExecInspect(eid string) (*backend.ExecInspect, erro
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainerFromExec(eid)
 	if vc == nil {
-		return nil, InternalServerError(fmt.Sprintf("No container was found with exec id: %s", eid))
+		return nil, TaskInspectNotFoundError(eid)
 	}
 	id := vc.ContainerID
 	name := vc.Name
