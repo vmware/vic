@@ -55,6 +55,20 @@ These tests are intended to verify that the API and CLI can coexist without issu
 ###  3. Attempt to reconfigure a VCH while it is already being upgraded via the CLI
 
 
+Concurrency
+-----------
+
+These tests are intended to verify that the API behaves as expected when performing concurrent operations.
+
+###  1. Attempt to list a VCH while it is being upgraded
+
+###  2. Attempt to inspect a VCH while it is being upgraded
+
+###  3. Attempt to list a VCH while it is being rolled back
+
+###  4. Attempt to inspect a VCH while it is being rolled back
+
+
 Workflow-based
 --------------
 

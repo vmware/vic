@@ -71,6 +71,10 @@ These tests are intended to verify that the API behaves as expected when perform
 
 ###  5. Attempt to reconfigure a VCH while an out-of-band power operation is occurring
 
+###  6. Attempt to inspect a VCH while it is being reconfigured
+
+###  7. Attempt to list a VCH while it is being reconfigured
+
 
 Workflow-based
 --------------
