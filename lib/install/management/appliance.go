@@ -196,6 +196,49 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		return err
 	}, tasks.IsConcurrentAccessError)
 
+	//removes the vm from vsphere, but detaches the disks first
+	_, err = vm.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
+		return vm.DeleteExceptDisks(ctx)
+	})
+
+	inventoryFolderPath := vm.InventoryPath
+	// Now that the VCH is gone we will need to delete the inventory folder structure.
+	// also do not attempt to delete the VMFolder
+	if inventoryFolderPath != d.session.VMFolder.InventoryPath {
+		d.op.Debugf("Attempting to remove inventory folder: %s", inventoryFolderPath)
+
+		// grab the folder ref
+		folderRef, err := d.session.Finder.Folder(d.op, inventoryFolderPath)
+		if err != nil {
+			d.op.Debugf("failed to find folder: %s", inventoryFolderPath)
+			return err
+		}
+
+		// we need to see if the folder is empty.
+		vchFolderContents, err := folderRef.Children(d.op)
+		if err != nil {
+			return err
+		}
+
+		if len(vchFolderContents) != 0 {
+			d.op.Debugf("Found additional contents under the vch folder: %s", vchFolderContents)
+			// as a first pass we will not remove the vch folder as it still has something in it...
+			return nil
+		}
+
+		folderRemoveFunction := func(ctx context.Context) (tasks.Task, error) {
+			return folderRef.Destroy(d.op)
+		}
+
+		_, err = tasks.WaitForResult(d.op, folderRemoveFunction)
+		if err != nil {
+			return err
+		}
+	}
+
+	// We are getting ConcurrentAccess errors from DeleteExceptDisks - even though we don't set ChangeVersion in that path
+	// We are ignoring the error because in reality the operation finishes successfully.
+	ignore := false
 	if err != nil {
 		d.op.Warnf("Destroy VM %s failed with %s, unregister the VM instead", vm.Reference(), err)
 
