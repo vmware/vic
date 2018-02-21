@@ -20,20 +20,36 @@
 #
 #     pkg       This is github.com/vmware/vic/cmd/imagec for example
 #
+# If VIC_CACHE_DEPS environment variable is defined, this script will attempt to read
+# cached dependencies from disk if those exist. If they are not cached, dependencies will be
+# regenerated and cached.
+
+cache_dir=.godeps_cache
 
 pkg=$1
 flags=$2
+cachedname=`echo .$1.godeps_cache | sed 's/\//_/g'`
 
 if [ -d "$pkg" ]; then
-    if [[ "$flags" == *d* ]]
-    then
+
+    if [[ "$flags" == *d* ]]; then
         # Only output if make is given the '-d' flag
         echo "Generating deps for $pkg" >&2
     fi
 
-    go list -f '{{join .Deps "\n"}}' github.com/vmware/vic/"$pkg" 2>/dev/null | \
-        xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' 2>/dev/null | \
-        sed -e 's:github.com/vmware/vic/\(.*\)$:\1/*:'
+    if [ -n "$VIC_CACHE_DEPS" ]; then
+        mkdir -p $cache_dir
+        if [ ! -f $cache_dir/$cachedname ]; then
+            go list -f '{{join .Deps "\n"}}' github.com/vmware/vic/"$pkg" 2>/dev/null | \
+                xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' 2>/dev/null | \
+                sed -e 's:github.com/vmware/vic/\(.*\)$:\1/*:' > "$cache_dir/$cachedname"
+        fi
+        cat "$cache_dir/$cachedname"
+    else
+        go list -f '{{join .Deps "\n"}}' github.com/vmware/vic/"$pkg" 2>/dev/null | \
+            xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' 2>/dev/null | \
+            sed -e 's:github.com/vmware/vic/\(.*\)$:\1/*:'
+    fi
 else
     if [[ "$flags" == *d* ]]
     then
