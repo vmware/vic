@@ -53,6 +53,8 @@ my-vch () {
     # Requires DNS resolution for local domain addresses - uncomment for DHCP TLS
     #tls=("--tls-cname=*.$(domainname)")
     tls+=("--organization=${vch_name}" "--organization=$(hostname)")
+    # Uncomment to disable TLS
+    #tls=("--no-tls")
 
     # add two volume stores
     #  "default" enables anonymous volumes and is the default if -opt VolumeStore=name is not specified

@@ -22,6 +22,7 @@ package.list
 integration_logs*
 vmware-ovftool
 .vic.profiles
+.godeps_cache
 
 # generally a bad idea to check certificates into repos - whitelist if needed
 **/*.pem

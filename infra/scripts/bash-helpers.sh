@@ -114,17 +114,20 @@ vic-ssh () {
         keyarg="--authorized-key=$HOME/.ssh/authorized_keys"
     fi
 
-    out=$("$(vic-path)"/bin/vic-machine-"$OS" debug --target="$TARGET_URL" --compute-resource="$COMPUTE" --name="${VIC_NAME:-${USER}test}" --enable-ssh $keyarg --rootpw=password --thumbprint="$THUMBPRINT" "$@")
+    # cannot execute in subshell as we want access to the environment variables that result
+    pushd "$(vic-path)"/bin >/dev/null
+    out=$("$(vic-path)"/bin/vic-machine-"$OS" debug --target="$TARGET_URL" --compute-resource="$COMPUTE" --name="${VIC_NAME:-${USER}test}" --enable-ssh $keyarg --rootpw=password --thumbprint="$THUMBPRINT")
     host=$(echo "$out" | grep DOCKER_HOST | awk -F"DOCKER_HOST=" '{print $2}' | cut -d ":" -f1 | cut -d "=" -f2)
+    popd >/dev/null
 
     echo "SSH to ${host}"
-    sshpass -ppassword ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@"${host}"
+    sshpass -ppassword ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@"${host}" "$@"
 }
 
 vic-admin () {
     vicProfileTranscode
 
-    out=$("$(vic-path)"/bin/vic-machine-"$OS" debug --target="$TARGET_URL" --compute-resource="$COMPUTE" --name="${VIC_NAME:-${USER}test}" --enable-ssh "$keyarg" --rootpw=password --thumbprint="$THUMBPRINT" "$@")
+    out=$("$(vic-path)"/bin/vic-machine-"$OS" debug --target="$TARGET_URL" --compute-resource="$COMPUTE" --name="${VIC_NAME:-${USER}test}" --enable-ssh $keyarg --rootpw=password --thumbprint="$THUMBPRINT" "$@")
     host=$(echo "$out" | grep DOCKER_HOST | sed -n 's/.*DOCKER_HOST=\([^:\s*\).*/\1/p')
 
     open http://"${host}":2378
@@ -135,34 +138,15 @@ addr-from-dockerhost () {
 }
 
 vic-tail-portlayer() {
-    vicProfileTranscode
-
-    unset keyarg
-    if [ -e "$HOME"/.ssh/authorized_keys ]; then
-        keyarg="--authorized-key=$HOME/.ssh/authorized_keys"
-    fi
-
-    out=$("$(vic-path)"/bin/vic-machine-"$OS" debug --target="$TARGET_URL" --compute-resource="$COMPUTE" --name="${VIC_NAME:-${USER}test}" --enable-ssh "$keyarg" --rootpw=password --thumbprint="$THUMBPRINT" "$@")
-    host=$(echo "$out" | grep DOCKER_HOST | awk -F"DOCKER_HOST=" '{print $2}' | cut -d ":" -f1 | cut -d "=" -f2)
-
-    sshpass -ppassword ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@"${host}" tail -f /var/log/vic/port-layer.log
+    vic-ssh tail -f /var/log/vic/port-layer.log
 }
 
 vic-tail-docker() {
-    vicProfileTranscode    
-
-    unset keyarg
-    if [ -e "$HOME"/.ssh/authorized_keys ]; then
-        keyarg="--authorized-key=$HOME/.ssh/authorized_keys"
-    fi
-
-    out=$("$(vic-path)"/bin/vic-machine-"$OS" debug --target="$TARGET_URL" --compute-resource="$COMPUTE" --name="${VIC_NAME:-${USER}test}" --enable-ssh "$keyarg" --rootpw=password --thumbprint="$THUMBPRINT" "$@")
-    host=$(echo "$out" | grep DOCKER_HOST | awk -F"DOCKER_HOST=" '{print $2}' | cut -d ":" -f1 | cut -d "=" -f2)
-
-    sshpass -ppassword ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@"${host}" tail -f /var/log/vic/docker-personality.log
+    vic-ssh tail -f /var/log/vic/docker-personality.log
 }
 
-# turns the configuration variables into the ones expected by the vic-x functions
+# Transcodes the configuration variables from the new profile format into the ones expected by the vic-x functions
+# This exists so that profiles using the old variable structure will still function as expected
 vicProfileTranscode() {
     # temporary check to see if we're using an old profile format
     if [ -z "${vsphere}" ]; then
@@ -207,6 +191,7 @@ vicProfileTranscode() {
     fi
 
     #   configure IPADDR from the raw argument values
+    IPADDR=""
     for ns in "${dns[@]}"; do
         IPADDR+=" ${IPADDR} --dns-server=${ns}"
     done
@@ -236,7 +221,7 @@ vicProfileTranscode() {
     if [ -z "${publicIP}" -a -z "${clientIP}" ]; then
         noverify="--no-tlsverify"
         for tlsopt in "${tls[@]}"; do
-            if [[ "${tlsopt}" == "--tls-cname=*" ]]; then
+            if [ "${tlsopt}" == "--tls-cname=*" -o "${tlsopt}" == "--no-tls" ]; then
                 unset noverify
             fi
         done
@@ -265,7 +250,7 @@ vicProfileTranscode() {
 unset-vic
 
 # import the custom sites
-if [ ! -r "$HOME/.vic" -a ! -r "$REPO_DIR/.vic_profiles" ]; then
+if [ ! -r "$HOME/.vic" -a ! -r "$REPO_DIR/.vic.profiles" ]; then
     echo "The bash-helpers depend on files that contains profiles for different VCH configurations:"
     echo " \"$HOME/.vic\" and/or"
     echo " \"$REPO_DIR/.vic.profiles\""
@@ -274,7 +259,6 @@ if [ ! -r "$HOME/.vic" -a ! -r "$REPO_DIR/.vic_profiles" ]; then
     echo "There is a sample profile file $BASE_DIR/sample-helper.profiles"
 else
     echo "Loading profiles - a new profile selection must be made"
-    . "$REPO_DIR/.vic.profiles"
-    . "$HOME/.vic"
+    [ -r "$REPO_DIR/.vic.profiles" ] && . "$REPO_DIR/.vic.profiles"
+    [ -r "$HOME/.vic" ] && . "$HOME/.vic"
 fi
-
