@@ -1,44 +1,44 @@
----
 workspace:
   base: /go
   path: src/github.com/vmware/vic
 
 pipeline:
-  clone:
-    image: plugins/git
-    tags: true
-    # dont clone submodules
-    recursive: false
-
   vic-integration-test-on-pr:
-    image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.42}
+    image: '${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.44}'
     pull: true
     environment:
       BIN: bin
       GOPATH: /go
       SHELL: /bin/bash
-      VIC_ESX_TEST_URL: ${VIC_ESX_TEST_URL}
       LOG_TEMP_DIR: install-logs
-      DRONE_SERVER:  ${DRONE_SERVER}
-      GITHUB_AUTOMATION_API_KEY:  ${GITHUB_AUTOMATION_API_KEY}
-      DRONE_TOKEN:  ${DRONE_TOKEN}
-      TEST_URL_ARRAY:  ${TEST_URL_ARRAY}
-      TEST_USERNAME:  ${TEST_USERNAME}
-      TEST_PASSWORD:  ${TEST_PASSWORD}
-      TEST_DATASTORE: ${TEST_DATASTORE}
-      TEST_TIMEOUT: ${TEST_TIMEOUT}
-      GOVC_INSECURE: true
-      GOVC_USERNAME:  ${TEST_USERNAME}
-      GOVC_PASSWORD:  ${TEST_PASSWORD}
-      GOVC_DATASTORE: ${TEST_DATASTORE}
-      GS_PROJECT_ID: ${GS_PROJECT_ID}
-      GS_CLIENT_EMAIL: ${GS_CLIENT_EMAIL}
-      GS_PRIVATE_KEY: ${GS_PRIVATE_KEY}
-      DEBUG_VCH:  ${DEBUG_VCH}
-      DOMAIN: ${DOMAIN}
+    secrets:
+      - bridge_network
+      - debug_vch
+      - drone_server
+      - drone_token
+      - drone_machine
+      - github_automation_api_key
+      - gs_client_email
+      - gs_private_key
+      - gs_project_id
+      - public_network
+      - registry_password
+      - reporting_server_url
+      - syslog_passwd
+      - syslog_server
+      - syslog_user
+      - test_datastore
+      - test_resource
+      - test_timeout
+      - test_password
+      - test_url_array
+      - test_username
     commands:
+      - 'export GOVC_INSECURE=true'
+      - 'export GOVC_USERNAME=${TEST_USERNAME}'
+      - 'export GOVC_PASSWORD=${TEST_PASSWORD}'
+      - 'export GOVC_DATASTORE=${TEST_DATASTORE}'
+      - 'export DOMAIN=${CI_DOMAIN}'
       - tests/integration-test.sh
-      # - pybot tests/test-cases/Group1-Docker-Commands
-      # - pybot tests/test-cases/Group1-Docker-Commands/1-01-Docker-Info.robot
     volumes:
       - /tmp
