@@ -11,31 +11,31 @@ pipeline:
     tags: true
     recursive: false
 
-#  display-status:
-#    image: 'gcr.io/eminent-nation-87317/vic-integration-test:1.42'
-#    pull: true
-#    environment:
-#      BIN: bin
-#      SHELL: /bin/bash
-#    commands:
-#      - 'export COMMIT=${DRONE_COMMIT}'
-#      - 'echo "Expecting ${DRONE_COMMIT}"'
-#      - 'git log -5'
-#      - 'git log -1 --pretty=oneline | grep "^${DRONE_COMMIT}" > /dev/null && echo ''Build matches'' || (git log -1 --pretty=oneline | grep "Merge ${DRONE_COMMIT}" > /dev/null && echo ''Build is of a merge commit'' || (echo ''Build does not match!'' && exit 1))'
+  # display-status:
+  #   image: 'gcr.io/eminent-nation-87317/vic-integration-test:1.42'
+  #   pull: true
+  #   environment:
+  #     BIN: bin
+  #     SHELL: /bin/bash
+  #   commands:
+  #     - 'export COMMIT=${DRONE_COMMIT}'
+  #     - 'echo "Expecting ${DRONE_COMMIT}"'
+  #     - 'git log -5'
+  #     - 'git log -1 --pretty=oneline | grep "^${DRONE_COMMIT}" > /dev/null && echo ''Build matches'' || (git log -1 --pretty=oneline | grep "Merge ${DRONE_COMMIT}" > /dev/null && echo ''Build is of a merge commit'' || (echo ''Build does not match!'' && exit 1))'
 
-#  wait-for-build:
-#    image: 'gcr.io/eminent-nation-87317/vic-integration-test:1.42'
-#    pull: true
-#    environment:
-#      BIN: bin
-#      GOPATH: /go
-#      SHELL: /bin/bash
-#    secrets:
-#      - drone_server
-#      - drone_token
-#      - test_url_array
-#    commands:
-#      - tests/wait_until_previous_builds_complete.sh
+  # wait-for-build:
+  #   image: 'gcr.io/eminent-nation-87317/vic-integration-test:1.42'
+  #   pull: true
+  #   environment:
+  #     BIN: bin
+  #     GOPATH: /go
+  #     SHELL: /bin/bash
+  #   secrets:
+  #     - drone_server
+  #     - drone_token
+  #     - test_url_array
+  #   commands:
+  #     - tests/wait_until_previous_builds_complete.sh
 
   vic-engine:
     image: 'gcr.io/eminent-nation-87317/vic-integration-test:1.42'
@@ -112,47 +112,47 @@ pipeline:
     when:
       status: success
 
- vic-ui:
-   image: 'gcr.io/eminent-nation-87317/vic-integration-test:1.42'
-   pull: true
-   environment:
+  vic-ui:
+    image: 'gcr.io/eminent-nation-87317/vic-integration-test:1.42'
+    pull: true
+    environment:
      BUILD_NUMBER: '${DRONE_BUILD_NUMBER}'
      BIN: bin
-   secrets:
-     - gs_client_email
-     - gs_private_key
-     - gs_project_id
-   commands:
-     - 'mkdir -p $BIN/ui'
-     - 'export LATEST_VIC_UI_BUILD="$(gsutil ls -l ''gs://vic-ui-builds'' | grep -v TOTAL | grep vic_ | sort -k2 -r | (trap '' '' PIPE; head -1))"'
-     - 'export VIC_UI_URL=$(echo $LATEST_VIC_UI_BUILD | xargs | cut -d " " -f 3 | sed "s/gs:\/\//https:\/\/storage.googleapis.com\//")'
-     - 'wget -nv $VIC_UI_URL -P $BIN'
-     - 'tar -xvzf $BIN/vic_ui_*.tar.gz'
-     - 'ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1'
-     - 'rm $BIN/vic_ui_*.tar.gz'
-   when:
-     status: success
-     branch: [master]
+    secrets:
+      - gs_client_email
+      - gs_private_key
+      - gs_project_id
+    commands:
+      - 'mkdir -p $BIN/ui'
+      - 'export LATEST_VIC_UI_BUILD="$(gsutil ls -l ''gs://vic-ui-builds'' | grep -v TOTAL | grep vic_ | sort -k2 -r | (trap '' '' PIPE; head -1))"'
+      - 'export VIC_UI_URL=$(echo $LATEST_VIC_UI_BUILD | xargs | cut -d " " -f 3 | sed "s/gs:\/\//https:\/\/storage.googleapis.com\//")'
+      - 'wget -nv $VIC_UI_URL -P $BIN'
+      - 'tar -xvzf $BIN/vic_ui_*.tar.gz'
+      - 'ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1'
+      - 'rm $BIN/vic_ui_*.tar.gz'
+    when:
+      status: success
+      branch: [master]
 
- vic-ui-release:
-   image: 'gcr.io/eminent-nation-87317/vic-integration-test:1.42'
-   pull: true
-   environment:
-     BUILD_NUMBER: '${DRONE_BUILD_NUMBER}'
-     BIN: bin
-   secrets:
-     - gs_client_email
-     - gs_private_key
-     - gs_project_id
-   commands:
-     - 'mkdir -p $BIN/ui'
-     - 'export LATEST_VIC_UI_RELEASE="$(gsutil ls -l ''gs://vic-ui-releases'' | grep -v TOTAL | grep vic_ | sort -k2 -r | (trap '' '' PIPE; head -1))"'
-     - 'export VIC_UI_URL=$(echo $LATEST_VIC_UI_RELEASE | xargs | cut -d " " -f 3 | sed "s/gs:\/\//https:\/\/storage.googleapis.com\//")'
-     - 'wget -nv $VIC_UI_URL -P $BIN'
-     - 'tar -xvzf $BIN/vic_ui_*.tar.gz'
-     - 'ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1'
-     - 'rm $BIN/vic_ui_*.tar.gz'
-   when:
+  vic-ui-release:
+    image: 'gcr.io/eminent-nation-87317/vic-integration-test:1.42'
+    pull: true
+    environment:
+      BIN: bin
+    secrets:
+      - gs_client_email
+      - gs_private_key
+      - gs_project_id
+    commands:
+      - 'export BUILD_NUMBER=${DRONE_BUILD_NUMBER}'
+      - 'mkdir -p $BIN/ui'
+      - 'export LATEST_VIC_UI_RELEASE="$(gsutil ls -l ''gs://vic-ui-releases'' | grep -v TOTAL | grep vic_ | sort -k2 -r | (trap '' '' PIPE; head -1))"'
+      - 'export VIC_UI_URL=$(echo $LATEST_VIC_UI_RELEASE | xargs | cut -d " " -f 3 | sed "s/gs:\/\//https:\/\/storage.googleapis.com\//")'
+      - 'wget -nv $VIC_UI_URL -P $BIN'
+      - 'tar -xvzf $BIN/vic_ui_*.tar.gz'
+      - 'ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1'
+      - 'rm $BIN/vic_ui_*.tar.gz'
+    when:
      status: success
      branch: ['releases/*', 'refs/tags/*']
 
@@ -271,11 +271,11 @@ pipeline:
       branch: [master, 'releases/*', 'refs/tags/*']
       status: success
 
-#  report-coverage:
-#    image: robertstettner/drone-codecov
-#    token: '${CODECOV_TOKEN}'
-#    files:
-#      - .cover/cover.out
+  # report-coverage:
+  #   image: robertstettner/drone-codecov
+  #   token: '${CODECOV_TOKEN}'
+  #   files:
+  #     - .cover/cover.out
 
   notify-slack-on-fail:
     image: plugins/slack
@@ -297,11 +297,11 @@ pipeline:
       branch: [master, 'releases/*']
       status: success
 
-  notify-slack-on-successful-tag:
-    image: plugins/slack
-    webhook: '${SLACK_URL}'
-    username: drone
-    template: "The latest version of VIC engine has been released, find the build here: https://console.cloud.google.com/storage/browser/vic-engine-releases\n"
-    when:
-      repo: vmware/vic
-      branch: ['refs/tags/*']
+  # notify-slack-on-successful-tag:
+  #   image: plugins/slack
+  #   webhook: '${SLACK_URL}'
+  #   username: drone
+  #   template: "The latest version of VIC engine has been released, find the build here: https://console.cloud.google.com/storage/browser/vic-engine-releases\n"
+  #   when:
+  #     repo: vmware/vic
+  #     branch: ['refs/tags/*']
