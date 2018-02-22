@@ -93,7 +93,7 @@ Remove images by short and long ID after VCH restart
     # Gather logs before rebooting
     Run Keyword And Continue On Failure  Gather Logs From Test Server  -before-reboot-2
     Reboot VM  %{VCH-NAME}
-    Wait For VCH Initialization  20x  5 seconds
+    Wait For VCH Initialization  30x  10 seconds
 
     # Remove image by short ID
     ${rc}  ${busybox-shortID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -q ${busybox}
