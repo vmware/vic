@@ -26,6 +26,25 @@ This test requires that a vSphere server is running and available
 # Possible Problems:
 None
 
+# Concurrent Simple Exec
+## Test Steps
+1. Pull an image that contains `sleep`. Busybox suffices here.
+2. Create a container running `sleep` to simulate a bounded time process.
+3. Run the container and detach from it.
+4. Start 5 simple exec operations(/bin/ls) in parallel against the detached container.
+5. Wait for each exec to finish and check the rc and output for correctness
+6. Wait for the container to finish the sleep and exit.
+7. Check container run for correctness
+
+## Expected Outcome
+* step 1 Should successfully complete with an rc of 0.
+* step 2 Should successfully complete with an rc of 0.
+* step 3 Should successfully launch the container and detach from it. The container should remain running for 5 seconds only.
+* step 4 All 5 execs should be started successfully, we expect all to succeed.
+* step 5 All execs should have an rc of 0 and the correct root directories of the stashed busybox file system.
+* step 6 The container should exit.
+* step 7 The container should have an exit code of 0.
+
 # Exec Power Off test for long running Process
 ## Test Steps
 1. Pull an image that contains `/bin/top`. Busybox suffices here.
