@@ -272,7 +272,7 @@ func (h *Handle) Close() {
 // TODO: either deep copy the configuration, or provide an alternative means of passing the data that
 // avoids the need for the caller to unpack/repack the parameters
 func Create(ctx context.Context, vmomiSession *session.Session, config *ContainerCreateConfig) (*Handle, error) {
-	op := trace.FromContext(ctx, "Handle.Create")
+	op := trace.ChildFromContext(ctx, "Handle.Create")
 	defer trace.End(trace.Begin(config.Metadata.Name, op))
 
 	h := &Handle{

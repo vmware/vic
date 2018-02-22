@@ -56,7 +56,7 @@ func (e DuplicateResourceError) Error() string {
 	return fmt.Sprintf("%s already exists", e.resID)
 }
 
-func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSource, sink extraconfig.DataSink) error {
+func Init(op trace.Operation, sess *session.Session, source extraconfig.DataSource, sink extraconfig.DataSink) error {
 	trace.End(trace.Begin(""))
 
 	initializer.once.Do(func() {
@@ -70,7 +70,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		var config Configuration
 		config.sink = sink
 		config.source = source
-		config.Decode()
+		config.Decode(op)
 		config.PortGroups = make(map[string]object.NetworkReference)
 
 		log.Debugf("Decoded VCH config for network: %#v", config)
@@ -81,7 +81,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			}
 
 			var r object.Reference
-			if r, err = f.ObjectReference(ctx, *pgref); err != nil {
+			if r, err = f.ObjectReference(op, *pgref); err != nil {
 				log.Warnf("could not get network reference for %s network: %s", nn, err)
 				err = nil
 				continue
@@ -97,7 +97,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		}
 
 		var kv kvstore.KeyValueStore
-		kv, err = store.NewDatastoreKeyValue(ctx, sess, "network.contexts.default")
+		kv, err = store.NewDatastoreKeyValue(op, sess, "network.contexts.default")
 		if err != nil {
 			return
 		}
@@ -107,7 +107,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			return
 		}
 
-		if err = engageContext(ctx, netctx, exec.Config.EventManager); err == nil {
+		if err = engageContext(op, netctx, exec.Config.EventManager); err == nil {
 			DefaultContext = netctx
 			log.Infof("Default network context allocated")
 		}
@@ -155,7 +155,7 @@ func handleEvent(netctx *Context, ie events.Event) {
 // using an event manager, and a container cache. This hooks up a callback to
 // react to vsphere events, as well as populate the context with any containers
 // that are present.
-func engageContext(ctx context.Context, netctx *Context, em event.EventManager) error {
+func engageContext(op trace.Operation, netctx *Context, em event.EventManager) error {
 	var err error
 
 	// grab the context lock so that we do not unbind any containers
@@ -164,6 +164,8 @@ func engageContext(ctx context.Context, netctx *Context, em event.EventManager) 
 	// event callback
 	netctx.Lock()
 	defer netctx.Unlock()
+
+	op = trace.FromOperation(op, "engageContext")
 
 	// subscribe to the event stream for Vm events
 	if em == nil {
@@ -182,12 +184,11 @@ func engageContext(ctx context.Context, netctx *Context, em event.EventManager) 
 		}
 	}()
 
-	op := trace.NewOperation(context.Background(), "engageContext")
 	s.Suspend(true)
 	defer s.Resume()
 	for _, c := range exec.Containers.Containers(nil) {
 		log.Debugf("adding container %s", c)
-		h := c.NewHandle(ctx)
+		h := c.NewHandle(op)
 		defer h.Close()
 
 		// add any user created networks that show up in container's config

@@ -16,7 +16,6 @@ package trace
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"runtime"
 	"strings"
@@ -24,7 +23,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
-	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/log"
 )
 
@@ -51,10 +49,10 @@ var Logger = &logrus.Logger{
 
 // trace object used to grab run-time state
 type Message struct {
-	msg         string
-	funcName    string
-	lineNo      int
-	operationID string
+	msg      string
+	funcName string
+	lineNo   int
+	op       *Operation
 
 	startTime time.Time
 }
@@ -78,7 +76,7 @@ func InitLogger(cfg *log.LoggingConfig) error {
 }
 
 // begin a trace from this stack frame less the skip.
-func newTrace(msg string, skip int, opID string) *Message {
+func newTrace(msg string, skip int, op *Operation) *Message {
 	pc, _, line, ok := runtime.Caller(skip)
 	if !ok {
 		return nil
@@ -89,45 +87,42 @@ func newTrace(msg string, skip int, opID string) *Message {
 	// if github.com/vmware doesn't match then the original is returned
 	name := strings.TrimPrefix(runtime.FuncForPC(pc).Name(), "github.com/vmware/")
 
-	message := Message{
+	return &Message{
 		msg:      msg,
 		funcName: name,
 		lineNo:   line,
+		op:       op,
 
 		startTime: time.Now(),
 	}
-
-	// if we have an operationID then format the output
-	if opID != "" {
-		message.operationID = fmt.Sprintf("op=%s", opID)
-	}
-
-	return &message
 }
 
 // Begin starts the trace.  Msg is the msg to log.
 // context provided to allow tracing of operationID
 // context added as optional to avoid breaking current usage
 func Begin(msg string, ctx ...context.Context) *Message {
-	if tracingEnabled && Logger.Level >= logrus.DebugLevel {
-		var opID string
-		// populate operationID if provided
-		if len(ctx) == 1 {
-			if id, ok := ctx[0].Value(types.ID{}).(string); ok {
-				opID = id
-			}
-		}
-		if t := newTrace(msg, 2, opID); t != nil {
-			if msg == "" {
-				Logger.Debugf("[BEGIN] %s [%s:%d]", t.operationID, t.funcName, t.lineNo)
-			} else {
-				Logger.Debugf("[BEGIN] %s [%s:%d] %s", t.operationID, t.funcName, t.lineNo, t.msg)
-			}
-			return t
-
-		}
+	if !tracingEnabled || Logger.Level < logrus.DebugLevel {
+		return nil
 	}
-	return nil
+
+	var op *Operation
+	if len(ctx) == 1 {
+		op = fromContext(ctx[0])
+	}
+
+	t := newTrace(msg, 2, op)
+	if t == nil {
+		return nil
+	}
+
+	fmt := Logger.Debugf
+	if op != nil {
+		fmt = op.Debugf
+	}
+
+	fmt("[BEGIN] [%s:%d] %s", t.funcName, t.lineNo, t.msg)
+
+	return t
 }
 
 // End ends the trace.
@@ -135,5 +130,11 @@ func End(t *Message) {
 	if t == nil {
 		return
 	}
-	Logger.Debugf("[ END ] %s [%s:%d] [%s] %s", t.operationID, t.funcName, t.lineNo, t.delta(), t.msg)
+
+	fmt := Logger.Debugf
+	if t.op != nil {
+		fmt = t.op.Debugf
+	}
+
+	fmt("[ END ] [%s:%d] [%s] %s", t.funcName, t.lineNo, t.delta(), t.msg)
 }
