@@ -215,24 +215,24 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		}
 
 		// we need to see if the folder is empty.
-		vchFolderContents, err := folderRef.Children(d.op)
+		folderContents, err := folderRef.Children(d.op)
 		if err != nil {
 			return err
 		}
 
-		if len(vchFolderContents) != 0 {
-			d.op.Debugf("Found additional contents under the vch folder: %s", vchFolderContents)
-			// as a first pass we will not remove the vch folder as it still has something in it...
-			return nil
-		}
+		for len(folderContents) == 0 {
+			parentFolder := path.Dir(folderRef.InventoryPath)
 
-		folderRemoveFunction := func(ctx context.Context) (tasks.Task, error) {
-			return folderRef.Destroy(d.op)
-		}
+			folderRef, err = d.session.Finder.Folder(d.op, parentFolder)
+			if err != nil {
+				// at this point we have already partially cleaned up. So we may leave artifacts around when we bale.
+				return err
+			}
 
-		_, err = tasks.WaitForResult(d.op, folderRemoveFunction)
-		if err != nil {
-			return err
+			folderContents, err = folderRef.Children(d.op)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -257,6 +257,18 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		d.op.Warnf("Failed to remove datastore files for VM %s with folder path %s: %s", vm.Reference(), folder, err)
 	}
 
+	return nil
+}
+
+func (d *Dispatcher) removeFolder(folder *object.Folder) error {
+	folderRemoveFunction := func(ctx context.Context) (tasks.Task, error) {
+		return folder.Destroy(d.op)
+	}
+
+	_, err = tasks.WaitForResult(d.op, folderRemoveFunction)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
