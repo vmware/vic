@@ -16,7 +16,7 @@
 Documentation  Test 21-01 - Whitelist
 Resource  ../../resources/Util.robot
 Resource  ../../resources/Harbor-Util.robot
-Suite Setup  Setup Harbor
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Setup Harbor
 Suite Teardown  Nimbus Cleanup  ${list}  ${false}
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
@@ -39,7 +39,7 @@ Simple ESXi Setup
     Remove Environment Variable  PUBLIC_NETWORK
 
 Setup Harbor
-    Wait Until Keyword Succeeds  10x  10m  Simple ESXi Setup
+    Simple ESXi Setup
 
     # Install a Harbor server with HTTPS a Harbor server with HTTP
     Install Harbor To Test Server  protocol=https  name=harbor-https
