@@ -217,6 +217,10 @@ func (mgr *RBACManager) collectDatastores(ctx context.Context, finder *find.Find
 	}
 	volumeLocations := make([]url.URL, 0, len(mgr.configSpec.Storage.VolumeLocations))
 	for _, volumeLocation := range mgr.configSpec.Storage.VolumeLocations {
+		// Only apply changes to datastores managed by vSphere
+		if volumeLocation.Scheme != "ds" {
+			continue
+		}
 		volumeLocations = append(volumeLocations, *volumeLocation)
 	}
 	if err = mgr.findDatastores(ctx, finder, volumeLocations, dsNameToRef); err != nil {
