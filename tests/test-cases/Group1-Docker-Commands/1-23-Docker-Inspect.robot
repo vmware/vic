@@ -45,7 +45,7 @@ Docker inspect image specifying incorrect type
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --type=container ${busybox}
     Should Be Equal As Integers  ${rc}  1
     ${out}=  Run Keyword If  '${busybox}' == 'busybox'  Should Contain  ${output}  Error: No such container: busybox
-    ${out}=  Run Keyword Unless  '${busybox}' == 'busybox'  Should Contain  ${output}  Error: No such container: harbor.ci.drone.local/library/busybox
+    ${out}=  Run Keyword Unless  '${busybox}' == 'busybox'  Should Contain  ${output}  Error: No such container: wdc-harbor-ci.eng.vmware.com/default-project/busybox
 
 Simple docker inspect of container
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox}
