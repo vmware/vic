@@ -267,7 +267,12 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 		return nil
 	}
 
-	if err := retry.Do(operation, IsConflictError); err != nil {
+	// configure custom exec back off configure
+	backoffConf := retry.NewBackoffConfig()
+	backoffConf.MaxInterval = 2 * time.Second
+	backoffConf.InitialInterval = 500 * time.Millisecond
+
+	if err := retry.DoWithConfig(operation, IsConflictError, backoffConf); err != nil {
 		op.Errorf("Failed to start Exec task for container(%s) due to error (%s)", id, err)
 		return "", err
 	}
@@ -489,7 +494,12 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		return nil
 	}
 
-	if err := retry.Do(operation, IsConflictError); err != nil {
+	// configure custom exec back off configure
+	backoffConf := retry.NewBackoffConfig()
+	backoffConf.MaxInterval = 2 * time.Second
+	backoffConf.InitialInterval = 500 * time.Millisecond
+
+	if err := retry.DoWithConfig(operation, IsConflictError, backoffConf); err != nil {
 		op.Errorf("Failed to start Exec task for container(%s) due to error (%s)", id, err)
 		return err
 	}
