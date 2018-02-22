@@ -14,7 +14,7 @@
 # limitations under the License.
 
 commits=$(curl -s https://api.github.com/repos/vmware/vic/commits?access_token=$GITHUB_AUTOMATION_API_KEY | jq -r ' map(.sha) | join(",")')
-curl -s https://api.github.com/repos/vmware/vic/statuses/{$commits}?access_token=$GITHUB_AUTOMATION_API_KEY | jq '.[] | select((.context == "continuous-integration/vic/push") and (.state != "pending")) | "\(.target_url): \(.state)"'
+curl -s https://api.github.com/repos/vmware/vic/statuses/{$commits}?access_token=$GITHUB_AUTOMATION_API_KEY | jq '.[] | select((.context == "continuous-integration/vic/push") and (.state != "pending")) | "\(.target_url): \(.state)"' | tee status.out
 
 failures=$(cat status.out | grep -c failure)
 echo "Number of failed merges to master in the last 30 merges: $failures"
