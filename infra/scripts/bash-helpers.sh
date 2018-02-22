@@ -193,7 +193,7 @@ vicProfileTranscode() {
     #   configure IPADDR from the raw argument values
     IPADDR=""
     for ns in "${dns[@]}"; do
-        IPADDR+=" ${IPADDR} --dns-server=${ns}"
+        IPADDR+=" --dns-server=${ns}"
     done
 
     if [ -n "${publicIP}" ]; then
