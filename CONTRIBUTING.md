@@ -121,13 +121,15 @@ Automated testing uses [Drone][dronesrc].
 
 Pull requests must pass unit tests and integration tests before being merged into the master branch. A standard PR builds
 the project and runs unit and regression tests. To customize the integration test suite that runs in your pull request,
-you can use three keywords in your PR title or commit message:
+you can use these keywords in your PR body:
 
 - To skip running tests (e.g. for a work-in-progress PR), use `[ci skip]` or `[skip ci]`.
 - To run the full test suite, use `[full ci]`.
 - To run _one_ integration test or group, use `[specific ci=$test]`. This will run the regression test as well. Examples:
   - To run the `1-01-Docker-Info` suite: `[specific ci=1-01-Docker-Info]`
   - To run all suites under the `Group1-Docker-Commands` group: `[specific ci=Group1-Docker-Commands]`
+- To skip running the unit tests, use `[skip unit]`.
+- To fail fast (make normal failures fatal) during the integration testing, use `[fast fail]`.
 
 You can run the tests locally before making a PR or view the Drone build results for [unit tests and integration tests][dronevic].
 
@@ -181,17 +183,14 @@ discussion.
 For VIC engineers, you should set the priority based on the below guidelines. Everyone else, do not set the priority of a new issue.
 
 #### Priorities
-Indicate the VMware business priority of the bug. Priority drives *when* a bug will be fixed. This field is optional for filers but must be filled out by bug owner.
 
-priority/p0 - Bugs that NEED to be fixed immediately as they either block meaningful testing or are release stoppers for the current release.
-
-priority/p1 - Bugs that NEED to be fixed by the assigned phase of the current release.
-
-priority/p2 - Bugs that SHOULD be fixed by the assigned phase of the current release, time permitting.
-
-priority/p3 - Bugs that SHOULD be fixed by a given release, time permitting.
-
-priority/p4 - Bugs that SHOULD be fixed in a future (to be determined) release.
+| Priority | Bugs | Features | Non Bugs |
+| -------- | ---- | -------- | -------- |
+| priority/p0 | Bugs that NEED to be fixed immediately as they either block meaningful testing or are release stoppers for the current release. | No Feature should be p0. | An issue that is not a bug and is blocking meaningful testing. eg. builds are failing because the syslog server is out of space. |
+| priority/p1 | Bugs that NEED to be fixed by the assigned phase of the current release. | A feature that is required for the next release, typically an anchor feature; a large feature that is the focus for the release and drives the release date. | An issue that must be fixed for the next release. eg. Track build success rates. |
+| priority/p2 | Bugs that SHOULD be fixed by the assigned phase of the current release, time permitting. | A feature that is desired for the next release, typically a pebble; a feature that has been approved for inclusion but is not considered the anchor feature or is considered good to have for the anchor feature. | An issue that we should fix in the next release. eg. A typo in the UI. |
+| priority/p3 | Bugs that SHOULD be fixed by a given release, time permitting. | A feature that can be fixed in the next release. eg. Migrate to a new kernel version. Or a feature that is nice to have for a pebble. | An issue that can be fixed in the next release. eg. Low hanging productivity improvements. |
+| priority/p4 | Bugs that SHOULD be fixed in a future (to be determined) release. | An issue or feature that will be fixed in a future release. | An issue or feature that will be fixed in a future release. |
 
 ### Not Ready
 

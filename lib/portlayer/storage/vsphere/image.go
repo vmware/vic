@@ -252,7 +252,7 @@ func (v *ImageStore) WriteImage(op trace.Operation, parent *portlayer.Image, ID 
 	var dsk *disk.VirtualDisk
 	// If this is scratch, then it's the root of the image store.  All images
 	// will be descended from this created and prepared fs.
-	if ID == portlayer.Scratch.ID {
+	if ID == constants.ScratchLayerID {
 		// Create the scratch layer
 		if err := v.scratch(op, storeName); err != nil {
 			return nil, err
@@ -439,19 +439,19 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 	)
 
 	// Create the image directory in the store.
-	imageDir := v.imageDirPath(storeName, portlayer.Scratch.ID)
+	imageDir := v.imageDirPath(storeName, constants.ScratchLayerID)
 	if _, err := v.Mkdir(op, false, imageDir); err != nil {
 		return err
 	}
 
 	// Write the metadata to the datastore
-	metaDataDir := v.imageMetadataDirPath(storeName, portlayer.Scratch.ID)
+	metaDataDir := v.imageMetadataDirPath(storeName, constants.ScratchLayerID)
 	if err := writeMetadata(op, v.Helper, metaDataDir, nil); err != nil {
 		return err
 	}
 
-	imageDiskDsURI := v.imageDiskDSPath(storeName, portlayer.Scratch.ID)
-	op.Infof("Creating image %s (%s)", portlayer.Scratch.ID, imageDiskDsURI)
+	imageDiskDsURI := v.imageDiskDSPath(storeName, constants.ScratchLayerID)
+	op.Infof("Creating image %s (%s)", constants.ScratchLayerID, imageDiskDsURI)
 
 	size = defaultDiskSizeInKB
 	if portlayer.Config.ScratchSize != 0 {
@@ -462,7 +462,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 		if err == nil {
 			return
 		}
-		v.cleanupDisk(op, portlayer.Scratch.ID, storeName, vmdisk)
+		v.cleanupDisk(op, constants.ScratchLayerID, storeName, vmdisk)
 	}()
 
 	config := disk.NewPersistentDisk(imageDiskDsURI).WithCapacity(size)
@@ -491,7 +491,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 		return err
 	}
 
-	if err = v.writeManifest(op, storeName, portlayer.Scratch.ID, nil); err != nil {
+	if err = v.writeManifest(op, storeName, constants.ScratchLayerID, nil); err != nil {
 		op.Errorf("Failed to create manifest for scratch image: %s", err)
 		return err
 	}
@@ -576,7 +576,7 @@ func (v *ImageStore) ListImages(op trace.Operation, store *url.URL, IDs []string
 		ID := file.Path
 
 		// filter out scratch
-		if ID == portlayer.Scratch.ID {
+		if ID == constants.ScratchLayerID {
 			continue
 		}
 
@@ -661,7 +661,7 @@ func (v *ImageStore) cleanup(op trace.Operation, store *url.URL) error {
 		ID := file.Path
 
 		if err := v.verifyImage(op, storeName, ID); err != nil {
-			if ID == portlayer.Scratch.ID {
+			if ID == constants.ScratchLayerID {
 				op.Errorf("Failed to verify scratch image - skipping deletion so as not to invalidate image chain but this is probably non-functional")
 				continue
 			}

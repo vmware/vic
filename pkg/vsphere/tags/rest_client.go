@@ -173,6 +173,10 @@ func (c *RestClient) Login(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "login failed")
 	}
+	if c.user != nil {
+		password, _ := c.user.Password()
+		request.SetBasicAuth(c.user.Username(), password)
+	}
 	resp, err := c.HTTP.Do(request)
 	if err != nil {
 		return errors.Wrap(err, "login failed")
@@ -194,15 +198,5 @@ func (c *RestClient) Login(ctx context.Context) error {
 }
 
 func (c *RestClient) newRequest(method, urlStr string, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequest(method, c.endpoint.String()+urlStr, body)
-	if err != nil {
-		return nil, err
-	}
-
-	if c.user != nil {
-		password, _ := c.user.Password()
-		req.SetBasicAuth(c.user.Username(), password)
-	}
-
-	return req, nil
+	return http.NewRequest(method, c.endpoint.String()+urlStr, body)
 }
