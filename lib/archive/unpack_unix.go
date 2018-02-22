@@ -177,7 +177,6 @@ func (d *DoneChannel) Unpack(op trace.Operation, tarStream io.Reader, filter *Fi
 		return nil, err
 	}
 
-	op.Debugf("XXX calling binary with %s", root)
 	// Prepare to launch the binary, which will create a chroot at root and then invoke InvokeUnpack
 	// #nosec: Subprocess launching with variable. -- neither variable is user input & both are bounded inputs so this is fine
 	// "/bin/unpack" on appliance

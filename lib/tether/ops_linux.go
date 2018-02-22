@@ -1249,7 +1249,6 @@ func handleUtilityExit(t *BaseOperations, pid, exitCode int) bool {
 	t.utilityPidMutex.Lock()
 	defer t.utilityPidMutex.Unlock()
 
-	log.Debugf("XXX handling pid %d with exit code %d", pid, exitCode)
 	pidchannel, ok := t.utilityPids[pid]
 	if !ok {
 		return false

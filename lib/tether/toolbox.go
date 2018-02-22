@@ -311,26 +311,20 @@ func toolboxOverrideArchiveRead(system System, u *url.URL, tr *tar.Reader) error
 		d := &archive.DoneChannel{}
 		d.Done = make(chan error)
 		waitChan, err := system.LaunchUtility(func() (*os.Process, error) {
-			op.Debugf("XXX launching tar unpack binary")
 			cmd, err := d.Unpack(op, tr, spec, diskPath, "/.tether/unpack")
 			return cmd.Process, err
 		})
 
 		if err != nil {
-			op.Errorf("XXX %s", err)
 			return err
 		}
 
 		if err = <-d.Done; err != nil {
-			op.Errorf("XXX %s", err)
 			return err
 		}
 
-		op.Debugf("XXX wait for pid")
 		rc := <-waitChan
-		op.Debugf("XXX %d", rc)
-
-		op.Debugf("XXX Finished reading from tar archive to path %s: %s", u.Path, u.String())
+		op.Debugf("Finished reading from tar archive to path %s: %s with exit code %d", u.Path, u.String(), rc)
 		return err
 	}
 	return defaultArchiveHandler.Read(u, tr)
