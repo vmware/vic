@@ -20,8 +20,6 @@ VIC Manual Test Suite
 -
 [Group 18 - VIC UI](Group18-VIC-UI/TestCases.md)
 -
-[Group 19 - ROBO](Group18-ROBO/TestCases.md)
--
 [Group 20 - Security](Group20-Security/TestCases.md)
 -
 [Group 21 - Whitelist](Group21-Registries/TestCases.md)

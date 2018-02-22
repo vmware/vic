@@ -91,17 +91,6 @@ var testInputConfigVPX = data.Data{
 			RawQuery:   "",
 			Fragment:   "",
 		},
-		"nfs": {
-			Scheme:     "nfs",
-			Opaque:     "",
-			User:       (*url.Userinfo)(nil),
-			Host:       "nfs-host",
-			Path:       "vic-volumes:nas",
-			RawPath:    "",
-			ForceQuery: false,
-			RawQuery:   "",
-			Fragment:   "",
-		},
 	},
 	BridgeNetworkName: "DC0_DVPG0",
 	ClientNetwork: data.NetworkConfig{

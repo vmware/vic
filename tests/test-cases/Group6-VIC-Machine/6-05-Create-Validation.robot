@@ -25,6 +25,7 @@ Suggest resources - Invalid datacenter
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Set Test VCH Name
 
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/WOW --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} ${vicmachinetls}
@@ -37,6 +38,7 @@ Suggest resources - Invalid target path
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Set Test VCH Name
 
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/MUCH/DATACENTER --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} ${vicmachinetls}
@@ -49,6 +51,7 @@ Create VCH - target thumbprint verification
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Set Test VCH Name
 
     ${output}=  Run  bin/vic-machine-linux create --thumbprint=NOPE --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --image-store=ENOENT ${vicmachinetls}
     Should Contain  ${output}  thumbprint does not match
@@ -60,6 +63,7 @@ Default image datastore
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Set Test VCH Name
 
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --insecure-registry wdc-harbor-ci.eng.vmware.com
@@ -84,6 +88,7 @@ Custom image datastore
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Set Test VCH Name
 
     Log To Console  \nInstalling VCH to test server...
     ${output-esx}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --image-store=%{TEST_DATASTORE}/long/weird/path ${vicmachinetls} --insecure-registry wdc-harbor-ci.eng.vmware.com

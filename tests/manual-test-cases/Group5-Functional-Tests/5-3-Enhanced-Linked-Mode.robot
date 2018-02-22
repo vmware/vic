@@ -62,7 +62,7 @@ Enhanced Link Mode Setup
     ${esx6-ip}=  Get From List  ${esx-ips}  2
 
     # Finish test bed deploy
-    ${output}=  Wait For Process  ${pid}  timeout=70 minutes  on_timeout=terminate
+    ${output}=  Wait For Process  ${pid}
     Log  ${output.stdout}
     Log  ${output.stderr}
     Should Be Equal As Integers  ${output.rc}  0
@@ -99,6 +99,7 @@ Enhanced Link Mode Setup
     Set Environment Variable  GOVC_URL  ${vc1-ip}
     Set Environment Variable  GOVC_USERNAME  administrator@vsphere.local
     Set Environment Variable  GOVC_PASSWORD  Admin!23
+    
     ${license}=  Run  govc license.ls
 
     # First VC cluster

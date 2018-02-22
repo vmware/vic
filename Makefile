@@ -61,7 +61,7 @@ endif
 # Caches dependencies to speed repeated calls
 define godeps
 	$(call assert,$(call gmsl_compatible,1 1 7), Wrong GMSL version) \
-	$(if $(filter-out push push-portlayer push-docker push-vic-init push-vicadmin focused-test test check clean distclean mrrobot mark sincemark local-ci-test .DEFAULT,$(MAKECMDGOALS)), \
+	$(if $(filter-out push push-portlayer push-docker push-vic-init push-vicadmin focused-test test check clean distclean mrrobot mark sincemark .DEFAULT,$(MAKECMDGOALS)), \
 		$(if $(call defined,dep_cache,$(dir $1)),,$(info Generating dependency set for $(dir $1))) \
 		$(or \
 			$(if $(call defined,dep_cache,$(dir $1)), $(debug Using cached Go dependencies) $(wildcard $1) $(call get,dep_cache,$(dir $1))),
@@ -287,10 +287,6 @@ push-vic-init:
 push-vicadmin:
 	$(BASE_DIR)/infra/scripts/replace-running-components.sh vicadmin
 
-local-ci-test:
-	@echo running CI tests locally...
-	infra/scripts/local-ci.sh
-
 focused-test:
 # test only those packages that have changes
 	infra/scripts/focused-test.sh $(REMOTE)
@@ -340,7 +336,7 @@ $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 
 $(docker-engine-api): $(portlayerapi-client) $(admiralapi-client) $$(call godeps,cmd/docker/*.go)
 ifeq ($(OS),linux)
-	@echo building docker-engine-api server...
+	@echo Building docker-engine-api server...
 	@$(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o $@ ./cmd/docker
 else
 	@echo skipping docker-engine-api server, cannot build on non-linux
@@ -348,12 +344,11 @@ endif
 
 $(docker-engine-api-test): $$(call godeps,cmd/docker/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)
-	@echo building docker-engine-api server for test...
+	@echo Building docker-engine-api server for test...
 	@$(TIME) $(GO) test -c -coverpkg github.com/vmware/vic/lib/...,github.com/vmware/vic/pkg/... -outputdir /tmp -coverprofile docker-engine-api.cov -o $@ ./cmd/docker
 else
 	@echo skipping docker-engine-api server for test, cannot build on non-linux
 endif
-
 
 # Common portlayer dependencies between client and server
 PORTLAYER_DEPS ?= lib/apiservers/portlayer/swagger.json \
@@ -488,7 +483,7 @@ distro: all
 mrrobot:
 	@rm -rf *.xml *.html *.log *.zip VCH-0-*
 
-clean: cleandeps
+clean:
 	@echo removing binaries
 	@rm -rf $(BIN)/*
 	@echo removing Go object files
@@ -520,7 +515,3 @@ clean: cleandeps
 distclean: clean
 	@echo removing binaries
 	@rm -rf $(BIN)
-
-cleandeps:
-	@echo removing dependency cache
-	@rm -rf .godeps_cache

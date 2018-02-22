@@ -18,8 +18,12 @@ COPY secrets /go/src/github.com/vmware/vic
 ENV LONGEVITY=1
 ENV GOVC_INSECURE=1
 ENV GOVC_USERNAME=administrator@vsphere.local
+ENV GOVC_DATASTORE=vsanDatastore
+ENV TEST_DATASTORE=vsanDatastore
 ENV TEST_USERNAME=administrator@vsphere.local
 ENV TEST_TIMEOUT=3m
-ENV TEST_RESOURCE=Cluster
+ENV TEST_RESOURCE=cls
 ENV DOMAIN=
+ENV BRIDGE_NETWORK=bridge
+ENV PUBLIC_NETWORK=vm-network
 ENV DOCKER_API_VERSION=1.23

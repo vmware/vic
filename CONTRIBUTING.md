@@ -121,15 +121,13 @@ Automated testing uses [Drone][dronesrc].
 
 Pull requests must pass unit tests and integration tests before being merged into the master branch. A standard PR builds
 the project and runs unit and regression tests. To customize the integration test suite that runs in your pull request,
-you can use these keywords in your PR body:
+you can use three keywords in your PR title or commit message:
 
 - To skip running tests (e.g. for a work-in-progress PR), use `[ci skip]` or `[skip ci]`.
 - To run the full test suite, use `[full ci]`.
 - To run _one_ integration test or group, use `[specific ci=$test]`. This will run the regression test as well. Examples:
   - To run the `1-01-Docker-Info` suite: `[specific ci=1-01-Docker-Info]`
   - To run all suites under the `Group1-Docker-Commands` group: `[specific ci=Group1-Docker-Commands]`
-- To skip running the unit tests, use `[skip unit]`.
-- To fail fast (make normal failures fatal) during the integration testing, use `[fast fail]`.
 
 You can run the tests locally before making a PR or view the Drone build results for [unit tests and integration tests][dronevic].
 

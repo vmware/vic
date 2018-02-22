@@ -86,22 +86,6 @@ To run unit tests after a successful build, issue the following:
 make test
 ```
 
-Running "make" every time causes Go dependency regeneration for each component, so that "make" can rebuild only those components that are changed.  However, such regeneration may take significant amount of time when it is not really needed. To fight that developers can use cached dependencies that can be enabled by defining the environment variable VIC_CACHE_DEPS. As soon as it is set, infra/scripts/go-deps.sh will read cached version of dependencies if those exist.
-
-```shell
-export VIC_CACHE_DEPS=1
-```
-
-This is important to note that as soon as you add a new package or an internal project dependency that didn't exist before, those dependencies
-should be regenerated to reflect latest changes. It can be done just by running:
-
-```shell
-make cleandeps
-```
-
-After that next "make" run will regenerate dependencies from scratch.
-
-
 ## Managing vendor/ directory
 
 To build the VIC Engine dependencies, ensure `GOPATH` is set, then issue the following.

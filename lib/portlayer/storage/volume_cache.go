@@ -1,4 +1,4 @@
-// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -59,7 +59,7 @@ func (v *VolumeLookupCache) GetVolumeStore(op trace.Operation, storeName string)
 	return u, nil
 }
 
-// AddStore adds a volumestore by name. The url returned is the service url to the volume store.
+// AddStore adds a volumestore by name.  The url returned is the service url to the volume store.
 func (v *VolumeLookupCache) AddStore(op trace.Operation, storeName string, vs VolumeStorer) (*url.URL, error) {
 	v.vlcLock.Lock()
 	defer v.vlcLock.Unlock()
@@ -70,13 +70,12 @@ func (v *VolumeLookupCache) AddStore(op trace.Operation, storeName string, vs Vo
 		return nil, err
 	}
 
-	storeURLStr := u.String()
-	if _, ok := v.volumeStores[storeURLStr]; ok {
-		return nil, fmt.Errorf("volumestore (%s) already added", storeURLStr)
+	if _, ok := v.volumeStores[u.String()]; ok {
+		return nil, fmt.Errorf("volumestore (%s) already added", u.String())
 	}
 
-	v.volumeStores[storeURLStr] = vs
-	return u, v.addVolumesToCache(op, storeURLStr, vs)
+	v.volumeStores[u.String()] = vs
+	return u, v.rebuildCache(op)
 }
 
 func (v *VolumeLookupCache) volumeStore(store *url.URL) (VolumeStorer, error) {
@@ -95,6 +94,7 @@ func (v *VolumeLookupCache) volumeStore(store *url.URL) (VolumeStorer, error) {
 
 // VolumeStoresList returns a list of volume store names
 func (v *VolumeLookupCache) VolumeStoresList(op trace.Operation) ([]string, error) {
+
 	v.vlcLock.RLock()
 	defer v.vlcLock.RUnlock()
 
@@ -201,19 +201,21 @@ func (v *VolumeLookupCache) VolumesList(op trace.Operation) ([]*Volume, error) {
 	return l, nil
 }
 
-// addVolumesToCache finds the volumes in the input volume store and adds them to the cache.
-func (v *VolumeLookupCache) addVolumesToCache(op trace.Operation, storeURLStr string, vs VolumeStorer) error {
-	op.Infof("Adding volumes in volume store %s to volume cache", storeURLStr)
+// goto the volume store and repopulate the cache.
+func (v *VolumeLookupCache) rebuildCache(op trace.Operation) error {
+	op.Infof("Refreshing volume cache.")
 
-	vols, err := vs.VolumesList(op)
-	if err != nil {
-		return err
-	}
+	for _, vs := range v.volumeStores {
+		vols, err := vs.VolumesList(op)
+		if err != nil {
+			return err
+		}
 
-	for _, vol := range vols {
-		log.Infof("Volumestore: Found vol %s on store %s", vol.ID, vol.Store)
-		// Add it to the cache.
-		v.vlc[vol.ID] = *vol
+		for _, vol := range vols {
+			log.Infof("Volumestore: Found vol %s on store %s.", vol.ID, vol.Store)
+			// Add it to the cache.
+			v.vlc[vol.ID] = *vol
+		}
 	}
 
 	return nil

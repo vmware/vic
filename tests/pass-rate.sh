@@ -23,5 +23,5 @@ echo "Number of successful merges to master in the last 30 merges: $successes"
 let total=$successes+$failures
 passrate=$(bc -l <<< "scale=2;100 * ($successes / $total)")
 
-echo "Current vmware/vic CI passrate: $passrate"
-curl --max-time 10 --retry 3 -s -d "payload={'channel': '#vic-bots', 'text': 'Current vmware/vic CI passrate: $passrate%'}" "$SLACK_URL"
+echo "Current CI passrate: $passrate"
+curl --max-time 10 --retry 3 -s -d "payload={'channel': '#vic-bots', 'text': 'Current CI passrate: $passrate%'}" "$SLACK_URL"

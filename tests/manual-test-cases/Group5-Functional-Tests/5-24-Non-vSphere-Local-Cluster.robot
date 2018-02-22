@@ -34,9 +34,7 @@ Non vSphere Local Cluster Install Setup
     Set Suite Variable  @{list}  @{esx_names}[0]  @{esx_names}[1]  @{esx_names}[2]  %{NIMBUS_USER}-${vc}
 
     # Finish vCenter deploy
-    ${output}=  Wait For Process  ${pid}  timeout=70 minutes  on_timeout=terminate
-    Log  ${output.stdout}
-    Log  ${output.stderr}
+    ${output}=  Wait For Process  ${pid}
     Should Contain  ${output.stdout}  Overall Status: Succeeded
 
     Open Connection  %{NIMBUS_GW}
