@@ -30,6 +30,9 @@ Verify Temporary Redirect
     Should Contain  ${out}  HTTP request sent, awaiting response... 303 See Other
 
 Verify Failed Log Attempts
+    ${status}=  Run Keyword And Return Status  Environment Variable Should Not Be Set  DOCKER_CERT_PATH
+    Pass Execution If  ${status}  This test is only applicable if using TLS with certs
+
     #Save the first appliance certs and cleanup the first appliance
     #${old-certs}=  Set Variable  %{DOCKER_CERT_PATH}
     Run  cp -r %{DOCKER_CERT_PATH} old-certs
