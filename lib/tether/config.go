@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/ip"
