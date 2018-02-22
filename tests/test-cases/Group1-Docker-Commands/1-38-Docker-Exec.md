@@ -71,7 +71,7 @@ This test is designed to test running exec's against a container running a proce
 
 # Exec Power Off test for short Running Process
 ## Purpose:
-This test is designed to simulate a container running a process which will naturally exit after a short time. We kick off many exec operations concurrently and we expect some to fail and some to succeed. This will test the handling of the exec's during a natural container shutdown rather than an explicitly triggered shutdown.
+This test is designed to simulate a container running a process which will naturally exit after a short time. We kick off many exec operations concurrently and we expect some to fail and some to succeed. This will test the handling of the exec's during a natural container shutdown rather than an explicitly triggered shutdown. This one is similar to the simple exec. Though the intention is to land right at the limitations of exec rather than within what we expect to full succeed. 5 execs on a container running sleep for 20 seconds is about our limit right now.
 
 ## Test Steps
 1. Pull an image that contains `sleep`. Busybox suffices here.

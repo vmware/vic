@@ -171,19 +171,41 @@ Exec During Poweroff Of A Container Performing A Long Running Task
      ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecPoweroffContainerLong} ${busybox} /bin/top
      Should Be Equal As Integers  ${rc}  0
 
-     :FOR  ${idx}  IN RANGE  1  20
-     \   Start Process  docker %{VCH-PARAMS} exec ${id} /bin/top  alias=exec-%{VCH-NAME}-${idx}  shell=true
+     :FOR  ${idx}  IN RANGE  1  10
+     \   Start Process  docker %{VCH-PARAMS} exec ${id} /bin/ls  alias=exec-%{VCH-NAME}-${idx}  shell=true
 
+
+     Sleep  10s
      ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${id}
      Should Be Equal As Integers  ${rc}  0
 
-     ${combinedoutput}=  Set Variable
+     ${combinedErr}=  Set Variable
+     ${combinedOut}=  Set Variable
 
-     :FOR  ${idx}  IN RANGE  1  20
+     :FOR  ${idx}  IN RANGE  1  10
      \   ${result}=  Wait For Process  exec-%{VCH-NAME}-${idx}  timeout=2 mins
-     \   ${combinedOutput}=  Catenate  ${combinedOutput}  ${result.stderr}${\n}
+     \   ${combinedErr}=  Catenate  ${combinedErr}  ${result.stderr}${\n}
+     \   ${combinedOut}=  Catenate  ${combinedOut}  ${result.stdout}${\n}
 
-     Should Contain  ${combinedOutput}  Container (${id}) is not running
+     Should Contain  ${combinedErr}  Container (${id}) is not running
+
+     # We should get atleast one successful exec...
+     Should Contain  ${combinedOut}  bin
+     Should Contain  ${combinedOut}  dev
+     Should Contain  ${combinedOut}  etc
+     Should Contain  ${combinedOut}  home
+     Should Contain  ${combinedOut}  lib
+     Should Contain  ${combinedOut}  lost+found
+     Should Contain  ${combinedOut}  mnt
+     Should Contain  ${combinedOut}  proc
+     Should Contain  ${combinedOut}  root
+     Should Contain  ${combinedOut}  run
+     Should Contain  ${combinedOut}  sbin
+     Should Contain  ${combinedOut}  sys
+     Should Contain  ${combinedOut}  tmp
+     Should Contain  ${combinedOut}  usr
+     Should Contain  ${combinedOut}  var
+
 
 Exec During Poweroff Of A Container Performing A Short Running Task
      ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
@@ -192,19 +214,38 @@ Exec During Poweroff Of A Container Performing A Short Running Task
 
      ${suffix}=  Evaluate  '%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
      Set Test Variable  ${ExecPoweroffContainerShort}  Exec-Poweroff-${suffix}
-     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecPoweroffContainerShort} ${busybox} /bin/ls /; sleep 20;
+     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecPoweroffContainerShort} ${busybox} sleep 20
      Should Be Equal As Integers  ${rc}  0
 
-     :FOR  ${idx}  IN RANGE  1  20
-     \   Start Process  docker %{VCH-PARAMS} exec ${id} /bin/top  alias=exec-%{VCH-NAME}-${idx}  shell=true
+     :FOR  ${idx}  IN RANGE  1  5
+     \   Start Process  docker %{VCH-PARAMS} exec ${id} /bin/ls  alias=exec-%{VCH-NAME}-${idx}  shell=true
 
      ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} wait ${id}
      Should Be Equal As Integers  ${rc}  0
 
-     ${combinedoutput}=  Set Variable
+     ${combinedErr}=  Set Variable
+     ${combinedOut}=  Set Variable
 
-     :FOR  ${idx}  IN RANGE  1  20
+     :FOR  ${idx}  IN RANGE  1  5
      \   ${result}=  Wait For Process  exec-%{VCH-NAME}-${idx}  timeout=2 mins
-     \   ${combinedOutput}=  Catenate  ${combinedOutput}  ${result.stderr}${\n}
+     \   ${combinedErr}=  Catenate  ${combinedErr}  ${result.stderr}${\n}
+     \   ${combinedOut}=  Catenate  ${combinedOut}  ${result.stdout}${\n}
 
-     Should Contain  ${combinedOutput}  Container (${id}) is not running
+     Should Contain  ${combinedErr}  Container (${id}) is not running
+
+     # We should get atleast one successful exec...
+     Should Contain  ${combinedOut}  bin
+     Should Contain  ${combinedOut}  dev
+     Should Contain  ${combinedOut}  etc
+     Should Contain  ${combinedOut}  home
+     Should Contain  ${combinedOut}  lib
+     Should Contain  ${combinedOut}  lost+found
+     Should Contain  ${combinedOut}  mnt
+     Should Contain  ${combinedOut}  proc
+     Should Contain  ${combinedOut}  root
+     Should Contain  ${combinedOut}  run
+     Should Contain  ${combinedOut}  sbin
+     Should Contain  ${combinedOut}  sys
+     Should Contain  ${combinedOut}  tmp
+     Should Contain  ${combinedOut}  usr
+     Should Contain  ${combinedOut}  var
