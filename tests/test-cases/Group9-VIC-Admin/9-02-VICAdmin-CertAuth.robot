@@ -22,7 +22,9 @@ Default Tags
 *** Keywords ***
 Curl
     [Arguments]  ${path}
-    ${output}=  Run  curl -sk --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem %{VIC-ADMIN}${path}
+    ${status}=  Run Keyword And Return Status  Environment Variable Should Be Set  DOCKER_CERT_PATH
+    ${certs}=  Set Variable If  ${status}  --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem  ${EMPTY}
+    ${output}=  Run  curl -sk ${certs} %{VIC-ADMIN}${path}
     Should Not Be Equal As Strings  ''  ${output}
     [Return]  ${output}
 
