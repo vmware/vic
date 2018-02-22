@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"errors"
 
@@ -93,8 +94,8 @@ func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, r
 		}
 
 		// fix up path
-		// stripped := strings.TrimPrefix(header.Name, filter.StripPath)
-		rebased := filepath.Join(filter.RebasePath, header.Name)
+		stripped := strings.TrimPrefix(header.Name, filter.StripPath)
+		rebased := filepath.Join(filter.RebasePath, stripped)
 		absPath := filepath.Join(root, rebased)
 
 		switch header.Typeflag {

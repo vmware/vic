@@ -310,7 +310,7 @@ func toolboxOverrideArchiveRead(system System, u *url.URL, tr *tar.Reader) error
 		op.Debugf("Unpacking tar archive to %s", diskPath)
 		d := &archive.DoneChannel{}
 		d.Done = make(chan error)
-		waitChan, err := baseOp.LaunchUtility(func() (*os.Process, error) {
+		waitChan, err := system.LaunchUtility(func() (*os.Process, error) {
 			op.Debugf("XXX launching tar unpack binary")
 			cmd, err := d.Unpack(op, tr, spec, diskPath, "/.tether/unpack")
 			return cmd.Process, err
