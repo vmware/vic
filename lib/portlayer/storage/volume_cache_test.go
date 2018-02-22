@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -95,7 +95,7 @@ func (m *MockVolumeStore) VolumeDestroy(op trace.Operation, vol *Volume) error {
 	return nil
 }
 
-// Lists all volumes on the given volume store`
+// VolumesList lists all volumes on the given volume store.
 func (m *MockVolumeStore) VolumesList(op trace.Operation) ([]*Volume, error) {
 	var i int
 	list := make([]*Volume, len(m.db))
@@ -214,6 +214,52 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 	}
 }
 
+// createVolumes is a test helper that creates a set of num volumes on the input volume cache and volume store.
+func createVolumes(t *testing.T, op trace.Operation, v *VolumeLookupCache, storeURL *url.URL, num int) map[string]*Volume {
+	vols := make(map[string]*Volume)
+	for i := 1; i <= num; i++ {
+		id := fmt.Sprintf("ID-%d", i)
+
+		// Write to the datastore
+		vol, err := v.VolumeCreate(op, id, storeURL, 0, nil)
+		if !assert.NoError(t, err) || !assert.NotNil(t, vol) {
+			return nil
+		}
+
+		vols[id] = vol
+	}
+
+	return vols
+}
+
+func TestAddVolumesToCache(t *testing.T) {
+	mvs1 := NewMockVolumeStore()
+	op := trace.NewOperation(context.Background(), "test")
+	v := NewVolumeLookupCache(op)
+
+	storeURL, err := util.VolumeStoreNameToURL("testStore")
+	assert.NotNil(t, storeURL)
+	storeURLStr := storeURL.String()
+	v.volumeStores[storeURLStr] = mvs1
+
+	// Create 50 volumes on the volume store.
+	vols := createVolumes(t, op, v, storeURL, 50)
+
+	// Clear the volume map after it has been filled during volume creation.
+	v.vlc = make(map[string]Volume)
+
+	err = v.addVolumesToCache(op, storeURLStr, mvs1)
+	assert.Nil(t, err)
+
+	// Check that the volume map is intact again in the cache.
+	for _, expectedVol := range vols {
+		vol, err := v.VolumeGet(op, expectedVol.ID)
+		if !assert.NoError(t, err) || !assert.Equal(t, expectedVol, vol) {
+			return
+		}
+	}
+}
+
 // Create 2 store caches but use the same backing datastore.  Create images
 // with the first cache, then get the image with the second.  This simulates
 // restart since the second cache is empty and has to go to the backing store.
@@ -227,26 +273,15 @@ func TestVolumeCacheRestart(t *testing.T) {
 		return
 	}
 
-	// Create a set of volumes
-	inVols := make(map[string]*Volume)
-	for i := 1; i < 50; i++ {
-		id := fmt.Sprintf("ID-%d", i)
-
-		// Write to the datastore
-		vol, err := firstCache.VolumeCreate(op, id, storeURL, 0, nil)
-		if !assert.NoError(t, err) || !assert.NotNil(t, vol) {
-			return
-		}
-
-		inVols[id] = vol
-	}
+	// Create a set of 50 volumes.
+	inVols := createVolumes(t, op, firstCache, storeURL, 50)
 
 	secondCache := NewVolumeLookupCache(op)
 	if !assert.NotNil(t, secondCache) {
 		return
 	}
 
-	_, err = secondCache.AddStore(op, "testStore", mvs)
+	storeURL, err = secondCache.AddStore(op, "testStore", mvs)
 	if !assert.NoError(t, err) || !assert.NotNil(t, storeURL) {
 		return
 	}
