@@ -17,12 +17,13 @@ commits=$(curl -s https://api.github.com/repos/vmware/vic/commits?access_token=$
 curl -s https://api.github.com/repos/vmware/vic/statuses/{$commits}?access_token=$GITHUB_AUTOMATION_API_KEY | jq '.[] | select((.context == "continuous-integration/vic/push") and (.state != "pending")) | "\(.target_url): \(.state)"' | tee status.out
 
 failures=$(cat status.out | grep -c failure)
-echo "Number of failed merges to master in the last 30 merges: $failures"
 successes=$(cat status.out | grep -c success)
-echo "Number of successful merges to master in the last 30 merges: $successes"
 
 let total=$successes+$failures
 passrate=$(bc -l <<< "scale=2;100 * ($successes / $total)")
+
+echo "Number of failed merges to master in the last $total merges: $failures"
+echo "Number of successful merges to master in the last $total merges: $successes"
 
 echo "Current CI passrate: $passrate"
 curl --max-time 10 --retry 3 -s -d "payload={'channel': '#vic-bots', 'text': 'Current CI passrate: $passrate%'}" "$SLACK_URL"
