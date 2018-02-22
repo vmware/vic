@@ -27,6 +27,10 @@ This test requires that a vSphere server is running and available
 None
 
 # Concurrent Simple Exec
+## Purpose:
+This test is designed to prove that we maintain the ability to complete 5 exec operations on a container in under 30 seconds. We should strive to improve upon this further. But for the moment this test is the gate guardian for 5 concurrent simple execs against a running container. 
+
+
 ## Test Steps
 1. Pull an image that contains `sleep`. Busybox suffices here.
 2. Create a container running `sleep` to simulate a bounded time process.
@@ -46,12 +50,15 @@ None
 * step 7 The container should have an exit code of 0.
 
 # Exec Power Off test for long running Process
+## Purpose:
+This test is designed to test running exec's against a container running a process which would not naturally exit. Then after running many execs concurrently we explicitly stop the container. We should then handle the the execs in their varying states properly.
+
 ## Test Steps
 1. Pull an image that contains `/bin/top`. Busybox suffices here.
-2. Create a container running `/bin/top` to simulate a long running process.
+2. Create a container running `/bin/top` to simulate a long running process that should not exit on it's own.
 3. Run the container and detach from it.
 4. Start 20 simple exec operations in parallel against the detached container.
-5. Stop the container while the execs are still running in order to trigger the exec power off errors.
+5. Explicitly stop the container while the execs are still running in order to trigger the exec power off errors.
 6. collect all output from the parallel exec operations.
 
 ## Expected Outcome
@@ -63,6 +70,9 @@ None
 * step 6 should contain the error message for exec operations that are interrupted by a power off operation. Specifically a poweroff that was explicitly triggered.
 
 # Exec Power Off test for short Running Process
+## Purpose:
+This test is designed to simulate a container running a process which will naturally exit after a short time. We kick off many exec operations concurrently and we expect some to fail and some to succeed. This will test the handling of the exec's during a natural container shutdown rather than an explicitly triggered shutdown.
+
 ## Test Steps
 1. Pull an image that contains `sleep`. Busybox suffices here.
 2. Create a container running `sleep` to simulate a short running process.
