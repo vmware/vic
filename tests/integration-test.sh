@@ -22,25 +22,26 @@ dpkg -l > package.list
 
 
 buildinfo=$(drone build info vmware/vic $DRONE_BUILD_NUMBER)
+echo $buildinfo
 
-if [[ $DRONE_BRANCH == "master" || $DRONE_BRANCH == "releases/"* ]] && [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "push" ]]; then
-    echo "Running full CI for $DRONE_BUILD_EVENT on $DRONE_BRANCH"
+# if [[ $DRONE_BRANCH == "master" || $DRONE_BRANCH == "releases/"* ]] && [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "push" ]]; then
+#     echo "Running full CI for $DRONE_BUILD_EVENT on $DRONE_BRANCH"
+#     pybot --removekeywords TAG:secret --exclude skip tests/test-cases
+# elif [[ $DRONE_BRANCH == *"refs/tags"* ]] && [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "tag" ]]; then
+#     echo "Running only Group11-Upgrade and 7-01-Regression for $DRONE_BUILD_EVENT on $DRONE_BRANCH"
+#     pybot --removekeywords TAG:secret --suite Group11-Upgrade --suite 7-01-Regression tests/test-cases
+# elif grep -q "\[full ci\]" <(drone build info vmware/vic $DRONE_BUILD_NUMBER); then
+#     echo "Running full CI as per commit message"
     pybot --removekeywords TAG:secret --exclude skip tests/test-cases
-elif [[ $DRONE_BRANCH == *"refs/tags"* ]] && [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "tag" ]]; then
-    echo "Running only Group11-Upgrade and 7-01-Regression for $DRONE_BUILD_EVENT on $DRONE_BRANCH"
-    pybot --removekeywords TAG:secret --suite Group11-Upgrade --suite 7-01-Regression tests/test-cases
-elif grep -q "\[full ci\]" <(drone build info vmware/vic $DRONE_BUILD_NUMBER); then
-    echo "Running full CI as per commit message"
-    pybot --removekeywords TAG:secret --exclude skip tests/test-cases
-elif (echo $buildinfo | grep -q "\[specific ci="); then
-    echo "Running specific CI as per commit message"
-    buildtype=$(echo $buildinfo | grep "\[specific ci=")
-    testsuite=$(echo $buildtype | awk -F"\[specific ci=" '{sub(/\].*/,"",$2);print $2}')
-    pybot --removekeywords TAG:secret --suite $testsuite --suite 7-01-Regression tests/test-cases
-else
-    echo "Running regressions"
-    pybot --removekeywords TAG:secret --exclude skip --include regression tests/test-cases
-fi
+# elif (echo $buildinfo | grep -q "\[specific ci="); then
+#     echo "Running specific CI as per commit message"
+#     buildtype=$(echo $buildinfo | grep "\[specific ci=")
+#     testsuite=$(echo $buildtype | awk -F"\[specific ci=" '{sub(/\].*/,"",$2);print $2}')
+#     pybot --removekeywords TAG:secret --suite $testsuite --suite 7-01-Regression tests/test-cases
+# else
+#     echo "Running regressions"
+#     pybot --removekeywords TAG:secret --exclude skip --include regression tests/test-cases
+# fi
 
 rc="$?"
 
