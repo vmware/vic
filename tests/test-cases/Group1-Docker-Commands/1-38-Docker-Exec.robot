@@ -124,6 +124,43 @@ Exec NonExisting
     #\   Should Be Equal As Integers  ${rc}  0
     #\   Should Contain  ${output}  no such file or directory
 
+Concurrent Simple Exec
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+     Should Be Equal As Integers  ${rc}  0
+     Should Not Contain  ${output}  Error
+
+     ${suffix}=  Evaluate  '%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
+     Set Test Variable  ${ExecSimpleContainer}  Exec-simple-${suffix}
+     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecSimpleContainer} ${busybox} sleep 30
+     Should Be Equal As Integers  ${rc}  0
+
+     :FOR  ${idx}  IN RANGE  1  5
+     \   Start Process  docker %{VCH-PARAMS} exec ${id} /bin/ls  alias=exec-simple-%{VCH-NAME}-${idx}  shell=true
+
+     :FOR  ${idx}  IN RANGE  1  5
+     \   ${result}=  Wait For Process  exec-simple-%{VCH-NAME}-${idx}  timeout=40s
+     \   Should Be Equal As Integers  ${result.rc}  0
+     \   # if any of these are missing check to see if the busy box fs changed first.
+     \   Should Contain  ${result.stdout}  bin
+     \   Should Contain  ${result.stdout}  dev
+     \   Should Contain  ${result.stdout}  etc
+     \   Should Contain  ${result.stdout}  home
+     \   Should Contain  ${result.stdout}  lib
+     \   Should Contain  ${result.stdout}  lost+found
+     \   Should Contain  ${result.stdout}  mnt
+     \   Should Contain  ${result.stdout}  proc
+     \   Should Contain  ${result.stdout}  root
+     \   Should Contain  ${result.stdout}  run
+     \   Should Contain  ${result.stdout}  sbin
+     \   Should Contain  ${result.stdout}  sys
+     \   Should Contain  ${result.stdout}  tmp
+     \   Should Contain  ${result.stdout}  usr
+     \   Should Contain  ${result.stdout}  var
+
+     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} wait ${id}
+     Should Be Equal As Integers  ${rc}  0
+
+
 Exec During Poweroff Of A Container Performing A Long Running Task
      ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
      Should Be Equal As Integers  ${rc}  0
