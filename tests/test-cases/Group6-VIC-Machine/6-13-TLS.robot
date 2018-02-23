@@ -34,6 +34,9 @@ Create VCH - defaults with --no-tls
     Cleanup VIC Appliance On Test Server
 
 Create VCH - defaults custom cert path
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
+
     Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
