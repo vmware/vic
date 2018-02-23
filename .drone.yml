@@ -287,7 +287,7 @@ pipeline:
     image: robertstettner/drone-codecov
     secrets:
       - codecov_token
-    token: '$CODECOV_TOKEN'
+    token: $CODECOV_TOKEN
     files:
       - .cover/cover.out
 
