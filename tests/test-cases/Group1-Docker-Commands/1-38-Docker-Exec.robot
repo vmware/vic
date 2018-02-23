@@ -225,7 +225,7 @@ Exec During Poweroff Of A Container Performing A Short Running Task
      Should Be Equal As Integers  ${rc}  0
 
      ## the /bin/top should stay open the entire life of the container from start of the exec.
-     ${rc}  ${output}=  Run And Return Rc And output  docker %{VCH-PARAMS} exec ${id} /bin/top  alias=exec-%{VCH-NAME}-${idx}  shell=true
+     ${rc}  ${output}=  Run And Return Rc And output  docker %{VCH-PARAMS} exec ${id} /bin/top
      Should Be Equal As Integers  ${rc}  0
 
      # We should see tether every time since it is required to run the container.
