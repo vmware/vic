@@ -39,11 +39,12 @@ pipeline:
       - test_url_array
       - test_username
     commands:
+      - echo $GOVC_USERNAME
       - 'export GOVC_INSECURE=true'
-      - 'export GOVC_USERNAME=$${TEST_USERNAME}'
+      - export GOVC_USERNAME=$TEST_USERNAME
       - 'export GOVC_PASSWORD=$${TEST_PASSWORD}'
       - 'export GOVC_DATASTORE=$${TEST_DATASTORE}'
-      - 'export DOMAIN=$${CI_DOMAIN}'
+      - export DOMAIN=$CI_DOMAIN
     volumes:
       - /tmp
     when:
@@ -53,6 +54,6 @@ pipeline:
     image: plugins/slack
     secrets:
       - slack_url
-    webhook: '$${SLACK_URL}'
+    webhook: $SLACK_URL
     username: drone
     template: "Testing, ignore pls"
