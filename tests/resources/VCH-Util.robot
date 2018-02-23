@@ -48,10 +48,8 @@ Set Test Environment Variables
     
     ${rc}  ${host}=  Run And Return Rc And Output  govc ls host
     Should Be Equal As Integers  ${rc}  0
-    ${server_date}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.date.info
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Log To Console  \nTest_Server_Date=\n${server_date}\n
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc ls ${host} | grep -v /Resources | xargs -I% -n1 govc host.date.info -host\=% | grep 'date and time'
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Log To Console  \nTest_Server_Dates=\n${out}
+    ${out}=  Run  govc ls -t HostSystem ${host} | xargs -I% -n1 govc host.date.info -host\=% | grep 'date and time'
+    Log To Console  \nTest_Server_Dates=\n${out}\n
 
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_RESOURCE
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_RESOURCE  ${host}/Resources
