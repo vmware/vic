@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package image
 
 import (
 	"context"
@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/constants"
+	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -162,11 +163,11 @@ func (c *MockDataStore) Import(op trace.Operation, id string, spec *archive.Filt
 	return nil
 }
 
-func (c *MockDataStore) NewDataSink(op trace.Operation, id string) (DataSink, error) {
+func (c *MockDataStore) NewDataSink(op trace.Operation, id string) (storage.DataSink, error) {
 	return nil, nil
 }
 
-func (c *MockDataStore) NewDataSource(op trace.Operation, id string) (DataSource, error) {
+func (c *MockDataStore) NewDataSource(op trace.Operation, id string) (storage.DataSource, error) {
 	return nil, nil
 }
 

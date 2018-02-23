@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package volume
 
 import (
 	"fmt"
@@ -25,6 +25,7 @@ import (
 
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -258,7 +259,7 @@ func (v *VolumeLookupCache) Import(op trace.Operation, id string, spec *archive.
 	return store.Import(op, id, spec, tarStream)
 }
 
-func (v *VolumeLookupCache) NewDataSink(op trace.Operation, id string) (DataSink, error) {
+func (v *VolumeLookupCache) NewDataSink(op trace.Operation, id string) (storage.DataSink, error) {
 	volume, err := v.VolumeGet(op, id)
 	if err != nil {
 		return nil, err
@@ -290,7 +291,7 @@ func (v *VolumeLookupCache) Export(op trace.Operation, id, ancestor string, spec
 	return store.Export(op, id, ancestor, spec, data)
 }
 
-func (v *VolumeLookupCache) NewDataSource(op trace.Operation, id string) (DataSource, error) {
+func (v *VolumeLookupCache) NewDataSource(op trace.Operation, id string) (storage.DataSource, error) {
 	volume, err := v.VolumeGet(op, id)
 	if err != nil {
 		return nil, err

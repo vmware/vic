@@ -106,9 +106,9 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		CreateTime: time.Now().UTC().UnixNano(),
 		Version:    version.GetBuild(),
 		Key:        pem.EncodeToMemory(&privateKeyBlock),
-		LayerID:    params.CreateConfig.Layer,
-		ImageID:    params.CreateConfig.Image,
-		RepoName:   params.CreateConfig.RepoName,
+		// LayerID:    params.CreateConfig.Layer,
+		// ImageID:    params.CreateConfig.Image,
+		// RepoName:   params.CreateConfig.RepoName,
 		Hostname:   params.CreateConfig.Hostname,
 		Domainname: params.CreateConfig.Domainname,
 	}
@@ -122,9 +122,9 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 
 	// Create the executor.ExecutorCreateConfig
 	c := &exec.ContainerCreateConfig{
-		Metadata:       m,
-		ParentImageID:  params.CreateConfig.Layer,
-		ImageStoreName: params.CreateConfig.ImageStore.Name,
+		Metadata: m,
+		// ParentImageID:  params.CreateConfig.Layer,
+		// ImageStoreName: params.CreateConfig.ImageStore.Name,
 		Resources: exec.Resources{
 			NumCPUs:  params.CreateConfig.NumCpus,
 			MemoryMB: params.CreateConfig.MemoryMB,

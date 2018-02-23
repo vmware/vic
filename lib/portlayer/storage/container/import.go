@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vsphere
+package container
 
 import (
 	"errors"
@@ -23,13 +23,14 @@ import (
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-func (v *VolumeStore) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
-	l, err := v.NewDataSink(op, id)
+func (c *ContainerStore) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
+	l, err := c.NewDataSink(op, id)
 	if err != nil {
 		return err
 	}
@@ -37,9 +38,9 @@ func (v *VolumeStore) Import(op trace.Operation, id string, spec *archive.Filter
 	return l.Import(op, spec, tarstream)
 }
 
-// NewDataSource creates and returns an DataSource associated with container storage
-func (v *VolumeStore) NewDataSink(op trace.Operation, id string) (storage.DataSink, error) {
-	uri, err := v.URL(op, id)
+// NewDataSink creates and returns an DataSink associated with container storage
+func (c *ContainerStore) NewDataSink(op trace.Operation, id string) (storage.DataSink, error) {
+	uri, err := c.URL(op, id)
 	if err != nil {
 		return nil, err
 	}
@@ -48,9 +49,9 @@ func (v *VolumeStore) NewDataSink(op trace.Operation, id string) (storage.DataSi
 offline:
 	offlineAttempt++
 
-	source, err := v.newDataSink(op, uri)
+	sink, err := c.newDataSink(op, uri)
 	if err == nil {
-		return source, err
+		return sink, err
 	}
 
 	// check for vmdk locked error here
@@ -61,7 +62,7 @@ offline:
 
 	// online - Owners() should filter out the appliance VM
 	// #nosec: Errors unhandled.
-	owners, _ := v.Owners(op, uri, disk.LockedVMDKFilter)
+	owners, _ := c.Owners(op, uri, disk.LockedVMDKFilter)
 	if len(owners) == 0 {
 		op.Infof("No online owners were found for %s", id)
 		return nil, errors.New("unable to create offline data sink and no online owners found")
@@ -81,19 +82,19 @@ offline:
 			}
 		}
 
-		online, err := v.newOnlineDataSink(op, o, id)
+		online, err := c.newOnlineDataSink(op, o, id)
 		if online != nil {
 			return online, err
 		}
 
-		op.Debugf("Failed to create online sink with owner %s: %s", o.Reference(), err)
+		op.Debugf("Failed to create online datasink with owner %s: %s", o.Reference(), err)
 	}
 
 	return nil, errors.New("unable to create online or offline data sink")
 }
 
-func (v *VolumeStore) newDataSink(op trace.Operation, url *url.URL) (storage.DataSink, error) {
-	mountPath, cleanFunc, err := v.Mount(op, url, true)
+func (c *ContainerStore) newDataSink(op trace.Operation, url *url.URL) (storage.DataSink, error) {
+	mountPath, cleanFunc, err := c.Mount(op, url, true)
 	if err != nil {
 		return nil, err
 	}
@@ -108,52 +109,12 @@ func (v *VolumeStore) newDataSink(op trace.Operation, url *url.URL) (storage.Dat
 	return storage.NewMountDataSink(op, f, cleanFunc), nil
 }
 
-func (v *VolumeStore) newOnlineDataSink(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSink, error) {
+func (c *ContainerStore) newOnlineDataSink(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSink, error) {
 	op.Debugf("Constructing toolbox data sink: %s.%s", owner.Reference(), id)
 
-	return &ToolboxDataSink{
+	return &vsphere.ToolboxDataSink{
 		VM:    owner,
-		ID:    storage.Label(id),
+		ID:    id,
 		Clean: func() { return },
-	}, nil
-}
-
-func (i *ImageStore) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {
-	l, err := i.NewDataSink(op, id)
-	if err != nil {
-		return err
-	}
-
-	return l.Import(op, spec, tarStream)
-}
-
-// NewDataSink creates and returns an DataSource associated with image storage
-func (i *ImageStore) NewDataSink(op trace.Operation, id string) (storage.DataSink, error) {
-	uri, err := i.URL(op, id)
-	if err != nil {
-		return nil, err
-	}
-
-	// there is no online fail over path for images
-	// we should probably have a check in here as to whether the image is "sealed" and can no longer
-	// be modified.
-	return i.newDataSink(op, uri)
-}
-
-func (i *ImageStore) newDataSink(op trace.Operation, url *url.URL) (storage.DataSink, error) {
-	mountPath, cleanFunc, err := i.Mount(op, url, true)
-	if err != nil {
-		return nil, err
-	}
-
-	f, err := os.Open(mountPath)
-	if err != nil {
-		cleanFunc()
-		return nil, err
-	}
-
-	return &storage.MountDataSink{
-		Path:  f,
-		Clean: cleanFunc,
 	}, nil
 }
