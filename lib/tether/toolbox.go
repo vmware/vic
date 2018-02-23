@@ -309,7 +309,7 @@ func toolboxOverrideArchiveRead(system System, u *url.URL, tr *tar.Reader) error
 
 		op.Debugf("Unpacking tar archive to %s", diskPath)
 		waitChan, err := system.LaunchUtility(func() (*os.Process, error) {
-			cmd, err := archive.Unpack(op, tr, spec, diskPath, "/.tether/unpack")
+			cmd, err := archive.Unpack(op, tr, spec, diskPath, archive.ContainerBinaryPath)
 			return cmd.Process, err
 		})
 
@@ -317,8 +317,11 @@ func toolboxOverrideArchiveRead(system System, u *url.URL, tr *tar.Reader) error
 			return err
 		}
 
-		rc := <-waitChan
-		op.Debugf("Finished reading from tar archive to path %s: %s with exit code %d", u.Path, u.String(), rc)
+		if rc := <-waitChan; rc != 0 {
+			return fmt.Errorf("Got nonzero exit code from unpack binary: %d", rc)
+		}
+
+		op.Debugf("Finished reading from tar archive to path %s: %s", u.Path, u.String())
 		return err
 	}
 	return defaultArchiveHandler.Read(u, tr)

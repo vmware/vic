@@ -37,6 +37,12 @@ const (
 	// O_TRUNC = truncate file to 0 length if it does exist(overwrite the file)
 	// O_WRONLY = We use this since we do not intend to read, we only need to write.
 	fileWriteFlags = os.O_CREATE | os.O_TRUNC | os.O_WRONLY
+
+	// Location of the unpack binary inside of containers
+	ContainerBinaryPath = "/.tether/unpack"
+
+	// Location of the unpack binary inside the endpoint VM
+	ApplianceBinaryPath = "/bin/unpack"
 )
 
 // InvokeUnpack will unpack the given tarstream(if it is a tar stream) on the local filesystem based on the specified root
@@ -131,11 +137,12 @@ func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, r
 	return nil
 }
 
-func OfflineUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string, binPath string) error {
+// OfflineUnpack wraps Unpack for usage in contexts without a childReaper.
+func OfflineUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string) error {
 
 	var cmd *exec.Cmd
 	var err error
-	if cmd, err = Unpack(op, tarStream, filter, root, binPath); err != nil {
+	if cmd, err = Unpack(op, tarStream, filter, root, ApplianceBinaryPath); err != nil {
 		return err
 	}
 
@@ -146,7 +153,7 @@ func OfflineUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, 
 	return nil
 }
 
-// Unpack hooks into a binary present in the appliance vm called unpack in order to execute InvokeUnpack inside of a chroot. This method works identically to InvokeUnpack, except that it will not function in areas where the binary is not present at /bin/unpack
+// Unpack runs the binary compiled in cmd/unpack.go which creates a chroot at `root` and passes `op`, `tarStream`, and `filter` to InvokeUnpack for extraction of the tar on the filesystem. `binPath` should be either ApplianceBinaryPath or ContainerBinaryPath. Unpack returns a `Cmd` to allow use in conjunction with the tether's `LaunchUtility`, so it is necessary to call `cmd.Wait` after `Unpack` exits e.g. OfflineUnpack, if not being used in conjunction with LaunchUtility and the childReaper.
 func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string, binPath string) (*exec.Cmd, error) {
 
 	fi, err := os.Stat(root)
