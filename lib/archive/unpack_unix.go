@@ -132,11 +132,10 @@ func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, r
 }
 
 func OfflineUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string, binPath string) error {
-	d := &DoneChannel{Done: make(chan error)}
 
 	var cmd *exec.Cmd
 	var err error
-	if cmd, err = d.Unpack(op, tarStream, filter, root, binPath); err != nil {
+	if cmd, err = Unpack(op, tarStream, filter, root, binPath); err != nil {
 		return err
 	}
 
@@ -144,19 +143,11 @@ func OfflineUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, 
 		return err
 	}
 
-	if err = <-d.Done; err != nil {
-		return err
-	}
-
 	return nil
 }
 
-type DoneChannel struct {
-	Done chan (error)
-}
-
 // Unpack hooks into a binary present in the appliance vm called unpack in order to execute InvokeUnpack inside of a chroot. This method works identically to InvokeUnpack, except that it will not function in areas where the binary is not present at /bin/unpack
-func (d *DoneChannel) Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string, binPath string) (*exec.Cmd, error) {
+func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string, binPath string) (*exec.Cmd, error) {
 
 	fi, err := os.Stat(root)
 	if err != nil {
@@ -183,7 +174,6 @@ func (d *DoneChannel) Unpack(op trace.Operation, tarStream io.Reader, filter *Fi
 	// "/.tether/unpack" inside container
 	cmd := exec.Command(binPath, op.ID(), root, *encodedFilter)
 
-	//stdin
 	stdin, err := cmd.StdinPipe()
 
 	if err != nil {
@@ -197,32 +187,26 @@ func (d *DoneChannel) Unpack(op trace.Operation, tarStream io.Reader, filter *Fi
 		return cmd, err
 	}
 
-	if d.Done == nil {
-		return nil, errors.New("initialize the Done channel in the receiver before calling Unpack")
-	}
-
 	go func() {
 		if tr, ok := tarStream.(*tar.Reader); ok {
 			tw := tar.NewWriter(stdin)
+			defer stdin.Close()
 			var th *tar.Header
 			for {
 				th, err = tr.Next()
 				if err == io.EOF {
 					err = nil // this just signals the end of the stream, so we don't want to pass it out to the parent process, as it doesn't signal a problem
 					tw.Close()
-					d.Done <- err
 					return
 				}
 				if err != nil {
 					op.Errorf("error reading tar header %s", err)
-					d.Done <- err
 					return
 				}
 				op.Debugf("processing tar header: asset(%s), size(%d)", th.Name, th.Size)
 				err = tw.WriteHeader(th)
 				if err != nil {
 					op.Errorf("error writing tar header %s", err)
-					d.Done <- err
 					return
 				}
 				switch th.Typeflag {
@@ -232,7 +216,6 @@ func (d *DoneChannel) Unpack(op trace.Operation, tarStream io.Reader, filter *Fi
 					op.Debugf("wrote %d bytes", k)
 					if err != nil {
 						op.Errorf("error writing file body bytes to stdin %s", err)
-						d.Done <- err
 						return
 					}
 				}
@@ -243,7 +226,6 @@ func (d *DoneChannel) Unpack(op trace.Operation, tarStream io.Reader, filter *Fi
 		if _, err := io.Copy(stdin, tarStream); err != nil {
 			op.Errorf("Error copying tarStream: %s", err.Error())
 		}
-		d.Done <- err
 	}()
 
 	return cmd, cmd.Start()

@@ -308,18 +308,12 @@ func toolboxOverrideArchiveRead(system System, u *url.URL, tr *tar.Reader) error
 		// Unpack will rebase tar headers for us. :thumbsup:
 
 		op.Debugf("Unpacking tar archive to %s", diskPath)
-		d := &archive.DoneChannel{}
-		d.Done = make(chan error)
 		waitChan, err := system.LaunchUtility(func() (*os.Process, error) {
-			cmd, err := d.Unpack(op, tr, spec, diskPath, "/.tether/unpack")
+			cmd, err := archive.Unpack(op, tr, spec, diskPath, "/.tether/unpack")
 			return cmd.Process, err
 		})
 
 		if err != nil {
-			return err
-		}
-
-		if err = <-d.Done; err != nil {
 			return err
 		}
 
