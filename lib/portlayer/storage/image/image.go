@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package image
 
 import (
 	"errors"
@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/index"
 	"github.com/vmware/vic/pkg/trace"
@@ -74,9 +75,9 @@ type ImageStorer interface {
 	// container, this will return an error.
 	DeleteImage(op trace.Operation, image *Image) (*Image, error)
 
-	Resolver
-	Importer
-	Exporter
+	storage.Resolver
+	storage.Importer
+	storage.Exporter
 }
 
 // Image is the handle to identify an image layer on the backing store.  The

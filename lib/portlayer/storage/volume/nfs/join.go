@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import (
 
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/exec"
-	"github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/storage/volume"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -39,7 +39,7 @@ const (
 	nfsMountOptions = "vers=3,rsize=131072,wsize=131072,hard,proto=tcp,timeo=600,sec=sys,mountvers=3,mountproto=tcp,nolock"
 )
 
-func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *storage.Volume, mountPath string, diskOpts map[string]string) (*exec.Handle, error) {
+func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *volume.Volume, mountPath string, diskOpts map[string]string) (*exec.Handle, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("handle.ID(%s), volume(%s), mountPath(%s), diskPath(%#v)", handle.ExecConfig.ID, volume.ID, mountPath, volume.Device.DiskPath())))
 
 	if _, ok := handle.ExecConfig.Mounts[volume.ID]; ok {
@@ -56,7 +56,7 @@ func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *storage.Volume,
 	return handle, nil
 }
 
-func createMountSpec(volume *storage.Volume, mountPath string, diskOpts map[string]string) *executor.MountSpec {
+func createMountSpec(volume *volume.Volume, mountPath string, diskOpts map[string]string) *executor.MountSpec {
 	host := volume.Device.DiskPath()
 	deviceMode := nfsMountOptions + ",addr=" + host.Host
 

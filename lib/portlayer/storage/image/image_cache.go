@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package image
 
 import (
 	"errors"
@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/constants"
+	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/index"
 	"github.com/vmware/vic/pkg/retry"
@@ -283,7 +284,7 @@ func (c *NameLookupCache) Import(op trace.Operation, store *url.URL, diskID stri
 	return c.DataStore.Import(op, diskID, spec, tarStream)
 }
 
-func (c *NameLookupCache) NewDataSource(op trace.Operation, id string) (DataSource, error) {
+func (c *NameLookupCache) NewDataSource(op trace.Operation, id string) (storage.DataSource, error) {
 	return c.DataStore.NewDataSource(op, id)
 }
 

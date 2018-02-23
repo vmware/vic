@@ -25,11 +25,24 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/storage/volume"
+	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
+)
+
+const (
+	// TODO: this was shared with image store hence the disjoint naming. Should be updated
+	// but migration/upgrade implications are unclear
+	metaDataDir = "imageMetadata"
+)
+
+var (
+	// Set to false for unit tests
+	DetachAll = true
 )
 
 // VolumeStore caches Volume references to volumes in the system.
@@ -94,7 +107,7 @@ func (v *VolumeStore) volDiskDSPath(ID string) *object.DatastorePath {
 	}
 }
 
-func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*storage.Volume, error) {
+func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*volume.Volume, error) {
 
 	// Create the volume directory in the store.
 	if _, err := v.Mkdir(op, false, v.volDirPath(ID)); err != nil {
@@ -111,7 +124,7 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 		return nil, err
 	}
 	defer v.Detach(op, vmdisk.VirtualDiskConfig)
-	vol, err := storage.NewVolume(store, ID, info, vmdisk, executor.CopyNew)
+	vol, err := volume.NewVolume(store, ID, info, vmdisk, executor.CopyNew)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +150,7 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 
 	// Persist the metadata
 	metaDataDir := v.volMetadataDirPath(ID)
-	if err = writeMetadata(op, v.Helper, metaDataDir, info); err != nil {
+	if err = vsphere.WriteMetadata(op, v.Helper, metaDataDir, info); err != nil {
 		return nil, err
 	}
 
@@ -145,7 +158,7 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 	return vol, nil
 }
 
-func (v *VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) error {
+func (v *VolumeStore) VolumeDestroy(op trace.Operation, vol *volume.Volume) error {
 	volDir := v.volDirPath(vol.ID)
 
 	op.Infof("VolumeStore: Deleting %s", volDir)
@@ -156,13 +169,13 @@ func (v *VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) err
 	return nil
 }
 
-func (v *VolumeStore) VolumeGet(op trace.Operation, ID string) (*storage.Volume, error) {
+func (v *VolumeStore) VolumeGet(op trace.Operation, ID string) (*volume.Volume, error) {
 	// We can't get the volume directly without looking up what datastore it's on.
 	return nil, fmt.Errorf("not supported: use VolumesList")
 }
 
-func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error) {
-	volumes := []*storage.Volume{}
+func (v *VolumeStore) VolumesList(op trace.Operation) ([]*volume.Volume, error) {
+	volumes := []*volume.Volume{}
 
 	res, err := v.Ls(op, constants.VolumesDir)
 	if err != nil {
@@ -182,12 +195,12 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 		}
 
 		metaDataDir := v.volMetadataDirPath(ID)
-		meta, err := getMetadata(op, v.Helper, metaDataDir)
+		meta, err := vsphere.GetMetadata(op, v.Helper, metaDataDir)
 		if err != nil {
 			return nil, err
 		}
 
-		vol, err := storage.NewVolume(v.SelfLink, ID, meta, dev, executor.CopyNew)
+		vol, err := volume.NewVolume(v.SelfLink, ID, meta, dev, executor.CopyNew)
 		if err != nil {
 			return nil, err
 		}

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package volume
 
 import (
 	"fmt"
@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -116,11 +117,11 @@ func (m *MockVolumeStore) Import(op trace.Operation, id string, spec *archive.Fi
 	return nil
 }
 
-func (m *MockVolumeStore) NewDataSink(op trace.Operation, id string) (DataSink, error) {
+func (m *MockVolumeStore) NewDataSink(op trace.Operation, id string) (storage.DataSink, error) {
 	return nil, nil
 }
 
-func (m *MockVolumeStore) NewDataSource(op trace.Operation, id string) (DataSource, error) {
+func (m *MockVolumeStore) NewDataSource(op trace.Operation, id string) (storage.DataSource, error) {
 	return nil, nil
 }
 

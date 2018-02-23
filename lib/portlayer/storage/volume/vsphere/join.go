@@ -22,12 +22,12 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
-	"github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/storage/volume"
 	"github.com/vmware/vic/pkg/trace"
 )
 
-func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *storage.Volume, mountPath string, diskOpts map[string]string) (*exec.Handle, error) {
-	defer trace.End(trace.Begin("vsphere.VolumeJoin"))
+func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *volume.Volume, mountPath string, diskOpts map[string]string) (*exec.Handle, error) {
+	defer trace.End(trace.Begin("vsphere.VolumeJoin", op))
 
 	if _, ok := handle.ExecConfig.Mounts[volume.ID]; ok {
 		return nil, fmt.Errorf("Volume with ID %s is already in container %s's mountspec config", volume.ID, handle.ExecConfig.ID)
@@ -48,7 +48,7 @@ func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *storage.Volume,
 	return handle, nil
 }
 
-func createVolumeVirtualDisk(volume *storage.Volume) *types.VirtualDisk {
+func createVolumeVirtualDisk(volume *volume.Volume) *types.VirtualDisk {
 	unitNumber := int32(-1)
 	diskDevice := &types.VirtualDisk{
 		CapacityInKB: 0,
@@ -76,7 +76,7 @@ func createDeviceConfigSpec(diskDevice *types.VirtualDisk) *types.VirtualDeviceC
 	return config
 }
 
-func createMountSpec(volume *storage.Volume, mountPath string, diskOpts map[string]string) executor.MountSpec {
+func createMountSpec(volume *volume.Volume, mountPath string, diskOpts map[string]string) executor.MountSpec {
 	deviceMode := diskOpts[constants.Mode]
 	newMountSpec := executor.MountSpec{
 		Source: url.URL{
