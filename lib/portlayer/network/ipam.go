@@ -27,6 +27,7 @@ package network
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
 
@@ -156,6 +157,8 @@ func NewAddressSpaceFromRange(firstIP net.IP, lastIP net.IP) *AddressSpace {
 func (s *AddressSpace) NextIP4Net(mask net.IPMask) (*net.IPNet, error) {
 	ones, _ := mask.Size()
 	for _, r := range s.availableRanges {
+		log.Debugf("checking range: %s", r.String())
+
 		network := r.FirstIP.Mask(mask).To16()
 		var firstIP net.IP
 		// check if the start of the current range
@@ -164,6 +167,7 @@ func (s *AddressSpace) NextIP4Net(mask net.IPMask) (*net.IPNet, error) {
 			// found the start of the range
 			firstIP = network
 		} else {
+			log.Debugf("first address %s is below start of space %s", r.FirstIP.String(), network.String())
 			// network address is lower than the first
 			// ip in the range; try the next network
 			// in the mask
@@ -204,6 +208,8 @@ func (s *AddressSpace) NextIP4Net(mask net.IPMask) (*net.IPNet, error) {
 		}
 
 		if firstIP != nil {
+			log.Debugf("first address slected: %s", firstIP.String())
+
 			// we found the first IP for the requested range,
 			// now check if the available range can accommodate
 			// the highest address given the first IP and the mask
@@ -214,7 +220,13 @@ func (s *AddressSpace) NextIP4Net(mask net.IPMask) (*net.IPNet, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("could not find IP range for mask %s", mask)
+	if s.Pool != nil {
+		// TODO: should be more specific here, ideally tying the address space back to the network
+		// it's associated with
+		return nil, fmt.Errorf("no IP addresses available in allocated range %s", s.Pool.String())
+	}
+
+	return nil, errors.New("no IP addresses available in allocated range")
 }
 
 // ReserveNextIP4Net reserves a new sub address space within the given address

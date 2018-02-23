@@ -96,12 +96,17 @@ func (i *Range) Network() *net.IPNet {
 
 func ParseRange(r string) *Range {
 	var first, last net.IP
-	// check if its a CIDR
-	// #nosec: Errors unhandled
-	_, ipnet, _ := net.ParseCIDR(r)
-	if ipnet != nil {
-		first = ipnet.IP
+	addr, ipnet, err := net.ParseCIDR(r)
+	if err == nil && addr != nil && ipnet != nil {
+		// normalize to IPv4 or it's 16 bytes by default
+		first = addr.To4()
+		if first == nil {
+			first = addr
+		}
+
 		last := make(net.IP, len(first))
+
+		// IPv6 - don't know if we'll have a mask available and it's not currently covered or supported.
 		for i, f := range first {
 			last[i] = f | ^ipnet.Mask[i]
 		}

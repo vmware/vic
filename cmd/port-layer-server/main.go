@@ -129,9 +129,11 @@ func main() {
 
 	// Start the DNS Server
 	dnsserver := dns.NewServer(options)
-	if dnsserver != nil {
-		dnsserver.Start()
+	if dnsserver == nil {
+		log.Fatalf("Unable to start name resolution for bridge network")
 	}
+
+	dnsserver.Start()
 
 	// handle the signals and gracefully shutdown the server
 	sig := make(chan os.Signal, 1)
