@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,28 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vsphere
+package image
 
-import (
-	"io"
-)
-
-const (
-	// Persistent is used as a constant input for disk persistence configuration
-	persistent = true
-)
-
-// cleanReader wraps an io.ReadCloser, calling the supplied cleanup function on Close()
-type cleanReader struct {
-	io.ReadCloser
-	clean func()
+type ErrImageInUse struct {
+	Msg string
 }
 
-func (c *cleanReader) Read(p []byte) (int, error) {
-	return c.ReadCloser.Read(p)
+func (e *ErrImageInUse) Error() string {
+	return e.Msg
 }
 
-func (c *cleanReader) Close() error {
-	defer c.clean()
-	return c.ReadCloser.Close()
+func IsErrImageInUse(err error) bool {
+	if err == nil {
+		return false
+	}
+	_, ok := err.(*ErrImageInUse)
+
+	return ok
 }

@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
-
-type ErrImageInUse struct {
-	Msg string
-}
-
-func (e *ErrImageInUse) Error() string {
-	return e.Msg
-}
-
-func IsErrImageInUse(err error) bool {
-	if err == nil {
-		return false
-	}
-	_, ok := err.(*ErrImageInUse)
-
-	return ok
-}
+package volume
 
 type ErrVolumeInUse struct {
 	Msg string

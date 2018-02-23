@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package nfs
 import (
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -26,7 +25,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/config/executor"
-	"github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/storage/volume"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -114,7 +113,7 @@ func (v *VolumeStore) volMetadataDirPath(ID string) string {
 }
 
 // Creates a volume directory and volume object for NFS based volumes
-func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*storage.Volume, error) {
+func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*volume.Volume, error) {
 	target, err := v.Service.Mount(op)
 	if err != nil {
 		return nil, err
@@ -134,7 +133,7 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 		return nil, fmt.Errorf("Unexpected scheme (%s) for volume store (%s)", u.Scheme, v.Name)
 	}
 
-	vol, err := storage.NewVolume(v.SelfLink, ID, info, NewVolume(u, v.volDirPath(ID)), executor.CopyNew)
+	vol, err := volume.NewVolume(v.SelfLink, ID, info, NewVolume(u, v.volDirPath(ID)), executor.CopyNew)
 	if err != nil {
 		op.Errorf("Created volume directory but failed to create volume: %s", err)
 		return nil, err
@@ -149,7 +148,7 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 }
 
 // VolumeDestroy Removes a volume and all of its contents from the nfs store. We already know via the cache if it is in use.
-func (v *VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) error {
+func (v *VolumeStore) VolumeDestroy(op trace.Operation, vol *volume.Volume) error {
 	target, err := v.Service.Mount(op)
 	if err != nil {
 		return err
@@ -173,7 +172,7 @@ func (v *VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) err
 	return nil
 }
 
-func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error) {
+func (v *VolumeStore) VolumesList(op trace.Operation) ([]*volume.Volume, error) {
 
 	target, err := v.Service.Mount(op)
 	if err != nil {
@@ -185,7 +184,7 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 	if err != nil {
 		return nil, err
 	}
-	var volumes []*storage.Volume
+	var volumes []*volume.Volume
 	var fetchErr error
 
 	for _, fileInfo := range volFileInfo {
@@ -203,7 +202,7 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 
 		// #nosec: Errors unhandled.
 		u, _ := v.Service.URL()
-		vol, err := storage.NewVolume(v.SelfLink, fileInfo.Name(), volMetadata, NewVolume(u, v.volDirPath(fileInfo.Name())), executor.CopyNew)
+		vol, err := volume.NewVolume(v.SelfLink, fileInfo.Name(), volMetadata, NewVolume(u, v.volDirPath(fileInfo.Name())), executor.CopyNew)
 		if err != nil {
 			op.Errorf("Failed to create volume struct from volume directory (%s)", fileInfo.Name())
 			return nil, err
@@ -217,24 +216,6 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 	}
 
 	return volumes, nil
-}
-
-// Import takes a tar archive stream and extracts it into the target volume
-func (v *VolumeStore) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {
-	return fmt.Errorf("Write for nfs volumes is not Implemented")
-}
-
-// Export creates and returns a tar archive containing data found between an nfs layer one or all of its ancestors
-func (v *VolumeStore) Export(op trace.Operation, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
-	return nil, fmt.Errorf("vSphere Integrated Containers does not yet implement Export for nfs volumes")
-}
-
-func (v *VolumeStore) NewDataSource(op trace.Operation, id string) (storage.DataSource, error) {
-	return nil, errors.New("NFS VolumeStore does not yet implement NewDataSource")
-}
-
-func (v *VolumeStore) NewDataSink(op trace.Operation, id string) (storage.DataSink, error) {
-	return nil, errors.New("NFS VolumeStore does not yet implement NewDataSink")
 }
 
 func (v *VolumeStore) URL(op trace.Operation, id string) (*url.URL, error) {

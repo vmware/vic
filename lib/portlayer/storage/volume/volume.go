@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package volume
 
 import (
 	"crypto/md5" // #nosec: Use of weak cryptographic primitive
@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -47,9 +48,9 @@ type VolumeStorer interface {
 	VolumesList(op trace.Operation) ([]*Volume, error)
 
 	// The interfaces necessary for Import and Export
-	Resolver
-	Importer
-	Exporter
+	storage.Resolver
+	storage.Importer
+	storage.Exporter
 }
 
 // Volume is the handle to identify a volume on the backing store.  The URI
