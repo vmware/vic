@@ -33,7 +33,7 @@ func Wait(op *trace.Operation, h interface{}, id string) error {
 	}
 
 	if handle.Runtime != nil && handle.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOn {
-		err := fmt.Errorf("Unable to wait for task when container %s is not running", id)
+		err := fmt.Errorf("Unable to wait for task when container %s is not running", handle.ExecConfig.ID)
 		op.Errorf("%s", err)
 		return TaskPowerStateError{Err: err}
 	}
