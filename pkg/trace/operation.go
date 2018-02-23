@@ -219,8 +219,8 @@ func (o *Operation) Fatal(args ...interface{}) {
 	}
 }
 
-func (o *Operation) newChild(ctx context.Context, msg string) *Operation {
-	child := newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 5, msg)
+func (o *Operation) newChildCommon(ctx context.Context, opID string, msg string) *Operation {
+	child := newOperation(ctx, opID, 5, msg)
 	child.t = append(child.t, o.t...)
 	child.Logger = o.Logger
 	// increase the indent
@@ -230,11 +230,11 @@ func (o *Operation) newChild(ctx context.Context, msg string) *Operation {
 	return child
 }
 
-func (o Operation) newChild(ctx context.Context, msg string) Operation {
-	return o.newChildCommon(ctx, o.id, msg)
+func (o *Operation) newChild(ctx context.Context, msg string) *Operation {
+	return o.newChildCommon(ctx, opID(atomic.AddUint64(&opCount, 1)), msg)
 }
 
-func (o Operation) newChildWithChainedID(ctx context.Context, msg string) Operation {
+func (o *Operation) newChildWithChainedID(ctx context.Context, msg string) *Operation {
 	childOpID := fmt.Sprintf("%s.%d", o.id, atomic.AddUint64(&opCount, 1))
 	return o.newChildCommon(ctx, childOpID, msg)
 }
@@ -264,10 +264,10 @@ func decoratedNewOperation(ctx context.Context, decoration, format string, args 
 func NewOperationFromID(ctx context.Context, ID *string, format string, args ...interface{}) Operation {
 	var o Operation
 	if ID == nil || *ID == "" {
-		o = newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, fmt.Sprintf(format, args...))
+		o = *newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, fmt.Sprintf(format, args...))
 	} else {
 		msg := fmt.Sprintf(format, args...)
-		o = newOperation(ctx, *ID, 3, msg).newChildWithChainedID(ctx, msg)
+		o = *newOperation(ctx, *ID, 3, msg).newChildWithChainedID(ctx, msg)
 	}
 
 	frame := o.t[0]
