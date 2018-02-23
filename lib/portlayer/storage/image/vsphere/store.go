@@ -32,8 +32,11 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
-	portlayer "github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/storage/image"
+	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/lib/portlayer/util"
+	"github.com/vmware/vic/lib/tether/shared"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
@@ -41,8 +44,8 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-// Set to false for unit tests
 var (
+	// Set to false for unit tests
 	DetachAll = true
 
 	FileForMinOS = map[string]os.FileMode{
@@ -68,8 +71,10 @@ var (
 )
 
 const (
-	StorageImageDir     = "images"
-	defaultDiskLabel    = "containerfs"
+	StorageImageDir = "images"
+
+	// scratchDiskLabel labels the root image for the disk chain
+	scratchDiskLabel    = "scratch"
 	defaultDiskSizeInKB = 8 * 1024 * 1024
 	metaDataDir         = "imageMetadata"
 	manifest            = "manifest"
@@ -80,7 +85,7 @@ type ImageStore struct {
 }
 
 func NewImageStore(op trace.Operation, s *session.Session, u *url.URL) (*ImageStore, error) {
-	dm, err := disk.NewDiskManager(op, s, portlayer.Config.ContainerView)
+	dm, err := disk.NewDiskManager(op, s, storage.Config.ContainerView)
 	if err != nil {
 		return nil, err
 	}
@@ -236,9 +241,7 @@ func (v *ImageStore) ListImageStores(op trace.Operation) ([]*url.URL, error) {
 // ID - textual ID for the image to be written
 // meta - metadata associated with the image
 // Tag - the tag of the image to be written
-func (v *ImageStore) WriteImage(op trace.Operation, parent *portlayer.Image, ID string, meta map[string][]byte, sum string,
-	r io.Reader) (*portlayer.Image, error) {
-
+func (v *ImageStore) WriteImage(op trace.Operation, parent *image.Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*image.Image, error) {
 	storeName, err := util.ImageStoreName(parent.Store)
 	if err != nil {
 		return nil, err
@@ -269,7 +272,7 @@ func (v *ImageStore) WriteImage(op trace.Operation, parent *portlayer.Image, ID 
 		}
 	}
 
-	newImage := &portlayer.Image{
+	newImage := &image.Image{
 		ID:         ID,
 		SelfLink:   imageURL,
 		ParentLink: parent.SelfLink,
@@ -356,7 +359,7 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 
 	// Write the metadata to the datastore
 	metaDataDir := v.imageMetadataDirPath(storeName, ID)
-	err = writeMetadata(op, v.Helper, metaDataDir, meta)
+	err = vsphere.WriteMetadata(op, v.Helper, metaDataDir, meta)
 	if err != nil {
 		return nil, err
 	}
@@ -380,6 +383,11 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 	config := disk.NewPersistentDisk(diskDsURI).WithParent(parentDiskDsURI)
 	// Create the disk
 	vmdisk, err = v.CreateAndAttach(op, config)
+	if err != nil {
+		return nil, err
+	}
+
+	err = vmdisk.SetLabel(op, ID)
 	if err != nil {
 		return nil, err
 	}
@@ -446,7 +454,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 
 	// Write the metadata to the datastore
 	metaDataDir := v.imageMetadataDirPath(storeName, constants.ScratchLayerID)
-	if err := writeMetadata(op, v.Helper, metaDataDir, nil); err != nil {
+	if err := vsphere.WriteMetadata(op, v.Helper, metaDataDir, nil); err != nil {
 		return err
 	}
 
@@ -454,8 +462,8 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 	op.Infof("Creating image %s (%s)", constants.ScratchLayerID, imageDiskDsURI)
 
 	size = defaultDiskSizeInKB
-	if portlayer.Config.ScratchSize != 0 {
-		size = portlayer.Config.ScratchSize
+	if storage.Config.ScratchSize != 0 {
+		size = storage.Config.ScratchSize
 	}
 
 	defer func() {
@@ -465,7 +473,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 		v.cleanupDisk(op, constants.ScratchLayerID, storeName, vmdisk)
 	}()
 
-	config := disk.NewPersistentDisk(imageDiskDsURI).WithCapacity(size)
+	config := disk.NewPersistentDisk(imageDiskDsURI).WithCapacity(size).WithUUID(shared.ScratchUUID)
 	// Create the disk
 	vmdisk, err = v.CreateAndAttach(op, config)
 	if err != nil {
@@ -473,10 +481,10 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 		return err
 	}
 
-	op.Debugf("Scratch disk created with size %d", portlayer.Config.ScratchSize)
+	op.Debugf("Scratch disk created with size %d", storage.Config.ScratchSize)
 
 	// Make the filesystem and set its label to defaultDiskLabel
-	if err = vmdisk.Mkfs(op, defaultDiskLabel); err != nil {
+	if err = vmdisk.Mkfs(op, scratchDiskLabel); err != nil {
 		op.Errorf("Failed to create scratch filesystem: %s", err)
 		return err
 	}
@@ -499,7 +507,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 	return nil
 }
 
-func (v *ImageStore) GetImage(op trace.Operation, store *url.URL, ID string) (*portlayer.Image, error) {
+func (v *ImageStore) GetImage(op trace.Operation, store *url.URL, ID string) (*image.Image, error) {
 	defer trace.End(trace.Begin(store.String() + "/" + ID))
 	storeName, err := util.ImageStoreName(store)
 	if err != nil {
@@ -517,7 +525,7 @@ func (v *ImageStore) GetImage(op trace.Operation, store *url.URL, ID string) (*p
 
 	// get the metadata
 	metaDataDir := v.imageMetadataDirPath(storeName, ID)
-	meta, err := getMetadata(op, v.Helper, metaDataDir)
+	meta, err := vsphere.GetMetadata(op, v.Helper, metaDataDir)
 	if err != nil {
 		return nil, err
 	}
@@ -541,7 +549,7 @@ func (v *ImageStore) GetImage(op trace.Operation, store *url.URL, ID string) (*p
 		}
 	}
 
-	newImage := &portlayer.Image{
+	newImage := &image.Image{
 		ID:         ID,
 		SelfLink:   imageURL,
 		Store:      &s,
@@ -554,7 +562,7 @@ func (v *ImageStore) GetImage(op trace.Operation, store *url.URL, ID string) (*p
 	return newImage, nil
 }
 
-func (v *ImageStore) ListImages(op trace.Operation, store *url.URL, IDs []string) ([]*portlayer.Image, error) {
+func (v *ImageStore) ListImages(op trace.Operation, store *url.URL, IDs []string) ([]*image.Image, error) {
 
 	storeName, err := util.ImageStoreName(store)
 	if err != nil {
@@ -566,7 +574,7 @@ func (v *ImageStore) ListImages(op trace.Operation, store *url.URL, IDs []string
 		return nil, err
 	}
 
-	images := []*portlayer.Image{}
+	images := []*image.Image{}
 	for _, f := range res.File {
 		file, ok := f.(*types.FolderFileInfo)
 		if !ok {
@@ -595,7 +603,7 @@ func (v *ImageStore) ListImages(op trace.Operation, store *url.URL, IDs []string
 // DeleteImage deletes an image from the image store.  If the image is in
 // use either by way of inheritance or because it's attached to a
 // container, this will return an error.
-func (v *ImageStore) DeleteImage(op trace.Operation, image *portlayer.Image) (*portlayer.Image, error) {
+func (v *ImageStore) DeleteImage(op trace.Operation, image *image.Image) (*image.Image, error) {
 	//  check if the image is in use.
 	if err := imagesInUse(op, image.ID); err != nil {
 		op.Errorf("ImageStore: delete image error: %s", err.Error())
@@ -713,7 +721,7 @@ func imagesInUse(op trace.Operation, ID string) error {
 		layerID := cont.ExecConfig.LayerID
 
 		if layerID == ID {
-			return &portlayer.ErrImageInUse{
+			return &image.ErrImageInUse{
 				Msg: fmt.Sprintf("image %s in use by %s", ID, cont.ExecConfig.ID),
 			}
 		}

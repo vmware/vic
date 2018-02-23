@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/govmomi/object"
-	portlayer "github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/storage/volume"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -60,7 +60,7 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 	}()
 
 	// Create the cache
-	cache := portlayer.NewVolumeLookupCache(op)
+	cache := volume.NewVolumeLookupCache(op)
 	if !assert.NotNil(t, cache) {
 		return
 	}
@@ -81,7 +81,7 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 	numVols := 5
 	wg := &sync.WaitGroup{}
 	wg.Add(numVols)
-	volumes := make(map[string]*portlayer.Volume)
+	volumes := make(map[string]*volume.Volume)
 	for i := 0; i < numVols; i++ {
 		go func(idx int) {
 			defer wg.Done()
@@ -126,7 +126,7 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 		return
 	}
 
-	secondCache := portlayer.NewVolumeLookupCache(op)
+	secondCache := volume.NewVolumeLookupCache(op)
 	if !assert.NotNil(t, secondCache) {
 		return
 	}
