@@ -35,7 +35,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
-	portlayer "github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/storage/image"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/datastore/test"
@@ -43,7 +43,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
-func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, string, error) {
+func setup(t *testing.T) (*image.NameLookupCache, *session.Session, string, error) {
 	logrus.SetLevel(logrus.DebugLevel)
 	trace.Logger.Level = logrus.DebugLevel
 	DetachAll = false
@@ -68,7 +68,7 @@ func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, string, 
 		return nil, nil, "", err
 	}
 
-	s := portlayer.NewLookupCache(vsImageStore)
+	s := image.NewLookupCache(vsImageStore)
 
 	return s, client, storeURL.Path, nil
 }
@@ -214,7 +214,7 @@ func TestCreateImageLayers(t *testing.T) {
 	expectedFilesOnDisk := []string{"lost+found"}
 
 	// Keep a list of images we created
-	expectedImages := make(map[string]*portlayer.Image)
+	expectedImages := make(map[string]*image.Image)
 	expectedImages[parent.ID] = parent
 
 	for layer := 0; layer < numLayers; layer++ {
@@ -335,7 +335,7 @@ func TestCreateImageLayers(t *testing.T) {
 	// Try to delete an intermediate image (should fail)
 	exec.NewContainerCache()
 	_, err = cacheStore.DeleteImage(op, expectedImages["dir1"])
-	if !assert.Error(t, err) || !assert.True(t, portlayer.IsErrImageInUse(err)) {
+	if !assert.Error(t, err) || !assert.True(t, image.IsErrImageInUse(err)) {
 		return
 	}
 
@@ -571,7 +571,7 @@ func tarFiles(files []tarFile) (*bytes.Buffer, error) {
 	return buf, nil
 }
 
-func mountLayerRO(v *ImageStore, parent *portlayer.Image) (*disk.VirtualDisk, error) {
+func mountLayerRO(v *ImageStore, parent *image.Image) (*disk.VirtualDisk, error) {
 	roName := v.imageDiskDSPath("testStore", parent.ID)
 	roName.Path = roName.Path + "-ro.vmdk"
 

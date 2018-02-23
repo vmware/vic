@@ -24,4 +24,5 @@ type Guest interface {
 	GuestID() string
 	Spec() *spec.VirtualMachineConfigSpec
 	Controller() *types.BaseVirtualController
+	NewDisk() *types.VirtualDisk
 }

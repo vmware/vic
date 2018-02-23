@@ -21,7 +21,7 @@ import (
 
 var Config Configuration
 
-// Configuration is a slice of the VCH config that is relevant to the exec part of the port layer
+// Configuration is a slice of the VCH config that is relevant to the storage part of the port layer
 type Configuration struct {
 	// Turn on debug logging
 	DebugLevel int `vic:"0.1" scope:"read-only" key:"init/diagnostics/debug"`

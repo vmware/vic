@@ -773,6 +773,22 @@ func (t *tether) launch(session *SessionConfig) error {
 		session.Cmd.SysProcAttr = user
 	}
 
+	chroot := ""
+	if session.ExecutionEnvironment != "" {
+		// session is supposed to run in the specific filesystem environment
+		// HACK: for now assume that the filesystem is mounted under /mnt/images/label, with label truncated to 15
+		label := session.ExecutionEnvironment
+		if len(label) > 15 {
+			label = label[:15]
+		}
+		chroot = fmt.Sprintf("/mnt/images/%s", label)
+
+		log.Infof("Configuring session to run in chroot at %s", chroot)
+		log.Debugf("Updating %+v for chroot", session.Cmd.SysProcAttr)
+
+		session.Cmd.SysProcAttr = chrootSysProcAttr(session.Cmd.SysProcAttr, chroot)
+	}
+
 	if session.Diagnostics.ResurrectionCount > 0 {
 		// override session logging only while it's restarted to avoid break exec #6004
 		err = t.loggingLocked(session)
@@ -791,7 +807,7 @@ func (t *tether) launch(session *SessionConfig) error {
 	// Set StopTime to its default value
 	session.StopTime = 0
 
-	resolved, err := lookPath(session.Cmd.Path, session.Cmd.Env, session.Cmd.Dir)
+	resolved, err := lookPath(session.Cmd.Path, session.Cmd.Env, session.Cmd.Dir, chroot)
 	if err != nil {
 		log.Errorf("Path lookup failed for %s: %s", session.Cmd.Path, err)
 		session.Started = err.Error()
