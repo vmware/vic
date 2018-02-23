@@ -223,6 +223,11 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		for len(folderContents) == 0 {
 			parentFolder := path.Dir(folderRef.InventoryPath)
 
+			err = d.removeFolder(folderRef)
+			if err != nil {
+				return err
+			}
+
 			folderRef, err = d.session.Finder.Folder(d.op, parentFolder)
 			if err != nil {
 				// at this point we have already partially cleaned up. So we may leave artifacts around when we bale.
