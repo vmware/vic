@@ -155,6 +155,7 @@ Container on Open Network And Port Forwarding Persist After Reboot
 
     Log To Console  Create Port Groups For Container network
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vswitch vSwitchLAN open-net
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'    Run  govc dvs.portgroup.add -dvs test-ds open-net
 
     Install VIC Appliance To Test Server  additional-args=--container-network=open-net --container-network-firewall=open-net:open
 
