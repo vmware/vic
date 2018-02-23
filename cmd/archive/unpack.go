@@ -24,6 +24,8 @@ import (
 
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/pkg/trace"
+
+	docker "github.com/docker/docker/pkg/archive"
 )
 
 const (
@@ -36,25 +38,43 @@ const (
 	FailedChroot
 	FailedChdirAfterChroot
 	FailedInvokeUnpack
+	FailedApplyLayer
 )
 
-func main() {
-	ctx := context.Background()
-	op := trace.NewOperation(ctx, "Unpack") // TODO op ID?
-	op.Debugf("New unpack operation created")
-
-	if len(os.Args) != 4 {
-		op.Errorf("Wrong number of arguments passed to unpack binary")
-		os.Exit(WrongArgumentCount)
-	}
-
-	root := os.Args[2]
-
+func customUnpack() {
+	op := setupChroot()
+	op.Debugf("New custom unpack operation created")
 	filterSpec, err := archive.DecodeFilterSpec(op, &os.Args[3])
 	if err != nil {
 		op.Errorf("Couldn't deserialize filterspec %s", os.Args[3])
 		os.Exit(InvalidFilterSpec)
 	}
+
+	if err = archive.UnpackNoChroot(op, os.Stdin, filterSpec, "/"); err != nil {
+		op.Error(err)
+		os.Exit(FailedInvokeUnpack)
+	}
+
+	os.Exit(Success)
+}
+
+func dockerUnpack() {
+	op := setupChroot()
+	op.Debugf("New docker-based unpack operation created")
+	// Untar the archive
+	if _, err := docker.ApplyLayer("/", os.Stdin); err != nil {
+		op.Errorf("Error applying layer: %s", err)
+		os.Exit(FailedApplyLayer)
+	}
+
+	os.Exit(Success)
+
+}
+
+func setupChroot() trace.Operation {
+	ctx := context.Background()
+	op := trace.NewOperation(ctx, "Unpack") // TODO op ID? It's os.Args[1] if we need it..
+	root := os.Args[2]
 
 	fi, err := os.Stat(root)
 	if err != nil {
@@ -88,10 +108,16 @@ func main() {
 		os.Exit(FailedChdirAfterChroot)
 	}
 
-	if err = archive.UnpackNoChroot(op, os.Stdin, filterSpec, "/"); err != nil {
-		op.Error(err)
-		os.Exit(FailedInvokeUnpack)
-	}
+	return op
+}
 
-	os.Exit(Success)
+func main() {
+	switch len(os.Args) {
+	case 4:
+		customUnpack()
+	case 3:
+		dockerUnpack()
+	default:
+		os.Exit(WrongArgumentCount)
+	}
 }
