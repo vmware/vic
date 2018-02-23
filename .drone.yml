@@ -39,12 +39,13 @@ pipeline:
       - test_url_array
       - test_username
     commands:
-      - echo $GOVC_USERNAME
       - 'export GOVC_INSECURE=true'
       - export GOVC_USERNAME=$TEST_USERNAME
+      - echo $GOVC_USERNAME
       - 'export GOVC_PASSWORD=$${TEST_PASSWORD}'
       - 'export GOVC_DATASTORE=$${TEST_DATASTORE}'
       - export DOMAIN=$CI_DOMAIN
+      - echo $DOMAIN
     volumes:
       - /tmp
     when:
