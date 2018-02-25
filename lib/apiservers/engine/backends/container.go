@@ -583,7 +583,12 @@ func (c *ContainerBackend) containerCreate(vc *viccontainer.VicContainer, config
 		return "", err
 	}
 
-	h, err = c.containerProxy.CreateContainerTask(ctx, h, id, config)
+	h, err = c.containerProxy.AddImageToContainer(h, id, vc.LayerID, vc.ImageID, config)
+	if err != nil {
+		return "", err
+	}
+
+	h, err = c.containerProxy.CreateContainerTask(h, id, config)
 	if err != nil {
 		return "", err
 	}
