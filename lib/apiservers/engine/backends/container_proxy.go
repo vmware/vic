@@ -341,7 +341,7 @@ func (c *ContainerProxy) InspectTask(op trace.Operation, handle string, eid stri
 		case *tasks.InspectNotFound:
 			// These error types may need to be expanded. NotFoundError does not fit here.
 			op.Errorf("received a TaskNotFound error during task inspect: %s", err.Payload.Message)
-			return nil, TaskNotFoundError(fmt.Sprintf("container (%s) has been stopped", cid))
+			return nil, TaskPoweredOffError(cid)
 		case *tasks.InspectInternalServerError:
 			op.Errorf("received an internal server error during task inspect: %s", err.Payload.Message)
 			return nil, InternalServerError(err.Payload.Message)
@@ -368,7 +368,7 @@ func (c *ContainerProxy) BindTask(op trace.Operation, handle string, eid string)
 		switch err := err.(type) {
 		case *tasks.BindNotFound:
 			op.Errorf("received TaskNotFound error during task bind: %s", err.Payload.Message)
-			return "", TaskNotFoundError("container (%s) has been stopped")
+			return "", TaskBindPowerError()
 		case *tasks.BindInternalServerError:
 			op.Errorf("received unexpected error attempting to bind task(%s) for handle(%s): %s", eid, handle, err.Payload.Message)
 			return "", InternalServerError(err.Payload.Message)

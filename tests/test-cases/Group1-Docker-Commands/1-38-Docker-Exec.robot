@@ -27,6 +27,8 @@ Verify Poweroff During Exec Error Message
        Set Test Variable  ${msg3}  Unable to wait for task when container ${containerID} is not running
        Set Test Variable  ${msg4}  the Container(${containerID}) has been shutdown during execution of the exec operation
        Set Test Variable  ${msg5}  container(${containerID}) must be powered on in order to perform the desired exec operation
+       Set Test Variable  ${msg6}  the container has been stopped
+
        Should Contain Any  ${error}  ${msg1}  ${msg2}  ${msg3}  ${msg4}  ${msg5}
 
 Verify No Poweroff During Exec Error Message
