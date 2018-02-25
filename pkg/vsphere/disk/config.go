@@ -39,6 +39,9 @@ type VirtualDiskConfig struct {
 	// Storage provisioning mode
 	ProvisionType types.VirtualDiskType
 
+	// Base disk UUID
+	UUID string
+
 	DiskMode types.VirtualDiskMode
 }
 
@@ -84,6 +87,14 @@ func (d *VirtualDiskConfig) WithCapacity(capacity int64) *VirtualDiskConfig {
 
 func (d *VirtualDiskConfig) WithProvisionType(ptype types.VirtualDiskType) *VirtualDiskConfig {
 	d.ProvisionType = ptype
+
+	return d
+}
+
+// WithUUID can only be set on the base disk layer due to disklib bug
+// TODO: add an error mechanism for validating conditional settings like this
+func (d *VirtualDiskConfig) WithUUID(uuid string) *VirtualDiskConfig {
+	d.UUID = uuid
 
 	return d
 }

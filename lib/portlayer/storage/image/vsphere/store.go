@@ -256,7 +256,7 @@ func (v *ImageStore) WriteImage(op trace.Operation, parent *image.Image, ID stri
 	// will be descended from this created and prepared fs.
 	if ID == constants.ScratchLayerID {
 		// Create the scratch layer
-		if err := v.scratch(op, storeName); err != nil {
+		if dsk, err = v.scratch(op, storeName); err != nil {
 			return nil, err
 		}
 	} else {
@@ -272,12 +272,13 @@ func (v *ImageStore) WriteImage(op trace.Operation, parent *image.Image, ID stri
 	}
 
 	newImage := &image.Image{
-		ID:         ID,
-		SelfLink:   imageURL,
-		ParentLink: parent.SelfLink,
-		Store:      parent.Store,
-		Metadata:   meta,
-		Disk:       dsk,
+		ID:            ID,
+		SelfLink:      imageURL,
+		ParentLink:    parent.SelfLink,
+		Store:         parent.Store,
+		Metadata:      meta,
+		Disk:          dsk,
+		DatastorePath: dsk.DatastoreURI,
 	}
 
 	return newImage, nil
@@ -438,7 +439,7 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 	return vmdisk, nil
 }
 
-func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
+func (v *ImageStore) scratch(op trace.Operation, storeName string) (*disk.VirtualDisk, error) {
 	var (
 		vmdisk *disk.VirtualDisk
 		size   int64
@@ -448,13 +449,13 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 	// Create the image directory in the store.
 	imageDir := v.imageDirPath(storeName, constants.ScratchLayerID)
 	if _, err := v.Mkdir(op, false, imageDir); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Write the metadata to the datastore
 	metaDataDir := v.imageMetadataDirPath(storeName, constants.ScratchLayerID)
 	if err := vsphere.WriteMetadata(op, v.Helper, metaDataDir, nil); err != nil {
-		return err
+		return nil, err
 	}
 
 	imageDiskDsURI := v.imageDiskDSPath(storeName, constants.ScratchLayerID)
@@ -477,7 +478,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 	vmdisk, err = v.CreateAndAttach(op, config)
 	if err != nil {
 		op.Errorf("CreateAndAttach(%s) error: %s", imageDiskDsURI, err)
-		return err
+		return nil, err
 	}
 
 	op.Debugf("Scratch disk created with size %d", storage.Config.ScratchSize)
@@ -485,25 +486,25 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 	// Make the filesystem and set its label to defaultDiskLabel
 	if err = vmdisk.Mkfs(op, scratchDiskLabel); err != nil {
 		op.Errorf("Failed to create scratch filesystem: %s", err)
-		return err
+		return nil, err
 	}
 
 	if err = createBaseStructure(op, vmdisk); err != nil {
 		op.Errorf("Failed to create base filesystem structure: %s", err)
-		return err
+		return nil, err
 	}
 
 	if err = v.Detach(op, vmdisk.VirtualDiskConfig); err != nil {
 		op.Errorf("Failed to detach scratch image: %s", err)
-		return err
+		return nil, err
 	}
 
 	if err = v.writeManifest(op, storeName, constants.ScratchLayerID, nil); err != nil {
 		op.Errorf("Failed to create manifest for scratch image: %s", err)
-		return err
+		return nil, err
 	}
 
-	return nil
+	return vmdisk, nil
 }
 
 func (v *ImageStore) GetImage(op trace.Operation, store *url.URL, ID string) (*image.Image, error) {
@@ -549,12 +550,13 @@ func (v *ImageStore) GetImage(op trace.Operation, store *url.URL, ID string) (*i
 	}
 
 	newImage := &image.Image{
-		ID:         ID,
-		SelfLink:   imageURL,
-		Store:      &s,
-		ParentLink: parentURL,
-		Metadata:   meta,
-		Disk:       dsk,
+		ID:            ID,
+		SelfLink:      imageURL,
+		Store:         &s,
+		ParentLink:    parentURL,
+		Metadata:      meta,
+		Disk:          dsk,
+		DatastorePath: diskDsURI,
 	}
 
 	op.Debugf("GetImage(%s) has parent %s", newImage.SelfLink, newImage.Parent())

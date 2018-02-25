@@ -45,9 +45,8 @@ import (
 
 // StorageHandlersImpl is the receiver for all of the storage handler methods
 type StorageHandlersImpl struct {
-	imageCache     *image.NameLookupCache
-	volumeCache    *volume.VolumeLookupCache
-	containerStore *container.ContainerStore
+	imageCache  *image.NameLookupCache
+	volumeCache *volume.VolumeLookupCache
 }
 
 const (
@@ -74,7 +73,7 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 		op.Warnf("Multiple image stores found. Multiple image stores are not yet supported. Using [%s] %s", imageStoreURL.Host, imageStoreURL.Path)
 	}
 
-	ds, err := vsimage.NewImageStore(op, handlerCtx.Session, &imageStoreURL)
+	imageStore, err := vsimage.NewImageStore(op, handlerCtx.Session, &imageStoreURL)
 	if err != nil {
 		op.Panicf("Cannot instantiate storage layer: %s", err)
 	}
@@ -82,19 +81,18 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 	// The imagestore is implemented via a cache which is backed via an
 	// implementation that writes to disks.  The cache is used to avoid
 	// expensive metadata lookups.
-	h.imageCache = image.NewLookupCache(ds)
+	h.imageCache = image.NewLookupCache(imageStore)
 
-	spl.RegisterImporter(op, imageStoreURL.String(), ds)
-	spl.RegisterExporter(op, imageStoreURL.String(), ds)
+	spl.RegisterImporter(op, imageStoreURL.String(), imageStore)
+	spl.RegisterExporter(op, imageStoreURL.String(), imageStore)
 
-	c, err := container.NewContainerStore(op, handlerCtx.Session, h.imageCache)
+	containerStore, err := container.NewContainerStore(op, handlerCtx.Session, h.imageCache)
 	if err != nil {
-		op.Panicf("Couldn't create containerStore: %s", err.Error())
+		op.Panicf("Couldn't create container store: %s", err.Error())
 	}
-	h.containerStore = c
 
-	spl.RegisterImporter(op, "container", h.containerStore)
-	spl.RegisterExporter(op, "container", h.containerStore)
+	spl.RegisterImporter(op, "container", containerStore)
+	spl.RegisterExporter(op, "container", containerStore)
 
 	// add the volume stores, errors are logged within this function.
 	h.configureVolumeStores(op, handlerCtx)
@@ -103,6 +101,7 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 	api.StorageGetImageHandler = storage.GetImageHandlerFunc(h.GetImage)
 	api.StorageListImagesHandler = storage.ListImagesHandlerFunc(h.ListImages)
 	api.StorageWriteImageHandler = storage.WriteImageHandlerFunc(h.WriteImage)
+	api.StorageImageJoinHandler = storage.ImageJoinHandlerFunc(h.ImageJoin)
 	api.StorageDeleteImageHandler = storage.DeleteImageHandlerFunc(h.DeleteImage)
 
 	api.StorageVolumeStoresListHandler = storage.VolumeStoresListHandlerFunc(h.VolumeStoresList)
@@ -353,6 +352,37 @@ func (h *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) middle
 	}
 	i := convertImage(image)
 	return storage.NewWriteImageCreated().WithPayload(i)
+}
+
+//ImageJoin modifies the config spec of a container to include the specified image
+func (h *StorageHandlersImpl) ImageJoin(params storage.ImageJoinParams) middleware.Responder {
+	op := trace.NewOperation(context.Background(), "ImageJoin %s", params.ID)
+	defer trace.End(trace.Begin("", op))
+
+	handle := epl.HandleFromInterface(params.Config.Handle)
+	if handle == nil {
+		err := &models.Error{Message: "Failed to get the Handle"}
+		return storage.NewImageJoinInternalServerError().WithPayload(err)
+	}
+
+	storeURL, _ := util.ImageStoreNameToURL(params.StoreName)
+	img, err := h.imageCache.GetImage(op, storeURL, params.ID)
+	if err != nil {
+		op.Errorf("Volumes: StorageHandler : %#v", err)
+		return storage.NewImageJoinNotFound().WithPayload(&models.Error{Code: http.StatusNotFound, Message: err.Error()})
+	}
+
+	handleprime, err := image.Join(op, handle, params.Config.DeltaID, params.Config.ImageID, params.Config.RepoName, img)
+	if err != nil {
+		op.Errorf("join image failed: %#v", err)
+		return storage.NewImageJoinInternalServerError().WithPayload(&models.Error{Message: err.Error()})
+	}
+
+	op.Debugf("image %s has been joined to %s as %s", params.ID, handle.Spec.ID(), params.Config.DeltaID)
+	res := &models.ImageJoinResponse{
+		Handle: epl.ReferenceFromHandle(handleprime),
+	}
+	return storage.NewImageJoinOK().WithPayload(res)
 }
 
 // VolumeStoresList lists the configured volume stores and their datastore path URIs.

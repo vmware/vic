@@ -37,6 +37,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
 type VicStorageProxy interface {
@@ -45,6 +46,7 @@ type VicStorageProxy interface {
 	VolumeInfo(ctx context.Context, name string) (*models.VolumeResponse, error)
 	Remove(ctx context.Context, name string) error
 
+	AddImageToContainer(ctx context.Context, handle, deltaID, layerID, imageID string, config types.ContainerCreateConfig) (string, error)
 	AddVolumesToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error)
 }
 
@@ -229,6 +231,41 @@ func (s *StorageProxy) Remove(ctx context.Context, name string) error {
 	}
 
 	return nil
+}
+
+// AddImageToContainer adds the specified image to a container, referenced by handle.
+// If an error is return, the returned handle should not be used.
+//
+// returns:
+//	modified handle
+func (s *StorageProxy) AddImageToContainer(ctx context.Context, handle, deltaID, layerID, imageID string, config types.ContainerCreateConfig) (string, error) {
+	defer trace.End(trace.Begin(handle))
+
+	if s.client == nil {
+		return "", errors.InternalServerError("ContainerProxy.AddImageToContainer failed to get the portlayer client")
+	}
+
+	host, err := sys.UUID()
+	if err != nil {
+		return "", errors.InternalServerError("ContainerProxy.AddImageToContainer got unexpected error getting VCH UUID")
+	}
+
+	response, err := s.client.Storage.ImageJoin(storage.NewImageJoinParamsWithContext(ctx).WithStoreName(host).WithID(layerID).
+		WithConfig(&models.ImageJoinConfig{
+			Handle:   handle,
+			DeltaID:  deltaID,
+			ImageID:  imageID,
+			RepoName: config.Config.Image,
+		}))
+	if err != nil {
+		return "", errors.InternalServerError(err.Error())
+	}
+	handle, ok := response.Payload.Handle.(string)
+	if !ok {
+		return "", errors.InternalServerError(fmt.Sprintf("Type assertion failed for %#+v", handle))
+	}
+
+	return handle, nil
 }
 
 // AddVolumesToContainer adds volumes to a container, referenced by handle.
