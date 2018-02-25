@@ -51,9 +51,7 @@ type Resources struct {
 type ContainerCreateConfig struct {
 	Metadata *executor.ExecutorConfig
 
-	ParentImageID  string
-	ImageStoreName string
-	Resources      Resources
+	Resources Resources
 }
 
 var handles *lru.Cache
@@ -71,6 +69,9 @@ func init() {
 type Handle struct {
 	// copy from container cache
 	containerBase
+
+	// The guest used to generate specific device types
+	Guest guest.Guest
 
 	// desired spec
 	Spec *spec.VirtualMachineConfigSpec
@@ -319,12 +320,9 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 		Name:     config.Metadata.Name,
 		BiosUUID: uuid,
 
-		ParentImageID: config.ParentImageID,
+		// TODO: make this toggle for pod or single based on number of images joined
 		BootMediaPath: Config.BootstrapImagePath,
 		VMPathName:    fmt.Sprintf("[%s]", vmomiSession.Datastore.Name()),
-
-		ImageStoreName: config.ImageStoreName,
-		ImageStorePath: &Config.ImageStores[0],
 
 		Metadata: config.Metadata,
 	}
@@ -364,6 +362,7 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 		return nil, err
 	}
 
+	h.Guest = linux
 	h.Spec = linux.Spec()
 
 	handlesLock.Lock()

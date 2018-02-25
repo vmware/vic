@@ -33,47 +33,35 @@ func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *volume.Volume, 
 		return nil, fmt.Errorf("Volume with ID %s is already in container %s's mountspec config", volume.ID, handle.ExecConfig.ID)
 	}
 
-	//constuct MountSpec for the tether
-	mountSpec := createMountSpec(volume, mountPath, diskOpts)
-	//append a device addition spec change to the container config
-	diskDevice := createVolumeVirtualDisk(volume)
-	config := createDeviceConfigSpec(diskDevice)
-	handle.Spec.DeviceChange = append(handle.Spec.DeviceChange, config)
-
 	if handle.ExecConfig.Mounts == nil {
 		handle.ExecConfig.Mounts = make(map[string]executor.MountSpec)
 	}
+
+	//constuct MountSpec for the tether
+	mountSpec := createMountSpec(volume, mountPath, diskOpts)
 	handle.ExecConfig.Mounts[volume.ID] = mountSpec
+
+	//append a device addition spec change to the container config
+	disk := handle.Guest.NewDisk()
+	configureVolumeVirtualDisk(disk, volume)
+
+	handle.Spec.AddVirtualDevice(disk)
 
 	return handle, nil
 }
 
-func createVolumeVirtualDisk(volume *volume.Volume) *types.VirtualDisk {
+func configureVolumeVirtualDisk(disk *types.VirtualDisk, volume *volume.Volume) {
+	// the unit number hack may no longer be needed
 	unitNumber := int32(-1)
-	diskDevice := &types.VirtualDisk{
-		CapacityInKB: 0,
-		VirtualDevice: types.VirtualDevice{
-			Key:           -1,
-			ControllerKey: 100, //FIXME: This is hardcoded for now and should be located from the config spec in the future.
-			UnitNumber:    &unitNumber,
-			Backing: &types.VirtualDiskFlatVer2BackingInfo{
-				DiskMode: string(types.VirtualDiskModeIndependent_persistent),
-				VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-					FileName: volume.Device.DiskPath().Path,
-				},
-			},
+
+	disk.CapacityInKB = 0
+	disk.UnitNumber = &unitNumber
+	disk.Backing = &types.VirtualDiskFlatVer2BackingInfo{
+		DiskMode: string(types.VirtualDiskModeIndependent_persistent),
+		VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
+			FileName: volume.Device.DiskPath().Path,
 		},
 	}
-	return diskDevice
-}
-
-func createDeviceConfigSpec(diskDevice *types.VirtualDisk) *types.VirtualDeviceConfigSpec {
-	config := &types.VirtualDeviceConfigSpec{
-		Device:        diskDevice,
-		Operation:     types.VirtualDeviceConfigSpecOperationAdd,
-		FileOperation: "", //blank for existing disk
-	}
-	return config
 }
 
 func createMountSpec(volume *volume.Volume, mountPath string, diskOpts map[string]string) executor.MountSpec {

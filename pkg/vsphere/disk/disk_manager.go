@@ -110,6 +110,10 @@ func (m *Manager) toSpec(config *VirtualDiskConfig) *types.VirtualDisk {
 		},
 	}
 
+	if config.UUID != "" {
+		backing.Uuid = config.UUID
+	}
+
 	disk := &types.VirtualDisk{
 		VirtualDevice: types.VirtualDevice{
 			Key:           -1,

@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/index"
@@ -104,6 +105,13 @@ type Image struct {
 
 	// Disk is the underlying disk implementation
 	Disk *disk.VirtualDisk
+
+	// DatastorePath is the dspath for actually using this image
+	// NOTE: this should be replaced by structure accessors for the data and updated storage
+	// interfaces that use _one_ variant of url/path for identifying images, volumes and stores.
+	// URL was only suggested as an existing structure that could be leveraged when object.DatastorePath
+	// was note available. The suggestion seems to have spawned monstruous unnecessary complexity.
+	DatastorePath *object.DatastorePath
 }
 
 func (i *Image) Copy() index.Element {
@@ -124,6 +132,10 @@ func (i *Image) Copy() index.Element {
 		SelfLink:   selflink,
 		ParentLink: parent,
 		Store:      store,
+		DatastorePath: &object.DatastorePath{
+			Datastore: i.DatastorePath.Datastore,
+			Path:      i.DatastorePath.Path,
+		},
 	}
 
 	if i.Metadata != nil {

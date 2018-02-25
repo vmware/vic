@@ -26,14 +26,20 @@ for i in ${drivers[@]}; do
 done
 
 MOUNTPOINT="/mnt/containerfs"
+ROOTFS="/dev/disk/by-id/wwn-0x60002233445566778899aabbccddeeff"
 
 mkdir -p /mnt/containerfs
 
 echo "Waiting for rootfs"
-while [ ! -e /dev/disk/by-label/containerfs ]; do sleep 0.1;done
+# the ID here is the ddb.uuid from the vmdk descriptor. It is set in lib/tether/shared/constants.go
+# ideally this would be moved to somewhere it does not need to be kept in sync manually.
+# TODO: this needs testing with additional scsi controllers and an understanding as to what that
+# 6000 prefix actually entails
+while [ ! -e ${ROOTFS} ]; do sleep 0.1; done
+
 # https://github.com/vmware/vic/issues/6379
 # grab dmesg output and dump to debug log if mount doesn't occur in a useful timeframe (2min)
-if timeout --signal=KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
+if timeout --signal=KILL 2m mount -t ext4 ${ROOTFS} ${MOUNTPOINT}; then
     # ensure mountpoint exists
     mkdir -p ${MOUNTPOINT}/.tether
 
