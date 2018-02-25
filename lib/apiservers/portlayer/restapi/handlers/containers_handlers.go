@@ -77,13 +77,14 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 
 // CreateHandler creates a new container
 func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreateParams) middleware.Responder {
-	id := uid.New().String()
-	defer trace.End(trace.Begin(id))
-
 	var err error
 
+	id := uid.New().String()
+	op := trace.NewOperation(context.Background(), "create container %s", id)
+
+	defer trace.End(trace.Begin(id, op))
+
 	session := handler.handlerCtx.Session
-	ctx := context.Background()
 
 	// Init key for tether
 	// #nosec: RSA keys should be at least 2048 bits
@@ -106,9 +107,6 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		CreateTime: time.Now().UTC().UnixNano(),
 		Version:    version.GetBuild(),
 		Key:        pem.EncodeToMemory(&privateKeyBlock),
-		// LayerID:    params.CreateConfig.Layer,
-		// ImageID:    params.CreateConfig.Image,
-		// RepoName:   params.CreateConfig.RepoName,
 		Hostname:   params.CreateConfig.Hostname,
 		Domainname: params.CreateConfig.Domainname,
 	}
@@ -123,17 +121,15 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	// Create the executor.ExecutorCreateConfig
 	c := &exec.ContainerCreateConfig{
 		Metadata: m,
-		// ParentImageID:  params.CreateConfig.Layer,
-		// ImageStoreName: params.CreateConfig.ImageStore.Name,
 		Resources: exec.Resources{
 			NumCPUs:  params.CreateConfig.NumCpus,
 			MemoryMB: params.CreateConfig.MemoryMB,
 		},
 	}
 
-	h, err := exec.Create(ctx, session, c)
+	h, err := exec.Create(op, session, c)
 	if err != nil {
-		log.Errorf("ContainerCreate error: %s", err.Error())
+		op.Errorf("ContainerCreate error: %s", err.Error())
 		return containers.NewCreateNotFound().WithPayload(&models.Error{Message: err.Error()})
 	}
 

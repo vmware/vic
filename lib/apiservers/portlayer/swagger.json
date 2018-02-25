@@ -593,6 +593,68 @@
 					}
 				}
 			},
+			"post": {
+				"description": "Join an image to a container",
+				"operationId": "ImageJoin",
+				"tags": [
+					"storage"
+				],
+				"consumes": [
+					"application/json",
+					"application/octet-stream"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "store_name",
+						"type": "string",
+						"in": "path",
+						"required": true
+					},
+					{
+						"name": "id",
+						"required": true,
+						"type": "string",
+						"in": "path"
+					},
+					{
+						"name": "config",
+						"in": "body",
+						"required": true,
+						"schema": {
+							"$ref": "#/definitions/ImageJoinConfig"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/ImageJoinResponse"
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "ServerError",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"default": {
+						"description": "error",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			},			
 			"delete": {
 				"description": "Delete an image by id in an image store",
 				"summary": "Delete an image",
@@ -2912,6 +2974,41 @@
 				}
 			}
 		},
+		"ImageJoinConfig": {
+			"type": "object",
+			"required": [
+				"handle",
+				"deltaID"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				},
+				"deltaID": {
+					"x-nullable": false,
+					"type": "string"
+				},
+				"imageID": {
+					"x-nullable": false,
+					"type": "string"
+				},
+				"repoName": {
+					"x-nullable": false,
+					"type": "string"
+				}
+			}
+		},
+		"ImageJoinResponse": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				}
+			}
+		},		
 		"ScopeConfig": {
 			"type": "object",
 			"required": [

@@ -82,6 +82,7 @@ import (
 // VicContainerProxy interface
 type VicContainerProxy interface {
 	CreateContainerHandle(vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error)
+	AddImageToContainer(handle string, deltaID string, layerID string, imageID string, config types.ContainerCreateConfig) (string, error)
 	CreateContainerTask(handle string, id string, config types.ContainerCreateConfig) (string, error)
 	CreateExecTask(handle string, config *types.ExecConfig) (string, string, error)
 	AddContainerToScope(handle string, config types.ContainerCreateConfig) (string, error)
@@ -241,6 +242,41 @@ func (c *ContainerProxy) CreateContainerHandle(vc *viccontainer.VicContainer, co
 	h := createResults.Payload.Handle
 
 	return id, h, nil
+}
+
+// AddImageToContainer adds the specified image to a container, referenced by handle.
+// If an error is return, the returned handle should not be used.
+//
+// returns:
+//	modified handle
+func (c *ContainerProxy) AddImageToContainer(handle, deltaID, layerID, imageID string, config types.ContainerCreateConfig) (string, error) {
+	defer trace.End(trace.Begin(handle))
+
+	if c.client == nil {
+		return "", InternalServerError("ContainerProxy.AddImageToContainer failed to get the portlayer client")
+	}
+
+	host, err := sys.UUID()
+	if err != nil {
+		return "", InternalServerError("ContainerProxy.AddImageToContainer got unexpected error getting VCH UUID")
+	}
+
+	response, err := c.client.Storage.ImageJoin(storage.NewImageJoinParamsWithContext(ctx).WithStoreName(host).WithID(layerID).
+		WithConfig(&models.ImageJoinConfig{
+			Handle:   handle,
+			DeltaID:  deltaID,
+			ImageID:  imageID,
+			RepoName: config.Config.Image,
+		}))
+	if err != nil {
+		return "", InternalServerError(err.Error())
+	}
+	handle, ok := response.Payload.Handle.(string)
+	if !ok {
+		return "", InternalServerError(fmt.Sprintf("Type assertion failed for %#+v", handle))
+	}
+
+	return handle, nil
 }
 
 // CreateContainerTask sets the primary command to run in the container
