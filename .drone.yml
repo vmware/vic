@@ -313,6 +313,7 @@ pipeline:
     template: "Build https://ci.vcna.io/vmware/vic/{{ build.number }} by {{ build.author }} finished with a {{ build.status }} status. Logs: https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/integration_logs_{{ build.number }}_{{ build.commit }}.zip?authuser=1\n"
     when:
       repo: vmware/vic
+      event: [push, tag, deployment]
       branch: [master, 'releases/*', 'refs/tags/*']
       status: failure
 
@@ -325,6 +326,7 @@ pipeline:
     template: "Build https://ci.vcna.io/vmware/vic/{{ build.number }} by {{ build.author }} finished with a {{ build.status }} status, find the build at: https://storage.googleapis.com/vic-engine-builds/vic_{{ build.number }}.tar.gz\n"
     when:
       repo: vmware/vic
+      event: [push, tag, deployment]
       branch: [master, 'releases/*']
       status: success
 
@@ -337,4 +339,5 @@ pipeline:
     template: "The latest version of VIC engine has been released, find the build here: https://console.cloud.google.com/storage/browser/vic-engine-releases\n"
     when:
       repo: vmware/vic
+      event: [push, tag, deployment]
       branch: ['refs/tags/*']
