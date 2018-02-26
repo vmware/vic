@@ -99,4 +99,4 @@ pipeline:
       - $cmd ${tests:-tests/test-cases}
 CONFIG
 
-drone exec --privileged --local $tmpYml
+drone exec --local $tmpYml
