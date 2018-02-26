@@ -50,10 +50,10 @@ const (
 	ClientNetworkName     = "client"
 	ManagementNetworkName = "management"
 
-	PersonaService   = "docker-personality"
-	PortLayerService = "port-layer"
-	VicAdminService  = "vicadmin"
-	KubeletService   = "virtual-kubelet"
+	PersonaService        = "docker-personality"
+	PortLayerService      = "port-layer"
+	VicAdminService       = "vicadmin"
+	KubeletStarterService = "kubelet-starter"
 
 	GeneralHTTPProxy   = "HTTP_PROXY"
 	GeneralHTTPSProxy  = "HTTPS_PROXY"
