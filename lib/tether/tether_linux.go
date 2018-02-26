@@ -180,7 +180,10 @@ func (t *tether) triggerReaper() {
 	t.incoming <- syscall.SIGCHLD
 }
 
-func findExecutable(file string) error {
+func findExecutable(file string, chroot string) error {
+	if chroot != "" {
+		file = fmt.Sprintf("%s/%s", chroot, file)
+	}
 	d, err := os.Stat(file)
 	if err != nil {
 		return err
@@ -194,13 +197,13 @@ func findExecutable(file string) error {
 // lookPath searches for an executable binary named file in the directories
 // specified by the path argument.
 // This is a direct modification of the unix os/exec core library impl
-func lookPath(file string, env []string, dir string) (string, error) {
+func lookPath(file string, env []string, dir string, chroot string) (string, error) {
 	// if it starts with a ./ or ../ it's a relative path
 	// need to check explicitly to allow execution of .hidden files
 
 	if strings.HasPrefix(file, "./") || strings.HasPrefix(file, "../") {
 		file = fmt.Sprintf("%s%c%s", dir, os.PathSeparator, file)
-		err := findExecutable(file)
+		err := findExecutable(file, chroot)
 		if err == nil {
 			return filepath.Clean(file), nil
 		}
@@ -209,7 +212,7 @@ func lookPath(file string, env []string, dir string) (string, error) {
 
 	// check if it's already a path spec
 	if strings.Contains(file, "/") {
-		err := findExecutable(file)
+		err := findExecutable(file, chroot)
 		if err == nil {
 			return filepath.Clean(file), nil
 		}
@@ -234,7 +237,7 @@ func lookPath(file string, env []string, dir string) (string, error) {
 			dir = "."
 		}
 		path := dir + "/" + file
-		if err := findExecutable(path); err == nil {
+		if err := findExecutable(path, chroot); err == nil {
 			return filepath.Clean(path), nil
 		}
 	}

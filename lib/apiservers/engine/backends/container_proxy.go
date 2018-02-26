@@ -83,7 +83,7 @@ import (
 type VicContainerProxy interface {
 	CreateContainerHandle(vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error)
 	AddImageToContainer(handle string, deltaID string, layerID string, imageID string, config types.ContainerCreateConfig) (string, error)
-	CreateContainerTask(handle string, id string, config types.ContainerCreateConfig) (string, error)
+	CreateContainerTask(handle string, id string, layerID string, config types.ContainerCreateConfig) (string, error)
 	CreateExecTask(handle string, config *types.ExecConfig) (string, string, error)
 	AddContainerToScope(handle string, config types.ContainerCreateConfig) (string, error)
 	AddVolumesToContainer(handle string, config types.ContainerCreateConfig) (string, error)
@@ -283,14 +283,14 @@ func (c *ContainerProxy) AddImageToContainer(handle, deltaID, layerID, imageID s
 //
 // returns:
 //	(containerHandle, error)
-func (c *ContainerProxy) CreateContainerTask(handle, id string, config types.ContainerCreateConfig) (string, error) {
+func (c *ContainerProxy) CreateContainerTask(handle, id, layerID string, config types.ContainerCreateConfig) (string, error) {
 	defer trace.End(trace.Begin(""))
 
 	if c.client == nil {
 		return "", InternalServerError("ContainerProxy.CreateContainerTask failed to create a portlayer client")
 	}
 
-	plTaskParams := dockerContainerCreateParamsToTask(id, config)
+	plTaskParams := dockerContainerCreateParamsToTask(id, layerID, config)
 	plTaskParams.Config.Handle = handle
 
 	responseJoin, err := c.client.Tasks.Join(plTaskParams)
@@ -1327,7 +1327,7 @@ func removeAnonContainerVols(pl *client.PortLayer, cID string, vc *viccontainer.
 	}
 }
 
-func dockerContainerCreateParamsToTask(id string, cc types.ContainerCreateConfig) *tasks.JoinParams {
+func dockerContainerCreateParamsToTask(id, layerID string, cc types.ContainerCreateConfig) *tasks.JoinParams {
 	config := &models.TaskJoinConfig{}
 
 	var path string
@@ -1335,6 +1335,9 @@ func dockerContainerCreateParamsToTask(id string, cc types.ContainerCreateConfig
 
 	// we explicitly specify the ID for the primary task so that it's the same as the containerID
 	config.ID = id
+
+	// Set the filesystem namespace this task expects to run in
+	config.Namespace = layerID
 
 	// Expand cmd into entrypoint and args
 	cmd := strslice.StrSlice(cc.Config.Cmd)

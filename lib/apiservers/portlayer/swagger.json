@@ -3772,6 +3772,9 @@
 				"handle": {
 					"type": "object"
 				},
+				"namespace": {
+					"type": "string"
+				},
 				"id": {
 					"type": "string",
 					"x-nullable": false

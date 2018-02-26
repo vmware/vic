@@ -71,7 +71,8 @@ func (handler *TaskHandlersImpl) JoinHandler(params tasks.JoinParams) middleware
 
 	sessionConfig := &executor.SessionConfig{
 		Common: executor.Common{
-			ID: id,
+			ExecutionEnvironment: params.Config.Namespace,
+			ID:                   id,
 		},
 		Tty:       params.Config.Tty,
 		Attach:    params.Config.Attach,
