@@ -558,12 +558,24 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	} else {
 		// if vapp is not created, fall back to create VM under default resource pool
 		info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-			// Default behavior is to check if the VCH folder already exists in the VMFolder. If so reject.
-			// Otherwise make a folder with the VCH name and create the VCH VM there.
-
 			vmFolderPath := d.session.VMFolder.InventoryPath
 			vchName := spec.Name
 			vchFolderPath := fmt.Sprintf("%s/%s", vmFolderPath, vchName)
+
+			d.op.Infof("SESSION CLUSTER PATH: ", d.session.ClusterPath)
+			rootDC, _ := d.session.Finder.DatacenterOrDefault(d.op, "")
+
+			d.op.Infof("SESSION DC PATH: ", rootDC.InventoryPath)
+			allrpList, err := d.session.Finder.ResourcePoolListAll(d.op, rootDC.InventoryPath)
+			allclusterList, err := d.session.Finder.ClusterComputeResourceList(d.op, rootDC.InventoryPath)
+
+			for _, k := range allclusterList {
+				d.op.Infof("SESSION FOUND cls PATH: ", k.InventoryPath)
+			}
+
+			for _, k := range allrpList {
+				d.op.Infof("SESSION FOUND RP PATH: ", k.InventoryPath)
+			}
 
 			// IMPLEMENTATION DETAILs:
 			// 1. Get the target VCHPOOL.
@@ -574,7 +586,9 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			// 6. create the vch after the list is exhausted at the longest path(the last one)
 			// 7. Should be good, think more on the validation side of things.
 
-			_, err := d.session.Finder.Folder(ctx, vchFolderPath)
+			vchObj, err := d.session.Finder.Folder(ctx, vchFolderPath)
+			d.op.Infof("vchObj PARENT CALL: %s", vchObj.Parent)
+
 			if err == nil {
 				// This should mean that the folder existed or that we could find it at the very least.
 				// in this case we should reject since the folder is already there? It should be cleaned up on a delete normally...
@@ -758,6 +772,15 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	return nil
 }
 
+// assembleHierarchicalPools will take a resource pool and assemble the list of
+// resource pools that live above it all the way back to the top most compute parent.
+func (d *Dispatcher) assembleHierarchicalPools(target object.ResourcePool) ([]*object.ResourcePool, error) {
+	//filterPath := target.InventoryPath
+	//globalRPList, err := d.session.Finder.ResourcePoolListAll(d.op, d.session.Cluster.InventoryPath)
+
+	return nil, nil
+}
+
 func (d *Dispatcher) encodeConfig(conf *config.VirtualContainerHostConfigSpec) (map[string]string, error) {
 	d.op.Debug("generating new config secret key")
 
@@ -802,12 +825,6 @@ func (d *Dispatcher) decryptVCHConfig(vm *vm.VirtualMachine, cfg map[string]stri
 	conf := &config.VirtualContainerHostConfigSpec{}
 	extraconfig.Decode(d.secret.Source(extraconfig.MapSource(cfg)), conf)
 	return conf, nil
-}
-
-// assembleHierarchicalPools will take a resource pool and assemble the list of
-// resource pools that live above it all the way back to the top most compute parent.
-func (d *Dispatcher) assembleHierarchicalPools(target object.ResourcePool) ([]*object.ResourcePool, err) {
-	return nil
 }
 
 func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {
