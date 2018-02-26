@@ -41,6 +41,7 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/kubelet"
 	"github.com/vmware/vic/lib/install/opsuser"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/registry"
@@ -338,6 +339,9 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	v.compatibility(op, conf)
 
 	v.syslog(op, conf, input)
+
+	// Kubelet
+	v.kubelet(op, conf, input)
 
 	// TODO: determine if this is where we should turn the noted issues into message
 	return conf, v.ListIssues(op)
@@ -936,6 +940,22 @@ func (v *Validator) syslog(op trace.Operation, conf *config.VirtualContainerHost
 	conf.Diagnostics.SysLogConfig = &executor.SysLogConfig{
 		Network: network,
 		RAddr:   host,
+	}
+}
+
+func (v *Validator) kubelet(op trace.Operation, conf *config.VirtualContainerHostConfigSpec, input *data.Data) {
+	defer trace.End(trace.Begin("", op))
+
+	if input.Kubelet.ServerAddress == nil || input.Kubelet.ConfigFile == nil {
+		return
+	}
+
+	conf.KubernetesServerAddress = *input.Kubelet.ServerAddress
+	conf.KubeletConfigFile = *input.Kubelet.ConfigFile
+
+	err := kubelet.ReadKubeletConfigFile(op, conf)
+	if err != nil {
+		v.NoteIssue(fmt.Errorf("Failed to load K8s config file: %s", err.Error()))
 	}
 }
 

@@ -53,6 +53,7 @@ const (
 	PersonaService   = "docker-personality"
 	PortLayerService = "port-layer"
 	VicAdminService  = "vicadmin"
+	KubeletService   = "virtual-kubelet"
 
 	GeneralHTTPProxy   = "HTTP_PROXY"
 	GeneralHTTPSProxy  = "HTTPS_PROXY"
@@ -102,6 +103,9 @@ type VirtualContainerHostConfigSpec struct {
 	// Registry configuration for Imagec
 	Registry `vic:"0.1" scope:"read-only" key:"registry"`
 
+	// virtual kubelet specific options
+	Kubelet `vic:"0.1" scope:"read-only" key:"virtual_kubelet"`
+
 	// configuration for vic-machine
 	CreateBridgeNetwork bool `vic:"0.1" scope:"read-only" key:"create_bridge_network"`
 
@@ -138,6 +142,13 @@ type Registry struct {
 	RegistryBlacklist []string `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	// Insecure registries
 	InsecureRegistries []string `vic:"0.1" scope:"read-only" key:"insecure_registries"`
+}
+
+// Virtual Kubelet
+type Kubelet struct {
+	KubernetesServerAddress string
+	KubeletConfigFile       string
+	KubeletConfigContent    string
 }
 
 // NetworkConfig defines the network configuration of virtual container host

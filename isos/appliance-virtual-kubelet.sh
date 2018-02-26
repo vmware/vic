@@ -149,6 +149,9 @@ cp ${BIN}/vic-init $(rootfs_dir $PKGDIR)/sbin/vic-init
 cp ${BIN}/{docker-engine-server,port-layer-server,vicadmin} $(rootfs_dir $PKGDIR)/sbin/
 cp ${BIN}/unpack $(rootfs_dir $PKGDIR)/bin/
 
+# Kubelet-starter
+cp ${BIN}/kubelet-starter $(rootfs_dir $PKGDIR)/sbin/kubelet-starter
+
 # Extra binaries
 APPLIANCE_NAME=$(basename ${APPLIANCE_OUTNAME})
 GS=$(echo ${EXTRABIN} | grep '^gs://' | cat)

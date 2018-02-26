@@ -107,6 +107,7 @@ vic-ui-windows := $(BIN)/vic-ui-windows.exe
 vic-ui-darwin := $(BIN)/vic-ui-darwin
 vic-init := $(BIN)/vic-init
 vic-init-test := $(BIN)/vic-init-test
+kubelet-starter := $(BIN)/kubelet-starter
 # NOT BUILT WITH make all TARGET
 # vic-dns variants to create standalone DNS service.
 vic-dns-linux := $(BIN)/vic-dns-linux
@@ -142,6 +143,7 @@ vicadmin: $(vicadmin)
 rpctool: $(rpctool)
 vic-init: $(vic-init)
 vic-init-test: $(vic-init-test)
+kubelet-starter: $(kubelet-starter)
 
 tether-linux: $(tether-linux)
 
@@ -322,6 +324,10 @@ $(vic-init-test): $$(call godeps,cmd/vic-init/*.go)
 	@echo building vic-init-test
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) test -c -coverpkg github.com/vmware/vic/lib/...,github.com/vmware/vic/pkg/... -outputdir /tmp -coverprofile init.cov -o ./$@ ./$(dir $<)
 
+$(kubelet-starter): $$(call godeps,cmd/kubelet-starter/*.go)
+	@echo building kubelet-starter
+	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -tags netgo -installsuffix netgo -o ./$@ ./$(dir $<)
+
 $(tether-linux): $$(call godeps,cmd/tether/*.go)
 	@echo building tether-linux
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '$(LDFLAGS) -extldflags "-static"' -o ./$@ ./$(dir $<)
@@ -435,7 +441,7 @@ $(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(
 
 .PHONY: $(appliance-vkubelet)
 # main appliance target + virtual kubelet - depends on all top level component targets
-$(appliance-vkubelet): isos/appliance-extra.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging) $(archive)
+$(appliance-vkubelet): isos/appliance-virtual-kubelet.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(kubelet-starter) $(portlayerapi) $(docker-engine-api) $(appliance-staging) $(archive)
 	@echo building VCH appliance ISO
 	@$(TIME) $< -p $(appliance-staging) -b $(BIN) -x $(VIRTUAL_KUBELET) -f virtual-kubelet -o $@
 
