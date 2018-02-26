@@ -1073,6 +1073,15 @@ func (t *BaseOperations) Cleanup() error {
 	return nil
 }
 
+func chrootSysProcAttr(attr *syscall.SysProcAttr, chroot string) *syscall.SysProcAttr {
+	if attr == nil {
+		attr = &syscall.SysProcAttr{}
+	}
+	attr.Chroot = chroot
+
+	return attr
+}
+
 // Need to put this here because Windows does not support SysProcAttr.Credential
 // getUserSysProcAttr relies on docker user package to verify user specification
 // Examples of valid user specifications are:

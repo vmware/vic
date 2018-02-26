@@ -44,13 +44,6 @@ until [[ $(ls -1 /dev/disk/by-label | wc -l) -eq $(ls -1 /sys/block | wc -l) ]];
 
 if [[ $(ls -1 /dev/disk/by-path/*scsi* | wc -l) -ne $(ls -1 /dev/disk/by-id/*scsi* | wc -l) ]]; then
     echo "Multi-image mode"
-    # here for now, but should move into tether to support any kind of hotadd/run-in-pod logic
-    for i in /dev/disk/by-label/*; do
-        target=/mnt/images/$(basename $i)
-        mkdir -p $target
-        mount $i $target
-    done
-
     # this can and should be removed in favour of a more customized config approach
     # for now we set up the initramfs to look like the containerfs
     mkdir -p ${MOUNTPOINT}/.tether/{etc,lib,lib64,usr,run,sbin}
@@ -60,16 +53,28 @@ if [[ $(ls -1 /dev/disk/by-path/*scsi* | wc -l) -ne $(ls -1 /dev/disk/by-id/*scs
     mount --bind /run /.tether/run
     mount --bind /sbin /.tether/sbin
 
+    # this one shouldn't be needed and wasn't for a while - unclear why that cahnged and we suddenly have a symlink to it from /etc/resolv.conf.
+    # have tried ensuring the target of the symlink exists, but we just get "does not exist" later (something deleting it maybe?)
+    rm -f /etc/resolv.conf
+
     touch /etc/{hostname,hosts,resolv.conf}
     touch /.tether/etc/{hostname,hosts,resolv.conf}
 
-    echo "/etc"
-    ls -l /etc
-    echo "/.tether/etc"
-    ls -l /.tether/etc
-
     ln -s /usr/sbin/haveged /.tether/
     ln -s /sbin/*tables* /.tether/
+
+    # here for now, but should move into tether to support any kind of hotadd/run-in-pod logic
+    for i in /dev/disk/by-label/*; do
+        target=/mnt/images/$(basename $i)
+        mkdir -p $target
+        mount $i $target
+
+        # support normal process/system tool operation in the chroot
+        mkdir -p ${target}/{proc,sys,dev}
+        mount --bind /proc $target/proc
+        mount --bind /sys $target/sys
+        mount --bind /dev $target/dev
+    done
 
     echo "Starting tether"
     exec /bin/tether
