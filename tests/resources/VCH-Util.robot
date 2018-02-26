@@ -395,6 +395,8 @@ Secret Curl Container Logs
     Log  ${out}
     ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs${name-suffix}.zip
     Log  ${out}
+    ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/logs/port-layer.log
+    Should Not Contain  ${out}  SIGSEGV: segmentation violation
     Remove File  vic-admin-cookies
 
 Check For The Proper Log Files
