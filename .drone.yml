@@ -47,7 +47,7 @@ pipeline:
     secrets:
       - github_automation_api_key
     commands:
-      - [[ ! $(curl --silent "https://api.github.com/orgs/vmware/members/${DRONE_COMMIT_AUTHOR}?access_token=${GITHUB_AUTOMATION_API_KEY}") ]]
+      - [[ ! $(curl --silent "https://api.github.com/orgs/vmware/members/$DRONE_COMMIT_AUTHOR?access_token=$GITHUB_AUTOMATION_API_KEY") ]]
     when:
       status: success
 
