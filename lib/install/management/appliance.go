@@ -270,7 +270,7 @@ func (d *Dispatcher) removeFolder(folder *object.Folder) error {
 		return folder.Destroy(d.op)
 	}
 
-	_, err = tasks.WaitForResult(d.op, folderRemoveFunction)
+	_, err := tasks.WaitForResult(d.op, folderRemoveFunction)
 	if err != nil {
 		return err
 	}
@@ -564,6 +564,16 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			vmFolderPath := d.session.VMFolder.InventoryPath
 			vchName := spec.Name
 			vchFolderPath := fmt.Sprintf("%s/%s", vmFolderPath, vchName)
+
+			// IMPLEMENTATION DETAILs:
+			// 1. Get the target VCHPOOL.
+			// 2. Get the resource pool list.
+			// 3. Filter the list down to rp's on the path.
+			// 4. sort them in smallest path to longest.
+			// 5. create the list smallest to largest in the inventory.(ignore failures of AlreadyExist variant)
+			// 6. create the vch after the list is exhausted at the longest path(the last one)
+			// 7. Should be good, think more on the validation side of things.
+
 			_, err := d.session.Finder.Folder(ctx, vchFolderPath)
 			if err == nil {
 				// This should mean that the folder existed or that we could find it at the very least.
@@ -792,6 +802,12 @@ func (d *Dispatcher) decryptVCHConfig(vm *vm.VirtualMachine, cfg map[string]stri
 	conf := &config.VirtualContainerHostConfigSpec{}
 	extraconfig.Decode(d.secret.Source(extraconfig.MapSource(cfg)), conf)
 	return conf, nil
+}
+
+// assembleHierarchicalPools will take a resource pool and assemble the list of
+// resource pools that live above it all the way back to the top most compute parent.
+func (d *Dispatcher) assembleHierarchicalPools(target object.ResourcePool) ([]*object.ResourcePool, err) {
+	return nil
 }
 
 func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {
