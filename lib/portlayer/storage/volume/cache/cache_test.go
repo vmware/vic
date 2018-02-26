@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package volume
+package cache
 
 import (
 	"fmt"
@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/storage/volume"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -37,12 +38,12 @@ import (
 
 type MockVolumeStore struct {
 	// id -> volume
-	db map[string]*Volume
+	db map[string]*volume.Volume
 }
 
 func NewMockVolumeStore() *MockVolumeStore {
 	m := &MockVolumeStore{
-		db: make(map[string]*Volume),
+		db: make(map[string]*volume.Volume),
 	}
 
 	return m
@@ -53,7 +54,7 @@ func (m *MockVolumeStore) VolumeStoresList(op trace.Operation) (map[string]url.U
 }
 
 // Creates a volume on the given volume store, of the given size, with the given metadata.
-func (m *MockVolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*Volume, error) {
+func (m *MockVolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*volume.Volume, error) {
 	storeName, err := util.VolumeStoreName(store)
 	if err != nil {
 		return nil, err
@@ -64,7 +65,7 @@ func (m *MockVolumeStore) VolumeCreate(op trace.Operation, ID string, store *url
 		return nil, err
 	}
 
-	vol := &Volume{
+	vol := &volume.Volume{
 		ID:       ID,
 		Store:    store,
 		SelfLink: selfLink,
@@ -76,7 +77,7 @@ func (m *MockVolumeStore) VolumeCreate(op trace.Operation, ID string, store *url
 }
 
 // Get an existing volume via it's ID and volume store.
-func (m *MockVolumeStore) VolumeGet(op trace.Operation, ID string) (*Volume, error) {
+func (m *MockVolumeStore) VolumeGet(op trace.Operation, ID string) (*volume.Volume, error) {
 	vol, ok := m.db[ID]
 	if !ok {
 		return nil, os.ErrNotExist
@@ -86,7 +87,7 @@ func (m *MockVolumeStore) VolumeGet(op trace.Operation, ID string) (*Volume, err
 }
 
 // Destroys a volume
-func (m *MockVolumeStore) VolumeDestroy(op trace.Operation, vol *Volume) error {
+func (m *MockVolumeStore) VolumeDestroy(op trace.Operation, vol *volume.Volume) error {
 	if _, ok := m.db[vol.ID]; !ok {
 		return os.ErrNotExist
 	}
@@ -97,9 +98,9 @@ func (m *MockVolumeStore) VolumeDestroy(op trace.Operation, vol *Volume) error {
 }
 
 // VolumesList lists all volumes on the given volume store.
-func (m *MockVolumeStore) VolumesList(op trace.Operation) ([]*Volume, error) {
+func (m *MockVolumeStore) VolumesList(op trace.Operation) ([]*volume.Volume, error) {
 	var i int
-	list := make([]*Volume, len(m.db))
+	list := make([]*volume.Volume, len(m.db))
 	for _, v := range m.db {
 		t := *v
 		list[i] = &t
@@ -145,7 +146,7 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 		return
 	}
 
-	inVols := make(map[string]*Volume)
+	inVols := make(map[string]*volume.Volume)
 	inVolsM := &sync.Mutex{}
 
 	wg := &sync.WaitGroup{}
@@ -173,7 +174,7 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 	}
 	wg.Wait()
 
-	getFn := func(inVol *Volume) {
+	getFn := func(inVol *volume.Volume) {
 		vol, err := v.VolumeGet(op, inVol.ID)
 		if !assert.NoError(t, err) || !assert.NotNil(t, vol) {
 			return
@@ -216,8 +217,8 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 }
 
 // createVolumes is a test helper that creates a set of num volumes on the input volume cache and volume store.
-func createVolumes(t *testing.T, op trace.Operation, v *VolumeLookupCache, storeURL *url.URL, num int) map[string]*Volume {
-	vols := make(map[string]*Volume)
+func createVolumes(t *testing.T, op trace.Operation, v *VolumeLookupCache, storeURL *url.URL, num int) map[string]*volume.Volume {
+	vols := make(map[string]*volume.Volume)
 	for i := 1; i <= num; i++ {
 		id := fmt.Sprintf("ID-%d", i)
 
@@ -247,7 +248,7 @@ func TestAddVolumesToCache(t *testing.T) {
 	vols := createVolumes(t, op, v, storeURL, 50)
 
 	// Clear the volume map after it has been filled during volume creation.
-	v.vlc = make(map[string]Volume)
+	v.vlc = make(map[string]volume.Volume)
 
 	err = v.addVolumesToCache(op, storeURLStr, mvs1)
 	assert.Nil(t, err)

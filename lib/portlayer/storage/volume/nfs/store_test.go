@@ -27,6 +27,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/vic/lib/portlayer/storage/nfs"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -38,7 +39,7 @@ type MockMount struct {
 	Path string
 }
 
-func (m MockMount) Mount(op trace.Operation) (Target, error) {
+func (m MockMount) Mount(op trace.Operation) (nfs.Target, error) {
 	return NewMocktarget(m.Path), nil
 }
 
@@ -102,8 +103,8 @@ func (v MockTarget) Lookup(pth string) (os.FileInfo, []byte, error) {
 }
 
 var (
-	expected Target
-	mnt      MountServer
+	expected nfs.Target
+	mnt      nfs.MountServer
 )
 
 func TestMain(m *testing.M) {
@@ -118,7 +119,7 @@ func TestMain(m *testing.M) {
 
 		logrus.Infof("testing nfs against %#v", u)
 
-		mnt = NewMount(u, "hasselhoff", 1001, 10001)
+		mnt = nfs.NewMount(u, "hasselhoff", 1001, 10001)
 		expected, err = mnt.Mount(trace.NewOperation(context.TODO(), "mount"))
 		if err != nil {
 			logrus.Errorf("error mounting %s: %s", u.String(), err.Error())

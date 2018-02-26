@@ -19,6 +19,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/util"
 )
@@ -56,6 +57,10 @@ func TestImageCopy(t *testing.T) {
 			"1": {byte(1)},
 			"2": {byte(2)},
 			"3": []byte("three"),
+		},
+		DatastorePath: &object.DatastorePath{
+			Datastore: "ds",
+			Path:      "/some/path",
 		},
 	}
 

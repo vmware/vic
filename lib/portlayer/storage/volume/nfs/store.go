@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/portlayer/storage/nfs"
 	"github.com/vmware/vic/lib/portlayer/storage/volume"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
@@ -52,7 +53,7 @@ type VolumeStore struct {
 	Name string
 
 	// Service is the interface to the nfs target.
-	Service MountServer
+	Service nfs.MountServer
 
 	// Service selflink to volume store.
 	SelfLink *url.URL
@@ -61,7 +62,7 @@ type VolumeStore struct {
 	archive.Archiver
 }
 
-func NewVolumeStore(op trace.Operation, storeName string, mount MountServer) (*VolumeStore, error) {
+func NewVolumeStore(op trace.Operation, storeName string, mount nfs.MountServer) (*VolumeStore, error) {
 	// #nosec: Errors unhandled.
 	u, _ := mount.URL()
 	op.Infof("Creating nfs volumestore %s on %s", storeName, u.String())
@@ -226,7 +227,7 @@ func (v *VolumeStore) Owners(op trace.Operation, url *url.URL, filter func(vm *m
 	return nil, errors.New("NFS VolumeStore does not yet implement Owners")
 }
 
-func (v *VolumeStore) writeMetadata(op trace.Operation, ID string, info map[string][]byte, target Target) error {
+func (v *VolumeStore) writeMetadata(op trace.Operation, ID string, info map[string][]byte, target nfs.Target) error {
 	// write metadata into the metadata directory by key (filename) / value
 	// (data), namespaced by volume id
 	//
@@ -260,7 +261,7 @@ func (v *VolumeStore) writeMetadata(op trace.Operation, ID string, info map[stri
 	return nil
 }
 
-func (v *VolumeStore) getMetadata(op trace.Operation, ID string, target Target) (map[string][]byte, error) {
+func (v *VolumeStore) getMetadata(op trace.Operation, ID string, target nfs.Target) (map[string][]byte, error) {
 	metadataPath := v.volMetadataDirPath(ID)
 	op.Debugf("Attempting to retrieve volume metadata for (%s) at (%s)", ID, metadataPath)
 

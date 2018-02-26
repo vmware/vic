@@ -36,13 +36,14 @@ import (
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/storage/image"
+	"github.com/vmware/vic/lib/portlayer/storage/image/cache"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
-func setup(t *testing.T) (*image.NameLookupCache, *session.Session, string, error) {
+func setup(t *testing.T) (*cache.NameLookupCache, *session.Session, string, error) {
 	logrus.SetLevel(logrus.DebugLevel)
 	trace.Logger.Level = logrus.DebugLevel
 	DetachAll = false
@@ -67,7 +68,7 @@ func setup(t *testing.T) (*image.NameLookupCache, *session.Session, string, erro
 		return nil, nil, "", err
 	}
 
-	s := image.NewLookupCache(vsImageStore)
+	s := cache.NewLookupCache(vsImageStore)
 
 	return s, client, storeURL.Path, nil
 }

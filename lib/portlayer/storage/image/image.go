@@ -132,10 +132,13 @@ func (i *Image) Copy() index.Element {
 		SelfLink:   selflink,
 		ParentLink: parent,
 		Store:      store,
-		DatastorePath: &object.DatastorePath{
+	}
+
+	if i.DatastorePath != nil {
+		c.DatastorePath = &object.DatastorePath{
 			Datastore: i.DatastorePath.Datastore,
 			Path:      i.DatastorePath.Path,
-		},
+		}
 	}
 
 	if i.Metadata != nil {

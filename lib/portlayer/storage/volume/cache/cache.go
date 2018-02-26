@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package volume
+package cache
 
 import (
 	"fmt"
@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/storage/volume"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -36,17 +37,17 @@ type VolumeLookupCache struct {
 	// Maps IDs to Volumes.
 	//
 	// id -> Volume
-	vlc     map[string]Volume
+	vlc     map[string]volume.Volume
 	vlcLock sync.RWMutex
 
 	// Maps the service url of the volume store to the underlying data storage implementation
-	volumeStores map[string]VolumeStorer
+	volumeStores map[string]volume.VolumeStorer
 }
 
 func NewVolumeLookupCache(op trace.Operation) *VolumeLookupCache {
 	v := &VolumeLookupCache{
-		vlc:          make(map[string]Volume),
-		volumeStores: make(map[string]VolumeStorer),
+		vlc:          make(map[string]volume.Volume),
+		volumeStores: make(map[string]volume.VolumeStorer),
 	}
 
 	return v
@@ -61,7 +62,7 @@ func (v *VolumeLookupCache) GetVolumeStore(op trace.Operation, storeName string)
 }
 
 // AddStore adds a volumestore by name. The url returned is the service url to the volume store.
-func (v *VolumeLookupCache) AddStore(op trace.Operation, storeName string, vs VolumeStorer) (*url.URL, error) {
+func (v *VolumeLookupCache) AddStore(op trace.Operation, storeName string, vs volume.VolumeStorer) (*url.URL, error) {
 	v.vlcLock.Lock()
 	defer v.vlcLock.Unlock()
 
@@ -80,12 +81,12 @@ func (v *VolumeLookupCache) AddStore(op trace.Operation, storeName string, vs Vo
 	return u, v.addVolumesToCache(op, storeURLStr, vs)
 }
 
-func (v *VolumeLookupCache) volumeStore(store *url.URL) (VolumeStorer, error) {
+func (v *VolumeLookupCache) volumeStore(store *url.URL) (volume.VolumeStorer, error) {
 
 	// find the datastore
 	vs, ok := v.volumeStores[store.String()]
 	if !ok {
-		err := VolumeStoreNotFoundError{
+		err := volume.VolumeStoreNotFoundError{
 			Msg: fmt.Sprintf("volume store (%s) not found", store.String()),
 		}
 		return nil, err
@@ -119,7 +120,7 @@ func (v *VolumeLookupCache) VolumeStoresList(op trace.Operation) ([]string, erro
 	return stores, nil
 }
 
-func (v *VolumeLookupCache) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*Volume, error) {
+func (v *VolumeLookupCache) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*volume.Volume, error) {
 	v.vlcLock.Lock()
 	defer v.vlcLock.Unlock()
 
@@ -173,7 +174,7 @@ func (v *VolumeLookupCache) VolumeDestroy(op trace.Operation, ID string) error {
 	return nil
 }
 
-func (v *VolumeLookupCache) VolumeGet(op trace.Operation, ID string) (*Volume, error) {
+func (v *VolumeLookupCache) VolumeGet(op trace.Operation, ID string) (*volume.Volume, error) {
 	v.vlcLock.RLock()
 	defer v.vlcLock.RUnlock()
 
@@ -186,15 +187,15 @@ func (v *VolumeLookupCache) VolumeGet(op trace.Operation, ID string) (*Volume, e
 	return &vol, nil
 }
 
-func (v *VolumeLookupCache) VolumesList(op trace.Operation) ([]*Volume, error) {
+func (v *VolumeLookupCache) VolumesList(op trace.Operation) ([]*volume.Volume, error) {
 	v.vlcLock.RLock()
 	defer v.vlcLock.RUnlock()
 
 	// look in the cache, return the list
-	l := make([]*Volume, 0, len(v.vlc))
+	l := make([]*volume.Volume, 0, len(v.vlc))
 	for _, vol := range v.vlc {
 		// this is idiotic
-		var e Volume
+		var e volume.Volume
 		e = vol
 		l = append(l, &e)
 	}
@@ -203,7 +204,7 @@ func (v *VolumeLookupCache) VolumesList(op trace.Operation) ([]*Volume, error) {
 }
 
 // addVolumesToCache finds the volumes in the input volume store and adds them to the cache.
-func (v *VolumeLookupCache) addVolumesToCache(op trace.Operation, storeURLStr string, vs VolumeStorer) error {
+func (v *VolumeLookupCache) addVolumesToCache(op trace.Operation, storeURLStr string, vs volume.VolumeStorer) error {
 	op.Infof("Adding volumes in volume store %s to volume cache", storeURLStr)
 
 	vols, err := vs.VolumesList(op)
@@ -233,7 +234,7 @@ func volumeInUse(ID string) error {
 		}
 
 		if _, mounted := cont.ExecConfig.Mounts[ID]; mounted {
-			return &ErrVolumeInUse{
+			return &volume.ErrVolumeInUse{
 				Msg: fmt.Sprintf("volume %s in use by %s", ID, cont.ExecConfig.ID),
 			}
 		}

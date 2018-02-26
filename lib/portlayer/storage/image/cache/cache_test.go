@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,175 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package image
+package cache
 
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/url"
-	"os"
 	"strconv"
 	"testing"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	"github.com/vmware/govmomi/vim25/mo"
-	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/constants"
-	"github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/storage/image"
+	"github.com/vmware/vic/lib/portlayer/storage/image/mock"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-type MockDataStore struct {
-	// id -> image
-	db map[url.URL]map[string]*Image
-
-	createImageStoreError error
-	writeImageError       error
-}
-
-func NewMockDataStore() *MockDataStore {
-	m := &MockDataStore{
-		db: make(map[url.URL]map[string]*Image),
-	}
-
-	return m
-}
-
-// GetImageStore checks to see if a named image store exists and returls the
-// URL to it if so or error.
-func (c *MockDataStore) GetImageStore(op trace.Operation, storeName string) (*url.URL, error) {
-	u, err := util.ImageStoreNameToURL(storeName)
-	if err != nil {
-		return nil, err
-	}
-
-	if _, ok := c.db[*u]; !ok {
-		return nil, os.ErrNotExist
-	}
-
-	return u, nil
-}
-
-func (c *MockDataStore) CreateImageStore(op trace.Operation, storeName string) (*url.URL, error) {
-	if c.createImageStoreError != nil {
-		return nil, c.createImageStoreError
-	}
-
-	u, err := util.ImageStoreNameToURL(storeName)
-	if err != nil {
-		return nil, err
-	}
-
-	c.db[*u] = make(map[string]*Image)
-	return u, nil
-}
-
-func (c *MockDataStore) DeleteImageStore(op trace.Operation, storeName string) error {
-	u, err := util.ImageStoreNameToURL(storeName)
-	if err != nil {
-		return err
-	}
-
-	c.db[*u] = nil
-	return nil
-}
-
-func (c *MockDataStore) ListImageStores(op trace.Operation) ([]*url.URL, error) {
-	return nil, nil
-}
-
-func (c *MockDataStore) WriteImage(op trace.Operation, parent *Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*Image, error) {
-	if c.writeImageError != nil {
-		op.Infof("WriteImage: returning error")
-		return nil, c.writeImageError
-	}
-
-	storeName, err := util.ImageStoreName(parent.Store)
-	if err != nil {
-		return nil, err
-	}
-
-	selflink, err := util.ImageURL(storeName, ID)
-	if err != nil {
-		return nil, err
-	}
-
-	var parentLink *url.URL
-	if parent.ID != "" {
-		parentLink, err = util.ImageURL(storeName, parent.ID)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	i := &Image{
-		ID:         ID,
-		Store:      parent.Store,
-		ParentLink: parentLink,
-		SelfLink:   selflink,
-		Metadata:   meta,
-	}
-
-	c.db[*parent.Store][ID] = i
-
-	return i, nil
-}
-
-// GetImage gets the specified image from the given store by retreiving it from the cache.
-func (c *MockDataStore) GetImage(op trace.Operation, store *url.URL, ID string) (*Image, error) {
-	i, ok := c.db[*store][ID]
-	if !ok {
-		return nil, fmt.Errorf("not found")
-	}
-	return i, nil
-}
-
-// ListImages resturns a list of Images for a list of IDs, or all if no IDs are passed
-func (c *MockDataStore) ListImages(op trace.Operation, store *url.URL, IDs []string) ([]*Image, error) {
-	var imageList []*Image
-	for _, i := range c.db[*store] {
-		imageList = append(imageList, i)
-	}
-	return imageList, nil
-}
-
-// DeleteImage removes an image from the image store
-func (c *MockDataStore) DeleteImage(op trace.Operation, image *Image) (*Image, error) {
-	delete(c.db[*image.Store], image.ID)
-	return image, nil
-}
-
-func (c *MockDataStore) Export(op trace.Operation, child, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
-	return nil, nil
-}
-
-func (c *MockDataStore) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
-	return nil
-}
-
-func (c *MockDataStore) NewDataSink(op trace.Operation, id string) (storage.DataSink, error) {
-	return nil, nil
-}
-
-func (c *MockDataStore) NewDataSource(op trace.Operation, id string) (storage.DataSource, error) {
-	return nil, nil
-}
-
-func (c *MockDataStore) URL(op trace.Operation, id string) (*url.URL, error) {
-	return nil, nil
-}
-
-func (c *MockDataStore) Owners(op trace.Operation, url *url.URL, filter func(vm *mo.VirtualMachine) bool) ([]*vm.VirtualMachine, error) {
-	return nil, nil
-}
-
 func TestListImages(t *testing.T) {
-	s := NewLookupCache(NewMockDataStore())
+	s := NewLookupCache(mock.NewMockDataStore(nil))
 
 	op := trace.NewOperation(context.Background(), "test")
 	storeURL, err := s.CreateImageStore(op, "testStore")
@@ -192,8 +45,8 @@ func TestListImages(t *testing.T) {
 	}
 
 	// Create a set of images
-	images := make(map[string]*Image)
-	parent := Image{
+	images := make(map[string]*image.Image)
+	parent := image.Image{
 		ID: constants.ScratchLayerID,
 	}
 	parent.Store = storeURL
@@ -251,7 +104,7 @@ func TestListImages(t *testing.T) {
 // cache.  The datastore should reflect the image already exists and bale out
 // without an error.
 func TestOutsideCacheWriteImage(t *testing.T) {
-	s := NewLookupCache(NewMockDataStore())
+	s := NewLookupCache(mock.NewMockDataStore(nil))
 	op := trace.NewOperation(context.Background(), "test")
 
 	storeURL, err := s.CreateImageStore(op, "testStore")
@@ -263,8 +116,8 @@ func TestOutsideCacheWriteImage(t *testing.T) {
 	}
 
 	// Create a set of images
-	images := make(map[string]*Image)
-	parent := Image{
+	images := make(map[string]*image.Image)
+	parent := image.Image{
 		ID: constants.ScratchLayerID,
 	}
 	parent.Store = storeURL
@@ -309,7 +162,7 @@ func TestOutsideCacheWriteImage(t *testing.T) {
 // restart since the second cache is empty and has to go to the backing store.
 func TestImageStoreRestart(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
-	ds := NewMockDataStore()
+	ds := mock.NewMockDataStore(nil)
 	op := trace.NewOperation(context.Background(), "test")
 
 	firstCache := NewLookupCache(ds)
@@ -324,7 +177,7 @@ func TestImageStoreRestart(t *testing.T) {
 	}
 
 	// Create a set of images
-	expectedImages := make(map[string]*Image)
+	expectedImages := make(map[string]*image.Image)
 
 	parent, err := firstCache.GetImage(op, storeURL, constants.ScratchLayerID)
 	if !assert.NoError(t, err) {
@@ -385,7 +238,7 @@ func TestImageStoreRestart(t *testing.T) {
 
 func TestDeleteImage(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
-	imageCache := NewLookupCache(NewMockDataStore())
+	imageCache := NewLookupCache(mock.NewMockDataStore(nil))
 	op := trace.NewOperation(context.Background(), "test")
 
 	storeURL, err := imageCache.CreateImageStore(op, "testStore")
@@ -400,7 +253,7 @@ func TestDeleteImage(t *testing.T) {
 
 	// create a 3 level tree with 4 branches
 	branches := 4
-	images := make(map[int]*Image)
+	images := make(map[int]*image.Image)
 	for branch := 1; branch < branches; branch++ {
 		// level 1
 		img, err := imageCache.WriteImage(op, scratch, strconv.Itoa(branch), nil, "", nil)
@@ -443,7 +296,7 @@ func TestDeleteImage(t *testing.T) {
 	// Deletion of leaves should be fine
 	for branch := 1; branch < branches; branch++ {
 		// range up the branch
-		for _, img := range []*Image{images[branch*100], images[branch*10], images[branch]} {
+		for _, img := range []*image.Image{images[branch*100], images[branch*10], images[branch]} {
 
 			_, err = imageCache.DeleteImage(op, img)
 			if !assert.NoError(t, err) {
@@ -473,7 +326,7 @@ func TestDeleteBranch(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	trace.Logger.Level = logrus.DebugLevel
 
-	imageCache := NewLookupCache(NewMockDataStore())
+	imageCache := NewLookupCache(mock.NewMockDataStore(nil))
 	op := trace.NewOperation(context.Background(), "test")
 
 	storeURL, err := imageCache.CreateImageStore(op, "testStore")
@@ -492,7 +345,7 @@ func TestDeleteBranch(t *testing.T) {
 	//       10   20      30
 	//       100  200   300 301
 	branches := 4
-	images := make(map[int]*Image)
+	images := make(map[int]*image.Image)
 	for branch := 1; branch < branches; branch++ {
 		// level 1
 		img, err := imageCache.WriteImage(op, scratch, strconv.Itoa(branch), nil, "", nil)
@@ -607,25 +460,25 @@ func TestCreateImageStoreFailureCleanup(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	trace.Logger.Level = logrus.DebugLevel
 
-	mds := NewMockDataStore()
+	mds := mock.NewMockDataStore(nil)
 	imageCache := NewLookupCache(mds)
 	op := trace.NewOperation(context.Background(), "create image store error")
-	mds.createImageStoreError = fmt.Errorf("foo error")
+	mds.SetCreateImageStoreError(fmt.Errorf("foo error"))
 
 	storeURL, err := imageCache.CreateImageStore(op, "testStore")
 	if !assert.Error(t, err) || !assert.Nil(t, storeURL) {
 		return
 	}
 
-	mds.createImageStoreError = nil
+	mds.SetCreateImageStoreError(nil)
 	storeURL, err = imageCache.CreateImageStore(op, "testStore")
 	if !assert.NoError(t, err) || !assert.NotNil(t, storeURL) {
 		return
 	}
 
 	op = trace.NewOperation(context.Background(), "write image error")
-	mds = NewMockDataStore()
-	mds.writeImageError = fmt.Errorf("foo error")
+	mds = mock.NewMockDataStore(nil)
+	mds.SetWriteImageError(fmt.Errorf("foo error"))
 	imageCache = NewLookupCache(mds)
 
 	storeURL, err = imageCache.CreateImageStore(op, "testStore2")
@@ -633,7 +486,7 @@ func TestCreateImageStoreFailureCleanup(t *testing.T) {
 		return
 	}
 
-	mds.writeImageError = nil
+	mds.SetWriteImageError(nil)
 	storeURL, err = imageCache.CreateImageStore(op, "testStore2")
 	if !assert.NoError(t, err) || !assert.NotNil(t, storeURL) {
 		return
@@ -643,7 +496,9 @@ func TestCreateImageStoreFailureCleanup(t *testing.T) {
 // Cache population should be happening in order starting from parent(id1) to children(id4)
 func TestPopulateCacheInExpectedOrder(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
-	st := NewMockDataStore()
+	trace.EnableTracing()
+	trace.Logger.Level = logrus.DebugLevel
+
 	op := trace.NewOperation(context.Background(), "test")
 
 	storeURL, _ := util.ImageStoreNameToURL("testStore")
@@ -656,11 +511,11 @@ func TestPopulateCacheInExpectedOrder(t *testing.T) {
 	url4, _ := url.Parse(storageURLStr + "/id4")
 	scratchURL, _ := url.Parse(storageURLStr + constants.ScratchLayerID)
 
-	img1 := &Image{ID: "id1", SelfLink: url1, ParentLink: scratchURL, Store: storeURL}
-	img2 := &Image{ID: "id2", SelfLink: url2, ParentLink: url1, Store: storeURL}
-	img3 := &Image{ID: "id3", SelfLink: url3, ParentLink: url2, Store: storeURL}
-	img4 := &Image{ID: "id4", SelfLink: url4, ParentLink: url3, Store: storeURL}
-	scratchImg := &Image{
+	img1 := &image.Image{ID: "id1", SelfLink: url1, ParentLink: scratchURL, Store: storeURL}
+	img2 := &image.Image{ID: "id2", SelfLink: url2, ParentLink: url1, Store: storeURL}
+	img3 := &image.Image{ID: "id3", SelfLink: url3, ParentLink: url2, Store: storeURL}
+	img4 := &image.Image{ID: "id4", SelfLink: url4, ParentLink: url3, Store: storeURL}
+	scratchImg := &image.Image{
 		ID:         constants.ScratchLayerID,
 		SelfLink:   scratchURL,
 		ParentLink: scratchURL,
@@ -668,7 +523,7 @@ func TestPopulateCacheInExpectedOrder(t *testing.T) {
 	}
 
 	// Order does matter for some reason.
-	imageMap := map[string]*Image{
+	imageMap := map[string]*image.Image{
 		img1.ID:       img1,
 		img4.ID:       img4,
 		img2.ID:       img2,
@@ -676,15 +531,20 @@ func TestPopulateCacheInExpectedOrder(t *testing.T) {
 		scratchImg.ID: scratchImg,
 	}
 
-	st.db[*storeURL] = imageMap
+	storeImages := map[url.URL]map[string]*image.Image{
+		*storeURL: imageMap,
+	}
+	st := mock.NewMockDataStore(storeImages)
 
 	imageCache := NewLookupCache(st)
-	imageCache.GetImageStore(op, "testStore")
+	sURL, err := imageCache.GetImageStore(op, "testStore")
+	require.NoError(t, err, "Received error while getting image store from cache")
 
 	// Check if all images are available.
 	imageIds := []string{"id1", "id2", "id3", "id4"}
 	for _, imageID := range imageIds {
-		v, _ := imageCache.GetImage(op, storeURL, imageID)
+		v, err := imageCache.GetImage(op, sURL, imageID)
+		require.NoError(t, err, "Received error instead of image from cache")
 		assert.NotNil(t, v)
 	}
 }

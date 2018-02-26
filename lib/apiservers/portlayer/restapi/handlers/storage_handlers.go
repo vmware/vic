@@ -33,8 +33,11 @@ import (
 	spl "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/storage/container"
 	"github.com/vmware/vic/lib/portlayer/storage/image"
+	icache "github.com/vmware/vic/lib/portlayer/storage/image/cache"
 	vsimage "github.com/vmware/vic/lib/portlayer/storage/image/vsphere"
+	nfsclient "github.com/vmware/vic/lib/portlayer/storage/nfs"
 	"github.com/vmware/vic/lib/portlayer/storage/volume"
+	vcache "github.com/vmware/vic/lib/portlayer/storage/volume/cache"
 	"github.com/vmware/vic/lib/portlayer/storage/volume/nfs"
 	vsvolume "github.com/vmware/vic/lib/portlayer/storage/volume/vsphere"
 	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
@@ -45,8 +48,8 @@ import (
 
 // StorageHandlersImpl is the receiver for all of the storage handler methods
 type StorageHandlersImpl struct {
-	imageCache  *image.NameLookupCache
-	volumeCache *volume.VolumeLookupCache
+	imageCache  *icache.NameLookupCache
+	volumeCache *vcache.VolumeLookupCache
 }
 
 const (
@@ -81,7 +84,7 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 	// The imagestore is implemented via a cache which is backed via an
 	// implementation that writes to disks.  The cache is used to avoid
 	// expensive metadata lookups.
-	h.imageCache = image.NewLookupCache(imageStore)
+	h.imageCache = icache.NewLookupCache(imageStore)
 
 	spl.RegisterImporter(op, imageStoreURL.String(), imageStore)
 	spl.RegisterExporter(op, imageStoreURL.String(), imageStore)
@@ -122,7 +125,7 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 		err error
 	)
 
-	h.volumeCache = volume.NewVolumeLookupCache(op)
+	h.volumeCache = vcache.NewVolumeLookupCache(op)
 
 	// register the pseudo-store to handle the generic "volume" store name
 	spl.RegisterImporter(op, "volume", h.volumeCache)
@@ -372,13 +375,14 @@ func (h *StorageHandlersImpl) ImageJoin(params storage.ImageJoinParams) middlewa
 		return storage.NewImageJoinNotFound().WithPayload(&models.Error{Code: http.StatusNotFound, Message: err.Error()})
 	}
 
-	handleprime, err := image.Join(op, handle, params.Config.DeltaID, params.Config.ImageID, params.Config.RepoName, img)
+	cfg := params.Config
+	handleprime, err := vsimage.Join(op, handle, cfg.DeltaID, cfg.ImageID, cfg.RepoName, img)
 	if err != nil {
 		op.Errorf("join image failed: %#v", err)
 		return storage.NewImageJoinInternalServerError().WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	op.Debugf("image %s has been joined to %s as %s", params.ID, handle.Spec.ID(), params.Config.DeltaID)
+	op.Debugf("image %s has been joined to %s as %s", params.ID, handle.Spec.ID(), cfg.DeltaID)
 	res := &models.ImageJoinResponse{
 		Handle: epl.ReferenceFromHandle(handleprime),
 	}
@@ -795,7 +799,7 @@ func createNFSVolumeStore(op trace.Operation, dsurl *url.URL, name string) (volu
 	}
 
 	// XXX replace with the vch name
-	mnt := nfs.NewMount(dsurl, "vic", uint32(uid), uint32(gid))
+	mnt := nfsclient.NewMount(dsurl, "vic", uint32(uid), uint32(gid))
 	vs, err := nfs.NewVolumeStore(op, name, mnt)
 	if err != nil {
 		op.Errorf("%s", err.Error())

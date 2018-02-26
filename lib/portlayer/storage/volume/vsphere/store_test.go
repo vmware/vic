@@ -24,6 +24,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/portlayer/storage/volume"
+	"github.com/vmware/vic/lib/portlayer/storage/volume/cache"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -60,19 +61,19 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 	}()
 
 	// Create the cache
-	cache := volume.NewVolumeLookupCache(op)
-	if !assert.NotNil(t, cache) {
+	firstCache := cache.NewVolumeLookupCache(op)
+	if !assert.NotNil(t, firstCache) {
 		return
 	}
 
 	// add the vs to the cache and assert the url matches
-	storeURL, err := cache.AddStore(op, "testStoreName", vsVolumeStore)
+	storeURL, err := firstCache.AddStore(op, "testStoreName", vsVolumeStore)
 	if !assert.NoError(t, err) || !assert.Equal(t, vsVolumeStore.SelfLink, storeURL) {
 		return
 	}
 
 	// test we can list it
-	m, err := cache.VolumeStoresList(op)
+	m, err := firstCache.VolumeStoresList(op)
 	if !assert.NoError(t, err) || !assert.Len(t, m, 1) || !assert.Equal(t, m[0], "testStoreName") {
 		return
 	}
@@ -95,7 +96,7 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 				info[ID] = []byte(ID)
 			}
 
-			outVol, err := cache.VolumeCreate(op, ID, storeURL, 10240, info)
+			outVol, err := firstCache.VolumeCreate(op, ID, storeURL, 10240, info)
 			if !assert.NoError(t, err) || !assert.NotNil(t, outVol) {
 				return
 			}
@@ -126,7 +127,7 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 		return
 	}
 
-	secondCache := volume.NewVolumeLookupCache(op)
+	secondCache := cache.NewVolumeLookupCache(op)
 	if !assert.NotNil(t, secondCache) {
 		return
 	}
