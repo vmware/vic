@@ -41,6 +41,7 @@ type Data struct {
 	common.ContainerConfig
 
 	OpsCredentials common.OpsCredentials
+	Kubelet        common.Kubelet
 
 	CertPEM     []byte
 	KeyPEM      []byte
