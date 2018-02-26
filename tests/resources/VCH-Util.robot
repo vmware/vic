@@ -42,7 +42,7 @@ Set Test Environment Variables
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  TEST_THUMBPRINT  ${thumbprint}
     Log To Console  \nTEST_URL=%{TEST_URL}
-    Log To Console  \DRONE_HOSTNAME=%{DRONE_HOSTNAME}
+    Log To Console  \nDRONE_HOSTNAME=%{DRONE_HOSTNAME}
     ${worker_date}=  Run  date
     Log To Console  \nWorker_Date=${worker_date}
     
