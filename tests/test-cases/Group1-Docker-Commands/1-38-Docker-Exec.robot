@@ -171,10 +171,10 @@ Concurrent Simple Exec
      ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecSimpleContainer} ${busybox} /bin/top
      Should Be Equal As Integers  ${rc}  0
 
-     :FOR  ${idx}  IN RANGE  1  5
+     :FOR  ${idx}  IN RANGE  1  3
      \   Start Process  docker %{VCH-PARAMS} exec ${id} /bin/ls  alias=exec-simple-%{VCH-NAME}-${idx}  shell=true
 
-     :FOR  ${idx}  IN RANGE  1  5
+     :FOR  ${idx}  IN RANGE  1  3
      \   ${result}=  Wait For Process  exec-simple-%{VCH-NAME}-${idx}  timeout=40s
      \   Should Be Equal As Integers  ${result.rc}  0
      \   Verify LS Output For Busybox  ${result.stdout}
@@ -193,18 +193,18 @@ Exec During Poweroff Of A Container Performing A Long Running Task
      ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecPoweroffContainerLong} ${busybox} /bin/top
      Should Be Equal As Integers  ${rc}  0
 
-     :FOR  ${idx}  IN RANGE  1  10
+     :FOR  ${idx}  IN RANGE  1  15
      \   Start Process  docker %{VCH-PARAMS} exec ${id} /bin/ls  alias=exec-%{VCH-NAME}-${idx}  shell=true
 
 
-     Sleep  10s
+     Sleep  1s
      ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${id}
      Should Be Equal As Integers  ${rc}  0
 
      ${combinedErr}=  Set Variable
      ${combinedOut}=  Set Variable
 
-     :FOR  ${idx}  IN RANGE  1  10
+     :FOR  ${idx}  IN RANGE  1  15
      \   ${result}=  Wait For Process  exec-%{VCH-NAME}-${idx}  timeout=2 mins
      \   ${combinedErr}=  Catenate  ${combinedErr}  ${result.stderr}${\n}
      \   ${combinedOut}=  Catenate  ${combinedOut}  ${result.stdout}${\n}
@@ -212,9 +212,6 @@ Exec During Poweroff Of A Container Performing A Long Running Task
      # We combine err and out into err since exec can return errors on both.
      ${combinedErr}=  Catenate  ${combinedErr}  ${combinedOut}
      Verify Poweroff During Exec Error Message  ${combinedErr}  ${id}  ${ExecPowerOffContainerLong}
-
-     # We should get atleast one successful exec...
-     Verify LS Output For Busybox  ${combinedout}
 
 Exec During Poweroff Of A Container Performing A Short Running Task
      ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
