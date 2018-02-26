@@ -21,12 +21,13 @@ else
     interactive=0
 fi
 
+[ -n "$DEBUG" ] && set -x
 BASE_DIR=$(dirname $(readlink -f "$BASH_SOURCE"))
 VIC_DIR=$(dirname $(readlink -f $BASE_DIR/..))
 
 # Run the command given on the VCH instead of locally
 function on-vch() {
-    ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -i $VIC_KEY root@$VCH_IP -C $@ 2>/dev/null
+    ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -i"${VIC_KEY%.*}" root@$VCH_IP -C $@ 2>/dev/null
 }
 
 function get-thumbprint() {
@@ -104,6 +105,13 @@ function get-vic-id () {
 
 function get-ssh-keys() {
     if [[ -z $VIC_KEY ]]; then
+        key="/home/$USER/.ssh/id_rsa.pub"
+        if [ -r "${key}" -a -r "${key%.*}" ]; then
+            echo "Using default key $key - use VIC_KEY to override"
+            export VIC_KEY=${key:-/home/$USER/.ssh/id_rsa.pub}
+            return
+        fi
+            
         echo "Variable VIC_KEY not set. Provide the path to your public SSH key below."
         if [[ $interactive -eq 0 ]]; then
             exit 1
@@ -136,7 +144,7 @@ function enable-debug () {
 
 # SCPs the component in $1 to the VCH, plops it in place, and brutally kills the previous running process
 function replace-component() {
-    scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no $VIC_DIR/bin/$1 root@$VCH_IP:/tmp/$1 2>/dev/null
+    scp -vvv -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -i"${VIC_KEY%.*}" $VIC_DIR/bin/$1 root@$VCH_IP:/tmp/$1 2>/dev/null
     pid=$(on-vch ps -e --format='pid,args' \
                  | grep $1 | grep -v grep | awk '{print $1}')
     on-vch chmod 755 /tmp/$1
