@@ -625,7 +625,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 
 		// Set up the persona and port layer
 		kubeletStarter.Env = append(kubeletStarter.Env, fmt.Sprintf("%s=%s:%s", "PERSONA_ADDR", "localhost", d.DockerPort))
-		kubeletStarter.Env = append(kubeletStarter.Env, fmt.Sprintf("%s=%s:%s", "PORTLAYER_ADDR", "localhost", portLayerPort))
+		kubeletStarter.Env = append(kubeletStarter.Env, fmt.Sprintf("%s=%s:%d", "PORTLAYER_ADDR", "localhost", portLayerPort))
 
 		if settings.HTTPProxy != nil {
 			kubeletStarter.Env = append(kubeletStarter.Env, fmt.Sprintf("%s=%s", config.GeneralHTTPProxy, settings.HTTPProxy.String()))
@@ -643,7 +643,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		kubeletStarter.Env = append(kubeletStarter.Env, fmt.Sprintf("%s=%s", "KUBERNETES_SERVICE_HOST", url.Host))
 		kubeletStarter.Env = append(kubeletStarter.Env, fmt.Sprintf("%s=%s", "KUBERNETES_SERVICE_PORT", url.Port()))
 
-		conf.AddComponent(config.KubeletService, &executor.SessionConfig{
+		conf.AddComponent(config.KubeletStarterService, &executor.SessionConfig{
 			Cmd:     kubeletStarter,
 			Restart: true,
 			Active:  true,
