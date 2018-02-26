@@ -24,10 +24,12 @@ func NewVirtualDisk(controller types.BaseVirtualController) *types.VirtualDisk {
 
 	defer trace.End(trace.Begin(""))
 
+	unitNumber := int32(-1)
+
 	return &types.VirtualDisk{
 		VirtualDevice: types.VirtualDevice{
 			ControllerKey: controller.GetVirtualController().Key,
-			UnitNumber:    new(int32),
+			UnitNumber:    &unitNumber,
 		},
 	}
 }

@@ -25,18 +25,67 @@ for i in ${drivers[@]}; do
     /usr/sbin/modprobe $i
 done
 
+# Create VIC chain
+iptables -N VIC
+# Set the default policy on all chains to drop traffic
+iptables -P INPUT DROP
+iptables -P OUTPUT DROP
+iptables -P FORWARD DROP
+# Direct any incoming/outgoing traffic immediately to VIC chain
+iptables -A INPUT -j VIC
+iptables -A OUTPUT -j VIC
+# Always allow traffic on loopback interface
+iptables -A INPUT -i lo -j ACCEPT
+iptables -A OUTPUT -o lo -j ACCEPT
+iptables -A FORWARD -i lo -o lo -j ACCEPT
+
+echo "Waiting for disks to present by label"
+until [[ $(ls -1 /dev/disk/by-label | wc -l) -eq $(ls -1 /sys/block | wc -l) ]]; do sleep 0.1;done
+
+if [[ $(ls -1 /dev/disk/by-path/*scsi* | wc -l) -ne $(ls -1 /dev/disk/by-id/*scsi* | wc -l) ]]; then
+    echo "Multi-image mode"
+    # here for now, but should move into tether to support any kind of hotadd/run-in-pod logic
+    for i in /dev/disk/by-label/*; do
+        target=/mnt/images/$(basename $i)
+        mkdir -p $target
+        mount $i $target
+    done
+
+    # this can and should be removed in favour of a more customized config approach
+    # for now we set up the initramfs to look like the containerfs
+    mkdir -p ${MOUNTPOINT}/.tether/{etc,lib,lib64,usr,run,sbin}
+    mount --bind /lib /.tether/lib
+    mount --bind /lib64 /.tether/lib64
+    mount --bind /usr /.tether/usr
+    mount --bind /run /.tether/run
+    mount --bind /sbin /.tether/sbin
+
+    touch /etc/{hostname,hosts,resolv.conf}
+    touch /.tether/etc/{hostname,hosts,resolv.conf}
+
+    echo "/etc"
+    ls -l /etc
+    echo "/.tether/etc"
+    ls -l /.tether/etc
+
+    ln -s /usr/sbin/haveged /.tether/
+    ln -s /sbin/*tables* /.tether/
+
+    echo "Starting tether"
+    exec /bin/tether
+    # will never run past here due to exec
+fi    
+
+
 MOUNTPOINT="/mnt/containerfs"
-ROOTFS="/dev/disk/by-id/wwn-0x60002233445566778899aabbccddeeff"
-
-mkdir -p /mnt/containerfs
-
-echo "Waiting for rootfs"
+mkdir -p ${MOUNTPOINT}
 # the ID here is the ddb.uuid from the vmdk descriptor. It is set in lib/tether/shared/constants.go
 # ideally this would be moved to somewhere it does not need to be kept in sync manually.
 # TODO: this needs testing with additional scsi controllers and an understanding as to what that
 # 6000 prefix actually entails
-while [ ! -e ${ROOTFS} ]; do sleep 0.1; done
+ROOTFS="/dev/disk/by-id/wwn-0x60002233445566778899aabbccddeeff"
 
+echo "Waiting for rootfs"
 # https://github.com/vmware/vic/issues/6379
 # grab dmesg output and dump to debug log if mount doesn't occur in a useful timeframe (2min)
 if timeout --signal=KILL 2m mount -t ext4 ${ROOTFS} ${MOUNTPOINT}; then
@@ -87,20 +136,6 @@ if timeout --signal=KILL 2m mount -t ext4 ${ROOTFS} ${MOUNTPOINT}; then
     cp -r /usr/lib/iptables ${MOUNTPOINT}/.tether/usr/lib/
     cp /lib/libhavege.so.1  ${MOUNTPOINT}/.tether/lib
     cp /usr/sbin/haveged ${MOUNTPOINT}/.tether/
-
-    # Create VIC chain
-    iptables -N VIC
-    # Set the default policy on all chains to drop traffic
-    iptables -P INPUT DROP
-    iptables -P OUTPUT DROP
-    iptables -P FORWARD DROP
-    # Direct any incoming/outgoing traffic immediately to VIC chain
-    iptables -A INPUT -j VIC
-    iptables -A OUTPUT -j VIC
-    # Always allow traffic on loopback interface
-    iptables -A INPUT -i lo -j ACCEPT
-    iptables -A OUTPUT -o lo -j ACCEPT
-    iptables -A FORWARD -i lo -o lo -j ACCEPT
 
     echo 'tether tmpfs size after copying libraries: '
     df -k ${MOUNTPOINT}/.tether
