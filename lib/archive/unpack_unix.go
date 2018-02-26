@@ -30,6 +30,8 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
+type binaryPath string
+
 const (
 	// fileWriteFlags is a collection of flags configuring our writes for general tar behavior
 	//
@@ -39,13 +41,13 @@ const (
 	fileWriteFlags = os.O_CREATE | os.O_TRUNC | os.O_WRONLY
 
 	// Location of the unpack binary inside of containers
-	ContainerBinaryPath = "/.tether/unpack"
+	containerBinaryPath binaryPath = "/.tether/unpack"
 
 	// Location of the unpack binary inside the endpoint VM
-	ApplianceBinaryPath = "/bin/unpack"
+	applianceBinaryPath binaryPath = "/bin/unpack"
 )
 
-// InvokeUnpack will unpack the given tarstream(if it is a tar stream) on the local filesystem based on the specified root
+// UnpackNoChroot will unpack the given tarstream(if it is a tar stream) on the local filesystem based on the specified root
 // combined with any rebase from the path spec
 //
 // the pathSpec will include the following elements
@@ -54,7 +56,7 @@ const (
 // - exlude : marks paths that are to be excluded from the write
 // - rebase : marks the the write path that will be tacked onto (appended or prepended? TODO improve this comment) the "root". e.g /tmp/unpack + /my/target/path = /tmp/unpack/my/target/path
 // N.B. tarStream MUST BE TERMINATED WITH EOF or this function will hang forever!
-func InvokeUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string) error {
+func UnpackNoChroot(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string) error {
 	op.Debugf("unpacking archive to root: %s, filter: %+v", root, filter)
 
 	// Online datasource is sending a tar reader instead of an io reader.
@@ -142,7 +144,7 @@ func OfflineUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, 
 
 	var cmd *exec.Cmd
 	var err error
-	if cmd, err = Unpack(op, tarStream, filter, root, ApplianceBinaryPath); err != nil {
+	if cmd, err = unpack(op, tarStream, filter, root, applianceBinaryPath); err != nil {
 		return err
 	}
 
@@ -153,8 +155,56 @@ func OfflineUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, 
 	return nil
 }
 
+func OnlineUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string) (*exec.Cmd, error) {
+	return unpack(op, tarStream, filter, root, containerBinaryPath)
+}
+
+func streamCopy(op trace.Operation, stdin io.WriteCloser, tarStream io.Reader) {
+	// if we're passed a stream that doesn't cast to a tar.Reader copy the tarStream to the binary via stdin; the binary will stream it to InvokeUnpack unchanged
+	var err error
+	tr, ok := tarStream.(*tar.Reader)
+	if !ok {
+		defer stdin.Close()
+		if _, err := io.Copy(stdin, tarStream); err != nil {
+			op.Errorf("Error copying tarStream: %s", err.Error())
+		}
+		return
+	}
+
+	tw := tar.NewWriter(stdin)
+	defer tw.Close()
+	var th *tar.Header
+	for {
+		th, err = tr.Next()
+		if err == io.EOF {
+			tw.Close()
+			return
+		}
+		if err != nil {
+			op.Errorf("error reading tar header %s", err)
+			return
+		}
+		op.Debugf("processing tar header: asset(%s), size(%d)", th.Name, th.Size)
+		err = tw.WriteHeader(th)
+		if err != nil {
+			op.Errorf("error writing tar header %s", err)
+			return
+		}
+		switch th.Typeflag {
+		case tar.TypeReg:
+			var k int64
+			k, err = io.Copy(tw, tr)
+			op.Debugf("wrote %d bytes", k)
+			if err != nil {
+				op.Errorf("error writing file body bytes to stdin %s", err)
+				return
+			}
+		}
+	}
+}
+
 // Unpack runs the binary compiled in cmd/unpack.go which creates a chroot at `root` and passes `op`, `tarStream`, and `filter` to InvokeUnpack for extraction of the tar on the filesystem. `binPath` should be either ApplianceBinaryPath or ContainerBinaryPath. Unpack returns a `Cmd` to allow use in conjunction with the tether's `LaunchUtility`, so it is necessary to call `cmd.Wait` after `Unpack` exits e.g. OfflineUnpack, if not being used in conjunction with LaunchUtility and the childReaper.
-func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string, binPath string) (*exec.Cmd, error) {
+func unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string, binPath binaryPath) (*exec.Cmd, error) {
 
 	fi, err := os.Stat(root)
 	if err != nil {
@@ -179,61 +229,22 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 	// #nosec: Subprocess launching with variable. -- neither variable is user input & both are bounded inputs so this is fine
 	// "/bin/unpack" on appliance
 	// "/.tether/unpack" inside container
-	cmd := exec.Command(binPath, op.ID(), root, *encodedFilter)
+	cmd := exec.Command(string(binPath), op.ID(), root, *encodedFilter)
 
 	stdin, err := cmd.StdinPipe()
 
 	if err != nil {
 		op.Error(err)
-		return cmd, err
+		return nil, err
 	}
 
 	if stdin == nil {
 		err = errors.New("stdin was nil")
 		op.Error(err)
-		return cmd, err
+		return nil, err
 	}
 
-	go func() {
-		if tr, ok := tarStream.(*tar.Reader); ok {
-			tw := tar.NewWriter(stdin)
-			defer stdin.Close()
-			var th *tar.Header
-			for {
-				th, err = tr.Next()
-				if err == io.EOF {
-					err = nil // this just signals the end of the stream, so we don't want to pass it out to the parent process, as it doesn't signal a problem
-					tw.Close()
-					return
-				}
-				if err != nil {
-					op.Errorf("error reading tar header %s", err)
-					return
-				}
-				op.Debugf("processing tar header: asset(%s), size(%d)", th.Name, th.Size)
-				err = tw.WriteHeader(th)
-				if err != nil {
-					op.Errorf("error writing tar header %s", err)
-					return
-				}
-				switch th.Typeflag {
-				case tar.TypeReg:
-					var k int64
-					k, err = io.Copy(tw, tr)
-					op.Debugf("wrote %d bytes", k)
-					if err != nil {
-						op.Errorf("error writing file body bytes to stdin %s", err)
-						return
-					}
-				}
-			}
-		}
-		// if we're passed a stream that doesn't cast to a tar.Reader copy the tarStream to the binary via stdin; the binary will stream it to InvokeUnpack unchanged
-
-		if _, err := io.Copy(stdin, tarStream); err != nil {
-			op.Errorf("Error copying tarStream: %s", err.Error())
-		}
-	}()
+	go streamCopy(op, stdin, tarStream)
 
 	return cmd, cmd.Start()
 

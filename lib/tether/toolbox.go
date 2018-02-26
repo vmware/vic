@@ -309,7 +309,7 @@ func toolboxOverrideArchiveRead(system System, u *url.URL, tr *tar.Reader) error
 
 		op.Debugf("Unpacking tar archive to %s", diskPath)
 		waitChan, err := system.LaunchUtility(func() (*os.Process, error) {
-			cmd, err := archive.Unpack(op, tr, spec, diskPath, archive.ContainerBinaryPath)
+			cmd, err := archive.OnlineUnpack(op, tr, spec, diskPath)
 			return cmd.Process, err
 		})
 
