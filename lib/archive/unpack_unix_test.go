@@ -82,7 +82,7 @@ func TestInvalidStream(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = InvokeUnpack(op, tarStream, filterSpec, tempPath)
+	err = UnpackNoChroot(op, tarStream, filterSpec, tempPath)
 
 	if !assert.Error(t, err) {
 		return
@@ -91,7 +91,7 @@ func TestInvalidStream(t *testing.T) {
 	validEmptyBuffer := bytes.NewBufferString("")
 	tarStream = bytes.NewReader(validEmptyBuffer.Bytes())
 
-	err = InvokeUnpack(op, tarStream, filterSpec, tempPath)
+	err = UnpackNoChroot(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -126,7 +126,7 @@ func TestSimpleWrite(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = InvokeUnpack(op, tarStream, filterSpec, tempPath)
+	err = UnpackNoChroot(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -208,7 +208,7 @@ func TestSimpleWriteSymLink(t *testing.T) {
 		return
 	}
 
-	err = InvokeUnpack(op, tarStream, filterSpec, tempPath)
+	err = UnpackNoChroot(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -299,7 +299,7 @@ func TestSimpleWriteSymLinkNonRootTarget(t *testing.T) {
 		return
 	}
 
-	err = InvokeUnpack(op, tarStream, filterSpec, tempPath)
+	err = UnpackNoChroot(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -361,7 +361,7 @@ func TestSimpleWriteNonRootTarget(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = InvokeUnpack(op, tarStream, filterSpec, tempPath)
+	err = UnpackNoChroot(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -419,7 +419,7 @@ func TestSimpleExclusion(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = InvokeUnpack(op, tarStream, filterSpec, tempPath)
+	err = UnpackNoChroot(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -508,7 +508,7 @@ func TestInclusionAfterExclusion(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = InvokeUnpack(op, tarStream, filterSpec, tempPath)
+	err = UnpackNoChroot(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -586,7 +586,7 @@ func TestMultiExclusion(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = InvokeUnpack(op, tarStream, filterSpec, tempPath)
+	err = UnpackNoChroot(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -680,7 +680,7 @@ func TestMultiExclusionMultiInclusion(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = InvokeUnpack(op, tarStream, filterSpec, tempPath)
+	err = UnpackNoChroot(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -766,7 +766,7 @@ func TestMultiExclusionMultiInclusionDirectories(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = InvokeUnpack(op, tarStream, filterSpec, tempPath)
+	err = UnpackNoChroot(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -862,7 +862,7 @@ func TestMultiExclusionMultiInclusionDirectoriesNonRootTarget(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = InvokeUnpack(op, tarStream, filterSpec, tempPath)
+	err = UnpackNoChroot(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
