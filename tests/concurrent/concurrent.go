@@ -348,9 +348,7 @@ func main() {
 		// if DeleteExceptDisks succeeds on ESXi, no further action needed
 		// if DeleteExceptDisks fails, we should call Unregister and only return an error if that fails too
 		//		Unregister sometimes can fail with ManagedObjectNotFound so we ignore it
-		_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-			return vms[i].DeleteExceptDisks(ctx)
-		})
+		_, err = vms[i].DeleteExceptDisks(ctx)
 		if err != nil {
 			switch f := err.(type) {
 			case task.Error:

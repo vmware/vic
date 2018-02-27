@@ -51,6 +51,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
+	"github.com/vmware/vic/pkg/retry"
 )
 
 const (
@@ -190,37 +191,44 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		}
 	}
 
-	//removes the vm from vsphere, but detaches the disks first
-	_, err = vm.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-		return vm.DeleteExceptDisks(ctx)
-	})
-	// We are getting ConcurrentAccess errors from DeleteExceptDisks - even though we don't set ChangeVersion in that path
-	// We are ignoring the error because in reality the operation finishes successfully.
-	ignore := false
-	if err != nil {
-		if f, ok := err.(types.HasFault); ok {
-			switch f.Fault().(type) {
-			case *types.ConcurrentAccess:
-				d.op.Warn("DeleteExceptDisks failed with ConcurrentAccess error. Ignoring it.")
-				ignore = true
-			}
+	operation := func() error {
+		_, err := vm.DeleteExceptDisks(d.op)
+
+		if err != nil {
+			d.op.Infof("Destroy VM %s failed with %s, unregister the VM instead", vm.Reference(), err)
+			return vm.Unregister(d.op)
 		}
-		if !ignore {
-			err = errors.Errorf("Failed to destroy VM %q: %s", vm.Reference(), err)
-			err2 := vm.Unregister(d.op)
-			if err2 != nil {
-				return errors.Errorf("%s then failed to unregister VM: %s", err, err2)
-			}
-			d.op.Infof("Unregistered VM to cleanup after failed destroy: %q", vm.Reference())
+
+		return nil
+	}
+
+	// Retry destroy or unregister VM on ConcurrentAccess error
+	isConcurrentAccessError := func(err error) bool {
+		if soap.IsVimFault(err) {
+			_, ok := soap.ToVimFault(err).(*types.ConcurrentAccess)
+			return ok
 		}
+
+		if soap.IsSoapFault(err) {
+			_, ok := soap.ToSoapFault(err).VimFault().(types.ConcurrentAccess)
+			return ok
+		}
+
+		return false
+	}
+
+	if err = retry.Do(operation, isConcurrentAccessError); err != nil {
+		d.op.Errorf("Delete VM %s fails with error: %s", vm.Reference(), err)
+		return err
 	}
 
 	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
-		d.op.Warnf("Failed to remove datastore files for VM path %q: %s", folder, err)
+		d.op.Warnf("Remove datastore files for VM %s with folder path %s failed with error: %s", vm.Reference(), folder, err)
 	}
 
 	return nil
 }
+
 
 func (d *Dispatcher) addNetworkDevices(conf *config.VirtualContainerHostConfigSpec, cspec *spec.VirtualMachineConfigSpec, devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
 	defer trace.End(trace.Begin(""))

@@ -35,6 +35,8 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
+	"github.com/vmware/govmomi/vim25/soap"
+	"reflect"
 )
 
 const (
@@ -267,7 +269,8 @@ func (vm *VirtualMachine) UUID(ctx context.Context) (string, error) {
 }
 
 // DeleteExceptDisks destroys the VM after detaching all virtual disks
-func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*object.Task, error) {
+func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInfo, error) {
+
 	op := trace.FromContext(ctx, "DeleteExceptDisks")
 
 	devices, err := vm.Device(op)
@@ -281,7 +284,37 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*object.Task, 
 		return nil, err
 	}
 
-	return vm.Destroy(op)
+	info, err := vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
+		return vm.Destroy(ctx)
+	})
+
+	if err == nil {
+		return info, nil
+	}
+
+	if isMethodDisabledError(ctx, err) {
+		vm.EnableDestroy(ctx)
+
+		return vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
+			return vm.Destroy(ctx)
+		})
+	}
+
+	return nil, err
+}
+
+func isMethodDisabledError(ctx context.Context, err error) bool {
+	op := trace.FromContext(ctx, "isMethodDisabledError")
+
+	if soap.IsSoapFault(err) {
+		vimFault := soap.ToSoapFault(err).VimFault()
+		op.Debugf("Error type: %s", reflect.TypeOf(vimFault))
+
+		_, ok := soap.ToSoapFault(err).VimFault().(types.MethodDisabled)
+		return ok
+	}
+
+	return false
 }
 
 func (vm *VirtualMachine) VMPathName(ctx context.Context) (string, error) {

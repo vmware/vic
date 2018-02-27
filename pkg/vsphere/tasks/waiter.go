@@ -191,7 +191,7 @@ func logFault(op trace.Operation, fault types.BaseMethodFault) {
 }
 
 func logSoapFault(op trace.Operation, fault types.AnyType) {
-	op.Debugf("unexpected soap fault on task retry: %s", fault)
+	op.Debugf("unexpected soap fault on task retry: %#v", fault)
 }
 
 func logError(op trace.Operation, err error) {
