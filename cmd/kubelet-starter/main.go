@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -25,6 +26,7 @@ import (
 
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/constants"
+	"github.com/vmware/vic/lib/portlayer/util"
 	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/trace"
@@ -75,11 +77,26 @@ func main() {
 	viclog.Init(logcfg)
 	trace.InitLogger(logcfg)
 
+	// Get the port numbers for Docker and Portlayer
+	personaPort := os.Getenv("PERSONA_PORT")
+	portlayerPort := os.Getenv("PORTLAYER_PORT")
+
 	if vchConfig.Diagnostics.DebugLevel > 2 {
 		// expose portlayer service on client interface
-		plPort := constants.DebugPortLayerPort
-		os.Setenv("PORTLAYER_ADDR", strconv.Itoa(plPort))
+		portlayerPort = strconv.Itoa(constants.DebugPortLayerPort)
 	}
+
+	clientIP, err := util.ClientIP()
+
+	if err != nil {
+		op.Fatalf("Cannot get Client IP err: %s", err)
+	}
+
+	personaAddr := fmt.Sprintf("%s:%s", clientIP, personaPort)
+	portlayerAddr := fmt.Sprintf("%s:%s", clientIP, portlayerPort)
+
+	os.Setenv("PERSONA_ADDR", personaAddr)
+	os.Setenv("PORTLAYER_ADDR", portlayerAddr)
 
 	op.Infof("KUBELET_NAME = %s", os.Getenv("KUBELET_NAME"))
 	op.Infof("KUBERNETES_SERVICE_HOST = %s", os.Getenv("KUBERNETES_SERVICE_HOST"))
