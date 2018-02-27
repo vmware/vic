@@ -35,6 +35,7 @@ import (
 	"github.com/docker/docker/opts"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
@@ -201,43 +202,41 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		return vm.DeleteExceptDisks(ctx)
 	})
 
-	inventoryFolderPath := vm.InventoryPath
+	// grab the parent path of the vm
+	inventoryFolderPath := path.Dir(vm.InventoryPath)
 	// Now that the VCH is gone we will need to delete the inventory folder structure.
-	// also do not attempt to delete the VMFolder
-	if inventoryFolderPath != d.session.VMFolder.InventoryPath {
-		d.op.Debugf("Attempting to remove inventory folder: %s", inventoryFolderPath)
+	d.op.Debugf("Attempting to remove inventory folder: %s", inventoryFolderPath)
 
-		// grab the folder ref
-		folderRef, err := d.session.Finder.Folder(d.op, inventoryFolderPath)
+	// grab the folder ref
+	folderRef, err := d.session.Finder.Folder(d.op, inventoryFolderPath)
+	if err != nil {
+		d.op.Debugf("failed to find folder: %s", inventoryFolderPath)
+		return err
+	}
+
+	// we need to see if the folder is empty.
+	folderContents, err := folderRef.Children(d.op)
+	if err != nil {
+		return err
+	}
+
+	for len(folderContents) == 0 {
+		parentFolder := path.Dir(folderRef.InventoryPath)
+
+		err = d.removeFolder(folderRef)
 		if err != nil {
-			d.op.Debugf("failed to find folder: %s", inventoryFolderPath)
 			return err
 		}
 
-		// we need to see if the folder is empty.
-		folderContents, err := folderRef.Children(d.op)
+		folderRef, err = d.session.Finder.Folder(d.op, parentFolder)
 		if err != nil {
+			// at this point we have already partially cleaned up. So we may leave artifacts around when we bale.
 			return err
 		}
 
-		for len(folderContents) == 0 {
-			parentFolder := path.Dir(folderRef.InventoryPath)
-
-			err = d.removeFolder(folderRef)
-			if err != nil {
-				return err
-			}
-
-			folderRef, err = d.session.Finder.Folder(d.op, parentFolder)
-			if err != nil {
-				// at this point we have already partially cleaned up. So we may leave artifacts around when we bale.
-				return err
-			}
-
-			folderContents, err = folderRef.Children(d.op)
-			if err != nil {
-				return err
-			}
+		folderContents, err = folderRef.Children(d.op)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -558,64 +557,42 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	} else {
 		// if vapp is not created, fall back to create VM under default resource pool
 		info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-			vmFolderPath := d.session.VMFolder.InventoryPath
 			vchName := spec.Name
-			vchFolderPath := fmt.Sprintf("%s/%s", vmFolderPath, vchName)
+			clusterName := path.Base(d.session.ClusterPath)
+			consolidated := clusterName + "/" + strings.TrimLeft(d.vchPoolPath, d.session.ClusterPath)
+			folders := strings.Split(consolidated, "/")
 
-			d.op.Infof("SESSION CLUSTER PATH: ", d.session.ClusterPath)
-			rootDC, _ := d.session.Finder.DatacenterOrDefault(d.op, "")
-
-			d.op.Infof("SESSION DC PATH: ", rootDC.InventoryPath)
-			allrpList, err := d.session.Finder.ResourcePoolListAll(d.op, rootDC.InventoryPath)
-			allclusterList, err := d.session.Finder.ClusterComputeResourceList(d.op, rootDC.InventoryPath)
-
-			for _, k := range allclusterList {
-				d.op.Infof("SESSION FOUND cls PATH: ", k.InventoryPath)
+			// now that we have the list of needed constructions we need to assemble it.
+			existingFolder := d.session.VMFolder
+			for _, fname := range folders {
+				d.op.Debugf("Attempting to create folder : %s/%s", existingFolder.InventoryPath, fname)
+				f, err := existingFolder.CreateFolder(d.op, fname)
+				// FIXME: WE MUST CHECK FOR AN ALREADY EXISTS ERROR HERE TOO!!!
+				if err != nil {
+					d.op.Debugf("Failed to Creat folder at path(%s/%s) : %s", existingFolder.InventoryPath, fname, err)
+					return nil, err
+				}
+				existingFolder = f
 			}
 
-			for _, k := range allrpList {
-				d.op.Infof("SESSION FOUND RP PATH: ", k.InventoryPath)
-			}
-
-			// IMPLEMENTATION DETAILs:
-			// 1. Get the target VCHPOOL.
-			// 2. Get the resource pool list.
-			// 3. Filter the list down to rp's on the path.
-			// 4. sort them in smallest path to longest.
-			// 5. create the list smallest to largest in the inventory.(ignore failures of AlreadyExist variant)
-			// 6. create the vch after the list is exhausted at the longest path(the last one)
-			// 7. Should be good, think more on the validation side of things.
-
-			vchObj, err := d.session.Finder.Folder(ctx, vchFolderPath)
-			d.op.Infof("vchObj PARENT CALL: %s", vchObj.Parent)
-
-			if err == nil {
-				// This should mean that the folder existed or that we could find it at the very least.
-				// in this case we should reject since the folder is already there? It should be cleaned up on a delete normally...
-				// we should check for the govmomi define NotFoundError here. see reference of `folderList` function within the `Folder` function
-				return nil, fmt.Errorf("the path %s already exists for an existing VCH", vchFolderPath)
-			}
-
-			vchVMPath := fmt.Sprintf("%s/%s", vchFolderPath, vchName)
-			vchVM, err := d.session.Finder.VirtualMachine(ctx, vchVMPath)
-			if vchVM != nil {
-				// We have found another VCH at the target path that we intended to install to.
-			}
-
-			vchFolder, err := d.session.VMFolder.CreateFolder(ctx, vchName)
+			existingFolder, err := existingFolder.CreateFolder(d.op, vchName)
 			if err != nil {
 				// POSSIBLE FAULTS HERE:
 				// - InvalidName
 				// - DuplicateName
 				// - Runtime
-				return nil, fmt.Errorf("failed to create vch folder under the VMFolder in vsphere: %s", err)
+				// FIXME: Check for already Exists error and noop
+				return nil, err
 			}
 
-			// we should also be storing this path somewhere. rather than just looking at the VMFolder.
-			// This should be stored in GuestInfo right now since we will need it in guest info eventually and it will
-			// provide that functionality now.
+			intendedVCHPath := fmt.Sprintf("%s/%s", existingFolder.InventoryPath, vchName)
+			vchVM, err := d.session.Finder.VirtualMachine(ctx, intendedVCHPath)
+			if vchVM != nil {
+				// We have found another VCH at the target path that we intended to install to.
+				return nil, fmt.Errorf("Could not create VCH because one already exists with the same name and compute at path(%s) : %s", intendedVCHPath, err)
+			}
 
-			return vchFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
+			return existingFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
 		})
 	}
 
@@ -774,10 +751,74 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 
 // assembleHierarchicalPools will take a resource pool and assemble the list of
 // resource pools that live above it all the way back to the top most compute parent.
-func (d *Dispatcher) assembleHierarchicalPools(target object.ResourcePool) ([]*object.ResourcePool, error) {
-	//filterPath := target.InventoryPath
-	//globalRPList, err := d.session.Finder.ResourcePoolListAll(d.op, d.session.Cluster.InventoryPath)
+func (d *Dispatcher) assembleVCHHierarchicalPools() ([]string, error) {
+	target := d.vchPool
+	folderRefs := make(map[types.ManagedObjectReference]*object.Folder)
+	// NOTE TO SELF: create a ref map for finding the correct
+	orderedFolders := make([]mo.Folder, 0)
 
+	props := []string{
+		"name",
+		"parent",
+	}
+
+	// get the parent property from the vim mo struct
+	objects, err := d.session.Finder.FolderList(d.op, target.InventoryPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(objects) != 0 {
+		folders := make([]mo.Folder, 0)
+		// assemble references for the target in order to use the property collector
+		refs := make([]types.ManagedObjectReference, 0, len(objects))
+		for _, k := range objects {
+			folderRefs[k.Reference()] = k
+			refs = append(refs, k.Reference())
+		}
+
+		pc := d.session.PropertyCollector()
+		if pc == nil {
+			// not sure what might happen here. we are getting a pointer though so it is a possibility.
+			return nil, fmt.Errorf("Something is likely very wrong at this point, we cannot find the propery collector that is associated with the session during vch creation.")
+
+		}
+		err = pc.Retrieve(d.op, refs, props, &folders)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	//check folders now before proceeding...
+
+	if len(orderedFolders) == 0 {
+		// we somehow got nothing from a reference.
+		return nil, fmt.Errorf("Found nothing from the property collector after submitting a retieval request for %s`", objects)
+	}
+
+	if len(orderedFolders) > 1 {
+		return nil, fmt.Errorf("Ended up with multiple folder info results after submitting a retieval request for %s`", objects)
+	}
+
+	/*
+		// for now this logic expects one return... FIXME!!!
+		poolFolderInfo := orderedFolders[0]
+		orderedFolders = append(orderedFolders, poolFolderInfo)
+
+		// now that we have the pool's vim25 mo struct populated with the parent we can walk back up the tree.
+		computeRef := poolFolderInfo.Reference()
+		vchClusterRef := d.session.Cluster.Reference()
+		for computeRef != vchClusterRef {
+			// collect refs until we reach the vch's compute cluster
+			parentRef := poolFolderInfo.Parent
+			d.session.
+
+			if err != nil {
+				return nil, err
+			}
+
+		}
+	*/
 	return nil, nil
 }
 
