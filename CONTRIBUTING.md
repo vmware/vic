@@ -110,7 +110,7 @@ command in the VIC repo's root directory:
 curl https://cdn.rawgit.com/tommarshall/git-good-commit/v0.6.1/hook.sh > .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
 ```
 
-[dronevic]:https://ci.vcna.io/vmware/vic
+[dronevic]:https://ci-vic.vmware.com/vmware/vic
 [dronesrc]:https://github.com/drone/drone
 [dronecli]:http://readme.drone.io/0.5/install/cli/
 [commithook]:https://github.com/tommarshall/git-good-commit
@@ -139,9 +139,9 @@ running tests. Add `WIP` (work in progress) to the PR title to alert reviewers t
 If your Drone build needs to be restarted, fork the build:
 ```shell
 export DRONE_TOKEN=<Drone Token>
-export DRONE_SERVER=https://ci.vcna.io
+export DRONE_SERVER=https://ci-vic.vmware.com
 
-drone build start --fork vmware/vic <Build Number>
+drone build start vmware/vic <Build Number>
 ```
 
 ### Testing locally
@@ -151,13 +151,13 @@ Developers need to install [Drone CLI][dronecli].
 #### Unit tests
 
 ``` shell
-drone exec --repo.trusted --secret VIC_ESX_TEST_URL="<USER>:<PASS>@<ESX IP>" .drone.yml
+VIC_ESX_TEST_URL="<USER>:<PASS>@<ESX IP>" drone exec .drone.yml
 ```
 
 If you don't have a running ESX, tests requiring an ESX can be skipped with the following:
 
 ``` shell
-drone exec --repo.trusted
+drone exec
 ```
 
 #### Integration tests
