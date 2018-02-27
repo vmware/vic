@@ -624,8 +624,8 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		kubeletStarter.Env = append(kubeletStarter.Env, fmt.Sprintf("%s=%s", "KUBELET_NAME", kubeletName))
 
 		// Set up the persona and port layer
-		kubeletStarter.Env = append(kubeletStarter.Env, fmt.Sprintf("%s=%s:%s", "PERSONA_ADDR", "localhost", d.DockerPort))
-		kubeletStarter.Env = append(kubeletStarter.Env, fmt.Sprintf("%s=%s:%d", "PORTLAYER_ADDR", "localhost", portLayerPort))
+		kubeletStarter.Env = append(kubeletStarter.Env, fmt.Sprintf("%s=%s", "PERSONA_PORT", d.DockerPort))
+		kubeletStarter.Env = append(kubeletStarter.Env, fmt.Sprintf("%s=%d", "PORTLAYER_PORT", portLayerPort))
 
 		if settings.HTTPProxy != nil {
 			kubeletStarter.Env = append(kubeletStarter.Env, fmt.Sprintf("%s=%s", config.GeneralHTTPProxy, settings.HTTPProxy.String()))
