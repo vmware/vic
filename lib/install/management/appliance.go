@@ -203,14 +203,14 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	})
 
 	// grab the parent path of the vm
-	inventoryFolderPath := path.Dir(vm.InventoryPath)
+	parentFolderPath := path.Dir(vm.InventoryPath)
 	// Now that the VCH is gone we will need to delete the inventory folder structure.
-	d.op.Debugf("Attempting to remove inventory folder: %s", inventoryFolderPath)
+	d.op.Debugf("Attempting to remove inventory folder: %s", parentFolderPath)
 
-	// grab the folder ref
-	folderRef, err := d.session.Finder.Folder(d.op, inventoryFolderPath)
+	// grab the folder ref of the vm's direct parent
+	folderRef, err := d.session.Finder.Folder(d.op, parentFolderPath)
 	if err != nil {
-		d.op.Debugf("failed to find folder: %s", inventoryFolderPath)
+		d.op.Debugf("failed to find folder: %s", parentFolderPath)
 		return err
 	}
 
@@ -221,14 +221,14 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	}
 
 	for len(folderContents) == 0 {
-		parentFolder := path.Dir(folderRef.InventoryPath)
-
 		err = d.removeFolder(folderRef)
 		if err != nil {
 			return err
 		}
+		d.op.Debugf("Successfully deleted folder at path : %s", parentFolderPath)
 
-		folderRef, err = d.session.Finder.Folder(d.op, parentFolder)
+		parentFolderPath = path.Dir(parentFolderPath)
+		folderRef, err = d.session.Finder.Folder(d.op, parentFolderPath)
 		if err != nil {
 			// at this point we have already partially cleaned up. So we may leave artifacts around when we bale.
 			return err
