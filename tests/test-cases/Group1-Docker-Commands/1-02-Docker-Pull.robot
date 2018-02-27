@@ -89,7 +89,7 @@ Pull the same image concurrently
     \   Log  ${res.stdout}
     \   Log  ${res.stderr}
     \   Should Be Equal As Integers  ${res.rc}  0
-    \   Should Contain  ${res.stdout}  Downloaded newer image for library/redis:latest
+    \   Should Contain  ${res.stdout}  Downloaded newer image for default-project/redis:latest
 
 Pull two images that share layers concurrently
      ${pid1}=  Start Process  docker %{VCH-PARAMS} pull golang:1.7  shell=True

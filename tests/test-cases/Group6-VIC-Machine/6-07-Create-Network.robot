@@ -47,7 +47,7 @@ Public network - default
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} ${vicmachinetls} --insecure-registry wdc-harbor-ci.eng.vmware.com
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
@@ -90,7 +90,7 @@ Management network - none
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --insecure-registry wdc-harbor-ci.eng.vmware.com
     Should Contain  ${output}  Installer completed successfully
     ${status}=  Run Keyword And Return Status  Should Contain  ${output}  Network role \\"management\\" is sharing NIC with \\"public\\"
     ${status2}=  Run Keyword And Return Status  Should Contain  ${output}  Network role \\"public\\" is sharing NIC with \\"management\\"
@@ -131,7 +131,7 @@ Management network - valid
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --management-network=%{PUBLIC_NETWORK} ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --management-network=%{PUBLIC_NETWORK} ${vicmachinetls} --insecure-registry wdc-harbor-ci.eng.vmware.com
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
@@ -158,7 +158,7 @@ Connectivity Bridge to Public
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vswitch vSwitchLAN bridge
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Add VC Distributed Portgroup  test-ds  bridge
 
-    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --public-network=vm-network --compute-resource=%{TEST_RESOURCE} --container-network vm-network --container-network-firewall vm-network:published --no-tlsverify --insecure-registry harbor.ci.drone.local
+    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --public-network=vm-network --compute-resource=%{TEST_RESOURCE} --container-network vm-network --container-network-firewall vm-network:published --no-tlsverify --insecure-registry wdc-harbor-ci.eng.vmware.com
 
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
@@ -213,7 +213,7 @@ Connectivity Bridge to Management
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vswitch vSwitchLAN management
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Add VC Distributed Portgroup  test-ds  management
 
-    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --compute-resource=%{TEST_RESOURCE} --container-network management --container-network vm-network --container-network-ip-range=management:10.10.10.0/24 --container-network-gateway=management:10.10.10.1/24 --no-tlsverify --insecure-registry harbor.ci.drone.local
+    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --compute-resource=%{TEST_RESOURCE} --container-network management --container-network vm-network --container-network-ip-range=management:10.10.10.0/24 --container-network-gateway=management:10.10.10.1/24 --no-tlsverify --insecure-registry wdc-harbor-ci.eng.vmware.com
 
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
@@ -260,7 +260,7 @@ Bridge network - vCenter none
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} ${vicmachinetls}
-    Should Contain  ${output}  ERROR
+    Should Contain  ${output}  error
     Should Contain  ${output}  An existing distributed port group must be specified for bridge network on vCenter
 
     # Delete the portgroup added by env vars keyword
@@ -274,7 +274,7 @@ Bridge network - ESX none
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} ${vicmachinetls} --insecure-registry wdc-harbor-ci.eng.vmware.com
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
@@ -295,7 +295,7 @@ Bridge network - create bridge network if it doesn't exist
     Run  govc host.portgroup.remove 'AAAAAAAAAA'
     Run  govc host.vswitch.remove 'AAAAAAAAAA'
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=AAAAAAAAAA ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=AAAAAAAAAA ${vicmachinetls} --insecure-registry wdc-harbor-ci.eng.vmware.com
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
@@ -322,7 +322,7 @@ Bridge network - valid
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} ${vicmachinetls} --insecure-registry wdc-harbor-ci.eng.vmware.com
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
@@ -410,7 +410,7 @@ Container network - space in network name valid
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vswitch vSwitchLAN bridge
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Add VC Distributed Portgroup  test-ds  bridge
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network 'VM Network With Spaces':vmnet --insecure-registry harbor.ci.drone.local ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network 'VM Network With Spaces':vmnet --insecure-registry wdc-harbor-ci.eng.vmware.com ${vicmachinetls}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
@@ -462,7 +462,7 @@ Container Firewalls
     ...  --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT}
     ...  --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD}
     ...  --force=true --bridge-network=bridge --compute-resource=%{TEST_RESOURCE} --no-tlsverify
-    ...  --insecure-registry harbor.ci.drone.local
+    ...  --insecure-registry wdc-harbor-ci.eng.vmware.com
     ...  --container-network open-net --container-network-firewall open-net:open
     ...  --container-network closed-net --container-network-firewall closed-net:closed
     ...  --container-network outbound-net --container-network-firewall outbound-net:outbound
