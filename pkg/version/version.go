@@ -20,8 +20,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-
-	"github.com/vmware/vic/lib/migration/feature"
 )
 
 // These fields are set by the compiler using the linker flags upon build via Makefile.
@@ -80,12 +78,11 @@ func GetBuild() *Build {
 		BuildNumber = "0"
 	}
 	return &Build{
-		Version:       Version,
-		GitCommit:     GitCommit,
-		BuildDate:     BuildDate,
-		BuildNumber:   BuildNumber,
-		State:         State,
-		PluginVersion: feature.MaxPluginVersion - 1,
+		Version:     Version,
+		GitCommit:   GitCommit,
+		BuildDate:   BuildDate,
+		BuildNumber: BuildNumber,
+		State:       State,
 	}
 }
 

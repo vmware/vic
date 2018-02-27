@@ -94,7 +94,7 @@ func migrateConfig(ctx context.Context, s *session.Session, data map[string]stri
 	}
 
 	_, err = manager.Migrator.Migrate(ctx, s, target, currentID, dst)
-	dst[verKey] = strconv.Itoa(feature.MaxPluginVersion - 1)
+	dst[verKey] = strconv.Itoa(feature.PluginVersion)
 	return dst, true, err
 }
 

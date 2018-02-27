@@ -77,7 +77,7 @@ func (m *DataMigrator) Register(ver int, target string, plugin Plugin) error {
 	}
 	if ver > feature.MaxPluginVersion {
 		return &errors.InternalError{
-			Message: fmt.Sprintf("Plugin %d is bigger than Max Plugin Version %d", ver, feature.MaxPluginVersion),
+			Message: fmt.Sprintf("Plugin version %d is greater than Max Plugin Version %d", ver, feature.MaxPluginVersion),
 		}
 	}
 

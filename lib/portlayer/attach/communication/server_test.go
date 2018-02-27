@@ -156,7 +156,7 @@ func TestAttachSshSession(t *testing.T) {
 				exit++
 			}
 			if req.Type == msgs.VersionReq {
-				msg := msgs.VersionMsg{Version: feature.MaxPluginVersion - 1}
+				msg := msgs.VersionMsg{Version: feature.PluginVersion}
 				req.Reply(true, msg.Marshal())
 				exit++
 			}

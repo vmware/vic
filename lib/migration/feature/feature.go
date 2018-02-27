@@ -33,3 +33,5 @@ const (
 	// MaxPluginVersion must be the last
 	MaxPluginVersion
 )
+
+const PluginVersion = MaxPluginVersion - 1

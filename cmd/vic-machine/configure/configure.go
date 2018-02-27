@@ -30,9 +30,9 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
@@ -376,12 +376,11 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		return errors.New("configure failed")
 	}
 
-	installerVer := version.GetBuild().PluginVersion
 	if vchConfig.ExecutorConfig.Version == nil {
 		op.Error("Cannot configure VCH with version unavailable")
 		return errors.New("configure failed")
 	}
-	if vchConfig.ExecutorConfig.Version.PluginVersion < installerVer {
+	if vchConfig.ExecutorConfig.Version.PluginVersion < feature.PluginVersion {
 		op.Errorf("Cannot configure VCH with version %s, please upgrade first", vchConfig.ExecutorConfig.Version.ShortVersion())
 		return errors.New("configure failed")
 	}
