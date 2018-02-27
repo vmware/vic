@@ -11,45 +11,46 @@ pipeline:
     tags: true
     recursive: false
 
-  # display-status:
-  #   image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.44'
-  #   pull: true
-  #   environment:
-  #     BIN: bin
-  #     SHELL: /bin/bash
-  #   commands:
-  #     - 'export COMMIT=${DRONE_COMMIT}'
-  #     - 'echo "Expecting ${DRONE_COMMIT}"'
-  #     - 'git log -5'
-  #     - 'git log -1 --pretty=oneline | grep "^${DRONE_COMMIT}" > /dev/null && echo ''Build matches'' || (git log -1 --pretty=oneline | grep "Merge ${DRONE_COMMIT}" > /dev/null && echo ''Build is of a merge commit'' || (echo ''Build does not match!'' && exit 1))'
+  display-status:
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.44'
+    pull: true
+    environment:
+      BIN: bin
+      SHELL: /bin/bash
+    commands:
+      - 'export COMMIT=${DRONE_COMMIT}'
+      - 'echo "Expecting ${DRONE_COMMIT}"'
+      - 'git log -5'
+      - 'git log -1 --pretty=oneline | grep "^${DRONE_COMMIT}" > /dev/null && echo ''Build matches'' || (git log -1 --pretty=oneline | grep "Merge ${DRONE_COMMIT}" > /dev/null && echo ''Build is of a merge commit'' || (echo ''Build does not match!'' && exit 1))'
 
-  # wait-for-build:
-  #   image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.44'
-  #   pull: true
-  #   environment:
-  #     BIN: bin
-  #     GOPATH: /go
-  #     SHELL: /bin/bash
-  #   secrets:
-  #     - drone_server
-  #     - drone_token
-  #     - test_url_array
-  #   commands:
-  #     - tests/wait_until_previous_builds_complete.sh
+  wait-for-build:
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.44'
+    pull: true
+    environment:
+      BIN: bin
+      GOPATH: /go
+      SHELL: /bin/bash
+    secrets:
+      - drone_server
+      - drone_token
+      - test_url_array
+    commands:
+      - tests/wait_until_previous_builds_complete.sh
 
-  # check-org-membership:
-  #   image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.44'
-  #   pull: true
-  #   environment:
-  #     BIN: bin
-  #     GOPATH: /go
-  #     SHELL: /bin/bash
-  #   secrets:
-  #     - github_automation_api_key
-  #   commands:
-  #     - [[ ! $(curl --silent "https://api.github.com/orgs/vmware/members/${DRONE_COMMIT_AUTHOR}?access_token=${GITHUB_AUTOMATION_API_KEY}") ]]
-  #   when:
-  #     status: success
+  check-org-membership:
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.44'
+    pull: true
+    environment:
+      BIN: bin
+      GOPATH: /go
+      SHELL: /bin/bash
+    secrets:
+      - github_automation_api_key
+    commands:
+      - echo ${DRONE_COMMIT_AUTHOR}
+      - /bin/bash -c '[[ ! $(curl --silent "https://api.github.com/orgs/vmware/members/${DRONE_COMMIT_AUTHOR}?access_token=${GITHUB_AUTOMATION_API_KEY}") ]]'
+    when:
+      status: success
 
   vic-engine:
     image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.44'
