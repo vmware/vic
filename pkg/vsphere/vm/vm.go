@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -36,7 +37,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
-	"reflect"
 )
 
 const (
