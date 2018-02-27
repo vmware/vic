@@ -190,15 +190,12 @@ func streamCopy(op trace.Operation, stdin io.WriteCloser, tarStream io.Reader) {
 			op.Errorf("error writing tar header %s", err)
 			return
 		}
-		switch th.Typeflag {
-		case tar.TypeReg:
-			var k int64
-			k, err = io.Copy(tw, tr)
-			op.Debugf("wrote %d bytes", k)
-			if err != nil {
-				op.Errorf("error writing file body bytes to stdin %s", err)
-				return
-			}
+		var k int64
+		k, err = io.Copy(tw, tr)
+		op.Debugf("wrote %d bytes", k)
+		if err != nil {
+			op.Errorf("error writing file body bytes to stdin %s", err)
+			return
 		}
 	}
 }
