@@ -57,7 +57,7 @@ Datastore - DS Scheme Specified in Volume Store
 
     Log To Console  \nRunning custom vic-machine create - with DS Scheme in Volume Store
     # Need to run custom vic-machine create to specify volume store with DS scheme
-    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL_ARRAY} --user=%{TEST_USERNAME} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --image-store=%{TEST_DATASTORE} --volume-store=${dsScheme}%{TEST_DATASTORE}/images:default --password=%{TEST_PASSWORD} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --insecure-registry wdc-harbor-ci.eng.vmware.com --force --kv
+    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL_ARRAY} --user=%{TEST_USERNAME} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --image-store=%{TEST_DATASTORE} --volume-store=${dsScheme}%{TEST_DATASTORE}/images:default --password=%{TEST_PASSWORD} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --insecure-registry harbor.ci.drone.local --force --kv
     Should Contain  ${output}  Installer completed successfully
 
 
@@ -89,5 +89,5 @@ Datastore - Space in Path with Scheme
 
     Log To Console  \nRunning custom vic-machine create - with DS Scheme in Volume Store with space in path
     # Need to run custom vic-machine create to specify volume store with DS scheme
-    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL_ARRAY} --user=%{TEST_USERNAME} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --image-store=%{TEST_DATASTORE} --volume-store=${dsScheme}%{TEST_DATASTORE}/images:default --password=%{TEST_PASSWORD} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --insecure-registry wdc-harbor-ci.eng.vmware.com --force --kv
+    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL_ARRAY} --user=%{TEST_USERNAME} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --image-store=%{TEST_DATASTORE} --volume-store=${dsScheme}%{TEST_DATASTORE}/images:default --password=%{TEST_PASSWORD} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --insecure-registry harbor.ci.drone.local --force --kv
     Should Contain  ${output}  Installer completed successfully
