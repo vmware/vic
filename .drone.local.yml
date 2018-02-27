@@ -38,7 +38,7 @@ pipeline:
       - 'export GOVC_USERNAME=${TEST_USERNAME}'
       - 'export GOVC_PASSWORD=${TEST_PASSWORD}'
       - 'export GOVC_DATASTORE=${TEST_DATASTORE}'
-      - 'export DOMAIN=${CI_DOMAIN}'
+      - 'export DOMAIN=${DOMAIN}'
       - tests/integration-test.sh
     volumes:
       - /tmp
