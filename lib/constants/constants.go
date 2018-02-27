@@ -29,6 +29,9 @@ const (
 	ManagementHostName = "management.localhost"
 	ClientHostName     = "client.localhost"
 
+	DefaultPersonaPort = 2375
+	DefaultPersonaSSLPort = 2376
+
 	// DebugPortLayerPort defines the portlayer port while debug level is greater than 2
 	DebugPortLayerPort = 2380
 
@@ -75,6 +78,10 @@ const (
 
 	// Scratch layer ID
 	ScratchLayerID = "scratch"
+
+	// Directory for all logging in the VCH
+	DefaultLogDir  = "/var/log/vic"
+
 )
 
 func DefaultAltVCHGuestName() string {

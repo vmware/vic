@@ -95,3 +95,7 @@ func CreateSyslogHook(cfg *LoggingConfig) (logrus.Hook, error) {
 	}
 	return hook, err
 }
+
+func (l *LoggingConfig) SetLogLevel(level uint8) {
+	l.Level = logrus.Level(level)
+}

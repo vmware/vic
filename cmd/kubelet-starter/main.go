@@ -20,7 +20,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"strconv"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -31,6 +30,7 @@ import (
 	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+	"strconv"
 )
 
 var (
@@ -85,7 +85,6 @@ func main() {
 		// expose portlayer service on client interface
 		portlayerPort = strconv.Itoa(constants.DebugPortLayerPort)
 	}
-
 	clientIP, err := util.ClientIP()
 
 	if err != nil {
