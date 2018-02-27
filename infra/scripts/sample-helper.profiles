@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# example entry, actived by typing "example"
+# example entry, actived by typing "my-vch"
 # multiple argument variables where those arguments may contain spaces are arrays to allow for proper quoting
 #  - array variables must be exported in a separate command
 #
