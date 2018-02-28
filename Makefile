@@ -178,6 +178,8 @@ tethers: $(tether-linux)
 
 most: $(portlayerapi) $(docker-engine-api) $(vicadmin) $(tether-linux) $(appliance) $(bootstrap) $(vic-machine-linux) $(serviceapi)
 
+most-vkubelet: $(portlayerapi) $(docker-engine-api) $(vicadmin) $(tether-linux) $(appliance-vkubelet) $(bootstrap) $(vic-machine-linux) $(serviceapi)
+
 # utility targets
 goversion:
 	@echo checking go version...
