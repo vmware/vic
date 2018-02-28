@@ -43,7 +43,6 @@ func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) e
 	d.op.Info("Removing image stores")
 
 	for _, imageDir := range conf.ImageStores {
-
 		imageDSes, err := d.session.Finder.DatastoreList(d.op, imageDir.Host)
 		if err != nil {
 			errs = append(errs, err.Error())
