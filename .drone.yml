@@ -208,7 +208,7 @@ pipeline:
       branch: [master, 'releases/*', 'refs/tags/*']
 
   publish-gcs-builds-on-pass:
-    image: 'maplain/drone-gcs:latest'
+    image: 'victest/drone-gcs:1'
     pull: true
     source: bundle
     target: vic-engine-builds
@@ -222,7 +222,7 @@ pipeline:
       status: success
 
   publish-gcs-builds-on-fail:
-    image: 'maplain/drone-gcs:latest'
+    image: 'victest/drone-gcs:1'
     pull: true
     source: bundle
     target: vic-engine-failed-builds
@@ -236,7 +236,7 @@ pipeline:
       status: failure
 
   publish-gcs-releases:
-    image: 'maplain/drone-gcs:latest'
+    image: 'victest/drone-gcs:1'
     pull: true
     source: bundle-release
     target: vic-engine-releases
