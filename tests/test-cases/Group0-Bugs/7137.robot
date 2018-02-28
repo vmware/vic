@@ -33,7 +33,7 @@ Check for die events when forcing update via state refresh
     Should Be Equal As Integers  ${rc}  0
 
     # tight loop on inspect - this will force an inline state refresh
-    Run  end=$(($(date +%s) + 6));while [ $(date +%s) -lt $end ]; do docker %{VCH-PARAMS} inspect ${id} >/dev/null; done
+    Run  end=$(($(date +%s) + 24));while [ $(date +%s) -lt $end ]; do docker %{VCH-PARAMS} inspect ${id} >/dev/null; done
 
     ${rc}  ${until}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info --format '{{json .SystemTime}}'
     Should Be Equal As Integers  ${rc}  0

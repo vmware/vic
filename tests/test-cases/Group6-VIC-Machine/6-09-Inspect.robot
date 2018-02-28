@@ -154,6 +154,9 @@ Inspect VCH Configuration with Container Networks
     Should Be Equal As Integers  0  ${rc}
 
 Verify inspect output for a full tls VCH
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
+
     Install VIC Appliance To Test Server
 
     ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT}
