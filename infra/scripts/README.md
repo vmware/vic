@@ -4,11 +4,11 @@ The file `bash-helpers.sh` combines with a set of VCH 'profiles' to allow easy s
 The element likely to be used most frequently, if leveraging these functions, is that they configure the shell environment so that the docker client will target the selected VCH by default.
 
 The helper scripts are used by `sourcing` them into your shell (assumes `bash-4.0` currently). Run the following from the root of your repo:
-```shell
+```console
 . ./infra/scripts/bash-helpers.sh
 ```
 or
-```shell
+```console
 source ./infra/scripts/bash-helpers.sh
 ```
 
@@ -58,7 +58,7 @@ my-vch () {
 The follow are the set of available helper commands and some minor usage examples. In general the commands are written so that you can add additional arguments to the end of the function and it will be passed through to the underlying command.
 
 These examples all assume that you have selected a profile by running the desired shell function and that you have the requisite binary files built in the `bin` folder of your repo:
-```shell
+```console
 $ my-vch
 ```
 The set of commands available are:
@@ -79,7 +79,7 @@ The _VCH_ created by or identified by the active profile is referred to as the _
 ### Create a VCH
 
 Creates a VCH from the files built in the repo and configures the shell environment to use it by default (see `vic-select`):
-```shell
+```console
 $ vic-create
 INFO[0000] ### Installing VCH ####
 WARN[0000] Using administrative user for VCH operation - use --ops-user to improve security (see -x for advanced help)
@@ -87,7 +87,7 @@ INFO[0000] Using public-network-ip as cname where needed - use --tls-cname to ov
 ...
 ```
 or with debug enabled
-```shell
+```console
 $ vic-create --debug=2
 INFO[0000] ### Installing VCH ####
 WARN[0000] Using administrative user for VCH operation - use --ops-user to improve security (see -x for advanced help)
@@ -98,7 +98,7 @@ DEBU[0000] client network: IP {<nil> <nil>} gateway <nil> dest: []
 ### List VCHs
 
 List the VCHs deployed _in the vSphere environment targeted by the current profile_:
-```shell
+```console
 $ vic-ls
 INFO[0000] ### Listing VCHs ####
 INFO[0000] Validating target
@@ -115,7 +115,7 @@ This will configure your environment to use and reference an existing VCH, deplo
 
 This means that following `vic-select` _that_ shell will be configured so the docker client talks to the current VCH by default.
 
-```shell
+```console
 $ other-vch
 $ vic-select
 $ docker info
@@ -125,7 +125,7 @@ $ docker info
 ### Inspect VCH
 
 Inspect the current VCH:
-```shell
+```console
 $ vic-inspect
 INFO[0000] ### Inspecting VCH ####
 INFO[0000] Validating target
@@ -135,7 +135,7 @@ INFO[0000] Validating target
 ### Upgrade VCH
 
 Upgrade the current VCH using the binaries build in your repo:
-```shell
+```console
 $ vic-upgrade
 INFO[0000] ### Upgrading VCH ####
 INFO[0000] Validating target
@@ -145,7 +145,7 @@ INFO[0000] Validating target
 ### Delete VCH
 
 Deletes the current VCH and it's volume stores unless the profile is configured with `preserveVolumeStores`. This is a very coarse all or nothing toggle and just maps to using `--force` or not.
-```shell
+```console
 $ vic-delete
 INFO[0000] ### Removing VCH ####
 INFO[0000] Validating target
@@ -155,7 +155,7 @@ INFO[0000] Validating target
 ### SSH into a VCH
 
 Enables ssh on the endpointVM via vic-machine debug, configures the endpoint for ssh, extracts the IP address and ssh's into the endpoint. You are left with an interactive shell.
-```shell
+```console
 $ vic-ssh
 SSH to 192.168.78.127
 Warning: Permanently added '192.168.78.127' (ECDSA) to the list of known hosts.
@@ -167,7 +167,7 @@ root@ [ ~ ]#
 
 Simply prints the repo path (dependent on GOPATH being set correctly)
 
-```shell
+```console
 $ vic-path
 /home/vagrant/vicsmb//src/github.com/vmware/vic
 ```
@@ -175,7 +175,7 @@ $ vic-path
 ### Open vicadmin (OSX only)
 
 This uses the OSX `open` command to launch a browser pointed at the vic-admin URL
-```shell
+```console
 $ vic-admin
 ### Opens https://vch-ip:2378 in a browser
 ```
@@ -183,7 +183,7 @@ $ vic-admin
 ### Tail logs from console
 
 These allow you to tail the docker personality or port layer logs respectively:
-```shell
+```console
 $ vic-tail-docker
 SSH to 192.168.78.127
 Warning: Permanently added '192.168.78.127' (ECDSA) to the list of known hosts.
@@ -196,7 +196,7 @@ Feb 27 2018 04:27:53.453Z DEBUG [ END ]  [vic/lib/apiservers/engine/backends.(*S
 ...
 ```
 
-```shell
+```console
 $ vic-tail-portlayer
 SSH to 192.168.78.127
 Warning: Permanently added '192.168.78.127' (ECDSA) to the list of known hosts.
@@ -222,10 +222,10 @@ fail the job if headers are not correctly set. It can also be called with the
 'fix' argument to automatically add headers to the missing files.
 
 Check if headers are fine:
-```
+```console
   $ ./infra/scripts/header-check.sh
 ```
 Check and fix headers:
-```
+```console
   $ ./infra/scripts/header-check.sh fix
 ```
