@@ -110,8 +110,12 @@ Delete VCH with non-cVM in same RP
     ${rand}=  Generate Random String  15
     ${dummyvm}=  Set Variable  anothervm-${rand}
     Set Suite Variable  ${tempvm}  ${dummyvm}
-    Log To Console  Create VM ${dummyvm} in %{TEST_RESOURCE}/Resources/%{VCH-NAME} net %{PUBLIC_NETWORK}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool="%{TEST_RESOURCE}/Resources/%{VCH-NAME}" -net=%{PUBLIC_NETWORK} -on=false ${dummyvm}
+
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${pool}  "%{TEST_RESOURCE}/%{VCH-NAME}"
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${pool}  "%{TEST_RESOURCE}/Resources/%{VCH-NAME}"
+
+    Log To Console  Create VM ${dummyvm} in ${pool} net %{PUBLIC_NETWORK}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool=${pool} -net=%{PUBLIC_NETWORK} -on=false ${dummyvm}
     Should Be Equal As Integers  ${rc}  0
 
     # Verify VM exists
