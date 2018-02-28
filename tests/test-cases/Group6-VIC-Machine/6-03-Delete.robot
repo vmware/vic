@@ -110,8 +110,8 @@ Delete VCH with non-cVM in same RP
     ${rand}=  Generate Random String  15
     ${dummyvm}=  Set Variable  anothervm-${rand}
     Set Suite Variable  ${tempvm}  ${dummyvm}
-    Log To Console  Create VM ${dummyvm} in %{TEST_RESOURCE}/%{VCH-NAME} net %{PUBLIC_NETWORK}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool="%{TEST_RESOURCE}/%{VCH-NAME}" -net=%{PUBLIC_NETWORK} -on=false ${dummyvm}
+    Log To Console  Create VM ${dummyvm} in %{TEST_RESOURCE}/Resources/%{VCH-NAME} net %{PUBLIC_NETWORK}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool="%{TEST_RESOURCE}/Resources/%{VCH-NAME}" -net=%{PUBLIC_NETWORK} -on=false ${dummyvm}
     Should Be Equal As Integers  ${rc}  0
 
     # Verify VM exists
@@ -152,8 +152,8 @@ Delete VCH moved from its RP
     ${rand}=  Generate Random String  15
     ${dummyvm}=  Set Variable  anothervm-${rand}
     Set Suite Variable  ${tempvm}  ${dummyvm}
-    Log To Console  Create VM ${dummyvm} in %{TEST_RESOURCE}/%{VCH-NAME} net %{PUBLIC_NETWORK}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool="%{TEST_RESOURCE}/%{VCH-NAME}" -net=%{PUBLIC_NETWORK} -on=false ${dummyvm}
+    Log To Console  Create VM ${dummyvm} in %{TEST_RESOURCE}/Resources/%{VCH-NAME} net %{PUBLIC_NETWORK}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool="%{TEST_RESOURCE}/Resources/%{VCH-NAME}" -net=%{PUBLIC_NETWORK} -on=false ${dummyvm}
     Should Be Equal As Integers  ${rc}  0
 
     # Verify VM exists
