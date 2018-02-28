@@ -120,8 +120,16 @@ func (m *PortlayerEventMonitor) Start() error {
 	}
 
 	m.stop = make(chan struct{})
-	go m.monitor()
-
+	go func() {
+		var err error
+		for {
+			if err = m.monitor(); err != nil {
+				log.Errorf("XXX %s", err)
+			}
+			log.Debug("XXX Restarting Portlayer event monitor")
+			m.stop = make(chan struct{})
+		}
+	}()
 	return nil
 }
 
