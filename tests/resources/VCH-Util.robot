@@ -77,9 +77,10 @@ Set Test Environment Variables
     # cleanup any potential old certs directories
     Remove Directory  %{VCH-NAME}  recursive=${true}
     # Set a unique bridge network for each VCH that has a random VLAN ID
-    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
+    ${vlan}=  Evaluate  str(random.randint(1, 4093))  modules=random
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitchLAN %{VCH-NAME}-bridge
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  BRIDGE_NETWORK  %{VCH-NAME}-bridge
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc dvs.portgroup.add -vlan=${vlan} -dvs test-ds %{VCH-NAME}-bridge
+    Set Environment Variable  BRIDGE_NETWORK  %{VCH-NAME}-bridge
 
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
@@ -452,6 +453,10 @@ Cleanup VCH Bridge Network
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  ${name}-bridge
 
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  ${name}-bridge
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc ls network
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${out}  ${name}-bridge
+
 Add VC Distributed Portgroup
     [Arguments]  ${dvs}  ${pg}
     ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=%{TEST_DATACENTER} -dvs=${dvs} ${pg}
@@ -539,7 +544,8 @@ Cleanup Dangling Networks On Test Server
     \   # Skip any Network that is still running
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
-    \   ${uuid}=  Run  govc host.portgroup.remove ${net}
+    \   ${uuid}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${net}
+    \   ${uuid}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  ${net}
 
 Cleanup Dangling vSwitches On Test Server
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.vswitch.info | grep VCH
