@@ -116,7 +116,9 @@ func (d *Dispatcher) startAppliance(conf *config.VirtualContainerHostConfigSpec)
 }
 
 func (d *Dispatcher) uploadImages(files map[string]string) error {
-	defer trace.End(trace.Begin("", d.op))
+	// Get a new opid
+	op := trace.NewOperation(d.op.Context, "")
+	defer trace.End(trace.Begin("", op))
 
 	// upload the images
 	d.op.Info("Uploading images for container")
@@ -141,24 +143,24 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 
 			// check iso first
 			d.op.Debugf("Checking if file already exists: %s", isoTargetPath)
-			_, err := ds.Stat(d.op, isoTargetPath)
+			_, err := ds.Stat(op, isoTargetPath)
 			if err != nil {
 				switch err.(type) {
 				case object.DatastoreNoSuchFileError:
-					d.op.Debug("File not found. Nothing to do.")
+					op.Debug("File not found. Nothing to do.")
 				case object.DatastoreNoSuchDirectoryError:
-					d.op.Debug("Directory not found. Nothing to do.")
+					op.Debug("Directory not found. Nothing to do.")
 				default:
-					d.op.Debugf("ISO file already exists, deleting: %s", isoTargetPath)
-					err := fm.Delete(d.op, isoTargetPath)
+					op.Debugf("ISO file already exists, deleting: %s", isoTargetPath)
+					err := fm.Delete(op, isoTargetPath)
 					if err != nil {
-						d.op.Debugf("Failed to delete image (%s) with error (%s)", image, err.Error())
+						op.Debugf("Failed to delete image (%s) with error (%s)", image, err.Error())
 						return err
 					}
 				}
 			}
 
-			d.op.Infof("Uploading %s as %s", baseName, key)
+			op.Infof("Uploading %s as %s", baseName, key)
 
 			ul := progresslog.NewUploadLogger(d.op.Infof, baseName, time.Second*3)
 			// need to wait since UploadLogger is asynchronous.
@@ -179,10 +181,10 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 
 			retryCount--
 			if retryCount < 0 {
-				d.op.Warnf("Attempted upload a total of %d times without success, Upload process failed.", uploadRetryLimit)
+				op.Warnf("Attempted upload a total of %d times without success, Upload process failed.", uploadRetryLimit)
 				return false
 			}
-			d.op.Warnf("Failed an attempt to upload isos with err (%s), %d retries remain", err.Error(), retryCount)
+			op.Warnf("Failed an attempt to upload isos with err (%s), %d retries remain", err.Error(), retryCount)
 			return true
 		}
 
@@ -193,7 +195,7 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 				finalMessage = fmt.Sprintf("%s\t\tContinuing despite failures (due to --force option)\n", finalMessage)
 				finalMessage = fmt.Sprintf("%s\t\tNote: The VCH will not function without %q...", finalMessage, image)
 			}
-			d.op.Error(finalMessage)
+			op.Error(finalMessage)
 			return errors.New("Failed to upload iso images.")
 		}
 
