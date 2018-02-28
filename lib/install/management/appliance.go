@@ -223,7 +223,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	}
 
 	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
-		d.op.Warnf("Remove datastore files for VM %s with folder path %s failed with error: %s", vm.Reference(), folder, err)
+		d.op.Warnf("Failed to remove datastore files for VM %s with folder path %s: %s", vm.Reference(), folder, err)
 	}
 
 	return nil
