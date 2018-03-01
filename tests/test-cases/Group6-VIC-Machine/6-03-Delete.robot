@@ -153,11 +153,13 @@ Delete VCH moved from its RP
 
     Install VIC Appliance To Test Server
 
+    Set Test Variable  ${pool}  "%{TEST_RESOURCE}/Resources/%{VCH-NAME}"
+
     ${rand}=  Generate Random String  15
     ${dummyvm}=  Set Variable  anothervm-${rand}
     Set Suite Variable  ${tempvm}  ${dummyvm}
-    Log To Console  Create VM ${dummyvm} in %{TEST_RESOURCE}/Resources/%{VCH-NAME} net %{PUBLIC_NETWORK}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool="%{TEST_RESOURCE}/Resources/%{VCH-NAME}" -net=%{PUBLIC_NETWORK} -on=false ${dummyvm}
+    Log To Console  Create VM ${dummyvm} in ${pool} net %{PUBLIC_NETWORK}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool=${pool} -net=%{PUBLIC_NETWORK} -on=false ${dummyvm}
     Should Be Equal As Integers  ${rc}  0
 
     # Verify VM exists
