@@ -26,8 +26,8 @@ Set Test Environment Variables
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  PUBLIC_NETWORK  'VM Network'
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_DATACENTER
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_DATACENTER  ${SPACE}
-    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_HOSTNAME
-    Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_HOSTNAME  'local'
+    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_MACHINE
+    Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_MACHINE  'local'
 
     @{URLs}=  Split String  %{TEST_URL_ARRAY}
     ${len}=  Get Length  ${URLs}
@@ -42,7 +42,7 @@ Set Test Environment Variables
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  TEST_THUMBPRINT  ${thumbprint}
     Log To Console  \nTEST_URL=%{TEST_URL}
-    Log To Console  \nDRONE_HOSTNAME=%{DRONE_HOSTNAME}
+    Log To Console  \nDRONE_MACHINE=%{DRONE_MACHINE}
     ${worker_date}=  Run  date
     Log To Console  \nWorker_Date=${worker_date}
     
