@@ -83,7 +83,11 @@ define godeps
 endef
 endif
 
-LDFLAGS := $(shell BUILD_NUMBER=${BUILD_NUMBER} $(BASE_DIR)/infra/scripts/version-linker-flags.sh)
+ifeq ($(VIC_DEBUG_BUILD),)
+	LDFLAGS := $(shell BUILD_NUMBER=${BUILD_NUMBER} $(BASE_DIR)/infra/scripts/version-linker-flags.sh)
+else
+	LDFLAGS := $(shell BUILD_NUMBER=${BUILD_NUMBER} $(BASE_DIR)/infra/scripts/version-debug-linker-flags.sh)
+endif
 
 # target aliases - environment variable definition
 docker-engine-api := $(BIN)/docker-engine-server
