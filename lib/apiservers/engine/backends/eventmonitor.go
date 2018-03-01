@@ -125,12 +125,12 @@ func (m *PortlayerEventMonitor) Start() error {
 		for {
 			select {
 			case <-m.stop:
+				log.Infof("Portlayer Event Monitor stopped normally")
 				break
 			default:
 				if err = m.monitor(); err != nil {
-					log.Error(err)
+					log.Errorf("Restarting Portlayer event monitor due to error: %s", err)
 				}
-				log.Warn("Restarting Portlayer event monitor")
 			}
 		}
 	}()
