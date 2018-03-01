@@ -13,7 +13,7 @@
 # limitations under the License
 
 *** Settings ***
-Documentation     Test 23-03 - VCH Create
+Documentation     Test 23-08 - VCH Delete
 Resource          ../../resources/Util.robot
 Resource          ../../resources/Group23-VIC-Machine-Service-Util.robot
 Suite Setup       Start VIC Machine Server
@@ -35,7 +35,7 @@ Install And Prepare VIC Appliance
     Pull Busybox
 
 Re-Install And Prepare VIC Appliance
-    Install VIC Appliance To Test Server With Current Environment Variables
+    Install VIC Appliance To Test Server With Current Environment Variables  cleanup=${false}
     Pull Busybox
 
 Install And Prepare VIC Appliance With Volume Stores
@@ -46,7 +46,7 @@ Install And Prepare VIC Appliance With Volume Stores
     Re-Install And Prepare VIC Appliance With Volume Stores
 
 Re-Install And Prepare VIC Appliance With Volume Stores
-    Install VIC Appliance To Test Server With Current Environment Variables    additional-args=--volume-store=%{TEST_DATASTORE}/${VOLUME_STORE_PATH}:${VOLUME_STORE_NAME}
+    Install VIC Appliance To Test Server With Current Environment Variables    additional-args=--volume-store=%{TEST_DATASTORE}/${VOLUME_STORE_PATH}:${VOLUME_STORE_NAME}  cleanup=${false}
     Pull Busybox
 
 
@@ -293,7 +293,7 @@ Delete the correct VCH
 
     ${two}=    Get VCH ID %{VCH-NAME}
 
-    Should Not Be Equal As Integers    ${one}    ${two}
+    Should Not Be Equal    ${one}    ${two}
 
     # This will fail when run outside of drone because "Install VIC Appliance To Test Server"
     # will delete "dangling" VCHs - which means any associated with a drone job id that isn't running
@@ -468,13 +468,6 @@ Delete VCH and delete powered on container
     Verify Container Not Exists       ${POWERED_ON_CONTAINER_NAME}
     Verify Container Not Exists       ${POWERED_OFF_CONTAINER_NAME}
 
-    # should this delete volume stores?
-    # if it should then we should check they're gone, if it shouldn't we should check they're not
-    # if not then we should clean up volume stores in teardown
-
-    # No VCH to delete
-    [Teardown]                        NONE
-
 Delete VCH and powered off containers and volumes
     [Setup]    Install And Prepare VIC Appliance With Volume Stores
     ${id}=    Get VCH ID %{VCH-NAME}
@@ -603,7 +596,7 @@ Delete VCH and powered off container and preserve volumes
     Output Should Not Contain         Error
     Verify Container Exists           ${OFF_NV_NVS_CONTAINER_NAME}
 
-    [Teardown]                        Cleanup VIC Appliance On Test Server
+    [Teardown]                        Run Keywords  Cleanup VIC Appliance On Test Server  Cleanup Datastore On Test Server
 
 
 Delete VCH and powered on container but preserve volume
@@ -644,7 +637,7 @@ Delete VCH and powered on container but preserve volume
 
     Verify Container Exists           ${ON_NV_DVS_CONTAINER_NAME}
 
-    [Teardown]                        Cleanup VIC Appliance On Test Server
+    [Teardown]                        Run Keywords  Cleanup VIC Appliance On Test Server  Cleanup Datastore On Test Server
 
 
 Delete VCH and preserve powered on container and volumes
@@ -669,7 +662,7 @@ Delete VCH and preserve powered on container and volumes
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Exists              %{VCH-NAME}-VOL                ${ON_NV_DVS_VOLUME_NAME}
 
-    [Teardown]                        Cleanup VIC Appliance On Test Server
+    [Teardown]                        Run Keywords  Cleanup VIC Appliance On Test Server  Cleanup Datastore On Test Server
 
 
 Delete VCH and preserve powered on container and fail to delete volumes
@@ -694,4 +687,4 @@ Delete VCH and preserve powered on container and fail to delete volumes
     Verify Volume Store Exists        %{VCH-NAME}-VOL
     Verify Volume Exists              %{VCH-NAME}-VOL                ${ON_NV_DVS_VOLUME_NAME}
 
-    [Teardown]                        Cleanup VIC Appliance On Test Server
+    [Teardown]                        Run Keywords  Cleanup VIC Appliance On Test Server  Cleanup Datastore On Test Server

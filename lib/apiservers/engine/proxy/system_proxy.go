@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package backends
+package proxy
 
 //****
-// system_portlayer.go
+// system_proxy.go
 //
 // Contains all code that touches the portlayer for system operations and all
 // code that converts swagger based returns to docker personality backend structs.
@@ -35,9 +35,13 @@ import (
 	"fmt"
 	"net/http"
 
+	"golang.org/x/net/context"
+
 	log "github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/api/errors"
 
+	"github.com/vmware/vic/lib/apiservers/engine/errors"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/misc"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -45,50 +49,53 @@ import (
 )
 
 type VicSystemProxy interface {
-	PingPortlayer() bool
-	ContainerCount() (int, int, int, error)
-	VCHInfo() (*models.VCHInfo, error)
+	PingPortlayer(ctx context.Context) bool
+	ContainerCount(ctx context.Context) (int, int, int, error)
+	VCHInfo(ctx context.Context) (*models.VCHInfo, error)
 }
 
-type SystemProxy struct{}
+type SystemProxy struct {
+	client *client.PortLayer
+}
 
-func (s *SystemProxy) PingPortlayer() bool {
-	defer trace.End(trace.Begin("PingPortlayer"))
+func NewSystemProxy(client *client.PortLayer) VicSystemProxy {
+	if client == nil {
+		return nil
+	}
 
-	plClient := PortLayerClient()
-	if plClient == nil {
+	return &SystemProxy{client: client}
+}
+
+func (s *SystemProxy) PingPortlayer(ctx context.Context) bool {
+	defer trace.End(trace.Begin(""))
+
+	if s.client == nil {
+		log.Errorf("Portlayer client is invalid")
 		return false
 	}
 
-	if plClient != nil {
-		pingParams := misc.NewPingParamsWithContext(ctx)
-		_, err := plClient.Misc.Ping(pingParams)
-		if err != nil {
-			log.Info("Ping to portlayer failed")
-			return false
-		}
-		return true
+	pingParams := misc.NewPingParamsWithContext(ctx)
+	_, err := s.client.Misc.Ping(pingParams)
+	if err != nil {
+		log.Info("Ping to portlayer failed")
+		return false
 	}
-
-	log.Errorf("Portlayer client is invalid")
-	return false
+	return true
 }
 
 // Use the Portlayer's support for docker ps to get the container count
 //   return order: running, paused, stopped counts
-func (s *SystemProxy) ContainerCount() (int, int, int, error) {
-	defer trace.End(trace.Begin("ContainerCount"))
+func (s *SystemProxy) ContainerCount(ctx context.Context) (int, int, int, error) {
+	defer trace.End(trace.Begin(""))
 
 	var running, paused, stopped int
 
-	plClient := PortLayerClient()
-	if plClient == nil {
-		return 0, 0, 0, derr.NewErrorWithStatusCode(fmt.Errorf("ContainerCount failed to create a portlayer client"),
-			http.StatusInternalServerError)
+	if s.client == nil {
+		return 0, 0, 0, errors.NillPortlayerClientError("SystemProxy")
 	}
 
 	all := true
-	containList, err := plClient.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(ctx).WithAll(&all))
+	containList, err := s.client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(ctx).WithAll(&all))
 	if err != nil {
 		return 0, 0, 0, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get container list: %s", err), http.StatusInternalServerError)
 	}
@@ -105,17 +112,15 @@ func (s *SystemProxy) ContainerCount() (int, int, int, error) {
 	return running, paused, stopped, nil
 }
 
-func (s *SystemProxy) VCHInfo() (*models.VCHInfo, error) {
-	defer trace.End(trace.Begin("VCHInfo"))
+func (s *SystemProxy) VCHInfo(ctx context.Context) (*models.VCHInfo, error) {
+	defer trace.End(trace.Begin(""))
 
-	plClient := PortLayerClient()
-	if plClient == nil {
-		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("VCHInfo failed to create a portlayer client"),
-			http.StatusInternalServerError)
+	if s.client == nil {
+		return nil, errors.NillPortlayerClientError("SystemProxy")
 	}
 
 	params := misc.NewGetVCHInfoParamsWithContext(ctx)
-	resp, err := plClient.Misc.GetVCHInfo(params)
+	resp, err := s.client.Misc.GetVCHInfo(params)
 	if err != nil {
 		//There are no custom error for this operation.  If we get back an error, it's
 		//unknown.

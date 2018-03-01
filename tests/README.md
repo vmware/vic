@@ -56,16 +56,16 @@ Use ./local-integration-test.sh
 
 * Execute Drone from the project root directory:
 
-  Drone will run based on `.drone.local.yml` - defaults should be fine, edit as needed
+  Drone will run based on `.drone.local.yml` - defaults should be fine, edit as needed. Set secrets as env variables:
 
   *  To run only the regression tests:
      ```
-     drone exec --repo.trusted --secrets-file "test.secrets"  .drone.local.yml
+     drone exec .drone.local.yml
      ```
 
   * To run the full suite:
      ```
-		 drone exec --repo.trusted --repo.branch=master --repo.fullname="vmware/vic"  --secrets-file "test.secrets"  .drone.local.yml
+		 drone exec --repo-name "vmware/vic" .drone.local.yml
      ```
 
 ## Test a specific .robot file
@@ -77,6 +77,33 @@ Use ./local-integration-test.sh
   ```
   ./tests/robot.sh tests/test-cases/Group6-VIC-Machine/6-04-Create-Basic.robot
   ```
+
+## Run Docker command tests via makefile target
+
+There exists a makefile target for developers to run the docker command tests locally (not in CI environment) against a pre-deployed VCH. This is a fast way for contributors to test their potential code chages, against the CI tests locally, before pushing the commit. There is another benefit gained from using the makefile target, the way it is setup, logs from the run are written out to vic/ci-results, even if the tests fail. The method described above, to run the tests locally with drone, has the weakness that a failure in the test can sometimes result in no written logs to help debug the failure.
+
+There are a few requirements before using this makefile target.
+
+1. A VCH must be pre-deployed before calling this makefile target
+2. The makefile target relies on a script that looks for a few more secrets variable.  When running the script directly, these secrets variables may be passed into the script via commandline arguments, environment variables, or via a secrets file.  When running the makefile target via make, the secrets must be defined in environment variables.
+
+To run these tests using the makefile target,
+
+```
+make local-ci-test
+
+SECRETS_FILE=test.secrets.esx make local-ci-test
+
+DOCKER_TEST=Group1-Docker-Commands/1-01-Docker-Info.robot make local-ci-test
+```
+In the above example, the first command assumes all environment variables are defined.  The second command defines one environment variable, SECRETS_FILE, before calling the make target.  This allows calling the make target with all the necessary secrets variable defined in the secrets file instead of in environment variables.  The third command defines a specific test to run using the environment variable, DOCKER_TEST.
+
+Currently, only the Group1 tests are setup to use an existing VCH so this makefile target only works on the group 1 tests.
+
+It is also possible to run the docker command tests, without using make, by calling the internal script itself.  The script is located at "infra/scripts/local-ci.sh".  As stated above, the scripts also allows command line arguments to be passed directly into the script.
+
+A helpful tip is to create different secrets files for different environments.  For instance, test.secrets.esx and test.secrets.vc for an ESX host and VC cluster, respectively.
+
 
 ## Find the documentation for each of the tests here:
 

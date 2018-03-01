@@ -77,6 +77,12 @@ func InitLogger(cfg *log.LoggingConfig) error {
 	return err
 }
 
+func SetLoggerLevel(level uint8) {
+	if Logger != nil {
+		Logger.Level = logrus.Level(level)
+	}
+}
+
 // begin a trace from this stack frame less the skip.
 func newTrace(msg string, skip int, opID string) *Message {
 	pc, _, line, ok := runtime.Caller(skip)

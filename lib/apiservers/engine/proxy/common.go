@@ -15,5 +15,5 @@
 package proxy
 
 const (
-	swaggerSubstringEOF = "EOF"
+	SwaggerSubstringEOF = "EOF"
 )

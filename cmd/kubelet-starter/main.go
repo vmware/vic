@@ -22,7 +22,7 @@ import (
 	"os/exec"
 	"strconv"
 
-	log "github.com/Sirupsen/logrus"
+  log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/constants"
@@ -86,7 +86,7 @@ func main() {
 		portlayerPort = strconv.Itoa(constants.DebugPortLayerPort)
 	}
 
-	clientIP, err := util.ClientIP()
+  clientIP, err := util.ClientIP()
 
 	if err != nil {
 		op.Fatalf("Cannot get Client IP err: %s", err)
@@ -114,9 +114,9 @@ func main() {
 
 	kubeletName := os.Getenv("KUBELET_NAME")
 
-	op.Infof("Executing kubelet: %s %s %s %s %s %s %s", KubeletPath, "--provider", "mock", "--kubeconfig", KubeletConfigFile, "--nodename", kubeletName)
+	op.Infof("Executing kubelet: %s %s %s %s %s %s %s", KubeletPath, "--provider", "vic", "--kubeconfig", KubeletConfigFile, "--nodename", kubeletName)
 	/* #nosec */
-	kubeletCmd := exec.Command(KubeletPath, "--provider", "mock", "--kubeconfig", KubeletConfigFile, "--nodename", kubeletName)
+	kubeletCmd := exec.Command(KubeletPath, "--provider", "vic", "--kubeconfig", KubeletConfigFile, "--nodename", kubeletName)
 	output, err := kubeletCmd.CombinedOutput()
 	op.Infof("Output: %s, Error: %s", string(output), err)
 }
