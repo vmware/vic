@@ -210,6 +210,8 @@ pipeline:
   publish-gcs-builds-on-pass:
     image: 'victest/drone-gcs:1'
     pull: true
+    secrets:
+      - google_key
     source: bundle
     target: vic-engine-builds
     acl:
@@ -224,6 +226,8 @@ pipeline:
   publish-gcs-builds-on-fail:
     image: 'victest/drone-gcs:1'
     pull: true
+    secrets:
+      - google_key
     source: bundle
     target: vic-engine-failed-builds
     acl:
@@ -238,6 +242,8 @@ pipeline:
   publish-gcs-releases:
     image: 'victest/drone-gcs:1'
     pull: true
+    secrets:
+      - google_key
     source: bundle-release
     target: vic-engine-releases
     acl:
