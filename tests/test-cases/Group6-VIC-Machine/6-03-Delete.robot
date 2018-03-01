@@ -153,13 +153,13 @@ Delete VCH moved from its RP
 
     Install VIC Appliance To Test Server
 
-    Set Test Variable  ${pool}  "%{TEST_RESOURCE}/Resources/%{VCH-NAME}"
+    Set Test Variable  ${test-resource}  "%{TEST_RESOURCE}/Resources"
 
     ${rand}=  Generate Random String  15
     ${dummyvm}=  Set Variable  anothervm-${rand}
     Set Suite Variable  ${tempvm}  ${dummyvm}
-    Log To Console  Create VM ${dummyvm} in ${pool} net %{PUBLIC_NETWORK}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool=${pool} -net=%{PUBLIC_NETWORK} -on=false ${dummyvm}
+    Log To Console  Create VM ${dummyvm} in ${test-resource}/%{VCH-NAME} net %{PUBLIC_NETWORK}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool=${test-resource}/%{VCH-NAME} -net=%{PUBLIC_NETWORK} -on=false ${dummyvm}
     Should Be Equal As Integers  ${rc}  0
 
     # Verify VM exists
@@ -168,11 +168,11 @@ Delete VCH moved from its RP
     Should Contain  ${output}  ${dummyvm}
 
     # Create temp RP
-    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.create "%{TEST_RESOURCE}/rp-${rand}"
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.create "${test-resource}/rp-${rand}"
     Should Be Equal As Integers  ${rc}  0
 
     # Move VCH to temp RP
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.migrate -pool "%{TEST_RESOURCE}/rp-${rand}" %{VCH-NAME}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.migrate -pool "${test-resource}/rp-${rand}" %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
 
     # Delete with force
@@ -191,11 +191,11 @@ Delete VCH moved from its RP
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "%{TEST_RESOURCE}/%{VCH-NAME}"
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "${test-resource}/%{VCH-NAME}"
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "%{TEST_RESOURCE}/temp-%{VCH-NAME}"
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "${test-resource}/temp-%{VCH-NAME}"
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
