@@ -15,7 +15,6 @@
 package performance
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/vmware/govmomi/object"
@@ -64,17 +63,45 @@ type HostMetricsInfo struct {
 	CPU    HostCPU
 }
 
-// HostMetrics returns CPU and memory metrics for all ESXi hosts in the input session's cluster.
-func HostMetrics(op trace.Operation, session *session.Session) (map[*object.HostSystem]*HostMetricsInfo, error) {
-	if session == nil {
+// HostMetrics returns CPU and memory metrics for all ESXi hosts in a cluster
+// via implementation of the MetricsProvider interface.
+type HostMetricsProvider struct {
+	session *session.Session
+}
+
+func NewHostMetricsProvider(s *session.Session) *HostMetricsProvider {
+	return &HostMetricsProvider{session: s}
+}
+
+// GatherMetricsForComputeResource gathers host metrics from the supplied compute resource.
+func (h *HostMetricsProvider) GetMetricsForComputeResource(op trace.Operation, cr *object.ComputeResource) (map[*object.HostSystem]*HostMetricsInfo, error) {
+	if h.session == nil {
 		return nil, fmt.Errorf("session not set")
 	}
 
 	// Gather hosts from the session cluster and then obtain their morefs.
-	hosts, err := gatherHosts(op.Context, session)
+	hosts, err := cr.Hosts(op)
 	if err != nil {
-		return nil, fmt.Errorf("unable to obtain host morefs from session: %s", err)
+		return nil, fmt.Errorf("unable to obtain host morefs from compute resource: %s", err)
 	}
+
+	if hosts == nil {
+		return nil, fmt.Errorf("no hosts found in compute resource")
+	}
+
+	return h.GetMetricsForHosts(op, hosts)
+}
+
+// GetMetricsForHosts returns metrics pertaining to supplied ESX hosts.
+func (h *HostMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*object.HostSystem) (map[*object.HostSystem]*HostMetricsInfo, error) {
+	if len(hosts) == 0 {
+		return nil, fmt.Errorf("no hosts provided")
+	}
+
+	if h.session == nil {
+		return nil, fmt.Errorf("session not set")
+	}
+
 	morefToHost := make(map[types.ManagedObjectReference]*object.HostSystem)
 	morefs := make([]types.ManagedObjectReference, len(hosts))
 	for i, host := range hosts {
@@ -90,7 +117,7 @@ func HostMetrics(op trace.Operation, session *session.Session) (map[*object.Host
 	}
 
 	counters := []string{cpuUsage, memActive, memConsumed, memTotalCapacity, memOverhead}
-	perfMgr := performance.NewManager(session.Vim25())
+	perfMgr := performance.NewManager(h.session.Vim25())
 	sample, err := perfMgr.SampleByName(op.Context, spec, counters, morefs)
 	if err != nil {
 		errStr := "unable to get metric sample: %s"
@@ -159,21 +186,4 @@ func assembleMetrics(op trace.Operation, morefToHost map[types.ManagedObjectRefe
 	}
 
 	return metrics
-}
-
-// gatherHosts gathers ESXi host(s) from the input session's cluster.
-func gatherHosts(ctx context.Context, session *session.Session) ([]*object.HostSystem, error) {
-	if session.Cluster == nil {
-		return nil, fmt.Errorf("session cluster not set")
-	}
-
-	hosts, err := session.Cluster.Hosts(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("unable to obtain hosts from session cluster: %s", err)
-	}
-	if hosts == nil {
-		return nil, fmt.Errorf("no hosts found from session cluster")
-	}
-
-	return hosts, nil
 }

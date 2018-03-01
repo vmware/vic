@@ -47,16 +47,15 @@ func vpxModelSetup(ctx context.Context, t *testing.T) (*simulator.Model, *simula
 }
 
 func TestAssembleMetrics(t *testing.T) {
-	ctx := context.Background()
-	op := trace.NewOperation(ctx, "TestAssembleMetrics")
+	op := trace.NewOperation(context.Background(), "TestAssembleMetrics")
 
-	model, server, sess := vpxModelSetup(ctx, t)
+	model, server, sess := vpxModelSetup(op, t)
 	defer func() {
 		model.Remove()
 		server.Close()
 	}()
 
-	hosts, err := sess.Cluster.Hosts(ctx)
+	hosts, err := sess.Cluster.Hosts(op)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,25 +160,4 @@ func TestAssembleMetrics(t *testing.T) {
 	assert.True(t, exists, "fakeHost %s should now be present in result metrics", fakeHost.String())
 	expectedFakeMetrics := HostMetricsInfo{}
 	assert.Equal(t, expectedFakeMetrics, *fakeHostMetrics)
-}
-
-func TestGatherHosts(t *testing.T) {
-	ctx := context.Background()
-
-	model, server, sess := vpxModelSetup(ctx, t)
-	defer func() {
-		model.Remove()
-		server.Close()
-	}()
-
-	// gatherHosts should return a valid slice of hosts for a populated session.
-	hosts, err := gatherHosts(ctx, sess)
-	assert.NoError(t, err)
-	assert.NotNil(t, hosts)
-
-	// Test for an error when the session cluster is nil.
-	sess.Cluster = nil
-	hosts, err = gatherHosts(ctx, sess)
-	assert.Error(t, err)
-	assert.Nil(t, hosts)
 }
