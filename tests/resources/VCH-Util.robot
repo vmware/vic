@@ -464,8 +464,8 @@ Add VC Distributed Portgroup
 
 Remove VC Distributed Portgroup
     [Arguments]  ${pg}
-    ${out}=  Run  govc object.destroy %{TEST_DATACENTER}/network/${pg}
-    Log  ${out}
+    ${out}=  Run  govc object.destroy network/${pg}
+    Should Contain  ${out}  OK
 
 Cleanup Datastore On Test Server
     ${out}=  Run  govc datastore.ls
