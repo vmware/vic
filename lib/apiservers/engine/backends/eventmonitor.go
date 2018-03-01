@@ -74,7 +74,6 @@ type PortlayerEventMonitor struct {
 	stop      chan struct{}
 	proxy     eventproxy
 	publisher eventpublisher
-	noRestart bool
 }
 
 // StreamEvents() handles all swagger interaction to the Portlayer's event manager
@@ -116,8 +115,6 @@ func NewPortlayerEventMonitor(proxy eventproxy, publisher eventpublisher) *Portl
 func (m *PortlayerEventMonitor) Start() error {
 	defer trace.End(trace.Begin(""))
 
-	m.noRestart = false
-
 	if m.stop != nil {
 		return fmt.Errorf("Portlayer event monitor: Already started")
 	}
@@ -126,9 +123,6 @@ func (m *PortlayerEventMonitor) Start() error {
 	go func() {
 		var err error
 		for {
-			if m.noRestart {
-				break
-			}
 			if err = m.monitor(); err != nil {
 				log.Error(err)
 			}
@@ -143,7 +137,6 @@ func (m *PortlayerEventMonitor) Start() error {
 func (m *PortlayerEventMonitor) Stop() {
 	defer trace.End(trace.Begin(""))
 
-	m.noRestart = true
 	if m.stop != nil {
 		close(m.stop)
 	}
