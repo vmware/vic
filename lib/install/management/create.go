@@ -45,6 +45,15 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 
 	var err error
 
+	// resource pool path determined based on DRS setting.  If enabled then
+	// append the appliance name to the path and a pool will be created.
+	// disabled then no resource pools are supported, so use the provided compute path.
+	if d.session.DRSEnabled != nil && *d.session.DRSEnabled {
+		d.vchPoolPath = path.Join(settings.ResourcePoolPath, conf.Name)
+	} else {
+		d.vchPoolPath = settings.ResourcePoolPath
+	}
+
 	if err = d.checkExistence(conf, settings); err != nil {
 		return err
 	}
