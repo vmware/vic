@@ -191,35 +191,24 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		}
 	}
 
-	operation := func() error {
+	// Only retry VM destroy on CurrentAccess error
+	err = retry.Do(func() error {
 		_, err := vm.DeleteExceptDisks(d.op)
+		return err
+	}, tasks.IsConcurrentAccessError)
+
+	if err != nil {
+		d.op.Warnf("Destroy VM %s failed with %s, unregister the VM instead", vm.Reference(), err)
+
+		// Only retry VM unregister on ConcurrentAccess error
+		err = retry.Do(func() error {
+			return vm.Unregister(d.op)
+		}, tasks.IsConcurrentAccessError)
 
 		if err != nil {
-			d.op.Infof("Destroy VM %s failed with %s, unregister the VM instead", vm.Reference(), err)
-			return vm.Unregister(d.op)
+			d.op.Errorf("Unregister the VM failed: %s", err)
+			return err
 		}
-
-		return nil
-	}
-
-	// Retry destroy or unregister VM on ConcurrentAccess error
-	isConcurrentAccessError := func(err error) bool {
-		if soap.IsVimFault(err) {
-			_, ok := soap.ToVimFault(err).(*types.ConcurrentAccess)
-			return ok
-		}
-
-		if soap.IsSoapFault(err) {
-			_, ok := soap.ToSoapFault(err).VimFault().(types.ConcurrentAccess)
-			return ok
-		}
-
-		return false
-	}
-
-	if err = retry.Do(operation, isConcurrentAccessError); err != nil {
-		d.op.Errorf("Delete VM %s fails with error: %s", vm.Reference(), err)
-		return err
 	}
 
 	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {

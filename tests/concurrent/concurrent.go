@@ -30,7 +30,6 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/task"
-	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/spec"
@@ -105,28 +104,6 @@ func init() {
 	flag.Parse()
 
 	rand.Seed(time.Now().UnixNano())
-}
-
-func IsNotFoundError(err error) bool {
-	if soap.IsSoapFault(err) {
-		fault := soap.ToSoapFault(err).VimFault()
-		if _, ok := fault.(types.ManagedObjectNotFound); ok {
-			return true
-		}
-	}
-	return false
-}
-
-func IsConcurrentAccessError(err error) bool {
-	if soap.IsSoapFault(err) {
-		fault := soap.ToSoapFault(err).VimFault()
-		if _, ok := fault.(types.ConcurrentAccess); ok {
-			return true
-		}
-		// sometimes we get this wrong type with correct error
-		return soap.ToSoapFault(err).String == "vim.fault.ConcurrentAccess"
-	}
-	return false
 }
 
 func main() {
@@ -365,7 +342,7 @@ func main() {
 		}
 		if concurrent && vms[i].IsVC() {
 			if err := vms[i].Unregister(ctx); err != nil {
-				if !IsNotFoundError(err) && !IsConcurrentAccessError(err) {
+				if !tasks.IsNotFoundError(err) && !tasks.IsConcurrentAccessError(err) {
 					return err
 				}
 			}

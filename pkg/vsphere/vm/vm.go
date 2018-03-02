@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net/url"
 	"path"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -30,7 +29,6 @@ import (
 	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
-	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 
 	"github.com/vmware/vic/pkg/trace"
@@ -288,12 +286,16 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInf
 		return vm.Destroy(ctx)
 	})
 
-	if err == nil {
-		return info, nil
+	if err == nil || !tasks.IsMethodDisabledError(err) {
+		return info, err
 	}
 
-	if isMethodDisabledError(ctx, err) {
-		vm.EnableDestroy(ctx)
+	// If destroy method is disabled on this VM, re-enable it and retry
+	if tasks.IsMethodDisabledError(err) {
+		err = vm.EnableDestroy(ctx)
+		if err != nil {
+			return nil, err
+		}
 
 		return vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 			return vm.Destroy(ctx)
@@ -301,20 +303,6 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInf
 	}
 
 	return nil, err
-}
-
-func isMethodDisabledError(ctx context.Context, err error) bool {
-	op := trace.FromContext(ctx, "isMethodDisabledError")
-
-	if soap.IsSoapFault(err) {
-		vimFault := soap.ToSoapFault(err).VimFault()
-		op.Debugf("Error type: %s", reflect.TypeOf(vimFault))
-
-		_, ok := soap.ToSoapFault(err).VimFault().(types.MethodDisabled)
-		return ok
-	}
-
-	return false
 }
 
 func (vm *VirtualMachine) VMPathName(ctx context.Context) (string, error) {
@@ -649,13 +637,15 @@ func (vm *VirtualMachine) SetVCHUpdateStatus(ctx context.Context, status bool) e
 	return err
 }
 
-// DisableDestroy attempts to disable the VirtualMachine.Destroy_Task method.
-// When the method is disabled, the VC UI will disable/grey out the VM "delete" action.
-// Requires the "Global.Disable" VC privilege.
-// The VirtualMachine.Destroy_Task method can still be invoked via the API.
-func (vm *VirtualMachine) DisableDestroy(ctx context.Context) {
+// DisableDestroy attempts to disable teh VirtualMachine.Destroy_Task method on the VM
+// After destroy is disabled for the VM, any session other than the session that disables the destroy can't evoke the method
+// The "VM delete" option will be grayed out on VC UI
+// Requires the "Global.Disable" VC privilege
+func (vm *VirtualMachine) DisableDestroy(ctx context.Context) error {
+	// For nonVC, OOB deletion won't disrupt disk images (ESX doesn't delete parent disks)
+	// See https://github.com/vmware/vic/issues/2928
 	if !vm.IsVC() {
-		return
+		return nil
 	}
 
 	op := trace.FromContext(ctx, "DisableDestroy")
@@ -674,14 +664,18 @@ func (vm *VirtualMachine) DisableDestroy(ctx context.Context) {
 	err := m.DisableMethods(op, obj, method, "VIC")
 	if err != nil {
 		op.Warnf("Failed to disable method %s for %s: %s", method[0].Method, obj[0], err)
+		return err
 	}
+
+	return nil
 }
 
-// EnableDestroy attempts to enable the VirtualMachine.Destroy_Task method
-// so that the VC UI can enable the VM "delete" action.
-func (vm *VirtualMachine) EnableDestroy(ctx context.Context) {
+// EnableDestroy attempts to enable the VirtualMachine.Destroy_Task method for all sessions
+func (vm *VirtualMachine) EnableDestroy(ctx context.Context) error {
+	// For nonVC, OOB deletion won't disrupt disk images (ESX doesn't delete parent disks)
+	// See https://github.com/vmware/vic/issues/2928
 	if !vm.IsVC() {
-		return
+		return nil
 	}
 
 	op := trace.FromContext(ctx, "EnableDestroy")
@@ -693,7 +687,10 @@ func (vm *VirtualMachine) EnableDestroy(ctx context.Context) {
 	err := m.EnableMethods(op, obj, []string{DestroyTask}, "VIC")
 	if err != nil {
 		op.Warnf("Failed to enable Destroy_Task for %s: %s", obj[0], err)
+		return err
 	}
+
+	return nil
 }
 
 // RemoveSnapshot removes a snapshot by reference

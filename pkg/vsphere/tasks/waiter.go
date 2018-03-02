@@ -185,6 +185,82 @@ func IsRetryError(op trace.Operation, err error) bool {
 	}
 }
 
+// IsConcurrentAccessError checks if a soap fault or vim fault is ConcurrentAccess error
+func IsConcurrentAccessError(err error) bool {
+	if soap.IsVimFault(err) {
+		_, ok := soap.ToVimFault(err).(*types.ConcurrentAccess)
+
+		return ok
+	}
+
+	if soap.IsSoapFault(err) {
+		_, ok := soap.ToSoapFault(err).VimFault().(types.ConcurrentAccess)
+
+		// sometimes we get the correct fault but wrong type
+		if !ok {
+			return soap.ToSoapFault(err).String == "vim.fault.ConcurrentAccess"
+		}
+
+		return true
+	}
+
+	return false
+}
+
+// IsMethodDisabledError checks if a soap fault or vim fault is MethodDisabled error
+func IsMethodDisabledError(err error) bool {
+	if soap.IsVimFault(err) {
+		if _, ok := soap.ToVimFault(err).(*types.MethodDisabled); ok {
+			return true
+		}
+		if _, ok := soap.ToVimFault(err).(*types.MethodDisabledFault); ok {
+			return true
+		}
+
+		return false
+	}
+
+	if soap.IsSoapFault(err) {
+		if _, ok := soap.ToSoapFault(err).VimFault().(types.MethodDisabled); ok {
+			return true
+		}
+		if _, ok := soap.ToSoapFault(err).VimFault().(types.MethodDisabledFault); ok {
+			return true
+		}
+
+		return false
+	}
+
+	return false
+}
+
+// IsNotFoundError checks if a soap fault or vim fault is ManagementObjectNotFound error
+func IsNotFoundError(err error) bool {
+	if soap.IsVimFault(err) {
+		if _, ok := soap.ToVimFault(err).(*types.ManagedObjectNotFound); ok {
+			return true
+		}
+		if _, ok := soap.ToVimFault(err).(*types.ManagedObjectNotFoundFault); ok {
+			return true
+		}
+
+		return false
+	}
+
+	if soap.IsSoapFault(err) {
+		if _, ok := soap.ToSoapFault(err).VimFault().(types.ManagedObjectNotFound); ok {
+			return true
+		}
+		if _, ok := soap.ToSoapFault(err).VimFault().(types.ManagedObjectNotFoundFault); ok {
+			return true
+		}
+
+		return false
+	}
+
+	return false
+}
+
 // Helper Functions
 func logFault(op trace.Operation, fault types.BaseMethodFault) {
 	op.Errorf("unexpected fault on task retry: %#v", fault)
