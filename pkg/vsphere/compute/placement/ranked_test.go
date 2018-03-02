@@ -18,14 +18,13 @@ import (
 	"context"
 	"testing"
 
+	units "github.com/docker/go-units"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/performance"
-
-	units "github.com/docker/go-units"
 )
 
 // MockMetricsProvider mocks the MetricsProvider interface.
@@ -111,8 +110,8 @@ func (m MockMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*obj
 	return fakeHostMetrics, nil
 }
 
-func TestRankHosts(t *testing.T) {
-	op := trace.NewOperation(context.Background(), "TestRankHosts")
+func TestRankedRecommendHost(t *testing.T) {
+	op := trace.NewOperation(context.Background(), "TestRankedRecommendHost")
 
 	model, server, _ := vpxModelSetup(op, t)
 	defer func() {
