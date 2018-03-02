@@ -17,8 +17,21 @@ package placement
 import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/performance"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
+
+type rankedHost struct {
+	HostReference string
+	*performance.HostMetricsInfo
+	score float64
+}
+
+type rankedHosts []rankedHost
+
+func (r rankedHosts) Len() int           { return len(r) }
+func (r rankedHosts) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r rankedHosts) Less(i, j int) bool { return r[i].score > r[j].score }
 
 // HostPlacementPolicy defines the interface for using metrics to decide the appropriate host
 // for a VM based on host metrics and VM provisioned resources.

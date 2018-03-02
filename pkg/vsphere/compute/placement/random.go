@@ -30,38 +30,26 @@ const (
 	memInactiveWeight   = 0.3 // active memory on the host
 )
 
-type rankedHost struct {
-	HostReference string
-	*performance.HostMetricsInfo
-	score float64
-}
-
-type rankedHosts []rankedHost
-
-func (r rankedHosts) Len() int           { return len(r) }
-func (r rankedHosts) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
-func (r rankedHosts) Less(i, j int) bool { return r[i].score > r[j].score }
-
-// Engine uses data from a MetricsProvider to decide on which host to powerOn a VM.
-type Engine struct {
+// RandomHostPolicy uses data from a MetricsProvider to decide on which host to powerOn a VM.
+type RandomHostPolicy struct {
 	source performance.MetricsProvider
 }
 
-// NewEngine returns an Engine instance using the supplied MetricsProvider.
-func NewEngine(s performance.MetricsProvider) *Engine {
-	return &Engine{source: s}
+// NewRandomHostPolicy returns a RandomHostPolicy instance using the supplied MetricsProvider.
+func NewRandomHostPolicy(s performance.MetricsProvider) *RandomHostPolicy {
+	return &RandomHostPolicy{source: s}
 }
 
 // CheckHost returns true if the host has adequate capacity to power on the VM, false otherwise.
-func (e *Engine) CheckHost(op trace.Operation, host *object.HostSystem) bool {
+func (e *RandomHostPolicy) CheckHost(op trace.Operation, vm *vm.VirtualMachine) bool {
 	// TODO(jzt): return false until we have host checking logic decided
 	return false
 }
 
 // RecommendHost recommends an ideal host on which to place a newly created VM.
-func (e *Engine) RecommendHost(op trace.Operation, vm *vm.VirtualMachine) (*object.HostSystem, error) {
-	// TODO(jzt): randomize placement initially to allow usage of this interface for development
-	// towards other ROBO-related issues.
+func (e *RandomHostPolicy) RecommendHost(op trace.Operation, vm *vm.VirtualMachine) (*object.HostSystem, error) {
+	// TODO(jzt): randomize placement initially to allow usage of this
+	// interface for development towards other ROBO-related issues.
 	r, err := vm.ResourcePool(op)
 	if err != nil {
 		return nil, err
