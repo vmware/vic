@@ -35,7 +35,7 @@ import (
 type MockMetricsProvider struct{}
 
 // GetMetricsForComputeResource not yet implemented.
-func (m *MockMetricsProvider) GetMetricsForComputeResource(op trace.Operation, cr *object.ComputeResource) (map[string]*performance.HostMetricsInfo, error) {
+func (m MockMetricsProvider) GetMetricsForComputeResource(op trace.Operation, cr *object.ComputeResource) (map[string]*performance.HostMetricsInfo, error) {
 	return nil, nil
 }
 
@@ -104,7 +104,7 @@ var (
 	}
 )
 
-func (m *MockMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*object.HostSystem) (map[string]*performance.HostMetricsInfo, error) {
+func (m MockMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*object.HostSystem) (map[string]*performance.HostMetricsInfo, error) {
 	fakeHostMetrics := make(map[string]*performance.HostMetricsInfo)
 	fakeHostMetrics[lh.Reference().String()] = low
 	fakeHostMetrics[lmh.Reference().String()] = lowMedium
@@ -131,10 +131,6 @@ func vpxModelSetup(ctx context.Context, t *testing.T) (*simulator.Model, *simula
 	return model, server, sess
 }
 
-func TestRecommendHost(t *testing.T) {
-	t.Skip("Not yet implemented")
-}
-
 func TestRankHosts(t *testing.T) {
 	op := trace.NewOperation(context.Background(), "TestRankHosts")
 
@@ -147,7 +143,9 @@ func TestRankHosts(t *testing.T) {
 	m := MockMetricsProvider{}
 	hm, err := m.GetMetricsForHosts(op, []*object.HostSystem{})
 	assert.NoError(t, err)
-	result := rankHosts(op, hm)
+
+	rhp := NewRankedHostPolicy(m)
+	result := rhp.rankHosts(op, hm)
 
 	for _, r := range result {
 		op.Infof("%s: %f", r.HostReference, r.score)

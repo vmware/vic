@@ -16,7 +16,6 @@ package placement
 
 import (
 	"math/rand"
-	"sort"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/trace"
@@ -25,31 +24,21 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-const (
-	memUnconsumedWeight = 0.7 // available memory (total - consumed)
-	memInactiveWeight   = 0.3 // active memory on the host
-)
+// RandomHostPolicy chooses a random host on which to power-on a VM.
+type RandomHostPolicy struct{}
 
-// RandomHostPolicy uses data from a MetricsProvider to decide on which host to powerOn a VM.
-type RandomHostPolicy struct {
-	source performance.MetricsProvider
-}
-
-// NewRandomHostPolicy returns a RandomHostPolicy instance using the supplied MetricsProvider.
+// NewRandomHostPolicy returns a RandomHostPolicy instance.
 func NewRandomHostPolicy(s performance.MetricsProvider) *RandomHostPolicy {
-	return &RandomHostPolicy{source: s}
+	return &RandomHostPolicy{}
 }
 
-// CheckHost returns true if the host has adequate capacity to power on the VM, false otherwise.
-func (e *RandomHostPolicy) CheckHost(op trace.Operation, vm *vm.VirtualMachine) bool {
-	// TODO(jzt): return false until we have host checking logic decided
+// CheckHost always returns false in a RandomHostPolicy.
+func (p *RandomHostPolicy) CheckHost(op trace.Operation, vm *vm.VirtualMachine) bool {
 	return false
 }
 
-// RecommendHost recommends an ideal host on which to place a newly created VM.
-func (e *RandomHostPolicy) RecommendHost(op trace.Operation, vm *vm.VirtualMachine) (*object.HostSystem, error) {
-	// TODO(jzt): randomize placement initially to allow usage of this
-	// interface for development towards other ROBO-related issues.
+// RecommendHost recommends a random host on which to place a newly created VM.
+func (p *RandomHostPolicy) RecommendHost(op trace.Operation, vm *vm.VirtualMachine) (*object.HostSystem, error) {
 	r, err := vm.ResourcePool(op)
 	if err != nil {
 		return nil, err
@@ -68,23 +57,4 @@ func (e *RandomHostPolicy) RecommendHost(op trace.Operation, vm *vm.VirtualMachi
 	}
 
 	return hosts[rand.Intn(len(hosts))], nil
-}
-
-func rankHosts(op trace.Operation, hm map[string]*performance.HostMetricsInfo) []rankedHost {
-	ranking := []rankedHost{}
-	for h, m := range hm {
-		rh := rankedHost{
-			HostReference:   h,
-			HostMetricsInfo: m,
-			score:           rankMemory(m) * (1 - m.CPU.UsagePercent),
-		}
-		ranking = append(ranking, rh)
-	}
-	sort.Sort(rankedHosts(ranking))
-	return ranking
-}
-
-func rankMemory(hm *performance.HostMetricsInfo) float64 {
-	free := float64(hm.Memory.TotalKB-hm.Memory.ConsumedKB) / 1024.0
-	return free * memUnconsumedWeight
 }
