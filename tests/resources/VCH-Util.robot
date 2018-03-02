@@ -440,10 +440,10 @@ Cleanup VIC Appliance On Test Server
     ${memory}=  Run Keyword And Ignore Error  Get Hostd Memory Consumption
     Log  ${memory}
     Log To Console  Gathering logs from the test server %{VCH-NAME}
-    Gather Logs From Test Server
-    Wait Until Keyword Succeeds  3x  5 seconds  Remove All Containers
+    Run Keyword And Continue On Failure  Gather Logs From Test Server
     # Exit from Cleanup if VCH-NAME is currently in exception list
     ${exclude}=  Check If VCH Is In Exception  vch=%{VCH-NAME}
+    Run Keyword If  ${exclude}  Wait Until Keyword Succeeds  3x  5 seconds  Remove All Containers
     Return From Keyword If  ${exclude}
     Log To Console  Deleting the VCH appliance %{VCH-NAME}
     ${output}=  Run VIC Machine Delete Command
