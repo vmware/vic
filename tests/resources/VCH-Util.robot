@@ -76,11 +76,16 @@ Set Test Environment Variables
     Set Test VCH Name
     # cleanup any potential old certs directories
     Remove Directory  %{VCH-NAME}  recursive=${true}
+    Wait Until Keyword Succeeds  5x  1s  Create Unique Bridge Network
+
+Create Unique Bridge Network
     # Set a unique bridge network for each VCH that has a random VLAN ID
     ${vlan}=  Evaluate  str(random.randint(1, 4093))  modules=random
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitchLAN %{VCH-NAME}-bridge
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc dvs.portgroup.add -vlan=${vlan} -dvs test-ds %{VCH-NAME}-bridge
-    Set Environment Variable  BRIDGE_NETWORK  %{VCH-NAME}-bridge
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitchLAN %{VCH-NAME}-${vlan}
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc dvs.portgroup.add -vlan=${vlan} -dvs test-ds %{VCH-NAME}-${vlan}
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    Set Environment Variable  BRIDGE_NETWORK  %{VCH-NAME}-${vlan}
 
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
@@ -449,13 +454,13 @@ Cleanup VIC Appliance On Test Server
 
 Cleanup VCH Bridge Network
     [Arguments]  ${name}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${name}-bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove %{BRIDGE_NETWORK}
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  ${name}-bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  %{BRIDGE_NETWORK}
 
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  ${name}-bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  %{BRIDGE_NETWORK}
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc ls network
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${out}  ${name}-bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${out}  %{BRIDGE_NETWORK}
 
 Add VC Distributed Portgroup
     [Arguments]  ${dvs}  ${pg}
@@ -538,8 +543,7 @@ Cleanup Dangling Networks On Test Server
     \   # Skip any Network that is not associated with integration tests
     \   Continue For Loop If  '@{build}[0]' != 'VCH'
     \   # Skip any Network that is attached to a VCH in the exception list
-    \   @{name}=  Split String  ${net}  -bridge
-    \   ${skip}=  Check If VCH Is In Exception  vch=@{name}[0]  exceptions=${exceptions}
+    \   ${skip}=  Check If VCH Is In Exception  vch=@{build}[0]-@{build}[1]-@{build}[2]  exceptions=${exceptions}
     \   Continue For Loop If  ${skip}
     \   # Skip any Network that is still running
     \   ${state}=  Get State Of Drone Build  @{build}[1]
@@ -558,8 +562,7 @@ Cleanup Dangling vSwitches On Test Server
     \   # Skip any vSwitch that is not associated with integration tests
     \   Continue For Loop If  '@{build}[0]' != 'VCH'
     \   # Skip any switch that is attached to a VCH in the exception list
-    \   @{name}=  Split String  ${net}  -bridge
-    \   ${skip}=  Check If VCH Is In Exception  vch=@{name}[0]  exceptions=${exceptions}
+    \   ${skip}=  Check If VCH Is In Exception  vch=@{build}[0]-@{build}[1]-@{build}[2]  exceptions=${exceptions}
     \   Continue For Loop If  ${skip}
     \   # Skip any vSwitch that is still running
     \   ${state}=  Get State Of Drone Build  @{build}[1]
