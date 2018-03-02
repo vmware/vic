@@ -20,7 +20,6 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
-	"github.com/vmware/vic/pkg/vsphere/performance"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
@@ -28,7 +27,7 @@ import (
 type RandomHostPolicy struct{}
 
 // NewRandomHostPolicy returns a RandomHostPolicy instance.
-func NewRandomHostPolicy(s performance.MetricsProvider) *RandomHostPolicy {
+func NewRandomHostPolicy() *RandomHostPolicy {
 	return &RandomHostPolicy{}
 }
 

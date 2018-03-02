@@ -21,12 +21,9 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/simulator"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/performance"
-	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/test"
 
 	units "github.com/docker/go-units"
 )
@@ -112,23 +109,6 @@ func (m MockMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*obj
 	fakeHostMetrics[hh.Reference().String()] = high
 
 	return fakeHostMetrics, nil
-}
-
-// vpxModelSetup creates a VPX model, starts its server and populates the session. The caller must
-// clean up the model and the server once it is done using them.
-func vpxModelSetup(ctx context.Context, t *testing.T) (*simulator.Model, *simulator.Server, *session.Session) {
-	model := simulator.VPX()
-	if err := model.Create(); err != nil {
-		t.Fatal(err)
-	}
-
-	server := model.Service.NewServer()
-	sess, err := test.SessionWithVPX(ctx, server.URL.String())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return model, server, sess
 }
 
 func TestRankHosts(t *testing.T) {
