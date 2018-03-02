@@ -637,7 +637,7 @@ func (vm *VirtualMachine) SetVCHUpdateStatus(ctx context.Context, status bool) e
 	return err
 }
 
-// DisableDestroy attempts to disable teh VirtualMachine.Destroy_Task method on the VM
+// DisableDestroy attempts to disable the VirtualMachine.Destroy_Task method on the VM
 // After destroy is disabled for the VM, any session other than the session that disables the destroy can't evoke the method
 // The "VM delete" option will be grayed out on VC UI
 // Requires the "Global.Disable" VC privilege
