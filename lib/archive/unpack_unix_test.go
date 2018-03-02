@@ -910,6 +910,62 @@ func TestMultiExclusionMultiInclusionDirectoriesNonRootTarget(t *testing.T) {
 
 }
 
+type bufWriteCloser struct {
+	*bytes.Buffer
+}
+
+func newBufWriteCloser() *bufWriteCloser {
+	b := new(bytes.Buffer)
+	return &bufWriteCloser{Buffer: b}
+}
+
+func (b *bufWriteCloser) Write(p []byte) (n int, err error) {
+	return b.Buffer.Write(p)
+}
+
+func (b *bufWriteCloser) Close() error {
+	return nil
+}
+
+func TestStreamCopy(t *testing.T) {
+	filesToWrite := prepareTarFileSlice()
+	tarBytes, err := TarFiles(filesToWrite)
+	assert.NoError(t, err)
+
+	op := trace.NewOperation(context.TODO(), "")
+	op.Infof("%d", len(tarBytes.Bytes()))
+
+	foo := newBufWriteCloser()
+	tr := tar.NewReader(tarBytes)
+	err = streamCopy(op, foo, tr)
+
+	assert.NoError(t, err)
+	tarBytes, err = TarFiles(filesToWrite)
+	tb := tarBytes.Bytes()
+
+	assert.NoError(t, err)
+	assert.NotEqual(t, len(tb), 0)
+	assert.NotEqual(t, len(foo.Bytes()), 0)
+	for i, b := range foo.Bytes() {
+		assert.Equal(t, b, tb[i])
+	}
+
+	reader := new(bytes.Buffer)
+	reader.Write([]byte("foobar"))
+	foo = newBufWriteCloser()
+	err = streamCopy(op, foo, reader)
+	assert.NoError(t, err)
+
+	tb = []byte("foobar")
+	assert.NoError(t, err)
+	assert.NotEqual(t, len(tb), 0)
+	assert.NotEqual(t, len(foo.Bytes()), 0)
+	for i, b := range foo.Bytes() {
+		assert.Equal(t, b, tb[i])
+	}
+
+}
+
 func prepareTarFileSlice() []TarFile {
 
 	defaultTestFileBody := "There is not a single vacant room throughout the entire infinite hotel."

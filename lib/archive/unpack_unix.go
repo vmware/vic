@@ -139,7 +139,7 @@ func UnpackNoChroot(op trace.Operation, tarStream io.Reader, filter *FilterSpec,
 	return nil
 }
 
-// OfflineUnpack wraps Unpack for usage in contexts without a childReaper.
+// OfflineUnpack wraps Unpack for usage in contexts without a childReaper, namely when copying to an offline container with docker cp
 func OfflineUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string) error {
 
 	var cmd *exec.Cmd
@@ -155,11 +155,12 @@ func OfflineUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, 
 	return nil
 }
 
+// OnlineUnpack will extract a tar stream tarStream to folder root inside of a running container
 func OnlineUnpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string) (*exec.Cmd, error) {
 	return unpack(op, tarStream, filter, root, containerBinaryPath)
 }
 
-func streamCopy(op trace.Operation, stdin io.WriteCloser, tarStream io.Reader) {
+func streamCopy(op trace.Operation, stdin io.WriteCloser, tarStream io.Reader) error {
 	// if we're passed a stream that doesn't cast to a tar.Reader copy the tarStream to the binary via stdin; the binary will stream it to InvokeUnpack unchanged
 	var err error
 	tr, ok := tarStream.(*tar.Reader)
@@ -167,8 +168,9 @@ func streamCopy(op trace.Operation, stdin io.WriteCloser, tarStream io.Reader) {
 		defer stdin.Close()
 		if _, err := io.Copy(stdin, tarStream); err != nil {
 			op.Errorf("Error copying tarStream: %s", err.Error())
+			return err
 		}
-		return
+		return nil
 	}
 
 	tw := tar.NewWriter(stdin)
@@ -178,24 +180,24 @@ func streamCopy(op trace.Operation, stdin io.WriteCloser, tarStream io.Reader) {
 		th, err = tr.Next()
 		if err == io.EOF {
 			tw.Close()
-			return
+			return nil
 		}
 		if err != nil {
 			op.Errorf("error reading tar header %s", err)
-			return
+			return err
 		}
 		op.Debugf("processing tar header: asset(%s), size(%d)", th.Name, th.Size)
 		err = tw.WriteHeader(th)
 		if err != nil {
 			op.Errorf("error writing tar header %s", err)
-			return
+			return err
 		}
 		var k int64
 		k, err = io.Copy(tw, tr)
 		op.Debugf("wrote %d bytes", k)
 		if err != nil {
 			op.Errorf("error writing file body bytes to stdin %s", err)
-			return
+			return err
 		}
 	}
 }
