@@ -177,6 +177,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 			d.op.Debugf("Failed to power off existing appliance for %s, try to remove anyway", err)
 		}
 	}
+
 	// get the actual folder name before we delete it
 	folder, err := vm.FolderName(d.op)
 	if err != nil {
@@ -202,8 +203,42 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		return vm.DeleteExceptDisks(ctx)
 	})
 
-	// grab the parent path of the vm
-	parentFolderPath := path.Dir(vm.InventoryPath)
+	err = d.createVCHInventoryFolders()
+	if err != nil {
+		// FIXME: DO CLEANUP
+		return err
+	}
+
+	// We are getting ConcurrentAccess errors from DeleteExceptDisks - even though we don't set ChangeVersion in that path
+	// We are ignoring the error because in reality the operation finishes successfully.
+	ignore := false
+	if err != nil {
+		if f, ok := err.(types.HasFault); ok {
+			switch f.Fault().(type) {
+			case *types.ConcurrentAccess:
+				d.op.Warn("DeleteExceptDisks failed with ConcurrentAccess error. Ignoring it.")
+				ignore = true
+			}
+		}
+		if !ignore {
+			err = errors.Errorf("Failed to destroy VM %q: %s", vm.Reference(), err)
+			err2 := vm.Unregister(d.op)
+			if err2 != nil {
+				return errors.Errorf("%s then failed to unregister VM: %s", err, err2)
+			}
+			d.op.Infof("Unregistered VM to cleanup after failed destroy: %q", vm.Reference())
+		}
+	}
+
+	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
+		d.op.Warnf("Failed to remove datastore files for VM path %q: %s", folder, err)
+	}
+
+	return nil
+}
+
+func (d *Dispatcher) createVCHInventoryFolders() error {
+	parentFolderPath := path.Dir(d.appliance.InventoryPath)
 	// Now that the VCH is gone we will need to delete the inventory folder structure.
 	d.op.Debugf("Attempting to remove inventory folder: %s", parentFolderPath)
 
@@ -220,7 +255,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		return err
 	}
 
-	for len(folderContents) == 0 {
+	for len(folderContents) == 0 && folderRef.Reference() != d.session.VMFolder.Reference() {
 		err = d.removeFolder(folderRef)
 		if err != nil {
 			return err
@@ -565,12 +600,37 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			// now that we have the list of needed constructions we need to assemble it.
 			existingFolder := d.session.VMFolder
 			for _, fname := range folders {
-				d.op.Debugf("Attempting to create folder : %s/%s", existingFolder.InventoryPath, fname)
+				folderCreateTarget := fmt.Sprintf("%s/%s", existingFolder.InventoryPath, fname)
+				d.op.Debugf("Attempting to create folder : %s", folderCreateTarget)
 				f, err := existingFolder.CreateFolder(d.op, fname)
-				// FIXME: WE MUST CHECK FOR AN ALREADY EXISTS ERROR HERE TOO!!!
+				ok := false
 				if err != nil {
-					d.op.Debugf("Failed to Creat folder at path(%s/%s) : %s", existingFolder.InventoryPath, fname, err)
-					return nil, err
+					// check for already exists fault
+					if soap.IsSoapFault(err) {
+
+						switch fault := soap.ToSoapFault(err).VimFault().(type) {
+						case *types.AlreadyExists:
+							ok = true
+						case *types.DuplicateName:
+							ok = true
+						default:
+							d.op.Errorf("Encountered unexpected fault : %#v ", fault)
+							return nil, fmt.Errorf("encountered unexpected fault when attempting to create %s please see vic-machine.log for more information", folderCreateTarget)
+						}
+
+						if ok {
+							// the folder already exists. Get the ref.
+							folder, err := d.session.Finder.Folder(d.op, folderCreateTarget)
+							if err != nil {
+								return nil, err
+							}
+
+							existingFolder = folder
+							continue
+						}
+					}
+
+					d.op.Debugf("Failed to Create folder at path(%s/%s) : %#v", existingFolder.InventoryPath, fname, err)
 				}
 				existingFolder = f
 			}

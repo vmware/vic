@@ -82,6 +82,13 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 		}
 	}
 
+	element, err := d.session.Finder.Element(d.op, vmm.Reference())
+	if err != nil {
+		return err
+	}
+	vmm.SetInventoryPath(element.Path)
+	d.appliance = vmm
+
 	if err = d.deleteImages(conf); err != nil {
 		errs = append(errs, err.Error())
 	}
@@ -274,6 +281,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 		wg.Add(1)
 		go func(child *vm.VirtualMachine) {
 			defer wg.Done()
+			// looks like this is run for cvm's and the vch. this could be inefficient when going to the finder for inventory folder removal.
 			if err = d.deleteVM(child, deletePoweredOnContainers); err != nil {
 				mu.Lock()
 				errs = append(errs, err.Error())
