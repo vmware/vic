@@ -75,6 +75,7 @@ func NewHostMetricsProvider(s *session.Session) *HostMetricsProvider {
 }
 
 // GetMetricsForComputeResource gathers host metrics from the supplied compute resource.
+// Returned map is keyed on the host ManagedObjectReference in string form.
 func (h *HostMetricsProvider) GetMetricsForComputeResource(op trace.Operation, cr *object.ComputeResource) (map[string]*HostMetricsInfo, error) {
 	if h.session == nil {
 		return nil, fmt.Errorf("session not set")
@@ -94,6 +95,7 @@ func (h *HostMetricsProvider) GetMetricsForComputeResource(op trace.Operation, c
 }
 
 // GetMetricsForHosts returns metrics pertaining to supplied ESX hosts.
+// Returned map is keyed on the host ManagedObjectReference in string form.
 func (h *HostMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*object.HostSystem) (map[string]*HostMetricsInfo, error) {
 	if len(hosts) == 0 {
 		return nil, fmt.Errorf("no hosts provided")
