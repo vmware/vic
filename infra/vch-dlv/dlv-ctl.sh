@@ -1,4 +1,6 @@
 #!/bin/bash
+SSH="ssh -o StrictHostKeyChecking=no"
+SCP="scp -o StrictHostKeyChecking=no"
 
 REMOTE_DLV_ATTACH=/usr/local/bin/dlv-attach-headless.sh
 REMOTE_DLV_DETACH=/usr/local/bin/dlv-detach-headless.sh
@@ -90,15 +92,15 @@ fi
 
 if [ ${COMMAND} == "attach" ]; then
     if [ -n "${SSHPASS}" ]; then
-        sshpass -e ssh root@${VCH_HOST} "nohup /usr/local/bin/dlv-attach-headless.sh $TARGET $PORT > /var/tmp/${TARGET}.log 2>&1 &"
+        sshpass -e ${SSH} root@${VCH_HOST} "nohup /usr/local/bin/dlv-attach-headless.sh $TARGET $PORT > /var/tmp/${TARGET}.log 2>&1 &"
     else
-       ssh root@${VCH_HOST} "nohup /usr/local/bin/dlv-attach-headless.sh $TARGET $PORT >  /var/tmp/${TARGET}.log 2>&1 &"
+       ${SSH} root@${VCH_HOST} "nohup /usr/local/bin/dlv-attach-headless.sh $TARGET $PORT >  /var/tmp/${TARGET}.log 2>&1 &"
     fi
 elif [ ${COMMAND} == "detach" ]; then
     if [ -n "${SSHPASS}" ]; then
-        sshpass -e ssh root@${VCH_HOST} "/usr/local/bin/dlv-detach-headless.sh $PORT"
+        sshpass -e ${SSH} root@${VCH_HOST} "/usr/local/bin/dlv-detach-headless.sh $PORT"
     else
-       ssh root@${VCH_HOST} "/usr/local/bin/dlv-detach-headless.sh $PORT"
+       ${SSH} root@${VCH_HOST} "/usr/local/bin/dlv-detach-headless.sh $PORT"
     fi
 else
     usage
