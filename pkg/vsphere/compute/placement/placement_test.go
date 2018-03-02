@@ -22,6 +22,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/simulator"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/performance"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -34,7 +35,7 @@ import (
 type MockMetricsProvider struct{}
 
 // GetMetricsForComputeResource not yet implemented.
-func (m *MockMetricsProvider) GetMetricsForComputeResource(op trace.Operation, cr *object.ComputeResource) (map[*object.HostSystem]*performance.HostMetricsInfo, error) {
+func (m *MockMetricsProvider) GetMetricsForComputeResource(op trace.Operation, cr *object.ComputeResource) (map[string]*performance.HostMetricsInfo, error) {
 	return nil, nil
 }
 
@@ -78,33 +79,37 @@ var (
 	}
 
 	lh = &object.HostSystem{
-		Common: object.Common{
-			InventoryPath: "low_rank",
-		},
+		Common: object.NewCommon(nil, types.ManagedObjectReference{
+			Type:  "low_type",
+			Value: "low_value",
+		}),
 	}
 	lmh = &object.HostSystem{
-		Common: object.Common{
-			InventoryPath: "lowmedium_rank",
-		},
+		Common: object.NewCommon(nil, types.ManagedObjectReference{
+			Type:  "lowmedium_type",
+			Value: "lowmedium_value",
+		}),
 	}
 	mh = &object.HostSystem{
-		Common: object.Common{
-			InventoryPath: "medium_rank",
-		},
+		Common: object.NewCommon(nil, types.ManagedObjectReference{
+			Type:  "medium_type",
+			Value: "medium_value",
+		}),
 	}
 	hh = &object.HostSystem{
-		Common: object.Common{
-			InventoryPath: "high_rank",
-		},
+		Common: object.NewCommon(nil, types.ManagedObjectReference{
+			Type:  "high_type",
+			Value: "high_value",
+		}),
 	}
 )
 
-func (m *MockMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*object.HostSystem) (map[*object.HostSystem]*performance.HostMetricsInfo, error) {
-	fakeHostMetrics := make(map[*object.HostSystem]*performance.HostMetricsInfo)
-	fakeHostMetrics[lh] = low
-	fakeHostMetrics[lmh] = lowMedium
-	fakeHostMetrics[mh] = medium
-	fakeHostMetrics[hh] = high
+func (m *MockMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*object.HostSystem) (map[string]*performance.HostMetricsInfo, error) {
+	fakeHostMetrics := make(map[string]*performance.HostMetricsInfo)
+	fakeHostMetrics[lh.Reference().String()] = low
+	fakeHostMetrics[lmh.Reference().String()] = lowMedium
+	fakeHostMetrics[mh.Reference().String()] = medium
+	fakeHostMetrics[hh.Reference().String()] = high
 
 	return fakeHostMetrics, nil
 }
@@ -145,9 +150,14 @@ func TestRankHosts(t *testing.T) {
 	result := rankHosts(op, hm)
 
 	for _, r := range result {
-		op.Infof("%s: %f", r.InventoryPath, r.score)
+		op.Infof("%s: %f", r.HostReference, r.score)
 	}
 
-	assert.NotEqual(t, lh, result[0], "Expected %s, got %s", lh.InventoryPath, result[0].InventoryPath)
-	assert.Equal(t, hh.InventoryPath, result[0].InventoryPath, "Expected %s, got %s", hh.InventoryPath, result[0].InventoryPath)
+	expected := lh.Reference().String()
+	actual := result[0].HostReference
+	assert.NotEqual(t, expected, actual)
+
+	expected = hh.Reference().String()
+	actual = result[0].HostReference
+	assert.Equal(t, expected, actual)
 }

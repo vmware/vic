@@ -22,8 +22,8 @@ import (
 // MetricsProvider defines the interface for providing metrics.
 type MetricsProvider interface {
 	// GetMetricsForComputeResource returns metrics for a particular compute resource
-	GetMetricsForComputeResource(trace.Operation, *object.ComputeResource) (map[*object.HostSystem]*HostMetricsInfo, error)
+	GetMetricsForComputeResource(trace.Operation, *object.ComputeResource) (map[string]*HostMetricsInfo, error)
 
 	// GetMetricsForHosts returns metrics pertaining to supplied ESX hosts.
-	GetMetricsForHosts(trace.Operation, []*object.HostSystem) (map[*object.HostSystem]*HostMetricsInfo, error)
+	GetMetricsForHosts(trace.Operation, []*object.HostSystem) (map[string]*HostMetricsInfo, error)
 }

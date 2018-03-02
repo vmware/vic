@@ -60,10 +60,10 @@ func TestAssembleMetrics(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	morefToHost := make(map[types.ManagedObjectReference]*object.HostSystem)
+	morefToHost := make(map[string]*object.HostSystem)
 	for i := range hosts {
 		moref := hosts[i].Reference()
-		morefToHost[moref] = hosts[i]
+		morefToHost[moref.String()] = hosts[i]
 	}
 
 	var results []performance.EntityMetric
@@ -125,11 +125,11 @@ func TestAssembleMetrics(t *testing.T) {
 
 	// Assembled metrics should not have an entry for fakeHost.
 	assert.Equal(t, len(metrics), len(hosts))
-	_, exists := metrics[fakeHost]
+	_, exists := metrics[fakeHost.Reference().String()]
 	assert.False(t, exists, "fakeHost %s should not be present in result metrics", fakeHost.String())
 
 	for i, host := range hosts {
-		hostMetric, exists := metrics[host]
+		hostMetric, exists := metrics[host.Reference().String()]
 		assert.True(t, exists, "host %s should be present in result metrics", host.String())
 
 		i := int64(i)
@@ -143,7 +143,7 @@ func TestAssembleMetrics(t *testing.T) {
 
 	// Test that when a host moref is present in the govmomi metrics request but its metric
 	// results are missing, assembleMetrics creates an empty entry for the said host.
-	morefToHost[fakeHost.Reference()] = fakeHost
+	morefToHost[fakeHost.Reference().String()] = fakeHost
 
 	// Remove fakeHost's metrics from the results slice to feed into assembleMetrics.
 	var fakeResults []performance.EntityMetric
@@ -156,7 +156,7 @@ func TestAssembleMetrics(t *testing.T) {
 	metrics = assembleMetrics(op, morefToHost, fakeResults)
 	// Assembled metrics should now have an (empty) entry for fakeHost.
 	assert.Equal(t, len(metrics), len(hosts)+1)
-	fakeHostMetrics, exists := metrics[fakeHost]
+	fakeHostMetrics, exists := metrics[fakeHost.Reference().String()]
 	assert.True(t, exists, "fakeHost %s should now be present in result metrics", fakeHost.String())
 	expectedFakeMetrics := HostMetricsInfo{}
 	assert.Equal(t, expectedFakeMetrics, *fakeHostMetrics)

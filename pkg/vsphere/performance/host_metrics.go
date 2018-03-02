@@ -63,18 +63,19 @@ type HostMetricsInfo struct {
 	CPU    HostCPU
 }
 
-// HostMetrics returns CPU and memory metrics for all ESXi hosts in a cluster
+// HostMetricsProvider returns CPU and memory metrics for all ESXi hosts in a cluster
 // via implementation of the MetricsProvider interface.
 type HostMetricsProvider struct {
 	session *session.Session
 }
 
+// NewHostMetricsProvider returns a new instance of HostMetricsProvider.
 func NewHostMetricsProvider(s *session.Session) *HostMetricsProvider {
 	return &HostMetricsProvider{session: s}
 }
 
-// GatherMetricsForComputeResource gathers host metrics from the supplied compute resource.
-func (h *HostMetricsProvider) GetMetricsForComputeResource(op trace.Operation, cr *object.ComputeResource) (map[*object.HostSystem]*HostMetricsInfo, error) {
+// GetMetricsForComputeResource gathers host metrics from the supplied compute resource.
+func (h *HostMetricsProvider) GetMetricsForComputeResource(op trace.Operation, cr *object.ComputeResource) (map[string]*HostMetricsInfo, error) {
 	if h.session == nil {
 		return nil, fmt.Errorf("session not set")
 	}
@@ -93,7 +94,7 @@ func (h *HostMetricsProvider) GetMetricsForComputeResource(op trace.Operation, c
 }
 
 // GetMetricsForHosts returns metrics pertaining to supplied ESX hosts.
-func (h *HostMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*object.HostSystem) (map[*object.HostSystem]*HostMetricsInfo, error) {
+func (h *HostMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*object.HostSystem) (map[string]*HostMetricsInfo, error) {
 	if len(hosts) == 0 {
 		return nil, fmt.Errorf("no hosts provided")
 	}
@@ -102,11 +103,11 @@ func (h *HostMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*ob
 		return nil, fmt.Errorf("session not set")
 	}
 
-	morefToHost := make(map[types.ManagedObjectReference]*object.HostSystem)
+	morefToHost := make(map[string]*object.HostSystem)
 	morefs := make([]types.ManagedObjectReference, len(hosts))
 	for i, host := range hosts {
 		moref := host.Reference()
-		morefToHost[moref] = host
+		morefToHost[moref.String()] = host
 		morefs[i] = moref
 	}
 
@@ -138,22 +139,23 @@ func (h *HostMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*ob
 
 // assembleMetrics processes the metric samples received from govmomi and returns a finalized metrics map
 // keyed by the hosts.
-func assembleMetrics(op trace.Operation, morefToHost map[types.ManagedObjectReference]*object.HostSystem,
-	results []performance.EntityMetric) map[*object.HostSystem]*HostMetricsInfo {
-	metrics := make(map[*object.HostSystem]*HostMetricsInfo)
+func assembleMetrics(op trace.Operation, morefToHost map[string]*object.HostSystem,
+	results []performance.EntityMetric) map[string]*HostMetricsInfo {
+	metrics := make(map[string]*HostMetricsInfo)
 
 	for _, host := range morefToHost {
-		metrics[host] = &HostMetricsInfo{}
+		metrics[host.Reference().String()] = &HostMetricsInfo{}
 	}
 
 	for i := range results {
 		res := results[i]
-		host, exists := morefToHost[res.Entity]
+		host, exists := morefToHost[res.Entity.String()]
 		if !exists {
 			op.Warnf("moref %s does not exist in requested morefs, skipping", res.Entity.String())
 			continue
 		}
 
+		ref := host.Reference().String()
 		// Process each value and assign it directly to the corresponding metric field
 		// since there is only one sample.
 		for _, v := range res.Value {
@@ -171,16 +173,16 @@ func assembleMetrics(op trace.Operation, morefToHost map[types.ManagedObjectRefe
 			switch v.Name {
 			case cpuUsage:
 				// Convert percent units from 1/100th of a percent (100 = 1%) to a human-readable percentage.
-				metrics[host].CPU.UsagePercent = float64(v.Value[0]) / 100.0
+				metrics[ref].CPU.UsagePercent = float64(v.Value[0]) / 100.0
 			case memActive:
-				metrics[host].Memory.ActiveKB = v.Value[0]
+				metrics[ref].Memory.ActiveKB = v.Value[0]
 			case memConsumed:
-				metrics[host].Memory.ConsumedKB = v.Value[0]
+				metrics[ref].Memory.ConsumedKB = v.Value[0]
 			case memOverhead:
-				metrics[host].Memory.OverheadKB = v.Value[0]
+				metrics[ref].Memory.OverheadKB = v.Value[0]
 			case memTotalCapacity:
 				// Total capacity is in MB, convert to KB so as to have all memory values in KB.
-				metrics[host].Memory.TotalKB = v.Value[0] * 1024
+				metrics[ref].Memory.TotalKB = v.Value[0] * 1024
 			}
 		}
 	}

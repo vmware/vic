@@ -15,7 +15,6 @@
 package placement
 
 import (
-	"fmt"
 	"math/rand"
 	"sort"
 
@@ -32,13 +31,9 @@ const (
 )
 
 type rankedHost struct {
-	*object.HostSystem
+	HostReference string
 	*performance.HostMetricsInfo
 	score float64
-}
-
-func (r *rankedHost) String() string {
-	return fmt.Sprintf("%s:%f", r.HostSystem.InventoryPath, r.score)
 }
 
 type rankedHosts []rankedHost
@@ -87,11 +82,11 @@ func (e *Engine) RecommendHost(op trace.Operation, vm *vm.VirtualMachine) (*obje
 	return hosts[rand.Intn(len(hosts))], nil
 }
 
-func rankHosts(op trace.Operation, hm map[*object.HostSystem]*performance.HostMetricsInfo) []rankedHost {
+func rankHosts(op trace.Operation, hm map[string]*performance.HostMetricsInfo) []rankedHost {
 	ranking := []rankedHost{}
 	for h, m := range hm {
 		rh := rankedHost{
-			HostSystem:      h,
+			HostReference:   h,
 			HostMetricsInfo: m,
 			score:           rankMemory(m) * (1 - m.CPU.UsagePercent),
 		}
