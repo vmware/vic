@@ -43,7 +43,6 @@ do
     esac
 done
 
-echo $OPTIND
 shift $((OPTIND-1))
 
 if [[ -z "${COMMAND}" &&  $# != 2 ]]; then
@@ -105,3 +104,5 @@ elif [ ${COMMAND} == "detach" ]; then
 else
     usage
 fi
+
+echo $VCH_HOST:$PORT
