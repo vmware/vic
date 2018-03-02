@@ -470,7 +470,7 @@ Add VC Distributed Portgroup
 Remove VC Distributed Portgroup
     [Arguments]  ${pg}
     ${out}=  Run  govc object.destroy network/${pg}
-    Should Contain  ${out}  OK
+    Log  ${out}
 
 Cleanup Datastore On Test Server
     ${out}=  Run  govc datastore.ls
