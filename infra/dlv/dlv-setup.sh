@@ -1,5 +1,4 @@
 #!/bin/bash
-set -x
 SSH="ssh -o StrictHostKeyChecking=no"
 SCP="scp -o StrictHostKeyChecking=no"
 
@@ -49,22 +48,29 @@ if [ -z "${GOPATH}" -o -z "${GOROOT}" ]; then
 fi
 
 # copy dlv binary
+echo -n copying dlv binary..
 if [ -f ${DLV_BIN} ]; then
     sshpass -e ${SCP} ${DLV_BIN} root@${VCH_HOST}:/usr/local/bin
 else
     echo $DLV_BIN does not exist. Run \"go get github.com/derekparker/delve/cmd/dlv\"
     exit 1
 fi
+echo done
 
 # copy GOROOT env
+echo -n copying GOROOT environment..
 sshpass -e ${SSH} root@${VCH_HOST} "mkdir -p /usr/local/go"
 sshpass -e ${SCP} -r ${GOROOT}/bin root@${VCH_HOST}:/usr/local/go
 sshpass -e ${SCP} -r ${GOROOT}/api root@${VCH_HOST}:/usr/local/go
 sshpass -e ${SCP} ${GOROOT}/VERSION root@${VCH_HOST}:/usr/local/go
 sshpass -e ${SSH} root@${VCH_HOST} "ln -f -s /usr/local/go/bin/go /usr/local/bin/go"
+echo done
 
 # open IPTABLES
-sshpass -e ${SSH} root@${VCH_HOST} "iptables -A INPUT -p tcp -m tcp --dport 2345:2349 -j ACCEPT"
+echo -n fixing ipatables..
+sshpass -e ${SSH} root@${VCH_HOST} "iptables -I INPUT -p tcp -m tcp --dport 2345:2349 -j ACCEPT"
+echo done
+echo "Iptables changed: run \"iptables -D INPUT 1\" when finished debugging"
 
 # write remote dlv attach script
 TEMPFILE=$(mktemp)
@@ -123,7 +129,9 @@ EOF
 
 sshpass -e ${SCP} ${TEMPFILE} root@${VCH_HOST}:/usr/local/bin/dlv-detach-headless.sh
 
-sshpass -e ${SSH}  root@${VCH_HOST} 'chmod +x /usr/local/bin/*'
+sshpass -e ${SSH} root@${VCH_HOST} 'chmod +x /usr/local/bin/*'
+
+sshpass -e ${SSH} root@${VCH_HOST} 'passwd -x 100 root'
 
 rm ${TEMPFILE}
 
