@@ -40,5 +40,6 @@ pipeline:
       - 'export GOVC_DATASTORE=${TEST_DATASTORE}'
       - 'export DOMAIN=${DOMAIN}'
       - tests/integration-test.sh
+      # - pybot -t "Delete VCH with non-cVM in same RP" tests/test-cases/Group6-VIC-Machine/6-03-Delete.robot
     volumes:
       - /tmp
