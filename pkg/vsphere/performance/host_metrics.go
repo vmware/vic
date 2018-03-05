@@ -19,6 +19,8 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/performance"
+	"github.com/vmware/govmomi/property"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -190,4 +192,35 @@ func assembleMetrics(op trace.Operation, morefToHost map[string]*object.HostSyst
 	}
 
 	return metrics
+}
+
+// filterHosts removes candidate hosts who are either disconnected or in maintenance mode.
+func filterHosts(op trace.Operation, s *session.Session, hosts []*object.HostSystem) ([]*object.HostSystem, error) {
+	if len(hosts) == 0 {
+		return nil, fmt.Errorf("no candidate hosts to filter check")
+	}
+
+	// TODO(jzt): figure out how to hone in on connection state and maintenance mode keywords to make the result
+	// more sparse
+	props := []string{"summary"}
+	refs := make([]types.ManagedObjectReference, 0, len(hosts))
+	for _, h := range hosts {
+		refs = append(refs, h.Reference())
+	}
+
+	hs := make([]mo.HostSystem, 0, len(hosts))
+	pc := property.DefaultCollector(s.Client.Client)
+	err := pc.Retrieve(op, refs, props, &hs)
+	if err != nil {
+		return nil, err
+	}
+
+	result := hosts[:0]
+	for i, h := range hs {
+		if h.Summary.Runtime.ConnectionState == types.HostSystemConnectionStateConnected && !h.Summary.Runtime.InMaintenanceMode {
+			result = append(result, hosts[i])
+		}
+	}
+
+	return result, nil
 }

@@ -22,34 +22,16 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/performance"
-	"github.com/vmware/govmomi/simulator"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/test"
 )
-
-// vpxModelSetup creates a VPX model, starts its server and populates the session. The caller must
-// clean up the model and the server once it is done using them.
-func vpxModelSetup(ctx context.Context, t *testing.T) (*simulator.Model, *simulator.Server, *session.Session) {
-	model := simulator.VPX()
-	if err := model.Create(); err != nil {
-		t.Fatal(err)
-	}
-
-	server := model.Service.NewServer()
-	sess, err := test.SessionWithVPX(ctx, server.URL.String())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return model, server, sess
-}
 
 func TestAssembleMetrics(t *testing.T) {
 	op := trace.NewOperation(context.Background(), "TestAssembleMetrics")
 
-	model, server, sess := vpxModelSetup(op, t)
+	model, server, sess := test.VpxModelSetup(op, t)
 	defer func() {
 		model.Remove()
 		server.Close()
@@ -160,4 +142,53 @@ func TestAssembleMetrics(t *testing.T) {
 	assert.True(t, exists, "fakeHost %s should now be present in result metrics", fakeHost.String())
 	expectedFakeMetrics := HostMetricsInfo{}
 	assert.Equal(t, expectedFakeMetrics, *fakeHostMetrics)
+}
+
+func TestFilterHosts(t *testing.T) {
+	op := trace.NewOperation(context.Background(), "TestFilterHosts")
+
+	model, server, sess := test.VpxModelSetup(op, t)
+	defer func() {
+		model.Remove()
+		server.Close()
+	}()
+
+	hosts, err := sess.Cluster.Hosts(op)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	filteredHosts, err := filterHosts(op, sess, hosts)
+	assert.NoError(t, err)
+	assert.Len(t, filteredHosts, len(hosts))
+
+	spec := &types.HostMaintenanceSpec{}
+
+	_, err = tasks.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
+		return hosts[0].EnterMaintenanceMode(op, 30, false, spec)
+	})
+	assert.NoError(t, err)
+
+	filteredHosts, err = filterHosts(op, sess, hosts)
+	assert.NoError(t, err)
+	assert.Len(t, filteredHosts, len(hosts)-1)
+
+	// TODO(jzt): uncomment this when vcsim host_system.go supports DisconnectHost_Task
+	// _, err = tasks.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
+	// 	return hosts[0].Disconnect(op)
+	// })
+	// assert.NoError(t, err)
+
+	// filteredHosts, err = filterHosts(op, sess, hosts)
+	// assert.NoError(t, err)
+	// assert.Len(t, filteredHosts, len(hosts)-1)
+}
+
+func TestFilterHostsEmptyList(t *testing.T) {
+	op := trace.NewOperation(context.Background(), "TestFilterHostsEmptyList")
+
+	empty := []*object.HostSystem{}
+	h, err := filterHosts(op, nil, empty)
+	assert.Error(t, err)
+	assert.Len(t, h, 0)
 }
