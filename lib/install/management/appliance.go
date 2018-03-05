@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -490,6 +490,12 @@ func (d *Dispatcher) findApplianceByID(conf *config.VirtualContainerHostConfigSp
 		return nil, err
 	}
 	vmm = vm.NewVirtualMachine(d.op, d.session, ovm.Reference())
+
+	element, err := d.session.Finder.Element(d.op, vmm.Reference())
+	if err != nil {
+		return nil, err
+	}
+	vmm.SetInventoryPath(element.Path)
 	return vmm, nil
 }
 
@@ -770,11 +776,11 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 func (d *Dispatcher) createVCHInventoryFolders(spec *types.VirtualMachineConfigSpec) (*object.Folder, error) {
 	d.op.Info("Creating VCH inventory folders")
 	vchName := spec.Name
-	clusterName := path.Base(d.session.ClusterPath)
-	consolidated := clusterName + "/" + strings.TrimLeft(d.vchPoolPath, d.session.ClusterPath)
 
 	// assemble creation list
-	folders := strings.Split(consolidated, "/")
+	folders := []string{d.session.ClusterPath}
+	consolidated := strings.TrimLeft(d.vchPoolPath, d.session.ClusterPath)
+	folders = append(folders, strings.Split(consolidated, "/")...)
 	folders = append(folders, vchName)
 	d.op.Debugf("Determined inventory targets for creation: %s", folders)
 
