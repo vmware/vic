@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
+	"path"
 )
 
 type DeleteContainers int
@@ -105,6 +106,12 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 	err = d.deleteVM(vmm, true)
 	if err != nil {
 		d.op.Debugf("Error deleting appliance VM %s", err)
+		return err
+	}
+
+	err = d.deleteVCHInventoryFolders()
+	if err != nil {
+		d.op.Debugf("Error deleting appliance VM's inventory folders: %s", err)
 		return err
 	}
 
@@ -347,4 +354,65 @@ func (d *Dispatcher) networkDevices(vmm *vm.VirtualMachine) ([]types.BaseVirtual
 		}
 	}
 	return devices, nil
+}
+
+func (d *Dispatcher) deleteVCHInventoryFolders() error {
+	parentFolderPath := path.Dir(d.appliance.InventoryPath)
+	// Now that the VCH is gone we will need to delete the inventory folder structure.
+	d.op.Debugf("Attempting to remove inventory folder: %s", parentFolderPath)
+
+	// grab the folder ref of the vm's direct parent
+	folderRef, err := d.session.Finder.Folder(d.op, parentFolderPath)
+	if err != nil {
+		d.op.Debugf("failed to find folder: %s", parentFolderPath)
+		return err
+	}
+
+	// GET THE VM FOLDER. BAIL HERE IF THEIR REFS
+
+	// we need to see if the folder is empty.
+	folderContents, err := folderRef.Children(d.op)
+	if err != nil {
+		return err
+	}
+
+	// FIXME: CHANGE TO GETTING THE VM FOLDER REFERENCE. WE ARE CHANGING d.session.VMFolder to point to the creation point for cvms
+
+	for len(folderContents) == 0 && folderRef.Reference() != d.session.VMFolder.Reference() {
+		// NOTE: Destroy on Inventory Folders is RECURSIVE, start from the leaf most target and check folder children to avoid undesired deletions.
+		err = d.removeFolder(folderRef)
+		if err != nil {
+			return err
+		}
+		d.op.Debugf("Successfully deleted folder at path : %s", parentFolderPath)
+
+		// Walk up the inventory path and grab the parent folders path.
+		parentFolderPath = path.Dir(parentFolderPath)
+		folderRef, err = d.session.Finder.Folder(d.op, parentFolderPath)
+		if err != nil {
+			// at this point we have already partially cleaned up. So we may leave artifacts around when we bail.
+			return err
+		}
+
+		folderContents, err = folderRef.Children(d.op)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// removeFolder will initiate a destroy task against the target folder and wait for the result.
+func (d *Dispatcher) removeFolder(folder *object.Folder) error {
+	// NOTE: Destroy on Inventory Folders is RECURSIVE, start from the leaf most target and check folder children to avoid undesired deletions.
+	folderRemoveFunction := func(ctx context.Context) (tasks.Task, error) {
+		return folder.Destroy(d.op)
+	}
+
+	_, err := tasks.WaitForResult(d.op, folderRemoveFunction)
+	if err != nil {
+		return err
+	}
+	return nil
 }
