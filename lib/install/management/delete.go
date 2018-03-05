@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -69,6 +69,8 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 		d.op.Warnf("No container VMs found, but proceeding with delete of VCH due to --force")
 		err = nil
 	}
+
+	// Proceed to delete containers.
 	if d.parentResourcepool != nil {
 		if err = d.DeleteVCHInstances(vmm, conf, containers); err != nil {
 			d.op.Error(err)
@@ -81,12 +83,6 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 			err = nil
 		}
 	}
-
-	element, err := d.session.Finder.Element(d.op, vmm.Reference())
-	if err != nil {
-		return err
-	}
-	vmm.SetInventoryPath(element.Path)
 	d.appliance = vmm
 
 	if err = d.deleteImages(conf); err != nil {
@@ -247,6 +243,8 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 
 	var wg sync.WaitGroup
 	for _, child := range children {
+		// TODO: REWRITE isVCH and isContainerVM since they fetch the same vm information twice!!!
+
 		//Leave VCH appliance there until everything else is removed, cause it has VCH configuration. Then user could retry delete in case of any failure.
 		ok, err := d.isVCH(child)
 		if err != nil {
