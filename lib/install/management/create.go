@@ -134,37 +134,40 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 		isoTargetPath := path.Join(d.vmPathName, key)
 
 		operationForRetry := func() error {
+			op, cancel := trace.WithCancel(&d.op, "UploadFile")
+			defer cancel()
+
 			// attempt to delete the iso image first in case of failed upload
 			dc := d.session.Datacenter
 			fm := d.session.Datastore.NewFileManager(dc, false)
 			ds := d.session.Datastore
 
 			// check iso first
-			d.op.Debugf("Checking if file already exists: %s", isoTargetPath)
-			_, err := ds.Stat(d.op, isoTargetPath)
+			op.Debugf("Checking if file already exists: %s", isoTargetPath)
+			_, err := ds.Stat(op, isoTargetPath)
 			if err != nil {
 				switch err.(type) {
 				case object.DatastoreNoSuchFileError:
-					d.op.Debug("File not found. Nothing to do.")
+					op.Debug("File not found. Nothing to do.")
 				case object.DatastoreNoSuchDirectoryError:
-					d.op.Debug("Directory not found. Nothing to do.")
+					op.Debug("Directory not found. Nothing to do.")
 				default:
-					d.op.Debugf("ISO file already exists, deleting: %s", isoTargetPath)
+					op.Debugf("ISO file already exists, deleting: %s", isoTargetPath)
 					err := fm.Delete(d.op, isoTargetPath)
 					if err != nil {
-						d.op.Debugf("Failed to delete image (%s) with error (%s)", image, err.Error())
+						op.Debugf("Failed to delete image (%s) with error (%s)", image, err.Error())
 						return err
 					}
 				}
 			}
 
-			d.op.Infof("Uploading %s as %s", baseName, key)
+			op.Infof("Uploading %s as %s", baseName, key)
 
-			ul := progresslog.NewUploadLogger(d.op.Infof, baseName, time.Second*3)
+			ul := progresslog.NewUploadLogger(op.Infof, baseName, time.Second*3)
 			// need to wait since UploadLogger is asynchronous.
 			defer ul.Wait()
 
-			return d.session.Datastore.UploadFile(d.op, image, path.Join(d.vmPathName, key),
+			return d.session.Datastore.UploadFile(op, image, path.Join(d.vmPathName, key),
 				progresslog.UploadParams(ul))
 		}
 
