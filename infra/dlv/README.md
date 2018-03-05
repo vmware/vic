@@ -2,7 +2,7 @@
 
 ## Overview
 
-This notes describes how to set up dlv remote debugging of servers in the VCH
+This notes describes how to set up dlv remote debugging of VCH servers
 
 ## Building debug enabled binaries (non stripped)
 
@@ -31,14 +31,14 @@ The command needs sshpass installed to work properly, on ubuntu:
 sudo apt-get install sshpass
 ```
 
-The command requires the address (or FQDN) of the VCH and the root password specified in vic-machine debug. The environment variables:
+The command also requires the address (or FQDN) of the VCH and the root password specified in vic-machine debug. The environment variables:
 ``` shell
 VCH_ADDR and SSHPASS
 ```
 can be used to pass that information to **dlv-setup.sh**. Alternatively the options: __-h__ and __-d__ can be used on the command line.
 For instance:
 ``` shell
-dlv-setup.sh -h <vch IP adress/FQDN> -p <root password>
+dlv-setup.sh -h <vch IP address/FQDN> -p <root password>
 ```
 Finally the command allows the user to specify __-s__ to require the automatic copying of the public keys in $HOME/.ssh into 
 the **authorized-hosts** .ssh file for root on the VCH. This option must be used carefully since it modifies access to the VCH.
@@ -53,8 +53,8 @@ To launch dlv and attach it to one of the VCH server run the command **dlv-ctl.s
 * virtual-kubelet
 
 The scripts needs the IP address (or the FQDN) of the target VCH host and the root password. The same environment variables
-and script options as **dlv-setup.sh** are accepted. The password can be skipped if the __-s__ option was sucessfully used during
-setup. The script take two arguments:
+and command line options as **dlv-setup.sh** are accepted. The password can be skipped if the __-s__ option was successfully used during
+setup. The script takes two arguments:
 * action: this can be either attach or detach
 * target: this can be one of the VCH services listed above
 For example:
@@ -71,13 +71,22 @@ For example:
 ``` shell
 dlv-ctl.sh -h <vch IP address/FQDN> -p <root password> -a vic-admin
 ```
-Performs and attach while
+Performs an attach. While
 ``` shell
 dlv-ctl.sh -h <vch IP address/FQDN> -p <root password> -d vic-admin
 ```
+performs a detach
 
 ## Using Goland to perform remote debugging
 After dlv is attached to the appropriate server, you can configure Goland to start debugging that process.
 On the drop down list with the debugger configurations select: __Edit Configurations__. In the configuration tab 
 click on the __+__ button to add a new configuration. Select __Go Remote__. Type in the the VCH IP address (or FQDN) and
 the port number returned by the **dlv-ctl** attach command. The debugger should be able to connect to the server.
+
+## Timeout issues while debugging
+Consider for example the case in which a request is sent to the **port-layer** from  **docker-engine**. When the request
+is received by the **port-layer** a breakpoint is hit. The developer next steps through the code in the **port-layer**
+while the **docker-engine** is waiting for a response. This may cause the **docker-engine** to timeout and abort
+or retry the request. Ideally when debugging is enabled all the timeouts should be increased to allow slower
+response times. This has not yet been implemented. The current idea is to connect the extension of timeout duration
+with the debug level specified at the time of VCH creation.
