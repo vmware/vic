@@ -148,7 +148,6 @@ func VpxModelSetup(ctx context.Context, t *testing.T) (*simulator.Model, *simula
 
 // CreateVM creates a VM using a VPX session.
 func CreateVM(op trace.Operation, sess *session.Session, name string) (*vm.VirtualMachine, error) {
-
 	vmx := fmt.Sprintf("%s/%s.vmx", name, name)
 	ds := sess.Datastore
 	secretKey, err := extraconfig.NewSecretKey()

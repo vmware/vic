@@ -81,6 +81,10 @@ func (r *RankedHostPolicy) RecommendHost(op trace.Operation, v *vm.VirtualMachin
 		return nil, err
 	}
 
+	if len(hm) == 0 {
+		return nil, fmt.Errorf("no candidate hosts to rank")
+	}
+
 	ranked := r.rankHosts(op, hm)
 	ref := types.ManagedObjectReference{}
 	if ok := ref.FromString(ranked[0].HostReference); !ok {
