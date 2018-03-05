@@ -40,6 +40,20 @@ Cleanup Container Firewalls Test
     Cleanup VIC Appliance On Test Server
     Cleanup Container Firewalls Test Networks
 
+Cleanup Connectivity Bridge to Public Test
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove bridge
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove pub-network
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  pub-network
+    Cleanup VIC Appliance On Test Server
+
+Cleanup Connectivity Bridge to Management Test
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove bridge
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove management
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  management
+    Cleanup VIC Appliance On Test Server
+
 *** Test Cases ***
 Public network - default
     Set Test Environment Variables
@@ -146,19 +160,19 @@ Connectivity Bridge to Public
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove bridge
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove vm-network
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove pub-network
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  bridge
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  vm-network
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  pub-network
 
     Log To Console  Create a public portgroup.
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vswitch vSwitchLAN vm-network
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Add VC Distributed Portgroup  test-ds  vm-network
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vswitch vSwitchLAN pub-network
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc dvs.portgroup.add -vlan=196 -dvs test-ds pub-network
 
     Log To Console  Create a bridge portgroup.
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vswitch vSwitchLAN bridge
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Add VC Distributed Portgroup  test-ds  bridge
 
-    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --public-network=vm-network --compute-resource=%{TEST_RESOURCE} --container-network vm-network --container-network-firewall vm-network:published --no-tlsverify --insecure-registry wdc-harbor-ci.eng.vmware.com
+    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --public-network=pub-network --compute-resource=%{TEST_RESOURCE} --container-network pub-network --container-network-firewall pub-network:published --no-tlsverify --insecure-registry wdc-harbor-ci.eng.vmware.com
 
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
@@ -166,7 +180,7 @@ Connectivity Bridge to Public
 
     # this container will listen on :8000 and we're passing the -p option to the VCH so it should be exposed
     Log To Console  Creating public container.
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vm-network -p 8000 --name p1 ${busybox} nc -l -p 8000
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=pub-network -p 8000 --name p1 ${busybox} nc -l -p 8000
     Should Be Equal As Integers  ${rc}  0
 
     Log To Console  Getting IP for public container
@@ -179,7 +193,7 @@ Connectivity Bridge to Public
 
     # nc is listening, but since we didn't pass the -p flag to docker, the port should not be exposed.
     Log To Console  Creating public container with no ports exposed.
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vm-network --name p2 ${busybox} nc -l -p 8000
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=pub-network --name p2 ${busybox} nc -l -p 8000
     Should Be Equal As Integers  ${rc}  0
 
     Log To Console  Getting IP for public container
@@ -192,7 +206,7 @@ Connectivity Bridge to Public
 
     Log To Console  Port connection test from bridge to public networks succeeded.
 
-    Cleanup VIC Appliance On Test Server
+    [Teardown]  Cleanup Connectivity Bridge to Public Test
 
 Connectivity Bridge to Management
     Set Test Environment Variables
@@ -249,7 +263,7 @@ Connectivity Bridge to Management
     Should Contain  ${out}  100% packet loss
     Log To Console  Ping test succeeded.
 
-    Cleanup VIC Appliance On Test Server
+    [Teardown]  Cleanup Connectivity Bridge to Management Test
 
 Bridge network - vCenter none
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESXi
