@@ -897,7 +897,8 @@ func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target
 	var rawSource bytes.Buffer
 	rawSource.WriteString(source.Hostname())
 	rawSource.WriteByte(':')
-	// ensure the path is absolute and clean
+	// ensure the path is absolute - not using path.Clean to allow arbitrary content
+	// so as not to bias what can be used for a share identifier.
 	if len(source.Path) == 0 || source.Path[0] != '/' {
 		rawSource.WriteByte('/')
 	}
