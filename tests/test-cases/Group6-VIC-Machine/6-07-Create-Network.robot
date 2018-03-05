@@ -79,7 +79,6 @@ Public network - invalid
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     # Guarantee port group doesn't already exist
-    Run  govc host.portgroup.remove 'AAAAAAAAAA'
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove 'AAAAAAAAAA'
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  'AAAAAAAAAA'
 
