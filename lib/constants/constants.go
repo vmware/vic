@@ -73,6 +73,9 @@ const (
 	// All volumes are stored in this directory.
 	VolumesDir = "volumes"
 
+	// default log directory
+	DefaultLogDir = "/var/log/vic"
+
 	// Scratch layer ID
 	ScratchLayerID = "scratch"
 )

@@ -137,3 +137,7 @@ func End(t *Message) {
 	}
 	Logger.Debugf("[ END ] %s [%s:%d] [%s] %s", t.operationID, t.funcName, t.lineNo, t.delta(), t.msg)
 }
+
+func SetLogLevel(level uint8) {
+	Logger.Level = logrus.Level(level)
+}
