@@ -603,7 +603,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		// prepare vch inventory name spacing before we can create the vm.
 		vchParentFolder, err := d.createVCHInventoryFolders(spec)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		intendedVCHPath := fmt.Sprintf("%s/%s", vchParentFolder.InventoryPath, spec.Name)
 
