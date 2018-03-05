@@ -20,7 +20,7 @@ prevBuildStatus=`drone build info --format='{{.Status}}' vmware/vic $(( $DRONE_B
 echo prevBuildStatus $prevBuildStatus
 
 while [[ $prevBuildStatus == *"running"* ]]; do
-    echo "Waiting 5 minutes for previous build to complete";
+    echo "Waiting 5 minutes for build $(( $DRONE_BUILD_NUMBER-$numServers )) to complete";
     sleep 300;
     prevBuildStatus=`drone build info --format='{{.Status}}' vmware/vic $(( $DRONE_BUILD_NUMBER-$numServers ))`
 	echo prevBuildStatus $prevBuildStatus
