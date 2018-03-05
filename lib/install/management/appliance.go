@@ -35,7 +35,6 @@ import (
 	"github.com/docker/docker/opts"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
@@ -203,12 +202,6 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		return vm.DeleteExceptDisks(ctx)
 	})
 
-	err = d.createVCHInventoryFolders()
-	if err != nil {
-		// FIXME: DO CLEANUP
-		return err
-	}
-
 	// We are getting ConcurrentAccess errors from DeleteExceptDisks - even though we don't set ChangeVersion in that path
 	// We are ignoring the error because in reality the operation finishes successfully.
 	ignore := false
@@ -234,10 +227,17 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		d.op.Warnf("Failed to remove datastore files for VM path %q: %s", folder, err)
 	}
 
+	// at this point the VCH should be gone and we need to cleanup the inventory
+	err = d.deleteVCHInventoryFolders()
+	if err != nil {
+		// if this fails manual cleanup is necessary
+		return err
+	}
+
 	return nil
 }
 
-func (d *Dispatcher) createVCHInventoryFolders() error {
+func (d *Dispatcher) deleteVCHInventoryFolders() error {
 	parentFolderPath := path.Dir(d.appliance.InventoryPath)
 	// Now that the VCH is gone we will need to delete the inventory folder structure.
 	d.op.Debugf("Attempting to remove inventory folder: %s", parentFolderPath)
@@ -256,6 +256,7 @@ func (d *Dispatcher) createVCHInventoryFolders() error {
 	}
 
 	for len(folderContents) == 0 && folderRef.Reference() != d.session.VMFolder.Reference() {
+		// NOTE: Destroy on Inventory Folders is RECURSIVE, start from the leaf most target and check folder children to avoid undesired deletions.
 		err = d.removeFolder(folderRef)
 		if err != nil {
 			return err
@@ -299,7 +300,9 @@ func (d *Dispatcher) createVCHInventoryFolders() error {
 	return nil
 }
 
+// removeFolder will initiate a destroy task against the target folder and wait for the result.
 func (d *Dispatcher) removeFolder(folder *object.Folder) error {
+	// NOTE: Destroy on Inventory Folders is RECURSIVE, start from the leaf most target and check folder children to avoid undesired deletions.
 	folderRemoveFunction := func(ctx context.Context) (tasks.Task, error) {
 		return folder.Destroy(d.op)
 	}
@@ -592,67 +595,20 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	} else {
 		// if vapp is not created, fall back to create VM under default resource pool
 		info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-			vchName := spec.Name
-			clusterName := path.Base(d.session.ClusterPath)
-			consolidated := clusterName + "/" + strings.TrimLeft(d.vchPoolPath, d.session.ClusterPath)
-			folders := strings.Split(consolidated, "/")
 
-			// now that we have the list of needed constructions we need to assemble it.
-			existingFolder := d.session.VMFolder
-			for _, fname := range folders {
-				folderCreateTarget := fmt.Sprintf("%s/%s", existingFolder.InventoryPath, fname)
-				d.op.Debugf("Attempting to create folder : %s", folderCreateTarget)
-				f, err := existingFolder.CreateFolder(d.op, fname)
-				ok := false
-				if err != nil {
-					// check for already exists fault
-					if soap.IsSoapFault(err) {
-
-						switch fault := soap.ToSoapFault(err).VimFault().(type) {
-						case *types.AlreadyExists:
-							ok = true
-						case *types.DuplicateName:
-							ok = true
-						default:
-							d.op.Errorf("Encountered unexpected fault : %#v ", fault)
-							return nil, fmt.Errorf("encountered unexpected fault when attempting to create %s please see vic-machine.log for more information", folderCreateTarget)
-						}
-
-						if ok {
-							// the folder already exists. Get the ref.
-							folder, err := d.session.Finder.Folder(d.op, folderCreateTarget)
-							if err != nil {
-								return nil, err
-							}
-
-							existingFolder = folder
-							continue
-						}
-					}
-
-					d.op.Debugf("Failed to Create folder at path(%s/%s) : %#v", existingFolder.InventoryPath, fname, err)
-				}
-				existingFolder = f
-			}
-
-			existingFolder, err := existingFolder.CreateFolder(d.op, vchName)
+			vchParentFolder, err := d.createVCHInventoryFolders(spec)
 			if err != nil {
-				// POSSIBLE FAULTS HERE:
-				// - InvalidName
-				// - DuplicateName
-				// - Runtime
-				// FIXME: Check for already Exists error and noop
 				return nil, err
 			}
 
-			intendedVCHPath := fmt.Sprintf("%s/%s", existingFolder.InventoryPath, vchName)
+			intendedVCHPath := fmt.Sprintf("%s/%s", vchParentFolder.InventoryPath, spec.Name)
 			vchVM, err := d.session.Finder.VirtualMachine(ctx, intendedVCHPath)
 			if vchVM != nil {
 				// We have found another VCH at the target path that we intended to install to.
 				return nil, fmt.Errorf("Could not create VCH because one already exists with the same name and compute at path(%s) : %s", intendedVCHPath, err)
 			}
 
-			return existingFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
+			return vchParentFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
 		})
 	}
 
@@ -809,77 +765,91 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	return nil
 }
 
-// assembleHierarchicalPools will take a resource pool and assemble the list of
-// resource pools that live above it all the way back to the top most compute parent.
-func (d *Dispatcher) assembleVCHHierarchicalPools() ([]string, error) {
-	target := d.vchPool
-	folderRefs := make(map[types.ManagedObjectReference]*object.Folder)
-	// NOTE TO SELF: create a ref map for finding the correct
-	orderedFolders := make([]mo.Folder, 0)
+// createVCHInventoryFolders creates the default structure of the inventory for the VCH and returns the object reference to the last folder created
+func (d *Dispatcher) createVCHInventoryFolders(spec *types.VirtualMachineConfigSpec) (*object.Folder, error) {
+	d.op.Info("Creating VCH inventory folders")
+	vchName := spec.Name
+	clusterName := path.Base(d.session.ClusterPath)
+	consolidated := clusterName + "/" + strings.TrimLeft(d.vchPoolPath, d.session.ClusterPath)
 
-	props := []string{
-		"name",
-		"parent",
-	}
+	// assemble creation list
+	folders := strings.Split(consolidated, "/")
+	folders = append(folders, vchName)
+	d.op.Debugf("Determined inventory targets for creation: %s", folders)
 
-	// get the parent property from the vim mo struct
-	objects, err := d.session.Finder.FolderList(d.op, target.InventoryPath)
-	if err != nil {
-		return nil, err
-	}
+	// now that we have the list of needed constructions we need to assemble it.
+	existingFolder := d.session.VMFolder
+	for _, fname := range folders {
+		folderCreateTarget := fmt.Sprintf("%s/%s", existingFolder.InventoryPath, fname)
+		d.op.Debugf("Attempting to create folder : %s", folderCreateTarget)
 
-	if len(objects) != 0 {
-		folders := make([]mo.Folder, 0)
-		// assemble references for the target in order to use the property collector
-		refs := make([]types.ManagedObjectReference, 0, len(objects))
-		for _, k := range objects {
-			folderRefs[k.Reference()] = k
-			refs = append(refs, k.Reference())
-		}
-
-		pc := d.session.PropertyCollector()
-		if pc == nil {
-			// not sure what might happen here. we are getting a pointer though so it is a possibility.
-			return nil, fmt.Errorf("Something is likely very wrong at this point, we cannot find the propery collector that is associated with the session during vch creation.")
-
-		}
-		err = pc.Retrieve(d.op, refs, props, &folders)
+		// attempt to create the folder
+		f, err := existingFolder.CreateFolder(d.op, fname)
+		ok := false
 		if err != nil {
-			return nil, err
-		}
-	}
+			// check for already exists fault
 
-	//check folders now before proceeding...
+			// Most likely the case for "AlreadyExists"
+			if soap.IsSoapFault(err) {
 
-	if len(orderedFolders) == 0 {
-		// we somehow got nothing from a reference.
-		return nil, fmt.Errorf("Found nothing from the property collector after submitting a retieval request for %s`", objects)
-	}
+				switch fault := soap.ToSoapFault(err).VimFault().(type) {
+				case *types.AlreadyExists:
+					ok = true
+				case *types.DuplicateName:
+					ok = true
+				case *types.InvalidName:
+					d.op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
+					return nil, fmt.Errorf("An invalid name was specified for the VCH: %s does not meet the naming criteria for a vch", vchName)
+				default:
+					d.op.Errorf("Encountered unexpected fault : %#v ", fault)
+					return nil, fmt.Errorf("unexpected fault when attempting to create the inventory folder %s please see vic-machine.log for more information", folderCreateTarget)
+				}
 
-	if len(orderedFolders) > 1 {
-		return nil, fmt.Errorf("Ended up with multiple folder info results after submitting a retieval request for %s`", objects)
-	}
+				if ok {
+					// the folder already exists. Get the ref.
+					folder, err := d.session.Finder.Folder(d.op, folderCreateTarget)
+					if err != nil {
+						return nil, err
+					}
 
-	/*
-		// for now this logic expects one return... FIXME!!!
-		poolFolderInfo := orderedFolders[0]
-		orderedFolders = append(orderedFolders, poolFolderInfo)
-
-		// now that we have the pool's vim25 mo struct populated with the parent we can walk back up the tree.
-		computeRef := poolFolderInfo.Reference()
-		vchClusterRef := d.session.Cluster.Reference()
-		for computeRef != vchClusterRef {
-			// collect refs until we reach the vch's compute cluster
-			parentRef := poolFolderInfo.Parent
-			d.session.
-
-			if err != nil {
-				return nil, err
+					existingFolder = folder
+					continue
+				}
 			}
 
+			if soap.IsVimFault(err) {
+
+				switch fault := soap.ToVimFault(err).(type) {
+				case *types.AlreadyExists:
+					ok = true
+				case *types.DuplicateName:
+					ok = true
+				case *types.InvalidName:
+					d.op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
+					return nil, fmt.Errorf("An invalid name was specified for the VCH: %s does not meet the naming criteria for a vch", vchName)
+				default:
+					d.op.Errorf("Encountered unexpected fault : %#v ", fault)
+					return nil, fmt.Errorf("unexpected fault when attempting to create the inventory folder %s please see vic-machine.log for more information", folderCreateTarget)
+				}
+
+				if ok {
+					// the folder already exists. Get the ref.
+					folder, err := d.session.Finder.Folder(d.op, folderCreateTarget)
+					if err != nil {
+						return nil, err
+					}
+
+					existingFolder = folder
+					continue
+				}
+			}
+
+			d.op.Debugf("Failed to Create folder at path(%s/%s) : %#v", existingFolder.InventoryPath, fname, err)
 		}
-	*/
-	return nil, nil
+		existingFolder = f
+	}
+
+	return existingFolder, nil
 }
 
 func (d *Dispatcher) encodeConfig(conf *config.VirtualContainerHostConfigSpec) (map[string]string, error) {
