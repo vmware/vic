@@ -134,7 +134,7 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 		isoTargetPath := path.Join(d.vmPathName, key)
 
 		operationForRetry := func() error {
-			op, cancel := trace.WithCancel(&d.op, "UploadFile")
+			op, cancel := trace.WithCancel(&d.op, "uploadImages")
 			defer cancel()
 
 			// attempt to delete the iso image first in case of failed upload
