@@ -948,6 +948,7 @@ func (c *Context) RemoveIDFromScopes(op trace.Operation, id string) ([]*Endpoint
 
 	// remove the container from all bound scopes
 	for _, ne := range endpoints {
+		// this modifies the con.endpoint list so iteration has to occur off the copy
 		if err := ne.scope.RemoveContainer(con); err != nil {
 			return nil, err
 		}
