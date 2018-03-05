@@ -35,6 +35,7 @@ import (
 	"github.com/docker/docker/opts"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
@@ -793,11 +794,11 @@ func (d *Dispatcher) createVCHInventoryFolders(spec *types.VirtualMachineConfigS
 			if soap.IsSoapFault(err) {
 
 				switch fault := soap.ToSoapFault(err).VimFault().(type) {
-				case *types.AlreadyExists:
+				case types.AlreadyExists:
 					ok = true
-				case *types.DuplicateName:
+				case types.DuplicateName:
 					ok = true
-				case *types.InvalidName:
+				case types.InvalidName:
 					d.op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
 					return nil, fmt.Errorf("An invalid name was specified for the VCH: %s does not meet the naming criteria for a vch", vchName)
 				default:
@@ -842,6 +843,45 @@ func (d *Dispatcher) createVCHInventoryFolders(spec *types.VirtualMachineConfigS
 					existingFolder = folder
 					continue
 				}
+			}
+
+			if err != nil {
+				// finally check for a task error
+				switch unknownError := err.(type) {
+				case task.Error:
+					switch fault := unknownError.Fault().(type) {
+					case *types.AlreadyExists:
+						ok = true
+					case *types.DuplicateName:
+						ok = true
+					case *types.InvalidName:
+						d.op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
+						return nil, fmt.Errorf("An invalid name was specified for the VCH: %s does not meet the naming criteria for a vch", vchName)
+					default:
+						d.op.Errorf("Encountered unexpected fault : %#v ", fault)
+						return nil, fmt.Errorf("unexpected fault when attempting to create the inventory folder %s please see vic-machine.log for more information", folderCreateTarget)
+					}
+				default:
+					d.op.Errorf("Encountered unexpected error : %#v ", unknownError)
+					return nil, fmt.Errorf("unexpected error when attempting to create the inventory folder %s please see vic-machine.log for more information", folderCreateTarget)
+				}
+
+				if ok {
+					// the folder already exists. Get the ref.
+					folder, err := d.session.Finder.Folder(d.op, folderCreateTarget)
+					if err != nil {
+						return nil, err
+					}
+
+					existingFolder = folder
+					continue
+				}
+			}
+
+			// TODO: move to checking for !ok rather than returning immediately. That way we can perform some cleaup since we may have created some things before failing.
+			if !ok {
+				// move the errors to this location
+				// unwind the creates(if possible) and then return the error.
 			}
 
 			d.op.Debugf("Failed to Create folder at path(%s/%s) : %#v", existingFolder.InventoryPath, fname, err)
