@@ -600,15 +600,15 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			return d.vchVapp.CreateChildVM(ctx, *spec, d.session.Host)
 		})
 	} else {
+		// prepare vch inventory name spacing before we can create the vm.
+		vchParentFolder, err := d.createVCHInventoryFolders(spec)
+		if err != nil {
+			return nil, err
+		}
+		intendedVCHPath := fmt.Sprintf("%s/%s", vchParentFolder.InventoryPath, spec.Name)
+
 		// if vapp is not created, fall back to create VM under default resource pool
 		info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-
-			vchParentFolder, err := d.createVCHInventoryFolders(spec)
-			if err != nil {
-				return nil, err
-			}
-
-			intendedVCHPath := fmt.Sprintf("%s/%s", vchParentFolder.InventoryPath, spec.Name)
 			vchVM, err := d.session.Finder.VirtualMachine(ctx, intendedVCHPath)
 			if vchVM != nil {
 				// We have found another VCH at the target path that we intended to install to.
