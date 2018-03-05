@@ -120,6 +120,7 @@ pipeline:
       - export GOVC_PASSWORD=$TEST_PASSWORD
       - export GOVC_DATASTORE=$TEST_DATASTORE
       - export DOMAIN=$CI_DOMAIN
+      - export MULTI_VCH=1
       - echo $DOMAIN
       - 'make mark'
       - tests/integration-test.sh
