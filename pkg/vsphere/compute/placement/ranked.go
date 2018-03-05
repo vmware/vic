@@ -15,19 +15,14 @@
 package placement
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/performance"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-)
-
-const (
-	// TODO(jzt): move these values into a Configuration struct so that consumers can provide
-	// different weights.
-	memUnconsumedWeight = 0.7 // available memory (total - consumed)
-	memInactiveWeight   = 0.3 // active memory on the host
 )
 
 type rankedHost struct {
@@ -42,14 +37,35 @@ func (r rankedHosts) Len() int           { return len(r) }
 func (r rankedHosts) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r rankedHosts) Less(i, j int) bool { return r[i].score > r[j].score }
 
+// WeightConfiguration holds user-provided weights for different host metrics. These weights are
+// used to determine a host ranking.
+type WeightConfiguration struct {
+	memUnconsumedWeight float64
+	memInactiveWeight   float64
+}
+
 // RankedHostPolicy uses data from a MetricsProvider to decide on which host to power-on a VM.
 type RankedHostPolicy struct {
 	source performance.MetricsProvider
+	config WeightConfiguration
 }
 
-// NewRankedHostPolicy returns a RandomHostPolicy instance using the supplied MetricsProvider.
+// NewRankedHostPolicy returns a RandomHostPolicy instance using the supplied MetricsProvider with
+// the default weighting configuration.
 func NewRankedHostPolicy(s performance.MetricsProvider) *RankedHostPolicy {
-	return &RankedHostPolicy{source: s}
+	return NewRankedHostPolicyWithConfig(s, WeightConfiguration{
+		memInactiveWeight:   MemDefaultInactiveWeight,
+		memUnconsumedWeight: MemDefaultUnconsumedWeight,
+	})
+}
+
+// NewRankedHostPolicyWithConfig returns a RandomHostPolicy instance using the supplied MetricsProvider and
+// WeightConfiguration.
+func NewRankedHostPolicyWithConfig(s performance.MetricsProvider, wc WeightConfiguration) *RankedHostPolicy {
+	return &RankedHostPolicy{
+		source: s,
+		config: wc,
+	}
 }
 
 // CheckHost returns true if the host has adequate capacity to power on the VM, false otherwise.
@@ -59,8 +75,21 @@ func (r *RankedHostPolicy) CheckHost(op trace.Operation, vm *vm.VirtualMachine) 
 }
 
 // RecommendHost recommends an ideal host on which to place a newly created VM.
-func (r *RankedHostPolicy) RecommendHost(op trace.Operation, vm *vm.VirtualMachine) (*object.HostSystem, error) {
-	return nil, nil
+func (r *RankedHostPolicy) RecommendHost(op trace.Operation, v *vm.VirtualMachine) (*object.HostSystem, error) {
+	hm, err := r.source.GetMetricsForComputeResource(op, v.Cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	ranked := r.rankHosts(op, hm)
+	ref := types.ManagedObjectReference{}
+	if ok := ref.FromString(ranked[0].HostReference); !ok {
+		return nil, fmt.Errorf("could not restore serialized managed object reference: %s", ranked[0].HostReference)
+	}
+
+	result := object.NewHostSystem(v.Session.Client.Client, ref)
+
+	return result, nil
 }
 
 func (r *RankedHostPolicy) rankHosts(op trace.Operation, hm map[string]*performance.HostMetricsInfo) []rankedHost {
@@ -79,5 +108,5 @@ func (r *RankedHostPolicy) rankHosts(op trace.Operation, hm map[string]*performa
 
 func (r *RankedHostPolicy) rankMemory(hm *performance.HostMetricsInfo) float64 {
 	free := float64(hm.Memory.TotalKB-hm.Memory.ConsumedKB) / 1024.0
-	return free * memUnconsumedWeight
+	return free * r.config.memUnconsumedWeight
 }

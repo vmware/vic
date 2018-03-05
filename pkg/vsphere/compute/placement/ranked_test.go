@@ -25,15 +25,8 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/performance"
+	"github.com/vmware/vic/pkg/vsphere/test"
 )
-
-// MockMetricsProvider mocks the MetricsProvider interface.
-type MockMetricsProvider struct{}
-
-// GetMetricsForComputeResource not yet implemented.
-func (m MockMetricsProvider) GetMetricsForComputeResource(op trace.Operation, cr *object.ComputeResource) (map[string]*performance.HostMetricsInfo, error) {
-	return nil, nil
-}
 
 var (
 	low = &performance.HostMetricsInfo{
@@ -100,6 +93,15 @@ var (
 	}
 )
 
+// MockMetricsProvider mocks the MetricsProvider interface.
+type MockMetricsProvider struct{}
+
+// GetMetricsForComputeResource not yet implemented.
+func (m MockMetricsProvider) GetMetricsForComputeResource(op trace.Operation, cr *object.ComputeResource) (map[string]*performance.HostMetricsInfo, error) {
+	hosts, _ := m.GetMetricsForHosts(op, nil)
+	return hosts, nil
+}
+
 func (m MockMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*object.HostSystem) (map[string]*performance.HostMetricsInfo, error) {
 	fakeHostMetrics := make(map[string]*performance.HostMetricsInfo)
 	fakeHostMetrics[lh.Reference().String()] = low
@@ -113,28 +115,22 @@ func (m MockMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*obj
 func TestRankedRecommendHost(t *testing.T) {
 	op := trace.NewOperation(context.Background(), "TestRankedRecommendHost")
 
-	model, server, _ := vpxModelSetup(op, t)
+	model, server, sess := test.VpxModelSetup(op, t)
 	defer func() {
 		model.Remove()
 		server.Close()
 	}()
 
-	m := MockMetricsProvider{}
-	hm, err := m.GetMetricsForHosts(op, []*object.HostSystem{})
+	v, err := test.CreateVM(op, sess, "test-vm")
 	assert.NoError(t, err)
 
+	m := MockMetricsProvider{}
+
 	rhp := NewRankedHostPolicy(m)
-	result := rhp.rankHosts(op, hm)
+	result, err := rhp.RecommendHost(op, v)
+	assert.NoError(t, err)
 
-	for _, r := range result {
-		op.Infof("%s: %f", r.HostReference, r.score)
-	}
-
-	expected := lh.Reference().String()
-	actual := result[0].HostReference
-	assert.NotEqual(t, expected, actual)
-
-	expected = hh.Reference().String()
-	actual = result[0].HostReference
+	expected := hh.Reference().String()
+	actual := result.Reference().String()
 	assert.Equal(t, expected, actual)
 }
