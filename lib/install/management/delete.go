@@ -109,10 +109,12 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 		return err
 	}
 
-	err = d.deleteVCHInventoryFolders()
-	if err != nil {
-		d.op.Debugf("Error deleting appliance VM's inventory folders: %s", err)
-		return err
+	if d.isVC {
+		err = d.deleteVCHInventoryFolders()
+		if err != nil {
+			d.op.Debugf("Error deleting appliance VM's inventory folders: %s", err)
+			return err
+		}
 	}
 
 	defaultrp, err := d.session.Cluster.ResourcePool(d.op)

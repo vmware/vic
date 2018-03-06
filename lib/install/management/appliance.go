@@ -609,14 +609,23 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			return d.vchVapp.CreateChildVM(ctx, *spec, d.session.Host)
 		})
 	} else {
-		// prepare vch inventory name spacing before we can create the vm.
-		vchParentFolder, err := d.createVCHInventoryFolders(spec)
+
+		dcFolders, err := d.session.Datacenter.Folders(d.op)
 		if err != nil {
 			return err
 		}
-		intendedVCHPath := fmt.Sprintf("%s/%s", vchParentFolder.InventoryPath, spec.Name)
+		vchParentFolder := dcFolders.VmFolder
+
+		// check to see if we are working with VC...
+		if d.isVC {
+			vchParentFolder, err = d.createVCHInventoryFolders(spec)
+			if err != nil {
+				return err
+			}
+		}
 
 		// if vapp is not created, fall back to create VM under default resource pool
+		intendedVCHPath := fmt.Sprintf("%s/%s", vchParentFolder.InventoryPath, spec.Name)
 		info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
 			vchVM, err := d.session.Finder.VirtualMachine(ctx, intendedVCHPath)
 			if vchVM != nil {
