@@ -71,7 +71,7 @@ const (
 	invalidNameError              = "An invalid name was specified for the VCH: %s does not meet the naming criteria for a vch"
 	unexpectedInventoryFaultError = "unexpected fault when attempting to create the inventory folder %s please see vic-machine.log for more information"
 	unexpectedInventoryError      = "unexpected error when attempting to create the inventory folder %s please see vic-machine.log for more information"
-	manualInventoryCleanWarn      = "Manual cleanup in the inventory may be needed."
+	manualInventoryCleanWarning   = "Manual cleanup in the inventory may be needed."
 )
 
 var (
@@ -810,19 +810,19 @@ func (d *Dispatcher) createVCHInventoryFolders(spec *types.VirtualMachineConfigS
 		f, err := createdFolder.CreateFolder(d.op, fname)
 		err = processInventoryCreationError(d.op, err, fname, vchName)
 
+		// creation failed, we must cleanup and bail
 		if err != nil {
-			// use the finder to grab the folder in the create list and use it to destroy the folder chain.
 			baseCreatedFolder, cleanupErr := d.session.Finder.Folder(d.op, fmt.Sprintf("%s/%s", existingFolder.InventoryPath, foldersToCreate[0]))
 			if baseCreatedFolder == nil || err != nil {
-				// unable to clean anything up
 				d.op.Warnf("Failed to find inventory folders for VCH (%s) when attempting to cleanup failed creation: %s", vchName, cleanupErr)
-				d.op.Warnf(manualInventoryCleanWarn)
+				d.op.Warnf(manualInventoryCleanWarning)
 				return nil, err
 			}
+
 			cleanupErr = d.removeFolder(baseCreatedFolder)
 			if cleanupErr != nil {
 				d.op.Warnf("Failed to delete inventory folders for VCH (%s) when attempting to cleanup failed creation: %s", vchName, cleanupErr)
-				d.op.Warnf(manualInventoryCleanWarn)
+				d.op.Warnf(manualInventoryCleanWarning)
 				return nil, err
 			}
 			return nil, err
