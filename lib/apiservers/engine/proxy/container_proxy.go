@@ -64,6 +64,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/interaction"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/logging"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/constants"
@@ -75,7 +76,8 @@ import (
 // VicContainerProxy interface
 type VicContainerProxy interface {
 	CreateContainerHandle(ctx context.Context, vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error)
-	CreateContainerTask(ctx context.Context, handle string, id string, config types.ContainerCreateConfig) (string, error)
+	AddImageToContainer(ctx context.Context, handle string, deltaID string, layerID string, imageID string, config types.ContainerCreateConfig) (string, error)
+	CreateContainerTask(ctx context.Context, handle string, id string, layerID string, config types.ContainerCreateConfig) (string, error)
 	CreateExecTask(ctx context.Context, handle string, config *types.ExecConfig) (string, string, error)
 	AddContainerToScope(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error)
 	AddLoggingToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error)
@@ -190,18 +192,53 @@ func (c *ContainerProxy) CreateContainerHandle(ctx context.Context, vc *vicconta
 	return id, h, nil
 }
 
+// AddImageToContainer adds the specified image to a container, referenced by handle.
+// If an error is return, the returned handle should not be used.
+//
+// returns:
+//	modified handle
+func (c *ContainerProxy) AddImageToContainer(ctx context.Context, handle, deltaID, layerID, imageID string, config types.ContainerCreateConfig) (string, error) {
+	defer trace.End(trace.Begin(handle))
+
+	if c.client == nil {
+		return "", errors.InternalServerError("ContainerProxy.AddImageToContainer failed to get the portlayer client")
+	}
+
+	host, err := sys.UUID()
+	if err != nil {
+		return "", errors.InternalServerError("ContainerProxy.AddImageToContainer got unexpected error getting VCH UUID")
+	}
+
+	response, err := c.client.Storage.ImageJoin(storage.NewImageJoinParamsWithContext(ctx).WithStoreName(host).WithID(layerID).
+		WithConfig(&models.ImageJoinConfig{
+			Handle:   handle,
+			DeltaID:  deltaID,
+			ImageID:  imageID,
+			RepoName: config.Config.Image,
+		}))
+	if err != nil {
+		return "", errors.InternalServerError(err.Error())
+	}
+	handle, ok := response.Payload.Handle.(string)
+	if !ok {
+		return "", errors.InternalServerError(fmt.Sprintf("Type assertion failed for %#+v", handle))
+	}
+
+	return handle, nil
+}
+
 // CreateContainerTask sets the primary command to run in the container
 //
 // returns:
 //	(containerHandle, error)
-func (c *ContainerProxy) CreateContainerTask(ctx context.Context, handle, id string, config types.ContainerCreateConfig) (string, error) {
+func (c *ContainerProxy) CreateContainerTask(ctx context.Context, handle, id, layerID string, config types.ContainerCreateConfig) (string, error) {
 	defer trace.End(trace.Begin(""))
 
 	if c.client == nil {
-		return "", errors.NillPortlayerClientError("ContainerProxy")
+		return "", errors.InternalServerError("ContainerProxy.CreateContainerTask failed to create a portlayer client")
 	}
 
-	plTaskParams := dockerContainerCreateParamsToTask(ctx, id, config)
+	plTaskParams := dockerContainerCreateParamsToTask(ctx, id, layerID, config)
 	plTaskParams.Config.Handle = handle
 
 	responseJoin, err := c.client.Tasks.Join(plTaskParams)
@@ -809,7 +846,7 @@ func (c *ContainerProxy) Remove(ctx context.Context, vc *viccontainer.VicContain
 // Utility Functions
 //----------
 
-func dockerContainerCreateParamsToTask(ctx context.Context, id string, cc types.ContainerCreateConfig) *tasks.JoinParams {
+func dockerContainerCreateParamsToTask(ctx context.Context, id, layerID string, cc types.ContainerCreateConfig) *tasks.JoinParams {
 	config := &models.TaskJoinConfig{}
 
 	var path string
@@ -817,6 +854,9 @@ func dockerContainerCreateParamsToTask(ctx context.Context, id string, cc types.
 
 	// we explicitly specify the ID for the primary task so that it's the same as the containerID
 	config.ID = id
+
+	// Set the filesystem namespace this task expects to run in
+	config.Namespace = layerID
 
 	// Expand cmd into entrypoint and args
 	cmd := strslice.StrSlice(cc.Config.Cmd)
