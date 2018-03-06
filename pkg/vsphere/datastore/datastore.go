@@ -155,7 +155,7 @@ func mkdir(op trace.Operation, sess *session.Session, fm *object.FileManager, cr
 
 // Mkdir creates directories.
 func (d *Helper) Mkdir(ctx context.Context, createParentDirectories bool, dirs ...string) (string, error) {
-	op := trace.FromContext(ctx, "Mkdir")
+	op := trace.FromContext(ctx, "")
 
 	return mkdir(op, d.s, d.fm, createParentDirectories, path.Join(d.RootURL.String(), path.Join(dirs...)))
 }
@@ -260,7 +260,7 @@ func (d *Helper) Stat(ctx context.Context, pth string) (types.BaseFileInfo, erro
 }
 
 func (d *Helper) Mv(ctx context.Context, fromPath, toPath string) error {
-	op := trace.FromContext(ctx, "Mv")
+	op := trace.FromContext(ctx, "")
 
 	from := path.Join(d.RootURL.String(), fromPath)
 	to := path.Join(d.RootURL.String(), toPath)
@@ -273,7 +273,7 @@ func (d *Helper) Mv(ctx context.Context, fromPath, toPath string) error {
 }
 
 func (d *Helper) Rm(ctx context.Context, pth string) error {
-	op := trace.FromContext(ctx, "Rm")
+	op := trace.FromContext(ctx, "")
 
 	f := path.Join(d.RootURL.String(), pth)
 	op.Infof("Removing %s", pth)

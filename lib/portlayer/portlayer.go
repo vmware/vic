@@ -39,6 +39,8 @@ import (
 func Init(ctx context.Context, sess *session.Session) error {
 	defer trace.End(trace.Begin(""))
 
+	op := trace.ChildFromContext(ctx, "port layer initialization")
+
 	source, err := extraconfig.GuestInfoSource()
 	if err != nil {
 		return err
@@ -50,13 +52,13 @@ func Init(ctx context.Context, sess *session.Session) error {
 	}
 
 	// create or restore a portlayer k/v store in the VCH's directory.
-	vch, err := guest.GetSelf(ctx, sess)
+	vch, err := guest.GetSelf(op, sess)
 	if err != nil {
 		return err
 	}
 
-	vchvm := vm.NewVirtualMachineFromVM(ctx, sess, vch)
-	vmPath, err := vchvm.VMPathName(ctx)
+	vchvm := vm.NewVirtualMachineFromVM(op, sess, vch)
+	vmPath, err := vchvm.VMPathName(op)
 	if err != nil {
 		return err
 	}
@@ -67,38 +69,38 @@ func Init(ctx context.Context, sess *session.Session) error {
 		return err
 	}
 
-	vmParentPool, err := vchvm.ResourcePool(ctx)
+	vmParentPool, err := vchvm.ResourcePool(op)
 	if err != nil {
 		return err
 	}
 
-	if err = storage.Init(ctx, sess, vmParentPool, source, sink); err != nil {
+	if err = storage.Init(op, sess, vmParentPool, source, sink); err != nil {
 		return err
 	}
 
-	if err = store.Init(ctx, sess, vmFolder); err != nil {
+	if err = store.Init(op, sess, vmFolder); err != nil {
 		return err
 	}
 
-	if err := exec.Init(ctx, sess, source, sink); err != nil {
+	if err := exec.Init(op, sess, source, sink); err != nil {
 		return err
 	}
 
-	if err = network.Init(ctx, sess, source, sink); err != nil {
+	if err = network.Init(op, sess, source, sink); err != nil {
 		return err
 	}
 
-	if err = logging.Init(ctx); err != nil {
+	if err = logging.Init(op); err != nil {
 		return err
 	}
 
-	if err = metrics.Init(ctx, sess); err != nil {
+	if err = metrics.Init(op, sess); err != nil {
 		return err
 	}
 
 	// Unbind containerVM serial ports configured with the old VCH IP.
 	// Useful when the appliance restarts and the VCH has a different IP.
-	TakeCareOfSerialPorts(sess)
+	TakeCareOfSerialPorts(op, sess)
 
 	return nil
 }
@@ -106,8 +108,8 @@ func Init(ctx context.Context, sess *session.Session) error {
 // TakeCareOfSerialPorts disconnects serial ports backed by network on the VCH's old IP and connects serial ports backed by file.
 // This is useful when the appliance or the portlayer restarts and the VCH has a new IP or container vms gets migrated
 // Any errors are logged and portlayer init proceeds as usual.
-func TakeCareOfSerialPorts(sess *session.Session) {
-	op := trace.NewOperation(context.Background(), "SerialPorts")
+func TakeCareOfSerialPorts(op trace.Operation, sess *session.Session) {
+	op = trace.FromOperation(op, "SerialPorts")
 	defer trace.End(trace.Begin("", op))
 	// Get all running containers from the portlayer cache
 	// Including starting containers here as well

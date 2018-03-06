@@ -317,7 +317,7 @@ func (c *Container) WaitForState(s State) <-chan struct{} {
 func (c *Container) NewHandle(ctx context.Context) *Handle {
 	// Call property collector to fill the data
 	if c.vm != nil {
-		op := trace.FromContext(ctx, "NewHandle")
+		op := trace.FromContext(ctx, "")
 		// FIXME: this should be calling the cache to decide if a refresh is needed
 		if err := c.Refresh(op); err != nil {
 			op.Errorf("refreshing container %s failed: %s", c, err)
@@ -517,7 +517,7 @@ func (c *Container) LogReader(op trace.Operation, tail int, follow bool, since i
 
 				// revert the govmomi returned context to the previous op
 				// the op was preserved as a value in the context
-				op = trace.FromContext(ctx, "LogReader")
+				op = trace.FromContext(ctx, "")
 				via = fmt.Sprintf(" via %s", h.Reference())
 			}
 		}
@@ -570,7 +570,6 @@ func (c *Container) LogReader(op trace.Operation, tail int, follow bool, since i
 
 // Remove removes a containerVM after detaching the disks
 func (c *Container) Remove(op trace.Operation, sess *session.Session) error {
-	// op := trace.FromContext(ctx, "Remove")
 	defer trace.End(trace.Begin(c.ExecConfig.ID, op))
 	c.m.Lock()
 	defer c.m.Unlock()

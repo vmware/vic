@@ -170,12 +170,8 @@ var cases = map[string]logrus.Level{
 // buildMatcher creates a testify MatchedBy function for the supplied operation
 func buildMatcher(op Operation, shouldContainOpID bool) func(entry *logrus.Entry) bool {
 	return func(entry *logrus.Entry) bool {
-		if shouldContainOpID && !strings.Contains(entry.Message, op.id) {
-			return false // Log message should have contained the operation id, but did not
-		}
-
-		if !shouldContainOpID && strings.Contains(entry.Message, op.id) {
-			return false // Log message should not have contained the operation id, but did
+		if shouldContainOpID != strings.Contains(entry.Message, op.id) {
+			return false // Presence (or lack of) of opid did not match expectation
 		}
 
 		for message, level := range cases {
@@ -285,7 +281,6 @@ func TestLogInheritance(t *testing.T) {
 
 	lm := new(MockHook)
 	op.Logger = logrus.New()
-	op.Logger.Hooks.Add(lm)
 	op.Logger.Level = logrus.DebugLevel
 
 	c1, _ := WithCancel(&op, "CancelChild")
@@ -293,6 +288,7 @@ func TestLogInheritance(t *testing.T) {
 	c3 := FromOperation(c2, "NormalChild")
 	c4 := FromContext(c3, "(Should == c3)")
 
+	op.Logger.Hooks.Add(lm)
 	lm.On("Fire", mock.MatchedBy(buildMatcher(op, false))).Return(nil)
 
 	op.Debugf("DebugfMessage")

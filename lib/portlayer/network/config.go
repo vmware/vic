@@ -17,6 +17,7 @@ package network
 import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
@@ -37,10 +38,10 @@ type Configuration struct {
 	PortGroups map[string]object.NetworkReference `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 }
 
-func (c *Configuration) Encode() {
+func (c *Configuration) Encode(op trace.Operation) {
 	extraconfig.Encode(c.sink, c)
 }
 
-func (c *Configuration) Decode() {
+func (c *Configuration) Decode(op trace.Operation) {
 	extraconfig.Decode(c.source, c)
 }

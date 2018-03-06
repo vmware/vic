@@ -249,10 +249,9 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 	}
 
 	if s.Keepalive != 0 {
+		cop := trace.NewOperation(op, "vmomi keep alive")
 		vimClient.RoundTripper = session.KeepAliveHandler(soapClient, s.Keepalive,
 			func(roundTripper soap.RoundTripper) error {
-				cop := trace.FromOperation(op, "KeepAlive")
-
 				_, err := methods.GetCurrentTime(cop, roundTripper)
 				if err == nil {
 					return nil
