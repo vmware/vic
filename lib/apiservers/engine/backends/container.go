@@ -583,18 +583,18 @@ func (c *ContainerBackend) containerCreate(vc *viccontainer.VicContainer, config
 		return "", err
 	}
 
-	h, err = c.containerProxy.AddImageToContainer(h, id, vc.LayerID, vc.ImageID, config)
+	h, err = c.containerProxy.AddImageToContainer(ctx, h, id, vc.LayerID, vc.ImageID, config)
 	if err != nil {
 		return "", err
 	}
 
 	// HACK: injects an alpine image
-	h, err = c.containerProxy.AddImageToContainer(h, "hacked-in-alpine", "9797e5e798a034d53525968de25bd25c913e7bb17c6d068ebc778cb33e3ff6e5", "3fd9065eaf02feaf94d68376da52541925650b81698c53c6824d92ff63f98353", config)
+	h, err = c.containerProxy.AddImageToContainer(ctx, h, "hacked-in-alpine", "9797e5e798a034d53525968de25bd25c913e7bb17c6d068ebc778cb33e3ff6e5", "3fd9065eaf02feaf94d68376da52541925650b81698c53c6824d92ff63f98353", config)
 	if err != nil {
 		return "", err
 	}
 
-	h, err = c.containerProxy.CreateContainerTask(h, id, vc.LayerID, config)
+	h, err = c.containerProxy.CreateContainerTask(ctx, h, id, vc.LayerID, config)
 	if err != nil {
 		return "", err
 	}
