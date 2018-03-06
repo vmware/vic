@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/performance"
 	"github.com/vmware/vic/pkg/vsphere/test"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 var (
@@ -121,8 +122,10 @@ func TestRankedRecommendHost(t *testing.T) {
 		server.Close()
 	}()
 
-	v, err := test.CreateVM(op, sess, "test-vm")
+	moref, err := test.CreateVM(op, sess, "test-vm")
 	assert.NoError(t, err)
+
+	v := vm.NewVirtualMachine(op, sess, moref)
 
 	m := MockMetricsProvider{}
 

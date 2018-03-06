@@ -31,7 +31,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
-	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 // Session returns a session.Session struct
@@ -146,13 +145,13 @@ func VpxModelSetup(ctx context.Context, t *testing.T) (*simulator.Model, *simula
 	return model, server, sess
 }
 
-// CreateVM creates a VM using a VPX session.
-func CreateVM(op trace.Operation, sess *session.Session, name string) (*vm.VirtualMachine, error) {
+// CreateVM provides a moref to a created VM
+func CreateVM(op trace.Operation, sess *session.Session, name string) (types.ManagedObjectReference, error) {
 	vmx := fmt.Sprintf("%s/%s.vmx", name, name)
 	ds := sess.Datastore
 	secretKey, err := extraconfig.NewSecretKey()
 	if err != nil {
-		return nil, err
+		return types.ManagedObjectReference{}, err
 	}
 
 	spec := types.VirtualMachineConfigSpec{
@@ -173,9 +172,8 @@ func CreateVM(op trace.Operation, sess *session.Session, name string) (*vm.Virtu
 		return sess.VMFolder.CreateVM(op, spec, sess.Pool, nil)
 	})
 	if err != nil {
-		return nil, err
+		return types.ManagedObjectReference{}, err
 	}
 
-	v := vm.NewVirtualMachine(op, sess, res.Result.(types.ManagedObjectReference))
-	return v, nil
+	return res.Result.(types.ManagedObjectReference), nil
 }
