@@ -65,6 +65,14 @@ const (
 	volumeStoresID = "VolumeStores"
 )
 
+//VCH Inventory Constants
+const (
+	alreadyExistsError            = "An object already exists on the inventory path for the vch that is not an inventory folder"
+	invalidNameError              = "An invalid name was specified for the VCH: %s does not meet the naming criteria for a vch"
+	unexpectedInventoryFaultError = "unexpected fault when attempting to create the inventory folder %s please see vic-machine.log for more information"
+	unexpectedInventoryError      = "unexpected error when attempting to create the inventory folder %s please see vic-machine.log for more information"
+)
+
 var (
 	lastSeenProgressMessage string
 	unitNumber              int32
@@ -792,106 +800,14 @@ func (d *Dispatcher) createVCHInventoryFolders(spec *types.VirtualMachineConfigS
 
 		// attempt to create the folder
 		f, err := existingFolder.CreateFolder(d.op, fname)
-		ok := false
-		if err != nil {
-			// check for already exists fault
+		isFailure, err := isInventoryCreationFailure(d.op, err, fname, vchName)
+		if isFailure {
+			// TODO: UNDO THE CREATION THAT WE HAVE DONE.
 
-			// Most likely the case for "AlreadyExists"
-			if soap.IsSoapFault(err) {
-
-				switch fault := soap.ToSoapFault(err).VimFault().(type) {
-				case types.AlreadyExists:
-					ok = true
-				case types.DuplicateName:
-					ok = true
-				case types.InvalidName:
-					d.op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
-					return nil, fmt.Errorf("An invalid name was specified for the VCH: %s does not meet the naming criteria for a vch", vchName)
-				default:
-					d.op.Errorf("Encountered unexpected fault : %#v ", fault)
-					return nil, fmt.Errorf("unexpected fault when attempting to create the inventory folder %s please see vic-machine.log for more information", folderCreateTarget)
-				}
-
-				if ok {
-					// the folder already exists. Get the ref.
-					folder, err := d.session.Finder.Folder(d.op, folderCreateTarget)
-					if err != nil {
-						return nil, err
-					}
-
-					existingFolder = folder
-					continue
-				}
-			}
-
-			if soap.IsVimFault(err) {
-
-				switch fault := soap.ToVimFault(err).(type) {
-				case *types.AlreadyExists:
-					ok = true
-				case *types.DuplicateName:
-					ok = true
-				case *types.InvalidName:
-					d.op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
-					return nil, fmt.Errorf("An invalid name was specified for the VCH: %s does not meet the naming criteria for a vch", vchName)
-				default:
-					d.op.Errorf("Encountered unexpected fault : %#v ", fault)
-					return nil, fmt.Errorf("unexpected fault when attempting to create the inventory folder %s please see vic-machine.log for more information", folderCreateTarget)
-				}
-
-				if ok {
-					// the folder already exists. Get the ref.
-					folder, err := d.session.Finder.Folder(d.op, folderCreateTarget)
-					if err != nil {
-						return nil, err
-					}
-
-					existingFolder = folder
-					continue
-				}
-			}
-
-			if err != nil {
-				// finally check for a task error
-				switch unknownError := err.(type) {
-				case task.Error:
-					switch fault := unknownError.Fault().(type) {
-					case *types.AlreadyExists:
-						ok = true
-					case *types.DuplicateName:
-						ok = true
-					case *types.InvalidName:
-						d.op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
-						return nil, fmt.Errorf("An invalid name was specified for the VCH: %s does not meet the naming criteria for a vch", vchName)
-					default:
-						d.op.Errorf("Encountered unexpected fault : %#v ", fault)
-						return nil, fmt.Errorf("unexpected fault when attempting to create the inventory folder %s please see vic-machine.log for more information", folderCreateTarget)
-					}
-				default:
-					d.op.Errorf("Encountered unexpected error : %#v ", unknownError)
-					return nil, fmt.Errorf("unexpected error when attempting to create the inventory folder %s please see vic-machine.log for more information", folderCreateTarget)
-				}
-
-				if ok {
-					// the folder already exists. Get the ref.
-					folder, err := d.session.Finder.Folder(d.op, folderCreateTarget)
-					if err != nil {
-						return nil, err
-					}
-
-					existingFolder = folder
-					continue
-				}
-			}
-
-			// TODO: move to checking for !ok rather than returning immediately. That way we can perform some cleaup since we may have created some things before failing.
-			if !ok {
-				// move the errors to this location
-				// unwind the creates(if possible) and then return the error.
-			}
-
-			d.op.Debugf("Failed to Create folder at path(%s/%s) : %#v", existingFolder.InventoryPath, fname, err)
+			return nil, err
 		}
+
+		d.op.Debugf("Failed to Create folder at path(%s/%s) : %#v", existingFolder.InventoryPath, fname, err)
 		existingFolder = f
 	}
 
@@ -1421,4 +1337,65 @@ func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.Virtual
 		return err
 	}
 	return nil
+}
+
+// isInventoryCreationFailure will check the given error and return whether it is a inventory folder creation error and return a human readable error if so
+func isInventoryCreationFailure(op trace.Operation, err error, fname string, vchName string) (bool, error) {
+	if err != nil {
+		if soap.IsSoapFault(err) {
+
+			switch fault := soap.ToSoapFault(err).VimFault().(type) {
+			case types.DuplicateName:
+				return false, nil
+			case types.AlreadyExists:
+				op.Errorf("received AlreadyExists fault when attempting to create folder %s", fname)
+				return true, fmt.Errorf(alreadyExistsError)
+			case types.InvalidName:
+				op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
+				return true, fmt.Errorf(invalidNameError, vchName)
+			default:
+				op.Errorf("Encountered unexpected fault : %#v ", fault)
+				return true, fmt.Errorf(unexpectedInventoryFaultError, fname)
+			}
+		}
+
+		if soap.IsVimFault(err) {
+
+			switch fault := soap.ToVimFault(err).(type) {
+			case *types.DuplicateName:
+				return false, nil
+			case *types.AlreadyExists:
+				op.Errorf("received AlreadyExists fault when attempting to create folder %s", fname)
+				return true, fmt.Errorf(alreadyExistsError)
+			case *types.InvalidName:
+				op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
+				return true, fmt.Errorf(invalidNameError, vchName)
+			default:
+				op.Errorf("Encountered unexpected fault : %#v ", fault)
+				return true, fmt.Errorf(unexpectedInventoryFaultError, fname)
+			}
+		}
+
+		// finally check for a task error
+		switch unknownError := err.(type) {
+		case task.Error:
+			switch fault := unknownError.Fault().(type) {
+			case *types.DuplicateName:
+				return false, nil
+			case *types.AlreadyExists:
+				op.Errorf("received AlreadyExists fault when attempting to create folder %s", fname)
+				return true, fmt.Errorf(alreadyExistsError)
+			case *types.InvalidName:
+				op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
+				return true, fmt.Errorf(invalidNameError, vchName)
+			default:
+				op.Errorf("Encountered unexpected fault : %#v ", fault)
+				return true, fmt.Errorf(unexpectedInventoryFaultError, fname)
+			}
+		default:
+			op.Errorf("Encountered unexpected error : %#v ", unknownError)
+			return true, fmt.Errorf(unexpectedInventoryError, fname)
+		}
+	}
+	return false, nil
 }
