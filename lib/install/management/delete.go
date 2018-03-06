@@ -385,14 +385,9 @@ func (d *Dispatcher) deleteVCHInventoryFolders() error {
 		return err
 	}
 
-	for len(folderContents) == 0 && folderRef.Reference() != VMFolder.Reference() {
-		// NOTE: Destroy on Inventory Folders is RECURSIVE, start from the leaf most target and check folder children to avoid undesired deletions.
-		err = d.removeFolder(folderRef)
-		if err != nil {
-			return err
-		}
-		d.op.Debugf("Successfully deleted folder at path : %s", parentFolderPath)
-
+	var deleteTarget *object.Folder
+	for len(folderContents) < 2 && folderRef.Reference() != VMFolder.Reference() {
+		deleteTarget = folderRef
 		// Walk up the inventory path and grab the parent folders path.
 		parentFolderPath = path.Dir(parentFolderPath)
 		folderRef, err = d.session.Finder.Folder(d.op, parentFolderPath)
@@ -406,6 +401,17 @@ func (d *Dispatcher) deleteVCHInventoryFolders() error {
 			return err
 		}
 	}
+
+	if deleteTarget == nil {
+		// we did not find a valid target to call destroy onParent
+		d.op.Debug("no valid target for recursive destroy found for inventory paths")
+		return nil
+	}
+	err = d.removeFolder(deleteTarget)
+	if err != nil {
+		return err
+	}
+	d.op.Debugf("Successfully deleted folder at path : %s", parentFolderPath)
 
 	return nil
 }
