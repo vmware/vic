@@ -62,6 +62,7 @@ pipeline:
     secrets:
       - drone_server
       - drone_token
+      - github_automation_api_key
       - registry_password
       - test_password
       - test_url_array
