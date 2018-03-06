@@ -368,19 +368,22 @@ func (d *Dispatcher) deleteVCHInventoryFolders() error {
 		return err
 	}
 
-	// GET THE VM FOLDER. BAIL HERE IF THEIR REFS
+	dcFolder, err := d.session.Datacenter.Folders(d.op)
+	if err != nil {
+		return err
+	}
+	VMFolder := dcFolder.VmFolder
+
+	if folderRef.Reference() == VMFolder.Reference() {
+		// cannot delete the vm folder
+		return nil
+	}
 
 	// we need to see if the folder is empty.
 	folderContents, err := folderRef.Children(d.op)
 	if err != nil {
 		return err
 	}
-
-	dcFolder, err := d.session.Datacenter.Folders(d.op)
-	if err != nil {
-		return err
-	}
-	VMFolder := dcFolder.VmFolder
 
 	for len(folderContents) == 0 && folderRef.Reference() != VMFolder.Reference() {
 		// NOTE: Destroy on Inventory Folders is RECURSIVE, start from the leaf most target and check folder children to avoid undesired deletions.
