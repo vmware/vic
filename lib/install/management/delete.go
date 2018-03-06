@@ -16,6 +16,7 @@ package management
 
 import (
 	"context"
+	"path"
 	"strings"
 	"sync"
 
@@ -27,7 +28,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-	"path"
 )
 
 type DeleteContainers int
