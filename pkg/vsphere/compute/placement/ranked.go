@@ -91,7 +91,7 @@ func (r *RankedHostPolicy) RecommendHost(op trace.Operation, v *vm.VirtualMachin
 		return nil, fmt.Errorf("could not restore serialized managed object reference: %s", ranked[0].HostReference)
 	}
 
-	result := object.NewHostSystem(v.Session.Client.Client, ref)
+	result := object.NewHostSystem(v.Session.Vim25(), ref)
 
 	return result, nil
 }

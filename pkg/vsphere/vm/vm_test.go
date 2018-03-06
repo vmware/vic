@@ -113,7 +113,7 @@ func TestDeleteExceptDisk(t *testing.T) {
 	}
 
 	// clean up
-	dm := object.NewVirtualDiskManager(session.Client.Client)
+	dm := object.NewVirtualDiskManager(session.Vim25())
 
 	task, err := dm.DeleteVirtualDisk(context.TODO(), diskName, nil)
 	if err != nil {

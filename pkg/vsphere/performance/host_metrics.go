@@ -209,7 +209,7 @@ func filterHosts(op trace.Operation, s *session.Session, hosts []*object.HostSys
 	}
 
 	hs := make([]mo.HostSystem, 0, len(hosts))
-	pc := property.DefaultCollector(s.Client.Client)
+	pc := property.DefaultCollector(s.Vim25())
 	err := pc.Retrieve(op, refs, props, &hs)
 	if err != nil {
 		return nil, err
