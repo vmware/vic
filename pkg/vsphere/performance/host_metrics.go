@@ -200,9 +200,7 @@ func filterHosts(op trace.Operation, s *session.Session, hosts []*object.HostSys
 		return nil, fmt.Errorf("no candidate hosts to filter check")
 	}
 
-	// TODO(jzt): figure out how to hone in on connection state and maintenance mode keywords to make the result
-	// more sparse
-	props := []string{"summary"}
+	props := []string{"summary.runtime"}
 	refs := make([]types.ManagedObjectReference, 0, len(hosts))
 	for _, h := range hosts {
 		refs = append(refs, h.Reference())
