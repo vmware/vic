@@ -376,9 +376,13 @@ func (d *Dispatcher) deleteVCHInventoryFolders() error {
 		return err
 	}
 
-	// FIXME: CHANGE TO GETTING THE VM FOLDER REFERENCE. WE ARE CHANGING d.session.VMFolder to point to the creation point for cvms
+	dcFolder, err := d.session.Datacenter.Folders(d.op)
+	if err != nil {
+		return err
+	}
+	VMFolder := dcFolder.VmFolder
 
-	for len(folderContents) == 0 && folderRef.Reference() != d.session.VMFolder.Reference() {
+	for len(folderContents) == 0 && folderRef.Reference() != VMFolder.Reference() {
 		// NOTE: Destroy on Inventory Folders is RECURSIVE, start from the leaf most target and check folder children to avoid undesired deletions.
 		err = d.removeFolder(folderRef)
 		if err != nil {
