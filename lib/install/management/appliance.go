@@ -801,35 +801,12 @@ func (d *Dispatcher) createVCHInventoryFolders(spec *types.VirtualMachineConfigS
 	d.op.Debugf("Determined that these folders need to be created: %s", foldersToCreate)
 
 	// now that we have the list of needed constructions we need to assemble it.
-	createdFolder := existingFolder
-	for _, fname := range foldersToCreate {
-		folderCreateTarget := fmt.Sprintf("%s/%s", createdFolder.InventoryPath, fname)
-		d.op.Debugf("Attempting to create folder : %s", folderCreateTarget)
-
-		// attempt to create the folder
-		f, err := createdFolder.CreateFolder(d.op, fname)
-		err = processInventoryCreationError(d.op, err, fname, vchName)
-
-		// creation failed, we must cleanup and bail
-		if err != nil {
-			baseCreatedFolder, cleanupErr := d.session.Finder.Folder(d.op, fmt.Sprintf("%s/%s", existingFolder.InventoryPath, foldersToCreate[0]))
-			if baseCreatedFolder == nil || err != nil {
-				d.op.Warnf("Failed to find inventory folders for VCH (%s) when attempting to cleanup failed creation: %s", vchName, cleanupErr)
-				d.op.Warnf(manualInventoryCleanWarning)
-				return nil, err
-			}
-
-			cleanupErr = d.removeFolder(baseCreatedFolder)
-			if cleanupErr != nil {
-				d.op.Warnf("Failed to delete inventory folders for VCH (%s) when attempting to cleanup failed creation: %s", vchName, cleanupErr)
-				d.op.Warnf(manualInventoryCleanWarning)
-				return nil, err
-			}
-			return nil, err
-		}
-		createdFolder = f
+	vchFolder, err := d.createFolderChainForVCH(foldersToCreate, existingFolder, vchName)
+	if err != nil {
+		return nil, err
 	}
-	return createdFolder, nil
+
+	return vchFolder, nil
 }
 
 func (d *Dispatcher) findInventoryCreationShortlist(folders []string) (*object.Folder, []string, error) {
@@ -857,6 +834,41 @@ func (d *Dispatcher) findInventoryCreationShortlist(folders []string) (*object.F
 		folder = tempRef
 	}
 	return folder, creationFolders, nil
+}
+
+// createFolderChain will create the list of folders as a chain(each one the parent of the next) starting at the give "startingFolder"
+// WARNING: this will attempt a cleanup at the base of the chain if it fails. do not use if you suspect files exists past startingFolder and the first file creation element.
+func (d *Dispatcher) createFolderChainForVCH(folders []string, startingFolder *object.Folder, vchName string) (*object.Folder, error) {
+
+	createdFolder := startingFolder
+	for _, fname := range folders {
+		folderCreateTarget := fmt.Sprintf("%s/%s", createdFolder.InventoryPath, fname)
+		d.op.Debugf("Attempting to create folder : %s", folderCreateTarget)
+
+		// attempt to create the folder
+		f, err := createdFolder.CreateFolder(d.op, fname)
+		err = processInventoryCreationError(d.op, err, fname, vchName)
+
+		// creation failed, we must cleanup and bail
+		if err != nil {
+			baseCreatedFolder, cleanupErr := d.session.Finder.Folder(d.op, fmt.Sprintf("%s/%s", startingFolder.InventoryPath, folders[0]))
+			if baseCreatedFolder == nil || err != nil {
+				d.op.Warnf("Failed to find inventory folders for VCH (%s) when attempting to cleanup failed creation: %s", vchName, cleanupErr)
+				d.op.Warnf(manualInventoryCleanWarning)
+				return nil, err
+			}
+
+			cleanupErr = d.removeFolder(baseCreatedFolder)
+			if cleanupErr != nil {
+				d.op.Warnf("Failed to delete inventory folders for VCH (%s) when attempting to cleanup failed creation: %s", vchName, cleanupErr)
+				d.op.Warnf(manualInventoryCleanWarning)
+				return nil, err
+			}
+			return nil, err
+		}
+		createdFolder = f
+	}
+	return createdFolder, nil
 }
 
 func (d *Dispatcher) encodeConfig(conf *config.VirtualContainerHostConfigSpec) (map[string]string, error) {
