@@ -162,6 +162,7 @@ func TestFilterHosts(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, filteredHosts, len(hosts))
 
+	h0 := hosts[0]
 	spec := &types.HostMaintenanceSpec{}
 
 	_, err = tasks.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
@@ -172,6 +173,7 @@ func TestFilterHosts(t *testing.T) {
 	filteredHosts, err = filterHosts(op, sess, hosts)
 	assert.NoError(t, err)
 	assert.Len(t, filteredHosts, len(hosts)-1)
+	assert.NotContains(t, filteredHosts, h0)
 
 	// TODO(jzt): uncomment this when vcsim host_system.go supports DisconnectHost_Task
 	// _, err = tasks.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
