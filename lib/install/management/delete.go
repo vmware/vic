@@ -240,6 +240,8 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 
 	var err error
 	var children []*vm.VirtualMachine
+
+	// TODO: GET CHILDREN EITHER BY FOLDER OR RP BASED ON DEPLOYMENT
 	if children, err = d.parentResourcepool.GetChildrenVMs(d.op, d.session); err != nil {
 		return err
 	}
