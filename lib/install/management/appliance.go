@@ -786,32 +786,78 @@ func (d *Dispatcher) createVCHInventoryFolders(spec *types.VirtualMachineConfigS
 	vchName := spec.Name
 
 	// assemble creation list
-	folders := []string{d.session.ClusterPath}
+	folders := []string{d.session.Cluster.Name()}
 	consolidated := strings.TrimLeft(d.vchPoolPath, d.session.ClusterPath)
 	folders = append(folders, strings.Split(consolidated, "/")...)
-	folders = append(folders, vchName)
 	d.op.Debugf("Determined inventory targets for creation: %s", folders)
 
+	// Find all of the folders that we can before we start creating.
+	existingFolder, foldersToCreate, err := d.findInventoryCreationShortlist(folders)
+	if err != nil {
+		return nil, err
+	}
+
+	d.op.Debugf("Determined that these folders need to be created: %s", foldersToCreate)
+
 	// now that we have the list of needed constructions we need to assemble it.
-	existingFolder := d.session.VMFolder
-	for _, fname := range folders {
-		folderCreateTarget := fmt.Sprintf("%s/%s", existingFolder.InventoryPath, fname)
+	createdFolder := existingFolder
+	for _, fname := range foldersToCreate {
+		folderCreateTarget := fmt.Sprintf("%s/%s", createdFolder.InventoryPath, fname)
 		d.op.Debugf("Attempting to create folder : %s", folderCreateTarget)
 
 		// attempt to create the folder
-		f, err := existingFolder.CreateFolder(d.op, fname)
+		f, err := createdFolder.CreateFolder(d.op, fname)
 		isFailure, err := isInventoryCreationFailure(d.op, err, fname, vchName)
 		if isFailure {
-			// TODO: UNDO THE CREATION THAT WE HAVE DONE.
+			// at this point we need to handle a potential collision. checking if there is an error here is likely enough as we are trying to create and we cannot. We do not really care why at this point.
+		}
+
+		// at this point these folders should not exist
+		if err != nil {
+			// use the finder to grab the folder in the create list and use it to destroy the folder chain.
+			baseCreatedFolder, err := d.session.Finder.Folder(d.op, fmt.Sprintf("%s/%s", existingFolder.InventoryPath, foldersToCreate[0]))
+			if baseCreatedFolder == nil || err != nil {
+				// unable to clean anything up
+				return nil, err
+			}
+
+			// delete everything recursively
+			baseCreatedFolder.Destroy(d.op)
 
 			return nil, err
 		}
 
-		d.op.Debugf("Failed to Create folder at path(%s/%s) : %#v", existingFolder.InventoryPath, fname, err)
-		existingFolder = f
+		createdFolder = f
 	}
 
-	return existingFolder, nil
+	return createdFolder, nil
+}
+
+func (d *Dispatcher) findInventoryCreationShortlist(folders []string) (*object.Folder, []string, error) {
+	var targetPath string
+	creationFolders := make([]string, 0)
+
+	dcfolder, err := d.session.Datacenter.Folders(d.op)
+	if err != nil {
+		return nil, nil, err
+	}
+	folder := dcfolder.VmFolder
+
+	for index, folderName := range folders {
+		targetPath = fmt.Sprintf("%s/%s", folder.InventoryPath, folderName)
+
+		tempRef, _ := d.session.Finder.Folder(d.op, targetPath)
+		if tempRef == nil {
+			// collect the rest of the folders and return them
+			for index < len(folders) {
+				creationFolders = append(creationFolders, folders[index])
+				index++
+			}
+			break
+		}
+		folder = tempRef
+	}
+	return folder, creationFolders, nil
 }
 
 func (d *Dispatcher) encodeConfig(conf *config.VirtualContainerHostConfigSpec) (map[string]string, error) {
@@ -1346,10 +1392,8 @@ func isInventoryCreationFailure(op trace.Operation, err error, fname string, vch
 
 			switch fault := soap.ToSoapFault(err).VimFault().(type) {
 			case types.DuplicateName:
+				// TODO: Check the returned object to see if it is a folder. if it is not then we cannot proceed and we must perform cleanup? but... if we get this error we should also likely not perform cleanup. This would mainly be a race  condition if we hit it at this point.
 				return false, nil
-			case types.AlreadyExists:
-				op.Errorf("received AlreadyExists fault when attempting to create folder %s", fname)
-				return true, fmt.Errorf(alreadyExistsError)
 			case types.InvalidName:
 				op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
 				return true, fmt.Errorf(invalidNameError, vchName)
@@ -1364,9 +1408,6 @@ func isInventoryCreationFailure(op trace.Operation, err error, fname string, vch
 			switch fault := soap.ToVimFault(err).(type) {
 			case *types.DuplicateName:
 				return false, nil
-			case *types.AlreadyExists:
-				op.Errorf("received AlreadyExists fault when attempting to create folder %s", fname)
-				return true, fmt.Errorf(alreadyExistsError)
 			case *types.InvalidName:
 				op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
 				return true, fmt.Errorf(invalidNameError, vchName)
@@ -1382,9 +1423,6 @@ func isInventoryCreationFailure(op trace.Operation, err error, fname string, vch
 			switch fault := unknownError.Fault().(type) {
 			case *types.DuplicateName:
 				return false, nil
-			case *types.AlreadyExists:
-				op.Errorf("received AlreadyExists fault when attempting to create folder %s", fname)
-				return true, fmt.Errorf(alreadyExistsError)
 			case *types.InvalidName:
 				op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
 				return true, fmt.Errorf(invalidNameError, vchName)
