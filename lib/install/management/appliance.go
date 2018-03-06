@@ -71,6 +71,7 @@ const (
 	invalidNameError              = "An invalid name was specified for the VCH: %s does not meet the naming criteria for a vch"
 	unexpectedInventoryFaultError = "unexpected fault when attempting to create the inventory folder %s please see vic-machine.log for more information"
 	unexpectedInventoryError      = "unexpected error when attempting to create the inventory folder %s please see vic-machine.log for more information"
+	manualInventoryCleanWarn      = "Manual cleanup in the inventory may be needed."
 )
 
 var (
@@ -807,29 +808,27 @@ func (d *Dispatcher) createVCHInventoryFolders(spec *types.VirtualMachineConfigS
 
 		// attempt to create the folder
 		f, err := createdFolder.CreateFolder(d.op, fname)
-		isFailure, err := isInventoryCreationFailure(d.op, err, fname, vchName)
-		if isFailure {
-			// at this point we need to handle a potential collision. checking if there is an error here is likely enough as we are trying to create and we cannot. We do not really care why at this point.
-		}
+		err = processInventoryCreationError(d.op, err, fname, vchName)
 
-		// at this point these folders should not exist
 		if err != nil {
 			// use the finder to grab the folder in the create list and use it to destroy the folder chain.
-			baseCreatedFolder, err := d.session.Finder.Folder(d.op, fmt.Sprintf("%s/%s", existingFolder.InventoryPath, foldersToCreate[0]))
+			baseCreatedFolder, cleanupErr := d.session.Finder.Folder(d.op, fmt.Sprintf("%s/%s", existingFolder.InventoryPath, foldersToCreate[0]))
 			if baseCreatedFolder == nil || err != nil {
 				// unable to clean anything up
+				d.op.Warnf("Failed to find inventory folders for VCH (%s) when attempting to cleanup failed creation: %s", vchName, cleanupErr)
+				d.op.Warnf(manualInventoryCleanWarn)
 				return nil, err
 			}
-
-			// delete everything recursively
-			baseCreatedFolder.Destroy(d.op)
-
+			cleanupErr = d.removeFolder(baseCreatedFolder)
+			if cleanupErr != nil {
+				d.op.Warnf("Failed to delete inventory folders for VCH (%s) when attempting to cleanup failed creation: %s", vchName, cleanupErr)
+				d.op.Warnf(manualInventoryCleanWarn)
+				return nil, err
+			}
 			return nil, err
 		}
-
 		createdFolder = f
 	}
-
 	return createdFolder, nil
 }
 
@@ -1385,21 +1384,21 @@ func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.Virtual
 	return nil
 }
 
-// isInventoryCreationFailure will check the given error and return whether it is a inventory folder creation error and return a human readable error if so
-func isInventoryCreationFailure(op trace.Operation, err error, fname string, vchName string) (bool, error) {
+// processInventoryCreationError will check the given error and return whether it is a inventory folder creation error and return a human readable error if so
+func processInventoryCreationError(op trace.Operation, err error, fname string, vchName string) error {
 	if err != nil {
 		if soap.IsSoapFault(err) {
 
 			switch fault := soap.ToSoapFault(err).VimFault().(type) {
 			case types.DuplicateName:
 				// TODO: Check the returned object to see if it is a folder. if it is not then we cannot proceed and we must perform cleanup? but... if we get this error we should also likely not perform cleanup. This would mainly be a race  condition if we hit it at this point.
-				return false, nil
+				return nil
 			case types.InvalidName:
 				op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
-				return true, fmt.Errorf(invalidNameError, vchName)
+				return fmt.Errorf(invalidNameError, vchName)
 			default:
 				op.Errorf("Encountered unexpected fault : %#v ", fault)
-				return true, fmt.Errorf(unexpectedInventoryFaultError, fname)
+				return fmt.Errorf(unexpectedInventoryFaultError, fname)
 			}
 		}
 
@@ -1407,13 +1406,13 @@ func isInventoryCreationFailure(op trace.Operation, err error, fname string, vch
 
 			switch fault := soap.ToVimFault(err).(type) {
 			case *types.DuplicateName:
-				return false, nil
+				return nil
 			case *types.InvalidName:
 				op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
-				return true, fmt.Errorf(invalidNameError, vchName)
+				return fmt.Errorf(invalidNameError, vchName)
 			default:
 				op.Errorf("Encountered unexpected fault : %#v ", fault)
-				return true, fmt.Errorf(unexpectedInventoryFaultError, fname)
+				return fmt.Errorf(unexpectedInventoryFaultError, fname)
 			}
 		}
 
@@ -1422,18 +1421,18 @@ func isInventoryCreationFailure(op trace.Operation, err error, fname string, vch
 		case task.Error:
 			switch fault := unknownError.Fault().(type) {
 			case *types.DuplicateName:
-				return false, nil
+				return nil
 			case *types.InvalidName:
 				op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
-				return true, fmt.Errorf(invalidNameError, vchName)
+				return fmt.Errorf(invalidNameError, vchName)
 			default:
 				op.Errorf("Encountered unexpected fault : %#v ", fault)
-				return true, fmt.Errorf(unexpectedInventoryFaultError, fname)
+				return fmt.Errorf(unexpectedInventoryFaultError, fname)
 			}
 		default:
 			op.Errorf("Encountered unexpected error : %#v ", unknownError)
-			return true, fmt.Errorf(unexpectedInventoryError, fname)
+			return fmt.Errorf(unexpectedInventoryError, fname)
 		}
 	}
-	return false, nil
+	return nil
 }
