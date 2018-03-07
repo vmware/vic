@@ -120,6 +120,7 @@ pipeline:
       - export GOVC_PASSWORD=$TEST_PASSWORD
       - export GOVC_DATASTORE=$TEST_DATASTORE
       - export DOMAIN=$CI_DOMAIN
+      - export MULTI_VCH=1
       - echo $DOMAIN
       - 'make mark'
       - tests/integration-test.sh
@@ -208,8 +209,10 @@ pipeline:
       branch: [master, 'releases/*', 'refs/tags/*']
 
   publish-gcs-builds-on-pass:
-    image: 'maplain/drone-gcs:latest'
+    image: 'victest/drone-gcs:1'
     pull: true
+    secrets:
+      - google_key
     source: bundle
     target: vic-engine-builds
     acl:
@@ -222,8 +225,10 @@ pipeline:
       status: success
 
   publish-gcs-builds-on-fail:
-    image: 'maplain/drone-gcs:latest'
+    image: 'victest/drone-gcs:1'
     pull: true
+    secrets:
+      - google_key
     source: bundle
     target: vic-engine-failed-builds
     acl:
@@ -236,8 +241,10 @@ pipeline:
       status: failure
 
   publish-gcs-releases:
-    image: 'maplain/drone-gcs:latest'
+    image: 'victest/drone-gcs:1'
     pull: true
+    secrets:
+      - google_key
     source: bundle-release
     target: vic-engine-releases
     acl:

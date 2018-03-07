@@ -38,6 +38,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/engine/backends/convert"
 	plclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
 	plscopes "github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
+	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	plmodels "github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/config/executor"
@@ -342,6 +343,21 @@ func (m *MockContainerProxy) State(vc *viccontainer.VicContainer) (*types.Contai
 		Running: true,
 	}
 	return state, nil
+}
+
+func (m *MockContainerProxy) GetStateFromHandle(op trace.Operation, handle string) (string, string, error) {
+	return "", "", nil
+}
+
+func (m *MockContainerProxy) InspectTask(op trace.Operation, handle string, eid string, cid string) (*models.TaskInspectResponse, error) {
+	return nil, nil
+}
+func (m *MockContainerProxy) BindTask(op trace.Operation, handle string, eid string) (string, error) {
+	return "", nil
+}
+
+func (m *MockContainerProxy) WaitTask(op trace.Operation, cid string, cname string, id string) error {
+	return nil
 }
 
 func (m *MockContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (*types.ContainerState, error) {

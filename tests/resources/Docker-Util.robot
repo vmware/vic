@@ -253,7 +253,7 @@ Kill All Containers
 Remove All Images
     ${exist}=  Do Images Exist
     Run Keyword If  ${exist}  Log To Console  Removing all images from %{VCH-NAME}
-    
+
     Return From Keyword If  ${exist} == ${false}  0
     Run Keyword If  ${exist}  Remove All Containers
     Run Keyword If  ${exist}  Run  docker %{VCH-PARAMS} rmi $(docker %{VCH-PARAMS} images -q)
@@ -283,7 +283,7 @@ Remove All Container Networks
     ${exist}=  Do Networks Exist
     Return From Keyword If  ${exist} == ${false}  0
     [Return]  1
-    
+
 Add List To Dictionary
     [Arguments]  ${dict}  ${list}
     : FOR  ${item}  IN  @{list}
@@ -305,7 +305,7 @@ List Existing Images On VCH
     : FOR  ${tag}  IN  @{tags_dict.keys()}
     \    Log To Console  \t${tag}
 
-List Running Containers On VCH    
+List Running Containers On VCH
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -q
     Log To Console  ${EMPTY}
     ${len}=  Get Length  ${output}
