@@ -109,12 +109,10 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 		return err
 	}
 
-	if d.isVC {
-		err = d.deleteVCHInventoryFolders()
-		if err != nil {
-			d.op.Debugf("Error deleting appliance VM's inventory folders: %s", err)
-			return err
-		}
+	err = d.deleteFolders()
+	if err != nil {
+		d.op.Debugf("Error deleting appliance VM's inventory folders: %s", err)
+		return err
 	}
 
 	defaultrp, err := d.session.Cluster.ResourcePool(d.op)
@@ -360,24 +358,25 @@ func (d *Dispatcher) networkDevices(vmm *vm.VirtualMachine) ([]types.BaseVirtual
 	return devices, nil
 }
 
-func (d *Dispatcher) deleteVCHInventoryFolders() error {
-	parentFolderPath := path.Dir(d.appliance.InventoryPath)
-	// Now that the VCH is gone we will need to delete the inventory folder structure.
-	d.op.Debugf("Attempting to remove inventory folder: %s", parentFolderPath)
+func (d *Dispatcher) deleteFolders() error {
+	if !d.isVC {
+		return nil
+	}
 
-	// grab the folder ref of the vm's direct parent
-	folderRef, err := d.session.Finder.Folder(d.op, parentFolderPath)
+	d.op.Info("Removing VCH Inventory Folder")
+	vchFolderPath := path.Dir(d.appliance.InventoryPath)
+	folderRef, err := d.session.Finder.Folder(d.op, vchFolderPath)
 	if err != nil {
-		d.op.Debugf("failed to find folder: %s", parentFolderPath)
+		d.op.Debugf("failed to find folder: %s", vchFolderPath)
 		return err
 	}
 
+	// protections against old vch's since they are directly in the VMFolder
 	dcFolder, err := d.session.Datacenter.Folders(d.op)
 	if err != nil {
 		return err
 	}
 	VMFolder := dcFolder.VmFolder
-
 	if folderRef.Reference() == VMFolder.Reference() {
 		// cannot delete the vm folder
 		return nil
@@ -389,33 +388,17 @@ func (d *Dispatcher) deleteVCHInventoryFolders() error {
 		return err
 	}
 
-	var deleteTarget *object.Folder
-	for len(folderContents) < 2 && folderRef.Reference() != VMFolder.Reference() {
-		deleteTarget = folderRef
-		// Walk up the inventory path and grab the parent folders path.
-		parentFolderPath = path.Dir(parentFolderPath)
-		folderRef, err = d.session.Finder.Folder(d.op, parentFolderPath)
-		if err != nil {
-			// at this point we have already partially cleaned up. So we may leave artifacts around when we bail.
-			return err
-		}
+	if len(folderContents) != 0 {
+		d.op.Warnf("Could not remove VCH inventory folder, %s has existing contents in it. Manual cleanup will be required.", vchFolderPath)
 
-		folderContents, err = folderRef.Children(d.op)
-		if err != nil {
-			return err
-		}
-	}
-
-	if deleteTarget == nil {
-		// we did not find a valid target to call destroy onParent
-		d.op.Debug("no valid target for recursive destroy found for inventory paths")
+		// not really a reason to fail the entire delete...
 		return nil
 	}
-	err = d.removeFolder(deleteTarget)
+
+	err = d.removeFolder(folderRef)
 	if err != nil {
 		return err
 	}
-	d.op.Debugf("Successfully deleted folder at path : %s", parentFolderPath)
 
 	return nil
 }

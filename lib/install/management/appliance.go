@@ -67,7 +67,7 @@ const (
 
 //VCH Inventory Constants
 const (
-	alreadyExistsError            = "An object already exists on the inventory path for the vch that is not an inventory folder"
+	alreadyExistsError            = "An object already exists on the inventory path for vch (%s) that is not an inventory folder"
 	invalidNameError              = "An invalid name was specified for the VCH: %s does not meet the naming criteria for a vch"
 	unexpectedInventoryFaultError = "unexpected fault when attempting to create the inventory folder %s please see vic-machine.log for more information"
 	unexpectedInventoryError      = "unexpected error when attempting to create the inventory folder %s please see vic-machine.log for more information"
@@ -593,7 +593,6 @@ func (d *Dispatcher) setDockerPort(conf *config.VirtualContainerHostConfigSpec, 
 
 func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(""))
-
 	d.op.Info("Creating appliance on target")
 
 	spec, err := d.createApplianceSpec(conf, settings)
@@ -603,39 +602,23 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	}
 
 	var info *types.TaskInfo
-	// create appliance VM
-	if d.isVC && d.vchVapp != nil {
-		info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-			return d.vchVapp.CreateChildVM(ctx, *spec, d.session.Host)
-		})
-	} else {
 
-		dcFolders, err := d.session.Datacenter.Folders(d.op)
-		if err != nil {
-			return err
-		}
-		vchParentFolder := dcFolders.VmFolder
-
-		// check to see if we are working with VC...
-		if d.isVC {
-			vchParentFolder, err = d.createVCHInventoryFolders(spec)
-			if err != nil {
-				return err
-			}
-		}
-
-		// if vapp is not created, fall back to create VM under default resource pool
-		intendedVCHPath := fmt.Sprintf("%s/%s", vchParentFolder.InventoryPath, spec.Name)
-		info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-			vchVM, err := d.session.Finder.VirtualMachine(ctx, intendedVCHPath)
-			if vchVM != nil {
-				// We have found another VCH at the target path that we intended to install to.
-				return nil, fmt.Errorf("Could not create VCH because one already exists with the same name and compute at path(%s) : %s", intendedVCHPath, err)
-			}
-
-			return vchParentFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
-		})
+	vchParentFolder, err := d.createFolders(spec.Name)
+	if err != nil {
+		return err
 	}
+
+	// if vapp is not created, fall back to create VM under default resource pool
+	intendedVCHPath := fmt.Sprintf("%s/%s", vchParentFolder.InventoryPath, spec.Name)
+	info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
+		vchVM, err := d.session.Finder.VirtualMachine(ctx, intendedVCHPath)
+		if vchVM != nil {
+			// We have found another VCH at the target path that we intended to install to.
+			return nil, fmt.Errorf("Could not create VCH because one already exists with the same name and compute at path(%s) : %s", intendedVCHPath, err)
+		}
+
+		return vchParentFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
+	})
 
 	if err != nil {
 		d.op.Errorf("Unable to create appliance VM: %s", err)
@@ -790,94 +773,27 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	return nil
 }
 
-// createVCHInventoryFolders creates the default structure of the inventory for the VCH and returns the object reference to the last folder created
-func (d *Dispatcher) createVCHInventoryFolders(spec *types.VirtualMachineConfigSpec) (*object.Folder, error) {
-	d.op.Info("Creating VCH inventory folders")
-	vchName := spec.Name
-
-	// assemble creation list
-	folders := []string{d.session.Cluster.Name()}
-	consolidated := strings.TrimLeft(d.vchPoolPath, d.session.ClusterPath)
-	folders = append(folders, strings.Split(consolidated, "/")...)
-	d.op.Debugf("Determined inventory targets for creation: %s", folders)
-
-	// Find all of the folders that we can before we start creating.
-	existingFolder, foldersToCreate, err := d.findInventoryCreationShortlist(folders)
-	if err != nil {
-		return nil, err
+// createFolders creates the default structure of the inventory for the VCH and returns the object reference to the last folder created
+func (d *Dispatcher) createFolders(vchName string) (*object.Folder, error) {
+	if !d.isVC {
+		return d.session.VMFolder, nil
 	}
 
-	d.op.Debugf("Determined that these folders need to be created: %s", foldersToCreate)
-
-	// now that we have the list of needed constructions we need to assemble it.
-	vchFolder, err := d.createFolderChainForVCH(foldersToCreate, existingFolder, vchName)
+	d.op.Info("Creating VCH inventory folder")
+	vchFolder, err := d.session.VMFolder.CreateFolder(d.op, vchName)
 	if err != nil {
-		return nil, err
+		found, err := d.processInventoryCreationError(err, vchName)
+		if err != nil {
+			return nil, err
+		}
+
+		// we found an existing folder and we need to use that one instead.
+		if found != nil {
+			vchFolder = found
+		}
 	}
 
 	return vchFolder, nil
-}
-
-func (d *Dispatcher) findInventoryCreationShortlist(folders []string) (*object.Folder, []string, error) {
-	var targetPath string
-	creationFolders := make([]string, 0)
-
-	dcfolder, err := d.session.Datacenter.Folders(d.op)
-	if err != nil {
-		return nil, nil, err
-	}
-	folder := dcfolder.VmFolder
-
-	for index, folderName := range folders {
-		targetPath = fmt.Sprintf("%s/%s", folder.InventoryPath, folderName)
-
-		tempRef, _ := d.session.Finder.Folder(d.op, targetPath)
-		if tempRef == nil {
-			// collect the rest of the folders and return them
-			for index < len(folders) {
-				creationFolders = append(creationFolders, folders[index])
-				index++
-			}
-			break
-		}
-		folder = tempRef
-	}
-	return folder, creationFolders, nil
-}
-
-// createFolderChain will create the list of folders as a chain(each one the parent of the next) starting at the give "startingFolder"
-// WARNING: this will attempt a cleanup at the base of the chain if it fails. do not use if you suspect files exists past startingFolder and the first file creation element.
-func (d *Dispatcher) createFolderChainForVCH(folders []string, startingFolder *object.Folder, vchName string) (*object.Folder, error) {
-
-	createdFolder := startingFolder
-	for _, fname := range folders {
-		folderCreateTarget := fmt.Sprintf("%s/%s", createdFolder.InventoryPath, fname)
-		d.op.Debugf("Attempting to create folder : %s", folderCreateTarget)
-
-		// attempt to create the folder
-		f, err := createdFolder.CreateFolder(d.op, fname)
-		err = processInventoryCreationError(d.op, err, fname, vchName)
-
-		// creation failed, we must cleanup and bail
-		if err != nil {
-			baseCreatedFolder, cleanupErr := d.session.Finder.Folder(d.op, fmt.Sprintf("%s/%s", startingFolder.InventoryPath, folders[0]))
-			if baseCreatedFolder == nil || err != nil {
-				d.op.Warnf("Failed to find inventory folders for VCH (%s) when attempting to cleanup failed creation: %s", vchName, cleanupErr)
-				d.op.Warnf(manualInventoryCleanWarning)
-				return nil, err
-			}
-
-			cleanupErr = d.removeFolder(baseCreatedFolder)
-			if cleanupErr != nil {
-				d.op.Warnf("Failed to delete inventory folders for VCH (%s) when attempting to cleanup failed creation: %s", vchName, cleanupErr)
-				d.op.Warnf(manualInventoryCleanWarning)
-				return nil, err
-			}
-			return nil, err
-		}
-		createdFolder = f
-	}
-	return createdFolder, nil
 }
 
 func (d *Dispatcher) encodeConfig(conf *config.VirtualContainerHostConfigSpec) (map[string]string, error) {
@@ -1406,20 +1322,30 @@ func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.Virtual
 }
 
 // processInventoryCreationError will check the given error and return whether it is a inventory folder creation error and return a human readable error if so
-func processInventoryCreationError(op trace.Operation, err error, fname string, vchName string) error {
+func (d *Dispatcher) processInventoryCreationError(err error, name string) (*object.Folder, error) {
 	if err != nil {
 		if soap.IsSoapFault(err) {
 
 			switch fault := soap.ToSoapFault(err).VimFault().(type) {
 			case types.DuplicateName:
-				// TODO: Check the returned object to see if it is a folder. if it is not then we cannot proceed and we must perform cleanup? but... if we get this error we should also likely not perform cleanup. This would mainly be a race  condition if we hit it at this point.
-				return nil
+				// get the object from the fault
+				obj, err := d.session.Finder.ObjectReference(d.op, fault.Object)
+				if err != nil {
+					return nil, err
+				}
+
+				vchFolder, ok := obj.(*object.Folder)
+				if ok {
+					d.op.Debugf("Found already existing vch folder(%s)", name)
+					return vchFolder, nil
+				}
+				return nil, fmt.Errorf(alreadyExistsError, name)
 			case types.InvalidName:
-				op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
-				return fmt.Errorf(invalidNameError, vchName)
+				d.op.Errorf("received InvalidName fault when attempting to create folder %s", name)
+				return nil, fmt.Errorf(invalidNameError, name)
 			default:
-				op.Errorf("Encountered unexpected fault : %#v ", fault)
-				return fmt.Errorf(unexpectedInventoryFaultError, fname)
+				d.op.Errorf("Encountered unexpected fault : %#v ", fault)
+				return nil, fmt.Errorf(unexpectedInventoryFaultError, name)
 			}
 		}
 
@@ -1427,13 +1353,25 @@ func processInventoryCreationError(op trace.Operation, err error, fname string, 
 
 			switch fault := soap.ToVimFault(err).(type) {
 			case *types.DuplicateName:
-				return nil
+				// get the object from the fault
+				obj, err := d.session.Finder.ObjectReference(d.op, fault.Object)
+				if err != nil {
+					return nil, err
+				}
+
+				vchFolder, ok := obj.(*object.Folder)
+				if ok {
+					d.op.Debugf("Found already existing vch folder(%s)", name)
+					return vchFolder, nil
+				}
+				return nil, fmt.Errorf(alreadyExistsError, name)
+
 			case *types.InvalidName:
-				op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
-				return fmt.Errorf(invalidNameError, vchName)
+				d.op.Errorf("received InvalidName fault when attempting to create folder %s", name)
+				return nil, fmt.Errorf(invalidNameError, name)
 			default:
-				op.Errorf("Encountered unexpected fault : %#v ", fault)
-				return fmt.Errorf(unexpectedInventoryFaultError, fname)
+				d.op.Errorf("Encountered unexpected fault : %#v ", fault)
+				return nil, fmt.Errorf(unexpectedInventoryFaultError, name)
 			}
 		}
 
@@ -1442,18 +1380,29 @@ func processInventoryCreationError(op trace.Operation, err error, fname string, 
 		case task.Error:
 			switch fault := unknownError.Fault().(type) {
 			case *types.DuplicateName:
-				return nil
+				// get the object from the fault
+				obj, err := d.session.Finder.ObjectReference(d.op, fault.Object)
+				if err != nil {
+					return nil, err
+				}
+
+				vchFolder, ok := obj.(*object.Folder)
+				if ok {
+					d.op.Debugf("Found already existing vch folder(%s)", name)
+					return vchFolder, nil
+				}
+				return nil, fmt.Errorf(alreadyExistsError, name)
 			case *types.InvalidName:
-				op.Errorf("received InvalidName fault when attempting to create folder %s", fname)
-				return fmt.Errorf(invalidNameError, vchName)
+				d.op.Errorf("received InvalidName fault when attempting to create folder %s", name)
+				return nil, fmt.Errorf(invalidNameError, name)
 			default:
-				op.Errorf("Encountered unexpected fault : %#v ", fault)
-				return fmt.Errorf(unexpectedInventoryFaultError, fname)
+				d.op.Errorf("Encountered unexpected fault : %#v ", fault)
+				return nil, fmt.Errorf(unexpectedInventoryFaultError, name)
 			}
 		default:
-			op.Errorf("Encountered unexpected error : %#v ", unknownError)
-			return fmt.Errorf(unexpectedInventoryError, fname)
+			d.op.Errorf("Encountered unexpected error : %#v ", unknownError)
+			return nil, fmt.Errorf(unexpectedInventoryError, name)
 		}
 	}
-	return nil
+	return nil, nil
 }
