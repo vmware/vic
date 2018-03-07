@@ -15,18 +15,7 @@
 
 set -e
 
-if [ ! -f /ci/test_env ]; then
-    echo "'/ci/test_env' file not found! Make sure its available on host and mounted.";
-fi
-
-# update file permissions
-chmod 777 /ci/test_env
-
-# source env variables from volume mounted test_env file
-. /ci/test_env
-
-# check if DRONE_MACHINE is set
-# TODO: use DRONE_MACHINE from 0.8 drone version
+# check if DRONE_MACHINE is available
 if [ -z "${DRONE_MACHINE}" ]; then
     echo "WARN: DRONE_MACHINE is not set";
 else

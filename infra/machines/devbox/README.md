@@ -94,7 +94,7 @@ cd $GOPATH/src/github.com/vmware/vic
 ### Local Drone CI test
 
 ``` shell
-drone exec -trusted -cache
+drone exec
 ```
 
 ## Devbox on ESX

@@ -154,7 +154,12 @@ Container on Open Network And Port Forwarding Persist After Reboot
     [Setup]     NONE
 
     Log To Console  Create Port Groups For Container network
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove open-net
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  open-net
+
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vswitch vSwitchLAN open-net
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc dvs.portgroup.add -vlan=196 -dvs test-ds open-net
+    Log  ${out}
 
     Install VIC Appliance To Test Server  additional-args=--container-network=open-net --container-network-firewall=open-net:open
 
@@ -197,6 +202,10 @@ Container on Open Network And Port Forwarding Persist After Reboot
     Should Not Be Equal As Integers  ${rc1}  0
     Should Not Be Equal As Integers  ${rc2}  0
 
+    Log To Console  Cleanup Port Groups For Container network
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove open-net
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  open-net
+    Log  ${out}
 
 Create VCH attach disk and reboot
     ${rc}=  Run And Return Rc  govc vm.disk.create -vm=%{VCH-NAME} -name=%{VCH-NAME}/deleteme -size "16M"

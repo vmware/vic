@@ -358,14 +358,13 @@ func (t *tether) initializeSessions() error {
 			log.Debugf("Initializing session %s", id)
 
 			session.Lock()
+
+			// check to see if any of the core configuration has changed.
+			session.block(session.RunBlock)
+
 			if session.wait != nil {
 				log.Warnf("Session %s already initialized", id)
 			} else {
-				if session.RunBlock {
-					log.Infof("Session %s wants attach capabilities. Creating its channel", id)
-					session.ClearToLaunch = make(chan struct{})
-				}
-
 				// this will need altering if tether should be capable of being restarted itself
 				session.Started = ""
 				session.StopTime = 0
@@ -669,13 +668,7 @@ func (t *tether) cleanupSession(session *SessionConfig) {
 	}
 
 	// close the signaling channel (it is nil for detached sessions) and set it to nil (for restart)
-	if session.ClearToLaunch != nil {
-		log.Debugf("Calling close chan: %s", session.ID)
-		close(session.ClearToLaunch)
-		session.ClearToLaunch = nil
-		// reset Runblock to unblock process start next time
-		session.RunBlock = false
-	}
+	session.block(false)
 }
 
 // handleSessionExit processes the result from the session command, records it in persistent

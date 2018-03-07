@@ -56,16 +56,16 @@ Use ./local-integration-test.sh
 
 * Execute Drone from the project root directory:
 
-  Drone will run based on `.drone.local.yml` - defaults should be fine, edit as needed
+  Drone will run based on `.drone.local.yml` - defaults should be fine, edit as needed. Set secrets as env variables:
 
   *  To run only the regression tests:
      ```
-     drone exec --repo.trusted --secrets-file "test.secrets"  .drone.local.yml
+     drone exec .drone.local.yml
      ```
 
   * To run the full suite:
      ```
-		 drone exec --repo.trusted --repo.branch=master --repo.fullname="vmware/vic"  --secrets-file "test.secrets"  .drone.local.yml
+		 drone exec --repo-name "vmware/vic" .drone.local.yml
      ```
 
 ## Test a specific .robot file

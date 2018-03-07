@@ -61,7 +61,7 @@ shift $((OPTIND-1))
 build="$1"
 job="$2"
 
-export DRONE_SERVER=${DRONE_SERVER:-https://ci.vcna.io}
+export DRONE_SERVER=${DRONE_SERVER:-https://ci-vic.vmware.com}
 
 if [ -z "$DRONE_TOKEN" ] ; then
     echo "DRONE_TOKEN not set (available at $DRONE_SERVER/settings/profile)"
