@@ -88,7 +88,7 @@ func main() {
 		os.Exit(FailedChdirAfterChroot)
 	}
 
-	if err = archive.InvokeUnpack(op, os.Stdin, filterSpec, "/"); err != nil {
+	if err = archive.UnpackNoChroot(op, os.Stdin, filterSpec, "/"); err != nil {
 		op.Error(err)
 		os.Exit(FailedInvokeUnpack)
 	}
