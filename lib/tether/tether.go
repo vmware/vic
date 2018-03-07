@@ -158,7 +158,7 @@ func (t *tether) setup() error {
 
 	for name, ext := range t.extensions {
 		log.Infof("Starting extension %s", name)
-		err := ext.Start()
+		err := ext.Start(t.ops)
 		if err != nil {
 			log.Errorf("Failed to start extension %s: %s", name, err)
 			return err
