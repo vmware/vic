@@ -176,7 +176,10 @@ Create a container with custom amount of memory in Bytes
     Should Contain  ${output}  2048MB
 
 Create a container using rest api call without HostConfig in the form data
-    ${output}=  Run  curl -sk --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem -H "Content-Type: application/json" -d '{"Image": "${busybox}", "Cmd": ["ping", "127.0.0.1"], "NetworkMode": "bridge"}' https://%{VCH-IP}:2376/containers/create
+    ${status}=  Run Keyword And Return Status  Environment Variable Should Be Set  DOCKER_CERT_PATH
+    ${certs}=  Set Variable If  ${status}  --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem  ${EMPTY}
+
+    ${output}=  Run  curl -sk ${certs} -H "Content-Type: application/json" -d '{"Image": "${busybox}", "Cmd": ["ping", "127.0.0.1"], "NetworkMode": "bridge"}' https://%{VCH-IP}:%{VCH-PORT}/containers/create
     Log  ${output}
     Should contain  ${output}  "Warnings":null
 

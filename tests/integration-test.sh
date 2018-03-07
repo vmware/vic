@@ -20,10 +20,11 @@ set +x
 
 dpkg -l > package.list
 
-
+set -x
 buildinfo=$(drone build info vmware/vic $DRONE_BUILD_NUMBER)
 prNumber=$(drone build info --format "{{ .Ref }}" vmware/vic $DRONE_BUILD_NUMBER | cut -f 3 -d'/')
-prBody=$(curl https://api.github.com/repos/vmware/vic/pulls/$prNumber | jq -r ".body")
+set +x
+prBody=$(curl https://api.github.com/repos/vmware/vic/pulls/$prNumber?access_token=$GITHUB_AUTOMATION_API_KEY | jq -r ".body")
 
 if (echo $prBody | grep -q "\[fast fail\]"); then
     export FAST_FAILURE=1
@@ -55,7 +56,7 @@ rc="$?"
 timestamp=$(date +%s)
 outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT".zip"
 
-zip -9 -j $outfile output.xml log.html report.html package.list *container-logs*.zip *.log /var/log/vic-machine-server/vic-machine-server.log
+zip -9 -j $outfile output.xml log.html report.html package.list *container-logs*.zip *.log /var/log/vic-machine-server/vic-machine-server.log *.debug
 
 # GC credentials
 keyfile="/root/vic-ci-logs.key"
