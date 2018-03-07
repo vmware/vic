@@ -15,7 +15,7 @@ pipeline:
     image: wdc-harbor-ci.eng.vmware.com/default-project/git-clone:1.0
     pull: true
     environment:
-      DRONE_PULL_REQUEST:  ${DRONE_PULL_REQUEST}
+      DRONE_PULL_REQUEST: ${DRONE_PULL_REQUEST}
     when:
       event: [ pull_request ]
 
