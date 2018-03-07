@@ -714,30 +714,13 @@ func (c *Container) OnEvent(e events.Event) {
 	c.onEvent(op, newState, e)
 }
 
-// determine if the containerVM has started - this could pick up stale data in the started field for an out-of-band
-// power change such as HA or user intervention where we have not had an opportunity to reset the entry.
-func cleanStart(op trace.Operation, c *Container) bool {
-	if len(c.ExecConfig.Sessions) == 0 {
-		op.Warnf("Container %c has no sessions stored in in-memory config", c.ExecConfig.ID)
-		// if no sessions, then nothing to wait for
-		return true
-	}
-
-	for _, session := range c.ExecConfig.Sessions {
-		if session.Started != "true" {
-			return false
-		}
-	}
-	return true
-}
-
 // onEvent determines what needs to be done when receiving a state update. It filters duplicate state transitions
 // and publishes container events as needed in addition to performing necessary manipulations.
 // newState - this is the new state determined by eventedState
 // e - the source event used to derive the new State and reason for the transition
 func (c *Container) onEvent(op trace.Operation, newState State, e events.Event) {
 	// does local data report full start
-	started := cleanStart(op, c)
+	started := c.cleanStart(op)
 	// do we need a refresh
 	refresh := e.String() == events.ContainerRelocated
 	// if it's a state event we've already done a refresh to end up here and dont need another
@@ -768,7 +751,7 @@ func (c *Container) onEvent(op trace.Operation, newState State, e events.Event) 
 		}
 	}
 
-	started = cleanStart(op, c)
+	started = c.cleanStart(op)
 	// it doesn't matter how the event was translated, if we're not fully started then we're starting
 	// if we are then we're running. Only exception is that we don't transition from Running->Starting
 	if newState == StateRunning && !started && c.state != StateRunning {
