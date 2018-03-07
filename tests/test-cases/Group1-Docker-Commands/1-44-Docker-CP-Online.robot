@@ -298,10 +298,10 @@ Sub volumes: copy from an offline container to host, source includes a shared vo
     Should Not Contain  ${output}  Error
 
 Malformed tarball doesn't extract to wrong container from shared volume
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name one -v vol1:/vol1 -v vol2:/vol2 busybox /bin/sh
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name one -v vol1:/vol1 -v vol2:/vol2 ${busybox} /bin/sh
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name two -it -v vol2:/vol2 -v vol1:/vol1 busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name two -it -v vol2:/vol2 -v vol1:/vol1 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  cat ${CURDIR}/../../resources/archive.tar.gz | docker %{VCH-PARAMS} cp - two:/vol1
