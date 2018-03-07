@@ -243,6 +243,7 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 		}
 
 		if firstFail {
+			op.Debug("Resetting power state for first fail")
 			firstFail = false
 			poweredOff = nil
 		}
