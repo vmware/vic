@@ -240,12 +240,12 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 			if err == nil && checkOptionValueFunc(ovs) {
 				return true
 			}
-		}
 
-		if firstFail {
-			op.Debug("Resetting power state for first fail")
-			firstFail = false
-			poweredOff = nil
+			if firstFail {
+				op.Debug("Resetting power state for first fail")
+				firstFail = false
+				poweredOff = nil
+			}
 		}
 
 		return poweredOff != nil
