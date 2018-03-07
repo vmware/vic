@@ -19,6 +19,13 @@ Suite Setup  Conditional Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
+*** Keyword ***
+Check For Container Event
+    [Arguments]  ${name}  ${event}
+    ${rc}  ${events}=  Run And Return Rc And Output  docker %{VCH-PARAMS} events --filter container=${name} --format='Status={{.Status}}'
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${events}  ${event}
+
 *** Test Cases ***
 Create container with port mappings
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver ${nginx}
@@ -128,6 +135,7 @@ Remap mapped ports after OOB Stop
     Should Not Contain  ${output}  Error
 
     Power Off VM OOB  ctr3*
+    Wait Until Keyword Succeeds  5x  3s  Check For Container Event  ctr3  die
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 20000:22222 --name ctr4 busybox
     Should Be Equal As Integers  ${rc}  0
