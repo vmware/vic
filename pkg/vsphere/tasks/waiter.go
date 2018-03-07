@@ -188,20 +188,27 @@ func IsRetryError(op trace.Operation, err error) bool {
 // IsConcurrentAccessError checks if a soap fault or vim fault is ConcurrentAccess error
 func IsConcurrentAccessError(err error) bool {
 	if soap.IsVimFault(err) {
-		_, ok := soap.ToVimFault(err).(*types.ConcurrentAccess)
+		if _, ok := soap.ToVimFault(err).(*types.ConcurrentAccess); ok {
+			return true
+		}
+		if _, ok := soap.ToVimFault(err).(*types.ConcurrentAccessFault); ok {
+			return true
+		}
 
-		return ok
+		return false
 	}
 
 	if soap.IsSoapFault(err) {
-		_, ok := soap.ToSoapFault(err).VimFault().(types.ConcurrentAccess)
-
-		// sometimes we get the correct fault but wrong type
-		if !ok {
-			return soap.ToSoapFault(err).String == "vim.fault.ConcurrentAccess"
+		if _, ok := soap.ToSoapFault(err).VimFault().(types.ConcurrentAccess); ok {
+			return true
+		}
+		if _, ok := soap.ToSoapFault(err).VimFault().(types.ConcurrentAccessFault); ok {
+			return true
 		}
 
-		return true
+		// sometimes we get the correct fault but wrong type
+		return soap.ToSoapFault(err).String == "vim.fault.ConcurrentAccess" ||
+			soap.ToSoapFault(err).String == "vim.fault.ConcurrentAccessFault"
 	}
 
 	return false
@@ -228,7 +235,9 @@ func IsMethodDisabledError(err error) bool {
 			return true
 		}
 
-		return false
+		// sometimes we get the correct fault but wrong type
+		return soap.ToSoapFault(err).String == "vim.fault.MethodDisabled" ||
+			soap.ToSoapFault(err).String == "vim.fault.MethodDisabledFault"
 	}
 
 	return false
@@ -255,7 +264,8 @@ func IsNotFoundError(err error) bool {
 			return true
 		}
 
-		return false
+		return soap.ToSoapFault(err).String == "vim.fault.ManagedObjectNotFound" ||
+			soap.ToSoapFault(err).String == "vim.fault.ManagedObjectNotFoundFault"
 	}
 
 	return false

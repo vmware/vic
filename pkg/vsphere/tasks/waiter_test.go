@@ -332,6 +332,21 @@ func (vm *faultyVirtualMachine) PowerOffVMTask(c *types.PowerOffVM_Task) soap.Ha
 	return r
 }
 
+// Override Destroy_Task to inject a fault
+func (vm *faultyVirtualMachine) DestroyTask(c *types.Destroy_Task) soap.HasFault {
+	r := &methods.Destroy_TaskBody{}
+
+	task := simulator.NewTask(vm)
+
+	r.Res = &types.Destroy_TaskResponse{
+		Returnval: task.Self,
+	}
+
+	task.Run()
+
+	return r
+}
+
 // MarkAsTemplate implements a non-Task method to inject vm.fault
 func (vm *faultyVirtualMachine) MarkAsTemplate(c *types.MarkAsTemplate) soap.HasFault {
 	return &methods.MarkAsTemplateBody{
@@ -393,7 +408,7 @@ func TestSoapFaults(t *testing.T) {
 		t.Error(err)
 	}
 
-	// Test the soap.IsVimFault() path
+	// Test the soap.IsVimFault() pat
 	if !IsRetryError(op, soap.WrapVimFault(res.Error.Fault)) {
 		t.Errorf("fault=%#v", res.Error.Fault)
 	}
@@ -413,11 +428,24 @@ func TestSoapFaults(t *testing.T) {
 		return vm.PowerOff(ctx)
 	})
 	if err == nil {
-		t.Error("expected error")
+		t.Error("expected TaskInProgress error")
 	}
 	if IsRetryError(op, err) {
 		t.Error(err)
 	}
+
+	// Test MethodDisabled fault
+	fvm.fault = new(types.MethodDisabled)
+	task, err = vm.Destroy(op)
+	res, err = task.WaitForResult(op, nil)
+	if err == nil {
+		t.Error("expected MethodDisabled error")
+	}
+	if !IsMethodDisabledError(soap.WrapVimFault(res.Error.Fault)) {
+		t.Error(err)
+	}
+
+	// Test
 
 	// Test with retry
 	fvm.fault = new(types.TaskInProgress)
