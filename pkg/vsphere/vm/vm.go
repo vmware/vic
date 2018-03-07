@@ -189,6 +189,7 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 
 	var detail string
 	var poweredOff error
+	firstFail := true
 
 	checkOptionValueFunc := func(ovs []types.BaseOptionValue) bool {
 		for _, value := range ovs {
@@ -239,6 +240,11 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 			if err == nil && checkOptionValueFunc(ovs) {
 				return true
 			}
+		}
+
+		if firstFail {
+			firstFail = false
+			poweredOff = nil
 		}
 
 		return poweredOff != nil
