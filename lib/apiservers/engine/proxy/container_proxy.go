@@ -201,7 +201,7 @@ func (c *ContainerProxy) AddImageToContainer(ctx context.Context, handle, deltaI
 	defer trace.End(trace.Begin(handle))
 
 	if c.client == nil {
-		return "", errors.InternalServerError("ContainerProxy.AddImageToContainer failed to get the portlayer client")
+		return "", errors.NillPortlayerClientError("ContainerProxy")
 	}
 
 	host, err := sys.UUID()
@@ -235,7 +235,7 @@ func (c *ContainerProxy) CreateContainerTask(ctx context.Context, handle, id, la
 	defer trace.End(trace.Begin(""))
 
 	if c.client == nil {
-		return "", errors.InternalServerError("ContainerProxy.CreateContainerTask failed to create a portlayer client")
+		return "", errors.NillPortlayerClientError("ContainerProxy")
 	}
 
 	plTaskParams := dockerContainerCreateParamsToTask(ctx, id, layerID, config)
