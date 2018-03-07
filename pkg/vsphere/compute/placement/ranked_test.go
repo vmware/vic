@@ -110,6 +110,14 @@ func (m MockMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*obj
 	fakeHostMetrics[mh.Reference().String()] = medium
 	fakeHostMetrics[hh.Reference().String()] = high
 
+	if hosts != nil {
+		subset := make(map[string]*performance.HostMetricsInfo)
+		for _, h := range hosts {
+			subset[h.Reference().String()] = fakeHostMetrics[h.Reference().String()]
+		}
+		return subset, nil
+	}
+
 	return fakeHostMetrics, nil
 }
 
@@ -130,10 +138,43 @@ func TestRankedRecommendHost(t *testing.T) {
 	m := MockMetricsProvider{}
 
 	rhp := NewRankedHostPolicy(m)
-	result, err := rhp.RecommendHost(op, v)
+	result, err := rhp.RecommendHost(op, v, nil)
 	assert.NoError(t, err)
 
 	expected := hh.Reference().String()
-	actual := result.Reference().String()
+	actual := result[0].Reference().String()
+	assert.Equal(t, expected, actual)
+}
+
+func TestRankedRecommendHostWithHosts(t *testing.T) {
+	op := trace.NewOperation(context.Background(), "TestRankedRecommendHost")
+
+	model, server, sess := test.VpxModelSetup(op, t)
+	defer func() {
+		model.Remove()
+		server.Close()
+	}()
+
+	moref, err := test.CreateVM(op, sess, "test-vm")
+	assert.NoError(t, err)
+
+	v := vm.NewVirtualMachine(op, sess, moref)
+
+	m := MockMetricsProvider{}
+	rhp := NewRankedHostPolicy(m)
+	hosts, err := rhp.RecommendHost(op, v, nil)
+	assert.NoError(t, err)
+
+	expected := hh.Reference().String()
+	actual := hosts[0].Reference().String()
+	assert.Equal(t, expected, actual)
+
+	subset := hosts[1:]
+
+	result, err := rhp.RecommendHost(op, v, subset)
+	assert.NoError(t, err)
+
+	expected = mh.Reference().String()
+	actual = result[0].Reference().String()
 	assert.Equal(t, expected, actual)
 }

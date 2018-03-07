@@ -46,15 +46,27 @@ func TestRandomRecommendHost(t *testing.T) {
 
 	rhp := NewRandomHostPolicy()
 	assert.False(t, rhp.CheckHost(op, v))
-	h, err := rhp.RecommendHost(op, v)
+	h, err := rhp.RecommendHost(op, v, nil)
 	assert.NoError(t, err)
 
+	top := h[0].Reference().String()
 	found := false
 	for _, host := range hosts {
-		if h.Reference().String() == host.Reference().String() {
+		if h[0].Reference().String() == host.Reference().String() {
 			found = true
+
+			// remove this host for the next test
+			h = append(h[:0], h[1:]...)
 			break
 		}
 	}
 	assert.True(t, found)
+
+	// try with a subset
+	x, err := rhp.RecommendHost(op, v, h)
+	assert.NoError(t, err)
+	assert.Len(t, x, len(hosts)-1)
+	for _, host := range x {
+		assert.NotEqual(t, top, host.Reference().String())
+	}
 }

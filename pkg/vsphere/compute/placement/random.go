@@ -37,23 +37,31 @@ func (p *RandomHostPolicy) CheckHost(op trace.Operation, vm *vm.VirtualMachine) 
 }
 
 // RecommendHost recommends a random host on which to place a newly created VM.
-func (p *RandomHostPolicy) RecommendHost(op trace.Operation, vm *vm.VirtualMachine) (*object.HostSystem, error) {
-	r, err := vm.ResourcePool(op)
-	if err != nil {
-		return nil, err
+func (p *RandomHostPolicy) RecommendHost(op trace.Operation, vm *vm.VirtualMachine, hosts []*object.HostSystem) ([]*object.HostSystem, error) {
+	if hosts == nil {
+		r, err := vm.ResourcePool(op)
+		if err != nil {
+			return nil, err
+		}
+
+		rp := compute.NewResourcePool(op, vm.Session, r.Reference())
+
+		cls, err := rp.GetCluster(op)
+		if err != nil {
+			return nil, err
+		}
+
+		hosts, err = cls.Hosts(op)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	rp := compute.NewResourcePool(op, vm.Session, r.Reference())
-
-	cls, err := rp.GetCluster(op)
-	if err != nil {
-		return nil, err
+	// shuffle hosts
+	for i := range hosts {
+		j := rand.Intn(i + 1)
+		hosts[i], hosts[j] = hosts[j], hosts[i]
 	}
 
-	hosts, err := cls.Hosts(op)
-	if err != nil {
-		return nil, err
-	}
-
-	return hosts[rand.Intn(len(hosts))], nil
+	return hosts, nil
 }

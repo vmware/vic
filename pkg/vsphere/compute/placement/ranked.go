@@ -75,8 +75,17 @@ func (r *RankedHostPolicy) CheckHost(op trace.Operation, vm *vm.VirtualMachine) 
 }
 
 // RecommendHost recommends an ideal host on which to place a newly created VM.
-func (r *RankedHostPolicy) RecommendHost(op trace.Operation, v *vm.VirtualMachine) (*object.HostSystem, error) {
-	hm, err := r.source.GetMetricsForComputeResource(op, v.Cluster)
+func (r *RankedHostPolicy) RecommendHost(op trace.Operation, v *vm.VirtualMachine, hosts []*object.HostSystem) ([]*object.HostSystem, error) {
+	var (
+		err error
+		hm  map[string]*performance.HostMetricsInfo
+	)
+
+	if hosts != nil {
+		hm, err = r.source.GetMetricsForHosts(op, hosts)
+	} else {
+		hm, err = r.source.GetMetricsForComputeResource(op, v.Cluster)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -86,12 +95,15 @@ func (r *RankedHostPolicy) RecommendHost(op trace.Operation, v *vm.VirtualMachin
 	}
 
 	ranked := r.rankHosts(op, hm)
-	ref := types.ManagedObjectReference{}
-	if ok := ref.FromString(ranked[0].HostReference); !ok {
-		return nil, fmt.Errorf("could not restore serialized managed object reference: %s", ranked[0].HostReference)
-	}
+	result := make([]*object.HostSystem, 0, len(ranked))
+	for _, h := range ranked {
+		ref := types.ManagedObjectReference{}
+		if ok := ref.FromString(h.HostReference); !ok {
+			return nil, fmt.Errorf("could not restore serialized managed object reference: %s", h.HostReference)
+		}
 
-	result := object.NewHostSystem(v.Session.Vim25(), ref)
+		result = append(result, object.NewHostSystem(v.Session.Vim25(), ref))
+	}
 
 	return result, nil
 }
