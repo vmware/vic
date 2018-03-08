@@ -35,7 +35,6 @@ import (
 	"github.com/docker/docker/opts"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
@@ -603,21 +602,27 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 
 	var info *types.TaskInfo
 
-	vchParentFolder, err := d.createFolders(spec.Name)
+	d.op.Info("Creating the VCH inventory folder")
+
+	vchFolder := d.session.VMFolder
+	createFolders := func() error {
+		vchFolder, err = d.createFolders(spec.Name)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	err = retry.Do(createFolders, isConcurrentAcces)
 	if err != nil {
+		d.op.Debugf("Encountered a failure during creation of the inventory folders : %s", err)
+
+		// TODO: we should likely do some processing on this error. Mainly for customer readability. log something friendly to the console and return a human error rather than a raw fault.
 		return err
 	}
 
-	// if vapp is not created, fall back to create VM under default resource pool
-	intendedVCHPath := fmt.Sprintf("%s/%s", vchParentFolder.InventoryPath, spec.Name)
 	info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-		vchVM, err := d.session.Finder.VirtualMachine(ctx, intendedVCHPath)
-		if vchVM != nil {
-			// We have found another VCH at the target path that we intended to install to.
-			return nil, fmt.Errorf("Could not create VCH because one already exists with the same name and compute at path(%s) : %s", intendedVCHPath, err)
-		}
-
-		return vchParentFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
+		return vchFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
 	})
 
 	if err != nil {
@@ -779,21 +784,25 @@ func (d *Dispatcher) createFolders(vchName string) (*object.Folder, error) {
 		return d.session.VMFolder, nil
 	}
 
-	d.op.Info("Creating VCH inventory folder")
 	vchFolder, err := d.session.VMFolder.CreateFolder(d.op, vchName)
 	if err != nil {
-		found, err := d.processInventoryCreationError(err, vchName)
-		if err != nil {
-			return nil, err
-		}
 
-		// we found an existing folder and we need to use that one instead.
-		if found != nil {
-			vchFolder = found
-		}
 	}
 
 	return vchFolder, nil
+}
+
+// TODO this should be moved to somewhere common. I did not seen a common function used in vic-machine.(I did not really see this pattern in vic-machine)
+func isConcurrentAcces(err error) bool {
+	if err != nil {
+		if f, ok := err.(types.HasFault); ok {
+			switch f.Fault().(type) {
+			case *types.ConcurrentAccess:
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (d *Dispatcher) encodeConfig(conf *config.VirtualContainerHostConfigSpec) (map[string]string, error) {

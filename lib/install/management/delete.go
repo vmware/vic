@@ -367,8 +367,8 @@ func (d *Dispatcher) deleteFolders() error {
 	vchFolderPath := path.Dir(d.appliance.InventoryPath)
 	folderRef, err := d.session.Finder.Folder(d.op, vchFolderPath)
 	if err != nil {
-		d.op.Debugf("failed to find folder: %s", vchFolderPath)
-		return err
+		d.op.Debugf("failed to find folder: %s for the VCH target", vchFolderPath)
+		return nil
 	}
 
 	// protections against old vch's since they are directly in the VMFolder
@@ -384,11 +384,7 @@ func (d *Dispatcher) deleteFolders() error {
 
 	// we need to see if the folder is empty.
 	folderContents, err := folderRef.Children(d.op)
-	if err != nil {
-		return err
-	}
-
-	if len(folderContents) != 0 {
+	if err != nil || len(folderContents) != 0 {
 		d.op.Warnf("Could not remove VCH inventory folder, %s has existing contents in it. Manual cleanup will be required.", vchFolderPath)
 
 		// not really a reason to fail the entire delete...
