@@ -113,11 +113,18 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *v
 	if vchPool == nil {
 		vchPool, err = d.session.Finder.ResourcePool(d.op, d.vchPoolPath)
 		if err != nil {
-			d.op.Errorf("Failed to get VCH resource pool %q: %s", d.vchPoolPath, err)
-			return nil, err
+			// we didn't find the ResourcePool with a name matching the appliance, so
+			// lets look for just the resource pool -- this could be at the cluster level
+			d.vchPoolPath = parent.InventoryPath
+			vchPool, err = d.session.Finder.ResourcePool(d.op, d.vchPoolPath)
+			if err != nil {
+				d.op.Errorf("Failed to find VCH resource pool %q: %s", d.vchPoolPath, err)
+				return nil, err
+			}
 		}
 	}
 
+	// creating a pkg/vsphere resource pool for use of convenience method
 	rp := compute.NewResourcePool(d.op, d.session, vchPool.Reference())
 
 	if d.session.Cluster, err = rp.GetCluster(d.op); err != nil {
