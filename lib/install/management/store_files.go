@@ -158,7 +158,7 @@ func (d *Dispatcher) isVSAN(ds *object.Datastore) bool {
 func (d *Dispatcher) deleteFilesIteratively(m *object.DatastoreFileManager, ds *object.Datastore, dsPath string) error {
 	defer trace.End(trace.Begin(dsPath, d.op))
 
-	// If deleting top level folder fails, delete the child files and empty the folder first
+	// If deleting top level folder fails, remove the child files to empty the folder first
 	err := d.deleteVMFSFiles(m, ds, dsPath)
 	if err != nil {
 		d.op.Debug("Attempt to delete top level folder %s failed. Removing the children files instead.")
