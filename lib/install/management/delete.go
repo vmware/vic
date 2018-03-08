@@ -400,7 +400,7 @@ func (d *Dispatcher) deleteFolder() {
 
 	_, err = tasks.WaitForResult(d.op, folderRemoveFunction)
 	if err != nil {
-		d.op.Debugf("Received error when attempting to delete the vch inventory folder: %s", err)
+		d.op.Debugf("Received error when attempting to remove the vch folder: %s", err)
 	}
 
 }

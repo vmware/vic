@@ -63,13 +63,9 @@ const (
 	volumeStoresID = "VolumeStores"
 )
 
-//VCH Inventory Constants
+// inventory constants
 const (
-	alreadyExistsError            = "An object already exists on the inventory path for vch (%s) that is not an inventory folder"
-	invalidNameError              = "An invalid name was specified for the VCH: %s does not meet the naming criteria for a vch"
-	unexpectedInventoryFaultError = "unexpected fault when attempting to create the inventory folder %s please see vic-machine.log for more information"
-	unexpectedInventoryError      = "unexpected error when attempting to create the inventory folder %s please see vic-machine.log for more information"
-	manualInventoryCleanWarning   = "Failed to remove VCH Folder : %s. Manual cleanup may be needed."
+	manualInventoryCleanWarning = "Failed to remove VCH Folder : %s. Manual cleanup may be needed."
 )
 
 var (
@@ -605,12 +601,26 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	vchFolder := d.session.VMFolder
 	if d.isVC {
 		d.op.Info("Creating the VCH inventory folder")
+
 		vchFolder, err = d.session.VMFolder.CreateFolder(d.op, spec.Name)
 		if err != nil {
-			d.op.Debugf("Encountered a failure during creation of the inventory folders : %s", err)
-			err = processInventoryCreationError(d.op, err, spec.Name)
-			return err
+			d.op.Debugf("raw error from inventory folder creation: ", err)
+			switch e := err.(type) {
+			case types.HasFault:
+				switch f := e.Fault().(type) {
+				case *types.DuplicateName:
+					return fmt.Errorf("An object already exists on the inventory path for vch (%s) that is not an inventory folder", spec.Name)
+				default:
+					d.op.Debugf("Encountered unexpected fault : %#v ", f)
+					return fmt.Errorf("unexpected fault when attempting to create the vch folder %s please see vic-machine.log for more information", spec.Name)
+				}
+			default:
+				d.op.Debugf("Encountered unexpected error : %#v ", err)
+				return fmt.Errorf("unexpected error when attempting to create the vch folder %s please see vic-machine.log for more information", spec.Name)
+			}
 		}
+
+		return err
 	}
 
 	info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
@@ -768,19 +778,6 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 
 	d.appliance = vm2
 	return nil
-}
-
-// TODO this should be moved to somewhere common. I did not seen a common function used in vic-machine.(I did not really see this pattern in vic-machine)
-func isConcurrentAccess(err error) bool {
-	if err != nil {
-		if f, ok := err.(types.HasFault); ok {
-			switch f.Fault().(type) {
-			case *types.ConcurrentAccess:
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func (d *Dispatcher) encodeConfig(conf *config.VirtualContainerHostConfigSpec) (map[string]string, error) {
@@ -1304,30 +1301,6 @@ func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.Virtual
 		// log with info because this might not be an error
 		d.op.Info(err)
 		return err
-	}
-	return nil
-}
-
-// TODO: we need a general place for this kind of handling in vic-machine.
-// processInventoryCreationError will check the given error and return whether it is a inventory folder creation error and return a human readable error if so
-func processInventoryCreationError(op trace.Operation, err error, name string) error {
-	if err != nil {
-		if f, ok := err.(types.HasFault); ok {
-			op.Debugf("Found Fault: %s", f.Fault())
-			switch fault := f.Fault().(type) {
-			case *types.DuplicateName:
-				return fmt.Errorf(alreadyExistsError, name)
-			case *types.InvalidName:
-				op.Debugf("received InvalidName fault when attempting to create folder %s", name)
-				return fmt.Errorf(invalidNameError, name)
-			default:
-				op.Debugf("Encountered unexpected fault : %#v ", fault)
-				return fmt.Errorf(unexpectedInventoryFaultError, name)
-			}
-		}
-
-		op.Debugf("Encountered unexpected error : %#v ", err)
-		return fmt.Errorf(unexpectedInventoryError, name)
 	}
 	return nil
 }
