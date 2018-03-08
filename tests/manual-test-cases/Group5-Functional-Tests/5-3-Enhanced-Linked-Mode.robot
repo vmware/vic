@@ -92,14 +92,13 @@ Enhanced Link Mode Setup
     :FOR  ${ip}  IN  ${esx1-ip}  ${esx2-ip}  ${esx3-ip}
     \   Log To Console  Changing password for ${ip}
     \   Set Environment Variable  GOVC_URL  root:@${ip}
-    \   Wait Until Keyword Succeeds  10x  3 minutes  Change ESXi Server Password  e2eFunctionalTest
-    \   ${license}=  Run  govc license.ls
-    \   Check License Features
+    \   Wait Until Keyword Succeeds  10x  3 minutes   Change ESXi Server Password  e2eFunctionalTest
+    \   Wait Until Keyword Succeeds  6x   10 sec      Check License Features
 
     Set Environment Variable  GOVC_URL  ${vc1-ip}
     Set Environment Variable  GOVC_USERNAME  administrator@vsphere.local
     Set Environment Variable  GOVC_PASSWORD  Admin!23
-    ${license}=  Run  govc license.ls
+    Wait Until Keyword Succeeds  6x   10 sec  Check License Features
 
     # First VC cluster
     Log To Console  Create a datacenter on the VC
