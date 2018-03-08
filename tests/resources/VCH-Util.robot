@@ -1,4 +1,4 @@
-# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -79,8 +79,14 @@ Set Test Environment Variables
     Wait Until Keyword Succeeds  5x  1s  Create Unique Bridge Network
 
 Create Unique Bridge Network
+    # Ensure unique bridges are non-overlapping in a shared build environment (our CI)
+    @{URLs}=  Split String  %{TEST_URL_ARRAY}
+    ${idx}=  Get Index From List  ${URLs}  %{TEST_URL}
+    ${lowerVLAN}=  Evaluate  (${idx}+2) * 100
+    ${upperVLAN}=  Evaluate  ${lowerVLAN}+100
+
     # Set a unique bridge network for each VCH that has a random VLAN ID
-    ${vlan}=  Evaluate  str(random.randint(1, 4093))  modules=random
+    ${vlan}=  Evaluate  str(random.randint(${lowerVLAN}, ${upperVLAN}))  modules=random
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitchLAN VCH-%{DRONE_BUILD_NUMBER}-${vlan}
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc dvs.portgroup.add -vlan=${vlan} -dvs test-ds VCH-%{DRONE_BUILD_NUMBER}-${vlan}
@@ -489,7 +495,8 @@ Cleanup Datastore On Test Server
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
     \   Log To Console  Removing the following item from datastore: ${item}
-    \   ${out}=  Run  govc datastore.rm ${item}
+    \   ${rc}  ${out}=    Run And Return Rc And Output  govc datastore.rm ${item}
+    \   Continue For Loop If  ${rc} != 0
     \   Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${item}
 
 Cleanup Dangling VMs On Test Server

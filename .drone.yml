@@ -208,6 +208,7 @@ pipeline:
       repo: vmware/vic
       event: [push, tag]
       branch: [master, 'releases/*', 'refs/tags/*']
+      status: [success, failure]
 
   publish-gcs-builds-on-pass:
     image: 'victest/drone-gcs:1'
