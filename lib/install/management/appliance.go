@@ -607,7 +607,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			d.op.Debugf("Encountered unexpected error : %#v ", err)
 			if f, ok := err.(types.HasFault); ok {
 				if _, ok = f.Fault().(*types.DuplicateName); ok {
-					return fmt.Errorf("An object already exists on the inventory path for vch (%s) that is not an folder", spec.Name)
+					return fmt.Errorf("An object already exists on the path for vch folder (%s) that is not a folder", spec.Name)
 				}
 			}
 			return fmt.Errorf("unexpected error when attempting to create the vch folder %s please see vic-machine.log for more information", spec.Name)
