@@ -17,7 +17,6 @@ package management
 import (
 	"context"
 	"fmt"
-	"path"
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
@@ -33,8 +32,6 @@ import (
 
 func (d *Dispatcher) createResourcePool(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*object.ResourcePool, error) {
 	defer trace.End(trace.Begin("", d.op))
-
-	d.vchPoolPath = path.Join(settings.ResourcePoolPath, conf.Name)
 
 	rp, err := d.session.Finder.ResourcePool(d.op, d.vchPoolPath)
 	if err != nil {
