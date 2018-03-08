@@ -109,11 +109,8 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 		return err
 	}
 
-	err = d.deleteFolders()
-	if err != nil {
-		d.op.Debugf("Error deleting appliance VM's inventory folders: %s", err)
-		return err
-	}
+	// delete the VCH inventory folder
+	d.deleteFolders()
 
 	defaultrp, err := d.session.Cluster.ResourcePool(d.op)
 	if err != nil {
@@ -358,57 +355,52 @@ func (d *Dispatcher) networkDevices(vmm *vm.VirtualMachine) ([]types.BaseVirtual
 	return devices, nil
 }
 
-func (d *Dispatcher) deleteFolders() error {
+func (d *Dispatcher) deleteFolders() {
+	var err error
+
+	// no inventory folders if we are targeting ESX
 	if !d.isVC {
-		return nil
+		return
 	}
 
 	d.op.Info("Removing VCH Inventory Folder")
 	vchFolderPath := path.Dir(d.appliance.InventoryPath)
+	defer func() {
+		if err != nil {
+			d.op.Warnf(manualInventoryCleanWarning, vchFolderPath)
+		}
+	}()
+
 	folderRef, err := d.session.Finder.Folder(d.op, vchFolderPath)
 	if err != nil {
 		d.op.Debugf("failed to find folder: %s for the VCH target", vchFolderPath)
-		return nil
 	}
 
 	// protections against old vch's since they are directly in the VMFolder
 	dcFolder, err := d.session.Datacenter.Folders(d.op)
 	if err != nil {
-		return err
+		d.op.Debugf("failed to find the datacenter folders: %s ", err)
 	}
 	VMFolder := dcFolder.VmFolder
 	if folderRef.Reference() == VMFolder.Reference() {
 		// cannot delete the vm folder
-		return nil
+		return
 	}
 
 	// we need to see if the folder is empty.
 	folderContents, err := folderRef.Children(d.op)
 	if err != nil || len(folderContents) != 0 {
-		d.op.Warnf("Could not remove VCH inventory folder, %s has existing contents in it. Manual cleanup will be required.", vchFolderPath)
-
-		// not really a reason to fail the entire delete...
-		return nil
+		d.op.Debugf("Could not remove VCH inventory folder, %s has existing contents in it. Manual cleanup required.", vchFolderPath)
 	}
 
-	err = d.removeFolder(folderRef)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// removeFolder will initiate a destroy task against the target folder and wait for the result.
-func (d *Dispatcher) removeFolder(folder *object.Folder) error {
 	// NOTE: Destroy on Inventory Folders is RECURSIVE, start from the leaf most target and check folder children to avoid undesired deletions.
 	folderRemoveFunction := func(ctx context.Context) (tasks.Task, error) {
-		return folder.Destroy(d.op)
+		return folderRef.Destroy(d.op)
 	}
 
-	_, err := tasks.WaitForResult(d.op, folderRemoveFunction)
+	_, err = tasks.WaitForResult(d.op, folderRemoveFunction)
 	if err != nil {
-		return err
+		d.op.Debugf("Received error when attempting to delete the vch inventory folder: %s", err)
 	}
-	return nil
+
 }

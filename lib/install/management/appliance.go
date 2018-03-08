@@ -44,7 +44,6 @@ import (
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
-	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/diag"
@@ -70,7 +69,7 @@ const (
 	invalidNameError              = "An invalid name was specified for the VCH: %s does not meet the naming criteria for a vch"
 	unexpectedInventoryFaultError = "unexpected fault when attempting to create the inventory folder %s please see vic-machine.log for more information"
 	unexpectedInventoryError      = "unexpected error when attempting to create the inventory folder %s please see vic-machine.log for more information"
-	manualInventoryCleanWarning   = "Manual cleanup in the inventory may be needed."
+	manualInventoryCleanWarning   = "Failed to remove VCH Folder : %s. Manual cleanup may be needed."
 )
 
 var (
@@ -602,24 +601,16 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 
 	var info *types.TaskInfo
 
+	// Create the VCH inventory folder
 	d.op.Info("Creating the VCH inventory folder")
-
 	vchFolder := d.session.VMFolder
-	createFolders := func() error {
-		vchFolder, err = d.createFolders(spec.Name)
+	if d.isVC {
+		vchFolder, err = d.session.VMFolder.CreateFolder(d.op, spec.Name)
+		err = processInventoryCreationError(d.op, err, spec.Name)
 		if err != nil {
+			d.op.Debugf("Encountered a failure during creation of the inventory folders : %s", err)
 			return err
 		}
-		return nil
-	}
-
-	err = retry.Do(createFolders, isConcurrentAccess)
-	err = processInventoryCreationError(d.op, err, conf.Name)
-	if err != nil {
-		d.op.Debugf("Encountered a failure during creation of the inventory folders : %s", err)
-
-		// TODO: we should likely do some processing on this error. Mainly for customer readability. log something friendly to the console and return a human error rather than a raw fault.
-		return err
 	}
 
 	info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
@@ -777,20 +768,6 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 
 	d.appliance = vm2
 	return nil
-}
-
-// createFolders creates the default structure of the inventory for the VCH and returns the object reference to the last folder created
-func (d *Dispatcher) createFolders(vchName string) (*object.Folder, error) {
-	if !d.isVC {
-		return d.session.VMFolder, nil
-	}
-
-	vchFolder, err := d.session.VMFolder.CreateFolder(d.op, vchName)
-	if err != nil {
-
-	}
-
-	return vchFolder, nil
 }
 
 // TODO this should be moved to somewhere common. I did not seen a common function used in vic-machine.(I did not really see this pattern in vic-machine)
