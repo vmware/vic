@@ -1,4 +1,4 @@
-# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -76,10 +76,22 @@ Set Test Environment Variables
     Set Test VCH Name
     # cleanup any potential old certs directories
     Remove Directory  %{VCH-NAME}  recursive=${true}
+    Wait Until Keyword Succeeds  5x  1s  Create Unique Bridge Network
+
+Create Unique Bridge Network
+    # Ensure unique bridges are non-overlapping in a shared build environment (our CI)
+    @{URLs}=  Split String  %{TEST_URL_ARRAY}
+    ${idx}=  Get Index From List  ${URLs}  %{TEST_URL}
+    ${lowerVLAN}=  Evaluate  (${idx}+2) * 100
+    ${upperVLAN}=  Evaluate  ${lowerVLAN}+100
+
     # Set a unique bridge network for each VCH that has a random VLAN ID
-    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitchLAN %{VCH-NAME}-bridge
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  BRIDGE_NETWORK  %{VCH-NAME}-bridge
+    ${vlan}=  Evaluate  str(random.randint(${lowerVLAN}, ${upperVLAN}))  modules=random
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitchLAN VCH-%{DRONE_BUILD_NUMBER}-${vlan}
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc dvs.portgroup.add -vlan=${vlan} -dvs test-ds VCH-%{DRONE_BUILD_NUMBER}-${vlan}
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    Set Environment Variable  BRIDGE_NETWORK  VCH-%{DRONE_BUILD_NUMBER}-${vlan}
 
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
@@ -434,10 +446,10 @@ Cleanup VIC Appliance On Test Server
     ${memory}=  Run Keyword And Ignore Error  Get Hostd Memory Consumption
     Log  ${memory}
     Log To Console  Gathering logs from the test server %{VCH-NAME}
-    Gather Logs From Test Server
-    Wait Until Keyword Succeeds  3x  5 seconds  Remove All Containers
+    Run Keyword And Continue On Failure  Gather Logs From Test Server
     # Exit from Cleanup if VCH-NAME is currently in exception list
     ${exclude}=  Check If VCH Is In Exception  vch=%{VCH-NAME}
+    Run Keyword If  ${exclude}  Wait Until Keyword Succeeds  3x  5 seconds  Remove All Containers
     Return From Keyword If  ${exclude}
     Log To Console  Deleting the VCH appliance %{VCH-NAME}
     ${output}=  Run VIC Machine Delete Command
@@ -448,9 +460,13 @@ Cleanup VIC Appliance On Test Server
 
 Cleanup VCH Bridge Network
     [Arguments]  ${name}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${name}-bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove %{BRIDGE_NETWORK}
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  ${name}-bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  %{BRIDGE_NETWORK}
+
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  %{BRIDGE_NETWORK}
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc ls network
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${out}  %{BRIDGE_NETWORK}
 
 Add VC Distributed Portgroup
     [Arguments]  ${dvs}  ${pg}
@@ -459,7 +475,7 @@ Add VC Distributed Portgroup
 
 Remove VC Distributed Portgroup
     [Arguments]  ${pg}
-    ${out}=  Run  govc object.destroy %{TEST_DATACENTER}/network/${pg}
+    ${out}=  Run  govc object.destroy network/${pg}
     Log  ${out}
 
 Cleanup Datastore On Test Server
@@ -479,7 +495,8 @@ Cleanup Datastore On Test Server
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
     \   Log To Console  Removing the following item from datastore: ${item}
-    \   ${out}=  Run  govc datastore.rm ${item}
+    \   ${rc}  ${out}=    Run And Return Rc And Output  govc datastore.rm ${item}
+    \   Continue For Loop If  ${rc} != 0
     \   Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${item}
 
 Cleanup Dangling VMs On Test Server
@@ -533,13 +550,13 @@ Cleanup Dangling Networks On Test Server
     \   # Skip any Network that is not associated with integration tests
     \   Continue For Loop If  '@{build}[0]' != 'VCH'
     \   # Skip any Network that is attached to a VCH in the exception list
-    \   @{name}=  Split String  ${net}  -bridge
-    \   ${skip}=  Check If VCH Is In Exception  vch=@{name}[0]  exceptions=${exceptions}
+    \   ${skip}=  Check If VCH Is In Exception  vch=@{build}[0]-@{build}[1]-@{build}[2]  exceptions=${exceptions}
     \   Continue For Loop If  ${skip}
     \   # Skip any Network that is still running
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
-    \   ${uuid}=  Run  govc host.portgroup.remove ${net}
+    \   ${uuid}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${net}
+    \   ${uuid}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  ${net}
 
 Cleanup Dangling vSwitches On Test Server
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.vswitch.info | grep VCH
@@ -552,8 +569,7 @@ Cleanup Dangling vSwitches On Test Server
     \   # Skip any vSwitch that is not associated with integration tests
     \   Continue For Loop If  '@{build}[0]' != 'VCH'
     \   # Skip any switch that is attached to a VCH in the exception list
-    \   @{name}=  Split String  ${net}  -bridge
-    \   ${skip}=  Check If VCH Is In Exception  vch=@{name}[0]  exceptions=${exceptions}
+    \   ${skip}=  Check If VCH Is In Exception  vch=@{build}[0]-@{build}[1]-@{build}[2]  exceptions=${exceptions}
     \   Continue For Loop If  ${skip}
     \   # Skip any vSwitch that is still running
     \   ${state}=  Get State Of Drone Build  @{build}[1]
@@ -614,7 +630,6 @@ Install VIC with version to Test Server
     Log To Console  \nDownloading vic ${version} from gcp...
     ${rc}  ${output}=  Run And Return Rc And Output  wget https://storage.googleapis.com/vic-engine-builds/vic_${version}.tar.gz -O vic.tar.gz
     ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
-    Set Environment Variable  TEST_TIMEOUT  20m0s
     Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}  cleanup=${cleanup}  vol=default ${insecureregistry}
 
     Set Environment Variable  VIC-ADMIN  %{VCH-IP}:2378
