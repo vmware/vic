@@ -20,24 +20,26 @@ See https://confluence.eng.vmware.com/display/CNA/VIC+ROBO for more details.
 
 # Test Steps:
 1. Deploy a ROBO Advanced vCenter testbed for both environments above
-2. Install a VCH on a particular cluster on vCenter - see note in [Environment](#environment)
-3. Deploy containers that will consume resources predictably (e.g. the `progrium/stress` image)
-4. Measure cluster metrics and gather resource consumption
-5. Create and run regular containers such as `busybox`
-6. Create and run enough containers to consume all available cluster resources
-7. Attempt to create and run more containers
-8. Delete some containers
-9. Create and run a few containers
-10. Delete the VCH
+2. Run a few dummy VMs on the host(s) in the vCenter cluster meant for VCH installation. This ensures that the hosts have varying resource utilization.
+3. Install a VCH on a particular cluster on vCenter - see note in [Environment](#environment)
+4. Deploy containers that will consume resources predictably (e.g. the `progrium/stress` image)
+5. Measure cluster metrics and gather resource consumption
+6. Create and run regular containers such as `busybox`
+7. Create and run enough containers to consume all available cluster resources
+8. Attempt to create and run more containers
+9. Delete some containers
+10. Create and run a few containers
+11. Delete the VCH
 
 # Expected Outcome:
 * Step 1 should succeed
-* Step 2 should succeed and the VCH should be placed on a host that satisfies the license and other feature requirements
-* Steps 3-4 should succeed and containers should be placed on ESX hosts in the cluster according to the criteria defined in point 2 of [References](#references)
-* Step 5 should succeed and containers should be placed on ESX hosts in the cluster that have available resources according to the criteria defined in point 2 of [References](#references). In the multi-host cluster environment, the cluster resource utilization level should be as expected given containerVM sizes, cluster capacity and placement logic.
-* Step 6 should succeed
-* Step 7 should fail since the available resources are exhausted
-* Steps 8-10 should succeed
+* Step 2 should succeed
+* Step 3 should succeed and the VCH should be placed on a host that satisfies the license and feature checks. The VCH's host should also meet the criteria defined in point 2 of [References](#references)
+* Steps 4-5 should succeed and containers should be placed on ESX hosts in the cluster according to the criteria defined in point 2 of [References](#references)
+* Step 6 should succeed and containers should be placed on ESX hosts in the cluster that have available resources according to the criteria defined in point 2 of [References](#references). In the multi-host cluster environment, the cluster resource utilization level should be as expected given containerVM sizes, cluster capacity and placement logic.
+* Step 7 should succeed
+* Step 8 should fail since the available resources are exhausted
+* Steps 9-11 should succeed
 
 # Possible Problems:
 None
