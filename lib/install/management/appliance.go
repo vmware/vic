@@ -604,20 +604,13 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 
 		vchFolder, err = d.session.VMFolder.CreateFolder(d.op, spec.Name)
 		if err != nil {
-			d.op.Debugf("raw error from inventory folder creation: ", err)
-			switch e := err.(type) {
-			case types.HasFault:
-				switch f := e.Fault().(type) {
-				case *types.DuplicateName:
-					return fmt.Errorf("An object already exists on the inventory path for vch (%s) that is not an inventory folder", spec.Name)
-				default:
-					d.op.Debugf("Encountered unexpected fault : %#v ", f)
-					return fmt.Errorf("unexpected fault when attempting to create the vch folder %s please see vic-machine.log for more information", spec.Name)
+			d.op.Debugf("Encountered unexpected error : %#v ", err)
+			if f, ok := err.(types.HasFault); ok {
+				if _, ok = f.Fault().(*types.DuplicateName); ok {
+					return fmt.Errorf("An object already exists on the inventory path for vch (%s) that is not an folder", spec.Name)
 				}
-			default:
-				d.op.Debugf("Encountered unexpected error : %#v ", err)
-				return fmt.Errorf("unexpected error when attempting to create the vch folder %s please see vic-machine.log for more information", spec.Name)
 			}
+			return fmt.Errorf("unexpected error when attempting to create the vch folder %s please see vic-machine.log for more information", spec.Name)
 		}
 
 		return err
