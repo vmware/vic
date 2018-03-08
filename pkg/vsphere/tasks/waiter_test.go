@@ -33,6 +33,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMain(m *testing.M) {
@@ -408,7 +409,7 @@ func TestSoapFaults(t *testing.T) {
 		t.Error(err)
 	}
 
-	// Test the soap.IsVimFault() pat
+	// Test the soap.IsVimFault() path
 	if !IsRetryError(op, soap.WrapVimFault(res.Error.Fault)) {
 		t.Errorf("fault=%#v", res.Error.Fault)
 	}
@@ -438,14 +439,49 @@ func TestSoapFaults(t *testing.T) {
 	fvm.fault = new(types.MethodDisabled)
 	task, err = vm.Destroy(op)
 	res, err = task.WaitForResult(op, nil)
-	if err == nil {
-		t.Error("expected MethodDisabled error")
-	}
-	if !IsMethodDisabledError(soap.WrapVimFault(res.Error.Fault)) {
-		t.Error(err)
-	}
 
-	// Test
+	assert.NotNil(t, err)
+	require.True(t, IsMethodDisabledError(soap.WrapVimFault(res.Error.Fault)), "expected MethodDisabled")
+	require.False(t, IsMethodDisabledError(soap.WrapVimFault(new(types.ConcurrentAccess))), "expected not MethodDisabled")
+
+	fvm.fault = new(types.MethodDisabledFault)
+	task, err = vm.Destroy(op)
+	res, err = task.WaitForResult(op, nil)
+
+	assert.NotNil(t, err)
+	require.True(t, IsMethodDisabledError(soap.WrapVimFault(res.Error.Fault)), "expected MethodDisabledFault")
+
+	// Test ConcurrentAccess fault
+	fvm.fault = new(types.ConcurrentAccess)
+	task, err = vm.Destroy(op)
+	res, err = task.WaitForResult(op, nil)
+
+	assert.NotNil(t, err)
+	require.True(t, IsConcurrentAccessError(soap.WrapVimFault(res.Error.Fault)), "expected ConcurrentAccess")
+	require.False(t, IsConcurrentAccessError(soap.WrapVimFault(new(types.MethodDisabled))), "expected not ConcurrentAccess")
+
+	fvm.fault = new(types.ConcurrentAccessFault)
+	task, err = vm.Destroy(op)
+	res, err = task.WaitForResult(op, nil)
+
+	assert.NotNil(t, err)
+	require.True(t, IsConcurrentAccessError(soap.WrapVimFault(res.Error.Fault)), "expected ConcurrentAccessFault")
+
+	// Test ManagedObjectNotFound fault
+	fvm.fault = new(types.ManagedObjectNotFound)
+	task, err = vm.Destroy(op)
+	res, err = task.WaitForResult(op, nil)
+
+	assert.NotNil(t, err)
+	require.True(t, IsNotFoundError(soap.WrapVimFault(res.Error.Fault)), "expected ManagedObjectNotFound")
+	require.False(t, IsNotFoundError(soap.WrapVimFault(new(types.MethodDisabled))), "expected not ManagedObjectNotFound")
+
+	fvm.fault = new(types.ManagedObjectNotFoundFault)
+	task, err = vm.Destroy(op)
+	res, err = task.WaitForResult(op, nil)
+
+	assert.NotNil(t, err)
+	require.True(t, IsNotFoundError(soap.WrapVimFault(res.Error.Fault)), "expected ManagedObjectNotFoundFault")
 
 	// Test with retry
 	fvm.fault = new(types.TaskInProgress)
