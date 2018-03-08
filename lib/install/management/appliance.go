@@ -612,8 +612,6 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			}
 			return fmt.Errorf("unexpected error when attempting to create the vch folder %s please see vic-machine.log for more information", spec.Name)
 		}
-
-		return err
 	}
 
 	info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
