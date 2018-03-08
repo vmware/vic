@@ -110,7 +110,7 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 	}
 
 	// delete the VCH inventory folder
-	d.deleteFolders()
+	d.deleteFolder()
 
 	defaultrp, err := d.session.Cluster.ResourcePool(d.op)
 	if err != nil {
@@ -355,7 +355,7 @@ func (d *Dispatcher) networkDevices(vmm *vm.VirtualMachine) ([]types.BaseVirtual
 	return devices, nil
 }
 
-func (d *Dispatcher) deleteFolders() {
+func (d *Dispatcher) deleteFolder() {
 	var err error
 
 	// no inventory folders if we are targeting ESX
