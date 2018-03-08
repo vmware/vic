@@ -1019,7 +1019,7 @@
 		{
 			"importpath": "github.com/vmware/govmomi",
 			"repository": "https://github.com/vmware/govmomi",
-			"revision": "91fbd1f705a64043039044b469b7fcf33d2e61d2",
+			"revision": "0c574f49f8b3832b45af4cfece376d792105865c",
 			"branch": "master",
 			"notests": true
 		},
