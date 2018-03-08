@@ -384,13 +384,12 @@ func (d *Dispatcher) deleteFolder() {
 		return
 	}
 
-	// we need to see if the folder is empty.
+	// NOTE: Destroy on Inventory Folders is RECURSIVE
 	folderContents, err := folderRef.Children(d.op)
 	if err != nil || len(folderContents) != 0 {
-		d.op.Debugf("Could not remove VCH inventory folder, %s has existing contents in it. Manual cleanup required.", vchFolderPath)
+		d.op.Debugf("Could not remove VCH folder, %s has existing contents in it. Manual cleanup required.", vchFolderPath)
 	}
 
-	// NOTE: Destroy on Inventory Folders is RECURSIVE, start from the leaf most target and check folder children to avoid undesired deletions.
 	folderRemoveFunction := func(ctx context.Context) (tasks.Task, error) {
 		return folderRef.Destroy(d.op)
 	}
