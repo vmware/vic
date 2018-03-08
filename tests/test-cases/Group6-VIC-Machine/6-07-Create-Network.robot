@@ -211,7 +211,7 @@ Connectivity Bridge to Management
     ${vlan}=  Evaluate  str(random.randint(1, 195))  modules=random
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc dvs.portgroup.add -vlan=${vlan} -dvs test-ds management
 
-    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --public-network=%{PUBLIC_NETWORK} --bridge-network=%{BRIDGE_NETWORK} --management-network=management --management-network-ip=10.10.10.2/24 --management-network-gateway=10.10.10.1/24 --compute-resource=%{TEST_RESOURCE} --container-network management --container-network-ip-range=management:10.10.10.0/24 --container-network-gateway=management:10.10.10.1/24 --no-tlsverify --insecure-registry wdc-harbor-ci.eng.vmware.com
+    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --public-network=%{PUBLIC_NETWORK} --bridge-network=%{BRIDGE_NETWORK} --management-network=management --management-network-ip=10.10.10.2/24 --management-network-gateway=10.10.10.1/24 --compute-resource=%{TEST_RESOURCE} --container-network management --container-network-ip-range=management:10.10.10.3-10.10.10.13 --container-network-gateway=management:10.10.10.1/24 --no-tlsverify --insecure-registry wdc-harbor-ci.eng.vmware.com
 
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
