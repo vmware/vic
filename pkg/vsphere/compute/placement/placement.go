@@ -17,16 +17,16 @@ package placement
 import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/vm"
+	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 // HostPlacementPolicy defines the interface for using metrics to decide the appropriate host
 // for a VM based on host metrics and VM provisioned resources.
 type HostPlacementPolicy interface {
 	// CheckHost checks whether or not the host a VM was created on is adequate for power-on.
-	CheckHost(trace.Operation, *vm.VirtualMachine) bool
+	CheckHost(trace.Operation, *session.Session) bool
 
 	// RecommendHost recommends an adequate host for the supplied VM power-on. If a nil set of hosts is
 	// specified, it will choose from the hosts contained in the cluster in which the VM is located.
-	RecommendHost(trace.Operation, *vm.VirtualMachine, []*object.HostSystem) ([]*object.HostSystem, error)
+	RecommendHost(trace.Operation, *session.Session, []*object.HostSystem) ([]*object.HostSystem, error)
 }

@@ -45,8 +45,8 @@ func TestRandomRecommendHost(t *testing.T) {
 	v := vm.NewVirtualMachine(op, sess, moref)
 
 	rhp := NewRandomHostPolicy()
-	assert.False(t, rhp.CheckHost(op, v))
-	h, err := rhp.RecommendHost(op, v, nil)
+	assert.False(t, rhp.CheckHost(op, v.Session))
+	h, err := rhp.RecommendHost(op, v.Session, nil)
 	assert.NoError(t, err)
 
 	top := h[0].Reference().String()
@@ -63,7 +63,7 @@ func TestRandomRecommendHost(t *testing.T) {
 	assert.True(t, found)
 
 	// try with a subset
-	x, err := rhp.RecommendHost(op, v, h)
+	x, err := rhp.RecommendHost(op, v.Session, h)
 	assert.NoError(t, err)
 	assert.Len(t, x, len(hosts)-1)
 	for _, host := range x {
