@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -292,7 +293,10 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInf
 
 	// If destroy method is disabled on this VM, re-enable it and retry
 	if tasks.IsMethodDisabledError(err) {
-		err = vm.EnableDestroy(ctx)
+		err = retry.Do(func() error {
+			return vm.EnableDestroy(op)
+		}, tasks.IsConcurrentAccessError)
+
 		if err != nil {
 			return nil, err
 		}
