@@ -613,7 +613,8 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		return nil
 	}
 
-	err = retry.Do(createFolders, isConcurrentAcces)
+	err = retry.Do(createFolders, isConcurrentAccess)
+	err = processInventoryCreationError(d.op, err, conf.Name)
 	if err != nil {
 		d.op.Debugf("Encountered a failure during creation of the inventory folders : %s", err)
 
@@ -793,7 +794,7 @@ func (d *Dispatcher) createFolders(vchName string) (*object.Folder, error) {
 }
 
 // TODO this should be moved to somewhere common. I did not seen a common function used in vic-machine.(I did not really see this pattern in vic-machine)
-func isConcurrentAcces(err error) bool {
+func isConcurrentAccess(err error) bool {
 	if err != nil {
 		if f, ok := err.(types.HasFault); ok {
 			switch f.Fault().(type) {
@@ -1330,88 +1331,26 @@ func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.Virtual
 	return nil
 }
 
+// TODO: we need a general place for this kind of handling in vic-machine.
 // processInventoryCreationError will check the given error and return whether it is a inventory folder creation error and return a human readable error if so
-func (d *Dispatcher) processInventoryCreationError(err error, name string) (*object.Folder, error) {
+func processInventoryCreationError(op trace.Operation, err error, name string) error {
 	if err != nil {
-		if soap.IsSoapFault(err) {
-
-			switch fault := soap.ToSoapFault(err).VimFault().(type) {
-			case types.DuplicateName:
-				// get the object from the fault
-				obj, err := d.session.Finder.ObjectReference(d.op, fault.Object)
-				if err != nil {
-					return nil, err
-				}
-
-				vchFolder, ok := obj.(*object.Folder)
-				if ok {
-					d.op.Debugf("Found already existing vch folder(%s)", name)
-					return vchFolder, nil
-				}
-				return nil, fmt.Errorf(alreadyExistsError, name)
-			case types.InvalidName:
-				d.op.Errorf("received InvalidName fault when attempting to create folder %s", name)
-				return nil, fmt.Errorf(invalidNameError, name)
-			default:
-				d.op.Errorf("Encountered unexpected fault : %#v ", fault)
-				return nil, fmt.Errorf(unexpectedInventoryFaultError, name)
-			}
-		}
-
-		if soap.IsVimFault(err) {
-
-			switch fault := soap.ToVimFault(err).(type) {
+		if f, ok := err.(types.HasFault); ok {
+			op.Debugf("Found Fault: %s", f.Fault())
+			switch fault := f.Fault().(type) {
 			case *types.DuplicateName:
-				// get the object from the fault
-				obj, err := d.session.Finder.ObjectReference(d.op, fault.Object)
-				if err != nil {
-					return nil, err
-				}
-
-				vchFolder, ok := obj.(*object.Folder)
-				if ok {
-					d.op.Debugf("Found already existing vch folder(%s)", name)
-					return vchFolder, nil
-				}
-				return nil, fmt.Errorf(alreadyExistsError, name)
-
+				return fmt.Errorf(alreadyExistsError, name)
 			case *types.InvalidName:
-				d.op.Errorf("received InvalidName fault when attempting to create folder %s", name)
-				return nil, fmt.Errorf(invalidNameError, name)
+				op.Debugf("received InvalidName fault when attempting to create folder %s", name)
+				return fmt.Errorf(invalidNameError, name)
 			default:
-				d.op.Errorf("Encountered unexpected fault : %#v ", fault)
-				return nil, fmt.Errorf(unexpectedInventoryFaultError, name)
+				op.Debugf("Encountered unexpected fault : %#v ", fault)
+				return fmt.Errorf(unexpectedInventoryFaultError, name)
 			}
 		}
 
-		// finally check for a task error
-		switch unknownError := err.(type) {
-		case task.Error:
-			switch fault := unknownError.Fault().(type) {
-			case *types.DuplicateName:
-				// get the object from the fault
-				obj, err := d.session.Finder.ObjectReference(d.op, fault.Object)
-				if err != nil {
-					return nil, err
-				}
-
-				vchFolder, ok := obj.(*object.Folder)
-				if ok {
-					d.op.Debugf("Found already existing vch folder(%s)", name)
-					return vchFolder, nil
-				}
-				return nil, fmt.Errorf(alreadyExistsError, name)
-			case *types.InvalidName:
-				d.op.Errorf("received InvalidName fault when attempting to create folder %s", name)
-				return nil, fmt.Errorf(invalidNameError, name)
-			default:
-				d.op.Errorf("Encountered unexpected fault : %#v ", fault)
-				return nil, fmt.Errorf(unexpectedInventoryFaultError, name)
-			}
-		default:
-			d.op.Errorf("Encountered unexpected error : %#v ", unknownError)
-			return nil, fmt.Errorf(unexpectedInventoryError, name)
-		}
+		op.Debugf("Encountered unexpected error : %#v ", err)
+		return fmt.Errorf(unexpectedInventoryError, name)
 	}
-	return nil, nil
+	return nil
 }
