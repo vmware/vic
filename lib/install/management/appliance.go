@@ -602,13 +602,13 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	var info *types.TaskInfo
 
 	// Create the VCH inventory folder
-	d.op.Info("Creating the VCH inventory folder")
 	vchFolder := d.session.VMFolder
 	if d.isVC {
+		d.op.Info("Creating the VCH inventory folder")
 		vchFolder, err = d.session.VMFolder.CreateFolder(d.op, spec.Name)
-		err = processInventoryCreationError(d.op, err, spec.Name)
 		if err != nil {
 			d.op.Debugf("Encountered a failure during creation of the inventory folders : %s", err)
+			err = processInventoryCreationError(d.op, err, spec.Name)
 			return err
 		}
 	}
