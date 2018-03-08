@@ -176,7 +176,7 @@ Connectivity Bridge to Public
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p1
 
     Log To Console  Connecting to container on external network from container bridged network
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net %{BRIDGE_NETWORK} ${busybox} nc ${ip} 8000
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net bridge ${busybox} nc ${ip} 8000
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
 
@@ -190,7 +190,7 @@ Connectivity Bridge to Public
 
     # we expect this to fail since the port wasn't exposed
     Log To Console  Connecting to container on external network from container bridged network
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net %{BRIDGE_NETWORK} ${busybox} nc ${ip} 8000
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net bridge ${busybox} nc ${ip} 8000
     Should Not Be Equal As Integers  ${rc}  0
 
     Log To Console  Port connection test from bridge to public networks succeeded.
@@ -227,7 +227,7 @@ Connectivity Bridge to Management
     Should Not Contain  ${output}  Error:
 
     Log To Console  Creating bridge container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=%{BRIDGE_NETWORK} --name b1 ${busybox} /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=bridge --name b1 ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
 
     Log To Console  Starting bridge container
