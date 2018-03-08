@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/opsuser"
@@ -30,6 +31,7 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/compute/placement"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
@@ -109,10 +111,92 @@ func (d *Dispatcher) createPool(conf *config.VirtualContainerHostConfigSpec, set
 	return nil
 }
 
+// relocateAppliance invokes the host placement library to find a suitable host (based on host
+// metrics) to relocate the VCH to. If the VCH's current host is suitable, the VCH is not relocated.
+func (d *Dispatcher) relocateAppliance() error {
+	defer trace.End(trace.Begin("", d.op))
+	var err error
+
+	// TODO(anchal): Use ranked host policy when #7459 is merged.
+	// provider := performance.NewHostMetricsProvider(d.session)
+	// rankedPolicy := placement.NewRankedHostPolicy()
+
+	randomPolicy := placement.NewRandomHostPolicy()
+	if randomPolicy.CheckHost(d.op, d.appliance) {
+		// The current host of the appliance is suitable; no migration needed.
+		return nil
+	}
+
+	oldHost, err := d.appliance.HostSystem(d.op)
+	if err != nil {
+		return errors.Errorf("Unable to obtain VCH's host system before relocation: %s", err)
+	}
+
+	// TODO(anchal): Use this form when #7459 is merged.
+	// Collect a ranked slice of hosts and pick the first one to relocate the VCH VM to.
+	// Pass a nil slice of hosts to use all hosts in the cluster as candidate hosts.
+	// hosts, err := randomPolicy.RecommendHost(d.op, d.appliance, nil)
+	// if err != nil {
+	// 	msg := "Unable to obtain recommended host: %s"
+	// 	d.op.Warnf(msg, err)
+	// 	return errors.Errorf(msg, err)
+	// }
+	// if len(hosts) == 0 {
+	// 	msg := "No hosts returned by placement library, skipping relocation"
+	// 	d.op.Warnf(msg)
+	// 	return errors.New(msg)
+	// }
+	// hMoref := hosts[0].Reference()
+
+	host, err := randomPolicy.RecommendHost(d.op, d.appliance)
+	if err != nil {
+		return errors.Errorf("Unable to obtain recommended host: %s", err)
+	}
+
+	hMoref := host.Reference()
+
+	// Skip relocation if the recommended host is the same as the old host.
+	if hMoref == oldHost.Reference() {
+		d.op.Debugf("Recommended host is the same as the host the VCH is on. Skipping relocation")
+		return nil
+	}
+
+	d.op.Debugf("Attempting to relocate VCH to host %s", hMoref.String())
+
+	relocateSpec := types.VirtualMachineRelocateSpec{
+		Host: &hMoref,
+	}
+	_, err = d.appliance.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
+		return d.appliance.Relocate(ctx, relocateSpec, types.VirtualMachineMovePriorityDefaultPriority)
+	})
+	if err != nil {
+		return errors.Errorf("Relocate task failed: %s", err)
+	}
+	d.op.Infof("VCH successfully relocated")
+
+	if d.vmPathName, err = d.appliance.FolderName(d.op); err != nil {
+		d.op.Errorf("Failed to get canonical name for appliance: %s", err)
+		return errors.New(err.Error())
+	}
+
+	return nil
+}
+
 func (d *Dispatcher) startAppliance(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin("", d.op))
-
 	var err error
+
+	// If DRS is disabled (e.g. in a ROBO env), find a suitable host and relocate the VCH to it.
+
+	// TODO(anchal): Add license check for ROBO once #7283 is closed.
+	if d.session.DRSEnabled != nil && !*d.session.DRSEnabled {
+		err = d.relocateAppliance()
+		if err != nil {
+			d.op.Warn(err)
+			d.op.Warn("Unable to relocate VCH, attempting to use its current host for powering on")
+		}
+	}
+
 	_, err = d.appliance.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.PowerOn(ctx)
 	})
