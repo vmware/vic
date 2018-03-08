@@ -249,8 +249,6 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 
 	var wg sync.WaitGroup
 	for _, child := range children {
-		// TODO: REWRITE isVCH and isContainerVM since they fetch the same vm information twice!!!
-
 		//Leave VCH appliance there until everything else is removed, cause it has VCH configuration. Then user could retry delete in case of any failure.
 		ok, err := d.isVCH(child)
 		if err != nil {
@@ -285,7 +283,6 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 		wg.Add(1)
 		go func(child *vm.VirtualMachine) {
 			defer wg.Done()
-			// looks like this is run for cvm's and the vch. this could be inefficient when going to the finder for inventory folder removal.
 			if err = d.deleteVM(child, deletePoweredOnContainers); err != nil {
 				mu.Lock()
 				errs = append(errs, err.Error())
