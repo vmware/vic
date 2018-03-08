@@ -188,7 +188,7 @@ func (v *Validator) VcsimValidate(ctx context.Context, localInputConfig *data.Da
 	v.storage(op, localInputConfig, conf)
 	v.network(op, localInputConfig, conf)
 	v.CheckLicense(op)
-	v.CheckDrs(op)
+	v.CheckDRS(op)
 
 	// fmt.Printf("Config: %# v\n", pretty.Formatter(conf))
 
