@@ -114,7 +114,6 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 	defer trace.End(trace.Begin(""))
 
 	var err error
-	d.vchPoolPath = path.Join(settings.ResourcePoolPath, conf.Name)
 	var orp *object.ResourcePool
 	if orp, err = d.findResourcePool(d.vchPoolPath); err != nil {
 		return err
