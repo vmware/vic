@@ -600,7 +600,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	// Create the VCH inventory folder
 	vchFolder := d.session.VMFolder
 	if d.isVC {
-		d.op.Info("Creating the VCH inventory folder")
+		d.op.Info("Creating the VCH folder")
 
 		vchFolder, err = d.session.VMFolder.CreateFolder(d.op, spec.Name)
 		if err != nil {
