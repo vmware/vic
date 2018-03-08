@@ -39,7 +39,6 @@ func (v *Validator) compute(op trace.Operation, input *data.Data, conf *config.V
 		return
 	}
 
-	// TODO: for vApp creation assert that the name doesn't exist
 	// TODO: for RP creation assert whatever we decide about the pool - most likely that it's empty
 }
 
@@ -56,7 +55,7 @@ func (v *Validator) inventoryPath(op trace.Operation, obj object.Reference) stri
 // ResourcePoolHelper finds a resource pool from the input compute path and shows
 // suggestions if unable to do so when the path is ambiguous.
 func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*object.ResourcePool, error) {
-	op := trace.FromContext(ctx, "DatastoreHelper")
+	op := trace.FromContext(ctx, "ResourcePoolHelper")
 	defer trace.End(trace.Begin(path, op))
 
 	// if compute-resource is unspecified is there a default

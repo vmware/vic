@@ -22,7 +22,6 @@ import (
 	"github.com/vmware/govmomi/govc/host/esxcli"
 	"github.com/vmware/govmomi/license"
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
@@ -517,22 +516,9 @@ func (v *Validator) checkEvalLicense(op trace.Operation, licenses []types.Licens
 	}
 }
 
-// isStandaloneHost checks if host is ESX or vCenter with single host
-func (v *Validator) isStandaloneHost() bool {
-	cl := v.Session.Cluster.Reference()
-
-	if cl.Type != "ClusterComputeResource" {
-		return true
-	}
-	return false
-}
-
-// drs checks that DRS is enabled
-func (v *Validator) CheckDrs(ctx context.Context) {
-	if v.DisableDRSCheck {
-		return
-	}
-	op := trace.FromContext(ctx, "CheckDrs")
+// CheckDRS will validate DRS settings
+func (v *Validator) CheckDRS(ctx context.Context) {
+	op := trace.FromContext(ctx, "CheckDRS")
 	defer trace.End(trace.Begin("", op))
 
 	errMsg := "DRS check SKIPPED"
@@ -540,31 +526,34 @@ func (v *Validator) CheckDrs(ctx context.Context) {
 		return
 	}
 
-	cl := v.Session.Cluster
-	ref := cl.Reference()
-
-	if v.isStandaloneHost() {
+	// TODO:  Cluster should only every be a cluster
+	if v.Session.Cluster.Reference().Type != "ClusterComputeResource" {
 		op.Info("DRS check SKIPPED - target is standalone host")
 		return
 	}
 
-	var ccr mo.ClusterComputeResource
-
-	err := cl.Properties(op, ref, []string{"configurationEx"}, &ccr)
-	if err != nil {
-		msg := fmt.Sprintf("Failed to validate DRS config: %s", err)
-		v.NoteIssue(errors.New(msg))
-		return
+	// TODO: @ROBO - if we can't verify DRS is vic placement acceptable
+	// TODO: Practice DRY -- this is also in session.Populate
+	if v.Session.DRSEnabled == nil {
+		cc := object.NewClusterComputeResource(v.Session.Client.Client, v.Session.Cluster.Reference())
+		clusterConfig, err := cc.Configuration(op)
+		if err != nil {
+			op.Error("DRS check FAILED")
+			op.Errorf("  vSphere communication error: %s", err)
+			v.NoteIssue(errors.New("Unable to verify DRS Status"))
+			return
+		}
+		v.Session.DRSEnabled = clusterConfig.DrsConfig.Enabled
 	}
 
-	z := ccr.ConfigurationEx.(*types.ClusterConfigInfoEx).DrsConfig
-
-	if !(*z.Enabled) {
-		op.Error("DRS check FAILED")
-		op.Errorf("  DRS must be enabled on cluster %q", v.Session.Cluster.InventoryPath)
-		v.NoteIssue(errors.New("DRS must be enabled to use VIC"))
+	// if DRS is disabled warn
+	if !*v.Session.DRSEnabled {
+		op.Warn("DRS is recommended, but is disabled:")
+		op.Warnf("  VIC will select container hosts from %q", v.Session.Cluster.InventoryPath)
 		return
+
 	}
+
 	op.Info("DRS check OK on:")
 	op.Infof("  %q", v.Session.Cluster.InventoryPath)
 }

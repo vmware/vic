@@ -69,8 +69,7 @@ type Validator struct {
 	isVC   bool
 	issues []error
 
-	DisableDRSCheck bool
-	allowEmptyDC    bool
+	allowEmptyDC bool
 }
 
 func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) (*Validator, error) {
@@ -141,6 +140,7 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 		tURL.Path = ""
 	}
 
+	sessionconfig.ClusterPath = input.ComputeResourcePath
 	sessionconfig.Service = tURL.String()
 
 	sessionconfig.CloneTicket = input.CloneTicket
@@ -325,7 +325,7 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	v.CheckFirewall(op, conf)
 	v.CheckPersistNetworkBacking(op, false)
 	v.CheckLicense(op)
-	v.CheckDrs(op)
+	v.CheckDRS(op)
 
 	v.certificate(op, input, conf)
 	v.certificateAuthorities(op, input, conf)
