@@ -427,7 +427,13 @@ Change ESXi Server Password
     Should Be Empty  ${out}
 
 Check License Features
+    ${license}=  Run  govc license.ls
+    Log  ${license}
+    Should Contain      ${license}  Key
+    Should Not Contain  ${license}  SecurityError
+
     ${out}=  Run  govc object.collect -json $(govc object.collect -s - content.licenseManager) licenses | jq '.[].Val.LicenseManagerLicenseInfo[].Properties[] | select(.Key == "feature") | .Value'
+    Log  ${out}
     Should Contain  ${out}  serialuri
     Should Contain  ${out}  dvs
 
