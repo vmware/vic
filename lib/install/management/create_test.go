@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 func TestMain(t *testing.T) {
@@ -90,13 +91,16 @@ func TestMain(t *testing.T) {
 		// The other way around, if we test positive case first, the VCH data and session data are modified, so we are not able to test the negative case
 		conf2, err := validator.Validate(op, input)
 		conf2.ImageStores[0].Host = "http://non-exist"
-		testCreateAppliance(op, validator.Session, conf2, installSettings, true, t)
+		_ = testCreateAppliance(op, validator.Session, conf2, installSettings, true, t)
 		testCleanup(op, validator.Session, conf2, t)
 
-		testCreateAppliance(op, validator.Session, conf, installSettings, false, t)
+		appliance := testCreateAppliance(op, validator.Session, conf, installSettings, false, t)
 
 		// cannot run test for func not implemented in vcsim: ResourcePool:resourcepool-24 does not implement: UpdateConfig
 		// testUpdateResources(ctx, validator.Session, conf, installSettings, false, t)
+
+		// Test that the applianceVM can be relocated after it is created.
+		testRelocateAppliance(op, appliance, validator.Session, conf, installSettings, t)
 	}
 }
 
@@ -220,7 +224,7 @@ func testCleanup(op trace.Operation, sess *session.Session, conf *config.Virtual
 	}
 }
 
-func testCreateAppliance(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, vConf *data.InstallerData, hasErr bool, t *testing.T) {
+func testCreateAppliance(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, vConf *data.InstallerData, hasErr bool, t *testing.T) *vm.VirtualMachine {
 	d := &Dispatcher{
 		session: sess,
 		op:      op,
@@ -235,7 +239,7 @@ func testCreateAppliance(op trace.Operation, sess *session.Session, conf *config
 		} else {
 			t.Fatal(err)
 		}
-		return
+		return nil
 	}
 
 	err = d.createAppliance(conf, vConf)
@@ -245,10 +249,27 @@ func testCreateAppliance(op trace.Operation, sess *session.Session, conf *config
 		} else {
 			t.Fatal(err)
 		}
-		return
+		return nil
 	}
 
 	if hasErr {
 		t.Errorf("No error when error is expected.")
+	}
+
+	return d.appliance
+}
+
+func testRelocateAppliance(op trace.Operation, appliance *vm.VirtualMachine, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, vConf *data.InstallerData, t *testing.T) {
+	d := &Dispatcher{
+		session:   sess,
+		op:        op,
+		isVC:      sess.IsVC(),
+		appliance: appliance,
+		force:     false,
+	}
+
+	err := d.relocateAppliance()
+	if err != nil {
+		t.Fatalf("Failed to relocate appliance: %s", err)
 	}
 }
