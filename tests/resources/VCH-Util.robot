@@ -33,7 +33,7 @@ Set Test Environment Variables
     ${len}=  Get Length  ${URLs}
     ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
 
-    Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
+    Set Environment Variable  TEST_URL  10.192.236.138
     Set Environment Variable  GOVC_URL  %{TEST_URL}
     Set Environment Variable  GOVC_USERNAME  %{TEST_USERNAME}
     Set Environment Variable  GOVC_PASSWORD  %{TEST_PASSWORD}
