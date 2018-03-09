@@ -161,7 +161,7 @@ func (d *Dispatcher) deleteFilesIteratively(m *object.DatastoreFileManager, ds *
 	// If deleting top level folder fails, remove the child files to empty the folder first
 	err := d.deleteVMFSFiles(m, ds, dsPath)
 	if err != nil {
-		d.op.Debugf("Attempt to delete top level folder %s failed. Removing the children files instead.", dsPath)
+		d.op.Debugf("Attempt to delete top level folder %s failed. Remove the children files instead.", dsPath)
 		res, err := d.getSortedChildren(ds, dsPath)
 		if err != nil {
 			if !types.IsFileNotFound(err) {
