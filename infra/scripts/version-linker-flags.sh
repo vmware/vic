@@ -14,14 +14,26 @@
 # limitations under the License.
 #
 
-echo "-s -w \
-    -X github.com/vmware/vic/pkg/version.Version=`git describe --abbrev=0 --tags` \
-    -X github.com/vmware/vic/pkg/version.BuildNumber=\"${BUILD_NUMBER}\" \
-    -X github.com/vmware/vic/pkg/version.BuildDate=`date -u +%Y/%m/%d@%H:%M:%S` \
-    -X github.com/vmware/vic/pkg/version.GitCommit=`git rev-parse --short HEAD` \
-    -X github.com/vmware/vic/pkg/version.State=` \
-      if [[ -n $(git ls-files --others --exclude-standard) || \
-            ! $(git diff-files --no-ext-diff --quiet) || \
-            ! $(git diff-index --no-ext-diff --quiet --cached HEAD) \
-     ]]; then echo 'dirty'; fi`"
-
+if [[ $# == 1 && $1 == "debug" ]]; then
+    echo " \
+        -X github.com/vmware/vic/pkg/version.Version=`git describe --abbrev=0 --tags` \
+        -X github.com/vmware/vic/pkg/version.BuildNumber=\"${BUILD_NUMBER}\" \
+        -X github.com/vmware/vic/pkg/version.BuildDate=`date -u +%Y/%m/%d@%H:%M:%S` \
+        -X github.com/vmware/vic/pkg/version.GitCommit=`git rev-parse --short HEAD` \
+        -X github.com/vmware/vic/pkg/version.State=` \
+          if [[ -n $(git ls-files --others --exclude-standard) || \
+                ! $(git diff-files --no-ext-diff --quiet) || \
+                ! $(git diff-index --no-ext-diff --quiet --cached HEAD) \
+         ]]; then echo 'dirty'; fi`"
+else
+    echo "-s -w \
+        -X github.com/vmware/vic/pkg/version.Version=`git describe --abbrev=0 --tags` \
+        -X github.com/vmware/vic/pkg/version.BuildNumber=\"${BUILD_NUMBER}\" \
+        -X github.com/vmware/vic/pkg/version.BuildDate=`date -u +%Y/%m/%d@%H:%M:%S` \
+        -X github.com/vmware/vic/pkg/version.GitCommit=`git rev-parse --short HEAD` \
+        -X github.com/vmware/vic/pkg/version.State=` \
+          if [[ -n $(git ls-files --others --exclude-standard) || \
+                ! $(git diff-files --no-ext-diff --quiet) || \
+                ! $(git diff-index --no-ext-diff --quiet --cached HEAD) \
+         ]]; then echo 'dirty'; fi`"
+fi
