@@ -11,6 +11,12 @@ pipeline:
     tags: true
     recursive: false
 
+  clone-pr:
+    image: wdc-harbor-ci.eng.vmware.com/default-project/git-clone:1.0
+    pull: true
+    when:
+      event: [ pull_request ]
+
   display-status:
     image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.44'
     pull: true
@@ -62,6 +68,7 @@ pipeline:
     secrets:
       - drone_server
       - drone_token
+      - github_automation_api_key
       - registry_password
       - test_password
       - test_url_array
@@ -120,6 +127,7 @@ pipeline:
       - export GOVC_PASSWORD=$TEST_PASSWORD
       - export GOVC_DATASTORE=$TEST_DATASTORE
       - export DOMAIN=$CI_DOMAIN
+      - export MULTI_VCH=1
       - echo $DOMAIN
       - 'make mark'
       - tests/integration-test.sh
@@ -206,10 +214,13 @@ pipeline:
       repo: vmware/vic
       event: [push, tag]
       branch: [master, 'releases/*', 'refs/tags/*']
+      status: [success, failure]
 
   publish-gcs-builds-on-pass:
     image: 'victest/drone-gcs:1'
     pull: true
+    secrets:
+      - google_key
     source: bundle
     target: vic-engine-builds
     acl:
@@ -224,6 +235,8 @@ pipeline:
   publish-gcs-builds-on-fail:
     image: 'victest/drone-gcs:1'
     pull: true
+    secrets:
+      - google_key
     source: bundle
     target: vic-engine-failed-builds
     acl:
@@ -238,6 +251,8 @@ pipeline:
   publish-gcs-releases:
     image: 'victest/drone-gcs:1'
     pull: true
+    secrets:
+      - google_key
     source: bundle-release
     target: vic-engine-releases
     acl:
