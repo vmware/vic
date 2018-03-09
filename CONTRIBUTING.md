@@ -124,7 +124,7 @@ the project and runs unit and regression tests. To customize the integration tes
 you can use these keywords in your PR body:
 
 - To skip running tests (e.g. for a work-in-progress PR), use `[ci skip]` or `[skip ci]`.
-  - This customization must be set at the beginning of the PR title and not the PR body.
+  - This customization must be set at the beginning of the PR title, not the PR body.
 - To run the full test suite, use `[full ci]`.
 - To run _specific_ integration test or group, use `[specific ci=$test]`. This will run the regression test as well. Examples:
   - To run the `1-01-Docker-Info` suite: `[specific ci=1-01-Docker-Info]`
