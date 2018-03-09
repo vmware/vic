@@ -206,13 +206,11 @@ func DockerUnpack(op trace.Operation, root string, tarStream io.Reader) (int64, 
 	fi, err := os.Stat(root)
 	if err != nil {
 		// the target unpack path does not exist. We should not get here.
-		op.Errorf("tar unpack target does not exist: %s", root)
 		return 0, err
 	}
 
 	if !fi.IsDir() {
 		err := fmt.Errorf("unpack root target is not a directory: %s", root)
-		op.Error(err)
 		return 0, err
 	}
 
@@ -222,34 +220,33 @@ func DockerUnpack(op trace.Operation, root string, tarStream io.Reader) (int64, 
 	stdin, err := cmd.StdinPipe()
 
 	if err != nil {
-		op.Error(err)
 		return 0, err
 	}
 
 	if stdin == nil {
 		err = errors.New("stdin was nil")
-		op.Error(err)
 		return 0, err
 	}
-
-	var n int64
-	go func(n int64) {
-
-		defer stdin.Close()
-		if n, err = io.Copy(stdin, tarStream); err != nil {
-			op.Errorf("Error copying tarStream: %s", err.Error())
-		}
-
-	}(n)
 
 	if err = cmd.Start(); err != nil {
 		return 0, err
 	}
 
+	bytesWritten := make(chan int64, 1)
+	go func() {
+		defer stdin.Close()
+		var n int64
+		if n, err = io.Copy(stdin, tarStream); err != nil {
+			op.Errorf("Error copying tarStream: %s", err.Error())
+		}
+		bytesWritten <- n
+	}()
+
 	if err = cmd.Wait(); err != nil {
 		return 0, err
 	}
-	return n, nil
+
+	return <-bytesWritten, nil
 }
 
 // Unpack runs the binary compiled in cmd/unpack.go which creates a chroot at `root` and passes `op`, `tarStream`, and `filter` to InvokeUnpack for extraction of the tar on the filesystem. `binPath` should be either ApplianceBinaryPath or ContainerBinaryPath. Unpack returns a `Cmd` to allow use in conjunction with the tether's `LaunchUtility`, so it is necessary to call `cmd.Wait` after `Unpack` exits e.g. OfflineUnpack, if not being used in conjunction with LaunchUtility and the childReaper.

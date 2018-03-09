@@ -20,6 +20,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
 *** Test Cases ***
+
 Pull nginx
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ${nginx}
 
@@ -159,34 +160,3 @@ Verify image manifest digest against vanilla docker
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  sha256:be3c11fdba7cfe299214e46edc642e09514dbb9bbefcd0d3836c05a1e0cd0642
-
-Attempt docker pull mitm
-
-    ${first-ip}=  Get Environment Variable  VCH-IP
-    ${first-name}=  Get Environment Variable  VCH-NAME
-    ${first-params}=  Get Environment Variable  VCH-PARAMS
-
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gigawhitlocks/docker-layer-injection-proxy:latest
-
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gigawhitlocks/registry-busybox:latest
-
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name=registry -p 5000:5000 gigawhitlocks/registry-busybox
-    Should Be Equal As Integers  ${rc}  0
-
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name=mitm -p 8080:8080 gigawhitlocks/docker-layer-injection-proxy
-    Should Be Equal As Integers  ${rc}  0
-
-    Set Test VCH Name
-    ${output}=  Install VIC Appliance To Test Server With Current Environment Variables  cleanup=${false}   additional-args=--insecure-registry=http://%{VCH-IP}:5000 --http-proxy=http://%{VCH-IP}:8080
-
-    Set Test Environment Variables
-
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${first-ip}:5000/busybox
-
-    Should Be Equal As Integers  ${rc}  1
-
-    ${rc}  ${output}=  Run And Return Rc And Output  sshpass -ppassword ssh %{VCH-IP} -lroot -C -oStrictHostKeyChecking=no "ls /tmp | grep pingme"
-
-    Log  ${output}
-    Should Not Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  pingme

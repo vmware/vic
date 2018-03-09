@@ -41,9 +41,11 @@ const (
 	FailedApplyLayer
 )
 
-func customUnpack() {
-	op := setupChroot()
+// Calls our custom unpack method inside of the chroot
+func customUnpack(op trace.Operation) {
+	setupChroot(op)
 	op.Debugf("New custom unpack operation created")
+
 	filterSpec, err := archive.DecodeFilterSpec(op, &os.Args[3])
 	if err != nil {
 		op.Errorf("Couldn't deserialize filterspec %s", os.Args[3])
@@ -58,9 +60,11 @@ func customUnpack() {
 	os.Exit(Success)
 }
 
-func dockerUnpack() {
-	op := setupChroot()
+// Calls docker's ApplyLayer inside of the chroot
+func dockerUnpack(op trace.Operation) {
+	setupChroot(op)
 	op.Debugf("New docker-based unpack operation created")
+
 	// Untar the archive
 	if _, err := docker.ApplyLayer("/", os.Stdin); err != nil {
 		op.Errorf("Error applying layer: %s", err)
@@ -71,9 +75,8 @@ func dockerUnpack() {
 
 }
 
-func setupChroot() trace.Operation {
-	ctx := context.Background()
-	op := trace.NewOperation(ctx, "Unpack") // TODO op ID? It's os.Args[1] if we need it..
+// Performs sanity checking (makes sure the unpack directory exists and has permissions, etc), changes directory to the unpack directory, and calls chroot on that directory. Will exit the executable if an error occurs.
+func setupChroot(op trace.Operation) {
 	root := os.Args[2]
 
 	fi, err := os.Stat(root)
@@ -102,21 +105,25 @@ func setupChroot() trace.Operation {
 		os.Exit(FailedChroot)
 	}
 
+	// this seems like a no-op but it is necessary to complete the chroot
 	err = os.Chdir("/")
 	if err != nil {
 		op.Errorf("error while chdir inside chroot: %s", err.Error())
 		os.Exit(FailedChdirAfterChroot)
 	}
-
-	return op
 }
 
 func main() {
+	ctx := context.Background()
+	op := trace.NewOperation(ctx, "Unpack") // TODO op ID? It's os.Args[1] if we need it..
+
 	switch len(os.Args) {
 	case 4:
-		customUnpack()
+		// When performing an unpack via docker cp, we use a custom unpack routine, which requires a FilterSpec. Thus, if we have 4 arguments (command, op ID, unpack location, filterspec), we should perform a custom unpack
+		customUnpack(op)
 	case 3:
-		dockerUnpack()
+		// In the case of docker pull, we use docker's ApplyLayer function and therefore do not need a filterSpec, so if we only have command, opID, and unpack location, we can proceed with using ApplyLayer
+		dockerUnpack(op)
 	default:
 		os.Exit(WrongArgumentCount)
 	}
