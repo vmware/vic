@@ -57,7 +57,7 @@ Delete VCH and verify
     ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --force
     Should Contain  ${ret}  Completed successfully
     Should Not Contain  ${ret}  Operation failed: Error caused by file
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 
     # Check VM is removed
     ${ret}=  Run  govc vm.info -json=true ${containerName}-*
@@ -100,7 +100,7 @@ Attach Disks and Delete VCH
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 
     ${rc}=  Run And Return Rc  govc datastore.ls -dc=%{TEST_DATACENTER} %{VCH-NAME}/VIC/
     Should Be Equal As Integers  ${rc}  1
@@ -142,7 +142,7 @@ Delete VCH with non-cVM in same RP
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 
 
 Delete VCH moved from its RP
@@ -199,7 +199,7 @@ Delete VCH moved from its RP
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 
 
 Delete VCH moved to root RP and original RP deleted
@@ -243,5 +243,5 @@ Delete VCH moved to root RP and original RP deleted
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 

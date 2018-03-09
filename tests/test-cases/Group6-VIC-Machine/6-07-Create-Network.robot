@@ -81,7 +81,7 @@ Public network - invalid
     Should Contain  ${output}  --public-network: network 'AAAAAAAAAA' not found
     Should Contain  ${output}  vic-machine-linux create failed
 
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 
 Public network - invalid vCenter
     Pass execution  Test not implemented
@@ -125,7 +125,7 @@ Management network - invalid
     Should Contain  ${output}  --management-network: network 'AAAAAAAAAA' not found
     Should Contain  ${output}  vic-machine-linux create failed
 
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 
 Management network - invalid vCenter
     Pass execution  Test not implemented
@@ -261,7 +261,7 @@ Bridge network - vCenter none
     Should Contain  ${output}  An existing distributed port group must be specified for bridge network on vCenter
 
     # Delete the portgroup added by env vars keyword
-    Cleanup VCH Bridge Network  %{VCH-NAME}
+    Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 
 Bridge network - ESX none
     Set Test Environment Variables
@@ -346,7 +346,7 @@ Bridge network - reused port group
     Should Contain  ${output}  the bridge network must not be shared with another network role
 
     # Delete the portgroup added by env vars keyword
-    Cleanup VCH Bridge Network  %{VCH-NAME}
+    Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 
 Bridge network - invalid IP settings
     Set Test Environment Variables
@@ -358,7 +358,7 @@ Bridge network - invalid IP settings
     Should Contain  ${output}  Error parsing bridge network ip range
 
     # Delete the portgroup added by env vars keyword
-    Cleanup VCH Bridge Network  %{VCH-NAME}
+    Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 
 Bridge network - invalid bridge network range
     Set Test Environment Variables
@@ -370,7 +370,7 @@ Bridge network - invalid bridge network range
     Should Contain  ${output}  --bridge-network-range must be /16 or larger network
 
     # Delete the portgroup added by env vars keyword
-    Cleanup VCH Bridge Network  %{VCH-NAME}
+    Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 
 Bridge network - valid with IP range
     Pass execution  Test not implemented
@@ -394,7 +394,7 @@ Container network - space in network name invalid
     Should Contain  ${output}  vic-machine-linux create failed
 
     # Delete the portgroup added by env vars keyword
-    Cleanup VCH Bridge Network  %{VCH-NAME}
+    Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 
 Container network - space in network name valid
     Set Test Environment Variables
