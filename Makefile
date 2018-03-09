@@ -86,7 +86,7 @@ endif
 ifeq ($(VIC_DEBUG_BUILD),)
 	LDFLAGS := $(shell BUILD_NUMBER=${BUILD_NUMBER} $(BASE_DIR)/infra/scripts/version-linker-flags.sh)
 else
-	LDFLAGS := $(shell BUILD_NUMBER=${BUILD_NUMBER} $(BASE_DIR)/infra/scripts/version-debug-linker-flags.sh)
+	LDFLAGS := $(shell BUILD_NUMBER=${BUILD_NUMBER} $(BASE_DIR)/infra/scripts/version-linker-flags.sh debug)
 endif
 
 # target aliases - environment variable definition

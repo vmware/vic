@@ -26,6 +26,7 @@ function usage() {
     echo "    vic-admin"
     echo "    docker-engine"
     echo "    port-layer"
+    echo "    vic-machine"
     echo "    virtual-kubelet"
     exit 1
 }
@@ -36,7 +37,7 @@ do
 
         h)
             # Optional
-            export VCH_HOST="$OPTARG"
+            export DLV_TARGET_HOST="$OPTARG"
             ;;
 
         p)
@@ -90,8 +91,12 @@ case ${TARGET} in
         PORT=2348
         ;;
 
-    virtual-kubelet)
+    vic-machine)
         PORT=2349
+        ;;
+
+    virtual-kubelet)
+        PORT=2350
         ;;
 
     *)
@@ -99,24 +104,26 @@ case ${TARGET} in
         ;;
 esac
 
-if [ -z "${VCH_HOST}" ]; then
+if [ -z "${DLV_TARGET_HOST}" ]; then
     usage
 fi
 
+if [ -n "${SSHPASS}" ]; then
+    SSH="sshpass -e ${SSH}"
+    SCP="sshpass -e ${SCP}"
+
+    if [ ! -f /usr/bin/sshpass ]; then
+        echo sshpass must be installed. Run \"apt-get install sshpass\"
+        exit 1
+    fi
+fi
+
 if [ ${COMMAND} == "attach" ]; then
-    if [ -n "${SSHPASS}" ]; then
-        sshpass -e ${SSH} root@${VCH_HOST} "nohup /usr/local/bin/dlv-attach-headless.sh $TARGET $PORT > /var/tmp/${TARGET}.log 2>&1 &"
-    else
-       ${SSH} root@${VCH_HOST} "nohup /usr/local/bin/dlv-attach-headless.sh $TARGET $PORT >  /var/tmp/${TARGET}.log 2>&1 &"
-    fi
+    ${SSH} root@${DLV_TARGET_HOST} "nohup /usr/local/bin/dlv-attach-headless.sh $TARGET $PORT >  /var/tmp/${TARGET}.log 2>&1 &"
 elif [ ${COMMAND} == "detach" ]; then
-    if [ -n "${SSHPASS}" ]; then
-        sshpass -e ${SSH} root@${VCH_HOST} "/usr/local/bin/dlv-detach-headless.sh $PORT"
-    else
-       ${SSH} root@${VCH_HOST} "/usr/local/bin/dlv-detach-headless.sh $PORT"
-    fi
+    ${SSH} root@${DLV_TARGET_HOST} "/usr/local/bin/dlv-detach-headless.sh $PORT"
 else
     usage
 fi
 
-echo $VCH_HOST:$PORT
+echo $DLV_TARGET_HOST:$PORT
