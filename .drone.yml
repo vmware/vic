@@ -76,7 +76,6 @@ pipeline:
     commands:
       - 'export BUILD_NUMBER=${DRONE_BUILD_NUMBER}'
       - 'export COMMIT=${DRONE_COMMIT}'
-      - 'export TEST_PASSWORD=Admin\!23'
       - 'make mark'
       - 'make all'
       - 'make sincemark'
@@ -123,7 +122,6 @@ pipeline:
       - test_url_array
       - test_username
     commands:
-      - 'export TEST_PASSWORD=Admin\!23'
       - export GOVC_INSECURE=true
       - export GOVC_USERNAME=$TEST_USERNAME
       - export GOVC_PASSWORD=$TEST_PASSWORD
