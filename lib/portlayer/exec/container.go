@@ -39,7 +39,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/sys"
-	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	log "github.com/Sirupsen/logrus"
@@ -616,9 +615,7 @@ func (c *Container) Remove(op trace.Operation, sess *session.Session) error {
 	// if DeleteExceptDisks succeeds on ESXi, no further action needed
 	// if DeleteExceptDisks fails, we should call Unregister and only return an error if that fails too
 	//		Unregister sometimes can fail with ManagedObjectNotFound so we ignore it
-	_, err = c.vm.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
-		return c.vm.DeleteExceptDisks(op)
-	})
+	_, err = c.vm.DeleteExceptDisks(op)
 	if err != nil {
 		f, ok := err.(types.HasFault)
 		if !ok {
