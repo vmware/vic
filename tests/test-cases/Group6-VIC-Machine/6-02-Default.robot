@@ -99,4 +99,4 @@ Check That VMOMI Sessions Don't Leak From VIC Machine
     ${thumbprint}=  Get Thumbprint From Log  ${output}
     Should Not Have VMOMI Session  ${thumbprint}
 
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
