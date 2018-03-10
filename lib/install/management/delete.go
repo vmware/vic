@@ -390,13 +390,21 @@ func (d *Dispatcher) deleteFolder() {
 		d.op.Debugf("Could not remove VCH folder, %s has existing contents in it. Manual cleanup required.", vchFolderPath)
 	}
 
+	err = d.removeFolder(folderRef)
+	if err != nil {
+		d.op.Warnf(manualInventoryCleanWarning, folderRef.InventoryPath)
+	}
+}
+
+func (d *Dispatcher) removeFolder(folderRef *object.Folder) error {
 	folderRemoveFunction := func(ctx context.Context) (tasks.Task, error) {
 		return folderRef.Destroy(d.op)
 	}
 
-	_, err = tasks.WaitForResult(d.op, folderRemoveFunction)
+	_, err := tasks.WaitForResult(d.op, folderRemoveFunction)
 	if err != nil {
 		d.op.Debugf("Received error when attempting to remove the vch folder: %s", err)
+		return err
 	}
-
+	return nil
 }
