@@ -93,6 +93,9 @@ type Session struct {
 
 	VMFolder *object.Folder
 
+	// the parent inventory folder to the VCH
+	VCHFolder *object.Folder
+
 	Finder *find.Finder
 
 	DRSEnabled *bool
@@ -125,7 +128,12 @@ func LimitConcurrency(rt http.RoundTripper, limit int) http.RoundTripper {
 }
 
 // NewSession creates a new Session struct.
-func NewSession(config *Config) *Session {
+func NewSession(config *Config, vchMoref ...*types.ManagedObjectReference) *Session {
+	if len(vchMoref) > 0 {
+		// get the virtual machine reference for the VCH and assign it.
+
+	}
+
 	return &Session{Config: config}
 }
 
@@ -371,6 +379,7 @@ func (s *Session) Populate(ctx context.Context) (*Session, error) {
 			op.Debugf("Cached folders: %s", s.DatacenterPath)
 		}
 		s.VMFolder = folders.VmFolder
+		s.VCHFolder = folders.VmFolder
 	}
 
 	if len(errs) > 0 {

@@ -121,6 +121,21 @@ func (vm *VirtualMachine) FolderName(ctx context.Context) (string, error) {
 	return path.Base(u.Path), nil
 }
 
+func (vm *VirtualMachine) ParentInventoryFolder(ctx context.Context, sess *session.Session) (*object.Folder, error) {
+	element, err := sess.Finder.Element(ctx, vm.Reference())
+	if err != nil {
+		return nil, err
+	}
+
+	parentPath := path.Dir(element.Path)
+	folderRef, err := sess.Finder.Folder(ctx, parentPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return folderRef, nil
+}
+
 func (vm *VirtualMachine) getNetworkName(op trace.Operation, nic types.BaseVirtualEthernetCard) (string, error) {
 	if card, ok := nic.GetVirtualEthernetCard().Backing.(*types.VirtualEthernetCardDistributedVirtualPortBackingInfo); ok {
 		pg := card.Port.PortgroupKey
@@ -471,7 +486,7 @@ func (vm *VirtualMachine) fixVM(op trace.Operation) error {
 		return err
 	}
 
-	task, err := vm.registerVM(op, mvm.Summary.Config.VmPathName, name, mvm.ParentVApp, mvm.ResourcePool, mvm.Summary.Runtime.Host, vm.Session.VMFolder)
+	task, err := vm.registerVM(op, mvm.Summary.Config.VmPathName, name, mvm.ParentVApp, mvm.ResourcePool, mvm.Summary.Runtime.Host, vm.Session.VCHFolder)
 	if err != nil {
 		op.Errorf("Unable to register VM %q back: %s", name, err)
 		return err
