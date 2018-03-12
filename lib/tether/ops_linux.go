@@ -35,7 +35,9 @@ import (
 	"github.com/d2g/dhcp4"
 	"github.com/docker/docker/pkg/archive"
 
-	// need to use libcontainer for user validation, for os/user package cannot find user here if container image is busybox
+	"github.com/mdlayher/arp"
+	"github.com/mdlayher/ethernet"
+
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/vishvananda/netlink"
 
@@ -325,6 +327,37 @@ func renameLink(t Netlink, link netlink.Link, slot int32, endpoint *NetworkEndpo
 
 	log.Warnf("Unable to add additional alias on link %s for %s", link.Attrs().Name, endpoint.Name)
 	return link, nil
+}
+
+func gratuitous(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error {
+	if ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
+		// refusing to broadcast unspecified IP
+		return nil
+	}
+
+	intf, err := net.InterfaceByIndex(link.Attrs().Index)
+	if err != nil {
+		return err
+	}
+
+	client, err := arp.Dial(intf)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		client.Close()
+	}()
+
+	srcHW := link.Attrs().HardwareAddr
+	srcPA := endpoint.Assigned.IP
+
+	gratuitousPacket, err := arp.NewPacket(arp.OperationRequest, srcHW, srcPA, ethernet.Broadcast, srcPA)
+	if err != nil {
+		return err
+	}
+
+	log.Debugf("Writing gratuitous arp on %s: %+v", endpoint.Name, gratuitousPacket)
+	return client.WriteTo(gratuitousPacket, ethernet.Broadcast)
 }
 
 func getDynamicIP(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) (client.Client, error) {
@@ -656,6 +689,14 @@ func ApplyEndpoint(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) err
 	}
 
 	updateEndpoint(newIP, endpoint)
+
+	// notify our peers of the assigned address
+	err = gratuitous(t, link, endpoint)
+	if err != nil {
+		log.Errorf("Failed to issue gratuitous ARP broadcast for %s: %s", endpoint.Name, err)
+		// continue regardless as this will eventually self-correct
+		// if the error is pernacious then we'll likely hit the other early error returns
+	}
 
 	if err = updateRoutes(newIP, nl, link, endpoint); err != nil {
 		return err
@@ -1093,6 +1134,8 @@ func (t *BaseOperations) Cleanup() error {
 //     * "uid:gid
 //     * "user:gid"
 //     * "uid:group"
+// need to use libcontainer "user" package for user validation as os/user package
+// cannot find user if container image is busybox
 func getUserSysProcAttr(uid, gid string) (*syscall.SysProcAttr, error) {
 	if uid == "" && gid == "" {
 		log.Debugf("no user id or group id specified")
