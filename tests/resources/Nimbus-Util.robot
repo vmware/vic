@@ -367,7 +367,7 @@ Setup Network For Simple VC Cluster
 Create A Distributed Switch
     [Arguments]  ${datacenter}  ${dvs}=test-ds
     Log To Console  \nCreate a distributed switch
-    ${out}=  Run  govc dvs.create -product-version 5.5.0 -dc=${datacenter} ${dvs}
+    ${out}=  Run  govc dvs.create -dc=${datacenter} ${dvs}
     Should Contain  ${out}  OK
 
 Create Three Distributed Port Groups
