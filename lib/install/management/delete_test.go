@@ -36,6 +36,9 @@ import (
 )
 
 func TestDelete(t *testing.T) {
+	// TODO: Skip this until we get folder deletion implemented for some various folder types in VC Sim. We have examples of how to do this.
+	t.Skip()
+
 	log.SetLevel(log.DebugLevel)
 	trace.Logger.Level = log.DebugLevel
 	ctx := context.Background()

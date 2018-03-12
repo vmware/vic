@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package management
 
 import (
 	"context"
+	"path"
 	"strings"
 	"sync"
 
@@ -69,6 +70,8 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 		d.op.Warnf("No container VMs found, but proceeding with delete of VCH due to --force")
 		err = nil
 	}
+
+	// Proceed to delete containers.
 	if d.parentResourcepool != nil {
 		if err = d.DeleteVCHInstances(vmm, conf, containers); err != nil {
 			d.op.Error(err)
@@ -81,6 +84,7 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 			err = nil
 		}
 	}
+	d.appliance = vmm
 
 	if err = d.deleteImages(conf); err != nil {
 		errs = append(errs, err.Error())
@@ -104,6 +108,9 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 		d.op.Debugf("Error deleting appliance VM %s", err)
 		return err
 	}
+
+	// delete the VCH inventory folder
+	d.deleteFolder()
 
 	defaultrp, err := d.session.Cluster.ResourcePool(d.op)
 	if err != nil {
@@ -230,6 +237,8 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 
 	var err error
 	var children []*vm.VirtualMachine
+
+	// TODO: GET CHILDREN EITHER BY FOLDER OR RP BASED ON DEPLOYMENT
 	if children, err = d.parentResourcepool.GetChildrenVMs(d.op, d.session); err != nil {
 		return err
 	}
@@ -341,4 +350,61 @@ func (d *Dispatcher) networkDevices(vmm *vm.VirtualMachine) ([]types.BaseVirtual
 		}
 	}
 	return devices, nil
+}
+
+func (d *Dispatcher) deleteFolder() {
+	var err error
+
+	// no inventory folders if we are targeting ESX
+	if !d.isVC {
+		return
+	}
+
+	d.op.Info("Removing VCH Inventory Folder")
+	vchFolderPath := path.Dir(d.appliance.InventoryPath)
+	defer func() {
+		if err != nil {
+			d.op.Warnf(manualInventoryCleanWarning, vchFolderPath)
+		}
+	}()
+
+	folderRef, err := d.session.Finder.Folder(d.op, vchFolderPath)
+	if err != nil {
+		d.op.Debugf("failed to find folder: %s for the VCH target", vchFolderPath)
+	}
+
+	// protections against old vch's since they are directly in the VMFolder
+	dcFolder, err := d.session.Datacenter.Folders(d.op)
+	if err != nil {
+		d.op.Debugf("failed to find the datacenter folders: %s ", err)
+	}
+	VMFolder := dcFolder.VmFolder
+	if folderRef.Reference() == VMFolder.Reference() {
+		// cannot delete the vm folder
+		return
+	}
+
+	// NOTE: Destroy on Inventory Folders is RECURSIVE
+	folderContents, err := folderRef.Children(d.op)
+	if err != nil || len(folderContents) != 0 {
+		d.op.Debugf("Could not remove VCH folder, %s has existing contents in it. Manual cleanup required.", vchFolderPath)
+	}
+
+	err = d.removeFolder(folderRef)
+	if err != nil {
+		d.op.Warnf(manualInventoryCleanWarning, folderRef.InventoryPath)
+	}
+}
+
+func (d *Dispatcher) removeFolder(folderRef *object.Folder) error {
+	folderRemoveFunction := func(ctx context.Context) (tasks.Task, error) {
+		return folderRef.Destroy(d.op)
+	}
+
+	_, err := tasks.WaitForResult(d.op, folderRemoveFunction)
+	if err != nil {
+		d.op.Debugf("Received error when attempting to remove the vch folder: %s", err)
+		return err
+	}
+	return nil
 }
