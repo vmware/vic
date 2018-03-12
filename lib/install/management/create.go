@@ -319,6 +319,34 @@ func (d *Dispatcher) cleanupAfterCreationFailed(conf *config.VirtualContainerHos
 			d.op.Debug("Successfully cleaned up dangling bridge network.")
 		}
 	}
+
+	// cleanup the vch inventory folder if it is empty. Can happen in some cases where the create is cancelled after successfull creation.
+
+	if d.isVC {
+
+		// we don't know if the appliance or the folder was made. so recreate the folder path.
+		vchFolder := fmt.Sprintf("%s/%s", d.session.VMFolder, conf.Name)
+		folderRef, err := d.session.Finder.Folder(d.op, vchFolder)
+		if folderRef != nil {
+			children, err := folderRef.Children(d.op)
+			if err != nil {
+				d.op.Debugf("encountered error during vch folder cleanup : %s", err)
+				d.op.Warnf(manualInventoryCleanWarning, vchFolder)
+			}
+
+			if len(children) != 0 {
+				d.op.Warnf(manualInventoryCleanWarning, vchFolder)
+			}
+
+			d.removeFolder(folderRef)
+			if err != nil {
+				d.op.Warnf(manualInventoryCleanWarning, vchFolder)
+			}
+		}
+		if err != nil {
+			d.op.Debugf("encountered error during vch folder cleanup : %s", err)
+		}
+	}
 }
 
 // cleanupEmptyPool cleans up any dangling empty VCH resource pool when creating this VCH. no-op when VCH pool is nonempty.
