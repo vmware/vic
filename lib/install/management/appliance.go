@@ -44,6 +44,7 @@ import (
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/diag"
@@ -201,88 +202,6 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		return err
 	}, tasks.IsConcurrentAccessError)
 
-	//removes the vm from vsphere, but detaches the disks first
-	_, err = vm.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-		return vm.DeleteExceptDisks(ctx)
-	})
-
-	// We are getting ConcurrentAccess errors from DeleteExceptDisks - even though we don't set ChangeVersion in that path
-	// We are ignoring the error because in reality the operation finishes successfully.
-	ignore := false
-	if err != nil {
-		if f, ok := err.(types.HasFault); ok {
-			switch f.Fault().(type) {
-			case *types.ConcurrentAccess:
-				d.op.Warn("DeleteExceptDisks failed with ConcurrentAccess error. Ignoring it.")
-				ignore = true
-			}
-		}
-		if !ignore {
-			err = errors.Errorf("Failed to destroy VM %q: %s", vm.Reference(), err)
-			err2 := vm.Unregister(d.op)
-			if err2 != nil {
-				return errors.Errorf("%s then failed to unregister VM: %s", err, err2)
-			}
-			d.op.Infof("Unregistered VM to cleanup after failed destroy: %q", vm.Reference())
-		}
-	}
-
-	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
-		d.op.Warnf("Failed to remove datastore files for VM path %q: %s", folder, err)
-	}
-
-	// at this point the VCH should be gone and we need to cleanup the inventory
-	err = d.deleteVCHInventoryFolders()
-	if err != nil {
-		// if this fails manual cleanup is necessary
-		return err
-	}
-
-	return nil
-}
-
-func (d *Dispatcher) deleteVCHInventoryFolders() error {
-	parentFolderPath := path.Dir(d.appliance.InventoryPath)
-	// Now that the VCH is gone we will need to delete the inventory folder structure.
-	d.op.Debugf("Attempting to remove inventory folder: %s", parentFolderPath)
-
-	// grab the folder ref of the vm's direct parent
-	folderRef, err := d.session.Finder.Folder(d.op, parentFolderPath)
-	if err != nil {
-		d.op.Debugf("failed to find folder: %s", parentFolderPath)
-		return err
-	}
-
-	// we need to see if the folder is empty.
-	folderContents, err := folderRef.Children(d.op)
-	if err != nil {
-		return err
-	}
-
-	for len(folderContents) == 0 && folderRef.Reference() != d.session.VMFolder.Reference() {
-		// NOTE: Destroy on Inventory Folders is RECURSIVE, start from the leaf most target and check folder children to avoid undesired deletions.
-		err = d.removeFolder(folderRef)
-		if err != nil {
-			return err
-		}
-		d.op.Debugf("Successfully deleted folder at path : %s", parentFolderPath)
-
-		parentFolderPath = path.Dir(parentFolderPath)
-		folderRef, err = d.session.Finder.Folder(d.op, parentFolderPath)
-		if err != nil {
-			// at this point we have already partially cleaned up. So we may leave artifacts around when we bale.
-			return err
-		}
-
-		folderContents, err = folderRef.Children(d.op)
-		if err != nil {
-			return err
-		}
-	}
-
-	// We are getting ConcurrentAccess errors from DeleteExceptDisks - even though we don't set ChangeVersion in that path
-	// We are ignoring the error because in reality the operation finishes successfully.
-	ignore := false
 	if err != nil {
 		d.op.Warnf("Destroy VM %s failed with %s, unregister the VM instead", vm.Reference(), err)
 
@@ -301,20 +220,6 @@ func (d *Dispatcher) deleteVCHInventoryFolders() error {
 		d.op.Warnf("Failed to remove datastore files for VM %s with folder path %s: %s", vm.Reference(), folder, err)
 	}
 
-	return nil
-}
-
-// removeFolder will initiate a destroy task against the target folder and wait for the result.
-func (d *Dispatcher) removeFolder(folder *object.Folder) error {
-	// NOTE: Destroy on Inventory Folders is RECURSIVE, start from the leaf most target and check folder children to avoid undesired deletions.
-	folderRemoveFunction := func(ctx context.Context) (tasks.Task, error) {
-		return folder.Destroy(d.op)
-	}
-
-	_, err := tasks.WaitForResult(d.op, folderRemoveFunction)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
