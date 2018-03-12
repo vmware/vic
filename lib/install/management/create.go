@@ -323,7 +323,7 @@ func (d *Dispatcher) cleanupAfterCreationFailed(conf *config.VirtualContainerHos
 		}
 	}
 
-	// cleanup the vch inventory folder if it is empty. Can happen in some cases where the create is cancelled after successfull creation.
+	// cleanup the vch inventory folder if it is empty. Can happen in some cases where the create is cancelled after successful creation.
 
 	if d.isVC {
 
