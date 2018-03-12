@@ -22,10 +22,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/vmware/vic/lib/config"
-
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/simulator"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/vsphere/rbac"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
