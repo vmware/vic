@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -62,6 +62,11 @@ const (
 
 	// This is a constant also used in the lib/apiservers/engine/backends/system.go to assign custom info the docker types.info struct
 	volumeStoresID = "VolumeStores"
+)
+
+// inventory constants
+const (
+	manualInventoryCleanWarning = "Failed to remove VCH Folder : %s. Manual cleanup may be needed."
 )
 
 var (
@@ -176,6 +181,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 			d.op.Debugf("Failed to power off existing appliance for %s, try to remove anyway", err)
 		}
 	}
+
 	// get the actual folder name before we delete it
 	folder, err := vm.FolderName(d.op)
 	if err != nil {
@@ -392,6 +398,12 @@ func (d *Dispatcher) findApplianceByID(conf *config.VirtualContainerHostConfigSp
 		return nil, err
 	}
 	vmm = vm.NewVirtualMachine(d.op, d.session, ovm.Reference())
+
+	element, err := d.session.Finder.Element(d.op, vmm.Reference())
+	if err != nil {
+		return nil, err
+	}
+	vmm.SetInventoryPath(element.Path)
 	return vmm, nil
 }
 
@@ -480,7 +492,6 @@ func (d *Dispatcher) setDockerPort(conf *config.VirtualContainerHostConfigSpec, 
 
 func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(""))
-
 	d.op.Info("Creating appliance on target")
 
 	spec, err := d.createApplianceSpec(conf, settings)
@@ -490,17 +501,27 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	}
 
 	var info *types.TaskInfo
-	// create appliance VM
-	if d.isVC && d.vchVapp != nil {
-		info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-			return d.vchVapp.CreateChildVM(ctx, *spec, d.session.Host)
-		})
-	} else {
-		// if vapp is not created, fall back to create VM under default resource pool
-		info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-			return d.session.VMFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
-		})
+
+	// Create the VCH inventory folder
+	vchFolder := d.session.VMFolder
+	if d.isVC {
+		d.op.Info("Creating the VCH folder")
+
+		vchFolder, err = d.session.VMFolder.CreateFolder(d.op, spec.Name)
+		if err != nil {
+			d.op.Debugf("Encountered unexpected error : %#v ", err)
+			if f, ok := err.(types.HasFault); ok {
+				if _, ok = f.Fault().(*types.DuplicateName); ok {
+					return fmt.Errorf("An object already exists on the path for vch folder (%s) that is not a folder", spec.Name)
+				}
+			}
+			return fmt.Errorf("unexpected error when attempting to create the vch folder %s please see vic-machine.log for more information", spec.Name)
+		}
 	}
+
+	info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
+		return vchFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
+	})
 
 	if err != nil {
 		d.op.Errorf("Unable to create appliance VM: %s", err)
