@@ -16,8 +16,8 @@
 ESX_60_VERSION="ob-5251623"
 VC_60_VERSION="ob-5112509"
 
-ESX_67_VERSION="ob-7536568" #RC1
-VC_67_VERSION="ob-7551285" #RC1
+ESX_67_VERSION="ob-7981081" #Golden Build Candidate1
+VC_67_VERSION="ob-7989256" #Golden Build Candidate1
 
 if [[ $1 != "6.0" && $1 != "6.5" && $1 != "6.7" ]]; then
     echo "Please specify a target cluster. One of: 6.0, 6.5, 6.7"
