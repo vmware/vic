@@ -13,7 +13,7 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 5-1 - Distributed Switch
+Documentation  Test 5-5 - Heterogeneous ESXi
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  Heterogenous ESXi Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
@@ -77,7 +77,8 @@ Heterogenous ESXi Setup
     ${vc-ver}=  Fetch From Right  ${vc-ver}  ${SPACE}
     Run Keyword If  '${vc-ver}' == '6.5.0'  Add Host To VCenter  ${esx3-ip}  root  ha-datacenter  e2eFunctionalTest
 
-    Create A Distributed Switch  ha-datacenter
+    ${out}=  Run  govc dvs.create -product-version 5.5.0 -dc=ha-datacenter test-ds
+    Should Contain  ${out}  OK
 
     Create Three Distributed Port Groups  ha-datacenter
 
