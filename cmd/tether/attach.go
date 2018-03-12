@@ -150,7 +150,7 @@ func (t *attachServerSSH) Enabled() bool {
 	return atomic.LoadInt32(&t.enabled) == 1
 }
 
-func (t *attachServerSSH) Start() error {
+func (t *attachServerSSH) Start(system tether.System) error {
 	defer trace.End(trace.Begin(""))
 
 	return nil

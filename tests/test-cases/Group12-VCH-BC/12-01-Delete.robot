@@ -67,5 +67,3 @@ Delete VCH with new vic-machine
     ${ret}=  Run  govc pool.info -json=true host/*/Resources/%{VCH-NAME}
 	Should Contain  ${ret}  {"ResourcePools":null}
     Run  rm -rf vic.tar.gz vic
-
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
