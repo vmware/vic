@@ -81,7 +81,7 @@ func (r *RankedHostPolicy) RecommendHost(op trace.Operation, sess *session.Sessi
 		hm  map[string]*performance.HostMetricsInfo
 	)
 
-	if hosts == nil || len(hosts) == 0 {
+	if len(hosts) == 0 {
 		op.Debugf("no hosts specified - gathering metrics on cluster")
 		hm, err = r.source.GetMetricsForComputeResource(op, sess.Cluster)
 	} else {

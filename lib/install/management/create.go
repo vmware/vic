@@ -122,7 +122,7 @@ func (d *Dispatcher) relocateAppliance() error {
 	// rankedPolicy := placement.NewRankedHostPolicy()
 
 	randomPolicy := placement.NewRandomHostPolicy()
-	if randomPolicy.CheckHost(d.op, d.appliance) {
+	if randomPolicy.CheckHost(d.op, d.appliance.Session) {
 		// The current host of the appliance is suitable; no migration needed.
 		return nil
 	}
@@ -148,7 +148,7 @@ func (d *Dispatcher) relocateAppliance() error {
 	// }
 	// hMoref := hosts[0].Reference()
 
-	host, err := randomPolicy.RecommendHost(d.op, d.appliance)
+	host, err := randomPolicy.RecommendHost(d.op, d.appliance.Session, []*object.HostSystem{d.appliance.Host})
 	if err != nil {
 		return errors.Errorf("Unable to obtain recommended host: %s", err)
 	}
