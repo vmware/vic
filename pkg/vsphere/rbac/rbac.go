@@ -25,7 +25,6 @@ import (
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
-
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -63,8 +62,6 @@ type Resource struct {
 type Config struct {
 	Resources []Resource
 }
-
-type PermissionList []types.Permission
 
 type ResourcePermission struct {
 	RType      int8
@@ -127,11 +124,9 @@ func (am *AuthzManager) PrincipalBelongsToGroup(ctx context.Context, group strin
 	ref := *am.client.ServiceContent.UserDirectory
 
 	components := strings.Split(am.Principal, "@")
-	var domain string
 	name := components[0]
-	if len(components) < 2 {
-		domain = ""
-	} else {
+	var domain string
+	if len(components) >= 2 {
 		domain = components[1]
 	}
 
@@ -224,7 +219,7 @@ func (am *AuthzManager) AddPermission(ctx context.Context, ref types.ManagedObje
 		return nil, fmt.Errorf("cannot find role: %s", resource.Role.Name)
 	}
 
-	// Get current Permissions
+	// Get current permissions
 	permissions, err := am.authzManager.RetrieveEntityPermissions(ctx, ref, false)
 	if err != nil {
 		return nil, err
@@ -245,7 +240,6 @@ func (am *AuthzManager) AddPermission(ctx context.Context, ref types.ManagedObje
 		Propagate: resource.Propagate,
 		Group:     isGroup,
 	}
-
 	permissions = append(permissions, permission)
 
 	if err = am.authzManager.SetEntityPermissions(ctx, ref, permissions); err != nil {
@@ -337,7 +331,7 @@ func (am *AuthzManager) checkAndRepairRole(ctx context.Context, tRole *types.Aut
 		return false, nil
 	}
 
-	// Not a subset need to call go-vmomi to set the new privileges
+	// Not a subset, need to call govmomi to set the new privileges
 	err := mgr.UpdateRole(ctx, fRole.RoleId, fRole.Name, fRole.Privilege)
 
 	return true, err
