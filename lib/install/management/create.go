@@ -132,28 +132,20 @@ func (d *Dispatcher) relocateAppliance() error {
 		return errors.Errorf("Unable to obtain VCH's host system before relocation: %s", err)
 	}
 
-	// TODO(anchal): Use this form when #7459 is merged.
 	// Collect a ranked slice of hosts and pick the first one to relocate the VCH VM to.
 	// Pass a nil slice of hosts to use all hosts in the cluster as candidate hosts.
-	// hosts, err := randomPolicy.RecommendHost(d.op, d.appliance, nil)
-	// if err != nil {
-	// 	msg := "Unable to obtain recommended host: %s"
-	// 	d.op.Warnf(msg, err)
-	// 	return errors.Errorf(msg, err)
-	// }
-	// if len(hosts) == 0 {
-	// 	msg := "No hosts returned by placement library, skipping relocation"
-	// 	d.op.Warnf(msg)
-	// 	return errors.New(msg)
-	// }
-	// hMoref := hosts[0].Reference()
-
-	host, err := randomPolicy.RecommendHost(d.op, d.appliance.Session, []*object.HostSystem{d.appliance.Host})
+	hosts, err := randomPolicy.RecommendHost(d.op, d.appliance.Session, nil)
 	if err != nil {
-		return errors.Errorf("Unable to obtain recommended host: %s", err)
+		msg := "Unable to obtain recommended host: %s"
+		d.op.Warnf(msg, err)
+		return errors.Errorf(msg, err)
 	}
-
-	hMoref := host.Reference()
+	if len(hosts) == 0 {
+		msg := "No hosts returned by placement library, skipping relocation"
+		d.op.Warnf(msg)
+		return errors.New(msg)
+	}
+	hMoref := hosts[0].Reference()
 
 	// Skip relocation if the recommended host is the same as the old host.
 	if hMoref == oldHost.Reference() {
