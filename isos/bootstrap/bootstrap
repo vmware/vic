@@ -41,7 +41,7 @@ if timeout --signal=KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNT
     # WARNING WARNING WARNING WARNING WARNING
     # if the tmpfs is not large enough odd hangs can occur and the ESX event log will
     # report the guest disabling the CPU
-    mount -t tmpfs -o size=64m tmpfs ${MOUNTPOINT}/.tether/
+    mount -t tmpfs -o size=80m tmpfs ${MOUNTPOINT}/.tether/
 
     # enable full system functionality in the container
     ln -s lib64 ${MOUNTPOINT}/.tether/lib
@@ -57,6 +57,7 @@ if timeout --signal=KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNT
     echo "prepping for switch to container filesystem"
 
     cp /bin/tether ${MOUNTPOINT}/.tether/tether
+    cp /bin/unpack ${MOUNTPOINT}/.tether/unpack
 
     echo 'tether tmpfs size before copying libraries: '
     df -k ${MOUNTPOINT}/.tether
