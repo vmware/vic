@@ -98,7 +98,7 @@ Enhanced Link Mode Setup
     Set Environment Variable  GOVC_URL  ${vc1-ip}
     Set Environment Variable  GOVC_USERNAME  administrator@vsphere.local
     Set Environment Variable  GOVC_PASSWORD  Admin!23
-    Wait Until Keyword Succeeds  6x   10 sec  Check License Features
+    Wait Until Keyword Succeeds  6x   10 sec  Check License Present
 
     # First VC cluster
     Log To Console  Create a datacenter on the VC
