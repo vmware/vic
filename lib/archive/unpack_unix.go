@@ -210,8 +210,7 @@ func DockerUnpack(op trace.Operation, root string, tarStream io.Reader) (int64, 
 	}
 
 	if !fi.IsDir() {
-		err := fmt.Errorf("unpack root target is not a directory: %s", root)
-		return 0, err
+		return 0, fmt.Errorf("unpack root target is not a directory: %s", root)
 	}
 
 	// #nosec: 193 applianceBinaryPath is a constant, not a variable
