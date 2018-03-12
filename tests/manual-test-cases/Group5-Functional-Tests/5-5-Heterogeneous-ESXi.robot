@@ -17,6 +17,7 @@ Documentation  Test 5-1 - Distributed Switch
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  Heterogenous ESXi Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Force Tags  hetero
 
 *** Keywords ***
 Heterogenous ESXi Setup
