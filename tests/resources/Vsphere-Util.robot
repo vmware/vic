@@ -283,6 +283,5 @@ Get Public Network VLAN ID
     Return From Keyword If  '%{HOST_TYPE}' == 'ESXi'  ${vlan}
 
     ${dvs}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc find -type DistributedVirtualSwitch | head -n1
-    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc dvs.portgroup.info -pg='${noQuotes}' ${dvs} | grep VlanId | head -n1
-    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Fetch From Right  ${vlan}  ${SPACE}
+    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc dvs.portgroup.info -json -pg='${noQuotes}' ${dvs} | jq -r '.Port[0].Config.Setting.Vlan.VlanId'
     Return From Keyword If  '%{HOST_TYPE}' == 'VC'  ${vlan}
