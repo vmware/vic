@@ -367,7 +367,7 @@ Setup Network For Simple VC Cluster
 Create A Distributed Switch
     [Arguments]  ${datacenter}  ${dvs}=test-ds
     Log To Console  \nCreate a distributed switch
-    ${out}=  Run  govc dvs.create -product-version 5.5.0 -dc=${datacenter} ${dvs}
+    ${out}=  Run  govc dvs.create -dc=${datacenter} ${dvs}
     Should Contain  ${out}  OK
 
 Create Three Distributed Port Groups
@@ -426,12 +426,14 @@ Change ESXi Server Password
     ${out}=  Run  govc host.account.update -id root -password ${password}
     Should Be Empty  ${out}
 
-Check License Features
+Check License Present
     ${license}=  Run  govc license.ls
     Log  ${license}
     Should Contain      ${license}  Key
     Should Not Contain  ${license}  SecurityError
 
+Check License Features
+    Check License Present
     ${out}=  Run  govc object.collect -json $(govc object.collect -s - content.licenseManager) licenses | jq '.[].Val.LicenseManagerLicenseInfo[].Properties[] | select(.Key == "feature") | .Value'
     Log  ${out}
     Should Contain  ${out}  serialuri
