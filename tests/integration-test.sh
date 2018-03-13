@@ -32,7 +32,7 @@ else
     export FAST_FAILURE=0
 fi
 
-if [[ $DRONE_BRANCH == "master" || $DRONE_BRANCH == "releases/"* ]] && [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "push" ]]; then
+if [[ $DRONE_BRANCH == "master" || $DRONE_BRANCH == "releases/"* || $DRONE_BRANCH == "feature/robo" ]] && [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "push" ]]; then
     echo "Running full CI for $DRONE_BUILD_EVENT on $DRONE_BRANCH"
     pybot --removekeywords TAG:secret --exclude skip tests/test-cases
 elif [[ $DRONE_BRANCH == *"refs/tags"* ]] && [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "tag" ]]; then
