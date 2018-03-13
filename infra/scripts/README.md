@@ -124,7 +124,7 @@ $ docker info
 
 ### Inspect VCH
 
-Inspect the current VCH:
+Inspects the current VCH. If the first argument to the shell function is `config` then this will call the `inspect config` subcommand instead of the top level `inspect` command:
 ```console
 $ vic-inspect
 INFO[0000] ### Inspecting VCH ####
