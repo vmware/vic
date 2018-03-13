@@ -68,18 +68,18 @@ type HostMetricsInfo struct {
 // HostMetricsProvider returns CPU and memory metrics for all ESXi hosts in a cluster
 // via implementation of the MetricsProvider interface.
 type HostMetricsProvider struct {
-	session *session.Session
+	*session.Session
 }
 
 // NewHostMetricsProvider returns a new instance of HostMetricsProvider.
 func NewHostMetricsProvider(s *session.Session) *HostMetricsProvider {
-	return &HostMetricsProvider{session: s}
+	return &HostMetricsProvider{Session: s}
 }
 
 // GetMetricsForComputeResource gathers host metrics from the supplied compute resource.
 // Returned map is keyed on the host ManagedObjectReference in string form.
 func (h *HostMetricsProvider) GetMetricsForComputeResource(op trace.Operation, cr *object.ComputeResource) (map[string]*HostMetricsInfo, error) {
-	if h.session == nil {
+	if h.Session == nil {
 		return nil, fmt.Errorf("session not set")
 	}
 
@@ -103,7 +103,7 @@ func (h *HostMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*ob
 		return nil, fmt.Errorf("no hosts provided")
 	}
 
-	if h.session == nil {
+	if h.Session == nil {
 		return nil, fmt.Errorf("session not set")
 	}
 
@@ -122,7 +122,7 @@ func (h *HostMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*ob
 	}
 
 	counters := []string{cpuUsage, memActive, memConsumed, memTotalCapacity, memOverhead}
-	perfMgr := performance.NewManager(h.session.Vim25())
+	perfMgr := performance.NewManager(h.Vim25())
 	sample, err := perfMgr.SampleByName(op.Context, spec, counters, morefs)
 	if err != nil {
 		errStr := "unable to get metric sample: %s"

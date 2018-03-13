@@ -46,14 +46,15 @@ type WeightConfiguration struct {
 
 // RankedHostPolicy uses data from a MetricsProvider to decide on which host to power-on a VM.
 type RankedHostPolicy struct {
+	*session.Session
 	source performance.MetricsProvider
 	config WeightConfiguration
 }
 
 // NewRankedHostPolicy returns a RandomHostPolicy instance using the supplied MetricsProvider with
 // the default weighting configuration.
-func NewRankedHostPolicy(s performance.MetricsProvider) *RankedHostPolicy {
-	return NewRankedHostPolicyWithConfig(s, WeightConfiguration{
+func NewRankedHostPolicy(sess *session.Session, s performance.MetricsProvider) *RankedHostPolicy {
+	return NewRankedHostPolicyWithConfig(sess, s, WeightConfiguration{
 		memInactiveWeight:   memDefaultInactiveWeight,
 		memUnconsumedWeight: memDefaultUnconsumedWeight,
 	})
@@ -61,10 +62,11 @@ func NewRankedHostPolicy(s performance.MetricsProvider) *RankedHostPolicy {
 
 // NewRankedHostPolicyWithConfig returns a RandomHostPolicy instance using the supplied MetricsProvider and
 // WeightConfiguration.
-func NewRankedHostPolicyWithConfig(s performance.MetricsProvider, wc WeightConfiguration) *RankedHostPolicy {
+func NewRankedHostPolicyWithConfig(sess *session.Session, s performance.MetricsProvider, wc WeightConfiguration) *RankedHostPolicy {
 	return &RankedHostPolicy{
-		source: s,
-		config: wc,
+		Session: sess,
+		source:  s,
+		config:  wc,
 	}
 }
 
@@ -75,7 +77,7 @@ func (r *RankedHostPolicy) CheckHost(op trace.Operation, host *object.HostSystem
 }
 
 // RecommendHost recommends an ideal host on which to place a newly created VM.
-func (r *RankedHostPolicy) RecommendHost(op trace.Operation, sess *session.Session, hosts []*object.HostSystem) ([]*object.HostSystem, error) {
+func (r *RankedHostPolicy) RecommendHost(op trace.Operation, hosts []*object.HostSystem) ([]*object.HostSystem, error) {
 	var (
 		err error
 		hm  map[string]*performance.HostMetricsInfo
@@ -83,7 +85,7 @@ func (r *RankedHostPolicy) RecommendHost(op trace.Operation, sess *session.Sessi
 
 	if len(hosts) == 0 {
 		op.Debugf("no hosts specified - gathering metrics on cluster")
-		hm, err = r.source.GetMetricsForComputeResource(op, sess.Cluster)
+		hm, err = r.source.GetMetricsForComputeResource(op, r.Cluster)
 	} else {
 		hm, err = r.source.GetMetricsForHosts(op, hosts)
 	}
@@ -103,7 +105,7 @@ func (r *RankedHostPolicy) RecommendHost(op trace.Operation, sess *session.Sessi
 			return nil, fmt.Errorf("could not restore serialized managed object reference: %s", h.HostReference)
 		}
 
-		result = append(result, object.NewHostSystem(sess.Vim25(), ref))
+		result = append(result, object.NewHostSystem(r.Vim25(), ref))
 	}
 
 	return result, nil

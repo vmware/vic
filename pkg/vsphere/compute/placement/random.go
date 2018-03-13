@@ -24,22 +24,24 @@ import (
 )
 
 // RandomHostPolicy chooses a random host on which to power-on a VM.
-type RandomHostPolicy struct{}
+type RandomHostPolicy struct {
+	*session.Session
+}
 
 // NewRandomHostPolicy returns a RandomHostPolicy instance.
-func NewRandomHostPolicy() *RandomHostPolicy {
-	return &RandomHostPolicy{}
+func NewRandomHostPolicy(s *session.Session) *RandomHostPolicy {
+	return &RandomHostPolicy{Session: s}
 }
 
 // CheckHost always returns false in a RandomHostPolicy.
-func (p *RandomHostPolicy) CheckHost(op trace.Operation, sess *session.Session) bool {
+func (p *RandomHostPolicy) CheckHost(op trace.Operation, host *object.HostSystem) bool {
 	return false
 }
 
 // RecommendHost recommends a random host on which to place a newly created VM.
-func (p *RandomHostPolicy) RecommendHost(op trace.Operation, sess *session.Session, hosts []*object.HostSystem) ([]*object.HostSystem, error) {
+func (p *RandomHostPolicy) RecommendHost(op trace.Operation, hosts []*object.HostSystem) ([]*object.HostSystem, error) {
 	if hosts == nil {
-		rp := compute.NewResourcePool(op, sess, sess.Pool.Reference())
+		rp := compute.NewResourcePool(op, p.Session, p.Pool.Reference())
 
 		cls, err := rp.GetCluster(op)
 		if err != nil {

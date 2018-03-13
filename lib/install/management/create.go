@@ -121,8 +121,8 @@ func (d *Dispatcher) relocateAppliance() error {
 	// provider := performance.NewHostMetricsProvider(d.session)
 	// rankedPolicy := placement.NewRankedHostPolicy()
 
-	randomPolicy := placement.NewRandomHostPolicy()
-	if randomPolicy.CheckHost(d.op, d.appliance.Session) {
+	randomPolicy := placement.NewRandomHostPolicy(d.session)
+	if randomPolicy.CheckHost(d.op, d.appliance.Host) {
 		// The current host of the appliance is suitable; no migration needed.
 		return nil
 	}
@@ -134,7 +134,7 @@ func (d *Dispatcher) relocateAppliance() error {
 
 	// Collect a ranked slice of hosts and pick the first one to relocate the VCH VM to.
 	// Pass a nil slice of hosts to use all hosts in the cluster as candidate hosts.
-	hosts, err := randomPolicy.RecommendHost(d.op, d.appliance.Session, nil)
+	hosts, err := randomPolicy.RecommendHost(d.op, nil)
 	if err != nil {
 		msg := "Unable to obtain recommended host: %s"
 		d.op.Warnf(msg, err)
