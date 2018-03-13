@@ -77,6 +77,8 @@ type Config struct {
 	DatastorePath  string
 	HostPath       string
 	PoolPath       string
+
+	VCHFolder *object.Folder
 }
 
 // Session caches vSphere objects obtained by querying the SDK.
@@ -92,9 +94,6 @@ type Session struct {
 	Pool       *object.ResourcePool
 
 	VMFolder *object.Folder
-
-	// the parent inventory folder to the VCH
-	VCHFolder *object.Folder
 
 	Finder *find.Finder
 
@@ -128,12 +127,7 @@ func LimitConcurrency(rt http.RoundTripper, limit int) http.RoundTripper {
 }
 
 // NewSession creates a new Session struct.
-func NewSession(config *Config, vchMoref ...*types.ManagedObjectReference) *Session {
-	if len(vchMoref) > 0 {
-		// get the virtual machine reference for the VCH and assign it.
-
-	}
-
+func NewSession(config *Config) *Session {
 	return &Session{Config: config}
 }
 
@@ -379,7 +373,10 @@ func (s *Session) Populate(ctx context.Context) (*Session, error) {
 			op.Debugf("Cached folders: %s", s.DatacenterPath)
 		}
 		s.VMFolder = folders.VmFolder
-		s.VCHFolder = folders.VmFolder
+
+		if s.VCHFolder == nil {
+			s.VCHFolder = folders.VmFolder
+		}
 	}
 
 	if len(errs) > 0 {

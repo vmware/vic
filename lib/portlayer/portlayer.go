@@ -72,12 +72,12 @@ func Init(ctx context.Context, sess *session.Session) error {
 		return err
 	}
 
-	// store the reference to the vch inventory folder before poertlayer init
-	vchFolder, err := vchvm.ParentInventoryFolder(ctx, sess)
+	// store the reference to the vch inventory folder before portlayer init
+	vchFolder, err := vchvm.Folder(ctx, sess)
 	if err != nil {
 		return err
 	}
-	sess.VCHFolder = vchFolder
+	sess.Config.VCHFolder = vchFolder
 
 	if err = storage.Init(ctx, sess, vmParentPool, source, sink); err != nil {
 		return err
