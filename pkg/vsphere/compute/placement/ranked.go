@@ -54,8 +54,8 @@ type RankedHostPolicy struct {
 // the default weighting configuration.
 func NewRankedHostPolicy(s performance.MetricsProvider) *RankedHostPolicy {
 	return NewRankedHostPolicyWithConfig(s, WeightConfiguration{
-		memInactiveWeight:   MemDefaultInactiveWeight,
-		memUnconsumedWeight: MemDefaultUnconsumedWeight,
+		memInactiveWeight:   memDefaultInactiveWeight,
+		memUnconsumedWeight: memDefaultUnconsumedWeight,
 	})
 }
 
