@@ -129,7 +129,7 @@ func (vm *VirtualMachine) Folder(ctx context.Context) (*object.Folder, error) {
 	}
 
 	parentPath := path.Dir(element.Path)
-	folderRef, err := sess.Finder.Folder(ctx, parentPath)
+	folderRef, err := vm.Session.Finder.Folder(ctx, parentPath)
 	if err != nil {
 		return nil, err
 	}
