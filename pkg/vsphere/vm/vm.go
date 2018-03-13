@@ -190,6 +190,25 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 
 	var detail string
 	var poweredOff error
+	firstFail := true
+
+	checkOptionValueFunc := func(ovs []types.BaseOptionValue) bool {
+		for _, value := range ovs {
+			// check the status of the key and return true if it's been set to non-nil
+			if key == value.GetOptionValue().Key {
+				detail = value.GetOptionValue().Value.(string)
+				if detail != "" && detail != "<nil>" {
+					// ensure we clear any tentative error
+					poweredOff = nil
+
+					return true
+				}
+				break // continue the outer loop as we may have a powerState change too
+			}
+		}
+
+		return false
+	}
 
 	waitFunc := func(pc []types.PropertyChange) bool {
 		for _, c := range pc {
@@ -199,18 +218,8 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 
 			switch v := c.Val.(type) {
 			case types.ArrayOfOptionValue:
-				for _, value := range v.OptionValue {
-					// check the status of the key and return true if it's been set to non-nil
-					if key == value.GetOptionValue().Key {
-						detail = value.GetOptionValue().Value.(string)
-						if detail != "" && detail != "<nil>" {
-							// ensure we clear any tentative error
-							poweredOff = nil
-
-							return true
-						}
-						break // continue the outer loop as we may have a powerState change too
-					}
+				if checkOptionValueFunc(v.OptionValue) {
+					return true
 				}
 			case types.VirtualMachinePowerState:
 				// Give up if the vm has powered off
@@ -222,6 +231,21 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 					}
 					poweredOff = fmt.Errorf("container VM has unexpectedly %s", msg)
 				}
+			}
+		}
+
+		if poweredOff != nil {
+			// SPECULATIVE: directly getting the properties to see if a change was missed
+			// #6700 is showing up very frequently in CI
+			ovs, err := vm.FetchExtraConfigBaseOptions(op)
+			if err == nil && checkOptionValueFunc(ovs) {
+				return true
+			}
+
+			if firstFail {
+				op.Debug("Resetting power state for first fail")
+				firstFail = false
+				poweredOff = nil
 			}
 		}
 
