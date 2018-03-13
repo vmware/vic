@@ -121,7 +121,7 @@ func (vm *VirtualMachine) FolderName(ctx context.Context) (string, error) {
 	return path.Base(u.Path), nil
 }
 
-// Folder returns a reference to the parent folder that owns the vch
+// Folder returns a reference to the parent folder that owns the vm
 func (vm *VirtualMachine) Folder(ctx context.Context, sess *session.Session) (*object.Folder, error) {
 	element, err := sess.Finder.Element(ctx, vm.Reference())
 	if err != nil {
