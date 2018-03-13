@@ -238,9 +238,32 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 	var err error
 	var children []*vm.VirtualMachine
 
-	// TODO: GET CHILDREN EITHER BY FOLDER OR RP BASED ON DEPLOYMENT
-	if children, err = d.parentResourcepool.GetChildrenVMs(d.op, d.session); err != nil {
+	parentFolder, err := vmm.ParentInventoryFolder(d.op, d.session)
+	if err != nil {
 		return err
+	}
+
+	if parentFolder.Reference() == d.session.VMFolder.Reference() {
+		// get the children from the resource pool since it is an old vch
+		d.op.Debugf("Found older VCH, looking in the resource pool for delete targets")
+		if children, err = d.parentResourcepool.GetChildrenVMs(d.op, d.session); err != nil {
+			return err
+		}
+	} else {
+		// vch parent inventory folder exists, get the children from it.
+		folderChildren, err := parentFolder.Children(d.op)
+		if err != nil {
+			return err
+		}
+
+		for _, child := range folderChildren {
+			// convert to object and attempt a cast to vm.
+			vmObj, ok := child.(*object.VirtualMachine)
+			if ok {
+				childvm := vm.NewVirtualMachine(d.op, d.session, vmObj.Reference())
+				children = append(children, childvm)
+			}
+		}
 	}
 
 	if d.session.Datastore, err = d.getImageDatastore(vmm, conf, ignoreFailureToFindImageStores); err != nil {
@@ -288,6 +311,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 				errs = append(errs, err.Error())
 				mu.Unlock()
 			}
+			d.op.Debugf("successfully deleted cvm: %s", child.InventoryPath)
 		}(child)
 	}
 	wg.Wait()
