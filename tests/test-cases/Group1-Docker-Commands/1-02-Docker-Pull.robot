@@ -20,7 +20,6 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
 *** Test Cases ***
-
 Pull nginx
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ${nginx}
 
@@ -162,32 +161,57 @@ Verify image manifest digest against vanilla docker
     Should Contain  ${output}  sha256:be3c11fdba7cfe299214e46edc642e09514dbb9bbefcd0d3836c05a1e0cd0642
 
 Attempt docker pull mitm
-
-    ${first-ip}=  Get Environment Variable  VCH-IP
-    ${first-name}=  Get Environment Variable  VCH-NAME
-    ${first-params}=  Get Environment Variable  VCH-PARAMS
+    # ${first-ip}=  Get Environment Variable  VCH-IP
+    # ${first-name}=  Get Environment Variable  VCH-NAME
+    # ${first-params}=  Get Environment Variable  VCH-PARAMS
 
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gigawhitlocks/docker-layer-injection-proxy:latest
 
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gigawhitlocks/registry-busybox:latest
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name=registry -p 5000:5000 gigawhitlocks/registry-busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --network public --name=registry -p 5000:5000 gigawhitlocks/registry-busybox
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name=mitm -p 8080:8080 gigawhitlocks/docker-layer-injection-proxy
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --network public -itd --name=mitm -p 8080:8080 gigawhitlocks/docker-layer-injection-proxy
     Should Be Equal As Integers  ${rc}  0
 
-    Set Test VCH Name
-    ${output}=  Install VIC Appliance To Test Server With Current Environment Variables  cleanup=${false}   additional-args=--insecure-registry=http://%{VCH-IP}:5000 --http-proxy=http://%{VCH-IP}:8080
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
+    Log  ${output}
 
-    Set Test Environment Variables
+    ${rc}  ${registry}=  Run And Return Rc And Output  echo '${output}' | grep registry | awk '{print $(NF-1)}' | cut -d- -f1
+    Log  ${registry}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${first-ip}:5000/busybox
+    ${rc}  ${mitm}=  Run And Return Rc And Output  echo '${output}' | grep mitm | awk '{print $(NF-1)}' | cut -d- -f1
+    Log  ${mitm}
 
-    Should Be Equal As Integers  ${rc}  1
+    Create Unique Bridge Network
 
-    ${rc}  ${output}=  Run And Return Rc And Output  sshpass -ppassword ssh %{VCH-IP} -lroot -C -oStrictHostKeyChecking=no "ls /tmp | grep pingme"
+    # Run VIC Machine Command assumes %{VCH-NAME}
+    # Install VIC Appliance on Test Server assumes a bunch of environment variables
+    # We're just going to eschew helpers and install this VCH manually to avoid mutating hidden environmental state which is difficult to debug
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux create --name=VCH-XPLT --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --bridge-network=%{BRIDGE_NETWORK} --container-network=%{PUBLIC_NETWORK}:public --public-network=%{PUBLIC_NETWORK} %{VICMACHINETLS} --image-store=%{TEST_DATASTORE} --insecure-registry=http://${registry} --http-proxy http://${mitm}
 
     Log  ${output}
-    Should Not Be Equal As Integers  ${rc}  0
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${vch2-params}=  Run And Return Rc And Output  echo '${output}' | grep -A1 "Connect to docker" | tail -n1 | cut -d' ' -f4- | sed 's/ info" $//g'
+
+    # this comment fixes syntax highlighting "
+
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${vch2-IP}=  Run And Return Rc And Output  echo '${output}' | grep -A1 "Published ports" | tail -n1 | awk '{print $NF}' | cut -d= -f2
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${vch2-params} pull ${registry}/busybox
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux debug --rootpw %{TEST_PASSWORD} --target ${vch2-IP} --password password --name VCH-FOOO --user %{TEST_USERNAME} --compute-resource ${TEST_RESOURCE} --enable-ssh
+
+    ${rc}  ${output}=  Run And Return Rc And Output  sshpass -ppassword ssh ${vch2-IP} -lroot -C -oStrictHostKeyChecking=no "ls /tmp | grep pingme"
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  pingme
