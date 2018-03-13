@@ -122,8 +122,8 @@ func (vm *VirtualMachine) FolderName(ctx context.Context) (string, error) {
 }
 
 // Folder returns a reference to the parent folder that owns the vm
-func (vm *VirtualMachine) Folder(ctx context.Context, sess *session.Session) (*object.Folder, error) {
-	element, err := sess.Finder.Element(ctx, vm.Reference())
+func (vm *VirtualMachine) Folder(ctx context.Context) (*object.Folder, error) {
+	element, err := vm.Session.Finder.Element(ctx, vm.Reference())
 	if err != nil {
 		return nil, err
 	}

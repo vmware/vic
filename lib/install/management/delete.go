@@ -238,7 +238,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 	var err error
 	var children []*vm.VirtualMachine
 
-	parentFolder, err := vmm.Folder(d.op, d.session)
+	parentFolder, err := vmm.Folder(d.op)
 	if err != nil {
 		return err
 	}

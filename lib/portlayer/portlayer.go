@@ -73,7 +73,7 @@ func Init(ctx context.Context, sess *session.Session) error {
 	}
 
 	// store the reference to the vch inventory folder before portlayer init
-	vchFolder, err := vchvm.Folder(ctx, sess)
+	vchFolder, err := vchvm.Folder(ctx)
 	if err != nil {
 		return err
 	}
