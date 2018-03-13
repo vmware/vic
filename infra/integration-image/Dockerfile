@@ -86,8 +86,9 @@ RUN curl -fsSLO https://releases.hashicorp.com/packer/0.12.2/packer_0.12.2_linux
 RUN wget https://github.com/drone/drone-cli/releases/download/v0.8.3/drone_linux_amd64.tar.gz && tar zxf drone_linux_amd64.tar.gz && \
     install -t /usr/local/bin drone
 
-RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.16.0/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc && \
-    chmod +x /usr/local/bin/govc
+#RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.16.0/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc && chmod +x /usr/local/bin/govc
+#!!!!! Remove this and switch back to a real release once we have a new official build !!!!
+COPY govc /usr/local/bin/govc
 
 RUN  wget https://launchpad.net/ubuntu/+source/wget/1.18-2ubuntu1/+build/10470166/+files/wget_1.18-2ubuntu1_amd64.deb && \
      dpkg -i wget_1.18-2ubuntu1_amd64.deb
