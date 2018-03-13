@@ -182,7 +182,7 @@ pipeline:
      branch: ['releases/*', 'refs/tags/*']
 
   bundle:
-    image: 'gcr.io/eminent-nation-87317/golang:1.8'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/golang:1.8'
     pull: true
     environment:
       BIN: bin
