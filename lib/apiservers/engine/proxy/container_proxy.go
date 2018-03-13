@@ -241,6 +241,7 @@ func (c *ContainerProxy) CreateContainerTask(ctx context.Context, handle, id, la
 	plTaskParams := dockerContainerCreateParamsToTask(ctx, id, layerID, config)
 	plTaskParams.Config.Handle = handle
 
+	log.Infof("*** CreateContainerTask - params = %#v", *plTaskParams.Config)
 	responseJoin, err := c.client.Tasks.Join(plTaskParams)
 	if err != nil {
 		log.Errorf("Unable to join primary task to container: %+v", err)
@@ -973,6 +974,7 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 	}
 
 	for p := range cc.HostConfig.PortBindings {
+		log.Infof("*** toModelsNetworkConfig - portbinding = %#v", p)
 		nc.Ports = append(nc.Ports, fromPortbinding(p, cc.HostConfig.PortBindings[p])...)
 	}
 

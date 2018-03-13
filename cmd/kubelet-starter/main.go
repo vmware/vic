@@ -40,6 +40,7 @@ var (
 const (
 	KubeletConfigFile = "/etc/kubelet.conf"
 	KubeletPath       = "/sbin/virtual-kubelet"
+	Provider			= "vic"
 )
 
 func main() {
@@ -93,7 +94,7 @@ func main() {
 	}
 
 	personaAddr := fmt.Sprintf("%s:%s", clientIP, personaPort)
-	portlayerAddr := fmt.Sprintf("%s:%s", clientIP, portlayerPort)
+	portlayerAddr := fmt.Sprintf("localhost:%s", portlayerPort)
 
 	os.Setenv("PERSONA_ADDR", personaAddr)
 	os.Setenv("PORTLAYER_ADDR", portlayerAddr)
@@ -114,9 +115,9 @@ func main() {
 
 	kubeletName := os.Getenv("KUBELET_NAME")
 
-	op.Infof("Executing kubelet: %s %s %s %s %s %s %s", KubeletPath, "--provider", "mock", "--kubeconfig", KubeletConfigFile, "--nodename", kubeletName)
+	op.Infof("Executing kubelet: %s %s %s %s %s %s %s", KubeletPath, "--provider", Provider, "--kubeconfig", KubeletConfigFile, "--nodename", kubeletName)
 	/* #nosec */
-	kubeletCmd := exec.Command(KubeletPath, "--provider", "mock", "--kubeconfig", KubeletConfigFile, "--nodename", kubeletName)
+	kubeletCmd := exec.Command(KubeletPath, "--provider", Provider, "--kubeconfig", KubeletConfigFile, "--nodename", kubeletName)
 	output, err := kubeletCmd.CombinedOutput()
 	op.Infof("Output: %s, Error: %s", string(output), err)
 }

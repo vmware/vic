@@ -1444,7 +1444,10 @@ payloadLoop:
 				ips = []string{""}
 			}
 			c := cache.ContainerCache().GetContainer(t.ContainerConfig.ContainerID)
-			ports = append(ports, network.PortForwardingInformation(c, ips)...)
+			pi := network.PortForwardingInformation(c, ips)
+			if pi != nil {
+				ports = append(ports, pi...)
+			}
 		}
 
 		// verify that the repo:tag exists for the container -- if it doesn't then we should present the
