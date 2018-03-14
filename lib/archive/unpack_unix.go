@@ -214,7 +214,7 @@ func DockerUnpack(op trace.Operation, root string, tarStream io.Reader) (int64, 
 	}
 
 	// #nosec: 193 applianceBinaryPath is a constant, not a variable
-	cmd := exec.Command(string(applianceBinaryPath), op.ID(), root)
+	cmd := exec.Command(string(applianceBinaryPath), root)
 
 	stdin, err := cmd.StdinPipe()
 
@@ -274,7 +274,7 @@ func unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 	// #nosec: Subprocess launching with variable. -- neither variable is user input & both are bounded inputs so this is fine
 	// "/bin/unpack" on appliance
 	// "/.tether/unpack" inside container
-	cmd := exec.Command(string(binPath), op.ID(), root, *encodedFilter)
+	cmd := exec.Command(string(binPath), root, *encodedFilter)
 
 	stdin, err := cmd.StdinPipe()
 

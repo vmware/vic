@@ -16,8 +16,15 @@
 Documentation  Test 1-02 - Docker Pull
 Resource  ../../resources/Util.robot
 Suite Setup  Conditional Install VIC Appliance To Test Server
-Suite Teardown  Cleanup VIC Appliance On Test Server
+Suite Teardown  Local Teardown
 Test Timeout  20 minutes
+
+*** Keywords ***
+Local Teardown
+      Run Keyword  Cleanup VIC Appliance On Test Server
+      Set Environment Variable  VCH_NAME  VCH_XPLT
+      Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
+      Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK_2}
 
 *** Test Cases ***
 Pull nginx
@@ -161,12 +168,7 @@ Verify image manifest digest against vanilla docker
     Should Contain  ${output}  sha256:be3c11fdba7cfe299214e46edc642e09514dbb9bbefcd0d3836c05a1e0cd0642
 
 Attempt docker pull mitm
-    # ${first-ip}=  Get Environment Variable  VCH-IP
-    # ${first-name}=  Get Environment Variable  VCH-NAME
-    # ${first-params}=  Get Environment Variable  VCH-PARAMS
-
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gigawhitlocks/docker-layer-injection-proxy:latest
-
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gigawhitlocks/registry-busybox:latest
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --network public --name=registry -p 5000:5000 gigawhitlocks/registry-busybox
@@ -184,7 +186,11 @@ Attempt docker pull mitm
     ${rc}  ${mitm}=  Run And Return Rc And Output  echo '${output}' | grep mitm | awk '{print $(NF-1)}' | cut -d- -f1
     Log  ${mitm}
 
+    ${br1}=  Get Environment Variable  BRIDGE_NETWORK
     Create Unique Bridge Network
+
+    # BRIDGE_NETWORK gets overwritten by Create Unique Bridge Network. Assign original value to BRIDGE_NETWORK_2 for removal during suite teardown
+    Set Environment Variable  BRIDGE_NETWORK_2  ${br1}
 
     # Run VIC Machine Command assumes %{VCH-NAME}
     # Install VIC Appliance on Test Server assumes a bunch of environment variables
@@ -207,11 +213,13 @@ Attempt docker pull mitm
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${vch2-params} pull ${registry}/busybox
     Log  ${output}
+
+    ${rc}  ${thumbprint}=  Run And Return Rc And Output  govc about.cert -k -json | jq -r .ThumbprintSHA1
+    Log  ${thumbprint}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux debug --rootpw %{TEST_PASSWORD} --target ${vch2-IP} --password password --name VCH-FOOO --user %{TEST_USERNAME} --compute-resource ${TEST_RESOURCE} --enable-ssh
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux debug --rootpw password --target %{TEST_URL}%{TEST_DATACENTER} --password %{TEST_PASSWORD} --name VCH-XPLT --user %{TEST_USERNAME} --compute-resource %{TEST_RESOURCE} --enable-ssh --thumbprint=${thumbprint}
 
     ${rc}  ${output}=  Run And Return Rc And Output  sshpass -ppassword ssh ${vch2-IP} -lroot -C -oStrictHostKeyChecking=no "ls /tmp | grep pingme"
     Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  pingme

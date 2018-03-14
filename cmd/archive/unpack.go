@@ -42,13 +42,13 @@ const (
 )
 
 // Calls our custom unpack method inside of the chroot
-func customUnpack(op trace.Operation) {
-	setupChroot(op)
+func customUnpack(op trace.Operation, unpackRoot, encodedFilterSpec string) {
+	setupChroot(op, unpackRoot)
 	op.Debugf("New custom unpack operation created")
 
-	filterSpec, err := archive.DecodeFilterSpec(op, &os.Args[3])
+	filterSpec, err := archive.DecodeFilterSpec(op, &encodedFilterSpec)
 	if err != nil {
-		op.Errorf("Couldn't deserialize filterspec %s", os.Args[3])
+		op.Errorf("Couldn't deserialize filterspec %s", encodedFilterSpec)
 		os.Exit(InvalidFilterSpec)
 	}
 
@@ -61,8 +61,8 @@ func customUnpack(op trace.Operation) {
 }
 
 // Calls docker's ApplyLayer inside of the chroot
-func dockerUnpack(op trace.Operation) {
-	setupChroot(op)
+func dockerUnpack(op trace.Operation, unpackRoot string) {
+	setupChroot(op, unpackRoot)
 	op.Debugf("New docker-based unpack operation created")
 
 	// Untar the archive
@@ -76,32 +76,30 @@ func dockerUnpack(op trace.Operation) {
 }
 
 // Performs sanity checking (makes sure the unpack directory exists and has permissions, etc), changes directory to the unpack directory, and calls chroot on that directory. Will exit the executable if an error occurs.
-func setupChroot(op trace.Operation) {
-	root := os.Args[2]
-
-	fi, err := os.Stat(root)
+func setupChroot(op trace.Operation, chrootDir string) {
+	fi, err := os.Stat(chrootDir)
 	if err != nil {
 		// the target unpack path does not exist. We should not get here.
-		op.Errorf("tar unpack target does not exist: %s", root)
+		op.Errorf("tar unpack target does not exist: %s", chrootDir)
 		os.Exit(NoTarUnpackTarget)
 	}
 
 	if !fi.IsDir() {
-		err := fmt.Errorf("unpack root target is not a directory: %s", root)
+		err := fmt.Errorf("unpack root target is not a directory: %s", chrootDir)
 		op.Error(err)
 		os.Exit(UnpackTargetNotDirectory)
 	}
-	op.Debugf("root exists: %s", root)
+	op.Debugf("root exists: %s", chrootDir)
 
-	err = os.Chdir(root)
+	err = os.Chdir(chrootDir)
 	if err != nil {
 		op.Errorf("error while chdir outside chroot: %s", err.Error())
 		os.Exit(FailedChdirBeforeChroot)
 	}
 
-	err = syscall.Chroot(root)
+	err = syscall.Chroot(chrootDir)
 	if err != nil {
-		op.Errorf("error while chrootin': %s", err.Error())
+		op.Errorf("error while chrooting: %s", err.Error())
 		os.Exit(FailedChroot)
 	}
 
@@ -115,15 +113,15 @@ func setupChroot(op trace.Operation) {
 
 func main() {
 	ctx := context.Background()
-	op := trace.NewOperation(ctx, "Unpack") // TODO op ID? It's os.Args[1] if we need it..
+	op := trace.NewOperation(ctx, "Unpack")
 
 	switch len(os.Args) {
-	case 4:
-		// When performing an unpack via docker cp, we use a custom unpack routine, which requires a FilterSpec. Thus, if we have 4 arguments (command, op ID, unpack location, filterspec), we should perform a custom unpack
-		customUnpack(op)
 	case 3:
-		// In the case of docker pull, we use docker's ApplyLayer function and therefore do not need a filterSpec, so if we only have command, opID, and unpack location, we can proceed with using ApplyLayer
-		dockerUnpack(op)
+		// When performing an unpack via docker cp, we use a custom unpack routine, which requires a FilterSpec. Thus, if we have 3 arguments (command, unpack location, filterspec), we should perform a custom unpack
+		customUnpack(op, os.Args[1], os.Args[2])
+	case 2:
+		// In the case of docker pull, we use docker's ApplyLayer function and therefore do not need a filterSpec, so if we only have command and unpack location, we can proceed with using ApplyLayer
+		dockerUnpack(op, os.Args[1])
 	default:
 		os.Exit(WrongArgumentCount)
 	}
