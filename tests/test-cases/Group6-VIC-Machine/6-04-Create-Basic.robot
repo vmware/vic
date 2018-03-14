@@ -236,6 +236,7 @@ Create VCH - Existing VM name
     # ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}
     # Should Be Equal As Integers  ${rc}  0
     # Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Cleanup VCH Bridge Network
+    # Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 
 Create VCH - Existing RP on ESX
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Pass Execution  Test skipped on VC
