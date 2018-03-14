@@ -17,4 +17,4 @@ DRONE_BUILD_NUMBER=${DRONE_BUILD_NUMBER:=0}
 unit_test_array=($TEST_URL_ARRAY)
 arrLen=${#unit_test_array[@]}
 
-echo $TEST_USERNAME:$TEST_PASSWORD@${unit_test_array[$(($DRONE_BUILD_NUMBER % $arrLen))]}
+echo $TEST_USERNAME:$TEST_PASSWORD@10.170.74.255
