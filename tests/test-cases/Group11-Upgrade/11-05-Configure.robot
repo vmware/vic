@@ -15,11 +15,13 @@
 *** Settings ***
 Documentation  Test 11-05 - Configure
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC with version to Test Server  7315
-Suite Teardown  Clean up VIC Appliance And Local Binary
+# Suite Setup  Install VIC with version to Test Server  7315
+# Suite Teardown  Clean up VIC Appliance And Local Binary
 
 *** Test Cases ***
 Configure VCH with new vic-machine
-    ${ret}=  Run  bin/vic-machine-linux configure --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --http-proxy http://proxy.vmware.com:3128
-    Should Not Contain  ${ret}  Completed successfully
-    Should Contain  ${ret}  configure failed
+    ${status}=  Get State Of Github Issue  7497
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-05-Configure.robot needs to be updated now that Issue #7497 has been resolved
+    # ${ret}=  Run  bin/vic-machine-linux configure --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --http-proxy http://proxy.vmware.com:3128
+    # Should Not Contain  ${ret}  Completed successfully
+    # Should Contain  ${ret}  configure failed
