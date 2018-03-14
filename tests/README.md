@@ -6,7 +6,7 @@ To run the integration tests locally:
 
 Use ./local-integration-test.sh
 
-## Manually configure local Drone
+## Manually configure local Drone build
 
 * Create a `test.secrets` file containing secrets in KEY=VALUE format which includes:
 
