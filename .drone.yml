@@ -156,7 +156,7 @@ pipeline:
       - 'ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1'
       - 'rm $BIN/vic_ui_*.tar.gz'
     when:
-      status: success
+      status: [success, failure]
       branch: [master]
 
   vic-ui-release:
