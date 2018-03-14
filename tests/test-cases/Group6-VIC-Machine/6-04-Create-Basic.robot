@@ -72,7 +72,7 @@ Create VCH - URL without user and password
     Should Contain  ${output}  vSphere user must be specified
 
     # Delete the portgroup added by env vars keyword
-    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Cleanup VCH Bridge Network
+    Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 
 Create VCH - target URL
     Set Test Environment Variables
@@ -193,7 +193,7 @@ Create VCH - long VCH name
     Should Contain  ${output}  exceeds the permitted 31 characters limit
 
     # Delete the portgroup added by env vars keyword
-    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Cleanup VCH Bridge Network
+    Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 
 Create VCH - Existing VCH name
     Set Test Environment Variables
@@ -211,29 +211,31 @@ Create VCH - Existing VCH name
     Cleanup VIC Appliance On Test Server
 
 Create VCH - Existing VM name
-    Set Test Environment Variables
-    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    ${status}=  Get State Of Github Issue  7499
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 6-04-Create-Basic.robot needs to be updated now that Issue #7499 has been resolved
+    # Set Test Environment Variables
+    # Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    # Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    # Create dummy VM
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -net=%{PUBLIC_NETWORK} %{VCH-NAME}
-    Should Be Equal As Integers  ${rc}  0
+    # # Create dummy VM
+    # ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -net=%{PUBLIC_NETWORK} %{VCH-NAME}
+    # Should Be Equal As Integers  ${rc}  0
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
-    Log  ${output}
+    # ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
+    # Log  ${output}
 
-    # VCH creation should succeed on ESXi
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Get Docker Params  ${output}  ${true}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  Installer completed successfully
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Log To Console  Installer completed successfully: %{VCH-NAME}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
+    # # VCH creation should succeed on ESXi
+    # Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Get Docker Params  ${output}  ${true}
+    # Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  Installer completed successfully
+    # Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Log To Console  Installer completed successfully: %{VCH-NAME}
+    # Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
 
-    # VCH creation should fail on VC
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  The name '%{VCH-NAME}' already exists.
+    # # VCH creation should fail on VC
+    # Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  The name '%{VCH-NAME}' already exists.
 
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}
-    Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Cleanup VCH Bridge Network
+    # ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}
+    # Should Be Equal As Integers  ${rc}  0
+    # Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 
 Create VCH - Existing RP on ESX
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Pass Execution  Test skipped on VC
@@ -284,7 +286,7 @@ Basic timeout
     Should Contain  ${ret}  Completed successfully
     ${out}=  Run  govc ls vm
     Should Not Contain  ${out}  %{VCH-NAME}
-    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Run Keyword And Ignore Error  Cleanup VCH Bridge Network
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 
 Basic VCH resource config
     Pass execution  Test not implemented
