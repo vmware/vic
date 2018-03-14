@@ -15,8 +15,8 @@
 *** Settings ***
 Documentation  Test 11-01 - Upgrade
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC with version to Test Server  7315
-Suite Teardown  Clean up VIC Appliance And Local Binary
+# Suite Setup  Install VIC with version to Test Server  7315
+# Suite Teardown  Clean up VIC Appliance And Local Binary
 Default Tags
 
 *** Variables ***
@@ -187,44 +187,50 @@ Check Container Create Timestamps
 
 *** Test Cases ***
 Upgrade Present in vic-machine
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux
-    Should Contain  ${output}  upgrade
+    ${status}=  Get State Of Github Issue  7497
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-01-Upgrade.robot needs to be updated now that Issue #7497 has been resolved
+    # ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux
+    # Should Contain  ${output}  upgrade
 
 Upgrade VCH with unreasonably short timeout and automatic rollback after failure
-    Log To Console  \nUpgrading VCH with 1s timeout ...
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout 1s
-    Should Contain  ${output}  Upgrading VCH exceeded time limit
-    Should Not Contain  ${output}  Completed successfully
-    ${rc}  ${output}=  Run And Return Rc And Output  govc snapshot.tree -vm=%{VCH-NAME}
-    Should Not Contain  ${output}  upgrade
+    ${status}=  Get State Of Github Issue  7497
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-01-Upgrade.robot needs to be updated now that Issue #7497 has been resolved
+    # Log To Console  \nUpgrading VCH with 1s timeout ...
+    # ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout 1s
+    # Should Contain  ${output}  Upgrading VCH exceeded time limit
+    # Should Not Contain  ${output}  Completed successfully
+    # ${rc}  ${output}=  Run And Return Rc And Output  govc snapshot.tree -vm=%{VCH-NAME}
+    # Should Not Contain  ${output}  upgrade
 
-    # confirm that the rollback took effect
-    Check Original Version
+    # # confirm that the rollback took effect
+    # Check Original Version
 
 Upgrade VCH
-    Create Docker Containers
+    ${status}=  Get State Of Github Issue  7497
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-01-Upgrade.robot needs to be updated now that Issue #7497 has been resolved
+    # Create Docker Containers
 
-    Create Container with Named Volume
+    # Create Container with Named Volume
 
-    # Create check list for Volume Inspect
-    @{checkList}=  Create List  ${mntTest}  ${mntNamed}  ${namedVolume}
+    # # Create check list for Volume Inspect
+    # @{checkList}=  Create List  ${mntTest}  ${mntNamed}  ${namedVolume}
 
-    Upgrade
-    Check Upgraded Version
-    Check Container Create Timestamps
+    # Upgrade
+    # Check Upgraded Version
+    # Check Container Create Timestamps
 
-    Verify Volume Inspect Info  After Upgrade and Before Rollback  ${TestContainerVolume}  ${checkList}
+    # Verify Volume Inspect Info  After Upgrade and Before Rollback  ${TestContainerVolume}  ${checkList}
 
-    Rollback
-    Check Original Version
+    # Rollback
+    # Check Original Version
 
-    Upgrade with ID
-    Check Upgraded Version
+    # Upgrade with ID
+    # Check Upgraded Version
 
-    Verify Volume Inspect Info  After Upgrade with ID  ${TestContainerVolume}  ${checkList}
+    # Verify Volume Inspect Info  After Upgrade with ID  ${TestContainerVolume}  ${checkList}
 
-    Run Docker Checks
+    # Run Docker Checks
 
 
-    Log To Console  Regression Tests...
-    Run Regression Tests
+    # Log To Console  Regression Tests...
+    # Run Regression Tests
