@@ -15,21 +15,23 @@
 *** Settings ***
 Documentation  Test 11-02 - Upgrade Exec
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC with version to Test Server  8351
-Suite Teardown  Clean up VIC Appliance And Local Binary
+# Suite Setup  Install VIC with version to Test Server  8351
+# Suite Teardown  Clean up VIC Appliance And Local Binary
 Default Tags
 
 *** Test Cases ***
 Exec Not Allowed On Older Containers
-    Launch Container  exec-test  bridge
+    ${status}=  Get State Of Github Issue  7497
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-02-Upgrade-Exec.robot needs to be updated now that Issue #7497 has been resolved
+    # Launch Container  exec-test  bridge
 
-    Upgrade
-    Check Upgraded Version
+    # Upgrade
+    # Check Upgraded Version
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d exec-test ls
-    Should Not Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  running tasks not supported for this container
+    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d exec-test ls
+    # Should Not Be Equal As Integers  ${rc}  0
+    # Should Contain  ${output}  running tasks not supported for this container
 
-    Launch Container  exec-test2  bridge
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d exec-test2 ls
-    Should Be Equal As Integers  ${rc}  0
+    # Launch Container  exec-test2  bridge
+    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d exec-test2 ls
+    # Should Be Equal As Integers  ${rc}  0
