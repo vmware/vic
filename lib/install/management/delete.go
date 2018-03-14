@@ -371,12 +371,14 @@ func (d *Dispatcher) deleteFolder() {
 	folderRef, err := d.session.Finder.Folder(d.op, vchFolderPath)
 	if err != nil {
 		d.op.Debugf("failed to find folder: %s for the VCH target", vchFolderPath)
+		return
 	}
 
 	// protections against old vch's since they are directly in the VMFolder
 	dcFolder, err := d.session.Datacenter.Folders(d.op)
 	if err != nil {
 		d.op.Debugf("failed to find the datacenter folders: %s ", err)
+		return
 	}
 	VMFolder := dcFolder.VmFolder
 	if folderRef.Reference() == VMFolder.Reference() {
@@ -388,11 +390,13 @@ func (d *Dispatcher) deleteFolder() {
 	folderContents, err := folderRef.Children(d.op)
 	if err != nil || len(folderContents) != 0 {
 		d.op.Debugf("Could not remove VCH folder, %s has existing contents in it. Manual cleanup required.", vchFolderPath)
+		return
 	}
 
 	err = d.removeFolder(folderRef)
 	if err != nil {
 		d.op.Warnf(manualInventoryCleanWarning, folderRef.InventoryPath)
+		return
 	}
 }
 
