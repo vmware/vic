@@ -21,6 +21,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/performance"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -46,15 +47,15 @@ type WeightConfiguration struct {
 
 // RankedHostPolicy uses data from a MetricsProvider to decide on which host to power-on a VM.
 type RankedHostPolicy struct {
-	*session.Session
-	source performance.MetricsProvider
-	config WeightConfiguration
+	cluster *object.ComputeResource
+	source  performance.MetricsProvider
+	config  WeightConfiguration
 }
 
 // NewRankedHostPolicy returns a RandomHostPolicy instance using the supplied MetricsProvider with
 // the default weighting configuration.
-func NewRankedHostPolicy(sess *session.Session, s performance.MetricsProvider) *RankedHostPolicy {
-	return NewRankedHostPolicyWithConfig(sess, s, WeightConfiguration{
+func NewRankedHostPolicy(op trace.Operation, s *session.Session, mp performance.MetricsProvider) (*RankedHostPolicy, error) {
+	return NewRankedHostPolicyWithConfig(op, s, mp, WeightConfiguration{
 		memInactiveWeight:   memDefaultInactiveWeight,
 		memUnconsumedWeight: memDefaultUnconsumedWeight,
 	})
@@ -62,12 +63,17 @@ func NewRankedHostPolicy(sess *session.Session, s performance.MetricsProvider) *
 
 // NewRankedHostPolicyWithConfig returns a RandomHostPolicy instance using the supplied MetricsProvider and
 // WeightConfiguration.
-func NewRankedHostPolicyWithConfig(sess *session.Session, s performance.MetricsProvider, wc WeightConfiguration) *RankedHostPolicy {
-	return &RankedHostPolicy{
-		Session: sess,
-		source:  s,
-		config:  wc,
+func NewRankedHostPolicyWithConfig(op trace.Operation, s *session.Session, mp performance.MetricsProvider, wc WeightConfiguration) (*RankedHostPolicy, error) {
+	rp := compute.NewResourcePool(op, s, s.Pool.Reference())
+	cls, err := rp.GetCluster(op)
+	if err != nil {
+		return nil, err
 	}
+	return &RankedHostPolicy{
+		cluster: cls,
+		source:  mp,
+		config:  wc,
+	}, nil
 }
 
 // CheckHost returns true if the host has adequate capacity to power on the VM, false otherwise.
@@ -85,7 +91,7 @@ func (r *RankedHostPolicy) RecommendHost(op trace.Operation, hosts []*object.Hos
 
 	if len(hosts) == 0 {
 		op.Debugf("no hosts specified - gathering metrics on cluster")
-		hm, err = r.source.GetMetricsForComputeResource(op, r.Cluster)
+		hm, err = r.source.GetMetricsForComputeResource(op, r.cluster)
 	} else {
 		hm, err = r.source.GetMetricsForHosts(op, hosts)
 	}
@@ -105,7 +111,7 @@ func (r *RankedHostPolicy) RecommendHost(op trace.Operation, hosts []*object.Hos
 			return nil, fmt.Errorf("could not restore serialized managed object reference: %s", h.HostReference)
 		}
 
-		result = append(result, object.NewHostSystem(r.Vim25(), ref))
+		result = append(result, object.NewHostSystem(r.cluster.Client(), ref))
 	}
 
 	return result, nil

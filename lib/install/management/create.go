@@ -121,7 +121,11 @@ func (d *Dispatcher) relocateAppliance() error {
 	// provider := performance.NewHostMetricsProvider(d.session)
 	// rankedPolicy := placement.NewRankedHostPolicy()
 
-	randomPolicy := placement.NewRandomHostPolicy(d.session)
+	randomPolicy, err := placement.NewRandomHostPolicy(d.op, d.session)
+	if err != nil {
+		return err
+	}
+
 	if randomPolicy.CheckHost(d.op, d.appliance.Host) {
 		// The current host of the appliance is suitable; no migration needed.
 		return nil

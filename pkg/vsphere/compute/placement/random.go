@@ -25,12 +25,17 @@ import (
 
 // RandomHostPolicy chooses a random host on which to power-on a VM.
 type RandomHostPolicy struct {
-	*session.Session
+	cluster *object.ComputeResource
 }
 
 // NewRandomHostPolicy returns a RandomHostPolicy instance.
-func NewRandomHostPolicy(s *session.Session) *RandomHostPolicy {
-	return &RandomHostPolicy{Session: s}
+func NewRandomHostPolicy(op trace.Operation, s *session.Session) (*RandomHostPolicy, error) {
+	rp := compute.NewResourcePool(op, s, s.Pool.Reference())
+	cls, err := rp.GetCluster(op)
+	if err != nil {
+		return nil, err
+	}
+	return &RandomHostPolicy{cluster: cls}, nil
 }
 
 // CheckHost always returns false in a RandomHostPolicy.
@@ -40,15 +45,9 @@ func (p *RandomHostPolicy) CheckHost(op trace.Operation, host *object.HostSystem
 
 // RecommendHost recommends a random host on which to place a newly created VM.
 func (p *RandomHostPolicy) RecommendHost(op trace.Operation, hosts []*object.HostSystem) ([]*object.HostSystem, error) {
+	var err error
 	if hosts == nil {
-		rp := compute.NewResourcePool(op, p.Session, p.Pool.Reference())
-
-		cls, err := rp.GetCluster(op)
-		if err != nil {
-			return nil, err
-		}
-
-		hosts, err = cls.Hosts(op)
+		hosts, err = p.cluster.Hosts(op)
 		if err != nil {
 			return nil, err
 		}

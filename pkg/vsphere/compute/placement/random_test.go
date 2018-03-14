@@ -44,7 +44,9 @@ func TestRandomRecommendHost(t *testing.T) {
 
 	v := vm.NewVirtualMachine(op, sess, moref)
 
-	rhp := NewRandomHostPolicy(v.Session)
+	rhp, err := NewRandomHostPolicy(op, v.Session)
+	assert.NoError(t, err)
+
 	assert.False(t, rhp.CheckHost(op, nil))
 	h, err := rhp.RecommendHost(op, nil)
 	assert.NoError(t, err)
