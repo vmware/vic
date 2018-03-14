@@ -388,6 +388,7 @@ func (d *Dispatcher) deleteFolder() {
 	defer func() {
 		if err != nil {
 			d.op.Warnf(manualInventoryCleanWarning, vchFolderPath)
+			return
 		}
 	}()
 
