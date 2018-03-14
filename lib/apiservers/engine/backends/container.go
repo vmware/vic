@@ -1583,7 +1583,10 @@ payloadLoop:
 			}
 			c := cache.ContainerCache().GetContainer(t.ContainerConfig.ContainerID)
 			if c != nil {
-				ports = append(ports, network.PortForwardingInformation(c, ips)...)
+				pi := network.PortForwardingInformation(c, ips)
+				if pi != nil {
+					ports = append(ports, pi...)
+				}
 			} else {
 				log.Warningf("Container is not found in cache: %s", t.ContainerConfig.ContainerID)
 			}

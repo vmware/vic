@@ -213,7 +213,7 @@ func (c *ContainerProxy) AddImageToContainer(ctx context.Context, handle, deltaI
 	defer trace.End(trace.Begin(handle))
 
 	if c.client == nil {
-		return "", errors.InternalServerError("ContainerProxy.AddImageToContainer failed to get the portlayer client")
+		return "", errors.NillPortlayerClientError("ContainerProxy")
 	}
 
 	host, err := sys.UUID()
@@ -249,13 +249,14 @@ func (c *ContainerProxy) CreateContainerTask(ctx context.Context, handle, id, la
 	opID := op.ID()
 
 	if c.client == nil {
-		return "", errors.InternalServerError("ContainerProxy.CreateContainerTask failed to create a portlayer client")
+		return "", errors.NillPortlayerClientError("ContainerProxy")
 	}
 
 	plTaskParams := dockerContainerCreateParamsToTask(ctx, id, layerID, config)
 	plTaskParams.Config.Handle = handle
 	plTaskParams.WithOpID(&opID)
 
+	log.Infof("*** CreateContainerTask - params = %#v", *plTaskParams.Config)
 	responseJoin, err := c.client.Tasks.Join(plTaskParams)
 	if err != nil {
 		log.Errorf("Unable to join primary task to container: %+v", err)
@@ -1189,6 +1190,7 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 	}
 
 	for p := range cc.HostConfig.PortBindings {
+		log.Infof("*** toModelsNetworkConfig - portbinding = %#v", p)
 		nc.Ports = append(nc.Ports, fromPortbinding(p, cc.HostConfig.PortBindings[p])...)
 	}
 

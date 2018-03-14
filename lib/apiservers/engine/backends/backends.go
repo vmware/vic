@@ -133,6 +133,8 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 	portLayerClient = apiclient.New(t, nil)
 	portLayerServerAddr = portLayerAddr
 
+	log.Infof("*** Portlayer Address = %s", portLayerAddr)
+
 	// block indefinitely while waiting on the portlayer to respond to pings
 	// the vic-machine installer timeout will intervene if this blocks for too long
 	pingPortLayer()
@@ -265,6 +267,8 @@ func createImageStore(op trace.Operation) error {
 		log.Errorf("Failed to determine host UUID")
 		return err
 	}
+
+	log.Infof("*** UUID = %s", host)
 
 	// attempt to create the image store if it doesn't exist
 	store := &models.ImageStore{Name: host}
