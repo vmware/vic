@@ -260,6 +260,10 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 			vmObj, ok := child.(*object.VirtualMachine)
 			if ok {
 				childVM := vm.NewVirtualMachine(d.op, d.session, vmObj.Reference())
+				cerr := childVM.EnableDestroy(d.op)
+				if cerr != nil {
+					d.op.Debugf("unable to enable the destroy task on container (%s): due to %s", childVM.InventoryPath, cerr)
+				}
 				children = append(children, childVM)
 			}
 		}
