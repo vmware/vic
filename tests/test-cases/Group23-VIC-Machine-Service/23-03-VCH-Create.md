@@ -38,7 +38,7 @@ These tests are intended to verify the behavior in various failure cases. We mus
 
 ###  3. Attempt to create a VCH with an invalid storage settings
 
-###  4. Attempt to create a VCH with an invalid networking settings
+###  4. Attempt to create various VCHs with invalid networking settings (on bridge, public, management, and container networks)
 
 ###  5. Attempt to create a VCH with an invalid gateway settings
 
@@ -86,7 +86,11 @@ Concurrency
 
 These tests are intended to verify that the API behaves as expected when performing concurrent operations.
 
-###  1. Attempt to create two VCHs at the same time
+###  1. Attempt to create two VCHs at the same time within a single datacenter
+
+(Not implemented.)
+
+###  2. Attempt to create two VCHs at the same time in separate datacenters
 
 (Not implemented.)
 
@@ -96,7 +100,7 @@ Workflow-based
 
 These tests are designed to mimic realistic customer scenarios. These tests will usually duplicate coverage provided by a test above, but provide additional validation around specific important workflows.
 
-###  1. Create a VCH with an interesting network topology and verify that the isolation properties of the networks are as expected
+###  1. Create a VCH with an interesting network topology and verify that the isolation properties of the networks are as expected (using a static IP on at least one network)
 
 (Not implemented.)
 

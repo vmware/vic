@@ -28,7 +28,7 @@ These tests are intended to verify the feature at a basic level.
 
 ###  2. Create a VCH and verify it is returned in the list, with correct information
 
-###  3. Create two VCHs and verify both are returned in the list, with correct information for each
+###  3. Create two VCHs, power one of them off, and verify both are returned in the list, with correct information for each
 
 (Not yet implemented)
 
@@ -61,6 +61,8 @@ Interoperability
 These tests are intended to verify that the API and CLI can coexist without issue.
 
 ###  1. Create a VCH using the CLI and verify that it is correctly included when listing via the API
+
+###  2. Create a VCH using an old version of the CLI and verify that it is correctly included when listing via the API
 
 
 Concurrency
