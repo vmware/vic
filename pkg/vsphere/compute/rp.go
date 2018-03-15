@@ -68,7 +68,7 @@ func (rp *ResourcePool) GetChildrenVMs(ctx context.Context, s *session.Session) 
 func (rp *ResourcePool) GetChildVM(ctx context.Context, s *session.Session, name string) (*vm.VirtualMachine, error) {
 	op := trace.FromContext(ctx, "GetChildVM")
 
-	searchIndex := object.NewSearchIndex(s.Client.Client)
+	searchIndex := object.NewSearchIndex(s.Vim25())
 	child, err := searchIndex.FindChild(op, rp.Reference(), name)
 	if err != nil {
 		return nil, errors.Errorf("Unable to find VM(%s): %s", name, err.Error())
@@ -91,7 +91,7 @@ func (rp *ResourcePool) GetCluster(ctx context.Context) (*object.ComputeResource
 		return nil, err
 	}
 
-	return object.NewComputeResource(rp.Client.Client, mrp.Owner), nil
+	return object.NewComputeResource(rp.Vim25(), mrp.Owner), nil
 }
 
 func (rp *ResourcePool) GetDatacenter(ctx context.Context) (*object.Datacenter, error) {
@@ -103,7 +103,7 @@ func (rp *ResourcePool) GetDatacenter(ctx context.Context) (*object.Datacenter, 
 		return nil, errors.Errorf("Unable to get datacenter ancestor of rp %s: %s", rp.Name(), err)
 	}
 
-	return object.NewDatacenter(rp.Client.Client, *dcRef), nil
+	return object.NewDatacenter(rp.Vim25(), *dcRef), nil
 }
 
 func (rp *ResourcePool) getAncestors(op trace.Operation, inType string) ([]types.ManagedObjectReference, error) {
