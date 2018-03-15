@@ -140,7 +140,11 @@ func TestRankedRecommendHost(t *testing.T) {
 	rhp, err := NewRankedHostPolicy(op, v.Cluster, m)
 	assert.NoError(t, err)
 
-	result, err := rhp.RecommendHost(op, nil)
+	testRankedRecommendHostInterface(t, op, rhp)
+}
+
+func testRankedRecommendHostInterface(t *testing.T, op trace.Operation, p HostPlacementPolicy) {
+	result, err := p.RecommendHost(op, nil)
 	assert.NoError(t, err)
 
 	expected := hh.Reference().String()
@@ -165,8 +169,11 @@ func TestRankedRecommendHostWithHosts(t *testing.T) {
 	m := MockMetricsProvider{}
 	rhp, err := NewRankedHostPolicy(op, v.Cluster, m)
 	assert.NoError(t, err)
+	testRankedRecommendHostInterfaceWithHosts(t, op, rhp)
+}
 
-	hosts, err := rhp.RecommendHost(op, nil)
+func testRankedRecommendHostInterfaceWithHosts(t *testing.T, op trace.Operation, p HostPlacementPolicy) {
+	hosts, err := p.RecommendHost(op, nil)
 	assert.NoError(t, err)
 
 	expected := hh.Reference().String()
@@ -175,7 +182,7 @@ func TestRankedRecommendHostWithHosts(t *testing.T) {
 
 	subset := hosts[1:]
 
-	result, err := rhp.RecommendHost(op, subset)
+	result, err := p.RecommendHost(op, subset)
 	assert.NoError(t, err)
 
 	expected = mh.Reference().String()
