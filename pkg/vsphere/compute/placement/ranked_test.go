@@ -25,15 +25,9 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/performance"
+	"github.com/vmware/vic/pkg/vsphere/test"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
-
-// MockMetricsProvider mocks the MetricsProvider interface.
-type MockMetricsProvider struct{}
-
-// GetMetricsForComputeResource not yet implemented.
-func (m MockMetricsProvider) GetMetricsForComputeResource(op trace.Operation, cr *object.ComputeResource) (map[string]*performance.HostMetricsInfo, error) {
-	return nil, nil
-}
 
 var (
 	low = &performance.HostMetricsInfo{
@@ -100,6 +94,15 @@ var (
 	}
 )
 
+// MockMetricsProvider mocks the MetricsProvider interface.
+type MockMetricsProvider struct{}
+
+// GetMetricsForComputeResource not yet implemented.
+func (m MockMetricsProvider) GetMetricsForComputeResource(op trace.Operation, cr *object.ComputeResource) (map[string]*performance.HostMetricsInfo, error) {
+	hosts, _ := m.GetMetricsForHosts(op, nil)
+	return hosts, nil
+}
+
 func (m MockMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*object.HostSystem) (map[string]*performance.HostMetricsInfo, error) {
 	fakeHostMetrics := make(map[string]*performance.HostMetricsInfo)
 	fakeHostMetrics[lh.Reference().String()] = low
@@ -107,34 +110,82 @@ func (m MockMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*obj
 	fakeHostMetrics[mh.Reference().String()] = medium
 	fakeHostMetrics[hh.Reference().String()] = high
 
+	if hosts != nil {
+		subset := make(map[string]*performance.HostMetricsInfo)
+		for _, h := range hosts {
+			subset[h.Reference().String()] = fakeHostMetrics[h.Reference().String()]
+		}
+		return subset, nil
+	}
+
 	return fakeHostMetrics, nil
 }
 
 func TestRankedRecommendHost(t *testing.T) {
 	op := trace.NewOperation(context.Background(), "TestRankedRecommendHost")
 
-	model, server, _ := vpxModelSetup(op, t)
+	model, server, sess := test.VpxModelSetup(op, t)
 	defer func() {
 		model.Remove()
 		server.Close()
 	}()
 
-	m := MockMetricsProvider{}
-	hm, err := m.GetMetricsForHosts(op, []*object.HostSystem{})
+	moref, err := test.CreateVM(op, sess, "test-vm")
 	assert.NoError(t, err)
 
-	rhp := NewRankedHostPolicy(m)
-	result := rhp.rankHosts(op, hm)
+	v := vm.NewVirtualMachine(op, sess, moref)
 
-	for _, r := range result {
-		op.Infof("%s: %f", r.HostReference, r.score)
-	}
+	m := MockMetricsProvider{}
 
-	expected := lh.Reference().String()
-	actual := result[0].HostReference
-	assert.NotEqual(t, expected, actual)
+	rhp, err := NewRankedHostPolicy(op, v.Cluster, m)
+	assert.NoError(t, err)
 
-	expected = hh.Reference().String()
-	actual = result[0].HostReference
+	testRankedRecommendHostInterface(t, op, rhp)
+}
+
+func testRankedRecommendHostInterface(t *testing.T, op trace.Operation, p HostPlacementPolicy) {
+	result, err := p.RecommendHost(op, nil)
+	assert.NoError(t, err)
+
+	expected := hh.Reference().String()
+	actual := result[0].Reference().String()
+	assert.Equal(t, expected, actual)
+}
+
+func TestRankedRecommendHostWithHosts(t *testing.T) {
+	op := trace.NewOperation(context.Background(), "TestRankedRecommendHost")
+
+	model, server, sess := test.VpxModelSetup(op, t)
+	defer func() {
+		model.Remove()
+		server.Close()
+	}()
+
+	moref, err := test.CreateVM(op, sess, "test-vm")
+	assert.NoError(t, err)
+
+	v := vm.NewVirtualMachine(op, sess, moref)
+
+	m := MockMetricsProvider{}
+	rhp, err := NewRankedHostPolicy(op, v.Cluster, m)
+	assert.NoError(t, err)
+	testRankedRecommendHostInterfaceWithHosts(t, op, rhp)
+}
+
+func testRankedRecommendHostInterfaceWithHosts(t *testing.T, op trace.Operation, p HostPlacementPolicy) {
+	hosts, err := p.RecommendHost(op, nil)
+	assert.NoError(t, err)
+
+	expected := hh.Reference().String()
+	actual := hosts[0].Reference().String()
+	assert.Equal(t, expected, actual)
+
+	subset := hosts[1:]
+
+	result, err := p.RecommendHost(op, subset)
+	assert.NoError(t, err)
+
+	expected = mh.Reference().String()
+	actual = result[0].Reference().String()
 	assert.Equal(t, expected, actual)
 }
