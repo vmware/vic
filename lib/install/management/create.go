@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/compute/placement"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
@@ -121,19 +122,28 @@ func (d *Dispatcher) relocateAppliance() error {
 	// provider := performance.NewHostMetricsProvider(d.session)
 	// rankedPolicy := placement.NewRankedHostPolicy()
 
-	randomPolicy, err := placement.NewRandomHostPolicy(d.op, d.session)
+	cls := d.appliance.Cluster
+	if cls == nil {
+		rp := compute.NewResourcePool(d.op, d.session, d.session.Pool.Reference())
+		cls, err = rp.GetCluster(d.op)
+		if err != nil {
+			return err
+		}
+	}
+
+	randomPolicy, err := placement.NewRandomHostPolicy(d.op, cls)
 	if err != nil {
 		return err
 	}
 
-	if randomPolicy.CheckHost(d.op, d.appliance.Host) {
-		// The current host of the appliance is suitable; no migration needed.
-		return nil
-	}
-
-	oldHost, err := d.appliance.HostSystem(d.op)
+	original, err := d.appliance.HostSystem(d.op)
 	if err != nil {
 		return errors.Errorf("Unable to obtain VCH's host system before relocation: %s", err)
+	}
+
+	if randomPolicy.CheckHost(d.op, d.appliance.VirtualMachine) {
+		// The current host of the appliance is suitable; no migration needed.
+		return nil
 	}
 
 	// Collect a ranked slice of hosts and pick the first one to relocate the VCH VM to.
@@ -152,7 +162,7 @@ func (d *Dispatcher) relocateAppliance() error {
 	hMoref := hosts[0].Reference()
 
 	// Skip relocation if the recommended host is the same as the old host.
-	if hMoref == oldHost.Reference() {
+	if hMoref == original.Reference() {
 		d.op.Debugf("Recommended host is the same as the host the VCH is on. Skipping relocation")
 		return nil
 	}

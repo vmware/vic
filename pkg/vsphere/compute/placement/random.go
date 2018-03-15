@@ -19,8 +19,6 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/compute"
-	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 // RandomHostPolicy chooses a random host on which to power-on a VM.
@@ -29,17 +27,12 @@ type RandomHostPolicy struct {
 }
 
 // NewRandomHostPolicy returns a RandomHostPolicy instance.
-func NewRandomHostPolicy(op trace.Operation, s *session.Session) (*RandomHostPolicy, error) {
-	rp := compute.NewResourcePool(op, s, s.Pool.Reference())
-	cls, err := rp.GetCluster(op)
-	if err != nil {
-		return nil, err
-	}
+func NewRandomHostPolicy(op trace.Operation, cls *object.ComputeResource) (*RandomHostPolicy, error) {
 	return &RandomHostPolicy{cluster: cls}, nil
 }
 
 // CheckHost always returns false in a RandomHostPolicy.
-func (p *RandomHostPolicy) CheckHost(op trace.Operation, host *object.HostSystem) bool {
+func (p *RandomHostPolicy) CheckHost(op trace.Operation, vm *object.VirtualMachine) bool {
 	return false
 }
 

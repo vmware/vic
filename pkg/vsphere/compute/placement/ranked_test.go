@@ -137,7 +137,7 @@ func TestRankedRecommendHost(t *testing.T) {
 
 	m := MockMetricsProvider{}
 
-	rhp, err := NewRankedHostPolicy(op, v.Session, m)
+	rhp, err := NewRankedHostPolicy(op, v.Cluster, m)
 	assert.NoError(t, err)
 
 	result, err := rhp.RecommendHost(op, nil)
@@ -163,7 +163,7 @@ func TestRankedRecommendHostWithHosts(t *testing.T) {
 	v := vm.NewVirtualMachine(op, sess, moref)
 
 	m := MockMetricsProvider{}
-	rhp, err := NewRankedHostPolicy(op, v.Session, m)
+	rhp, err := NewRankedHostPolicy(op, v.Cluster, m)
 	assert.NoError(t, err)
 
 	hosts, err := rhp.RecommendHost(op, nil)

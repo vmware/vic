@@ -44,7 +44,7 @@ func TestRandomRecommendHost(t *testing.T) {
 
 	v := vm.NewVirtualMachine(op, sess, moref)
 
-	rhp, err := NewRandomHostPolicy(op, v.Session)
+	rhp, err := NewRandomHostPolicy(op, v.Cluster)
 	assert.NoError(t, err)
 
 	assert.False(t, rhp.CheckHost(op, nil))
@@ -58,7 +58,7 @@ func TestRandomRecommendHost(t *testing.T) {
 			found = true
 
 			// remove this host for the next test
-			h = append(h[:0], h[1:]...)
+			h = h[1:]
 			break
 		}
 	}

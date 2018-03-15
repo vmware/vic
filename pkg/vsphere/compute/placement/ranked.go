@@ -21,9 +21,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/performance"
-	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 type rankedHost struct {
@@ -54,8 +52,8 @@ type RankedHostPolicy struct {
 
 // NewRankedHostPolicy returns a RandomHostPolicy instance using the supplied MetricsProvider with
 // the default weighting configuration.
-func NewRankedHostPolicy(op trace.Operation, s *session.Session, mp performance.MetricsProvider) (*RankedHostPolicy, error) {
-	return NewRankedHostPolicyWithConfig(op, s, mp, WeightConfiguration{
+func NewRankedHostPolicy(op trace.Operation, cls *object.ComputeResource, mp performance.MetricsProvider) (*RankedHostPolicy, error) {
+	return NewRankedHostPolicyWithConfig(op, cls, mp, WeightConfiguration{
 		memInactiveWeight:   memDefaultInactiveWeight,
 		memUnconsumedWeight: memDefaultUnconsumedWeight,
 	})
@@ -63,12 +61,7 @@ func NewRankedHostPolicy(op trace.Operation, s *session.Session, mp performance.
 
 // NewRankedHostPolicyWithConfig returns a RandomHostPolicy instance using the supplied MetricsProvider and
 // WeightConfiguration.
-func NewRankedHostPolicyWithConfig(op trace.Operation, s *session.Session, mp performance.MetricsProvider, wc WeightConfiguration) (*RankedHostPolicy, error) {
-	rp := compute.NewResourcePool(op, s, s.Pool.Reference())
-	cls, err := rp.GetCluster(op)
-	if err != nil {
-		return nil, err
-	}
+func NewRankedHostPolicyWithConfig(op trace.Operation, cls *object.ComputeResource, mp performance.MetricsProvider, wc WeightConfiguration) (*RankedHostPolicy, error) {
 	return &RankedHostPolicy{
 		cluster: cls,
 		source:  mp,
@@ -83,6 +76,10 @@ func (r *RankedHostPolicy) CheckHost(op trace.Operation, host *object.HostSystem
 }
 
 // RecommendHost recommends an ideal host on which to place a newly created VM.
+// TODO(jzt): pass *object.VirtualMachine in here in future iteration to consider
+// provisioned resources of the VM in addition to host resources available.
+// Possibly hold onto a reference to the VM in HostPlacementPolicy implementations
+// and leave this signature as-is (or remove the dependency on hosts, cluster altogether).
 func (r *RankedHostPolicy) RecommendHost(op trace.Operation, hosts []*object.HostSystem) ([]*object.HostSystem, error) {
 	var (
 		err error
