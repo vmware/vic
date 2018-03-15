@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/compute/placement"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
@@ -121,42 +122,47 @@ func (d *Dispatcher) relocateAppliance() error {
 	// provider := performance.NewHostMetricsProvider(d.session)
 	// rankedPolicy := placement.NewRankedHostPolicy()
 
-	randomPolicy := placement.NewRandomHostPolicy()
-	if randomPolicy.CheckHost(d.op, d.appliance) {
-		// The current host of the appliance is suitable; no migration needed.
-		return nil
+	cls := d.appliance.Cluster
+	if cls == nil {
+		rp := compute.NewResourcePool(d.op, d.session, d.session.Pool.Reference())
+		cls, err = rp.GetCluster(d.op)
+		if err != nil {
+			return err
+		}
 	}
 
-	oldHost, err := d.appliance.HostSystem(d.op)
+	randomPolicy, err := placement.NewRandomHostPolicy(d.op, cls)
+	if err != nil {
+		return err
+	}
+
+	original, err := d.appliance.HostSystem(d.op)
 	if err != nil {
 		return errors.Errorf("Unable to obtain VCH's host system before relocation: %s", err)
 	}
 
-	// TODO(anchal): Use this form when #7459 is merged.
-	// Collect a ranked slice of hosts and pick the first one to relocate the VCH VM to.
-	// Pass a nil slice of hosts to use all hosts in the cluster as candidate hosts.
-	// hosts, err := randomPolicy.RecommendHost(d.op, d.appliance, nil)
-	// if err != nil {
-	// 	msg := "Unable to obtain recommended host: %s"
-	// 	d.op.Warnf(msg, err)
-	// 	return errors.Errorf(msg, err)
-	// }
-	// if len(hosts) == 0 {
-	// 	msg := "No hosts returned by placement library, skipping relocation"
-	// 	d.op.Warnf(msg)
-	// 	return errors.New(msg)
-	// }
-	// hMoref := hosts[0].Reference()
-
-	host, err := randomPolicy.RecommendHost(d.op, d.appliance)
-	if err != nil {
-		return errors.Errorf("Unable to obtain recommended host: %s", err)
+	if randomPolicy.CheckHost(d.op, d.appliance.VirtualMachine) {
+		// The current host of the appliance is suitable; no migration needed.
+		return nil
 	}
 
-	hMoref := host.Reference()
+	// Collect a ranked slice of hosts and pick the first one to relocate the VCH VM to.
+	// Pass a nil slice of hosts to use all hosts in the cluster as candidate hosts.
+	hosts, err := randomPolicy.RecommendHost(d.op, nil)
+	if err != nil {
+		msg := "Unable to obtain recommended host: %s"
+		d.op.Warnf(msg, err)
+		return errors.Errorf(msg, err)
+	}
+	if len(hosts) == 0 {
+		msg := "No hosts returned by placement library, skipping relocation"
+		d.op.Warnf(msg)
+		return errors.New(msg)
+	}
+	hMoref := hosts[0].Reference()
 
 	// Skip relocation if the recommended host is the same as the old host.
-	if hMoref == oldHost.Reference() {
+	if hMoref == original.Reference() {
 		d.op.Debugf("Recommended host is the same as the host the VCH is on. Skipping relocation")
 		return nil
 	}
