@@ -75,7 +75,8 @@ func dockerUnpack(op trace.Operation, unpackRoot string) {
 
 }
 
-// Performs sanity checking (makes sure the unpack directory exists and has permissions, etc), changes directory to the unpack directory, and calls chroot on that directory. Will exit the executable if an error occurs.
+// Performs sanity checking (makes sure the unpack directory exists and has permissions, etc),
+// changes directory to the unpack directory, and calls chroot on that directory. Will exit the executable if an error occurs.
 func setupChroot(op trace.Operation, chrootDir string) {
 	fi, err := os.Stat(chrootDir)
 	if err != nil {
@@ -117,10 +118,12 @@ func main() {
 
 	switch len(os.Args) {
 	case 3:
-		// When performing an unpack via docker cp, we use a custom unpack routine, which requires a FilterSpec. Thus, if we have 3 arguments (command, unpack location, filterspec), we should perform a custom unpack
+		// When performing an unpack via docker cp, we use a custom unpack routine, which requires a FilterSpec.
+		// Thus, if we have 3 arguments (command, unpack location, filterspec), we should perform a custom unpack
 		customUnpack(op, os.Args[1], os.Args[2])
 	case 2:
-		// In the case of docker pull, we use docker's ApplyLayer function and therefore do not need a filterSpec, so if we only have command and unpack location, we can proceed with using ApplyLayer
+		// In the case of docker pull, we use docker's ApplyLayer function and therefore do not need a filterSpec,
+		// so if we only have command and unpack location, we can proceed with using ApplyLayer
 		dockerUnpack(op, os.Args[1])
 	default:
 		os.Exit(WrongArgumentCount)
