@@ -35,6 +35,7 @@ import (
 	"github.com/vmware/vic/lib/install/vchlog"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 )
 
 const (
@@ -679,6 +680,8 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	// These operations will be executed without timeout
 	op := common.NewOperation(clic, c.Debug.Debug)
 	op.Infof("### Installing VCH ####")
+	ver := version.GetBuild().ShortVersion()
+	op.Debugf("Version %s", ver)
 
 	defer func() {
 		// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
