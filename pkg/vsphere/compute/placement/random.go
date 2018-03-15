@@ -19,41 +19,38 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/compute"
-	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 // RandomHostPolicy chooses a random host on which to power-on a VM.
-type RandomHostPolicy struct{}
+type RandomHostPolicy struct {
+	cluster *object.ComputeResource
+}
 
 // NewRandomHostPolicy returns a RandomHostPolicy instance.
-func NewRandomHostPolicy() *RandomHostPolicy {
-	return &RandomHostPolicy{}
+func NewRandomHostPolicy(op trace.Operation, cls *object.ComputeResource) (*RandomHostPolicy, error) {
+	return &RandomHostPolicy{cluster: cls}, nil
 }
 
 // CheckHost always returns false in a RandomHostPolicy.
-func (p *RandomHostPolicy) CheckHost(op trace.Operation, vm *vm.VirtualMachine) bool {
+func (p *RandomHostPolicy) CheckHost(op trace.Operation, vm *object.VirtualMachine) bool {
 	return false
 }
 
 // RecommendHost recommends a random host on which to place a newly created VM.
-func (p *RandomHostPolicy) RecommendHost(op trace.Operation, vm *vm.VirtualMachine) (*object.HostSystem, error) {
-	r, err := vm.ResourcePool(op)
-	if err != nil {
-		return nil, err
+func (p *RandomHostPolicy) RecommendHost(op trace.Operation, hosts []*object.HostSystem) ([]*object.HostSystem, error) {
+	var err error
+	if hosts == nil {
+		hosts, err = p.cluster.Hosts(op)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	rp := compute.NewResourcePool(op, vm.Session, r.Reference())
-
-	cls, err := rp.GetCluster(op)
-	if err != nil {
-		return nil, err
+	// shuffle hosts
+	for i := range hosts {
+		j := rand.Intn(i + 1)
+		hosts[i], hosts[j] = hosts[j], hosts[i]
 	}
 
-	hosts, err := cls.Hosts(op)
-	if err != nil {
-		return nil, err
-	}
-
-	return hosts[rand.Intn(len(hosts))], nil
+	return hosts, nil
 }

@@ -19,6 +19,9 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/performance"
+	"github.com/vmware/govmomi/property"
+	"github.com/vmware/govmomi/vim25"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -66,21 +69,17 @@ type HostMetricsInfo struct {
 // HostMetricsProvider returns CPU and memory metrics for all ESXi hosts in a cluster
 // via implementation of the MetricsProvider interface.
 type HostMetricsProvider struct {
-	session *session.Session
+	*vim25.Client
 }
 
 // NewHostMetricsProvider returns a new instance of HostMetricsProvider.
-func NewHostMetricsProvider(s *session.Session) *HostMetricsProvider {
-	return &HostMetricsProvider{session: s}
+func NewHostMetricsProvider(c *vim25.Client) *HostMetricsProvider {
+	return &HostMetricsProvider{Client: c}
 }
 
 // GetMetricsForComputeResource gathers host metrics from the supplied compute resource.
 // Returned map is keyed on the host ManagedObjectReference in string form.
 func (h *HostMetricsProvider) GetMetricsForComputeResource(op trace.Operation, cr *object.ComputeResource) (map[string]*HostMetricsInfo, error) {
-	if h.session == nil {
-		return nil, fmt.Errorf("session not set")
-	}
-
 	// Gather hosts from the session cluster and then obtain their morefs.
 	hosts, err := cr.Hosts(op)
 	if err != nil {
@@ -101,8 +100,8 @@ func (h *HostMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*ob
 		return nil, fmt.Errorf("no hosts provided")
 	}
 
-	if h.session == nil {
-		return nil, fmt.Errorf("session not set")
+	if h.Client == nil {
+		return nil, fmt.Errorf("client not set")
 	}
 
 	morefToHost := make(map[string]*object.HostSystem)
@@ -120,7 +119,7 @@ func (h *HostMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*ob
 	}
 
 	counters := []string{cpuUsage, memActive, memConsumed, memTotalCapacity, memOverhead}
-	perfMgr := performance.NewManager(h.session.Vim25())
+	perfMgr := performance.NewManager(h.Client)
 	sample, err := perfMgr.SampleByName(op.Context, spec, counters, morefs)
 	if err != nil {
 		errStr := "unable to get metric sample: %s"
@@ -190,4 +189,33 @@ func assembleMetrics(op trace.Operation, morefToHost map[string]*object.HostSyst
 	}
 
 	return metrics
+}
+
+// filterHosts removes candidate hosts who are either disconnected or in maintenance mode.
+func filterHosts(op trace.Operation, s *session.Session, hosts []*object.HostSystem) ([]*object.HostSystem, error) {
+	if len(hosts) == 0 {
+		return nil, fmt.Errorf("no candidate hosts to filter check")
+	}
+
+	props := []string{"summary.runtime"}
+	refs := make([]types.ManagedObjectReference, 0, len(hosts))
+	for _, h := range hosts {
+		refs = append(refs, h.Reference())
+	}
+
+	hs := make([]mo.HostSystem, 0, len(hosts))
+	pc := property.DefaultCollector(s.Vim25())
+	err := pc.Retrieve(op, refs, props, &hs)
+	if err != nil {
+		return nil, err
+	}
+
+	result := hosts[:0]
+	for i, h := range hs {
+		if h.Summary.Runtime.ConnectionState == types.HostSystemConnectionStateConnected && !h.Summary.Runtime.InMaintenanceMode {
+			result = append(result, hosts[i])
+		}
+	}
+
+	return result, nil
 }
