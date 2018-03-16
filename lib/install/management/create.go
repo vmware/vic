@@ -334,7 +334,7 @@ func (d *Dispatcher) cleanupAfterCreationFailed(conf *config.VirtualContainerHos
 	if d.isVC {
 
 		// we don't know if the appliance or the folder was made. so recreate the folder path.
-		vchFolder := fmt.Sprintf("%s/%s", d.session.VMFolder, conf.Name)
+		vchFolder := fmt.Sprintf("%s/%s", d.session.VMFolder.InventoryPath, conf.Name)
 		folderRef, err := d.session.Finder.Folder(d.op, vchFolder)
 		if folderRef != nil {
 			children, err := folderRef.Children(d.op)
