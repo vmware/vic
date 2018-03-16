@@ -162,10 +162,10 @@ Configure VCH - Replace certificates with self-signed certificate using --tls-cn
 
     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} ${vicmachinetls} --tls-cert-path "new-bar-certs" --debug 1 --tls-cname="*.eng.vmware.com"
 
-    Should Contain  ${output}  Generating self-signed server certificate/key pair - private key in new-bar-certs/server-key.pem
-    Should Contain  ${output}  Generating self-signed client certificate/key pair - private key in new-bar-certs/server-key.pem
-    Should Contain  ${output}  Generated browser friendly PFX client certificate - certificate in
-
+    Should Contain  ${output}  Generating CA certificate/key pair - private key in new-bar-certs/ca-key.pem
+    Should Contain  ${output}  Generating server certificate/key pair - private key in new-bar-certs/server-key.pem
+    Should Contain  ${output}  Generating client certificate/key pair - private key in new-bar-certs/key.pem
+    Should Contain  ${output}  Generated browser friendly PFX client certificate - certificate in new-bar-certs/cert.pfx
     Should Contain  ${output}  Completed successfully
 
     ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
