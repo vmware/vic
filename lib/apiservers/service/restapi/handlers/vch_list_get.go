@@ -109,7 +109,7 @@ func vchsToModels(op trace.Operation, vchs []*vm.VirtualMachine, executor *manag
 			version = vchConfig.Version
 			dockerHost, adminPortal, err = getAddresses(executor, vchConfig)
 			if err != nil {
-				op.Warnf("No client IP address assigned for VCH %s", id)
+				op.Warnf("Failed to get docker host and admin portal address for VCH %s: %s", id, err)
 			}
 		}
 

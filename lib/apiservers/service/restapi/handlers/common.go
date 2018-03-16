@@ -203,14 +203,16 @@ func getAddresses(executor *management.Dispatcher, vchConfig *config.VirtualCont
 			hostIP = executor.GetTLSFriendlyHostIP(clientIP, cert, vchConfig.CertificateAuthorities)
 		}
 
-		dockerHost := ""
+		var dockerPort string
 		if !vchConfig.HostCertificate.IsNil() {
-			dockerHost = fmt.Sprintf("%s:%d", hostIP, opts.DefaultTLSHTTPPort)
+			dockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
 		} else {
-			dockerHost = fmt.Sprintf("%s:%d", hostIP, opts.DefaultHTTPPort)
+			dockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
 		}
 
+		dockerHost := fmt.Sprintf("%s:%s", hostIP, dockerPort)
 		adminPortal := fmt.Sprintf("https://%s:%d", hostIP, constants.VchAdminPortalPort)
+
 		return dockerHost, adminPortal, nil
 	}
 
