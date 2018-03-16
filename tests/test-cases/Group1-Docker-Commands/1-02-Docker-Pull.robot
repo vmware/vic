@@ -22,19 +22,19 @@ Test Timeout  20 minutes
 *** Keywords ***
 Local Teardown
     Run Keyword  Cleanup VIC Appliance On Test Server
-    Set Environment Variable  VCH_NAME  VCH_XPLT
-    Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK_2}
+    Run Keyword  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK_2}
 
 Get And Run MITMProxy Container
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gigawhitlocks/docker-layer-injection-proxy:latest
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --network public -itd --name=mitm -p 8080:8080 gigawhitlocks/docker-layer-injection-proxy
+    # Need to change this container? Read README.md in vic/tests/resources/dockerfiles/docker-pull-mitm-proxy
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  victest/docker-layer-injection-proxy:latest
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --network public -itd --name=mitm -p 8080:8080 victest/docker-layer-injection-proxy
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
 Get And Run Prepared Registry
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gigawhitlocks/registry-busybox:latest
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --network public --name=registry -p 5000:5000 gigawhitlocks/registry-busybox
+    # Need to change this container? Read README.md in vic/tests/resources/dockerfiles/docker-pull-mitm-proxy
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  victest/registry-busybox:latest
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --network public --name=registry -p 5000:5000 victest/registry-busybox
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
