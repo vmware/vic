@@ -155,3 +155,24 @@ Configure VCH - Replace certificates with self-signed certificate using --no-tls
     Should Contain  ${output}  Verify return code: 21 (unable to verify the first certificate)
     Should Contain  ${output}  verify error:num=20:unable to get local issuer certificate
     Should Not Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
+
+Configure VCH - Replace certificates with self-signed certificate using --tls-cname
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
+
+    Run  rm -rf foo-bar-certs
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} ${vicmachinetls} --tls-cert-path "new-bar-certs" --debug 1 --tls-cname="*.eng.vmware.com"
+
+    Should Contain  ${output}  Generating self-signed server certificate/key pair - private key in foo-bar-certs/server-key.pem
+    Should Contain  ${output}  Generating self-signed client certificate/key pair - private key in foo-bar-certs/server-key.pem
+    Should Contain  ${output}  Generated browser friendly PFX client certificate - certificate in
+
+    Should Contain  ${output}  Completed successfully
+
+    ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
+    Log  ${output}
+
+    Should Contain  ${output}  Verify return code: 21 (unable to verify the first certificate)
+    Should Contain  ${output}  verify error:num=20:unable to get local issuer certificate
+    Should Not Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
+    Should Contain  ${output}  CN = *.eng.vmware.com
