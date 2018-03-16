@@ -245,7 +245,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 
 	if parentFolder.Reference() == d.session.VMFolder.Reference() {
 		// use the resource pool to cut down on the number of candidates
-		d.op.Debugf("looking in the resource pool for delete targets")
+		d.op.Debugf("Looking in the resource pool for delete targets")
 		if children, err = d.parentResourcepool.GetChildrenVMs(d.op, d.session); err != nil {
 			return err
 		}
@@ -260,9 +260,9 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 			vmObj, ok := child.(*object.VirtualMachine)
 			if ok {
 				childVM := vm.NewVirtualMachine(d.op, d.session, vmObj.Reference())
-				cerr := childVM.EnableDestroy(d.op)
-				if cerr != nil {
-					d.op.Debugf("unable to enable the destroy task on container (%s): due to %s", childVM.InventoryPath, cerr)
+				cErr := childVM.EnableDestroy(d.op)
+				if cErr != nil {
+					d.op.Debugf("unable to enable the destroy task on container (%s): due to %s", childVM.InventoryPath, cErr)
 				}
 				children = append(children, childVM)
 			}
@@ -314,7 +314,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 				errs = append(errs, err.Error())
 				mu.Unlock()
 			}
-			d.op.Debugf("Successfully deleted container vm: %s", child.InventoryPath)
+			d.op.Debugf("Successfully deleted container: %s", child.InventoryPath)
 		}(child)
 	}
 	wg.Wait()

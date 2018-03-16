@@ -332,9 +332,8 @@ func (d *Dispatcher) cleanupAfterCreationFailed(conf *config.VirtualContainerHos
 	// cleanup the vch inventory folder if it is empty. Can happen in some cases where the create is cancelled after successful creation.
 
 	if d.isVC {
-
 		// we don't know if the appliance or the folder was made. so recreate the folder path.
-		vchFolder := fmt.Sprintf("%s/%s", d.session.VMFolder.InventoryPath, conf.Name)
+		vchFolder := path.Join(d.session.VMFolder.InventoryPath, conf.Name)
 		folderRef, err := d.session.Finder.Folder(d.op, vchFolder)
 		if folderRef != nil {
 			children, err := folderRef.Children(d.op)
