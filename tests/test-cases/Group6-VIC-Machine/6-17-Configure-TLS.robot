@@ -160,11 +160,10 @@ Configure VCH - Replace certificates with self-signed certificate using --tls-cn
     ${domain}=  Get Environment Variable  DOMAIN  ''
     Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
 
-    Run  rm -rf foo-bar-certs
     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} ${vicmachinetls} --tls-cert-path "new-bar-certs" --debug 1 --tls-cname="*.eng.vmware.com"
 
-    Should Contain  ${output}  Generating self-signed server certificate/key pair - private key in foo-bar-certs/server-key.pem
-    Should Contain  ${output}  Generating self-signed client certificate/key pair - private key in foo-bar-certs/server-key.pem
+    Should Contain  ${output}  Generating self-signed server certificate/key pair - private key in new-bar-certs/server-key.pem
+    Should Contain  ${output}  Generating self-signed client certificate/key pair - private key in new-bar-certs/server-key.pem
     Should Contain  ${output}  Generated browser friendly PFX client certificate - certificate in
 
     Should Contain  ${output}  Completed successfully
