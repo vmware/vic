@@ -145,7 +145,7 @@ Inspect VCH Configuration with Container Networks
 
     Install VIC Appliance To Test Server  additional-args=-container-network published-net -container-network peers-net -cnf peers-net:peers --container-network-ip-range peers-net:10.10.10.0/24 -cng peers-net:10.10.10.1/24
 
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect config --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME}--compute-resource=%{TEST_RESOURCE} --format raw
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect config --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} --compute-resource=%{TEST_RESOURCE} --format raw
 
     Should Contain  ${output}  --container-network=published-net:published-net
     Should Not Contain  ${output}  --container-network-firewall=published-net:published
