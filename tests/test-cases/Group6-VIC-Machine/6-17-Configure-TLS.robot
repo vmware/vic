@@ -108,7 +108,7 @@ Configure VCH - Run Configure Without Cert Options & Ensure Certs Are Unchanged
 
     Run  rm -rf foo-bar-certs
     # Run vic-machine configure, supply server cert and key
-    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-server-key "bundle/*.%{DOMAIN}.key.pem" --tls-server-cert "bundle/*.%{DOMAIN}.cert.pem" ${vicmachinetls} --tls-cert-path=foo-bar-certs --debug 1
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-server-key "bundle/*.%{DOMAIN}.key.pem" --tls-server-cert "bundle/*.%{DOMAIN}.cert.pem" --tls-cert-path=foo-bar-certs --debug 1
     Log  ${output}
     Should Contain  ${output}  Loaded server certificate bundle
     Should Contain  ${output}  Unable to locate existing CA in cert path
@@ -126,7 +126,7 @@ Configure VCH - Run Configure Without Cert Options & Ensure Certs Are Unchanged
     Reload Default Certificate Authorities
 
     # Run vic-machine configure, supply server cert and key
-    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} ${vicmachinetls} --debug 1
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --debug 1
 
     Log  ${output}
     Should Contain  ${output}  No certificate regeneration requested. No new certificates provided. Certificates left unchanged
