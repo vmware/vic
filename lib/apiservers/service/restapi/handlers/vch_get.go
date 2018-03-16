@@ -246,7 +246,10 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 	}
 	model.Runtime.PowerState = string(powerState)
 
-	model.Runtime.DockerHost, model.Runtime.AdminPortal = getAddresses(vchConfig)
+	model.Runtime.DockerHost, model.Runtime.AdminPortal, err = getAddresses(executor, vchConfig)
+	if err != nil {
+		op.Warn("No client IP assigned.")
+	}
 
 	// syslog_addr: syslog server address
 	if syslogConfig := vchConfig.Diagnostics.SysLogConfig; syslogConfig != nil {
