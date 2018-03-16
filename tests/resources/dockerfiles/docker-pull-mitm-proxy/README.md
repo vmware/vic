@@ -14,6 +14,7 @@ $ docker run -itd --net=host registry
 $ docker tag busybox localhost:5000/busybox
 $ docker push localhost:5000/busybox
 $ docker commit registry
+$ docker tag registry victest/registry-busybox:latest
 $ docker push victest/registry-busybox:latest
 ```
 You may need to add the local registry to your insecure registry list in `/etc/docker/daemon.json` before you can push to the registry.
