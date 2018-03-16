@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -113,7 +113,7 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 
 	// If successful try to grant permissions to the ops-user
 	if err == nil && conf.ShouldGrantPerms() {
-		err = opsuser.GrantOpsUserPerms(d.op, d.session.Vim25(), conf)
+		err = opsuser.GrantOpsUserPerms(d.op, d.session, conf)
 		if err != nil {
 			// Update error message and fall through to roll back
 			err = errors.Errorf("Failed to grant permissions to ops-user, failure: %s", err)
