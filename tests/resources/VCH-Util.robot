@@ -45,7 +45,7 @@ Set Test Environment Variables
     Log To Console  \nDRONE_MACHINE=%{DRONE_MACHINE}
     ${worker_date}=  Run  date
     Log To Console  \nWorker_Date=${worker_date}
-    
+
     ${rc}  ${host}=  Run And Return Rc And Output  govc ls host
     Should Be Equal As Integers  ${rc}  0
     ${out}=  Run  govc ls -t HostSystem ${host} | xargs -I% -n1 govc host.date.info -host\=% | grep 'date and time'
@@ -311,6 +311,18 @@ Install VIC Appliance To Test Server With Current Environment Variables
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${debug}  ${additional-args}
     Log  ${output}
+
+    # Check for failure to obtain IP address
+    # Example:
+    # State of all interfaces:
+    #   "public" IP: "waiting for IP"
+    #   "client" IP: "waiting for IP"
+    #   "management" IP: "waiting for IP"
+    #   "bridge" IP: "waiting for IP"
+    ${noIP}=  Set Variable If  '"waiting for IP"' in ${output}  True  False
+    Run Keyword If  ${noIP}  Log             Possible DHCP failure
+    Run Keyword If  ${noIP}  Log To Console  Possible DHCP failure
+
     Should Contain  ${output}  Installer completed successfully
 
     Get Docker Params  ${output}  ${certs}
