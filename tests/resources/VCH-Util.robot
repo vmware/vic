@@ -72,7 +72,6 @@ Set Test Environment Variables
     ${domain}=  Get Environment Variable  DOMAIN  ''
     Run Keyword If  $domain == ''  Set Suite Variable  ${vicmachinetls}  --no-tlsverify
     Run Keyword If  $domain != ''  Set Suite Variable  ${vicmachinetls}  --tls-cname=*.${domain}
-    Set Environment Variable  VICMACHINETLS  ${vicmachinetls}
 
     Set Test VCH Name
     # cleanup any potential old certs directories
