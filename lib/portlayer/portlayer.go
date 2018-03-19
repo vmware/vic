@@ -73,6 +73,7 @@ func Init(ctx context.Context, sess *session.Session) error {
 	}
 
 	// store the reference to the vch inventory folder before portlayer init
+	// NOTE: This will cause problems if an upgrade has been done on a 1.1-1.2.1 vapp based deployment. due to the vApp's effects on getting a vm's inventory path.
 	vchFolder, err := vchvm.Folder(ctx)
 	if err != nil {
 		return err
