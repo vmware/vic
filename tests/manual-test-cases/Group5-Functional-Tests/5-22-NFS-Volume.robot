@@ -84,7 +84,7 @@ Verify NFS Volume Basic Setup
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${containerName} -v ${volumeName}:/mydata ${busybox} mount
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  ${nfsIP}://store/volumes/${volumeName}
+    Should Contain  ${output}  ${nfsIP}:/store/volumes/${volumeName}
     Should Contain  ${output}  /mydata type nfs (${rwORro}
 
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} wait ${containerName}
