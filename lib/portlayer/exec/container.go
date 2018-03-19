@@ -385,9 +385,12 @@ func (c *Container) start(op trace.Operation) error {
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
 	}
-	// Set state to Starting
-	c.SetState(op, StateStarting)
 
+	// We do NOT call SetState here because if someone triggers an update on the container between that call and the pwoeron
+	// being reflected in the propertyCollector return data then we would trigger a 'Stopped' event and will perform any event
+	// triggered unbind processing.
+	// The state of the container will be set to either Starting or Running by the power on event processing depending
+	// on how far through the boot the VM has got by the time the event is processed.
 	err := c.containerBase.start(op)
 	if err != nil {
 		// change state to stopped because start task failed
@@ -416,14 +419,14 @@ func (c *Container) start(op trace.Operation) error {
 		// will cause transition to StateStopped which is likely our original state
 		// if the container was just taking a very long time it'll eventually
 		// become responsive.
-
-		// TODO: mechanism to trigger reinspection of long term transitional states
 		return err
 	}
 
-	// Transition the state to Running only if it's Starting.
-	// The current state is already Stopped if the container's process has exited or
-	// a poweredoff event has been processed.
+	// The process launch was successful so transition the state to Running only if current state is Starting.
+	// The state at this time could be:
+	//   Stopped - if the container process exited and a poweroff event has been received
+	//   Starting - if the power on event was received before the process reported success or failure
+	//   Running - if the power on event was received after the process reported success
 	if err = c.transitionState(op, StateStarting, StateRunning); err != nil {
 		op.Debugf(err.Error())
 	}
