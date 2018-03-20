@@ -15,58 +15,59 @@
 package backends
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 
 	enginetypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/reference"
 	"golang.org/x/net/context"
+
+	"github.com/vmware/vic/lib/apiservers/engine/errors"
 )
 
-type Plugin struct {
+type PluginBackend struct {
 }
 
-func NewPluginBackend() *Plugin {
-	return &Plugin{}
+func NewPluginBackend() *PluginBackend {
+	return &PluginBackend{}
 }
 
-func (p *Plugin) Disable(name string, config *enginetypes.PluginDisableConfig) error {
-	return fmt.Errorf("%s does not yet support plugins", ProductName())
+func (p *PluginBackend) Disable(name string, config *enginetypes.PluginDisableConfig) error {
+	return errors.APINotSupportedMsg(ProductName(), "plugins")
 }
 
-func (p *Plugin) Enable(name string, config *enginetypes.PluginEnableConfig) error {
-	return fmt.Errorf("%s does not yet support plugins", ProductName())
+func (p *PluginBackend) Enable(name string, config *enginetypes.PluginEnableConfig) error {
+	return errors.APINotSupportedMsg(ProductName(), "plugins")
 }
 
-func (p *Plugin) List() ([]enginetypes.Plugin, error) {
-	return nil, fmt.Errorf("%s does not yet support plugins", ProductName())
+func (p *PluginBackend) List() ([]enginetypes.Plugin, error) {
+	return nil, errors.APINotSupportedMsg(ProductName(), "plugins")
 }
 
-func (p *Plugin) Inspect(name string) (*enginetypes.Plugin, error) {
-	return nil, PluginNotFoundError(name)
+func (p *PluginBackend) Inspect(name string) (*enginetypes.Plugin, error) {
+	return nil, errors.PluginNotFoundError(name)
 }
 
-func (p *Plugin) Remove(name string, config *enginetypes.PluginRmConfig) error {
-	return fmt.Errorf("%s does not yet support plugins", ProductName())
+func (p *PluginBackend) Remove(name string, config *enginetypes.PluginRmConfig) error {
+	return errors.APINotSupportedMsg(ProductName(), "plugins")
 }
 
-func (p *Plugin) Set(name string, args []string) error {
-	return fmt.Errorf("%s does not yet support plugins", ProductName())
+func (p *PluginBackend) Set(name string, args []string) error {
+	return errors.APINotSupportedMsg(ProductName(), "plugins")
 }
 
-func (p *Plugin) Privileges(ctx context.Context, ref reference.Named, metaHeaders http.Header, authConfig *enginetypes.AuthConfig) (enginetypes.PluginPrivileges, error) {
-	return nil, fmt.Errorf("%s does not yet support plugins", ProductName())
+func (p *PluginBackend) Privileges(ctx context.Context, ref reference.Named, metaHeaders http.Header, authConfig *enginetypes.AuthConfig) (enginetypes.PluginPrivileges, error) {
+	return nil, errors.APINotSupportedMsg(ProductName(), "plugins")
 }
 
-func (p *Plugin) Pull(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *enginetypes.AuthConfig, privileges enginetypes.PluginPrivileges, outStream io.Writer) error {
-	return fmt.Errorf("%s does not yet support plugins", ProductName())
+func (p *PluginBackend) Pull(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *enginetypes.AuthConfig, privileges enginetypes.PluginPrivileges, outStream io.Writer) error {
+	return errors.APINotSupportedMsg(ProductName(), "plugins")
 }
 
-func (p *Plugin) Push(ctx context.Context, name string, metaHeaders http.Header, authConfig *enginetypes.AuthConfig, outStream io.Writer) error {
-	return fmt.Errorf("%s does not yet support plugins", ProductName())
+func (p *PluginBackend) Push(ctx context.Context, name string, metaHeaders http.Header, authConfig *enginetypes.AuthConfig, outStream io.Writer) error {
+	return errors.APINotSupportedMsg(ProductName(), "plugins")
 }
 
-func (p *Plugin) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, options *enginetypes.PluginCreateOptions) error {
-	return fmt.Errorf("%s does not yet support plugins", ProductName())
+func (p *PluginBackend) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, options *enginetypes.PluginCreateOptions) error {
+	return errors.APINotSupportedMsg(ProductName(), "plugins")
 }
