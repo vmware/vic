@@ -345,7 +345,8 @@ Run Secret VIC Machine Inspect Command
 Run VIC Machine Delete Command
     ${rc}  ${output}=  Run Secret VIC Machine Delete Command  %{VCH-NAME}
     Log  ${output}
-    Wait Until Keyword Succeeds  6x  5s  Check Delete Success  %{VCH-NAME}
+    ${status}=  Run Keyword And Return Status  Wait Until Keyword Succeeds  6x  5s  Check Delete Success  %{VCH-NAME}
+    Assert  ${status}  vic-machine delete failed to remove %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
     ${output}=  Run  rm -rf %{VCH-NAME}
@@ -700,3 +701,8 @@ Enable VCH SSH
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
+
+Assert
+    [Arguments]  ${status}  ${msg}
+    ${envExists}=  Run Keyword And Return Status  Environment Variable Should Be Set  FAST_FAILURE
+    Run Keyword If  ${envExists}  Run Keyword If  %{FAST_FAILURE}  Run Keyword Unless  ${status}  Fatal Error  ${msg}
