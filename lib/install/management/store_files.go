@@ -187,9 +187,9 @@ func (d *Dispatcher) deleteFilesIteratively(m *object.DatastoreFileManager, ds *
 func (d *Dispatcher) deleteVMFSFiles(m *object.DatastoreFileManager, ds *object.Datastore, dsPath string) error {
 	defer trace.End(trace.Begin(dsPath, d.op))
 
-	for _, ext := range []string{"-delta.vmdk", "-flat.vmdk"} {
+	for _, ext := range []string{"-delta.vmdk", "-flat.vmdk", "-sesparse.vmdk"} {
 		if strings.HasSuffix(dsPath, ext) {
-			// Skip backing files as Delete() will do so via DeleteVirtualDisk
+			// Skip delete of snapshot files, as Delete() will remove all snapshot files when deleting the vmdk
 			return nil
 		}
 	}
