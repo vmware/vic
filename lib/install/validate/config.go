@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/constants"
+	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/optmanager"
@@ -416,7 +417,7 @@ func (v *Validator) assignedLicenseHasFeature(la []types.LicenseAssignmentManage
 	return false
 }
 
-// checkAssignedLicenses checks for the features required for VIC Engine on vCenter
+// checkAssignedLicenses checks for the features required on vCenter
 func (v *Validator) checkAssignedLicenses(op trace.Operation) error {
 	var hosts []*object.HostSystem
 	var invalidLic []string
@@ -475,7 +476,7 @@ func (v *Validator) checkAssignedLicenses(op trace.Operation) error {
 	return nil
 }
 
-// checkLicense checks for the features required for VIC Engine on ESXi
+// checkLicense checks for the features required on standalone ESXi
 func (v *Validator) checkLicense(op trace.Operation) error {
 	var invalidLic []string
 	client := v.Session.Client.Client
@@ -485,7 +486,6 @@ func (v *Validator) checkLicense(op trace.Operation) error {
 	if err != nil {
 		return err
 	}
-	v.checkEvalLicense(op, licenses)
 
 	features := []string{"serialuri"}
 
@@ -508,21 +508,14 @@ func (v *Validator) checkLicense(op trace.Operation) error {
 	return nil
 }
 
-func (v *Validator) checkEvalLicense(op trace.Operation, licenses []types.LicenseManagerLicenseInfo) {
-	for _, l := range licenses {
-		if l.EditionKey == "eval" {
-			op.Warn("Evaluation license detected. VIC may not function if evaluation expires or insufficient license is later assigned.")
-		}
-	}
-}
-
-// CheckDRS will validate DRS settings
-func (v *Validator) CheckDRS(ctx context.Context) {
+// CheckDRS will validate DRS settings.  If DRS is disabled then config
+// options surrounding resource pools will be ignored.
+func (v *Validator) CheckDRS(ctx context.Context, input *data.Data) {
 	op := trace.FromContext(ctx, "CheckDRS")
 	defer trace.End(trace.Begin("", op))
 
 	errMsg := "DRS check SKIPPED"
-	if !v.sessionValid(op, errMsg) {
+	if !v.sessionValid(op, errMsg) || !v.Session.IsVC() {
 		return
 	}
 
@@ -550,6 +543,41 @@ func (v *Validator) CheckDRS(ctx context.Context) {
 	if !*v.Session.DRSEnabled {
 		op.Warn("DRS is recommended, but is disabled:")
 		op.Warnf("  VIC will select container hosts from %q", v.Session.Cluster.InventoryPath)
+
+		// DRS is disabled so there are no resource pools -- if resource pool config options have
+		// been provided let the user know that they will not be used
+		var disabled []string
+		if input.VCHCPULimitsMHz != nil {
+			disabled = append(disabled, "CPU Limit")
+			input.VCHCPULimitsMHz = nil
+		}
+		if input.VCHCPUReservationsMHz != nil {
+			disabled = append(disabled, "CPU Reservation")
+			input.VCHCPUReservationsMHz = nil
+		}
+		if input.VCHCPUShares != nil {
+			disabled = append(disabled, "CPU Shares")
+			input.VCHCPUShares = nil
+		}
+		if input.VCHMemoryLimitsMB != nil {
+			disabled = append(disabled, "Memory Limit")
+			input.VCHMemoryLimitsMB = nil
+		}
+		if input.VCHMemoryReservationsMB != nil {
+			disabled = append(disabled, "Memory Reservation")
+			input.VCHMemoryReservationsMB = nil
+		}
+		if input.VCHMemoryShares != nil {
+			disabled = append(disabled, "Memory Shares")
+			input.VCHMemoryShares = nil
+		}
+
+		if len(disabled) > 0 {
+			op.Warn("  Provided VCH Resource Pool options are ignored:")
+			for i := range disabled {
+				op.Warnf("    %s", disabled[i])
+			}
+		}
 		return
 
 	}
