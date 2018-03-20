@@ -29,13 +29,25 @@ Extra Cleanup
 Verify VIC Still Works When Different VM Is Registered
     Install VIC Appliance To Test Server
     Set Suite Variable  ${old-vm}  %{VCH-NAME}
-    Install VIC Appliance To Test Server
+    Add VCH to Removal Exception List  ${old-vm}
 
+    # we need to be sure that we do not treat the original vch as a dangling entity during the second install
+    Install VIC Appliance To Test Server
+    Remove VCH from Removal Exception List  ${old-vm}
+
+    ${out}=  Run  govc ls vm/${old-vm}
+    Should Contain  ${out}  ${old-vm}/${old-vm}
     ${out}=  Run  govc vm.power -off ${old-vm}
     Should Contain  ${out}  OK
     ${out}=  Run  govc vm.unregister ${old-vm}
     Should Be Empty  ${out}
-    ${out}=  Run  govc vm.register ${old-vm}/${old-vm}.vmx
+
+    # At this point the vm is unregsitered and we will need to reregister this vm...
+    # we need to put it into the original inventory folder. so we need to fetch that
+    # path. We also want to be explicit about the resource pool.
+    ${old-vm-folder}=  Run  govc find / -name ${old-vm} -type f
+    ${old-vm-pool}=  Run  govc find / -name ${old-vm} -type p
+    ${out}=  Run  govc vm.register -pool ${old-vm-pool} -folder ${old-vm-folder} ${old-vm}/${old-vm}.vmx
     Should Be Empty  ${out}
 
     ${out}=  Run  docker %{VCH-PARAMS} ps -a
