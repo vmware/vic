@@ -30,7 +30,8 @@ init-profile () {
 }
 
 unset-vic () {
-    unset TARGET_URL MAPPED_NETWORKS NETWORKS IMAGE_STORE DATASTORE COMPUTE VOLUME_STORES IPADDR GOVC_INSECURE TLS THUMBPRINT OPS_CREDS VIC_NAME PRESERVE_VOLUMES
+    unset TARGET_URL MAPPED_NETWORKS NETWORKS IMAGE_STORE DATASTORE COMPUTE VOLUME_STORES IPADDR TLS THUMBPRINT OPS_CREDS VIC_NAME PRESERVE_VOLUMES
+    unset GOVC_URL GOVC_INSECURE GOVC_DATACENTER GOVC_USERNAME GOVC_PASSWORD GOVC_DATASTORE GOVC_CERTIFICATE 
 
     unset vsphere datacenter user password opsuser opspass opsgrant timeout compute datastore dns publicNet publicIP publicGW bridgeNet bridgeRange
     unset clientNet clientIP clientGW managementNet managementIP managementGW tls volumestores preserveVolumestores containernet

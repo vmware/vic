@@ -38,7 +38,7 @@ function get-thumbprint() {
 function vch-name-is-ambiguous() {
     [ $($VIC_DIR/bin/vic-machine-linux \
             ls \
-            --target=$target \
+            --target=$target/${GOVC_DATACENTER} \
             --user=$username \
             --password=$password \
             --thumbprint=$(get-thumbprint) \
@@ -84,9 +84,9 @@ function check-name-isnt-ambiguous ()  {
 
         $VIC_DIR/bin/vic-machine-linux\
             ls \
-            --target $GOVC_URL \
-            --user $GOVC_USER \
-            --password=$GOVC_PASSWORD \
+            --target $target/${GOVC_DATACENTER} \
+            --user "$username" \
+            --password="$password" \
             --thumbprint=$(get-thumbprint)
 
         if [[ $interactive -eq 0 ]]; then
@@ -99,7 +99,7 @@ function check-name-isnt-ambiguous ()  {
 # Translates VCH name to ID if necessary
 function get-vic-id () {
     if [[ -z $VIC_ID ]]; then
-        export VIC_ID="$($VIC_DIR/bin/vic-machine-linux ls --target=$target --user=$username --password=$password --thumbprint=$(get-thumbprint) | grep $VIC_NAME | awk '{print $1}')"
+        export VIC_ID="$($VIC_DIR/bin/vic-machine-linux ls --target=$target/${GOVC_DATACENTER} --user="$username" --password="$password" --thumbprint=$(get-thumbprint) | grep $VIC_NAME | awk '{print $1}')"
     fi
 }
 
@@ -111,7 +111,7 @@ function get-ssh-keys() {
             export VIC_KEY=${key:-/home/$USER/.ssh/id_rsa.pub}
             return
         fi
-            
+
         echo "Variable VIC_KEY not set. Provide the path to your public SSH key below."
         if [[ $interactive -eq 0 ]]; then
             exit 1
@@ -133,18 +133,18 @@ function sanity-checks () {
 # Enables SSH and saves off the VCH IP address
 function enable-debug () {
     VCH_IP=$($VIC_DIR/bin/vic-machine-linux debug \
-                                   --target=$target \
+                                   --target=$target/${GOVC_DATACENTER} \
                                    --id=$VIC_ID \
-                                   --user=$username \
-                                   --password=$password \
-                                   --authorized-key=$VIC_KEY \
+                                   --user="$username" \
+                                   --password="$password" \
+                                   --authorized-key="$VIC_KEY" \
                                    --thumbprint=$(get-thumbprint) \
                  | grep -A1 "Published ports" | tail -n1 | awk '{print $NF}')
 }
 
 # SCPs the component in $1 to the VCH, plops it in place, and brutally kills the previous running process
 function replace-component() {
-    scp -vvv -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -i"${VIC_KEY%.*}" $VIC_DIR/bin/$1 root@$VCH_IP:/tmp/$1 2>/dev/null
+    scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -i"${VIC_KEY%.*}" $VIC_DIR/bin/$1 root@$VCH_IP:/tmp/$1 2>/dev/null
     pid=$(on-vch ps -e --format='pid,args' \
                  | grep $1 | grep -v grep | awk '{print $1}')
     on-vch chmod 755 /tmp/$1
