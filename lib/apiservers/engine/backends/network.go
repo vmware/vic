@@ -35,24 +35,25 @@ import (
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/convert"
 	vicendpoint "github.com/vmware/vic/lib/apiservers/engine/backends/endpoint"
+	"github.com/vmware/vic/lib/apiservers/engine/errors"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/pkg/retry"
 )
 
-type Network struct {
+type NetworkBackend struct {
 }
 
-func NewNetworkBackend() *Network {
-	return &Network{}
+func NewNetworkBackend() *NetworkBackend {
+	return &NetworkBackend{}
 }
 
-func (n *Network) NetworkControllerEnabled() bool {
+func (n *NetworkBackend) NetworkControllerEnabled() bool {
 	return false
 }
 
-func (n *Network) FindNetwork(idName string) (libnetwork.Network, error) {
+func (n *NetworkBackend) FindNetwork(idName string) (libnetwork.Network, error) {
 	ok, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName(idName))
 	if err != nil {
 		switch err := err.(type) {
@@ -67,10 +68,10 @@ func (n *Network) FindNetwork(idName string) (libnetwork.Network, error) {
 		}
 	}
 
-	return &network{cfg: ok.Payload[0]}, nil
+	return &vicnetwork{cfg: ok.Payload[0]}, nil
 }
 
-func (n *Network) GetNetworkByName(idName string) (libnetwork.Network, error) {
+func (n *NetworkBackend) GetNetworkByName(idName string) (libnetwork.Network, error) {
 	ok, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName(idName))
 	if err != nil {
 		switch err := err.(type) {
@@ -85,10 +86,10 @@ func (n *Network) GetNetworkByName(idName string) (libnetwork.Network, error) {
 		}
 	}
 
-	return &network{cfg: ok.Payload[0]}, nil
+	return &vicnetwork{cfg: ok.Payload[0]}, nil
 }
 
-func (n *Network) GetNetworksByID(partialID string) []libnetwork.Network {
+func (n *NetworkBackend) GetNetworksByID(partialID string) []libnetwork.Network {
 	ok, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName(partialID))
 	if err != nil {
 		return nil
@@ -96,13 +97,13 @@ func (n *Network) GetNetworksByID(partialID string) []libnetwork.Network {
 
 	nets := make([]libnetwork.Network, len(ok.Payload))
 	for i, cfg := range ok.Payload {
-		nets[i] = &network{cfg: cfg}
+		nets[i] = &vicnetwork{cfg: cfg}
 	}
 
 	return nets
 }
 
-func (n *Network) GetNetworks() []libnetwork.Network {
+func (n *NetworkBackend) GetNetworks() []libnetwork.Network {
 	ok, err := PortLayerClient().Scopes.ListAll(scopes.NewListAllParamsWithContext(ctx))
 	if err != nil {
 		return nil
@@ -110,14 +111,14 @@ func (n *Network) GetNetworks() []libnetwork.Network {
 
 	nets := make([]libnetwork.Network, len(ok.Payload))
 	for i, cfg := range ok.Payload {
-		nets[i] = &network{cfg: cfg}
+		nets[i] = &vicnetwork{cfg: cfg}
 		i++
 	}
 
 	return nets
 }
 
-func (n *Network) CreateNetwork(nc types.NetworkCreateRequest) (*types.NetworkCreateResponse, error) {
+func (n *NetworkBackend) CreateNetwork(nc types.NetworkCreateRequest) (*types.NetworkCreateResponse, error) {
 	if nc.IPAM != nil && len(nc.IPAM.Config) > 1 {
 		return nil, fmt.Errorf("at most one ipam config supported")
 	}
@@ -165,7 +166,7 @@ func (n *Network) CreateNetwork(nc types.NetworkCreateRequest) (*types.NetworkCr
 	if err != nil {
 		switch err := err.(type) {
 		case *scopes.CreateScopeConflict:
-			return nil, derr.NewErrorWithStatusCode(fmt.Errorf("network %s already exists", nc.Name), http.StatusConflict)
+			return nil, derr.NewErrorWithStatusCode(fmt.Errorf("vicnetwork %s already exists", nc.Name), http.StatusConflict)
 
 		case *scopes.CreateScopeDefault:
 			return nil, derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
@@ -190,7 +191,7 @@ func isCommitConflictError(err error) bool {
 	return isConflictErr
 }
 
-// connectContainerToNetwork performs portlayer operations to connect a container to a container network.
+// connectContainerToNetwork performs portlayer operations to connect a container to a container vicnetwork.
 func connectContainerToNetwork(containerName, networkName string, endpointConfig *apinet.EndpointSettings) error {
 	client := PortLayerClient()
 	getRes, err := client.Containers.Get(containers.NewGetParamsWithContext(ctx).WithID(containerName))
@@ -289,9 +290,9 @@ func connectContainerToNetwork(containerName, networkName string, endpointConfig
 	return err
 }
 
-// ConnectContainerToNetwork connects a container to a container network. It wraps the portlayer operations
+// ConnectContainerToNetwork connects a container to a container vicnetwork. It wraps the portlayer operations
 // in a retry for when there's a conflict error received, such as one during a similar concurrent operation.
-func (n *Network) ConnectContainerToNetwork(containerName, networkName string, endpointConfig *apinet.EndpointSettings) error {
+func (n *NetworkBackend) ConnectContainerToNetwork(containerName, networkName string, endpointConfig *apinet.EndpointSettings) error {
 	vc := cache.ContainerCache().GetContainer(containerName)
 	if vc != nil {
 		containerName = vc.ContainerID
@@ -320,15 +321,15 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 	return nil
 }
 
-func (n *Network) DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error {
+func (n *NetworkBackend) DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error {
 	vc := cache.ContainerCache().GetContainer(containerName)
 	if vc != nil {
 		containerName = vc.ContainerID
 	}
-	return fmt.Errorf("%s does not yet implement network.DisconnectContainerFromNetwork", ProductName())
+	return errors.APINotSupportedMsg(ProductName(), "DisconnectContainerFromNetwork")
 }
 
-func (n *Network) DeleteNetwork(name string) error {
+func (n *NetworkBackend) DeleteNetwork(name string) error {
 	client := PortLayerClient()
 
 	if _, err := client.Scopes.DeleteScope(scopes.NewDeleteScopeParamsWithContext(ctx).WithIDName(name)); err != nil {
@@ -347,45 +348,45 @@ func (n *Network) DeleteNetwork(name string) error {
 	return nil
 }
 
-func (n *Network) NetworksPrune(pruneFilters filters.Args) (*types.NetworksPruneReport, error) {
-	return nil, fmt.Errorf("%s does not yet implement NetworksPrune", ProductName())
+func (n *NetworkBackend) NetworksPrune(pruneFilters filters.Args) (*types.NetworksPruneReport, error) {
+	return nil, errors.APINotSupportedMsg(ProductName(), "NetworksPrune")
 }
 
-// network implements the libnetwork.Network and libnetwork.NetworkInfo interfaces
-type network struct {
+// vicnetwork implements the libnetwork.Network and libnetwork.NetworkInfo interfaces
+type vicnetwork struct {
 	sync.Mutex
 
 	cfg *models.ScopeConfig
 }
 
-// A user chosen name for this network.
-func (n *network) Name() string {
+// A user chosen name for this vicnetwork.
+func (n *vicnetwork) Name() string {
 	return n.cfg.Name
 }
 
-// A system generated id for this network.
-func (n *network) ID() string {
+// A system generated id for this vicnetwork.
+func (n *vicnetwork) ID() string {
 	return n.cfg.ID
 }
 
-// The type of network, which corresponds to its managing driver.
-func (n *network) Type() string {
+// The type of vicnetwork, which corresponds to its managing driver.
+func (n *vicnetwork) Type() string {
 	return n.cfg.ScopeType
 }
 
-// Create a new endpoint to this network symbolically identified by the
+// Create a new endpoint to this vicnetwork symbolically identified by the
 // specified unique name. The options parameter carry driver specific options.
-func (n *network) CreateEndpoint(name string, options ...libnetwork.EndpointOption) (libnetwork.Endpoint, error) {
+func (n *vicnetwork) CreateEndpoint(name string, options ...libnetwork.EndpointOption) (libnetwork.Endpoint, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-// Delete the network.
-func (n *network) Delete() error {
+// Delete the vicnetwork.
+func (n *vicnetwork) Delete() error {
 	return fmt.Errorf("not implemented")
 }
 
-// Endpoints returns the list of Endpoint(s) in this network.
-func (n *network) Endpoints() []libnetwork.Endpoint {
+// Endpoints returns the list of Endpoint(s) in this vicnetwork.
+func (n *vicnetwork) Endpoints() []libnetwork.Endpoint {
 	eps := make([]libnetwork.Endpoint, len(n.cfg.Endpoints))
 	for i, e := range n.cfg.Endpoints {
 		eps[i] = &endpoint{ep: e, sc: n.cfg}
@@ -395,7 +396,7 @@ func (n *network) Endpoints() []libnetwork.Endpoint {
 }
 
 // WalkEndpoints uses the provided function to walk the Endpoints
-func (n *network) WalkEndpoints(walker libnetwork.EndpointWalker) {
+func (n *vicnetwork) WalkEndpoints(walker libnetwork.EndpointWalker) {
 	for _, e := range n.cfg.Endpoints {
 		if walker(&endpoint{ep: e, sc: n.cfg}) {
 			return
@@ -404,7 +405,7 @@ func (n *network) WalkEndpoints(walker libnetwork.EndpointWalker) {
 }
 
 // EndpointByName returns the Endpoint which has the passed name. If not found, the error ErrNoSuchEndpoint is returned.
-func (n *network) EndpointByName(name string) (libnetwork.Endpoint, error) {
+func (n *vicnetwork) EndpointByName(name string) (libnetwork.Endpoint, error) {
 	for _, e := range n.cfg.Endpoints {
 		if e.Name == name {
 			return &endpoint{ep: e, sc: n.cfg}, nil
@@ -415,7 +416,7 @@ func (n *network) EndpointByName(name string) (libnetwork.Endpoint, error) {
 }
 
 // EndpointByID returns the Endpoint which has the passed id. If not found, the error ErrNoSuchEndpoint is returned.
-func (n *network) EndpointByID(id string) (libnetwork.Endpoint, error) {
+func (n *vicnetwork) EndpointByID(id string) (libnetwork.Endpoint, error) {
 	for _, e := range n.cfg.Endpoints {
 		if e.ID == id {
 			return &endpoint{ep: e, sc: n.cfg}, nil
@@ -425,12 +426,12 @@ func (n *network) EndpointByID(id string) (libnetwork.Endpoint, error) {
 	return nil, fmt.Errorf("not found")
 }
 
-// Return certain operational data belonging to this network
-func (n *network) Info() libnetwork.NetworkInfo {
+// Return certain operational data belonging to this vicnetwork
+func (n *vicnetwork) Info() libnetwork.NetworkInfo {
 	return n
 }
 
-func (n *network) IpamConfig() (string, map[string]string, []*libnetwork.IpamConf, []*libnetwork.IpamConf) {
+func (n *vicnetwork) IpamConfig() (string, map[string]string, []*libnetwork.IpamConf, []*libnetwork.IpamConf) {
 	n.Lock()
 	defer n.Unlock()
 
@@ -455,7 +456,7 @@ func (n *network) IpamConfig() (string, map[string]string, []*libnetwork.IpamCon
 	return "", make(map[string]string), confs, nil
 }
 
-func (n *network) IpamInfo() ([]*libnetwork.IpamInfo, []*libnetwork.IpamInfo) {
+func (n *vicnetwork) IpamInfo() ([]*libnetwork.IpamInfo, []*libnetwork.IpamInfo) {
 	n.Lock()
 	defer n.Unlock()
 
@@ -485,27 +486,27 @@ func (n *network) IpamInfo() ([]*libnetwork.IpamInfo, []*libnetwork.IpamInfo) {
 	return infos, nil
 }
 
-func (n *network) DriverOptions() map[string]string {
+func (n *vicnetwork) DriverOptions() map[string]string {
 	return make(map[string]string)
 }
 
-func (n *network) Scope() string {
+func (n *vicnetwork) Scope() string {
 	return ""
 }
 
-func (n *network) IPv6Enabled() bool {
+func (n *vicnetwork) IPv6Enabled() bool {
 	return false
 }
 
-func (n *network) Internal() bool {
+func (n *vicnetwork) Internal() bool {
 	n.Lock()
 	defer n.Unlock()
 
 	return n.cfg.Internal
 }
 
-// Labels decodes and unmarshals the stored blob of network labels.
-func (n *network) Labels() map[string]string {
+// Labels decodes and unmarshals the stored blob of vicnetwork labels.
+func (n *vicnetwork) Labels() map[string]string {
 	n.Lock()
 	defer n.Unlock()
 
@@ -529,22 +530,22 @@ func (n *network) Labels() map[string]string {
 	return labels
 }
 
-func (n *network) Attachable() bool {
+func (n *vicnetwork) Attachable() bool {
 	return false //?
 }
 
-func (n *network) Dynamic() bool {
+func (n *vicnetwork) Dynamic() bool {
 	return false //?
 }
 
-func (n *network) Created() time.Time {
+func (n *vicnetwork) Created() time.Time {
 	return time.Now()
 }
 
 // Peers returns a slice of PeerInfo structures which has the information about the peer
-// nodes participating in the same overlay network. This is currently the per-network
+// nodes participating in the same overlay vicnetwork. This is currently the per-vicnetwork
 // gossip cluster. For non-dynamic overlay networks and bridge networks it returns an
 // empty slice
-func (n *network) Peers() []networkdb.PeerInfo {
+func (n *vicnetwork) Peers() []networkdb.PeerInfo {
 	return nil
 }
