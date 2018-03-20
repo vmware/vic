@@ -23,23 +23,23 @@ Test Timeout  20 minutes
 Docker plugin install
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} plugin install vieux/sshfs
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support plugins
+    Should Contain  ${output}  does not yet implement plugins
 
 Docker plugin create
     Run  echo '{}' > config.json
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} plugin create test-plugin .
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support plugins
+    Should Contain  ${output}  does not yet implement plugins
 
 Docker plugin enable
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} plugin enable test-plugin
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support plugins
+    Should Contain  ${output}  does not yet implement plugins
 
 Docker plugin disable
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} plugin disable test-plugin
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support plugins
+    Should Contain  ${output}  does not yet implement plugins
 
 Docker plugin inspect
     ${status}=  Get State Of Github Issue  4464
@@ -48,19 +48,19 @@ Docker plugin inspect
 Docker plugin ls
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} plugin ls
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support plugins
+    Should Contain  ${output}  does not yet implement plugins
 
 Docker plugin push
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} plugin push test-plugin
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support plugins
+    Should Contain  ${output}  does not yet implement plugins
 
 Docker plugin rm
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} plugin rm test-plugin
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support plugins
+    Should Contain  ${output}  does not yet implement plugins
 
 Docker plugin set
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} plugin set test-plugin test-data
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support plugins
+    Should Contain  ${output}  does not yet implement plugins

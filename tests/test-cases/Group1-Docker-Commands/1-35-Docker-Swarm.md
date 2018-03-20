@@ -21,7 +21,7 @@ This test requires that a vSphere server is running and available
 8. Issue docker swarm update
 
 # Expected Outcome:
-* Step 2-8 should result in an error that contains does not yet support Docker Swarm
+* Step 2-8 should result in an error that contains Docker Swarm is not yet supported
 
 # Possible Problems:
 None

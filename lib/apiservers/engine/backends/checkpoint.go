@@ -15,26 +15,26 @@
 package backends
 
 import (
-	"fmt"
-
 	"github.com/docker/docker/api/types"
+
+	"github.com/vmware/vic/lib/apiservers/engine/errors"
 )
 
-type Checkpoint struct {
+type CheckpointBackend struct {
 }
 
-func NewCheckpointBackend() *Checkpoint {
-	return &Checkpoint{}
+func NewCheckpointBackend() *CheckpointBackend {
+	return &CheckpointBackend{}
 }
 
-func (c *Checkpoint) CheckpointCreate(container string, config types.CheckpointCreateOptions) error {
-	return fmt.Errorf("%s does not yet implement checkpointing", ProductName())
+func (c *CheckpointBackend) CheckpointCreate(container string, config types.CheckpointCreateOptions) error {
+	return errors.APINotSupportedMsg(ProductName(), "checkpointing")
 }
 
-func (c *Checkpoint) CheckpointDelete(container string, config types.CheckpointDeleteOptions) error {
-	return fmt.Errorf("%s does not yet implement checkpointing", ProductName())
+func (c *CheckpointBackend) CheckpointDelete(container string, config types.CheckpointDeleteOptions) error {
+	return errors.APINotSupportedMsg(ProductName(), "checkpointing")
 }
 
-func (c *Checkpoint) CheckpointList(container string, config types.CheckpointListOptions) ([]types.Checkpoint, error) {
-	return nil, fmt.Errorf("%s does not yet implement checkpointing", ProductName())
+func (c *CheckpointBackend) CheckpointList(container string, config types.CheckpointListOptions) ([]types.Checkpoint, error) {
+	return nil, errors.APINotSupportedMsg(ProductName(), "checkpointing")
 }
