@@ -202,6 +202,52 @@ func streamCopy(op trace.Operation, stdin io.WriteCloser, tarStream io.Reader) e
 	}
 }
 
+func DockerUnpack(op trace.Operation, root string, tarStream io.Reader) (int64, error) {
+	fi, err := os.Stat(root)
+	if err != nil {
+		// the target unpack path does not exist. We should not get here.
+		return 0, err
+	}
+
+	if !fi.IsDir() {
+		return 0, fmt.Errorf("unpack root target is not a directory: %s", root)
+	}
+
+	// #nosec: 193 applianceBinaryPath is a constant, not a variable
+	cmd := exec.Command(string(applianceBinaryPath), root)
+
+	stdin, err := cmd.StdinPipe()
+
+	if err != nil {
+		return 0, err
+	}
+
+	if stdin == nil {
+		err = errors.New("stdin was nil")
+		return 0, err
+	}
+
+	if err = cmd.Start(); err != nil {
+		return 0, err
+	}
+
+	bytesWritten := make(chan int64, 1)
+	go func() {
+		defer stdin.Close()
+		var n int64
+		if n, err = io.Copy(stdin, tarStream); err != nil {
+			op.Errorf("Error copying tarStream: %s", err.Error())
+		}
+		bytesWritten <- n
+	}()
+
+	if err = cmd.Wait(); err != nil {
+		return 0, err
+	}
+
+	return <-bytesWritten, nil
+}
+
 // Unpack runs the binary compiled in cmd/unpack.go which creates a chroot at `root` and passes `op`, `tarStream`, and `filter` to InvokeUnpack for extraction of the tar on the filesystem. `binPath` should be either ApplianceBinaryPath or ContainerBinaryPath. Unpack returns a `Cmd` to allow use in conjunction with the tether's `LaunchUtility`, so it is necessary to call `cmd.Wait` after `Unpack` exits e.g. OfflineUnpack, if not being used in conjunction with LaunchUtility and the childReaper.
 func unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string, binPath binaryPath) (*exec.Cmd, error) {
 
@@ -228,7 +274,7 @@ func unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 	// #nosec: Subprocess launching with variable. -- neither variable is user input & both are bounded inputs so this is fine
 	// "/bin/unpack" on appliance
 	// "/.tether/unpack" inside container
-	cmd := exec.Command(string(binPath), op.ID(), root, *encodedFilter)
+	cmd := exec.Command(string(binPath), root, *encodedFilter)
 
 	stdin, err := cmd.StdinPipe()
 

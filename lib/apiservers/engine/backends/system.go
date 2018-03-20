@@ -18,12 +18,12 @@ package backends
 // system.go
 //
 // Rules for code to be in here:
-// 1. No remote or swagger calls.  Move those code to system_portlayer.go
+// 1. No remote or swagger calls.  Move those code to ../proxy/system_proxy.go
 // 2. Always return docker engine-api compatible errors.
 //		- Do NOT return fmt.Errorf()
 //		- Do NOT return errors.New()
 //		- DO USE the aliased docker error package 'derr'
-//		- It is OK to return errors returned from functions in system_portlayer.go
+//		- It is OK to return errors returned from functions in system_proxy.go
 
 import (
 	"crypto/x509"
@@ -31,6 +31,7 @@ import (
 	"net/url"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/net/context"
@@ -38,6 +39,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
+	"github.com/vmware/vic/lib/apiservers/engine/errors"
+	"github.com/vmware/vic/lib/apiservers/engine/proxy"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/imagec"
@@ -54,8 +57,8 @@ import (
 	"github.com/docker/go-units"
 )
 
-type System struct {
-	systemProxy VicSystemProxy
+type SystemBackend struct {
+	systemProxy proxy.VicSystemProxy
 }
 
 const (
@@ -75,21 +78,24 @@ const (
 )
 
 // var for use by other engine components
-var systemBackend *System
+var systemBackend *SystemBackend
+var sysOnce sync.Once
 
-func NewSystemBackend() *System {
-	systemBackend = &System{
-		systemProxy: &SystemProxy{},
-	}
+func NewSystemBackend() *SystemBackend {
+	sysOnce.Do(func() {
+		systemBackend = &SystemBackend{
+			systemProxy: proxy.NewSystemProxy(PortLayerClient()),
+		}
+	})
 	return systemBackend
 }
 
-func (s *System) SystemInfo() (*types.Info, error) {
+func (s *SystemBackend) SystemInfo() (*types.Info, error) {
 	defer trace.End(trace.Begin("SystemInfo"))
 	client := PortLayerClient()
 
 	// Retrieve container status from port layer
-	running, paused, stopped, err := s.systemProxy.ContainerCount()
+	running, paused, stopped, err := s.systemProxy.ContainerCount(context.Background())
 	if err != nil {
 		log.Infof("System.SytemInfo unable to get global status on containers: %s", err.Error())
 	}
@@ -152,7 +158,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		NoProxy:           "",
 	}
 
-	// Add in network info from the VCH via guestinfo
+	// Add in vicnetwork info from the VCH via guestinfo
 	for _, network := range cfg.ContainerNetworks {
 		info.Plugins.Network = append(info.Plugins.Network, network.Name)
 	}
@@ -172,7 +178,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		// driver supplied by the Docker client and is equivalent to "vsphere" in
 		// our implementation.
 		if len(volumeStoreString) > 0 {
-			for driver := range supportedVolDrivers {
+			for driver := range proxy.SupportedVolDrivers {
 				if driver != "local" {
 					info.Plugins.Volume = append(info.Plugins.Volume, driver)
 				}
@@ -180,7 +186,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		}
 	}
 
-	if s.systemProxy.PingPortlayer() {
+	if s.systemProxy.PingPortlayer(context.Background()) {
 		status := [2]string{PortLayerName(), "RUNNING"}
 		info.SystemStatus = append(info.SystemStatus, status)
 	} else {
@@ -189,7 +195,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 	}
 
 	// Add in vch information
-	vchInfo, err := s.systemProxy.VCHInfo()
+	vchInfo, err := s.systemProxy.VCHInfo(context.Background())
 	if err != nil || vchInfo == nil {
 		log.Infof("System.SystemInfo unable to get vch info from port layer: %s", err.Error())
 	} else {
@@ -253,7 +259,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 // layout for build time as per constants defined in https://golang.org/src/time/format.go
 const buildTimeLayout = "2006/01/02@15:04:05"
 
-func (s *System) SystemVersion() types.Version {
+func (s *SystemBackend) SystemVersion() types.Version {
 	Arch := runtime.GOARCH
 
 	BuildTime := version.BuildDate
@@ -291,36 +297,38 @@ func (s *System) SystemVersion() types.Version {
 		Version:       Version,
 	}
 
+	log.Infof("***** version = %#v", version)
+
 	return version
 }
 
 // SystemCPUMhzLimit will return the VCH configured Mhz limit
-func (s *System) SystemCPUMhzLimit() (int64, error) {
-	vchInfo, err := s.systemProxy.VCHInfo()
+func (s *SystemBackend) SystemCPUMhzLimit() (int64, error) {
+	vchInfo, err := s.systemProxy.VCHInfo(context.Background())
 	if err != nil || vchInfo == nil {
 		return 0, err
 	}
 	return vchInfo.CPUMhz, nil
 }
 
-func (s *System) SystemDiskUsage() (*types.DiskUsage, error) {
-	return nil, fmt.Errorf("%s does not yet implement SystemDiskUsage", ProductName())
+func (s *SystemBackend) SystemDiskUsage() (*types.DiskUsage, error) {
+	return nil, errors.APINotSupportedMsg(ProductName(), "SystemDiskUsage")
 }
 
-func (s *System) SubscribeToEvents(since, until time.Time, filter filters.Args) ([]eventtypes.Message, chan interface{}) {
+func (s *SystemBackend) SubscribeToEvents(since, until time.Time, filter filters.Args) ([]eventtypes.Message, chan interface{}) {
 	defer trace.End(trace.Begin(""))
 
 	ef := events.NewFilter(filter)
 	return EventService().SubscribeTopic(since, until, ef)
 }
 
-func (s *System) UnsubscribeFromEvents(listener chan interface{}) {
+func (s *SystemBackend) UnsubscribeFromEvents(listener chan interface{}) {
 	defer trace.End(trace.Begin(""))
 	EventService().Evict(listener)
 }
 
 // AuthenticateToRegistry handles docker logins
-func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.AuthConfig) (string, string, error) {
+func (s *SystemBackend) AuthenticateToRegistry(ctx context.Context, authConfig *types.AuthConfig) (string, string, error) {
 	defer trace.End(trace.Begin(""))
 
 	// Only look at V2 registries
