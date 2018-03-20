@@ -20,9 +20,6 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
 *** Keywords ***
-Cleanup MITM Test Detritus
-    Run Keyword  Destroy Proxified VCH
-
 Get And Run MITMProxy Container
     # Need to change this container? Read README.md in vic/tests/resources/dockerfiles/docker-pull-mitm-proxy
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  victest/docker-layer-injection-proxy:latest
@@ -249,4 +246,4 @@ Attempt docker pull mitm
     Pull And MITM Prepared Image  ${vch2-params}  ${registry}
     Enable SSH on MITMed VCH
     Check For Injected Binary  ${vch2-IP}
-    [Teardown]  Cleanup MITM Test Detritus
+    [Teardown]  Destroy Proxified VCH
