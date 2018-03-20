@@ -19,18 +19,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/vmware/vic/lib/apiservers/engine/errors"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
-	vicarchive "github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/pkg/trace"
+
+	"github.com/docker/docker/api/types"
 )
 
 type VicArchiveProxy interface {
-	ArchiveExportReader(op trace.Operation, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec vicarchive.FilterSpec) (io.ReadCloser, error)
-	ArchiveImportWriter(op trace.Operation, store, deviceID string, filterSpec vicarchive.FilterSpec, wg *sync.WaitGroup, errchan chan error) (io.WriteCloser, error)
+	ArchiveExportReader(op trace.Operation, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error)
+	ArchiveImportWriter(op trace.Operation, store, deviceID string, filterSpec archive.FilterSpec, wg *sync.WaitGroup, errchan chan error) (io.WriteCloser, error)
+	StatPath(op trace.Operation, store, deviceID string, filterSpec archive.FilterSpec) (*types.ContainerPathStat, error)
 }
 
 //------------------------------------
@@ -41,14 +47,24 @@ type ArchiveProxy struct {
 	client *client.PortLayer
 }
 
+var archiveProxy *ArchiveProxy
+
 func NewArchiveProxy(client *client.PortLayer) VicArchiveProxy {
 	return &ArchiveProxy{client: client}
 }
 
+func GetArchiveProxy() VicArchiveProxy {
+	return archiveProxy
+}
+
 // ArchiveExportReader streams a tar archive from the portlayer.  Once the stream is complete,
 // an io.Reader is returned and the caller can use that reader to parse the data.
-func (a *ArchiveProxy) ArchiveExportReader(op trace.Operation, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec vicarchive.FilterSpec) (io.ReadCloser, error) {
+func (a *ArchiveProxy) ArchiveExportReader(op trace.Operation, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error) {
 	defer trace.End(trace.Begin(deviceID))
+
+	if a.client == nil {
+		return nil, errors.NillPortlayerClientError("ArchiveProxy")
+	}
 
 	if store == "" || deviceID == "" {
 		return nil, fmt.Errorf("ArchiveExportReader called with either empty store or deviceID")
@@ -93,22 +109,22 @@ func (a *ArchiveProxy) ArchiveExportReader(op trace.Operation, store, ancestorSt
 			op.Errorf("Error from ExportArchive: %s", err.Error())
 			switch err := err.(type) {
 			case *storage.ExportArchiveInternalServerError:
-				plErr := InternalServerError(fmt.Sprintf("Server error from archive reader for device %s", deviceID))
+				plErr := errors.InternalServerError(fmt.Sprintf("Server error from archive reader for device %s", deviceID))
 				op.Errorf(plErr.Error())
 				pipeWriter.CloseWithError(plErr)
 			case *storage.ExportArchiveLocked:
-				plErr := ResourceLockedError(fmt.Sprintf("Resource locked for device %s", deviceID))
+				plErr := errors.ResourceLockedError(fmt.Sprintf("Resource locked for device %s", deviceID))
 				op.Errorf(plErr.Error())
 				pipeWriter.CloseWithError(plErr)
 			case *storage.ExportArchiveUnprocessableEntity:
-				plErr := InternalServerError("failed to process given path")
+				plErr := errors.InternalServerError("failed to process given path")
 				op.Errorf(plErr.Error())
 				pipeWriter.CloseWithError(plErr)
 			default:
 				//Check for EOF.  Since the connection, transport, and data handling are
 				//encapsulated inside of Swagger, we can only detect EOF by checking the
 				//error string
-				if strings.Contains(err.Error(), swaggerSubstringEOF) {
+				if strings.Contains(err.Error(), SwaggerSubstringEOF) {
 					op.Debugf("swagger error %s", err.Error())
 					pipeWriter.Close()
 				} else {
@@ -125,8 +141,12 @@ func (a *ArchiveProxy) ArchiveExportReader(op trace.Operation, store, ancestorSt
 
 // ArchiveImportWriter initializes a write stream for a path.  This is usually called
 // for getting a writer during docker cp TO container.
-func (a *ArchiveProxy) ArchiveImportWriter(op trace.Operation, store, deviceID string, filterSpec vicarchive.FilterSpec, wg *sync.WaitGroup, errchan chan error) (io.WriteCloser, error) {
+func (a *ArchiveProxy) ArchiveImportWriter(op trace.Operation, store, deviceID string, filterSpec archive.FilterSpec, wg *sync.WaitGroup, errchan chan error) (io.WriteCloser, error) {
 	defer trace.End(trace.Begin(deviceID))
+
+	if a.client == nil {
+		return nil, errors.NillPortlayerClientError("ArchiveProxy")
+	}
 
 	if store == "" || deviceID == "" {
 		return nil, fmt.Errorf("ArchiveImportWriter called with either empty store or deviceID")
@@ -171,23 +191,23 @@ func (a *ArchiveProxy) ArchiveImportWriter(op trace.Operation, store, deviceID s
 		if err != nil {
 			switch err := err.(type) {
 			case *storage.ImportArchiveInternalServerError:
-				plErr = InternalServerError(fmt.Sprintf("error writing files to device %s", deviceID))
+				plErr = errors.InternalServerError(fmt.Sprintf("error writing files to device %s", deviceID))
 				op.Errorf(plErr.Error())
 				pipeReader.CloseWithError(plErr)
 			case *storage.ImportArchiveLocked:
-				plErr = ResourceLockedError(fmt.Sprintf("resource locked for device %s", deviceID))
+				plErr = errors.ResourceLockedError(fmt.Sprintf("resource locked for device %s", deviceID))
 				op.Errorf(plErr.Error())
 				pipeReader.CloseWithError(plErr)
 			case *storage.ImportArchiveNotFound:
-				plErr = ResourceNotFoundError("file or directory")
+				plErr = errors.ResourceNotFoundError("file or directory")
 				op.Errorf(plErr.Error())
 				pipeReader.CloseWithError(plErr)
 			case *storage.ImportArchiveUnprocessableEntity:
-				plErr = InternalServerError("failed to process given path")
+				plErr = errors.InternalServerError("failed to process given path")
 				op.Errorf(plErr.Error())
 				pipeReader.CloseWithError(plErr)
 			case *storage.ImportArchiveConflict:
-				plErr = InternalServerError("unexpected copy failure may result in truncated copy, please try again")
+				plErr = errors.InternalServerError("unexpected copy failure may result in truncated copy, please try again")
 				op.Errorf(plErr.Error())
 				pipeReader.CloseWithError(plErr)
 			default:
@@ -195,7 +215,7 @@ func (a *ArchiveProxy) ArchiveImportWriter(op trace.Operation, store, deviceID s
 				//encapsulated inside of Swagger, we can only detect EOF by checking the
 				//error string
 				plErr = err
-				if strings.Contains(err.Error(), swaggerSubstringEOF) {
+				if strings.Contains(err.Error(), SwaggerSubstringEOF) {
 					op.Error(err)
 					pipeReader.Close()
 				} else {
@@ -208,4 +228,48 @@ func (a *ArchiveProxy) ArchiveImportWriter(op trace.Operation, store, deviceID s
 	}()
 
 	return pipeWriter, nil
+}
+
+// StatPath requests the portlayer to stat the filesystem resource at the
+// specified path in the container vc.
+func (a *ArchiveProxy) StatPath(op trace.Operation, store, deviceID string, filterSpec archive.FilterSpec) (*types.ContainerPathStat, error) {
+	defer trace.End(trace.Begin(deviceID))
+
+	if a.client == nil {
+		return nil, errors.NillPortlayerClientError("ArchiveProxy")
+	}
+
+	statPathParams := storage.
+		NewStatPathParamsWithContext(op).
+		WithStore(store).
+		WithDeviceID(deviceID)
+
+	spec, err := archive.EncodeFilterSpec(op, &filterSpec)
+	if err != nil {
+		op.Errorf(err.Error())
+		return nil, errors.InternalServerError(err.Error())
+	}
+	statPathParams = statPathParams.WithFilterSpec(spec)
+
+	statPathOk, err := a.client.Storage.StatPath(statPathParams)
+	if err != nil {
+		op.Errorf(err.Error())
+		return nil, err
+	}
+
+	stat := &types.ContainerPathStat{
+		Name:       statPathOk.Name,
+		Mode:       os.FileMode(statPathOk.Mode),
+		Size:       statPathOk.Size,
+		LinkTarget: statPathOk.LinkTarget,
+	}
+
+	var modTime time.Time
+	if err := modTime.GobDecode([]byte(statPathOk.ModTime)); err != nil {
+		op.Debugf("error getting mod time from statpath: %s", err.Error())
+	} else {
+		stat.Mtime = modTime
+	}
+
+	return stat, nil
 }
