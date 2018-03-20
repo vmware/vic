@@ -43,6 +43,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/google/uuid"
+	"github.com/vmware/govmomi/object"
 )
 
 type State int
@@ -810,17 +811,44 @@ func (c *Container) onEvent(op trace.Operation, newState State, e events.Event) 
 // get the containerVMs from infrastructure for this resource pool
 func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, error) {
 	defer trace.End(trace.Begin(""))
-	var rp mo.ResourcePool
+	var vms []mo.VirtualMachine
+	var err error
 
-	// popluate the vm property of the vch resource pool
-	if err := Config.ResourcePool.Properties(ctx, Config.ResourcePool.Reference(), []string{"vm"}, &rp); err != nil {
-		name := Config.ResourcePool.Name()
-		log.Errorf("List failed to get %s resource pool child vms: %s", name, err)
-		return nil, err
-	}
-	vms, err := populateVMAttributes(ctx, sess, rp.Vm)
-	if err != nil {
-		return nil, err
+	// Does the VCH have it's own folder?
+	if sess.VCHFolder.Reference() == sess.VMFolder.Reference() {
+		var rp mo.ResourcePool
+		// popluate the vm property of the vch resource pool
+		if err := Config.ResourcePool.Properties(ctx, Config.ResourcePool.Reference(), []string{"vm"}, &rp); err != nil {
+			name := Config.ResourcePool.Name()
+			log.Errorf("List failed to get %s resource pool child vms: %s", name, err)
+			return nil, err
+		}
+		vms, err = populateVMAttributes(ctx, sess, rp.Vm)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		var childVms []types.ManagedObjectReference
+
+		// vch has it's own folder. get the cvm's from here.
+		children, err := sess.VCHFolder.Children(ctx)
+		if err != nil {
+			log.Errorf("List failed to get the children of Folder %s: %s", sess.VCHFolder.InventoryPath, err)
+			return nil, err
+		}
+
+		for _, child := range children {
+			vmObj, ok := child.(*object.VirtualMachine)
+			if ok {
+				// check that we are not looking at the VCH.
+				childVms = append(childVms, vmObj.Reference())
+			}
+		}
+
+		vms, err = populateVMAttributes(ctx, sess, childVms)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return convertInfraContainers(ctx, sess, vms), nil
