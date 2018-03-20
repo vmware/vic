@@ -123,6 +123,9 @@ func (vm *VirtualMachine) FolderName(ctx context.Context) (string, error) {
 
 // Folder returns a reference to the parent folder that owns the vm
 func (vm *VirtualMachine) Folder(ctx context.Context) (*object.Folder, error) {
+	// NOTE: We must retrieve the folder by assembling the path. If the vm is in a vApp the inventory path will be the compute folder path of the vApp.
+	// right now this will likely not work with upgrade 1.1.1-1.2.1 vapp based deployments.
+
 	element, err := vm.Session.Finder.Element(ctx, vm.Reference())
 	if err != nil {
 		return nil, err
