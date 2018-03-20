@@ -306,7 +306,6 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	}
 
 	v.basics(op, input, conf)
-
 	v.target(op, input, conf)
 	v.credentials(op, input, conf)
 	v.compute(op, input, conf)
@@ -325,7 +324,7 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	v.CheckFirewall(op, conf)
 	v.CheckPersistNetworkBacking(op, false)
 	v.CheckLicense(op)
-	v.CheckDRS(op)
+	v.CheckDRS(op, input)
 
 	v.certificate(op, input, conf)
 	v.certificateAuthorities(op, input, conf)
