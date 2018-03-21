@@ -1,4 +1,4 @@
-Test 19-5 - ROBO vCenter Connectivity
+Test 19-1 - ROBO vCenter Connectivity
 =======
 
 # Purpose:
