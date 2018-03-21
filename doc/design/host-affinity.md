@@ -35,27 +35,25 @@ VIC, and it seems intractable for VIC to support such management without
 duplicating significant vSphere functionality. Similarly, it seems that VM-Host
 Affinity Rules should be managed directly in vSphere.
 
-Given this, it is also reasonable for the Administrator to create the DRS VM
-Group and supply its name (or an identifier) as a part of the VCH creation or
-configuration process.
+However, vSphere does not support creation of an empty DRS VM Group (although
+empty groups may exist as the result of removing all VMs from a group). To avoid
+a "chicken and egg" problem, it will be necessary to support creation of a DRS
+VM Group as a part of the VCH creation process.
+
+Eventually, we may wish to support re-use of an existing DRS VM Group or allow
+administrators to supply a name to be used when creating the group. However,
+this functionality is not required for the first version; we can automatically
+name the DRS VM Group based on the supplied name for the VCH.
 
 This design provides significant flexibility: we can support both "must" and
 "should" rules as well as both Affinity and Anti-Affinity rules with no added
 implementation effort (testing may be desirable). (This is insufficient to
 support VM-VM Affinity, as those rules do not operate on DRS VM Groups [3].)
 
-Because the administrator creates these vSphere entities, it is reasonable to
-expect them to manage the rest of their lifecycle. As such, deletion of these
-entities need not be tied to deletion of a VCH.
-
-**Note:** Creation of an empty DRS VM Group may not be supported. This is not
-          clear from the documentation [4]. One alternative would be to require
-          that the administrator create a VCH, configure DRS as desired, and
-          then supply the DRS VM Group as a part of a VCH configure operation.
-
-          If creation of an empty DRS VM Group is not supported, we should
-          create one automatically during the creation of each VCH. (Worth
-          considering for a future release regardless.)
+Because the administrator creates the DRS Host Group and VM-Host Affinity Rule,
+it is reasonable to expect them to manage the rest of their lifecycle. However,
+deletion of any automatically-created DRS VM Group should be handled as a part
+of deletion of the corresponding VCH.
 
 Impacted areas: VCH create, configure, and inspect (via CLI, API, and UI); documentation
 
@@ -93,14 +91,6 @@ Impacted areas: testing
 Decomposition
 =============
 
-## 0. Investigate empty DRS VM Groups
-
-The inability to create an empty DRS VM Group would have significant impact on
-the overall workflow and user experience; it would not be possible to have the
-administrator do all setup work prior to creating the VCH.
-
-We should investigate this early as it may affect the overall design/approach.
-
 
 ## 1. Prototype portlayer work
 
@@ -130,8 +120,10 @@ DRS VM Group has been specified.
 
 ## 3. Update vic-machine create
 
-This is essentially using a DRS VM Group value supplied by the user instead of
-the hard-coded value used to enable the portlayer work to proceed.
+This is essentially using a DRS VM Group based on the VCH name supplied by the
+user instead of the hard-coded value used to enable the portlayer work to
+proceed. It does not include allowing the user to specify the DRS VM Group,
+which is discussed below.
 
 This includes both tagging the VCH Endpoint VM itself during creation as well as
 persisting the DRS VM Group so that container VMs are tagged as well.
@@ -145,22 +137,46 @@ user has the necessary `Host.Inventory.EditCluster` privilege.
 This should include end-to-end testing of both the CLI and API, which will
 require additional investigation to establish a pattern for configuring the
 prerequisites (DRS Host Group, DRS VM Group, VM-Host Affinity Rule) from robot.
+(The govc utility supports the necessary operations.)
 
 
-## 4 Update vic-machine inspect
+## 4. Update vic-machine delete
+
+When a DRS VM Group is created as a part of VCH creation or configuration, it
+should be deleted when that VCH is deleted.
+
+We should not delete a DRS VM Group associated with a VCH if it was not created
+by VIC as a part of that VCH's creation or configuration.
+
+We should not delete a DRS VM Group if it contains unexpected VMs (i.e., if it
+contains any VMs other than the VCH Endpoint VM and the container VMs associated
+with that VCH).
+
+This should include end-to-end testing of both the CLI and API, including tests
+which ensure that we do not delete DRS VM Groups in the above cases.
+
+
+## 5. Update vic-machine inspect
 
 The inspect CLI (including inspect config) and API should be updated to return
 the configured DRS VM Group.
+
+This work should include returning the name of the configured DRS VM Group, even
+when that name is automatically determined.
 
 This should include end-to-end testing of both the CLI and API, to ensure that
 the correct value is returned when a group is configured and a sane response
 is returned when no group is configured.
 
 
-## 5. Update vic-machine configure
+## 6. Update vic-machine configure
 
 Apply the changes from vic-machine create to configure as well, including
-retroactively tagging the VCH Endpoint VM.
+retroactively associating or disassociating the VCH Endpoint VM and any existing
+container VMs. This includes creating or deleting the DRS VM Group (as would be
+done during VCH creation or VCH deletion) and does not include allowing the user
+to specify an existing DRS VM Group to use, or a name to be used when creating
+the group.
 
 This requires validation that the operations user has the necessary right when
 performing any configure which introduces a DRS VM Group.
@@ -168,13 +184,13 @@ performing any configure which introduces a DRS VM Group.
 There may be complexity around ensuring the atomicity of this operation [8].
 
 
-## 6. Update VCH Management UI
+## 7. Update VCH Management UI
 
-As a part the VCH Creation Wizard, users should be able to select a DRS VM Group
-to be supplied to the API.
+As a part the VCH Creation Wizard, users should be able to indicate that they
+wish for a DRS VM Group to be created and used by this VCH.
 
 
-## 7. Operations user grant
+## 8. Operations user grant
 
 The operations user "grant permissions" logic will need to be updated to include
 granting `Host.Inventory.EditCluster` on the VCH's cluster.
@@ -183,7 +199,7 @@ We should then leverage this grant functionality in some of the testing for the
 feature as a way of validating that it works as intended.
 
 
-## 8. Additional testing
+## 9. Additional testing
 
 We should implement an additional end-to-end test case to ensure that an old
 VCH, created with an operations user that did not have this permission, can be
@@ -191,7 +207,33 @@ upgraded to a version (i.e., one with the DRS VM Group functionality) and
 additional containers can be created without issue. 
 
 
-## 9. Documentation
+## 10. Detect and report a missing DRS VM Group
+
+`vicadmin` should detect when an expected DRS VM Group is missing and report
+an appropriate validation issue. This will help administrators understand what
+is broken if a DRS VM Group in use by a VCH is deleted out-of-band. 
+
+
+## 11. Allow users to supply a DRS VM Group to use (optional)
+
+This work builds on the above by allowing the user to specify the name of the
+DRS VM Group to use, possibly re-using an existing group, instead of simply
+creating a new group for each VCH with an automatically determined name.
+
+This will involve updating the CLI and API for VCH creation, inspection,
+configuration, and deletion.
+
+This will involve writing additional end-to-end test cases for each of these
+operations.
+
+
+## 12. Allow users to supply a DRS VM Group to use via the UI (optional)
+
+Once the API allows users to specify the name of the DRS VM Group to use, the
+UI could be updated to support this as well.
+
+
+## 13. Documentation
 
 Update documentation to reflect this work.
 
@@ -199,10 +241,8 @@ Update documentation to reflect this work.
 Open Questions
 ==============
 
-1. Is it possible to create an empty DRS VM Group?
-2. Does deleting a VM remove it from any `ClusterVmGroup`s it was a part of?
-3. Does unregistering a VM remove it from any `ClusterVmGroup`s it was a part of?
-4. Does govc expose the necessary commands to create/edit host/vm-group rules?
+1. Does deleting a VM remove it from any `ClusterVmGroup`s it was a part of?
+2. Does unregistering a VM remove it from any `ClusterVmGroup`s it was a part of?
 
 
 References 
