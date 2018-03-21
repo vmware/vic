@@ -189,7 +189,7 @@ func (d *Dispatcher) deleteVMFSFiles(m *object.DatastoreFileManager, ds *object.
 
 	for _, ext := range []string{"-delta.vmdk", "-flat.vmdk", "-sesparse.vmdk"} {
 		if strings.HasSuffix(dsPath, ext) {
-			// Skip delete of snapshot files, as Delete() will remove all snapshot files when deleting the vmdk
+			// Skip backing files, as Delete() call below will remove all related vmdk files via DeleteVirtualDisk
 			return nil
 		}
 	}
