@@ -1,7 +1,7 @@
-Group 19 - ROBO
+Group 19 - DRS-Disabled
 =======
 
-* [Test 19-1 - ROBO-vCenter-Connectivity](19-1-ROBO-Vcenter-Connectivity.md)
-* [Test 19-2 - ROBO-Container-Limit](19-2-ROBO-Container-Limit.md)
-* [Test 19-3 - ROBO-VM-Placement](19-3-ROBO-VM-Placement.md)
-* [Test 19-4 - ROBO-License-Features](19-4-ROBO-License-Features.md)
+* [Test 19-1 - DRS-Disabled-vCenter-Connectivity](19-1-DRS-Disabled-Vcenter-Connectivity.md)
+* [Test 19-2 - DRS-Disabled-Container-Limit](19-2-DRS-Disabled-Container-Limit.md)
+* [Test 19-3 - DRS-Disabled-VM-Placement](19-3-DRS-Disabled-VM-Placement.md)
+* [Test 19-4 - DRS-Disabled-License-Features](19-4-DRS-Disabled-License-Features.md)
