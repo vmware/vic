@@ -181,7 +181,7 @@ Run Secret SSHPASS command
     [Tags]  secret
     [Arguments]  ${user}  ${password}  ${cmd}
 
-    ${out}=  Start Process  sshpass -p ${password} ssh -o StrictHostKeyChecking\=no ${user}@%{NIMBUS_GW} ${cmd}  shell=True
+    ${out}=  Start Process  sshpass -p ${password} ssh -o StrictHostKeyChecking\=no -o ServerAliveInterval\=60 -o ServerAliveCountMax\=10 ${user}@%{NIMBUS_GW} ${cmd}  shell=True
     [Return]  ${out}
 
 Deploy Nimbus vCenter Server Async
