@@ -33,8 +33,20 @@ func (t *operations) Apply(endpoint *tether.NetworkEndpoint) error {
 func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) func() {
 	// if the session that's exiting is the primary session, stop the tether
 	return func() {
-		if session.ID == config.ID {
-			tthr.Stop()
+		pod := false
+		for _, s := range config.Sessions {
+			if s.ExecutionEnvironment != "" {
+				pod = true
+			}
+			if s.StopTime <= s.StartTime {
+				return
+			}
 		}
+		for _, s := range config.Execs {
+			if pod && s.StopTime <= s.StartTime {
+				return
+			}
+		}
+		tthr.Stop()
 	}
 }

@@ -235,7 +235,7 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 	defer trace.End(trace.Begin(fmt.Sprintf("Event Monitor received eventID(%s) for container(%s) - %s", event.ID, containerShortID, event.Event)))
 
 	vc := cache.ContainerCache().GetContainer(event.Ref)
-	if vc == nil {
+	if vc == nil && event.Event != plevents.ContainerCreated {
 		log.Warnf("Event Monitor received eventID(%s) but container(%s) not in cache", event.ID, containerShortID)
 		return
 	}
@@ -244,6 +244,8 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 	var attrs map[string]string
 
 	switch event.Event {
+	case plevents.ContainerCreated:
+		syncContainerCache()
 	case plevents.ContainerStarted:
 		attrs = make(map[string]string)
 
