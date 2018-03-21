@@ -82,7 +82,7 @@ func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d 
 	case *object.ClusterComputeResource:
 		d.ComputeResourcePath = r.InventoryPath
 	default:
-		fmt.Errorf("parent resource %s is not resource pool", mrp.Parent)
+		return fmt.Errorf("parent resource %s is not resource pool", mrp.Parent)
 	}
 
 	setVCHResources(op, parent, d)
