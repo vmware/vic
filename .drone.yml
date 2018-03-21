@@ -4,13 +4,13 @@ workspace:
   base: /go
   path: src/github.com/vmware/vic
 
-pipeline:
-
-  clone:
+clone:
+  git:
     image: plugins/git
     tags: true
     recursive: false
 
+pipeline:
   clone-pr:
     image: wdc-harbor-ci.eng.vmware.com/default-project/git-clone:1.0
     pull: true
