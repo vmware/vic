@@ -43,18 +43,18 @@ func (e *endpoint) Name() string {
 	return e.ep.Name
 }
 
-// Network returns the name of the network to which this endpoint is attached.
+// Network returns the name of the vicnetwork to which this endpoint is attached.
 func (e *endpoint) Network() string {
 	return e.ep.Scope
 }
 
 // Join joins the sandbox to the endpoint and populates into the sandbox
-// the network resources allocated for the endpoint.
+// the vicnetwork resources allocated for the endpoint.
 func (e *endpoint) Join(sandbox libnetwork.Sandbox, options ...libnetwork.EndpointOption) error {
 	return notImplementedError
 }
 
-// Leave detaches the network resources populated in the sandbox.
+// Leave detaches the vicnetwork resources populated in the sandbox.
 func (e *endpoint) Leave(sandbox libnetwork.Sandbox, options ...libnetwork.EndpointOption) error {
 	return notImplementedError
 }
@@ -69,7 +69,7 @@ func (e *endpoint) DriverInfo() (map[string]interface{}, error) {
 	return nil, notImplementedError
 }
 
-// Delete and detaches this endpoint from the network.
+// Delete and detaches this endpoint from the vicnetwork.
 func (e *endpoint) Delete(force bool) error {
 	return notImplementedError
 }
@@ -94,8 +94,8 @@ func (e *endpoint) GatewayIPv6() net.IP {
 	return nil
 }
 
-// StaticRoutes returns the list of static routes configured by the network
-// driver when the container joins a network
+// StaticRoutes returns the list of static routes configured by the vicnetwork
+// driver when the container joins a vicnetwork
 func (e *endpoint) StaticRoutes() []*types.StaticRoute {
 	return nil
 }

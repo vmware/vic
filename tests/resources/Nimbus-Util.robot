@@ -59,7 +59,7 @@ Deploy Nimbus ESXi Server
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
-    \   ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --lease=1 --nics 2 ${version}
+    \   ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --lease=0.25 --nics 2 ${version}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  To manage this VM use
     \   Exit For Loop If  ${status}
@@ -145,7 +145,7 @@ Deploy Nimbus vCenter Server
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
-    \   ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-vcvadeploy --lease=1 --vcvaBuild ${version} ${name}
+    \   ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-vcvadeploy --lease=0.25 --vcvaBuild ${version} ${name}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  Overall Status: Succeeded
     \   Exit For Loop If  ${status}
@@ -171,7 +171,7 @@ Deploy Nimbus ESXi Server Async
     [Tags]  secret
     [Arguments]  ${name}  ${version}=${ESX_VERSION}
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
-    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  '${NIMBUS_LOCATION} nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --lease=1 --nics 2 ${version}'
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  '${NIMBUS_LOCATION} nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --lease=0.25 --nics 2 ${version}'
     [Return]  ${out}
 
 Run Secret SSHPASS command
@@ -186,7 +186,7 @@ Deploy Nimbus vCenter Server Async
     [Arguments]  ${name}  ${version}=${VC_VERSION}
     Log To Console  \nDeploying Nimbus VC server: ${name}
 
-    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  '${NIMBUS_LOCATION} nimbus-vcvadeploy --lease=1 --vcvaBuild ${version} ${name}'
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  '${NIMBUS_LOCATION} nimbus-vcvadeploy --lease=0.25 --vcvaBuild ${version} ${name}'
     [Return]  ${out}
 
 Deploy Nimbus Testbed
@@ -195,7 +195,7 @@ Deploy Nimbus Testbed
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
-    \   ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-testbeddeploy --lease=1 ${testbed}
+    \   ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-testbeddeploy --lease 0.25 ${testbed}
     \   Log  ${out}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  "deployment_result"=>"PASS"
@@ -242,7 +242,7 @@ Create a VSAN Cluster
     [Timeout]    110 minutes
     Log To Console  \nStarting basic VSAN cluster deploy...
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --lease 1 --noStatsDump --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName ${name}
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --lease 0.25 --noStatsDump --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName ${name}
     Should Contain  ${out}  .vcva-${VC_VERSION}' is up. IP:
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
@@ -407,6 +407,7 @@ Deploy Nimbus NFS Datastore
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-nfsdeploy ${name} ${additional-args}
+    Log  ${out}
     # Make sure the deploy actually worked
     Should Contain  ${out}  To manage this VM use
     # Now grab the IP address and return the name and ip for later use
