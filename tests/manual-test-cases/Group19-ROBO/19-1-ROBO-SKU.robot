@@ -1,4 +1,4 @@
-# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,62 +13,56 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 5-19 - ROBO SKU
+Documentation  Test 19-1 - ROBO SKU
 Resource  ../../resources/Util.robot
-#Suite Setup  Wait Until Keyword Succeeds  10x  10m  ROBO SKU Setup
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  ROBO SKU Setup
 #Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***
 ROBO SKU Setup
     [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
-    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX1}  ${esx1}
-    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX2}  ${esx2}
-    ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX3}  ${esx3}
+    ${name}=  Evaluate  'vic-vsan-' + str(random.randint(1000,9999))  modules=random
+    Set Suite Variable  ${user}  %{NIMBUS_USER}
+    Log To Console  Deploying testbed
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --vcfvtBuildPath /dbc/pa-dbc1111/mhagen/ --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-vsan-simple-pxeBoot-vcva --runName ${name}
+    Should Contain  ${out}  "deployment_result"=>"PASS"
+    Log To Console  Retrieving IP for ${user}-${name}.vcva-${VC_VERSION}
+    ${vc-ip}=  Get IP  ${name}.vcva-${VC_VERSION}
+    Log To Console  ${user}-${name}.vcva-${VC_VERSION} IP: ${vc-ip}
 
-    ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${VC}  ${vc}
+    Set Suite Variable  @{list}  ${user}-${name}.vcva-${VC_VERSION}  ${user}-${name}.esx.0  ${user}-${name}.esx.1  ${user}-${name}.esx.2  ${user}-${name}.esx.3  ${user}-${name}.nfs.0  ${user}-${name}.iscsi.0
 
-    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
+    Log To Console  Set environment variables up for GOVC
+    Set Environment Variable  GOVC_URL  ${vc-ip}
+    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  GOVC_PASSWORD  Admin\!23
+    Set Environment Variable  GOVC_INSECURE  1
 
-    Log To Console  Create a datacenter on the VC
-    ${out}=  Run  govc datacenter.create ha-datacenter
+    Add Host To Distributed Switch  /vcqaDC/host/cls
+
+    Log To Console  Enable HA
+    ${out}=  Run  govc cluster.change -ha-enabled cls
     Should Be Empty  ${out}
 
-    Log To Console  Add ESX host to the VC
-    ${out}=  Run  govc host.add -hostname=${esx1-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc host.add -hostname=${esx2-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc host.add -hostname=${esx3-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-
-    Create A Distributed Switch  ha-datacenter
-
-    Create Three Distributed Port Groups  ha-datacenter
-
-    Add Host To Distributed Switch  ${esx1-ip}
-    Add Host To Distributed Switch  ${esx2-ip}
-    Add Host To Distributed Switch  ${esx3-ip}
-
-    Add Vsphere License  %{ROBO_LICENSE}
-
-    # Assign license to each of the ESX servers
-    Assign Vsphere License  %{ROBO_LICENSE}  ${esx1-ip}
-    Assign Vsphere License  %{ROBO_LICENSE}  ${esx2-ip}
-    Assign Vsphere License  %{ROBO_LICENSE}  ${esx3-ip}
-
-    Log To Console  Deploy VIC to the VC cluster
     Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
-    Set Environment Variable  TEST_RESOURCE  /ha-datacenter/host/${esx1-ip}/Resources
-    Set Environment Variable  TEST_TIMEOUT  30m
+    Remove Environment Variable  TEST_DATACENTER
+    Set Environment Variable  TEST_DATASTORE  vsanDatastore
+    Set Environment Variable  TEST_RESOURCE  cls
+    Set Environment Variable  TEST_TIMEOUT  15m
+
+    # TODO - add ROBO license(s) to the test suite
+#    Add Vsphere License  %{ROBO_LICENSE}
+#
+#    :FOR  ${IDX}  IN RANGE  0  4
+#    \   Log To Console  Getting IP for ${user}-${name}.esx.${IDX}
+#    \   ${esx-ip}=  Get IP  ${user}-${name}.esx.${IDX}
+#    \   Log To Console  Applying ROBO license to host ${esx-ip}
+#    \   Assign Vsphere License  %{ROBO_LICENSE}  ${esx-ip}
 
 *** Test Cases ***
 Test
