@@ -172,12 +172,14 @@ Test
     @{running}=  Create List
     :FOR  ${index}  IN RANGE  3
     \     ${rc}  ${c}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd busybox
+    \     Log  ${c}
     \     Should Be Equal As Integers  ${rc}  0
     \     Append To List  ${running}  ${c}
 
     @{stopped}=  Create List
     :FOR  ${index}  IN RANGE  3
     \     ${rc}  ${c}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox ls
+    \     Log  ${c}
     \     Should Be Equal As Integers  ${rc}  0
     \     Append To List  ${stopped}  ${c}
 

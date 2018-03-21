@@ -112,7 +112,7 @@ curl https://cdn.rawgit.com/tommarshall/git-good-commit/v0.6.1/hook.sh > .git/ho
 
 [dronevic]:https://ci-vic.vmware.com/vmware/vic
 [dronesrc]:https://github.com/drone/drone
-[dronecli]:http://readme.drone.io/0.5/install/cli/
+[dronecli]:http://docs.drone.io/cli-installation/
 [commithook]:https://github.com/tommarshall/git-good-commit
 
 ## Automated Testing
@@ -144,6 +144,10 @@ export DRONE_TOKEN=<Drone Token>
 export DRONE_SERVER=https://ci-vic.vmware.com
 
 drone build start vmware/vic <Build Number>
+```
+If you are not a member of `vmware` org in github, then your PR build may fail. In that case, request one of the existing members / reviewers to fork your failed build to skip membership checking.
+```shell
+drone build start --param SKIP_CHECK_MEMBERSHIP=true vmware/vic <Build Number>
 ```
 
 ### Testing locally
