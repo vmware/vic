@@ -44,6 +44,7 @@ import (
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/diag"
@@ -190,33 +191,28 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		}
 	}
 
-	//removes the vm from vsphere, but detaches the disks first
-	_, err = vm.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-		return vm.DeleteExceptDisks(ctx)
-	})
-	// We are getting ConcurrentAccess errors from DeleteExceptDisks - even though we don't set ChangeVersion in that path
-	// We are ignoring the error because in reality the operation finishes successfully.
-	ignore := false
+	// Only retry VM destroy on CurrentAccess error
+	err = retry.Do(func() error {
+		_, err := vm.DeleteExceptDisks(d.op)
+		return err
+	}, tasks.IsConcurrentAccessError)
+
 	if err != nil {
-		if f, ok := err.(types.HasFault); ok {
-			switch f.Fault().(type) {
-			case *types.ConcurrentAccess:
-				d.op.Warn("DeleteExceptDisks failed with ConcurrentAccess error. Ignoring it.")
-				ignore = true
-			}
-		}
-		if !ignore {
-			err = errors.Errorf("Failed to destroy VM %q: %s", vm.Reference(), err)
-			err2 := vm.Unregister(d.op)
-			if err2 != nil {
-				return errors.Errorf("%s then failed to unregister VM: %s", err, err2)
-			}
-			d.op.Infof("Unregistered VM to cleanup after failed destroy: %q", vm.Reference())
+		d.op.Warnf("Destroy VM %s failed with %s, unregister the VM instead", vm.Reference(), err)
+
+		// Only retry VM unregister on ConcurrentAccess error
+		err = retry.Do(func() error {
+			return vm.Unregister(d.op)
+		}, tasks.IsConcurrentAccessError)
+
+		if err != nil {
+			d.op.Errorf("Unregister the VM failed: %s", err)
+			return err
 		}
 	}
 
 	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
-		d.op.Warnf("Failed to remove datastore files for VM path %q: %s", folder, err)
+		d.op.Warnf("Failed to remove datastore files for VM %s with folder path %s: %s", vm.Reference(), folder, err)
 	}
 
 	return nil

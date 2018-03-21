@@ -332,7 +332,7 @@ $(vicadmin): $$(call godeps,cmd/vicadmin/*.go)
 
 $(archive): $$(call godeps,cmd/archive/*.go)
 	@echo building archive
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux CGO_ENABLED=0 $(TIME) $(GO) build $(RACE) -a -ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
@@ -488,7 +488,7 @@ distro: all
 mrrobot:
 	@rm -rf *.xml *.html *.log *.zip VCH-0-*
 
-clean:
+clean: cleandeps
 	@echo removing binaries
 	@rm -rf $(BIN)/*
 	@echo removing Go object files
@@ -520,3 +520,7 @@ clean:
 distclean: clean
 	@echo removing binaries
 	@rm -rf $(BIN)
+
+cleandeps:
+	@echo removing dependency cache
+	@rm -rf .godeps_cache

@@ -276,3 +276,12 @@ Get Hostd Memory Consumption
     Log to console  ${out}
     Close Connection
     [Return]  ${out}
+
+Get Public Network VLAN ID
+    ${noQuotes}=  Strip String  %{PUBLIC_NETWORK}  characters='"
+    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info --json | jq -r '.Portgroup[].Spec | select(.Name == "${noQuotes}") | .VlanId'
+    Return From Keyword If  '%{HOST_TYPE}' == 'ESXi'  ${vlan}
+
+    ${dvs}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc find -type DistributedVirtualSwitch | head -n1
+    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc dvs.portgroup.info -json -pg='${noQuotes}' ${dvs} | jq -r '.Port[0].Config.Setting.Vlan.VlanId'
+    Return From Keyword If  '%{HOST_TYPE}' == 'VC'  ${vlan}

@@ -384,6 +384,7 @@ func (v *Validator) ManagementNetAllowed(ctx context.Context, mgmtIP net.IPNet,
 		TargetIP: mgmtIP}
 }
 
+// CheckLicense checks license features on the Validator's target
 func (v *Validator) CheckLicense(ctx context.Context) {
 	op := trace.FromContext(ctx, "CheckLicense")
 
@@ -416,6 +417,7 @@ func (v *Validator) assignedLicenseHasFeature(la []types.LicenseAssignmentManage
 	return false
 }
 
+// checkAssignedLicenses checks for the features required for VIC Engine on vCenter
 func (v *Validator) checkAssignedLicenses(op trace.Operation) error {
 	var hosts []*object.HostSystem
 	var invalidLic []string
@@ -474,6 +476,7 @@ func (v *Validator) checkAssignedLicenses(op trace.Operation) error {
 	return nil
 }
 
+// checkLicense checks for the features required for VIC Engine on ESXi
 func (v *Validator) checkLicense(op trace.Operation) error {
 	var invalidLic []string
 	client := v.Session.Client.Client

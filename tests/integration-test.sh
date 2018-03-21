@@ -20,8 +20,17 @@ set +x
 
 dpkg -l > package.list
 
-
+set -x
 buildinfo=$(drone build info vmware/vic $DRONE_BUILD_NUMBER)
+prNumber=$(drone build info --format "{{ .Ref }}" vmware/vic $DRONE_BUILD_NUMBER | cut -f 3 -d'/')
+set +x
+prBody=$(curl https://api.github.com/repos/vmware/vic/pulls/$prNumber?access_token=$GITHUB_AUTOMATION_API_KEY | jq -r ".body")
+
+if (echo $prBody | grep -q "\[fast fail\]"); then
+    export FAST_FAILURE=1
+else
+    export FAST_FAILURE=0
+fi
 
 if [[ $DRONE_BRANCH == "master" || $DRONE_BRANCH == "releases/"* ]] && [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "push" ]]; then
     echo "Running full CI for $DRONE_BUILD_EVENT on $DRONE_BRANCH"
@@ -29,12 +38,12 @@ if [[ $DRONE_BRANCH == "master" || $DRONE_BRANCH == "releases/"* ]] && [[ $DRONE
 elif [[ $DRONE_BRANCH == *"refs/tags"* ]] && [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "tag" ]]; then
     echo "Running only Group11-Upgrade and 7-01-Regression for $DRONE_BUILD_EVENT on $DRONE_BRANCH"
     pybot --removekeywords TAG:secret --suite Group11-Upgrade --suite 7-01-Regression tests/test-cases
-elif grep -q "\[full ci\]" <(drone build info vmware/vic $DRONE_BUILD_NUMBER); then
+elif (echo $prBody | grep -q "\[full ci\]"); then
     echo "Running full CI as per commit message"
     pybot --removekeywords TAG:secret --exclude skip tests/test-cases
-elif (echo $buildinfo | grep -q "\[specific ci="); then
+elif (echo $prBody | grep -q "\[specific ci="); then
     echo "Running specific CI as per commit message"
-    buildtype=$(echo $buildinfo | grep "\[specific ci=")
+    buildtype=$(echo $prBody | grep "\[specific ci=")
     testsuite=$(echo $buildtype | awk -F"\[specific ci=" '{sub(/\].*/,"",$2);print $2}')
     pybot --removekeywords TAG:secret --suite $testsuite --suite 7-01-Regression tests/test-cases
 else
@@ -47,7 +56,7 @@ rc="$?"
 timestamp=$(date +%s)
 outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT".zip"
 
-zip -9 -j $outfile output.xml log.html report.html package.list *container-logs*.zip *.log /var/log/vic-machine-server/vic-machine-server.log
+zip -9 -j $outfile output.xml log.html report.html package.list *container-logs*.zip *.log /var/log/vic-machine-server/vic-machine-server.log *.debug
 
 # GC credentials
 keyfile="/root/vic-ci-logs.key"

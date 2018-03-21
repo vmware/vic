@@ -78,7 +78,7 @@ pipeline:
     # dont clone submodules
     recursive: false
   vic-integration-test-on-pr:
-    image: gcr.io/eminent-nation-87317/vic-integration-test:1.42
+    image: gcr.io/eminent-nation-87317/vic-integration-test:1.46
     pull: true
     environment:
       GITHUB_AUTOMATION_API_KEY: $GITHUB_TOKEN
@@ -99,4 +99,4 @@ pipeline:
       - $cmd ${tests:-tests/test-cases}
 CONFIG
 
-drone exec --privileged --local $tmpYml
+drone exec --local $tmpYml

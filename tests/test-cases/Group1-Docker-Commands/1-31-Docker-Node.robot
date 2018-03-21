@@ -28,7 +28,7 @@ Docker node demote
 Docker node ls
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} node ls
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support Docker Swarm
+    Should Contain  ${output}  Docker Swarm is not yet supported
 
 Docker node promote
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} node promote self
@@ -38,7 +38,7 @@ Docker node promote
 Docker node rm
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} node rm self
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support Docker Swarm
+    Should Contain  ${output}  Docker Swarm is not yet supported
 
 Docker node update
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} node update self
