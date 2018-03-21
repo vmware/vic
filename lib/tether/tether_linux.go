@@ -181,10 +181,22 @@ func (t *tether) triggerReaper() {
 }
 
 func findExecutable(file string, chroot string) error {
+	log.Infof("*** Stating file [%s], chroot [%s]", file, chroot)
 	d, err := os.Stat(file)
 	if err != nil {
-		return err
+		log.Infof("*** Stating file [%s] failed with error - %s", file, err.Error())
+
+		if chroot != "" {
+			file = fmt.Sprintf("%s/%s", chroot, file)
+		}
+		log.Infof("*** Stating file [%s], chroot [%s]", file, chroot)
+		d, err = os.Stat(file)
+		if err != nil {
+			log.Infof("*** Stating file [%s] failed with error - %s", file, err.Error())
+			return err
+		}
 	}
+	log.Infof("*** Stating file [%s], chroot [%s] succeeded", file, chroot)
 	if m := d.Mode(); !m.IsDir() && m&0111 != 0 {
 		return nil
 	}
