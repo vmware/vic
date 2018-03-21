@@ -319,7 +319,7 @@ Install VIC Appliance To Test Server With Current Environment Variables
     #   "client" IP: "waiting for IP"
     #   "management" IP: "waiting for IP"
     #   "bridge" IP: "waiting for IP"
-    ${noIP}=  Set Variable If  '"waiting for IP"' in ${output}  True  False
+    ${noIP}=  Set Variable If  '"waiting for IP"' in '''${output}'''  True  False
     Run Keyword If  ${noIP}  Log             Possible DHCP failure
     Run Keyword If  ${noIP}  Log To Console  Possible DHCP failure
 
