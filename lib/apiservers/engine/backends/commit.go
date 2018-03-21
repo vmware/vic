@@ -45,6 +45,7 @@ import (
 	"github.com/docker/docker/reference"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
+	"github.com/vmware/vic/lib/apiservers/engine/errors"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/imagec"
@@ -55,26 +56,26 @@ import (
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository.
-func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imageID string, err error) {
+func (i *ImageBackend) Commit(name string, config *backend.ContainerCommitConfig) (imageID string, err error) {
 	defer trace.End(trace.Begin(name))
 	op := trace.NewOperation(context.Background(), "Commit")
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
-		return "", NotFoundError(name)
+		return "", errors.NotFoundError(name)
 	}
 
 	// get container info
 	c, err := containerEngine.ContainerInspect(name, false, "")
 	if err != nil {
-		return "", InternalServerError(err.Error())
+		return "", errors.InternalServerError(err.Error())
 	}
 	container, ok := c.(*types.ContainerJSON)
 	if !ok {
-		return "", InternalServerError(fmt.Sprintf("Container type assertion failed"))
+		return "", errors.InternalServerError(fmt.Sprintf("Container type assertion failed"))
 	}
 	if container.State.Running || container.State.Restarting {
-		return "", ConflictError(fmt.Sprintf("%s does not yet support commit of a running container", ProductName()))
+		return "", errors.ConflictError(fmt.Sprintf("%s does not yet support commit of a running container", ProductName()))
 	}
 	// TODO: pause container after container.Pause is implemented
 	newConfig, err := dockerfile.BuildFromConfig(config.Config, config.Changes)
@@ -92,7 +93,7 @@ func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imag
 		return "", err
 	}
 
-	rc, err := containerEngine.containerProxy.GetContainerChanges(op, vc, true)
+	rc, err := containerEngine.GetContainerChanges(op, vc, true)
 	if err != nil {
 		return "", fmt.Errorf("Unable to initialize export stream reader for container %s", name)
 	}
@@ -122,7 +123,7 @@ func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imag
 	for pl := lm.Parent; pl != constants.ScratchLayerID; pl = lm.Parent {
 		// populate manifest layer with existing cached data
 		if lm, err = imagec.LayerCache().Get(pl); err != nil {
-			return "", InternalServerError(fmt.Sprintf("Failed to get parent image layer %s: %s", pl, err))
+			return "", errors.InternalServerError(fmt.Sprintf("Failed to get parent image layer %s: %s", pl, err))
 		}
 		layers = append(layers, lm)
 	}
@@ -206,7 +207,7 @@ func setLayerConfig(lm *imagec.ImageWithMeta, container *types.ContainerJSON, co
 	// the system (if run standalone)
 	host, err := sys.UUID()
 	if err != nil {
-		return InternalServerError(fmt.Sprintf("Failed to get host name: %s", err))
+		return errors.InternalServerError(fmt.Sprintf("Failed to get host name: %s", err))
 	}
 
 	if host != "" {
@@ -231,7 +232,7 @@ func setLayerConfig(lm *imagec.ImageWithMeta, container *types.ContainerJSON, co
 
 	m, err := json.Marshal(meta)
 	if err != nil {
-		return InternalServerError(fmt.Sprintf("Failed to marshal image layer config: %s", err))
+		return errors.InternalServerError(fmt.Sprintf("Failed to marshal image layer config: %s", err))
 	}
 	// layer metadata
 	lm.Meta = string(m)
