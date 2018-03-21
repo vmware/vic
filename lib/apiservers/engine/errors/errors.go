@@ -43,6 +43,14 @@ func (e InvalidBindError) Error() string {
 	return fmt.Sprintf("volume bind input is invalid: -v %s", e.Volume)
 }
 
+type ServerNotReadyError struct {
+	Name string
+}
+
+func (e ServerNotReadyError) Error() string {
+	return fmt.Sprintf("Server %s not ready", e.Name)
+}
+
 func APINotSupportedMsg(product, method string) error {
 	return fmt.Errorf("%s does not yet implement %s", product, method)
 }
@@ -171,6 +179,12 @@ func IsResourceInUse(err error) bool {
 	}
 
 	return false
+}
+
+func IsServerNotReady(err error) bool {
+	_, ok := err.(ServerNotReadyError)
+
+	return ok
 }
 
 type DetachError struct{}

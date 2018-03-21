@@ -16,6 +16,7 @@ package tether
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -44,6 +45,8 @@ import (
 	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 const (
@@ -62,6 +65,11 @@ var (
 	// that are mounted over the system ones.
 	BindSys = system.NewWithRoot("/.tether")
 	once    sync.Once
+)
+
+const (
+	use_runc  = true
+	runc_path = "/bin/runc"
 )
 
 type tether struct {
@@ -291,6 +299,7 @@ func (t *tether) setMounts() error {
 	pathIndex := make(map[string]string, 0)
 	mounts := make([]string, 0, len(t.config.Mounts))
 	for k, v := range t.config.Mounts {
+		log.Infof("** mount = %#v", v)
 		mounts = append(mounts, v.Path)
 		pathIndex[v.Path] = k
 	}
@@ -773,7 +782,7 @@ func (t *tether) launch(session *SessionConfig) error {
 		session.Cmd.SysProcAttr = user
 	}
 
-	chroot := ""
+	rootfs := ""
 	if session.ExecutionEnvironment != "" {
 		// session is supposed to run in the specific filesystem environment
 		// HACK: for now assume that the filesystem is mounted under /mnt/images/label, with label truncated to 15
@@ -781,12 +790,16 @@ func (t *tether) launch(session *SessionConfig) error {
 		if len(label) > 15 {
 			label = label[:15]
 		}
-		chroot = fmt.Sprintf("/mnt/images/%s", label)
+		rootfs = fmt.Sprintf("/mnt/images/%s/rootfs", label)
 
-		log.Infof("Configuring session to run in chroot at %s", chroot)
+		log.Infof("Configuring session to run in rootfs at %s", rootfs)
 		log.Debugf("Updating %+v for chroot", session.Cmd.SysProcAttr)
 
-		session.Cmd.SysProcAttr = chrootSysProcAttr(session.Cmd.SysProcAttr, chroot)
+		if use_runc {
+			prepareOCI(session, rootfs)
+		} else {
+			session.Cmd.SysProcAttr = chrootSysProcAttr(session.Cmd.SysProcAttr, rootfs)
+		}
 	}
 
 	if session.Diagnostics.ResurrectionCount > 0 {
@@ -807,7 +820,7 @@ func (t *tether) launch(session *SessionConfig) error {
 	// Set StopTime to its default value
 	session.StopTime = 0
 
-	resolved, err := lookPath(session.Cmd.Path, session.Cmd.Env, session.Cmd.Dir, chroot)
+	resolved, err := lookPath(session.Cmd.Path, session.Cmd.Env, session.Cmd.Dir, rootfs)
 	if err != nil {
 		log.Errorf("Path lookup failed for %s: %s", session.Cmd.Path, err)
 		session.Started = err.Error()
@@ -880,6 +893,71 @@ func (t *tether) launch(session *SessionConfig) error {
 		log.Errorf("Unable to write PID file for %s: %s", cmdname, err)
 	}
 	log.Debugf("Launched command with pid %d", pid)
+
+	return nil
+}
+
+// prepareOCI creates a config.json for the image.
+func prepareOCI(session *SessionConfig, rootfs string) error {
+	// Use runc to create a default spec
+	cmdRunc := exec.Command(runc_path, "spec")
+	cmdRunc.Dir = path.Dir(rootfs)
+
+	err := cmdRunc.Run()
+	if err != nil {
+		log.Errorf("Generating base OCI config file failed: %s", err.Error())
+		return err
+	}
+
+	// Load the spec
+	cfgFile := path.Join(cmdRunc.Dir, "config.json")
+	configBytes, err := ioutil.ReadFile(cfgFile)
+	if err != nil {
+		log.Errorf("Reading OCI config file failed: %s", err.Error())
+		return err
+	}
+
+	var configSpec specs.Spec
+	err = json.Unmarshal(configBytes, &configSpec)
+	if err != nil {
+		log.Errorf("Failed to unmarshal OCI config file: %s", err.Error())
+		return err
+	}
+
+	// Modify the spec
+	if configSpec.Root == nil {
+		configSpec.Root = &specs.Root{}
+	}
+	//TODO:  Remove false default.  This is here only for debugging purposes.
+	configSpec.Root.Readonly = false
+	if configSpec.Process == nil {
+		configSpec.Process = &specs.Process{}
+	}
+
+	configSpec.Process.Args = session.Cmd.Args
+
+	// Save the spec out to file
+	configBytes, err = json.Marshal(configSpec)
+	if err != nil {
+		log.Errorf("Failed to marshal OCI config file: %s", err.Error())
+		return err
+	}
+
+	err = ioutil.WriteFile(cfgFile, configBytes, 0644)
+	if err != nil {
+		log.Errorf("Failed to write out updated OCI config file: %s", err.Error())
+		return err
+	}
+
+	log.Infof("Updated OCI spec with process = %#v", *configSpec.Process)
+
+	// Finally, update the session to call runc
+	session.Cmd.Path = runc_path
+	session.Cmd.Args = append(session.Cmd.Args, "run")
+	session.Cmd.Args = append(session.Cmd.Args, "--no-pivot")
+	// Use session.ID as container name
+	session.Cmd.Args = append(session.Cmd.Args, session.ID)
+	session.Cmd.Dir = path.Dir(rootfs)
 
 	return nil
 }
