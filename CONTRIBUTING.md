@@ -112,7 +112,7 @@ curl https://cdn.rawgit.com/tommarshall/git-good-commit/v0.6.1/hook.sh > .git/ho
 
 [dronevic]:https://ci-vic.vmware.com/vmware/vic
 [dronesrc]:https://github.com/drone/drone
-[dronecli]:http://readme.drone.io/0.5/install/cli/
+[dronecli]:http://docs.drone.io/cli-installation/
 [commithook]:https://github.com/tommarshall/git-good-commit
 
 ## Automated Testing
