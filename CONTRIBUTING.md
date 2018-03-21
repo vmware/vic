@@ -145,6 +145,10 @@ export DRONE_SERVER=https://ci-vic.vmware.com
 
 drone build start vmware/vic <Build Number>
 ```
+If you are not a member of `vmware` org in github, then your PR build may fail. In that case, request one of the existing members / reviewers to fork your failed build to skip membership checking.
+```shell
+drone build start --param SKIP_CHECK_MEMBERSHIP=true vmware/vic <Build Number>
+```
 
 ### Testing locally
 
