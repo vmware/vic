@@ -101,11 +101,7 @@ func TestDeleteExceptDisk(t *testing.T) {
 	diskName := fmt.Sprintf("%s/%s.vmdk", folder, folder)
 
 	// Delete the VM but not it's disk
-	task, err := vm.DeleteExceptDisks(ctx)
-	if err != nil {
-		t.Fatalf("ERROR: %s", err)
-	}
-	_, err = task.WaitForResult(ctx, nil)
+	_, err = vm.DeleteExceptDisks(ctx)
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}
@@ -119,7 +115,7 @@ func TestDeleteExceptDisk(t *testing.T) {
 	// clean up
 	dm := object.NewVirtualDiskManager(session.Client.Client)
 
-	task, err = dm.DeleteVirtualDisk(context.TODO(), diskName, nil)
+	task, err := dm.DeleteVirtualDisk(context.TODO(), diskName, nil)
 	if err != nil {
 		t.Fatalf("Unable to locate orphan vmdk: %s", err)
 	}
