@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
@@ -43,7 +44,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/google/uuid"
-	"github.com/vmware/govmomi/object"
 )
 
 type State int
@@ -808,7 +808,7 @@ func (c *Container) onEvent(op trace.Operation, newState State, e events.Event) 
 	}
 }
 
-// get the containerVMs from infrastructure for this resource pool
+// get the containerVMs from infrastructure for this resource pool or the VCH Folder
 func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, error) {
 	defer trace.End(trace.Begin(""))
 	var vms []mo.VirtualMachine
@@ -840,7 +840,6 @@ func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, 
 		for _, child := range children {
 			vmObj, ok := child.(*object.VirtualMachine)
 			if ok {
-				// check that we are not looking at the VCH.
 				childVms = append(childVms, vmObj.Reference())
 			}
 		}
