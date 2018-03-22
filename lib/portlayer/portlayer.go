@@ -87,7 +87,7 @@ func Init(ctx context.Context, sess *session.Session) error {
 		return err
 	}
 
-	if err := exec.Init(ctx, sess, source, sink); err != nil {
+	if err := exec.Init(ctx, sess, source, sink, vchvm.Reference()); err != nil {
 		return err
 	}
 

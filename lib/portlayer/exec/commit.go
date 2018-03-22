@@ -56,6 +56,7 @@ func Commit(op trace.Operation, sess *session.Session, h *Handle, waitTime *int3
 
 		var res *types.TaskInfo
 		var err error
+
 		if sess.IsVC() && Config.VirtualApp.ResourcePool != nil {
 			// Create the vm
 			res, err = tasks.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
@@ -72,11 +73,51 @@ func Commit(op trace.Operation, sess *session.Session, h *Handle, waitTime *int3
 			op.Errorf("An error occurred while waiting for a creation operation to complete. Spec was %+v", *h.Spec.Spec())
 			return err
 		}
-
 		h.vm = vm.NewVirtualMachine(op, sess, res.Result.(types.ManagedObjectReference))
+
 		h.vm.DisableDestroy(op)
 		c = newContainer(&h.containerBase)
 		Containers.Put(c)
+
+		if sess.IsVC() {
+			affinity := func(ctx context.Context) (tasks.Task, error) {
+				op2 := trace.FromContext(ctx, "vm group membership")
+
+				containers := Containers.References()
+
+				group := &types.ClusterVmGroup{
+					ClusterGroupInfo: types.ClusterGroupInfo{
+						Name: Config.VMGroupName,
+					},
+					Vm: append(containers, Config.SelfReference),
+				}
+
+				spec := &types.ClusterConfigSpecEx{
+					GroupSpec: []types.ClusterGroupSpec{
+						types.ClusterGroupSpec{
+							ArrayUpdateSpec: types.ArrayUpdateSpec{
+								Operation: types.ArrayUpdateOperationEdit,
+							},
+							Info: group,
+						},
+					},
+				}
+
+				op.Debugf("Attempting to update vm group: %+v", group)
+				return Config.Cluster.Reconfigure(op2, spec, true)
+			}
+
+			// TODO: change tasks package so InvalidArgument does not trigger a retry - or allow for more specific filtering
+			// if it turns out that specifying a deleted VM triggers this. Basically we do not want to end in a loop if the group doesn't
+			// exist - it's not something that's going to fix itself.
+			res, err = tasks.WaitForResult(op, affinity)
+			if err != nil {
+				op.Errorf("Failed to add VM to VMgroup: %s", err)
+				return err
+			}
+			op.Debugf("VM to group result: %+v", res)
+		}
+
 		// inform of creation irrespective of remaining operations
 		publishContainerEvent(op, c.ExecConfig.ID, time.Now().UTC(), events.ContainerCreated)
 
