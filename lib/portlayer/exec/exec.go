@@ -25,13 +25,17 @@ import (
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/types"
 
 	"github.com/vmware/vic/lib/portlayer/event"
 	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
 	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
 var (
@@ -41,7 +45,12 @@ var (
 	}
 )
 
-func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSource, _ extraconfig.DataSink) error {
+// Init is the main initializaton function for the exec component.
+// sess - active session object used for vmomi access
+// source - source from which to deserialize component configuration
+// sink - unused at this time but provided for symmetry with source
+// self - a reference to the VM in which this logic is running
+func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSource, _ extraconfig.DataSink, self types.ManagedObjectReference) error {
 	log.Info("Beginning initialization of portlayer exec component")
 	initializer.once.Do(func() {
 		var err error
@@ -76,10 +85,52 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			Config.ResourcePool = o.ResourcePool
 		case *object.ResourcePool:
 			Config.ResourcePool = o
+			// TODO: need to check vmgroup name constraints vs resource pool constraints
+			Config.VMGroupName = o.Name()
+			rp := compute.NewResourcePool(ctx, sess, cr)
+			Config.Cluster, err = rp.GetCluster(ctx)
+			if err != nil {
+				err = fmt.Errorf("could not get cluster from resource pool: %s", err)
+				log.Error(err)
+				return
+			}
+
 		default:
 			err = fmt.Errorf("could not get resource pool or virtual app from reference %q: object type is wrong", cr.String())
 			log.Error(err)
 			return
+		}
+
+		// TODO: see if we can find a different way of supplying this element. While in product it's a legitmate assumption
+		// for this code to run in a VM that's locatable in the infrastructure it may make testing more awkward.
+		// Alternatively, if committing to only testing via vcsim then we need a vcsim mechanism for "guest.GetSelf" so that
+		// we can pretend that the code runs in a VM in the simulated infra.
+		//
+		// stash this aside for future use in vm group manipulation
+		Config.SelfReference = self
+
+		// create the VM group for DRS rule use
+		var clusterConfig mo.ClusterComputeResource
+		vmGroupOpType := types.ArrayUpdateOperationAdd
+
+		err = Config.Cluster.Properties(ctx, Config.Cluster.Reference(), []string{"configurationEx"}, &clusterConfig)
+		if err != nil {
+			log.Errorf("Unable to obtain cluster config: %s", err)
+			return
+		}
+
+		clusterConfigEx := clusterConfig.ConfigurationEx.(*types.ClusterConfigInfoEx)
+
+		for i := range clusterConfigEx.Group {
+			info := clusterConfigEx.Group[i].GetClusterGroupInfo()
+			if info.Name != Config.VMGroupName {
+				continue
+			}
+
+			if _, ok := clusterConfigEx.Group[i].(*types.ClusterVmGroup); ok {
+				vmGroupOpType = types.ArrayUpdateOperationEdit
+				break
+			}
 		}
 
 		// we want to monitor the cluster, so create a vSphere Event Collector
@@ -129,6 +180,31 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			log.Errorf("Error encountered during container cache sync during init process: %s", err)
 			return
 		}
+
+		log.Info("Updating VM group membership for existing VCH members")
+		spec := &types.ClusterConfigSpecEx{
+			GroupSpec: []types.ClusterGroupSpec{
+				types.ClusterGroupSpec{
+					ArrayUpdateSpec: types.ArrayUpdateSpec{
+						Operation: vmGroupOpType,
+					},
+					Info: &types.ClusterVmGroup{
+						ClusterGroupInfo: types.ClusterGroupInfo{
+							Name: Config.VMGroupName,
+						},
+						Vm: append(Containers.References(), Config.SelfReference),
+					},
+				},
+			},
+		}
+
+		res, err := tasks.WaitForResult(ctx, func(op context.Context) (tasks.Task, error) {
+			log.Debugf("Attempting to add existing container VMs to group")
+			return Config.Cluster.Reconfigure(op, spec, true)
+		})
+
+		log.Debugf("Result of adding VM to group: %+v", res)
+
 	})
 
 	return initializer.err
