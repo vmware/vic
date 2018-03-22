@@ -1,4 +1,4 @@
-Test 19-4 - ROBO License Features
+Test 19-4 - DRS Disabled License Features
 =======
 
 # Purpose:
