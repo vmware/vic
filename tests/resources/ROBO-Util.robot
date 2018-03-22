@@ -13,10 +13,7 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 19-1 - ROBO SKU
-Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  ROBO SKU Setup
-#Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Documentation  This resource defines keywords for standing up testbeds to be used by ROBO test suites
 
 *** Keywords ***
 ROBO SKU Setup
@@ -25,6 +22,7 @@ ROBO SKU Setup
     ${name}=  Evaluate  'vic-vsan-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${user}  %{NIMBUS_USER}
     Log To Console  Deploying testbed
+    # TODO(jzt): we need to use a custom ELM + vSAN testbed instead of vSAN simple
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --vcfvtBuildPath /dbc/pa-dbc1111/mhagen/ --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-vsan-simple-pxeBoot-vcva --runName ${name}
     Should Contain  ${out}  "deployment_result"=>"PASS"
     Log To Console  Retrieving IP for ${user}-${name}.vcva-${VC_VERSION}
@@ -63,10 +61,3 @@ ROBO SKU Setup
 #    \   ${esx-ip}=  Get IP  ${user}-${name}.esx.${IDX}
 #    \   Log To Console  Applying ROBO license to host ${esx-ip}
 #    \   Assign Vsphere License  %{ROBO_LICENSE}  ${esx-ip}
-
-*** Test Cases ***
-Test
-    Log To Console  VIC does not support ROBO SKU yet, waiting on a valid license with serial support for this to work
-    #Log To Console  \nStarting test...
-    #Install VIC Appliance To Test Server
-    #Run Regression Tests
