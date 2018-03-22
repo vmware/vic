@@ -18,6 +18,7 @@ import (
 	"net/url"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/event"
@@ -37,6 +38,16 @@ type Configuration struct {
 
 	// Resource pool is the working version of the compute resource config
 	ResourcePool *object.ResourcePool
+
+	// Cluster is the working reference to the cluster the VCH is present in
+	Cluster *object.ComputeResource
+
+	// VMGroupName is the name of the group all cVMs belong to for this VCH
+	VMGroupName string
+
+	// SelfReference is a reference to the endpointVM, added for VM group membership
+	SelfReference types.ManagedObjectReference
+
 	// Parent resource will be a VirtualApp on VC
 	VirtualApp *object.VirtualApp
 
