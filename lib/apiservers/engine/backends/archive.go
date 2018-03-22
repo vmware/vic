@@ -32,6 +32,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
+	"github.com/vmware/vic/lib/apiservers/engine/errors"
 	"github.com/vmware/vic/lib/apiservers/engine/proxy"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	vicarchive "github.com/vmware/vic/lib/archive"
@@ -45,14 +46,14 @@ import (
 // ContainerArchivePath creates an archive of the filesystem resource at the
 // specified path in the container identified by the given name. Returns a
 // tar archive of the resource and whether it was a directory or a single file.
-func (c *Container) ContainerArchivePath(name string, path string) (io.ReadCloser, *types.ContainerPathStat, error) {
+func (c *ContainerBackend) ContainerArchivePath(name string, path string) (io.ReadCloser, *types.ContainerPathStat, error) {
 	defer trace.End(trace.Begin(name))
 	op := trace.NewOperation(context.Background(), "ContainerArchivePath: %s", name)
 
 	path = "/" + strings.TrimPrefix(path, "/")
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
-		return nil, nil, NotFoundError(name)
+		return nil, nil, errors.NotFoundError(name)
 	}
 
 	stat, err := c.ContainerStatPath(name, path)
@@ -62,17 +63,17 @@ func (c *Container) ContainerArchivePath(name string, path string) (io.ReadClose
 
 	reader, err := c.exportFromContainer(op, vc, path)
 	if err != nil {
-		if IsResourceInUse(err) {
+		if errors.IsResourceInUse(err) {
 			err = fmt.Errorf("ContainerArchivePath failed, resource in use: %s", err.Error())
 		}
-		return nil, nil, InternalServerError(err.Error())
+		return nil, nil, errors.InternalServerError(err.Error())
 	}
 
 	return reader, stat, nil
 }
 
-func (c *Container) exportFromContainer(op trace.Operation, vc *viccontainer.VicContainer, path string) (io.ReadCloser, error) {
-	mounts := mountsFromContainer(vc)
+func (c *ContainerBackend) exportFromContainer(op trace.Operation, vc *viccontainer.VicContainer, path string) (io.ReadCloser, error) {
+	mounts := proxy.MountsFromContainer(vc)
 	mounts = append(mounts, types.MountPoint{Destination: "/"})
 	readerMap := NewArchiveStreamReaderMap(op, mounts, path)
 
@@ -100,14 +101,14 @@ func (c *Container) exportFromContainer(op trace.Operation, vc *viccontainer.Vic
 
 // ContainerCopy performs a deprecated operation of archiving the resource at
 // the specified path in the container identified by the given name.
-func (c *Container) ContainerCopy(name string, res string) (io.ReadCloser, error) {
-	return nil, fmt.Errorf("%s does not yet implement ContainerCopy", ProductName())
+func (c *ContainerBackend) ContainerCopy(name string, res string) (io.ReadCloser, error) {
+	return nil, errors.APINotSupportedMsg(ProductName(), "ContainerCopy")
 }
 
 // ContainerExport writes the contents of the container to the given
 // writer. An error is returned if the container cannot be found.
-func (c *Container) ContainerExport(name string, out io.Writer) error {
-	return fmt.Errorf("%s does not yet implement ContainerExport", ProductName())
+func (c *ContainerBackend) ContainerExport(name string, out io.Writer) error {
+	return errors.APINotSupportedMsg(ProductName(), "ContainerExport")
 }
 
 // ContainerExtractToDir extracts the given archive to the specified location
@@ -116,7 +117,7 @@ func (c *Container) ContainerExport(name string, out io.Writer) error {
 // be ErrExtractPointNotDirectory. If noOverwriteDirNonDir is true then it will
 // be an error if unpacking the given content would cause an existing directory
 // to be replaced with a non-directory and vice versa.
-func (c *Container) ContainerExtractToDir(name, path string, noOverwriteDirNonDir bool, content io.Reader) error {
+func (c *ContainerBackend) ContainerExtractToDir(name, path string, noOverwriteDirNonDir bool, content io.Reader) error {
 	defer trace.End(trace.Begin(name))
 	op := trace.NewOperation(context.Background(), "ContainerExtractToDir: %s", name)
 
@@ -124,11 +125,11 @@ func (c *Container) ContainerExtractToDir(name, path string, noOverwriteDirNonDi
 
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
-		return NotFoundError(name)
+		return errors.NotFoundError(name)
 	}
 
 	err := c.importToContainer(op, vc, path, content)
-	if err != nil && IsResourceInUse(err) {
+	if err != nil && errors.IsResourceInUse(err) {
 		op.Errorf("ContainerExtractToDir failed, resource in use: %s", err.Error())
 
 		err = fmt.Errorf("Resource in use")
@@ -137,15 +138,15 @@ func (c *Container) ContainerExtractToDir(name, path string, noOverwriteDirNonDi
 	return err
 }
 
-func (c *Container) importToContainer(op trace.Operation, vc *viccontainer.VicContainer, target string, content io.Reader) (err error) {
+func (c *ContainerBackend) importToContainer(op trace.Operation, vc *viccontainer.VicContainer, target string, content io.Reader) (err error) {
 	rawReader, err := archive.DecompressStream(content)
 	if err != nil {
 		op.Errorf("Input tar stream to ContainerExtractToDir not recognized: %s", err.Error())
-		return StreamFormatNotRecognized()
+		return errors.StreamFormatNotRecognized()
 	}
 
 	tarReader := tar.NewReader(rawReader)
-	mounts := mountsFromContainer(vc)
+	mounts := proxy.MountsFromContainer(vc)
 	mounts = append(mounts, types.MountPoint{Destination: "/"})
 	writerMap := NewArchiveStreamWriterMap(op, mounts, target)
 	defer func() {
@@ -193,7 +194,7 @@ func (c *Container) importToContainer(op trace.Operation, vc *viccontainer.VicCo
 
 // ContainerStatPath stats the filesystem resource at the specified path in the
 // container identified by the given name.
-func (c *Container) ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error) {
+func (c *ContainerBackend) ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error) {
 	defer trace.End(trace.Begin(name))
 	op := trace.NewOperation(context.Background(), "ContainerStatPath: %s", name)
 
@@ -201,7 +202,7 @@ func (c *Container) ContainerStatPath(name string, path string) (stat *types.Con
 
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
-		return nil, NotFoundError(name)
+		return nil, errors.NotFoundError(name)
 	}
 
 	// trim / and . off from path and then append / to ensure the format is correct
@@ -210,7 +211,7 @@ func (c *Container) ContainerStatPath(name string, path string) (stat *types.Con
 		path = "/" + path
 	}
 
-	mounts := mountsFromContainer(vc)
+	mounts := proxy.MountsFromContainer(vc)
 	mounts = append(mounts, types.MountPoint{Destination: "/"})
 
 	// handle the special case of targeting a volume mount point before it exists.
@@ -235,16 +236,16 @@ func (c *Container) ContainerStatPath(name string, path string) (stat *types.Con
 		store = constants.VolumeStoreName
 	}
 
-	stat, err = c.containerProxy.StatPath(op, store, deviceID, fs)
+	stat, err = archiveProxy.StatPath(op, store, deviceID, fs)
 	if err != nil {
 		op.Errorf("error getting statpath: %s", err.Error())
 		switch err := err.(type) {
 		case *storage.StatPathNotFound:
-			return nil, ResourceNotFoundError(vc.Name, "file or directory")
+			return nil, errors.ContainerResourceNotFoundError(vc.Name, "file or directory")
 		case *storage.StatPathUnprocessableEntity:
-			return nil, InternalServerError("failed to process given path")
+			return nil, errors.InternalServerError("failed to process given path")
 		default:
-			return nil, InternalServerError(err.Error())
+			return nil, errors.InternalServerError(err.Error())
 		}
 	}
 
