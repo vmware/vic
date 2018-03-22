@@ -21,9 +21,9 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Test Cases ***
 Verify Unable To Verify
     ${out}=  Run  wget --tries=3 --connect-timeout=10 %{VIC-ADMIN}/logs/vicadmin.log -O failure.log
-    Should Contain  ${out}  ERROR: cannot verify
-    Should Contain  ${out}  certificate, issued by
-    Should Contain  ${out}  Unable to locally verify the issuer's authority.
+    Should Contain  ${out}  ERROR: The certificate of
+    Should Contain  ${out}  is not trusted.
+    Should Contain  ${out}  hasn't got a known issuer.
     
 Verify Temporary Redirect
     ${out}=  Run  wget --tries=3 --connect-timeout=10 --no-check-certificate %{VIC-ADMIN}/logs/vicadmin.log -O failure.log
