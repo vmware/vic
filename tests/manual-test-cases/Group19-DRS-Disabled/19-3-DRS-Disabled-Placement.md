@@ -1,8 +1,8 @@
-Test 19-3 - ROBO - VM Placement
+Test 19-3 - DRS Disabled - VM Placement
 =======
 
 # Purpose:
-To verify that the VM placement feature specified works as expected in a vSphere ROBO Advanced environment without DRS.
+To verify that the VM placement feature specified works as expected in a vSphere environment without DRS, such as a ROBO deployment.
 The current placement strategy is to avoid bad host selection, instead of selecting the "best" possible host.
 
 # References:
