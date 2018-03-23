@@ -45,7 +45,7 @@ Simple creates
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-Simple Creates Verifying Inventory Folders
+Simple Creates Verifying Folder Path
     ${container1}=  Evaluate  'inventory1' + str(random.randint(1000,9999))  modules=random
     ${container2}=  Evaluate  'inventory2' + str(random.randint(1000,9999))  modules=random
     ${container3}=  Evaluate  'inventory3' + str(random.randint(1000,9999))  modules=random
