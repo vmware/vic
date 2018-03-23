@@ -11,11 +11,6 @@ clone:
     recursive: false
 
 pipeline:
-  clone-pr:
-    image: wdc-harbor-ci.eng.vmware.com/default-project/git-clone:1.0
-    pull: true
-    when:
-      event: [ pull_request ]
 
   display-status:
     image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
