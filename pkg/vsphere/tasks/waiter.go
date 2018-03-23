@@ -185,13 +185,99 @@ func IsRetryError(op trace.Operation, err error) bool {
 	}
 }
 
+// IsConcurrentAccessError checks if a soap fault or vim fault is ConcurrentAccess error
+func IsConcurrentAccessError(err error) bool {
+	if soap.IsVimFault(err) {
+		if _, ok := soap.ToVimFault(err).(*types.ConcurrentAccess); ok {
+			return true
+		}
+		if _, ok := soap.ToVimFault(err).(*types.ConcurrentAccessFault); ok {
+			return true
+		}
+
+		return false
+	}
+
+	if soap.IsSoapFault(err) {
+		if _, ok := soap.ToSoapFault(err).VimFault().(types.ConcurrentAccess); ok {
+			return true
+		}
+		if _, ok := soap.ToSoapFault(err).VimFault().(types.ConcurrentAccessFault); ok {
+			return true
+		}
+
+		// sometimes we get the correct fault but wrong type
+		return soap.ToSoapFault(err).String == "vim.fault.ConcurrentAccess" ||
+			soap.ToSoapFault(err).String == "vim.fault.ConcurrentAccessFault"
+	}
+
+	return false
+}
+
+// IsMethodDisabledError checks if a soap fault or vim fault is MethodDisabled error
+func IsMethodDisabledError(err error) bool {
+	if soap.IsVimFault(err) {
+		if _, ok := soap.ToVimFault(err).(*types.MethodDisabled); ok {
+			return true
+		}
+		if _, ok := soap.ToVimFault(err).(*types.MethodDisabledFault); ok {
+			return true
+		}
+
+		return false
+	}
+
+	if soap.IsSoapFault(err) {
+		if _, ok := soap.ToSoapFault(err).VimFault().(types.MethodDisabled); ok {
+			return true
+		}
+		if _, ok := soap.ToSoapFault(err).VimFault().(types.MethodDisabledFault); ok {
+			return true
+		}
+
+		// sometimes we get the correct fault but wrong type
+		return soap.ToSoapFault(err).String == "vim.fault.MethodDisabled" ||
+			soap.ToSoapFault(err).String == "vim.fault.MethodDisabledFault"
+	}
+
+	return false
+}
+
+// IsNotFoundError checks if a soap fault or vim fault is ManagementObjectNotFound error
+func IsNotFoundError(err error) bool {
+	if soap.IsVimFault(err) {
+		if _, ok := soap.ToVimFault(err).(*types.ManagedObjectNotFound); ok {
+			return true
+		}
+		if _, ok := soap.ToVimFault(err).(*types.ManagedObjectNotFoundFault); ok {
+			return true
+		}
+
+		return false
+	}
+
+	if soap.IsSoapFault(err) {
+		if _, ok := soap.ToSoapFault(err).VimFault().(types.ManagedObjectNotFound); ok {
+			return true
+		}
+		if _, ok := soap.ToSoapFault(err).VimFault().(types.ManagedObjectNotFoundFault); ok {
+			return true
+		}
+
+		return soap.ToSoapFault(err).String == "vim.fault.ManagedObjectNotFound" ||
+			soap.ToSoapFault(err).String == "vim.fault.ManagedObjectNotFoundFault"
+	}
+
+	return false
+}
+
 // Helper Functions
 func logFault(op trace.Operation, fault types.BaseMethodFault) {
 	op.Errorf("unexpected fault on task retry: %#v", fault)
 }
 
 func logSoapFault(op trace.Operation, fault types.AnyType) {
-	op.Debugf("unexpected soap fault on task retry: %s", fault)
+	op.Debugf("unexpected soap fault on task retry: %#v", fault)
 }
 
 func logError(op trace.Operation, err error) {

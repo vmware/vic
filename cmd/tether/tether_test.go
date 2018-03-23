@@ -80,7 +80,7 @@ type Mocker struct {
 }
 
 // Start implements the extension method
-func (t *Mocker) Start() error {
+func (t *Mocker) Start(s tether.System) error {
 	return nil
 }
 

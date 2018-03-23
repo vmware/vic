@@ -84,7 +84,7 @@ Verify NFS Volume Basic Setup
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${containerName} -v ${volumeName}:/mydata ${busybox} mount
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  ${nfsIP}://store/volumes/${volumeName}
+    Should Contain  ${output}  ${nfsIP}:/store/volumes/${volumeName}
     Should Contain  ${output}  /mydata type nfs (${rwORro}
 
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} wait ${containerName}
@@ -126,6 +126,7 @@ VIC Appliance Install with Read Only NFS Volume
 
     # Will only produce a warning in VCH creation output
     ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${NFS_READONLY_IP}/exports/storage1?uid=0&gid=0:${nfsReadOnlyVolumeStore}"
+    Log  ${output}
     Should Contain  ${output}  Installer completed successfully
     Should Contain  ${output}  VolumeStore (${nfsReadOnlyVolumeStore}) cannot be brought online - check network, nfs server, and --volume-store configurations
     Should Contain  ${output}  Not all configured volume stores are online - check port layer log via vicadmin
@@ -139,6 +140,7 @@ VIC Appliance Install With Fake NFS Server
 
     # Will only produce a warning in VCH creation output
     ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${nfs_bogon_ip}/store?uid=0&gid=0:${nfsFakeVolumeStore}"
+    Log  ${output}
     Should Contain  ${output}  VolumeStore (${nfsFakeVolumeStore}) cannot be brought online - check network, nfs server, and --volume-store configurations
 
 VIC Appliance Install With Correct NFS Server
@@ -147,6 +149,7 @@ VIC Appliance Install With Correct NFS Server
 
     # Should succeed
     ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${NFS_IP}/store?uid=0&gid=0:${nfsVolumeStore}"
+    Log  ${output}
     Should Contain  ${output}  Installer completed successfully
 
 Simple Docker Volume Create

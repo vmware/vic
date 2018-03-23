@@ -45,7 +45,7 @@ Set Test Environment Variables
     Log To Console  \nDRONE_MACHINE=%{DRONE_MACHINE}
     ${worker_date}=  Run  date
     Log To Console  \nWorker_Date=${worker_date}
-    
+
     ${rc}  ${host}=  Run And Return Rc And Output  govc ls host
     Should Be Equal As Integers  ${rc}  0
     ${out}=  Run  govc ls -t HostSystem ${host} | xargs -I% -n1 govc host.date.info -host\=% | grep 'date and time'
@@ -79,11 +79,20 @@ Set Test Environment Variables
     Wait Until Keyword Succeeds  5x  1s  Create Unique Bridge Network
 
 Create Unique Bridge Network
+    # Ensure unique bridges are non-overlapping in a shared build environment (our CI)
+    @{URLs}=  Split String  %{TEST_URL_ARRAY}
+    ${idx}=  Get Index From List  ${URLs}  %{TEST_URL}
+    ${lowerVLAN}=  Evaluate  (${idx}+2) * 100
+    ${upperVLAN}=  Evaluate  ${lowerVLAN}+100
+
     # Set a unique bridge network for each VCH that has a random VLAN ID
-    ${vlan}=  Evaluate  str(random.randint(1, 4093))  modules=random
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitchLAN VCH-%{DRONE_BUILD_NUMBER}-${vlan}
+    ${vlan}=  Evaluate  str(random.randint(${lowerVLAN}, ${upperVLAN}))  modules=random
+    ${vswitch}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.vswitch.info -json | jq -r ".Vswitch[0].Name"
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc host.portgroup.add -vlan=${vlan} -vswitch ${vswitch} VCH-%{DRONE_BUILD_NUMBER}-${vlan}
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc dvs.portgroup.add -vlan=${vlan} -dvs test-ds VCH-%{DRONE_BUILD_NUMBER}-${vlan}
+
+    ${dvs}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc find -type DistributedVirtualSwitch | head -n1
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc dvs.portgroup.add -vlan=${vlan} -dvs ${dvs} VCH-%{DRONE_BUILD_NUMBER}-${vlan}
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  BRIDGE_NETWORK  VCH-%{DRONE_BUILD_NUMBER}-${vlan}
 
@@ -302,6 +311,18 @@ Install VIC Appliance To Test Server With Current Environment Variables
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${debug}  ${additional-args}
     Log  ${output}
+
+    # Check for failure to obtain IP address
+    # Example:
+    # State of all interfaces:
+    #   "public" IP: "waiting for IP"
+    #   "client" IP: "waiting for IP"
+    #   "management" IP: "waiting for IP"
+    #   "bridge" IP: "waiting for IP"
+    ${noIP}=  Set Variable If  '"waiting for IP"' in '''${output}'''  True  False
+    Run Keyword If  ${noIP}  Log             Possible DHCP failure
+    Run Keyword If  ${noIP}  Log To Console  Possible DHCP failure
+
     Should Contain  ${output}  Installer completed successfully
 
     Get Docker Params  ${output}  ${certs}
@@ -336,7 +357,8 @@ Run Secret VIC Machine Inspect Command
 Run VIC Machine Delete Command
     ${rc}  ${output}=  Run Secret VIC Machine Delete Command  %{VCH-NAME}
     Log  ${output}
-    Wait Until Keyword Succeeds  6x  5s  Check Delete Success  %{VCH-NAME}
+    ${status}=  Run Keyword And Return Status  Wait Until Keyword Succeeds  6x  5s  Check Delete Success  %{VCH-NAME}
+    Assert  ${status}  vic-machine delete failed to remove %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
     ${output}=  Run  rm -rf %{VCH-NAME}
@@ -448,7 +470,8 @@ Cleanup VIC Appliance On Test Server
     Log To Console  Deleting the VCH appliance %{VCH-NAME}
     ${output}=  Run VIC Machine Delete Command
     Log  ${output}
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
+    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
+    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Remove Environment Variable  BRIDGE_NETWORK
     Run Keyword And Ignore Error  Run  govc datastore.rm %{VCH-NAME}-VOL
     [Return]  ${output}
 
@@ -458,13 +481,13 @@ Cleanup VIC Appliance And Gather VC Logs
 
 Cleanup VCH Bridge Network
     [Arguments]  ${name}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove %{BRIDGE_NETWORK}
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${name}
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  %{BRIDGE_NETWORK}
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  ${name}
 
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  %{BRIDGE_NETWORK}
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  ${name}
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc ls network
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${out}  %{BRIDGE_NETWORK}
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${out}  ${name}
 
 Add VC Distributed Portgroup
     [Arguments]  ${dvs}  ${pg}
@@ -493,7 +516,8 @@ Cleanup Datastore On Test Server
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
     \   Log To Console  Removing the following item from datastore: ${item}
-    \   ${out}=  Run  govc datastore.rm ${item}
+    \   ${rc}  ${out}=    Run And Return Rc And Output  govc datastore.rm ${item}
+    \   Continue For Loop If  ${rc} != 0
     \   Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${item}
 
 Cleanup Dangling VMs On Test Server
@@ -546,6 +570,8 @@ Cleanup Dangling Networks On Test Server
     \   ${build}=  Split String  ${net}  -
     \   # Skip any Network that is not associated with integration tests
     \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   # Don't blow away our unique bridge network when running locally
+    \   Continue For Loop If  '@{build}[1]' == '0'
     \   # Skip any Network that is attached to a VCH in the exception list
     \   ${skip}=  Check If VCH Is In Exception  vch=@{build}[0]-@{build}[1]-@{build}[2]  exceptions=${exceptions}
     \   Continue For Loop If  ${skip}
@@ -691,3 +717,8 @@ Enable VCH SSH
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
+
+Assert
+    [Arguments]  ${status}  ${msg}
+    ${envExists}=  Run Keyword And Return Status  Environment Variable Should Be Set  FAST_FAILURE
+    Run Keyword If  ${envExists}  Run Keyword If  %{FAST_FAILURE}  Run Keyword Unless  ${status}  Fatal Error  ${msg}
