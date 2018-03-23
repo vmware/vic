@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 12-01 - Delete
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC 0.6.0 to Test Server
+Suite Setup  Install VIC 1.1.1 to Test Server
 Test Teardown  Run Keyword If Test Failed  Clean up VIC Appliance And Local Binary
 
 *** Keywords ***
@@ -23,7 +23,7 @@ Clean up VIC Appliance And Local Binary
     Cleanup VIC Appliance On Test Server
     Run  rm -rf vic.tar.gz vic
 
-Install VIC 0.6.0 to Test Server
+Install VIC 1.1.1 to Test Server
     Log To Console  \nDownloading VIC 1.1.1 from gcp...
     ${rc}  ${output}=  Run And Return Rc And Output  wget https://storage.googleapis.com/vic-engine-releases/vic_1.1.1.tar.gz -O vic.tar.gz
     ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz

@@ -64,7 +64,7 @@ func Commit(op trace.Operation, sess *session.Session, h *Handle, waitTime *int3
 		} else {
 			// Create the vm
 			res, err = tasks.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
-				return sess.VMFolder.CreateVM(op, *h.Spec.Spec(), Config.ResourcePool, nil)
+				return sess.VCHFolder.CreateVM(op, *h.Spec.Spec(), Config.ResourcePool, nil)
 			})
 		}
 
