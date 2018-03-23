@@ -238,9 +238,16 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 	var err error
 	var children []*vm.VirtualMachine
 
-	folderRef, err := vchFolder(d.op, d.session, conf)
+	folderRef, err := VchFolder(d.op, d.session, conf)
 
 	if err != nil || folderRef == nil {
+
+		if *d.session.DRSEnabled {
+			// if we are on a DRS disabled cluster and we cannot get the folder we MUST error out.
+			d.op.Errorf("Failed to obtain VCH folder on non DRS deployment: %s", err)
+			return fmt.Errorf("Unable to remove containers, failed to find VCH Folder. See vic-machine.log for more details. ")
+		}
+
 		// use the resource pool to cut down on the number of candidates
 		d.op.Debugf("Looking in the resource pool for delete targets")
 		if children, err = d.parentResourcepool.GetChildrenVMs(d.op, d.session); err != nil {
