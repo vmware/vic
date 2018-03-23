@@ -16,7 +16,7 @@ package management
 
 import (
 	"context"
-	"path"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -110,7 +110,7 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 	}
 
 	// delete the VCH inventory folder
-	d.deleteFolder()
+	d.deleteFolder(conf)
 
 	defaultrp, err := d.session.Cluster.ResourcePool(d.op)
 	if err != nil {
@@ -238,9 +238,40 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 	var err error
 	var children []*vm.VirtualMachine
 
-	// TODO: GET CHILDREN EITHER BY FOLDER OR RP BASED ON DEPLOYMENT
-	if children, err = d.parentResourcepool.GetChildrenVMs(d.op, d.session); err != nil {
-		return err
+	folderRef, err := VchFolder(d.op, d.session, conf)
+
+	if err != nil || folderRef == nil {
+
+		if *d.session.DRSEnabled {
+			// if we are on a DRS disabled cluster and we cannot get the folder we MUST error out.
+			d.op.Errorf("Failed to obtain VCH folder on non DRS deployment: %s", err)
+			return fmt.Errorf("Unable to remove containers, failed to find VCH Folder. See vic-machine.log for more details. ")
+		}
+
+		// use the resource pool to cut down on the number of candidates
+		d.op.Debugf("Looking in the resource pool for delete targets")
+		if children, err = d.parentResourcepool.GetChildrenVMs(d.op, d.session); err != nil {
+			return err
+		}
+	} else {
+		// vch parent inventory folder exists, get the children from it.
+		d.op.Debugf("Found VCH Parent Folder: %s", folderRef.InventoryPath)
+		folderChildren, err := folderRef.Children(d.op)
+		if err != nil {
+			return err
+		}
+
+		for _, child := range folderChildren {
+			vmObj, ok := child.(*object.VirtualMachine)
+			if ok {
+				childVM := vm.NewVirtualMachine(d.op, d.session, vmObj.Reference())
+				cErr := childVM.EnableDestroy(d.op)
+				if cErr != nil {
+					d.op.Debugf("unable to enable the destroy task on container (%s): due to %s", childVM.InventoryPath, cErr)
+				}
+				children = append(children, childVM)
+			}
+		}
 	}
 
 	if d.session.Datastore, err = d.getImageDatastore(vmm, conf, ignoreFailureToFindImageStores); err != nil {
@@ -288,6 +319,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 				errs = append(errs, err.Error())
 				mu.Unlock()
 			}
+			d.op.Debugf("Successfully deleted container: %s", child.InventoryPath)
 		}(child)
 	}
 	wg.Wait()
@@ -352,7 +384,7 @@ func (d *Dispatcher) networkDevices(vmm *vm.VirtualMachine) ([]types.BaseVirtual
 	return devices, nil
 }
 
-func (d *Dispatcher) deleteFolder() {
+func (d *Dispatcher) deleteFolder(conf *config.VirtualContainerHostConfigSpec) {
 	var err error
 
 	// no inventory folders if we are targeting ESX
@@ -361,18 +393,20 @@ func (d *Dispatcher) deleteFolder() {
 	}
 
 	d.op.Info("Removing VCH Inventory Folder")
-	vchFolderPath := path.Dir(d.appliance.InventoryPath)
-	defer func() {
-		if err != nil {
-			d.op.Warnf(manualInventoryCleanWarning, vchFolderPath)
-		}
-	}()
-
-	folderRef, err := d.session.Finder.Folder(d.op, vchFolderPath)
+	folderRef, err := VchFolder(d.op, d.session, conf)
 	if err != nil {
-		d.op.Debugf("failed to find folder: %s for the VCH target", vchFolderPath)
+		folderPath := fmt.Sprintf("%s/%s", d.session.VMFolder.InventoryPath, conf.Name)
+		d.op.Debugf("failed to find VCH folder(%s): %s", folderPath, err)
+		d.op.Warnf("Could not find a VCH folder(%s), continuing with vch deletion", folderPath)
 		return
 	}
+
+	defer func() {
+		if err != nil {
+			d.op.Warnf(manualInventoryCleanWarning, folderRef.InventoryPath)
+			return
+		}
+	}()
 
 	// protections against old vch's since they are directly in the VMFolder
 	dcFolder, err := d.session.Datacenter.Folders(d.op)
@@ -389,7 +423,7 @@ func (d *Dispatcher) deleteFolder() {
 	// NOTE: Destroy on Inventory Folders is RECURSIVE
 	folderContents, err := folderRef.Children(d.op)
 	if err != nil || len(folderContents) != 0 {
-		d.op.Debugf("Could not remove VCH folder, %s has existing contents in it. Manual cleanup required.", vchFolderPath)
+		d.op.Debugf("Could not remove VCH folder, %s has existing contents in it. Manual cleanup required.", folderRef.InventoryPath)
 		return
 	}
 
