@@ -78,6 +78,7 @@ type Config struct {
 	HostPath       string
 	PoolPath       string
 
+	// VCH appliance folder location, this could be the VMFolder or a custom folder location(currently <VMFolder>/<VCHNAME>/<VCH>.vm)
 	VCHFolder *object.Folder
 }
 

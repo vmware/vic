@@ -386,11 +386,11 @@ func (d *Dispatcher) deleteFolder(conf *config.VirtualContainerHostConfigSpec) {
 	}
 
 	d.op.Info("Removing VCH Inventory Folder")
-	folderRef, err := vchFolder(d.op, d.session, conf)
+	folderRef, err := VchFolder(d.op, d.session, conf)
 	if err != nil {
 		folderPath := fmt.Sprintf("%s/%s", d.session.VMFolder.InventoryPath, conf.Name)
-		d.op.Debugf("failed to find vch folder(%s): %s", folderPath, err)
-		d.op.Warnf("Could not find a vch folder(%s), continuing with vch deletion", folderPath)
+		d.op.Debugf("failed to find VCH folder(%s): %s", folderPath, err)
+		d.op.Warnf("Could not find a VCH folder(%s), continuing with vch deletion", folderPath)
 		return
 	}
 

@@ -817,7 +817,7 @@ func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, 
 	// Does the VCH have it's own folder?
 	if sess.VCHFolder.Reference() == sess.VMFolder.Reference() {
 		var rp mo.ResourcePool
-		// popluate the vm property of the vch resource pool
+		// populate the vm property of the vch resource pool
 		if err := Config.ResourcePool.Properties(ctx, Config.ResourcePool.Reference(), []string{"vm"}, &rp); err != nil {
 			name := Config.ResourcePool.Name()
 			log.Errorf("List failed to get %s resource pool child vms: %s", name, err)

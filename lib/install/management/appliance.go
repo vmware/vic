@@ -520,7 +520,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		}
 	}
 
-	d.op.Info("Creating the VCH vm")
+	d.op.Info("Creating the VCH VM")
 	info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
 		return vchFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
 	})
@@ -1204,9 +1204,9 @@ func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.Virtual
 }
 
 // vchFolder returns the namespaced folder for the vch or an error.
-func vchFolder(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec) (*object.Folder, error) {
+func VchFolder(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec) (*object.Folder, error) {
 	vchFolder := path.Join(sess.VMFolder.InventoryPath, conf.Name)
-	op.Debugf("Looking for vch folder: %s", vchFolder)
+	op.Debugf("Looking for VCH folder: %s", vchFolder)
 	folderRef, err := sess.Finder.Folder(op, vchFolder)
 
 	if err != nil {
