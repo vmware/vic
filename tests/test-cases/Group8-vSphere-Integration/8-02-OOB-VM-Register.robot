@@ -42,7 +42,7 @@ Verify VIC Still Works When Different VM Is Registered
     ${out}=  Run  govc vm.unregister ${old-vm}
     Should Be Empty  ${out}
 
-    # At this point the vm is unregsitered and we will need to reregister this vm...
+    # At this point the vm is unregistered and we will need to reregister this vm...
     # we need to put it into the original inventory folder. so we need to fetch that
     # path. We also want to be explicit about the resource pool.
     ${old-vm-folder}=  Run  govc find / -name ${old-vm} -type f
