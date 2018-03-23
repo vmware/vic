@@ -15,13 +15,13 @@ coverage:
       default: off
 
   ignore:
-    - "tests/*"
-    - "vendor/*"
-    - "bin/*"
-    - "doc/*"
-    - "demos/*"
-    - "infra/*"
-    - "isos/*"
+    - "tests/.*"
+    - "vendor/.*"
+    - "bin/.*"
+    - "doc/.*"
+    - "demos/.*"
+    - "infra/.*"
+    - "isos/.*"
 
   notify:
     slack:

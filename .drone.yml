@@ -91,6 +91,15 @@ pipeline:
     when:
       status: success
 
+  report-coverage:
+    image: robertstettner/drone-codecov
+    secrets:
+      - codecov_token
+    files:
+      - .cover/cover.out
+    when:
+      status: success
+
   vic-integration-test-on-pr:
     image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
     pull: true
@@ -314,13 +323,6 @@ pipeline:
       event: [push, tag]
       branch: [master, 'releases/*', 'refs/tags/*']
       status: success
-
-  report-coverage:
-    image: robertstettner/drone-codecov
-    secrets:
-      - codecov_token
-    files:
-      - .cover/cover.out
 
   notify-slack-on-fail:
     image: plugins/slack
