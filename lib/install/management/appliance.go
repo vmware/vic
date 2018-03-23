@@ -50,6 +50,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/diag"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
+	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -509,7 +510,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 
 		vchFolder, err = d.session.VMFolder.CreateFolder(d.op, spec.Name)
 		if err != nil {
-			d.op.Debugf("Encountered unexpected error : %#v ", err)
+			d.op.Debugf("Encountered unexpected error : %s ", err)
 			if f, ok := err.(types.HasFault); ok {
 				if _, ok = f.Fault().(*types.DuplicateName); ok {
 					return fmt.Errorf("An object already exists on the path for vch folder (%s) that is not a folder", spec.Name)
@@ -519,6 +520,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		}
 	}
 
+	d.op.Info("Creating the VCH VM")
 	info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
 		return vchFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
 	})
@@ -1199,4 +1201,16 @@ func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.Virtual
 		return err
 	}
 	return nil
+}
+
+// vchFolder returns the namespaced folder for the vch or an error.
+func VchFolder(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec) (*object.Folder, error) {
+	vchFolder := path.Join(sess.VMFolder.InventoryPath, conf.Name)
+	op.Debugf("Looking for VCH folder: %s", vchFolder)
+	folderRef, err := sess.Finder.Folder(op, vchFolder)
+
+	if err != nil {
+		return nil, err
+	}
+	return folderRef, nil
 }
