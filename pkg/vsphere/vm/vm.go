@@ -121,6 +121,25 @@ func (vm *VirtualMachine) FolderName(ctx context.Context) (string, error) {
 	return path.Base(u.Path), nil
 }
 
+// Folder returns a reference to the parent folder that owns the vm
+func (vm *VirtualMachine) Folder(ctx context.Context) (*object.Folder, error) {
+	// NOTE: We must retrieve the folder by assembling the path. If the vm is in a vApp the inventory path will be the compute folder path of the vApp.
+	// right now this will likely not work with upgrade 1.1.1-1.2.1 vapp based deployments.
+
+	element, err := vm.Session.Finder.Element(ctx, vm.Reference())
+	if err != nil {
+		return nil, err
+	}
+
+	parentPath := path.Dir(element.Path)
+	folderRef, err := vm.Session.Finder.Folder(ctx, parentPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return folderRef, nil
+}
+
 func (vm *VirtualMachine) getNetworkName(op trace.Operation, nic types.BaseVirtualEthernetCard) (string, error) {
 	if card, ok := nic.GetVirtualEthernetCard().Backing.(*types.VirtualEthernetCardDistributedVirtualPortBackingInfo); ok {
 		pg := card.Port.PortgroupKey
@@ -477,7 +496,7 @@ func (vm *VirtualMachine) fixVM(op trace.Operation) error {
 		return err
 	}
 
-	task, err := vm.registerVM(op, mvm.Summary.Config.VmPathName, name, mvm.ParentVApp, mvm.ResourcePool, mvm.Summary.Runtime.Host, vm.Session.VMFolder)
+	task, err := vm.registerVM(op, mvm.Summary.Config.VmPathName, name, mvm.ParentVApp, mvm.ResourcePool, mvm.Summary.Runtime.Host, vm.Session.VCHFolder)
 	if err != nil {
 		op.Errorf("Unable to register VM %q back: %s", name, err)
 		return err
