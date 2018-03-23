@@ -19,6 +19,17 @@ Suite Setup  Conditional Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
+*** Keywords ***
+# NOTE: this function should only be used in the case where you supply a name to the container. Since inventory names result in `<cvm-name>-<cvm-uuid>`
+Check CVM Inventory Path
+    [Arguments]  ${cvm-name}
+    ${rc}  ${cvm-path}=  Run And Return Rc And Output  govc find / -type m | grep ${cvm-name}
+    Should Be Equal As Integers  ${rc}  0
+    # If it is esxi - we should find the vch in the vmfolder
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${cvm-path}  vm/${cvm-name}
+    # If it is VC - we should find the vch in a folder named after the VCH.
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${cvm-path}  vm/%{VCH-NAME}/${cvm-name}
+
 *** Test Cases ***
 Simple creates
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
@@ -31,6 +42,38 @@ Simple creates
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name test1 ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
+Simple Creates Verifying Inventory Folders
+    ${container1}=  Evaluate  'inventory1' + str(random.randint(1000,9999))  modules=random
+    ${container2}=  Evaluate  'inventory2' + str(random.randint(1000,9999))  modules=random
+    ${container3}=  Evaluate  'inventory3' + str(random.randint(1000,9999))  modules=random
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${container1} ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Check CVM Inventory Path  ${container1}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${container2} ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Check CVM Inventory Path  ${container2}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${container3} ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Check CVM Inventory Path  ${container3}
+
+    # cleanup created containers
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${container1}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${container2}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${container3}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
