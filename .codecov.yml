@@ -13,6 +13,7 @@ coverage:
       default: on
     changes:
       default: off
+
   ignore:
     - "tests/*"
     - "vendor/*"
