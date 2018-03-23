@@ -77,6 +77,9 @@ type Config struct {
 	DatastorePath  string
 	HostPath       string
 	PoolPath       string
+
+	// VCH appliance folder location, this could be the VMFolder or a custom folder location(currently <VMFolder>/<VCHNAME>/<VCH>.vm)
+	VCHFolder *object.Folder
 }
 
 // Session caches vSphere objects obtained by querying the SDK.
@@ -371,6 +374,10 @@ func (s *Session) Populate(ctx context.Context) (*Session, error) {
 			op.Debugf("Cached folders: %s", s.DatacenterPath)
 		}
 		s.VMFolder = folders.VmFolder
+
+		if s.VCHFolder == nil {
+			s.VCHFolder = folders.VmFolder
+		}
 	}
 
 	if len(errs) > 0 {
