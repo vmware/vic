@@ -23,6 +23,16 @@ coverage:
     - "infra/*"
     - "isos/*"
 
+  notify:
+    slack:
+      default:
+        url: secret:4pFXYokWG94wD+p6Ik8TOyoGCMjIt1oC64dJI6bfN3NRSq9ON/VplYzuANYGq5DotCsxx+VOCbnshdKATbRUmRysanEs3C2E9FWk2+pOa7OEygT3QRoiYZJXLSGl77Ki5fPWx/cUlvfcJPDGGpvKB+zl007cqOgFSU26qZqff+w=
+        threshold: 1%
+        only_pulls: false
+        branches: master
+        flags: null
+        paths: null
+
 comment:
   layout: "header, reach, diff, flags, files, footer"
   behavior: default
