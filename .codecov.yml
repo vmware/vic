@@ -19,6 +19,8 @@ coverage:
     - "bin/*"
     - "doc/*"
     - "demos/*"
+    - "infra/*"
+    - "isos/*"
 
 comment:
   layout: "header, reach, diff, flags, files, footer"
