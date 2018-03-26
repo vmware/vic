@@ -242,7 +242,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 
 	if err != nil || folderRef == nil {
 
-		if *d.session.DRSEnabled {
+		if !*d.session.DRSEnabled {
 			// if we are on a DRS disabled cluster and we cannot get the folder we MUST error out.
 			d.op.Errorf("Failed to obtain VCH folder on non DRS deployment: %s", err)
 			return fmt.Errorf("Unable to remove containers, failed to find VCH Folder. See vic-machine.log for more details. ")
