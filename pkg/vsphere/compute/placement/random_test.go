@@ -22,7 +22,6 @@ import (
 
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/test"
-	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 func TestRandomRecommendHost(t *testing.T) {
@@ -39,12 +38,7 @@ func TestRandomRecommendHost(t *testing.T) {
 	hosts, err := cls.Hosts(op)
 	assert.NoError(t, err)
 
-	moref, err := test.CreateVM(op, sess, "test-vm")
-	assert.NoError(t, err)
-
-	v := vm.NewVirtualMachine(op, sess, moref)
-
-	rhp, err := NewRandomHostPolicy(op, v.Cluster)
+	rhp, err := NewRandomHostPolicy(op, cls)
 	assert.NoError(t, err)
 
 	assert.False(t, rhp.CheckHost(op, nil))

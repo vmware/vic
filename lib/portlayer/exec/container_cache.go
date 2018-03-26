@@ -36,6 +36,7 @@ type containerCache struct {
 	cache map[string]*Container
 }
 
+// Containers is an in-memory cache of containerVMs.
 var Containers *containerCache
 
 func NewContainerCache() {

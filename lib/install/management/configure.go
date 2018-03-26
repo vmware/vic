@@ -329,7 +329,7 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 		return err
 	}
 
-	if err = d.startAppliance(conf); err != nil {
+	if err = d.appliance.PowerOn(d.op); err != nil {
 		return err
 	}
 
@@ -372,7 +372,7 @@ func (d *Dispatcher) ensureRollbackReady(conf *config.VirtualContainerHostConfig
 		d.op.Info("Roll back finished - Appliance is kept in powered off status")
 		return nil
 	}
-	if err = d.startAppliance(conf); err != nil {
+	if err = d.appliance.PowerOn(d.op); err != nil {
 		return err
 	}
 

@@ -120,7 +120,7 @@ func (r *RankedHostPolicy) rankHosts(op trace.Operation, hm map[string]*performa
 		rh := rankedHost{
 			HostReference:   h,
 			HostMetricsInfo: m,
-			score:           r.rankMemory(m) * (1 - m.CPU.UsagePercent),
+			score:           r.rankMemory(m) * (1.0 - (m.CPU.UsagePercent / 100.0)),
 		}
 		ranking = append(ranking, rh)
 	}
@@ -130,5 +130,6 @@ func (r *RankedHostPolicy) rankHosts(op trace.Operation, hm map[string]*performa
 
 func (r *RankedHostPolicy) rankMemory(hm *performance.HostMetricsInfo) float64 {
 	free := float64(hm.Memory.TotalKB-hm.Memory.ConsumedKB) / 1024.0
-	return free * r.config.memUnconsumedWeight
+	inactive := float64(hm.Memory.TotalKB-hm.Memory.ActiveKB) / 1024.0
+	return free*r.config.memUnconsumedWeight + inactive*r.config.memInactiveWeight
 }
