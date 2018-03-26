@@ -46,16 +46,26 @@ Verify Group Contains VMs
 
 
 Create Three Containers
-    ${POWERED_OFF_CONTAINER_NAME}=  Generate Random String  15
+    ${POWERED_OFF_CONTAINER_NAME}=    Generate Random String  15
     ${rc}  ${out}=    Run And Return Rc And Output    docker %{VCH-PARAMS} create --name ${POWERED_OFF_CONTAINER_NAME} ${busybox} /bin/top
 
-    ${POWERED_ON_CONTAINER_NAME}=  Generate Random String  15
+    Set Test Variable    ${POWERED_OFF_CONTAINER_NAME}
+
+    ${POWERED_ON_CONTAINER_NAME}=    Generate Random String  15
     ${rc}  ${out}=    Run And Return Rc And Output    docker %{VCH-PARAMS} create --name ${POWERED_ON_CONTAINER_NAME} ${busybox} /bin/top
     ${rc}  ${out}=    Run And Return Rc And Output    docker %{VCH-PARAMS} start ${out}
 
-    ${RUN_CONTAINER_NAME}=  Generate Random String  15
+    Set Test Variable    ${POWERED_ON_CONTAINER_NAME}
+
+    ${RUN_CONTAINER_NAME}=    Generate Random String  15
     ${rc}  ${out}=    Run And Return Rc And Output    docker %{VCH-PARAMS} run --name ${RUN_CONTAINER_NAME} ${busybox} /bin/top
 
+    Set Test Variable    ${RUN_CONTAINER_NAME}
+
+Delete Containers
+    ${rc}  ${out}=    Run And Return Rc And Output    docker %{VCH-PARAMS} rm --name ${POWERED_OFF_CONTAINER_NAME} ${busybox} /bin/top
+    ${rc}  ${out}=    Run And Return Rc And Output    docker %{VCH-PARAMS} rm --name ${POWERED_ON_CONTAINER_NAME} ${busybox} /bin/top
+    ${rc}  ${out}=    Run And Return Rc And Output    docker %{VCH-PARAMS} rm --name ${RUN_CONTAINER_NAME} ${busybox} /bin/top
 
 
 *** Test Cases ***
@@ -85,3 +95,19 @@ Deleting a VCH deletes its VM group
     Cleanup VIC Appliance On Test Server
 
     Verify Group Not Found         %{VCH-NAME}
+
+
+Deleting a container cleans up its VM group
+    Set Test Environment Variables
+
+    Verify Group Not Found       %{VCH-NAME}
+
+    Install VIC Appliance To Test Server With Current Environment Variables
+
+    Create Three Containers
+
+    Verify Group Contains VMs    %{VCH-NAME}    4
+
+    Delete Containers
+
+    Verify Group Contains VMs    %{VCH-NAME}    1
