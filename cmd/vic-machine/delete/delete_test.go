@@ -28,5 +28,5 @@ func TestFlags(t *testing.T) {
 	if len(flags) < 3 {
 		err = "Delete flags not properly set"
 	}
-	assert.Nil(t, err, "Missing flags during Delete")
+	assert.Equal(t, "", err, "Missing flags during Delete")
 }
