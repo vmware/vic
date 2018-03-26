@@ -818,7 +818,8 @@ func (vm *VirtualMachine) PowerOn(op trace.Operation) error {
 		}
 
 	}
-	return fmt.Errorf("vm placement failed: no available hosts")
+	op.Warnf("vm placement failed: no available hosts. Attempting power-on.")
+	return vm.powerOn(op)
 }
 
 func (vm *VirtualMachine) relocate(op trace.Operation, host *object.HostSystem) error {
