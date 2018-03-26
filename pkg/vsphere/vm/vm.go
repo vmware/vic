@@ -758,7 +758,7 @@ func (vm *VirtualMachine) PowerOn(op trace.Operation) error {
 	cls := vm.InCluster(op)
 
 	op.Debugf("DRS enabled: %t", drs)
-	op.Debugf("%s resides in a cluster: %t", vm.Reference.String(), cls)
+	op.Debugf("%s resides in a cluster: %t", vm.Reference().String(), cls)
 
 	// otherwise place the VM before powering it on
 	hmp := performance.NewHostMetricsProvider(vm.Session.Vim25())
