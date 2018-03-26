@@ -277,6 +277,16 @@ Get Hostd Memory Consumption
     Close Connection
     [Return]  ${out}
 
+# NOTE: this function should only be used in the case where you supply a name to the container. Since inventory names result in `<cvm-name>-<cvm-uuid>`
+Check CVM Folder Path
+    [Arguments]  ${cvm-name}
+    ${rc}  ${cvm-path}=  Run And Return Rc And Output  govc find / -type m | grep ${cvm-name}
+    Should Be Equal As Integers  ${rc}  0
+    # If it is esxi - we should find the vch in the vmfolder
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${cvm-path}  vm/${cvm-name}
+    # If it is VC - we should find the vch in a folder named after the VCH.
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${cvm-path}  vm/%{VCH-NAME}/${cvm-name}
+
 Get Public Network VLAN ID
     ${noQuotes}=  Strip String  %{PUBLIC_NETWORK}  characters='"
     ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info --json | jq -r '.Portgroup[].Spec | select(.Name == "${noQuotes}") | .VlanId'
@@ -285,3 +295,4 @@ Get Public Network VLAN ID
     ${dvs}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc find -type DistributedVirtualSwitch | head -n1
     ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc dvs.portgroup.info -json -pg='${noQuotes}' ${dvs} | jq -r '.Port[0].Config.Setting.Vlan.VlanId'
     Return From Keyword If  '%{HOST_TYPE}' == 'VC'  ${vlan}
+
