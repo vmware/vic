@@ -19,17 +19,6 @@ Suite Setup  Conditional Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
-*** Keywords ***
-# NOTE: this function should only be used in the case where you supply a name to the container. Since inventory names result in `<cvm-name>-<cvm-uuid>`
-Check CVM Inventory Path
-    [Arguments]  ${cvm-name}
-    ${rc}  ${cvm-path}=  Run And Return Rc And Output  govc find / -type m | grep ${cvm-name}
-    Should Be Equal As Integers  ${rc}  0
-    # If it is esxi - we should find the vch in the vmfolder
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${cvm-path}  vm/${cvm-name}
-    # If it is VC - we should find the vch in a folder named after the VCH.
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${cvm-path}  vm/%{VCH-NAME}/${cvm-name}
-
 *** Test Cases ***
 Simple creates
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
