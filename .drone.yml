@@ -101,7 +101,6 @@ pipeline:
       SHELL: /bin/bash
       LOG_TEMP_DIR: install-logs
     secrets:
-      - bridge_network
       - ci_domain
       - debug_vch
       - drone_server

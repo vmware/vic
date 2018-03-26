@@ -72,7 +72,7 @@ Create VCH - URL without user and password
     Should Contain  ${output}  vSphere user must be specified
 
     # Delete the portgroup added by env vars keyword
-    Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
+    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Cleanup VCH Bridge Network
 
 Create VCH - target URL
     Set Test Environment Variables
@@ -193,7 +193,7 @@ Create VCH - long VCH name
     Should Contain  ${output}  exceeds the permitted 31 characters limit
 
     # Delete the portgroup added by env vars keyword
-    Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
+    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Cleanup VCH Bridge Network
 
 Create VCH - Existing VCH name
     Set Test Environment Variables
@@ -233,7 +233,7 @@ Create VCH - Existing VM name
 
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
-    Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
+    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Cleanup VCH Bridge Network
 
 Create VCH - Existing RP on ESX
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Pass Execution  Test skipped on VC
@@ -284,7 +284,7 @@ Basic timeout
     Should Contain  ${ret}  Completed successfully
     ${out}=  Run  govc ls vm
     Should Not Contain  ${out}  %{VCH-NAME}
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
+    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Run Keyword And Ignore Error  Cleanup VCH Bridge Network
 
 Basic VCH resource config
     Pass execution  Test not implemented
