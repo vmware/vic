@@ -278,7 +278,7 @@ Get Hostd Memory Consumption
     [Return]  ${out}
 
 # NOTE: this function should only be used in the case where you supply a name to the container. Since inventory names result in `<cvm-name>-<cvm-uuid>`
-Check CVM Inventory Path
+Check CVM Folder Path
     [Arguments]  ${cvm-name}
     ${rc}  ${cvm-path}=  Run And Return Rc And Output  govc find / -type m | grep ${cvm-name}
     Should Be Equal As Integers  ${rc}  0

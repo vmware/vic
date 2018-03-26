@@ -45,15 +45,15 @@ Simple Creates Verifying Folder Path
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${container1} ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Check CVM Inventory Path  ${container1}
+    Check CVM Folder Path  ${container1}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${container2} ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Check CVM Inventory Path  ${container2}
+    Check CVM Folder Path  ${container2}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${container3} ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Check CVM Inventory Path  ${container3}
+    Check CVM Folder Path  ${container3}
 
     # cleanup created containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${container1}
