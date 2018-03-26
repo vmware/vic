@@ -801,9 +801,10 @@ func (vm *VirtualMachine) PowerOn(op trace.Operation) error {
 		op.Debugf("hosts: %s", hosts)
 		op.Infof("Placement recommended %s", hosts[0].Reference().String())
 
-		if vm.relocate(op, hosts[0]) != nil {
+		var err error
+		if err = vm.relocate(op, hosts[0]); err != nil {
 			op.Warnf("VM relocation failed: %s", err.Error())
-		} else if vm.powerOn(op) != nil {
+		} else if err = vm.powerOn(op); err != nil {
 			op.Warnf("VM power-on failed: %s", err.Error())
 		} else {
 			return nil
@@ -850,25 +851,6 @@ func (vm *VirtualMachine) relocate(op trace.Operation, host *object.HostSystem) 
 }
 
 func (vm *VirtualMachine) powerOn(op trace.Operation) error {
-	// TODO(jzt): use DRS aware power-on
-	// see https://github.com/vmware/vic/issues/7237
-
-	// dc := vm.Session.Datacenter
-	// task, err := dc.PowerOnVM(op, []types.ManagedObjectReference{vm.Reference()})
-
-	// if task == nil {
-	// 	op.Infof("powering on %s", vm.Reference().String())
-	// 	return nil
-	// }
-
-	// _, err = task.WaitForResult(op, nil)
-	// if err != nil {
-	// 	op.Warnf("error attempting to power on vm: %s", err.Error())
-	// } else {
-	// 	op.Infof("VM %s successfully powered on", vm.Reference().String())
-	// }
-	// return err
-
 	_, err := vm.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
 		return vm.VirtualMachine.PowerOn(op)
 	})
