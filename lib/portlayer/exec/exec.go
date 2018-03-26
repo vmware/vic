@@ -101,7 +101,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			return
 		}
 
-		// TODO: see if we can find a different way of supplying this element. While in product it's a legitmate assumption
+		// TODO: see if we can find a different way of supplying this element. While in product it's a legitimate assumption
 		// for this code to run in a VM that's locatable in the infrastructure it may make testing more awkward.
 		// Alternatively, if committing to only testing via vcsim then we need a vcsim mechanism for "guest.GetSelf" so that
 		// we can pretend that the code runs in a VM in the simulated infra.
