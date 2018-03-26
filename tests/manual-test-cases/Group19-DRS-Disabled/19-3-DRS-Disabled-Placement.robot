@@ -19,13 +19,6 @@ Suite Setup  Wait Until Keyword Succeeds  10x  10m  ROBO SKU Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***
-Get Host IP
-    [Arguments]  ${name}
-    Log To Console  Getting host IP for ${name}
-    ${rc}  ${ip}=  Run And Return Rc And Output  govc vm.info ${name} |grep Host |awk '{print $2}'
-    Should Be Equal As Integers  ${rc}  0
-    [Return]  ${ip}
-
 Deploy Stress Container And Return Host IP
     [Arguments]  ${name}
     Log To Console  Deploying stress container ${name}...
@@ -33,7 +26,7 @@ Deploy Stress Container And Return Host IP
     Should Be Equal As Integers  ${rc}  0
 
     ${vm_name}=  Get VM display name  ${id}
-    ${host_ip}=  Get Host IP  ${vm_name}
+    ${host_ip}=  Get VM Host Name  ${vm_name}
     [Return]  ${host_ip}
 
 Create Busybox Container VM And Return ID
@@ -51,18 +44,13 @@ Relocate VM To Host
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  OK
 
-Power On VM
-    [Arguments]  ${id}
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${id}
-    Should Be Equal As Integers  ${rc}  0
-
 *** Test Cases ***
 
 # TODO(jzt): we need to test against a single ESX host
 
 Simple Placement
     Install VIC Appliance To Test Server
-    ${vch_host}=  Get Host IP  %{VCH-NAME}
+    ${vch_host}=  Get VM Host Name  %{VCH-NAME}
 
     Pull Image  progrium/stress
 
@@ -83,12 +71,13 @@ Simple Placement
     # Move it onto the same host as the VC
     Relocate VM To Host  ${vch_host}  ${vm_name}
 
-    ${host_ip}=  Get Host IP  ${vm_name}
+    ${host_ip}=  Get VM Host Name  ${vm_name}
     Should Be Equal  ${host_ip}  ${vch_host}
 
     # power on the busybox container - it should relocate to a non-stressed host
-    Power On VM  ${id}
-    ${host_ip}=  Get Host IP  ${vm_name}
+    ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${id}
+    Should Be Equal As Integers  ${rc}  0
+    ${host_ip}=  Get VM Host Name  ${vm_name}
 
     Should Not Contain  ${stressed_hosts}  ${host_ip}
     Cleanup VIC Appliance On Test Server
