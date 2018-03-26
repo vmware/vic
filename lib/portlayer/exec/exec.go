@@ -184,7 +184,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		log.Info("Updating VM group membership for existing VCH members")
 		spec := &types.ClusterConfigSpecEx{
 			GroupSpec: []types.ClusterGroupSpec{
-				types.ClusterGroupSpec{
+				{
 					ArrayUpdateSpec: types.ArrayUpdateSpec{
 						Operation: vmGroupOpType,
 					},
