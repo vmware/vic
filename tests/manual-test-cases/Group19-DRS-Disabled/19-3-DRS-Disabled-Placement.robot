@@ -16,11 +16,12 @@
 Documentation  Test 19-3 - DRS-Disabled-Placement
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  ROBO SKU Setup
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Suite Teardown  Teardown VCH And Cleanup Nimbus
 
 *** Keywords ***
 Deploy Stress Container And Return Host IP
     [Arguments]  ${name}
+    Pull Image  progrium/stress
     Log To Console  Deploying stress container ${name}...
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} progrium/stress --vm 5 --vm-bytes 256M --vm-hang 0
     Should Be Equal As Integers  ${rc}  0
@@ -44,6 +45,10 @@ Relocate VM To Host
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  OK
 
+Teardown VCH And Cleanup Nimbus
+    Cleanup VIC Appliance On Test Server
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+
 *** Test Cases ***
 
 # TODO(jzt): we need to test against a single ESX host
@@ -51,8 +56,6 @@ Relocate VM To Host
 Simple Placement
     Install VIC Appliance To Test Server
     ${vch_host}=  Get VM Host Name  %{VCH-NAME}
-
-    Pull Image  progrium/stress
 
     ${stressed_hosts}=  Create List  ${vch_host}
     :FOR  ${i}  IN RANGE  2
@@ -80,4 +83,3 @@ Simple Placement
     ${host_ip}=  Get VM Host Name  ${vm_name}
 
     Should Not Contain  ${stressed_hosts}  ${host_ip}
-    Cleanup VIC Appliance On Test Server
