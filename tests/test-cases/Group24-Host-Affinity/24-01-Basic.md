@@ -8,7 +8,10 @@ To verify basic VM-Host Affinity functionality
 1. [The design document](../../../doc/design/host-affinity.md)
 
 # Environment:
-This test requires a vCenter Server environment where VCHs can be deployed and container VMs created.
+This suite requires a vCenter Server environment where VCHs can be deployed and container VMs created.
+
+Note that because these basic tests do not test the behavior of DRS in the presence of rules, but just the management of
+VM groups, these tests do not require an environment where DRS is enabled.
 
 
 Positive Testing
@@ -38,3 +41,17 @@ Positive Testing
 
 #### Expected Outcome:
 * The DRS VM Group is deleted when the VCH is deleted.
+
+
+### 3. Removing containers cleans up the VM group
+
+#### Test Steps:
+1. Verify that no DRS VM Group exists by the expected name.
+2. Create a VCH.
+3. Create a variety of containers.
+4. Verify that a DRS VM Group was created and that the endpoint VM and containers were added to it.
+5. Delete the containers.
+6. Verify that the DRS VM Group still exists, but does not include the removed containers.
+
+#### Expected Outcome:
+* Containers are removed from the DRS VM Group when they are deleted.
