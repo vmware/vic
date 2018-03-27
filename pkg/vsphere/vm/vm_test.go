@@ -259,7 +259,7 @@ func TestVMAttributes(t *testing.T) {
 		t.Fatalf("ERROR: %s", err)
 	}
 	assert.Equal(t, name, folder)
-	task, err := vm.PowerOn(ctx)
+	task, err := vm.VirtualMachine.PowerOn(ctx)
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}
@@ -560,7 +560,7 @@ func TestWaitForResult(t *testing.T) {
 	vmm := NewVirtualMachine(ctx, s, vmo.Reference())
 	// Test the success path
 	_, err = vmm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-		return vmm.PowerOn(ctx)
+		return vmm.VirtualMachine.PowerOn(ctx)
 	})
 	if err != nil {
 		t.Fatal(err)
