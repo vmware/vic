@@ -11,35 +11,29 @@ The current placement strategy is to avoid bad host selection, instead of select
 
 # Environment:
 This test requires access to VMware Nimbus cluster for dynamic ESXi and vCenter creation. This test should be executed in the following topologies and should have vSAN enabled.
-* 1 vCenter host with 3 clusters, where 1 cluster has 1 ESXi host and the other 2 clusters have 3 ESXi hosts each
-* 2 vCenter hosts connected with ELM, where each vCenter host has a cluster/host/datacenter topology that emulates a customer environment (exact topology TBD)
+* 1 vCenter host with 1 cluster containing 4 ESX hosts with DRS disabled.
 
 In addition, this test should be run in multi-ESX-host and single-ESX-host cluster topologies.
 
 See https://confluence.eng.vmware.com/display/CNA/VIC+ROBO for more details.
 
 # Test Steps:
-1. Deploy a ROBO Advanced vCenter testbed for both environments above
-2. Run a few dummy VMs on the host(s) in the vCenter cluster meant for VCH installation. This ensures that the hosts have varying resource utilization.
-3. Install a VCH on a particular cluster on vCenter - see note in [Environment](#environment)
-4. Deploy containers that will consume resources predictably (e.g. the `progrium/stress` image)
-5. Measure cluster metrics and gather resource consumption
-6. Create and run regular containers such as `busybox`
-7. Create and run enough containers to consume all available cluster resources
-8. Attempt to create and run more containers
-9. Delete some containers
-10. Create and run a few containers
-11. Delete the VCH
+1. Deploy a vCenter testbed with DRS disabled
+2. Install the VIC VCH appliance with compute resource set to the cluster
+3. Deploy 2 containers that will consume resources predictably (e.g. the `progrium/stress` image)
+4. Measure cluster metrics and gather resource consumption
+5. Create a normal container using the `busybox` image
+6. Relocate the `busybox` container to the same host as the VCH
+7. Start the `busybox` container
+8. Delete the VCH
 
 # Expected Outcome:
 * Step 1 should succeed
-* Step 2 should succeed
-* Step 3 should succeed and the VCH should be placed on a host that satisfies the license and feature checks. The VCH's host should also meet the criteria defined in point 2 of [References](#references)
+* Step 2 should succeed and the VCH should be placed on a host that satisfies the license and feature checks. The VCH's host should also meet the criteria defined in point 2 of [References](#references)
+* Step 3 should succeed, with each stress container being relocated to its own host by the placement logic, separate from one another, and separate from the host containing the VCH
 * Steps 4-5 should succeed and containers should be placed on ESX hosts in the cluster according to the criteria defined in point 2 of [References](#references)
-* Step 6 should succeed and containers should be placed on ESX hosts in the cluster that have available resources according to the criteria defined in point 2 of [References](#references). In the multi-host cluster environment, the cluster resource utilization level should be as expected given containerVM sizes, cluster capacity and placement logic.
-* Step 7 should succeed
-* Step 8 should fail since the available resources are exhausted
-* Steps 9-11 should succeed
+* Steps 5 and 6 should succeed
+* Step 7 should succeed, with the `busybox` container having been relocated from the ESX host containing the VCH to an ESX host that is does not contain the VCH or either of the stress containers
 
 # Possible Problems:
 None

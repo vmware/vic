@@ -103,7 +103,7 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 	// #nosec: Errors unhandled.
 	oldSnapshot, _ := d.appliance.GetCurrentSnapshotTree(d.op)
 
-	newSnapshotRef, err := d.createSnapshot(snapshotName, "configure snapshot")
+	newSnapshotRef, err := d.tryCreateSnapshot(snapshotName, "configure snapshot")
 	if err != nil {
 		d.deleteUpgradeImages(ds, settings)
 		return err
@@ -258,25 +258,21 @@ func (d *Dispatcher) deleteSnapshotByRef(snapshot *types.ManagedObjectReference,
 	return nil
 }
 
-// createSnapshot will create a snapshot of the VCH Appliance
-func (d *Dispatcher) createSnapshot(name, desc string) (*types.ManagedObjectReference, error) {
+// tryCreateSnapshot try to create upgrade snapshot. It will check if upgrade snapshot already exists. If exists, return error.
+// if succeed, return snapshot refID
+func (d *Dispatcher) tryCreateSnapshot(name, desc string) (*types.ManagedObjectReference, error) {
 	defer trace.End(trace.Begin(name, d.op))
 
 	// TODO detect whether another upgrade is in progress & bail if it is.
 	// Use solution from https://github.com/vmware/vic/issues/4069 to do this either as part of 4069 or once it's closed
 
 	info, err := d.appliance.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-		return d.appliance.CreateSnapshot(ctx, name, desc, false, false)
+		return d.appliance.CreateSnapshot(ctx, name, desc, true, false)
 	})
 	if err != nil {
-		return nil, errors.Errorf("Failed to create snapshot %q: %s.", name, err)
+		return nil, errors.Errorf("Failed to create upgrade snapshot %q: %s.", name, err)
 	}
-	// must cast to the specific type as the result is the any type
-	snap, ok := info.Result.(types.ManagedObjectReference)
-	if !ok {
-		return nil, errors.Errorf("Failed to create snapshot %q: cast failure(%#v)", name, info.Result)
-	}
-	return &snap, nil
+	return info.Entity, nil
 }
 
 func (d *Dispatcher) deleteUpgradeImages(ds *object.Datastore, settings *data.InstallerData) {
@@ -333,7 +329,7 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 		return err
 	}
 
-	if err = d.startAppliance(conf); err != nil {
+	if err = d.appliance.PowerOn(d.op); err != nil {
 		return err
 	}
 
@@ -367,13 +363,22 @@ func (d *Dispatcher) rollback(conf *config.VirtualContainerHostConfigSpec, snaps
 func (d *Dispatcher) ensureRollbackReady(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(conf.Name, d.op))
 
-	if err := d.startAppliance(conf); err != nil {
+	power, err := d.appliance.PowerState(d.op)
+	if err != nil {
+		d.op.Errorf("Failed to get vm power status %q after rollback: %s", d.appliance.Reference(), err)
+		return err
+	}
+	if power == types.VirtualMachinePowerStatePoweredOff {
+		d.op.Info("Roll back finished - Appliance is kept in powered off status")
+		return nil
+	}
+	if err = d.appliance.PowerOn(d.op); err != nil {
 		return err
 	}
 
 	op, cancel := trace.WithTimeout(&d.op, settings.Timeout, "CheckServiceReady during rollback")
 	defer cancel()
-	if err := d.CheckServiceReady(op, conf, nil); err != nil {
+	if err = d.CheckServiceReady(op, conf, nil); err != nil {
 		// do not return error in this case, to make sure clean up continues
 		d.op.Info("\tAPI may be slow to start - try to connect to API after a few minutes")
 	}
