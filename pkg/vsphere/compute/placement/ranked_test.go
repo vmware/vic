@@ -26,7 +26,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/performance"
 	"github.com/vmware/vic/pkg/vsphere/test"
-	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 var (
@@ -130,14 +129,11 @@ func TestRankedRecommendHost(t *testing.T) {
 		server.Close()
 	}()
 
-	moref, err := test.CreateVM(op, sess, "test-vm")
-	assert.NoError(t, err)
-
-	v := vm.NewVirtualMachine(op, sess, moref)
+	cls := sess.Cluster
 
 	m := MockMetricsProvider{}
 
-	rhp, err := NewRankedHostPolicy(op, v.Cluster, m)
+	rhp, err := NewRankedHostPolicy(op, cls, m)
 	assert.NoError(t, err)
 
 	testRankedRecommendHostInterface(t, op, rhp)
@@ -161,13 +157,11 @@ func TestRankedRecommendHostWithHosts(t *testing.T) {
 		server.Close()
 	}()
 
-	moref, err := test.CreateVM(op, sess, "test-vm")
-	assert.NoError(t, err)
-
-	v := vm.NewVirtualMachine(op, sess, moref)
+	cls := sess.Cluster
 
 	m := MockMetricsProvider{}
-	rhp, err := NewRankedHostPolicy(op, v.Cluster, m)
+
+	rhp, err := NewRankedHostPolicy(op, cls, m)
 	assert.NoError(t, err)
 	testRankedRecommendHostInterfaceWithHosts(t, op, rhp)
 }
