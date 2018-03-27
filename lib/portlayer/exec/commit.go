@@ -94,7 +94,7 @@ func Commit(op trace.Operation, sess *session.Session, h *Handle, waitTime *int3
 
 				spec := &types.ClusterConfigSpecEx{
 					GroupSpec: []types.ClusterGroupSpec{
-						types.ClusterGroupSpec{
+						{
 							ArrayUpdateSpec: types.ArrayUpdateSpec{
 								Operation: types.ArrayUpdateOperationEdit,
 							},
