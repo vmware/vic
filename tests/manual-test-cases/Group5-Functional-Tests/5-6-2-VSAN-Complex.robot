@@ -25,12 +25,6 @@ VSAN Complex Setup
     ${name}=  Evaluate  'vic-vsan-complex-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${user}  %{NIMBUS_USER}
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --vcfvtBuildPath /dbc/pa-dbc1111/mhagen/ --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-vsan-complex-pxeBoot-vcva --runName ${name}
-
-    # Finish testbed deploy
-    ${output}=  Wait For Process  ${out}  timeout=70 minutes  on_timeout=terminate
-    Log  ${output.stdout}
-    Log  ${output.stderr}
-
     Should Contain  ${out}  "deployment_result"=>"PASS"
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
