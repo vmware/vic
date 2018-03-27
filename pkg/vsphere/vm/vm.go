@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/property"
@@ -33,7 +34,9 @@ import (
 
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/compute/placement"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
+	"github.com/vmware/vic/pkg/vsphere/performance"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
@@ -754,4 +757,133 @@ func (vm *VirtualMachine) RemoveSnapshotByRef(ctx context.Context, snapshot *typ
 	}
 
 	return object.NewTask(vm.Vim25(), res.Returnval), nil
+}
+
+// CheckHostCompatibility checks that a host is compatible for VM placement.
+func (vm *VirtualMachine) CheckHostCompatibility(ctx context.Context, host *types.ManagedObjectReference) (*object.Task, error) {
+	req := types.CheckCompatibility_Task{
+		This: vm.ServiceContent.VmCompatibilityChecker.Reference(),
+		Vm:   vm.Reference(),
+		Host: host,
+	}
+
+	res, err := methods.CheckCompatibility_Task(ctx, vm.Vim25(), &req)
+	if err != nil {
+		return nil, err
+	}
+	return object.NewTask(vm.Vim25(), res.Returnval), nil
+}
+
+// PowerOn powers on a VM. If the environment is VC without DRS enabled, it will attempt to relocate  the VM
+// to the most suitable host in the cluster. If relocation or subsequent power-on fail, it will attempt the next
+// best host, and repeat this process until a successful power-on is achieved or there are no more hosts to try.
+func (vm *VirtualMachine) PowerOn(op trace.Operation) error {
+	drs := vm.Session.DRSEnabled != nil && *vm.Session.DRSEnabled
+	cls := vm.InCluster(op)
+
+	op.Debugf("DRS enabled: %t", drs)
+	op.Debugf("%s resides in a cluster: %t", vm.Reference().String(), cls)
+
+	// otherwise place the VM before powering it on
+	hmp := performance.NewHostMetricsProvider(vm.Session.Vim25())
+	rhp, err := placement.NewRankedHostPolicy(op, vm.Cluster, hmp)
+	if err != nil {
+		return err
+	}
+
+	// any of the following conditions are sufficient to power-on the VM:
+	// - environment is not VC
+	// - DRS is enabled
+	// - the VM does not belong to a cluster
+	// - the current host is adequate for power-on
+	if !vm.IsVC() || drs || !cls || rhp.CheckHost(op, vm.VirtualMachine) {
+		return vm.powerOn(op)
+	}
+
+	op.Warnf("Host is not adequate for power-on, getting placement recommendation")
+
+	var hosts, subset []*object.HostSystem
+
+	f := func() error {
+		hosts, err = rhp.RecommendHost(op, subset)
+		if err != nil {
+			return fmt.Errorf("error recommending host: %s", err.Error())
+		}
+		return nil
+	}
+
+	conf := retry.NewBackoffConfig()
+	conf.MaxInterval = 1 * time.Second
+	conf.MaxElapsedTime = 20 * time.Second
+
+	err = retry.DoWithConfig(f, retry.OnError, conf)
+	if err != nil {
+		return err
+	}
+
+	for len(hosts) > 0 {
+		op.Debugf("hosts: %s", hosts)
+		op.Infof("Placement recommended %s", hosts[0].Reference().String())
+
+		var err error
+		if err = vm.relocate(op, hosts[0]); err != nil {
+			op.Warnf("VM relocation failed: %s", err.Error())
+		} else if err = vm.powerOn(op); err != nil {
+			op.Warnf("VM power-on failed: %s", err.Error())
+		} else {
+			return nil
+		}
+
+		// if relocation or powerOn fails, something has changed and we need a new recommendation
+		subset = hosts[1:]
+
+		if err = retry.DoWithConfig(f, retry.OnError, conf); err != nil {
+			return err
+		}
+
+	}
+	op.Warnf("vm placement failed: no available hosts. Attempting power-on.")
+	return vm.powerOn(op)
+}
+
+func (vm *VirtualMachine) relocate(op trace.Operation, host *object.HostSystem) error {
+	h, err := vm.HostSystem(op)
+	if err != nil {
+		return err
+	}
+	src := h.Reference()
+	dst := host.Reference()
+
+	// NOP if dest host and src host are the same
+	if src.String() == dst.String() {
+		op.Debugf("Skipping relocate - source and destination hosts are the same")
+		return nil
+	}
+
+	op.Debugf("Attempting to relocate %s from host %s to host %s", vm.Reference().String(), src.String(), dst.String())
+
+	spec := types.VirtualMachineRelocateSpec{Host: &dst}
+	_, err = vm.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
+		return vm.Relocate(op, spec, types.VirtualMachineMovePriorityDefaultPriority)
+	})
+	if err != nil {
+		return err
+	}
+
+	op.Infof("VM %s successfully relocated", vm.Reference().String())
+
+	return nil
+}
+
+func (vm *VirtualMachine) powerOn(op trace.Operation) error {
+	_, err := vm.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
+		return vm.VirtualMachine.PowerOn(op)
+	})
+	return err
+}
+
+func (vm *VirtualMachine) InCluster(op trace.Operation) bool {
+	cls := vm.Cluster.Reference().Type == "ClusterComputeResource"
+	op.Debugf("vm compute resource: %s", vm.Cluster.Name())
+	return cls
 }
