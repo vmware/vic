@@ -17,6 +17,7 @@ package tether
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -181,6 +182,10 @@ func (t *tether) triggerReaper() {
 }
 
 func findExecutable(file string, chroot string) error {
+	//log.Infof("***** Dumping directory %s", chroot)
+	//listDirectory(chroot)
+	//log.Infof("***** Dumping directory %s", path.Dir(file))
+	//listDirectory(path.Dir(file))
 	log.Infof("*** Stating file [%s], chroot [%s]", file, chroot)
 	d, err := os.Stat(file)
 	if err != nil {
@@ -188,6 +193,8 @@ func findExecutable(file string, chroot string) error {
 
 		if chroot != "" {
 			file = fmt.Sprintf("%s/%s", chroot, file)
+			//log.Infof("***** Dumping directory %s", path.Dir(file))
+			//listDirectory(path.Dir(file))
 		}
 		log.Infof("*** Stating file [%s], chroot [%s]", file, chroot)
 		d, err = os.Stat(file)
@@ -201,6 +208,26 @@ func findExecutable(file string, chroot string) error {
 		return nil
 	}
 	return os.ErrPermission
+}
+
+// listDirectory logs the directory structure
+func listDirectory(path string) error {
+	log.Infof("*** Reading directory %s", path)
+	files, err := ioutil.ReadDir(path)
+	if err != nil {
+		log.Info("*** Reading directory FAILED")
+		return err
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			log.Infof("*** %s [dir]", file.Name())
+		} else {
+			log.Infof("*** %s [file]", file.Name())
+		}
+	}
+
+	return nil
 }
 
 // lookPath searches for an executable binary named file in the directories

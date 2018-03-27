@@ -881,6 +881,14 @@
 			"path": "/libcontainer"
 		},
 		{
+			"importpath": "github.com/opencontainers/runtime-spec",
+			"repository": "https://github.com/opencontainers/runtime-spec",
+			"vcs": "git",
+			"revision": "4e3b9264a330d094b0386c3703c5f379119711e8",
+			"branch": "HEAD",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/opennota/urlesc",
 			"repository": "https://github.com/opennota/urlesc",
 			"vcs": "",
