@@ -269,12 +269,7 @@ func (c *containerBase) start(op trace.Operation) error {
 		return NotYetExistError{c.ExecConfig.ID}
 	}
 
-	// Power on
-	_, err := c.vm.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
-		return c.vm.PowerOn(op)
-	})
-
-	return err
+	return c.vm.PowerOn(op)
 }
 
 func (c *containerBase) stop(op trace.Operation, waitTime *int32) error {
