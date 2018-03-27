@@ -36,11 +36,12 @@ import (
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/convert"
+	"github.com/vmware/vic/lib/apiservers/engine/network"
+	"github.com/vmware/vic/lib/apiservers/engine/proxy"
 	plclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
 	plscopes "github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	plmodels "github.com/vmware/vic/lib/apiservers/portlayer/models"
-	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
@@ -105,6 +106,12 @@ type MockContainerProxy struct {
 	mockCommitData         []CommitHandleMockData
 }
 
+type MockStorageProxy struct {
+}
+
+type MockStreamProxy struct {
+}
+
 const (
 	SUCCESS             = 0
 	dummyContainerID    = "abc123"
@@ -136,6 +143,14 @@ func NewMockContainerProxy() *MockContainerProxy {
 		mockAddLoggingData:     MockAddLoggingData(),
 		mockCommitData:         MockCommitData(),
 	}
+}
+
+func NewMockStorageProxy() *MockStorageProxy {
+	return &MockStorageProxy{}
+}
+
+func NewMockStreamProxy() *MockStreamProxy {
+	return &MockStreamProxy{}
 }
 
 func MockCreateHandleData() []CreateHandleMockData {
@@ -215,11 +230,11 @@ func (m *MockContainerProxy) SetMockDataResponse(createHandleResp int, addToScop
 	m.mockRespIndices[5] = commitContainerResp
 }
 
-func (m *MockContainerProxy) Handle(id, name string) (string, error) {
+func (m *MockContainerProxy) Handle(ctx context.Context, id, name string) (string, error) {
 	return "", nil
 }
 
-func (m *MockContainerProxy) CreateContainerHandle(vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error) {
+func (m *MockContainerProxy) CreateContainerHandle(ctx context.Context, vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error) {
 	respIdx := m.mockRespIndices[0]
 
 	if respIdx >= len(m.mockCreateHandleData) {
@@ -228,7 +243,7 @@ func (m *MockContainerProxy) CreateContainerHandle(vc *viccontainer.VicContainer
 	return m.mockCreateHandleData[respIdx].retID, m.mockCreateHandleData[respIdx].retHandle, m.mockCreateHandleData[respIdx].retErr
 }
 
-func (m *MockContainerProxy) CreateContainerTask(handle string, id string, config types.ContainerCreateConfig) (string, error) {
+func (m *MockContainerProxy) CreateContainerTask(ctx context.Context, handle string, id string, config types.ContainerCreateConfig) (string, error) {
 	respIdx := m.mockRespIndices[0]
 
 	if respIdx >= len(m.mockCreateHandleData) {
@@ -237,7 +252,7 @@ func (m *MockContainerProxy) CreateContainerTask(handle string, id string, confi
 	return m.mockCreateHandleData[respIdx].retHandle, m.mockCreateHandleData[respIdx].retErr
 }
 
-func (m *MockContainerProxy) AddContainerToScope(handle string, config types.ContainerCreateConfig) (string, error) {
+func (m *MockContainerProxy) AddContainerToScope(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
 	respIdx := m.mockRespIndices[1]
 
 	if respIdx >= len(m.mockAddToScopeData) {
@@ -247,7 +262,7 @@ func (m *MockContainerProxy) AddContainerToScope(handle string, config types.Con
 	return m.mockAddToScopeData[respIdx].retHandle, m.mockAddToScopeData[respIdx].retErr
 }
 
-func (m *MockContainerProxy) AddVolumesToContainer(handle string, config types.ContainerCreateConfig) (string, error) {
+func (m *MockContainerProxy) AddVolumesToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
 	respIdx := m.mockRespIndices[2]
 
 	if respIdx >= len(m.mockAddVolumesData) {
@@ -257,7 +272,7 @@ func (m *MockContainerProxy) AddVolumesToContainer(handle string, config types.C
 	return m.mockAddVolumesData[respIdx].retHandle, m.mockAddVolumesData[respIdx].retErr
 }
 
-func (m *MockContainerProxy) AddInteractionToContainer(handle string, config types.ContainerCreateConfig) (string, error) {
+func (m *MockContainerProxy) AddInteractionToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
 	respIdx := m.mockRespIndices[3]
 
 	if respIdx >= len(m.mockAddInteractionData) {
@@ -267,7 +282,7 @@ func (m *MockContainerProxy) AddInteractionToContainer(handle string, config typ
 	return m.mockAddInteractionData[respIdx].retHandle, m.mockAddInteractionData[respIdx].retErr
 }
 
-func (m *MockContainerProxy) AddLoggingToContainer(handle string, config types.ContainerCreateConfig) (string, error) {
+func (m *MockContainerProxy) AddLoggingToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
 	respIdx := m.mockRespIndices[4]
 
 	if respIdx >= len(m.mockAddLoggingData) {
@@ -277,19 +292,19 @@ func (m *MockContainerProxy) AddLoggingToContainer(handle string, config types.C
 	return m.mockAddLoggingData[respIdx].retHandle, m.mockAddLoggingData[respIdx].retErr
 }
 
-func (m *MockContainerProxy) BindInteraction(handle string, name string, id string) (string, error) {
+func (m *MockContainerProxy) BindInteraction(ctx context.Context, handle string, name string, id string) (string, error) {
 	return "", nil
 }
 
-func (m *MockContainerProxy) CreateExecTask(handle string, config *types.ExecConfig) (string, string, error) {
+func (m *MockContainerProxy) CreateExecTask(ctx context.Context, handle string, config *types.ExecConfig) (string, string, error) {
 	return "", "", nil
 }
 
-func (m *MockContainerProxy) UnbindInteraction(handle string, name string, id string) (string, error) {
+func (m *MockContainerProxy) UnbindInteraction(ctx context.Context, handle string, name string, id string) (string, error) {
 	return "", nil
 }
 
-func (m *MockContainerProxy) CommitContainerHandle(handle, containerID string, waitTime int32) error {
+func (m *MockContainerProxy) CommitContainerHandle(ctx context.Context, handle, containerID string, waitTime int32) error {
 	respIdx := m.mockRespIndices[5]
 
 	if respIdx >= len(m.mockCommitData) {
@@ -303,34 +318,11 @@ func (m *MockContainerProxy) Client() *plclient.PortLayer {
 	return nil
 }
 
-func (m *MockContainerProxy) StreamContainerLogs(_ context.Context, name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error {
-	if name == "" {
-		return fmt.Errorf("sample error message")
-	}
-
-	var lineCount int64 = 10
-
-	close(started)
-
-	for i := int64(0); i < lineCount; i++ {
-		if !followLogs && i > tailLines {
-			break
-		}
-		if followLogs && i > tailLines {
-			time.Sleep(500 * time.Millisecond)
-		}
-
-		fmt.Fprintf(out, "line %d\n", i)
-	}
-
+func (m *MockContainerProxy) Stop(ctx context.Context, vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error {
 	return nil
 }
 
-func (m *MockContainerProxy) Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error {
-	return nil
-}
-
-func (m *MockContainerProxy) State(vc *viccontainer.VicContainer) (*types.ContainerState, error) {
+func (m *MockContainerProxy) State(ctx context.Context, vc *viccontainer.VicContainer) (*types.ContainerState, error) {
 	// Assume container is running if container in cache.  If we need other conditions
 	// in the future, we can add it, but for now, just assume running.
 	c := cache.ContainerCache().GetContainer(vc.ContainerID)
@@ -360,28 +352,24 @@ func (m *MockContainerProxy) WaitTask(op trace.Operation, cid string, cname stri
 	return nil
 }
 
-func (m *MockContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (*types.ContainerState, error) {
+func (m *MockContainerProxy) Wait(ctx context.Context, vc *viccontainer.VicContainer, timeout time.Duration) (*types.ContainerState, error) {
 	dockerState := &types.ContainerState{ExitCode: 0}
 	return dockerState, nil
 }
 
-func (m *MockContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error {
+func (m *MockContainerProxy) Signal(ctx context.Context, vc *viccontainer.VicContainer, sig uint64) error {
 	return nil
 }
 
-func (m *MockContainerProxy) Resize(id string, height, width int32) error {
+func (m *MockContainerProxy) Resize(ctx context.Context, id string, height, width int32) error {
 	return nil
 }
 
-func (m *MockContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) error {
+func (m *MockContainerProxy) Rename(ctx context.Context, vc *viccontainer.VicContainer, newName string) error {
 	return nil
 }
 
-func (m *MockContainerProxy) Remove(vc *viccontainer.VicContainer, config *types.ContainerRmConfig) error {
-	return nil
-}
-
-func (m *MockContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, clStdin io.ReadCloser, clStdout, clStderr io.Writer) error {
+func (m *MockContainerProxy) Remove(ctx context.Context, vc *viccontainer.VicContainer, config *types.ContainerRmConfig) error {
 	return nil
 }
 
@@ -389,19 +377,11 @@ func (m *MockContainerProxy) StreamContainerStats(ctx context.Context, config *c
 	return nil
 }
 
-func (m *MockContainerProxy) StatPath(op trace.Operation, sotre, deviceID string, filterSpec archive.FilterSpec) (*types.ContainerPathStat, error) {
-	return nil, nil
-}
-
-func (m *MockContainerProxy) GetContainerChanges(op trace.Operation, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error) {
-	return nil, nil
-}
-
-func (m *MockContainerProxy) UnbindContainerFromNetwork(vc *viccontainer.VicContainer, handle string) (string, error) {
+func (m *MockContainerProxy) UnbindContainerFromNetwork(ctx context.Context, vc *viccontainer.VicContainer, handle string) (string, error) {
 	return "", nil
 }
 
-func (m *MockContainerProxy) exitCode(vc *viccontainer.VicContainer) (string, error) {
+func (m *MockContainerProxy) ExitCode(ctx context.Context, vc *viccontainer.VicContainer) (string, error) {
 	return "", nil
 }
 
@@ -465,6 +445,57 @@ func AddMockContainerToCache() {
 	}
 }
 
+func (s *MockStorageProxy) Create(ctx context.Context, name, driverName string, volumeData, labels map[string]string) (*types.Volume, error) {
+	return nil, nil
+}
+
+func (s *MockStorageProxy) VolumeList(ctx context.Context, filter string) ([]*plmodels.VolumeResponse, error) {
+	return nil, nil
+}
+
+func (s *MockStorageProxy) VolumeInfo(ctx context.Context, name string) (*plmodels.VolumeResponse, error) {
+	return nil, nil
+}
+
+func (s *MockStorageProxy) Remove(ctx context.Context, name string) error {
+	return nil
+}
+
+func (s *MockStorageProxy) AddVolumesToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
+	return "", nil
+}
+
+func (sp *MockStreamProxy) AttachStreams(ctx context.Context, ac *proxy.AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer) error {
+	return nil
+}
+
+func (sp *MockStreamProxy) StreamContainerLogs(_ context.Context, name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error {
+	if name == "" {
+		return fmt.Errorf("sample error message")
+	}
+
+	var lineCount int64 = 10
+
+	close(started)
+
+	for i := int64(0); i < lineCount; i++ {
+		if !followLogs && i > tailLines {
+			break
+		}
+		if followLogs && i > tailLines {
+			time.Sleep(500 * time.Millisecond)
+		}
+
+		fmt.Fprintf(out, "line %d\n", i)
+	}
+
+	return nil
+}
+
+func (sp *MockStreamProxy) StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error {
+	return nil
+}
+
 //***********
 // Tests
 //***********
@@ -475,7 +506,7 @@ func TestContainerCreateEmptyImageCache(t *testing.T) {
 	mockContainerProxy := NewMockContainerProxy()
 
 	// Create our personality Container backend
-	cb := &Container{
+	cb := &ContainerBackend{
 		containerProxy: mockContainerProxy,
 	}
 
@@ -499,7 +530,7 @@ func TestCreateHandle(t *testing.T) {
 	mockContainerProxy := NewMockContainerProxy()
 
 	// Create our personality Container backend
-	cb := &Container{
+	cb := &ContainerBackend{
 		containerProxy: mockContainerProxy,
 	}
 
@@ -544,7 +575,7 @@ func TestContainerAddToScope(t *testing.T) {
 	mockContainerProxy := NewMockContainerProxy()
 
 	// Create our personality Container backend
-	cb := &Container{
+	cb := &ContainerBackend{
 		containerProxy: mockContainerProxy,
 	}
 
@@ -581,10 +612,12 @@ func TestContainerAddToScope(t *testing.T) {
 // possible input/outputs for committing the handle and calls vicbackends.ContainerCreate()
 func TestCommitHandle(t *testing.T) {
 	mockContainerProxy := NewMockContainerProxy()
+	mockStorageProxy := NewMockStorageProxy()
 
 	// Create our personality Container backend
-	cb := &Container{
+	cb := &ContainerBackend{
 		containerProxy: mockContainerProxy,
+		storageProxy:   mockStorageProxy,
 	}
 
 	AddMockImageToCache()
@@ -619,11 +652,10 @@ func TestCommitHandle(t *testing.T) {
 
 // TestContainerLogs() tests the docker logs api when user asks for entire log
 func TestContainerLogs(t *testing.T) {
-	mockContainerProxy := NewMockContainerProxy()
-
 	// Create our personality Container backend
-	cb := &Container{
-		containerProxy: mockContainerProxy,
+	cb := &ContainerBackend{
+		containerProxy: NewMockContainerProxy(),
+		streamProxy:    NewMockStreamProxy(),
 	}
 
 	// Prepopulate our image and container cache with dummy data
@@ -754,20 +786,24 @@ func TestPortInformation(t *testing.T) {
 	co.Name = "bar"
 	cache.ContainerCache().AddContainer(co)
 
-	// unless there are entries in containerByPort we won't report them as bound
-	ports := portForwardingInformation(mockContainerInfo, ips)
+	// unless there are entries in vicnetwork.ContainerByPort we won't report them as bound
+	ports := network.PortForwardingInformation(nil, ips)
+	assert.Empty(t, ports, "No ports should be returned for nil container")
+
+	// unless there are entries in vicnetwork.ContainerByPort we won't report them as bound
+	ports = network.PortForwardingInformation(co, ips)
 	assert.Empty(t, ports, "There should be no bound IPs at this point for forwarding")
 
 	// the current port binding should show up as a direct port
-	ports = directPortInformation(mockContainerInfo)
+	ports = network.DirectPortInformation(mockContainerInfo)
 	assert.NotEmpty(t, ports, "There should be a direct port")
 
-	containerByPort["8000"] = containerID
-	ports = portForwardingInformation(mockContainerInfo, ips)
+	network.ContainerByPort["8000"] = containerID
+	ports = network.PortForwardingInformation(co, ips)
 	assert.NotEmpty(t, ports, "There should be bound IPs")
 	assert.Equal(t, 1, len(ports), "Expected 1 port binding, found %d", len(ports))
 	// now that this port presents as a forwarded port it should NOT present as a direct port
-	ports = directPortInformation(mockContainerInfo)
+	ports = network.DirectPortInformation(mockContainerInfo)
 	assert.Empty(t, ports, "There should not be a direct port")
 
 	port, _ = nat.NewPort("tcp", "80")
@@ -779,8 +815,8 @@ func TestPortInformation(t *testing.T) {
 
 	// forwarding of 00 should never happen, but this is allowing us to confirm that
 	// it's kicked out by the function even if present in the map
-	containerByPort["00"] = containerID
-	ports = portForwardingInformation(mockContainerInfo, ips)
+	network.ContainerByPort["00"] = containerID
+	ports = network.PortForwardingInformation(co, ips)
 	assert.NotEmpty(t, ports, "There should be 1 bound IP")
 	assert.Equal(t, 1, len(ports), "Expected 1 port binding, found %d", len(ports))
 
@@ -790,8 +826,8 @@ func TestPortInformation(t *testing.T) {
 		HostPort: "800",
 	}
 	portMap[port] = portBindings
-	containerByPort["800"] = containerID
-	ports = portForwardingInformation(mockContainerInfo, ips)
+	network.ContainerByPort["800"] = containerID
+	ports = network.PortForwardingInformation(co, ips)
 	assert.Equal(t, 2, len(ports), "Expected 2 port binding, found %d", len(ports))
 }
 
@@ -815,7 +851,7 @@ func TestCreateConfigNetworkMode(t *testing.T) {
 
 	assert.Equal(t, mockConfig.HostConfig.NetworkMode.NetworkName(), "net1", "expected NetworkMode is net1, found %s", mockConfig.HostConfig.NetworkMode)
 
-	// container connects to two network endpoints; check for NetworkMode error
+	// container connects to two vicnetwork endpoints; check for NetworkMode error
 	mockConfig.NetworkingConfig.EndpointsConfig["net2"] = &dnetwork.EndpointSettings{}
 
 	err := validateCreateConfig(&mockConfig)

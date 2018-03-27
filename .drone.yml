@@ -4,13 +4,13 @@ workspace:
   base: /go
   path: src/github.com/vmware/vic
 
-pipeline:
-
-  clone:
+clone:
+  git:
     image: plugins/git
     tags: true
     recursive: false
 
+pipeline:
   clone-pr:
     image: wdc-harbor-ci.eng.vmware.com/default-project/git-clone:1.0
     pull: true
@@ -52,9 +52,11 @@ pipeline:
       SHELL: /bin/bash
     secrets:
       - github_automation_api_key
+      - skip_check_membership
     commands:
       - echo ${DRONE_COMMIT_AUTHOR}
-      - /bin/bash -c '[[ ! $(curl --silent "https://api.github.com/orgs/vmware/members/${DRONE_COMMIT_AUTHOR}?access_token=$GITHUB_AUTOMATION_API_KEY") ]]'
+      - echo $SKIP_CHECK_MEMBERSHIP
+      - if $SKIP_CHECK_MEMBERSHIP == true; then echo 'check-org-membership step skipped'; else /bin/bash -c '[[ ! $(curl --silent "https://api.github.com/orgs/vmware/members/${DRONE_COMMIT_AUTHOR}?access_token=$GITHUB_AUTOMATION_API_KEY") ]]'; fi
     when:
       status: success
 
@@ -86,6 +88,15 @@ pipeline:
       - 'export VIC_ESX_URL_ARRAY="`tests/get_test_url.sh`"'
       - tests/unit-test-check.sh
       - 'make sincemark'
+    when:
+      status: success
+
+  report-coverage:
+    image: robertstettner/drone-codecov
+    secrets:
+      - codecov_token
+    files:
+      - .cover/cover.out
     when:
       status: success
 
@@ -312,13 +323,6 @@ pipeline:
       event: [push, tag]
       branch: [master, 'releases/*', 'refs/tags/*']
       status: success
-
-  report-coverage:
-    image: robertstettner/drone-codecov
-    secrets:
-      - codecov_token
-    files:
-      - .cover/cover.out
 
   notify-slack-on-fail:
     image: plugins/slack

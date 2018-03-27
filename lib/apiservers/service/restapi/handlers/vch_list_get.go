@@ -102,14 +102,18 @@ func vchsToModels(op trace.Operation, vchs []*vm.VirtualMachine, executor *manag
 		var version *version.Build
 		var dockerHost string
 		var adminPortal string
+		name := path.Base(vch.InventoryPath)
+		id := vch.Reference().Value
+
 		if vchConfig, err := executor.GetNoSecretVCHConfig(vch); err == nil {
 			version = vchConfig.Version
-			dockerHost, adminPortal = getAddresses(vchConfig)
+			dockerHost, adminPortal, err = getAddresses(executor, vchConfig)
+			if err != nil {
+				op.Warnf("Failed to get docker host and admin portal address for VCH %s: %s", id, err)
+			}
 		}
 
-		name := path.Base(vch.InventoryPath)
-
-		model := &models.VCHListItem{ID: vch.Reference().Value, Name: name, AdminPortal: adminPortal, DockerHost: dockerHost}
+		model := &models.VCHListItem{ID: id, Name: name, AdminPortal: adminPortal, DockerHost: dockerHost}
 
 		if version != nil {
 			model.Version = version.ShortVersion()

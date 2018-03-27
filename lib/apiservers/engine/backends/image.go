@@ -36,6 +36,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	vicfilter "github.com/vmware/vic/lib/apiservers/engine/backends/filter"
+	"github.com/vmware/vic/lib/apiservers/engine/errors"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/lib/metadata"
@@ -59,19 +60,19 @@ var unSupportedImageFilters = map[string]bool{
 	"dangling": false,
 }
 
-type Image struct {
+type ImageBackend struct {
 }
 
-func NewImageBackend() *Image {
-	return &Image{}
+func NewImageBackend() *ImageBackend {
+	return &ImageBackend{}
 }
 
-func (i *Image) Exists(containerName string) bool {
+func (i *ImageBackend) Exists(containerName string) bool {
 	return false
 }
 
 // TODO fix the errors so the client doesnt print the generic POST or DELETE message
-func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDelete, error) {
+func (i *ImageBackend) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDelete, error) {
 	defer trace.End(trace.Begin(imageRef))
 
 	var (
@@ -208,11 +209,11 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 	return deletedRes, err
 }
 
-func (i *Image) ImageHistory(imageName string) ([]*types.ImageHistory, error) {
-	return nil, fmt.Errorf("%s does not yet implement image.History", ProductName())
+func (i *ImageBackend) ImageHistory(imageName string) ([]*types.ImageHistory, error) {
+	return nil, errors.APINotSupportedMsg(ProductName(), "ImageHistory")
 }
 
-func (i *Image) Images(imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error) {
+func (i *ImageBackend) Images(imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("imageFilters: %#v", imageFilters)))
 
 	// validate filters for accuracy and support
@@ -263,7 +264,7 @@ imageLoop:
 
 // Docker Inspect.  LookupImage looks up an image by name and returns it as an
 // ImageInspect structure.
-func (i *Image) LookupImage(name string) (*types.ImageInspect, error) {
+func (i *ImageBackend) LookupImage(name string) (*types.ImageInspect, error) {
 	defer trace.End(trace.Begin("LookupImage (docker inspect)"))
 
 	imageConfig, err := cache.ImageCache().Get(name)
@@ -274,7 +275,7 @@ func (i *Image) LookupImage(name string) (*types.ImageInspect, error) {
 	return imageConfigToDockerImageInspect(imageConfig, ProductName()), nil
 }
 
-func (i *Image) TagImage(imageName, repository, tag string) error {
+func (i *ImageBackend) TagImage(imageName, repository, tag string) error {
 	img, err := cache.ImageCache().Get(imageName)
 	if err != nil {
 		return err
@@ -302,23 +303,23 @@ func (i *Image) TagImage(imageName, repository, tag string) error {
 	return nil
 }
 
-func (i *Image) ImagesPrune(pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
-	return nil, fmt.Errorf("%s does not yet implement image.ImagesPrune", ProductName())
+func (i *ImageBackend) ImagesPrune(pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
+	return nil, errors.APINotSupportedMsg(ProductName(), "ImagesPrune")
 }
 
-func (i *Image) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
-	return fmt.Errorf("%s does not yet implement image.LoadImage", ProductName())
+func (i *ImageBackend) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
+	return errors.APINotSupportedMsg(ProductName(), "LoadImage")
 }
 
-func (i *Image) ImportImage(src string, repository, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
-	return fmt.Errorf("%s does not yet implement image.ImportImage", ProductName())
+func (i *ImageBackend) ImportImage(src string, repository, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
+	return errors.APINotSupportedMsg(ProductName(), "ImportImage")
 }
 
-func (i *Image) ExportImage(names []string, outStream io.Writer) error {
-	return fmt.Errorf("%s does not yet implement image.ExportImage", ProductName())
+func (i *ImageBackend) ExportImage(names []string, outStream io.Writer) error {
+	return errors.APINotSupportedMsg(ProductName(), "ExportImage")
 }
 
-func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (i *ImageBackend) PullImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	defer trace.End(trace.Begin(""))
 
 	log.Debugf("PullImage: image = %s, tag = %s, metaheaders = %+v\n", image, tag, metaHeaders)
@@ -409,12 +410,12 @@ func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders ma
 	return nil
 }
 
-func (i *Image) PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
-	return fmt.Errorf("%s does not yet implement image.PushImage", ProductName())
+func (i *ImageBackend) PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+	return errors.APINotSupportedMsg(ProductName(), "PushImage")
 }
 
-func (i *Image) SearchRegistryForImages(ctx context.Context, filtersArgs string, term string, limit int, authConfig *types.AuthConfig, metaHeaders map[string][]string) (*registry.SearchResults, error) {
-	return nil, fmt.Errorf("%s does not yet implement image.SearchRegistryForImages", ProductName())
+func (i *ImageBackend) SearchRegistryForImages(ctx context.Context, filtersArgs string, term string, limit int, authConfig *types.AuthConfig, metaHeaders map[string][]string) (*registry.SearchResults, error) {
+	return nil, errors.APINotSupportedMsg(ProductName(), "SearchRegistryForImages")
 }
 
 // Utility functions

@@ -309,5 +309,5 @@ Malformed tarball doesn't extract to wrong container from shared volume
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start two
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec two ls /tmp
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec one ls /tmp
     Should Not Contain  ${output}  pingme
