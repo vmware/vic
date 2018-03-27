@@ -18,7 +18,7 @@ pipeline:
       event: [ pull_request ]
 
   display-status:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.47'
     pull: true
     environment:
       BIN: bin
@@ -30,7 +30,7 @@ pipeline:
       - 'git log -1 --pretty=oneline | grep "^${DRONE_COMMIT}" > /dev/null && echo ''Build matches'' || (git log -1 --pretty=oneline | grep "Merge ${DRONE_COMMIT}" > /dev/null && echo ''Build is of a merge commit'' || (echo ''Build does not match!'' && exit 1))'
 
   wait-for-build:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.47'
     pull: true
     environment:
       BIN: bin
@@ -44,7 +44,7 @@ pipeline:
       - tests/wait_until_previous_builds_complete.sh
 
   check-org-membership:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.47'
     pull: true
     environment:
       BIN: bin
@@ -61,7 +61,7 @@ pipeline:
       status: success
 
   vic-engine:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.47'
     pull: true
     environment:
       BIN: bin
@@ -75,6 +75,7 @@ pipeline:
       - test_password
       - test_url_array
       - test_username
+      - codecov_token
     commands:
       - 'export BUILD_NUMBER=${DRONE_BUILD_NUMBER}'
       - 'export COMMIT=${DRONE_COMMIT}'
@@ -91,17 +92,8 @@ pipeline:
     when:
       status: success
 
-  report-coverage:
-    image: robertstettner/drone-codecov
-    secrets:
-      - codecov_token
-    files:
-      - .cover/cover.out
-    when:
-      status: success
-
   vic-integration-test-on-pr:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.47'
     pull: true
     privileged: true
     environment:
@@ -149,7 +141,7 @@ pipeline:
       status: success
 
   vic-ui:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.47'
     pull: true
     environment:
      BIN: bin
@@ -171,7 +163,7 @@ pipeline:
       branch: [master]
 
   vic-ui-release:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.47'
     pull: true
     environment:
       BIN: bin
@@ -363,7 +355,7 @@ pipeline:
       branch: ['refs/tags/*']
 
   pass-rate:
-    image: 'gcr.io/eminent-nation-87317/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.47'
     pull: true
     environment:
       BIN: bin
