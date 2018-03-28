@@ -39,6 +39,22 @@ vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --thumbprint=%{
 * Regression tests pass
 
 
+Folder Structure
+=======
+## Create VCH - Folder Structure Correctness
+This will be a basic test which will confirm that the correct folder gets created for the appliance. Additionally, 
+it will confirm that the VCH is created inside of that folder.
+
+### Steps
+1. Deploy a standard CI VIC appliance. No special parameters are needed for folder support
+2. Confirm that the folder exists with the correct name.
+3. Confirm the VCH exists inside of that folder also with the correct name.
+4. Delete the VCH(Should also remove all folders, this will be a separate test.)
+
+### Expected Outcome
+Step 1 Should succeed without error
+Step 2-3 should have rc's of 0 and Should pass their checks successfully.
+Step 4 should succeed without error
 
 Connection
 =======

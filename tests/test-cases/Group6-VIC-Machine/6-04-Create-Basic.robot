@@ -63,6 +63,14 @@ Create VCH - custom base disk
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
+Create VCH - Folder Structure Correctness
+    Install VIC Appliance To Test Server
+    ${rc}  ${out}=  Run And Return Rc And Output  govc ls vm | grep %{VCH-NAME}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${out}  vm/%{VCH-NAME}
+    Check VCH VM Folder Path
+    Cleanup VIC Appliance On Test Server
+
 Create VCH - URL without user and password
     Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server

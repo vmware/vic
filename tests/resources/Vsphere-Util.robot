@@ -287,6 +287,16 @@ Check CVM Folder Path
     # If it is VC - we should find the vch in a folder named after the VCH.
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${cvm-path}  vm/%{VCH-NAME}/${cvm-name}
 
+# Check VCH VM Folder Path will confirm that the VCH VM is in the correct place. if passed no arguments it will use the env var VCH-NAME for the check
+Check VCH VM Folder Path
+    [Arguments]  ${vch-name}=%{VCH-NAME}
+    ${rc}  ${vch-path}=  Run And Return Rc And Output  govc find / -type m | grep ${vch-name}
+    Should Be Equal As Integers  ${rc}  0
+    # If it is esxi - we should find the vch in the vmfolder
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${vch-path}  vm/${vch-name}
+    # If it is VC - we should find the vch in a folder named after the VCH.
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${vch-path}  vm/%{VCH-NAME}/${vch-name}
+
 Get Public Network VLAN ID
     ${noQuotes}=  Strip String  %{PUBLIC_NETWORK}  characters='"
     ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info --json | jq -r '.Portgroup[].Spec | select(.Name == "${noQuotes}") | .VlanId'
