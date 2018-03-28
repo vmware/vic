@@ -195,9 +195,11 @@ Upgrade VCH with unreasonably short timeout and automatic rollback after failure
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout 1s
     Should Contain  ${output}  Upgrading VCH exceeded time limit
     Should Not Contain  ${output}  Completed successfully
+    # we should have no snapshots
     ${rc}  ${output}=  Run And Return Rc And Output  govc snapshot.tree -vm=%{VCH-NAME}
-    Should Not Contain  ${output}  upgrade
-
+    Should Be Empty  ${output}
+    # the appliance is restarting - attempt to wait until it's ready
+    Sleep  90
     # confirm that the rollback took effect
     Check Original Version
 
