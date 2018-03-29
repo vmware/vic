@@ -238,7 +238,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 	var err error
 	var children []*vm.VirtualMachine
 
-	folderRef, err := VchFolder(d.op, d.session, conf)
+	folderRef, err := vchFolder(d.op, d.session, conf)
 
 	if err != nil || folderRef == nil {
 
@@ -393,7 +393,7 @@ func (d *Dispatcher) deleteFolder(conf *config.VirtualContainerHostConfigSpec) {
 	}
 
 	d.op.Info("Removing VCH Inventory Folder")
-	folderRef, err := VchFolder(d.op, d.session, conf)
+	folderRef, err := vchFolder(d.op, d.session, conf)
 	if err != nil {
 		folderPath := fmt.Sprintf("%s/%s", d.session.VMFolder.InventoryPath, conf.Name)
 		d.op.Debugf("failed to find VCH folder(%s): %s", folderPath, err)
