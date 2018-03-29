@@ -120,8 +120,6 @@ func (t *multiWriter) Close() error {
 	return nil
 }
 
-// TODO: add a ReadFrom for more efficient copy
-
 func (t *multiWriter) remove(writer io.Writer) {
 	wTmp := make([]io.Writer, 0, len(t.writers))
 
