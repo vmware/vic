@@ -20,8 +20,6 @@ Set Test Environment Variables
     # Finish setting up environment variables
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_BUILD_NUMBER
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_BUILD_NUMBER  0
-    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  BRIDGE_NETWORK
-    Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  BRIDGE_NETWORK  network
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  PUBLIC_NETWORK
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  PUBLIC_NETWORK  'VM Network'
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_DATACENTER
@@ -45,7 +43,7 @@ Set Test Environment Variables
     Log To Console  \nDRONE_MACHINE=%{DRONE_MACHINE}
     ${worker_date}=  Run  date
     Log To Console  \nWorker_Date=${worker_date}
-    
+
     ${rc}  ${host}=  Run And Return Rc And Output  govc ls host
     Should Be Equal As Integers  ${rc}  0
     ${out}=  Run  govc ls -t HostSystem ${host} | xargs -I% -n1 govc host.date.info -host\=% | grep 'date and time'
@@ -76,7 +74,10 @@ Set Test Environment Variables
     Set Test VCH Name
     # cleanup any potential old certs directories
     Remove Directory  %{VCH-NAME}  recursive=${true}
-    Wait Until Keyword Succeeds  5x  1s  Create Unique Bridge Network
+
+    # create a new, unique bridge if there isn't one already
+    ${status}=  Run Keyword And Return Status  Environment Variable Should Not Be Set  BRIDGE_NETWORK
+    Run Keyword If  ${status}  Wait Until Keyword Succeeds  5x  1s  Create Unique Bridge Network
 
 Create Unique Bridge Network
     # Ensure unique bridges are non-overlapping in a shared build environment (our CI)
@@ -311,6 +312,18 @@ Install VIC Appliance To Test Server With Current Environment Variables
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${debug}  ${additional-args}
     Log  ${output}
+
+    # Check for failure to obtain IP address
+    # Example:
+    # State of all interfaces:
+    #   "public" IP: "waiting for IP"
+    #   "client" IP: "waiting for IP"
+    #   "management" IP: "waiting for IP"
+    #   "bridge" IP: "waiting for IP"
+    ${noIP}=  Set Variable If  '"waiting for IP"' in '''${output}'''  True  False
+    Run Keyword If  ${noIP}  Log             Possible DHCP failure
+    Run Keyword If  ${noIP}  Log To Console  Possible DHCP failure
+
     Should Contain  ${output}  Installer completed successfully
 
     Get Docker Params  ${output}  ${certs}
@@ -458,20 +471,20 @@ Cleanup VIC Appliance On Test Server
     Log To Console  Deleting the VCH appliance %{VCH-NAME}
     ${output}=  Run VIC Machine Delete Command
     Log  ${output}
-    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
-    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Remove Environment Variable  BRIDGE_NETWORK
+    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Run Keyword And Ignore Error  Cleanup VCH Bridge Network
     Run Keyword And Ignore Error  Run  govc datastore.rm %{VCH-NAME}-VOL
     [Return]  ${output}
 
 Cleanup VCH Bridge Network
-    [Arguments]  ${name}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${name}
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove %{BRIDGE_NETWORK}
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  ${name}
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  %{BRIDGE_NETWORK}
 
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  ${name}
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  %{BRIDGE_NETWORK}
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc ls network
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${out}  ${name}
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${out}  %{BRIDGE_NETWORK}
+
+    Remove Environment Variable  BRIDGE_NETWORK
 
 Add VC Distributed Portgroup
     [Arguments]  ${dvs}  ${pg}

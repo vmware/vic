@@ -93,7 +93,10 @@ Deploy Proxified VCH
 
 Destroy Proxified VCH
     Run  bin/vic-machine-linux delete --name=VCH-XPLT --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true
-    Cleanup VCH Bridge Network  %{BRIDGE_NETWORK_2}
+    ${br1}=  Get Environment Variable  BRIDGE_NETWORK
+    Set Environment Variable  BRIDGE_NETWORK  %{BRIDGE_NETWORK_2}
+    Cleanup VCH Bridge Network
+    Set Environment Variable  BRIDGE_NETWORK  ${br1}
 
 *** Test Cases ***
 Pull nginx

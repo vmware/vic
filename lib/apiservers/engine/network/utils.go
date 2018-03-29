@@ -564,7 +564,7 @@ func PortForwardingInformation(vc *viccontainer.VicContainer, ips []string) []ty
 	//c := cache.ContainerCache().GetContainer(cid)
 
 	if vc == nil {
-		log.Errorf("Could not find container with ID %s", vc.ContainerID)
+		log.Errorf("No container provided")
 		return nil
 	}
 
