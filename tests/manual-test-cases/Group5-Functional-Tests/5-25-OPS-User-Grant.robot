@@ -1,4 +1,4 @@
-# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -52,8 +52,7 @@ Ops User Create
     Log  Output, govc role.usage: ${out}
 
 *** Test Cases ***
-Test
-    Log To Console  \nStarting test...
+vic-machine create grants ops-user perms
     Install VIC Appliance To Test Server  additional-args=--ops-user ${ops_user_name} --ops-password ${ops_user_password} --ops-grant-perms
 
     # Run a govc test to check that access is denied on some resources
@@ -63,7 +62,19 @@ Test
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Permission to perform this operation was denied
 
-
     Run Regression Tests
+
+    # Run containers with volumes and container networks to test scenarios requiring containerVMs
+    # to have the highest privileges.
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${c1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net public ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${c2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v fooVol:/dir ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${c3}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net public -v barVol:/dir ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c1} ${c2} ${c3}
+    Should Be Equal As Integers  ${rc}  0
 
     Cleanup VIC Appliance On Test Server

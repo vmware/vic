@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -189,8 +189,6 @@ func (v *Validator) VcsimValidate(ctx context.Context, localInputConfig *data.Da
 	v.network(op, localInputConfig, conf)
 	v.CheckLicense(op)
 	v.CheckDRS(op, localInputConfig)
-
-	// fmt.Printf("Config: %# v\n", pretty.Formatter(conf))
 
 	// Perform the higher level compatibility and consistency checks
 	v.compatibility(op, conf)
