@@ -311,6 +311,7 @@ Install VIC Appliance To Test Server With Current Environment Variables
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Containers On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Resource Pools On Test Server
+    Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling VM Groups On Test Server
 
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
@@ -587,6 +588,24 @@ Cleanup Dangling Networks On Test Server
     \   Continue For Loop If  '${state}' == 'running'
     \   ${uuid}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${net}
     \   ${uuid}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  ${net}
+
+Cleanup Dangling VM Groups On Test Server
+    ${out}=  Run  govc cluster.group.ls
+    Log  ${out}
+    ${exceptions}=  Get Environment Variable  VM_EXCEPTIONS  ${EMPTY}
+    ${groups}=  Split To Lines  ${out}
+    :FOR  ${group}  IN  @{groups}
+    \   ${build}=  Split String  ${group}  -
+    \   # Skip any group that is not associated with integration tests
+    \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   # Skip any Group that is attached to a VCH in the exception list
+    \   ${skip}=  Check If VCH Is In Exception  vch=${group}  exceptions=${exceptions}
+    \   Continue For Loop If  ${skip}
+    \   # Skip any Group that is still running
+    \   ${state}=  Get State Of Drone Build  @{build}[1]
+    \   Continue For Loop If  '${state}' == 'running'
+    \   Log To Console  Destroying dangling DRS VM Group: ${group}
+    \   ${output}=  Run  govc cluster.group.remove -name ${group}
 
 Cleanup Dangling vSwitches On Test Server
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.vswitch.info | grep VCH
