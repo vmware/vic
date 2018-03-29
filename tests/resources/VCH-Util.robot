@@ -419,7 +419,7 @@ Gather Logs From Test Server
 
 Curl Container Logs
     [Arguments]  ${name-suffix}=${EMPTY}
-    ${out1}  ${out2}  ${out3}  Secret Curl Container Logs  ${name-suffix}
+    ${out1}  ${out2}  ${out3}=  Secret Curl Container Logs  ${name-suffix}
     Log  ${out1}
     Log  ${out2}
     Log  ${out3}
