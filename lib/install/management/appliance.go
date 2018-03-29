@@ -112,8 +112,62 @@ func (d *Dispatcher) isContainerVM(vm *vm.VirtualMachine) (bool, error) {
 
 func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(""))
-
 	var err error
+
+	// We should check in the folder first then in the resource pool. If a folder collision occurs we want to fail as soon as possible.
+	folderRef, err := VchFolder(d.op, d.session, conf)
+	if err != nil {
+		// log it and continue, we would expect the folder to not exist in a fresh install
+		d.op.Debugf("VCH folder did not exist during existence check, received error: %s", err)
+	}
+
+	if folderRef != nil {
+		d.op.Debugf("Found existing VCH Folder(%s), inspecting contents.", folderRef.InventoryPath)
+		// check for existence of a vch or vm with the vch name
+		children, err := folderRef.Children(d.op)
+		if err != nil {
+			// log the error and fail, we cannot confirm at this point if a vch exists.
+			d.op.Debugf("Could not collect the children of the VCH Folder: %s", err)
+			return err
+		}
+
+		d.op.Debugf("Found Children of target VCH Folder: %s", children)
+		for _, child := range children {
+			// fetch the object from vsphere
+			obj, err := d.session.Finder.ObjectReference(d.op, child.Reference())
+			if err != nil {
+				// what to do... skip for now
+				// we should likely fail the installation, as we cannot confirm if the vm can be made. We might go ahead and try and fail on the actual vm creation. But... not sure right now if that would leave some things around or require some tweaks.
+				continue
+			}
+
+			switch ref := obj.(type) {
+			case *object.VirtualMachine:
+				if ref.Name() == conf.Name {
+					d.op.Debugf("Found VM with the same name installation target.(%s)", ref.InventoryPath)
+
+					// is it another vch or a random vm?
+					foundVM := vm.NewVirtualMachine(d.op, d.session, ref.Reference())
+					check, err := d.isVCH(foundVM)
+					if err != nil {
+						// we cannot tell if it is a VCH. Return generic VM error message.
+						check = false
+					}
+
+					if check {
+						return fmt.Errorf("A VCH with the name '%s' already exists. Please delete it before reinstalling.", conf.Name)
+					} else {
+						return fmt.Errorf("The name '%s' already exists. It was found in folder '%s' Please choose a different name or rename the existing vm.", conf.Name, folderRef.InventoryPath)
+					}
+				}
+			default:
+				// skip entry
+			}
+
+		}
+	}
+
+	// Now check the compute path for uniqueness
 	var orp *object.ResourcePool
 	if orp, err = d.findResourcePool(d.vchPoolPath); err != nil {
 		return err
