@@ -11,14 +11,9 @@ clone:
     recursive: false
 
 pipeline:
-  clone-pr:
-    image: wdc-harbor-ci.eng.vmware.com/default-project/git-clone:1.0
-    pull: true
-    when:
-      event: [ pull_request ]
 
   display-status:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.47'
     pull: true
     environment:
       BIN: bin
@@ -30,7 +25,7 @@ pipeline:
       - 'git log -1 --pretty=oneline | grep "^${DRONE_COMMIT}" > /dev/null && echo ''Build matches'' || (git log -1 --pretty=oneline | grep "Merge ${DRONE_COMMIT}" > /dev/null && echo ''Build is of a merge commit'' || (echo ''Build does not match!'' && exit 1))'
 
   wait-for-build:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.47'
     pull: true
     environment:
       BIN: bin
@@ -44,7 +39,7 @@ pipeline:
       - tests/wait_until_previous_builds_complete.sh
 
   check-org-membership:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.47'
     pull: true
     environment:
       BIN: bin
@@ -56,12 +51,12 @@ pipeline:
     commands:
       - echo ${DRONE_COMMIT_AUTHOR}
       - echo $SKIP_CHECK_MEMBERSHIP
-      - if $SKIP_CHECK_MEMBERSHIP == true; then echo 'check-org-membership step skipped'; else /bin/bash -c '[[ ! $(curl --silent "https://api.github.com/orgs/vmware/members/${DRONE_COMMIT_AUTHOR}?access_token=$GITHUB_AUTOMATION_API_KEY") ]]'; fi
+      - if "$SKIP_CHECK_MEMBERSHIP" == true; then echo 'check-org-membership step skipped'; else /bin/bash -c '[[ ! $(curl --silent "https://api.github.com/orgs/vmware/members/${DRONE_COMMIT_AUTHOR}?access_token=$GITHUB_AUTOMATION_API_KEY") ]]'; fi
     when:
       status: success
 
   vic-engine:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.47'
     pull: true
     environment:
       BIN: bin
@@ -75,6 +70,7 @@ pipeline:
       - test_password
       - test_url_array
       - test_username
+      - codecov_token
     commands:
       - 'export BUILD_NUMBER=${DRONE_BUILD_NUMBER}'
       - 'export COMMIT=${DRONE_COMMIT}'
@@ -92,7 +88,7 @@ pipeline:
       status: success
 
   vic-integration-test-on-pr:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.47'
     pull: true
     privileged: true
     environment:
@@ -101,7 +97,6 @@ pipeline:
       SHELL: /bin/bash
       LOG_TEMP_DIR: install-logs
     secrets:
-      - bridge_network
       - ci_domain
       - debug_vch
       - drone_server
@@ -140,7 +135,7 @@ pipeline:
       status: success
 
   vic-ui:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.47'
     pull: true
     environment:
      BIN: bin
@@ -162,7 +157,7 @@ pipeline:
       branch: [master]
 
   vic-ui-release:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.47'
     pull: true
     environment:
       BIN: bin
@@ -315,13 +310,6 @@ pipeline:
       branch: [master, 'releases/*', 'refs/tags/*']
       status: success
 
-  report-coverage:
-    image: robertstettner/drone-codecov
-    secrets:
-      - codecov_token
-    files:
-      - .cover/cover.out
-
   notify-slack-on-fail:
     image: plugins/slack
     secrets:
@@ -361,7 +349,7 @@ pipeline:
       branch: ['refs/tags/*']
 
   pass-rate:
-    image: 'gcr.io/eminent-nation-87317/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.47'
     pull: true
     environment:
       BIN: bin
