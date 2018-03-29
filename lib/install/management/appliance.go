@@ -510,14 +510,18 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 
 		vchFolder, err = d.session.VMFolder.CreateFolder(d.op, spec.Name)
 		if err != nil {
-			d.op.Debugf("Encountered unexpected error : %s ", err)
+			d.op.Debugf("Encountered unexpected error: %s", err)
 			if f, ok := err.(types.HasFault); ok {
 				if _, ok = f.Fault().(*types.DuplicateName); ok {
-					return fmt.Errorf("An object already exists on the path for vch folder (%s) that is not a folder", spec.Name)
+					return fmt.Errorf("an object with the same name as the VCH folder (%s) already exists in that path", spec.Name)
 				}
 			}
-			return fmt.Errorf("unexpected error when attempting to create the vch folder %s please see vic-machine.log for more information", spec.Name)
+
+			folderPath := path.Join(d.session.VMFolder.InventoryPath, spec.Name)
+			return fmt.Errorf("unexpected error when attempting to create the VCH folder %s. Please see vic-machine.log for more information", folderPath)
 		}
+
+		d.session.VCHFolder = vchFolder
 	}
 
 	d.op.Info("Creating the VCH VM")
@@ -1203,14 +1207,15 @@ func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.Virtual
 	return nil
 }
 
-// vchFolder returns the namespaced folder for the vch or an error.
-func VchFolder(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec) (*object.Folder, error) {
+// vchFolder returns the namespaced folder for the VCH or an error.
+func vchFolder(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec) (*object.Folder, error) {
 	vchFolder := path.Join(sess.VMFolder.InventoryPath, conf.Name)
 	op.Debugf("Looking for VCH folder: %s", vchFolder)
-	folderRef, err := sess.Finder.Folder(op, vchFolder)
 
+	folderRef, err := sess.Finder.Folder(op, vchFolder)
 	if err != nil {
 		return nil, err
 	}
+
 	return folderRef, nil
 }
