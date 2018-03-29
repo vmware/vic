@@ -78,10 +78,7 @@ func read(t *testing.T, mreader DynamicMultiReader, limit int) []byte {
 
 func each(t *testing.T, buffers []*bytes.Buffer, s string) {
 	for _, b := range buffers {
-		v := b.String()
-		if v != s {
-			t.Errorf("Failed. Expected \"%s\" len: %d, Actual: \"%s\", len %d", s, len(s), v, len(v))
-		}
+		assert.Equal(t, s, b.String())
 	}
 }
 
