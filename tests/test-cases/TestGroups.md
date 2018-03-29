@@ -26,3 +26,5 @@ VIC Integration Test Suite
 -
 [Group 23 - VIC Machine Service](Group23-VIC-Machine-Service/TestCases.md)
 -
+[Group 24 - Host Affinity](Group24-Host-Affinity/TestCases.md)
+-
