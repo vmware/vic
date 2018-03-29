@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,11 +39,6 @@ var RoleDataCenter = types.AuthorizationRole{
 	Privilege: []string{
 		"Datastore.Config",
 		"Datastore.FileManagement",
-		"VirtualMachine.Config.AddNewDisk",
-		"VirtualMachine.Config.AdvancedConfig",
-		"VirtualMachine.Config.RemoveDisk",
-		"VirtualMachine.Inventory.Create",
-		"VirtualMachine.Inventory.Delete",
 	},
 }
 
