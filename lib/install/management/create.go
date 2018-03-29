@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -85,7 +85,7 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 	}
 
 	if conf.ShouldGrantPerms() {
-		err = opsuser.GrantOpsUserPerms(d.op, d.session.Vim25(), conf)
+		err = opsuser.GrantOpsUserPerms(d.op, d.session, conf)
 		if err != nil {
 			return errors.Errorf("Cannot init ops-user permissions, failure: %s. Exiting...", err)
 		}
@@ -224,7 +224,7 @@ func (d *Dispatcher) cleanupAfterCreationFailed(conf *config.VirtualContainerHos
 	// cleanup the vch inventory folder if it is empty. Can happen in some cases where the create is cancelled after successful creation.
 
 	if d.isVC {
-		folderRef, err := VchFolder(d.op, d.session, conf)
+		folderRef, err := vchFolder(d.op, d.session, conf)
 		if folderRef != nil {
 			children, err := folderRef.Children(d.op)
 			if err != nil {

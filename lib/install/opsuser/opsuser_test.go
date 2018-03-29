@@ -128,7 +128,8 @@ func TestOpsUserPermsSimulatorVPX(t *testing.T) {
 		},
 	}
 
-	mgr := NewRBACManager(ctx, sess.Vim25(), nil, &OpsuserRBACConf, configSpec)
+	mgr, err := NewRBACManager(ctx, sess, &OpsuserRBACConf, configSpec)
+	require.NoError(t, err)
 	am := mgr.AuthzManager
 
 	var roleCount = len(am.TargetRoles)
