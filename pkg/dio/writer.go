@@ -32,9 +32,7 @@ type DynamicMultiWriter interface {
 }
 
 type multiWriter struct {
-	mutex     sync.Mutex
-	waitGroup sync.WaitGroup
-
+	mutex   sync.Mutex
 	writers []io.Writer
 }
 
@@ -42,39 +40,22 @@ func (t *multiWriter) Write(p []byte) (int, error) {
 	var n int
 	var err error
 
-	var wTmp []io.Writer
-	if verbose {
-		defer func() {
-			log.Debugf("[%p] write %q to %d writers (err: %#+v)", t, string(p[:n]), len(wTmp), err)
-		}()
-	}
-
 	t.mutex.Lock()
-
-	t.waitGroup.Add(1)
-	defer t.waitGroup.Done()
-
-	// stash a local copy of the slice as we never want to write twice to a single writer
-	// if remove is called during this flow
-	wTmp = make([]io.Writer, len(t.writers))
-	copy(wTmp, t.writers)
-
-	t.mutex.Unlock()
+	defer t.mutex.Unlock()
 
 	eof := 0
 	// possibly want to add buffering or parallelize this
-	for _, w := range wTmp {
+	for _, w := range t.writers {
 		n, err = w.Write(p)
 		if err != nil {
 			// remove the writer
 			log.Debugf("[%p] removing writer %p due to %s", t, w, err.Error())
-
 			// Remove grabs the lock
-			t.Remove(w)
-
+			t.remove(w)
 			if err == io.EOF {
 				eof++
 			}
+			continue
 		}
 
 		// FIXME: figure out what semantics we need here - currently we may not write to
@@ -82,15 +63,20 @@ func (t *multiWriter) Write(p []byte) (int, error) {
 		if n != len(p) {
 			// remove the writer
 			log.Debugf("[%p] removing writer %p due to short write: %d != %d", t, w, n, len(p))
-
-			// Remove grabs the lock
-			t.Remove(w)
+			t.remove(w)
 		}
 	}
 
 	// This means writers closed/removed while we iterate
-	if eof != 0 && n == 0 && err == nil && eof == len(wTmp) {
-		log.Debugf("[%p] All of the writers returned EOF (%d)", t, len(wTmp))
+	if eof != 0 && n == 0 && err == nil && eof == len(t.writers) {
+		log.Debugf("[%p] All of the writers returned EOF (%d)", t, len(t.writers))
+	}
+	if verbose {
+		if err != nil {
+			log.Debugf("[%p] write %q to %d writers (err: %#+v)", t, string(p[:n]), len(t.writers), err)
+		} else {
+			log.Debugf("[%p] write %q to %d writers", t, string(p[:n]), len(t.writers))
+		}
 	}
 	return len(p), nil
 }
@@ -102,10 +88,6 @@ func (t *multiWriter) Add(writer ...io.Writer) {
 	t.writers = append(t.writers, writer...)
 	if verbose {
 		log.Debugf("[%p] added writer - now %d writers", t, len(t.writers))
-
-		for i, w := range t.writers {
-			log.Debugf("[%p] Writer %d [%p]", t, i, w)
-		}
 	}
 }
 
@@ -120,9 +102,6 @@ type CloseWriter interface {
 func (t *multiWriter) Close() error {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
-
-	// allow any pending writes to complete
-	t.waitGroup.Wait()
 
 	log.Debugf("[%p] Close on writers", t)
 	for _, w := range t.writers {
@@ -143,37 +122,35 @@ func (t *multiWriter) Close() error {
 
 // TODO: add a ReadFrom for more efficient copy
 
-// Remove doesn't return an error if element isn't found as the end result is
-// identical
-func (t *multiWriter) Remove(writer io.Writer) {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
+func (t *multiWriter) remove(writer io.Writer) {
+	wTmp := make([]io.Writer, 0, len(t.writers))
 
 	if verbose {
 		log.Debugf("[%p] removing writer %p - currently %d writers", t, writer, len(t.writers))
 	}
-	for i, w := range t.writers {
-		if w == writer {
-			t.writers = append(t.writers[:i], t.writers[i+1:]...)
-			if verbose {
-				log.Debugf("[%p] removed writer - now %d writers", t, len(t.writers))
-
-				for i, w := range t.writers {
-					log.Debugf("[%p] Writer %d [%p]", t, i, w)
-				}
-			}
-			break
+	for _, w := range t.writers {
+		if w != writer {
+			wTmp = append(wTmp, w)
 		}
 	}
+	if len(t.writers) != len(wTmp) {
+		log.Debugf("[%p] removed writer - now %d writers", t, len(wTmp))
+	}
+	t.writers = wTmp
+}
+
+// Remove doesn't return an error if element isn't found as the end result is
+// identical
+func (t *multiWriter) Remove(writer io.Writer) {
+	t.mutex.Lock()
+	t.remove(writer)
+	t.mutex.Unlock()
 }
 
 // MultiWriter extends io.MultiWriter to allow add/remove of writers dynamically
 // without disrupting existing writing
 func MultiWriter(writers ...io.Writer) DynamicMultiWriter {
-	w := make([]io.Writer, len(writers))
-	copy(w, writers)
-	t := &multiWriter{writers: w}
-
+	t := &multiWriter{writers: writers}
 	if verbose {
 		log.Debugf("[%p] created multiwriter", t)
 	}

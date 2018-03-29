@@ -37,7 +37,7 @@ func TestGenKey(t *testing.T) {
 	flag.Parse()
 	cs.NoTLS = false
 	cs.CertPath = "install-test"
-	cs.Cname = "common name"
+	cs.Cname = "common-name"
 	cs.KeySize = 1024
 
 	op := trace.NewOperation(context.Background(), "TestGenKey")

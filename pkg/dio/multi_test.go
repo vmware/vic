@@ -33,28 +33,6 @@ const (
 
 type filterf func(idx int) bool
 
-func FilterBuffers(in []*bytes.Buffer, fn filterf) []*bytes.Buffer {
-	var out []*bytes.Buffer
-
-	for i := 0; i < len(in); i++ {
-		if fn(i) {
-			out = append(out, in[i])
-		}
-	}
-	return out
-}
-
-func FilterWriters(in []io.Writer, fn filterf) []io.Writer {
-	var out []io.Writer
-
-	for i := 0; i < len(in); i++ {
-		if fn(i) {
-			out = append(out, in[i])
-		}
-	}
-	return out
-}
-
 func FilterReaders(in []io.Reader, fn filterf) []io.Reader {
 	var out []io.Reader
 
@@ -99,8 +77,11 @@ func read(t *testing.T, mreader DynamicMultiReader, limit int) []byte {
 }
 
 func each(t *testing.T, buffers []*bytes.Buffer, s string) {
-	for i := range buffers {
-		assert.Equal(t, buffers[i].String(), s)
+	for _, b := range buffers {
+		v := b.String()
+		if v != s {
+			t.Errorf("Failed. Expected \"%s\" len: %d, Actual: \"%s\", len %d", s, len(s), v, len(v))
+		}
 	}
 }
 
@@ -141,127 +122,79 @@ func TestMultiWrite(t *testing.T) {
 
 // TestMultiWrite creates bunch of multi writers and writes to them, then adds more and writes again
 func TestWriteAdd(t *testing.T) {
-	var wg sync.WaitGroup
-	var wgAdded sync.WaitGroup
 
-	var writers []io.Writer
-	var buffers []*bytes.Buffer
+	var writersBefore []io.Writer
+	writersBefore = append(writersBefore, &bytes.Buffer{})
+	writersBefore = append(writersBefore, &bytes.Buffer{})
+	writersBefore = append(writersBefore, &bytes.Buffer{})
 
-	// create & initialize writers and buffers into two categories
-	// *Added ones will be added to multi writer later
-	for i := 0; i < count; i++ {
-		var buffer bytes.Buffer
+	mw := MultiWriter(writersBefore...)
+	write(t, mw, []byte(base))
 
-		reader, writer := io.Pipe()
+	var writersAfter []io.Writer
+	writersAfter = append(writersAfter, &bytes.Buffer{})
+	writersAfter = append(writersAfter, &bytes.Buffer{})
+	writersAfter = append(writersAfter, &bytes.Buffer{})
 
-		writers = append(writers, writer)
-		buffers = append(buffers, &buffer)
+	mw.Add(writersAfter...)
+	write(t, mw, []byte(dynamic))
 
-		if i%3 != 0 {
-			wg.Add(1)
-		}
-		wgAdded.Add(1)
-		go func(i int) {
-			if i%3 != 0 {
-				io.CopyN(&buffer, reader, int64(len(base)))
-				wg.Done()
-			}
-			io.CopyN(&buffer, reader, int64(len(dynamic)))
-
-			wgAdded.Done()
-		}(i)
+	for _, w := range writersBefore {
+		wb := w.(*bytes.Buffer)
+		assert.Equal(t, base+dynamic, wb.String())
 	}
 
-	writersAdded := FilterWriters(writers, func(i int) bool { return i%3 == 0 })
-	writersLeft := FilterWriters(writers, func(i int) bool { return i%3 != 0 })
+	for _, w := range writersAfter {
+		wa := w.(*bytes.Buffer)
+		assert.Equal(t, dynamic, wa.String())
+	}
 
-	buffersAdded := FilterBuffers(buffers, func(i int) bool { return i%3 == 0 })
-	buffersLeft := FilterBuffers(buffers, func(i int) bool { return i%3 != 0 })
-
-	// create the multi writer
-	mwriter := MultiWriter(writersLeft...)
-
-	// write and ensure io.Copy returns
-	write(t, mwriter, []byte(base))
-	wg.Wait()
-
-	each(t, buffersLeft, base)
-
-	// add skipped writers to the writer
-	mwriter.Add(writersAdded...)
-
-	// write and ensure io.Copy returns
-	write(t, mwriter, []byte(dynamic))
-	wgAdded.Wait()
-
-	each(t, buffersLeft, base+dynamic)
-	each(t, buffersAdded, dynamic)
 }
 
 // TestMultiWrite creates multi writers and writes to them, then removes some of them and writes again
 func TestWriteRemove(t *testing.T) {
-	var wg sync.WaitGroup
-	var wgRemoved sync.WaitGroup
 
-	var writers []io.Writer
-	var buffers []*bytes.Buffer
+	var writersToDelete []io.Writer
+	writersToDelete = append(writersToDelete, &bytes.Buffer{})
+	writersToDelete = append(writersToDelete, &bytes.Buffer{})
+	writersToDelete = append(writersToDelete, &bytes.Buffer{})
 
-	// create & initialize writers and buffers into two categories
-	// *Removed ones will be filtered out from multi writer later
-	for i := 0; i < count; i++ {
-		var buffer bytes.Buffer
+	var writersLeftOver []io.Writer
+	writersLeftOver = append(writersLeftOver, &bytes.Buffer{})
+	writersLeftOver = append(writersLeftOver, &bytes.Buffer{})
+	writersLeftOver = append(writersLeftOver, &bytes.Buffer{})
 
-		reader, writer := io.Pipe()
+	mw := MultiWriter(writersToDelete...)
+	mw.Add(writersLeftOver...)
+	write(t, mw, []byte(base))
 
-		writers = append(writers, writer)
-		buffers = append(buffers, &buffer)
-
-		// set up a goroutine so we don't block writes
-		wg.Add(1)
-		wgRemoved.Add(1)
-		go func(i int) {
-			// set up a goroutine so we don't block writes
-			io.CopyN(&buffer, reader, int64(len(base)))
-
-			wg.Done()
-
-			if i%3 == 0 {
-				wgRemoved.Done()
-				return
-			}
-
-			io.CopyN(&buffer, reader, int64(len(dynamic)))
-
-			wgRemoved.Done()
-		}(i)
+	// test all buffers have the same content
+	for _, w := range writersToDelete {
+		wa := w.(*bytes.Buffer)
+		assert.Equal(t, base, wa.String())
 	}
 
-	// create the multi writer
-	mwriter := MultiWriter(writers...)
-
-	// write and ensure io.Copy returns
-	write(t, mwriter, []byte(base))
-	wg.Wait()
-
-	each(t, buffers, base)
-
-	// remove the writers
-	for i := 0; i < count; i++ {
-		if i%3 == 0 {
-			mwriter.Remove(writers[i])
-		}
+	for _, w := range writersLeftOver {
+		wa := w.(*bytes.Buffer)
+		assert.Equal(t, base, wa.String())
 	}
 
-	// write and ensure io.Copy returns
-	write(t, mwriter, []byte(dynamic))
-	wgRemoved.Wait()
+	// remove buffers and write a different value again
+	for _, w := range writersToDelete {
+		mw.Remove(w)
+	}
 
-	buffersLeft := FilterBuffers(buffers, func(i int) bool { return i%3 != 0 })
-	buffersRemoved := FilterBuffers(buffers, func(i int) bool { return i%3 == 0 })
+	write(t, mw, []byte(dynamic))
 
-	each(t, buffersLeft, base+dynamic)
-	each(t, buffersRemoved, base)
+	for _, w := range writersToDelete {
+		wb := w.(*bytes.Buffer)
+		assert.Equal(t, base, wb.String())
+	}
 
+	for _, w := range writersLeftOver {
+		wa := w.(*bytes.Buffer)
+		assert.Equal(t, base+dynamic, wa.String())
+	}
 }
 
 // TestMultiRead creates multi readers and reads from them
