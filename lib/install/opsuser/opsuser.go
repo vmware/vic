@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,27 +47,41 @@ type resourceDesc struct {
 	ref   types.ManagedObjectReference
 }
 
-func NewRBACManager(ctx context.Context, client *vim25.Client, session *session.Session, rbacConfig *rbac.Config, configSpec *config.VirtualContainerHostConfigSpec) *RBACManager {
+func NewRBACManager(ctx context.Context, session *session.Session, rbacConfig *rbac.Config, configSpec *config.VirtualContainerHostConfigSpec) (*RBACManager, error) {
+	if session == nil {
+		return nil, errors.New("unable to create an RBACManager - session not set")
+	}
+
 	rbacMgr := &RBACManager{
 		configSpec: configSpec,
 		session:    session,
-		client:     client,
+		client:     session.Vim25(),
 	}
-	am := rbac.NewAuthzManager(ctx, client)
+
+	am := rbac.NewAuthzManager(ctx, rbacMgr.client)
 	am.InitConfig(configSpec.Connection.Username, opsuserRolePrefix, rbacConfig)
 	rbacMgr.AuthzManager = am
-	return rbacMgr
+
+	return rbacMgr, nil
 }
 
 func GrantDCReadOnlyPerms(ctx context.Context, session *session.Session, configSpec *config.VirtualContainerHostConfigSpec) error {
-	mgr := NewRBACManager(ctx, session.Vim25(), session, &DCReadOnlyConf, configSpec)
-	_, err := mgr.SetupDCReadOnlyPermissions(ctx)
+	mgr, err := NewRBACManager(ctx, session, &DCReadOnlyConf, configSpec)
+	if err != nil {
+		return err
+	}
+
+	_, err = mgr.SetupDCReadOnlyPermissions(ctx)
 	return err
 }
 
-func GrantOpsUserPerms(ctx context.Context, client *vim25.Client, configSpec *config.VirtualContainerHostConfigSpec) error {
-	mgr := NewRBACManager(ctx, client, nil, &OpsuserRBACConf, configSpec)
-	_, err := mgr.SetupRolesAndPermissions(ctx)
+func GrantOpsUserPerms(ctx context.Context, session *session.Session, configSpec *config.VirtualContainerHostConfigSpec) error {
+	mgr, err := NewRBACManager(ctx, session, &OpsuserRBACConf, configSpec)
+	if err != nil {
+		return err
+	}
+
+	_, err = mgr.SetupRolesAndPermissions(ctx)
 	return err
 }
 
@@ -98,12 +112,27 @@ func (mgr *RBACManager) SetupDCReadOnlyPermissions(ctx context.Context) (*rbac.R
 	if err != nil {
 		return nil, err
 	}
+
 	// If administrator, skip setting the root permissions
 	if res {
 		log.Warnf("Cannot perform ops-user Role/Permissions initialization. The current ops-user (%s) has administrative privileges.", am.Principal)
 		log.Warnf("This occurs when \"%s\" is a member of the \"Administrators\" group or has been granted \"Admin\" role to any of the resources in the system.", am.Principal)
 		return nil, errors.Errorf("Cannot grant ops-user permissions as %s has administrative privileges", am.Principal)
 	}
+
+	dcRef := mgr.session.Datacenter.Reference()
+	hasPrivs, err := am.ReadPermsOnDC(ctx, dcRef)
+	if err != nil {
+		return nil, err
+	}
+
+	// If the ops-user already has enough privileges on the datacenter to at least
+	// satisfy the read-only role, skip setting read-only permissions.
+	if hasPrivs {
+		log.Debugf("ops-user already has enough privileges for read-only access to datacenter, skipping setting read-only permissions")
+		return nil, nil
+	}
+
 	return mgr.setupDcReadOnlyPermissions(ctx)
 }
 
@@ -184,9 +213,24 @@ func (mgr *RBACManager) setupPermissions(ctx context.Context) ([]rbac.ResourcePe
 		resourceDescs = append(resourceDescs, resourceDesc{rbac.Network, *netRef})
 	}
 
-	// Add resource pools
-	for _, rPoolRef := range mgr.configSpec.ComputeResources {
-		resourceDescs = append(resourceDescs, resourceDesc{rbac.Endpoint, rPoolRef})
+	// In a DRS environment, add the endpoint role to the resource pool(s). In a non-DRS
+	// environment, add the endpoint role to the cluster.
+	if mgr.session.DRSEnabled != nil && *mgr.session.DRSEnabled {
+		for _, rPoolRef := range mgr.configSpec.ComputeResources {
+			resourceDescs = append(resourceDescs, resourceDesc{rbac.Endpoint, rPoolRef})
+		}
+	} else {
+		resourceDescs = append(resourceDescs, resourceDesc{rbac.Endpoint, cluster.Reference()})
+	}
+
+	// For vCenter, apply the endpoint role to the VCH inventory folder as well.
+	if mgr.session.IsVC() {
+		vchFolder := mgr.session.VCHFolder
+		if vchFolder == nil {
+			return nil, errors.Errorf("VCH folder not set, unable to set permissions")
+		}
+
+		resourceDescs = append(resourceDescs, resourceDesc{rbac.Endpoint, vchFolder.Reference()})
 	}
 
 	resourcePermissions := make([]rbac.ResourcePermission, 0, len(am.Config.Resources))

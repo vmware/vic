@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ func (o *OpsCredentials) Flags(hidden bool) []cli.Flag {
 		cli.GenericFlag{
 			Name:   "ops-grant-perms",
 			Value:  flags.NewOptionalBool(&o.GrantPerms),
-			Usage:  "Create roles and grant required permissions to the specified ops-use",
+			Usage:  "Create roles and grant required permissions to the specified ops-user",
 			Hidden: hidden,
 		},
 	}
