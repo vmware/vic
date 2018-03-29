@@ -22,11 +22,13 @@ Default Tags
 
 
 *** Keywords ***
-Get Version
-    ${out}=  Run  netstat -l | grep 1337
-    Log  ${out}
+Ensure Server Running
+    ${out}=  Run  netstat -l | grep ${HTTP_PORT}
+    Should Not Be Empty    ${out}
     ${out}=  Run  ps aux | grep vic-machine-server
-    Log  ${out}
+    Should Not Be Empty    ${out}
+
+Get Version
     Get Path    version
     Verify Return Code
 
@@ -44,8 +46,9 @@ Verify Hello
 
 *** Test Cases ***
 Get Version
-    Wait Until Keyword Succeeds  5x  1s  Get Version 
+    Wait Until Keyword Succeeds  5x  1s  Ensure Server Running
 
+    Get Version
     Verify Status Ok
     Verify Version
 

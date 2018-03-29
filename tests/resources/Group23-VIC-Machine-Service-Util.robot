@@ -29,7 +29,6 @@ ${STATUS}        The HTTP status of the last curl invocation
 Start VIC Machine Server
     Start Process    ./bin/vic-machine-server --port ${HTTP_PORT} --scheme http    shell=True    cwd=/go/src/github.com/vmware/vic
 
-
 Get Path
     [Arguments]    ${path}
     ${RC}  ${OUTPUT}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X GET "http://127.0.0.1:${HTTP_PORT}/container/${PATH}"
