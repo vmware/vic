@@ -186,6 +186,10 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				return nil, util.NewError(http.StatusBadRequest, "Resource pool must be specified (by name or id)")
 			}
 			c.ComputeResourcePath = resourcePath
+
+			if vch.Compute.Affinity != nil {
+				c.UseVMGroup = vch.Compute.Affinity.UseVMGroup
+			}
 		}
 
 		if vch.Network != nil {

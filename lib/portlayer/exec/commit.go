@@ -72,7 +72,7 @@ func Commit(op trace.Operation, sess *session.Session, h *Handle, waitTime *int3
 		c = newContainer(&h.containerBase)
 		Containers.Put(c)
 
-		if sess.IsVC() {
+		if Config.Container.UseVMGroup {
 			affinity := func(ctx context.Context) (tasks.Task, error) {
 				op2 := trace.FromContext(ctx, "vm group membership")
 
@@ -80,7 +80,7 @@ func Commit(op trace.Operation, sess *session.Session, h *Handle, waitTime *int3
 
 				group := &types.ClusterVmGroup{
 					ClusterGroupInfo: types.ClusterGroupInfo{
-						Name: Config.VMGroupName,
+						Name: Config.Container.VMGroupName,
 					},
 					Vm: append(containers, Config.SelfReference),
 				}

@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/task"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/opsuser"
@@ -84,6 +86,10 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 		}
 	}
 
+	if err = d.createVMGroup(conf); err != nil {
+		return err
+	}
+
 	return d.startAppliance(conf)
 }
 
@@ -98,6 +104,65 @@ func (d *Dispatcher) createPool(conf *config.VirtualContainerHostConfigSpec, set
 	}
 
 	return nil
+}
+
+func (d *Dispatcher) createVMGroup(conf *config.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin("", d.op))
+
+	if !conf.UseVMGroup {
+		return nil
+	}
+
+	d.op.Debugf("Creating DRS VM Group %q on %q", conf.VMGroupName, d.appliance.Cluster)
+
+	spec := &types.ClusterConfigSpecEx{
+		GroupSpec: []types.ClusterGroupSpec{
+			{
+				ArrayUpdateSpec: types.ArrayUpdateSpec{
+					Operation: types.ArrayUpdateOperationAdd,
+				},
+				Info: &types.ClusterVmGroup{
+					ClusterGroupInfo: types.ClusterGroupInfo{
+						Name: conf.VMGroupName,
+					},
+					Vm: []types.ManagedObjectReference{d.appliance.Reference()},
+				},
+			},
+		},
+	}
+
+	_, err := tasks.WaitForResult(d.op, func(op context.Context) (tasks.Task, error) {
+		d.op.Debugf("Attempting to create VM group %q for VCH.", conf.VMGroupName)
+		t, err := d.appliance.Cluster.Reconfigure(op, spec, true)
+
+		// Unfortunately, WaitForResult treats InvalidArgument as retry-able. In this case, it is not. So let's get the
+		// error and if it's an InvalidArgument, we'll replaces it with a new error. This is terrible for a variety of
+		// reasons, but it's unclear just how much code may be relying on WaitForResult's current behavior to handle
+		// potential race-like cases (see, e.g., discussion in #4597).
+		//
+		// Note: This should be tested carefully if changed; group name collisions should be detected earlier in the
+		//       process, so we should only encounter one here if a colliding group was created between then and now.
+
+		if err == nil {
+			d.op.Debugf("Waiting for a result for task %s", t)
+			_, err = t.WaitForResult(op, nil)
+		}
+
+		if err != nil {
+			switch err := err.(type) {
+			case task.Error:
+				switch f := err.Fault().(type) {
+				case *types.InvalidArgument:
+					d.op.Debugf("Replacing InvalidArgument to avoid retry: %+v", f)
+					return nil, fmt.Errorf("Encountered InvalidArgument error creating DRS VM Group %q; a group with the same name probably exists.", conf.VMGroupName)
+				}
+			}
+		}
+
+		return t, err
+	})
+
+	return err
 }
 
 func (d *Dispatcher) startAppliance(conf *config.VirtualContainerHostConfigSpec) error {

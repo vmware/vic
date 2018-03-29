@@ -219,6 +219,7 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 	}
 
 	d.ContainerNameConvention = conf.ContainerNameConvention
+	d.UseVMGroup = conf.UseVMGroup
 	return
 }
 

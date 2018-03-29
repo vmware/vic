@@ -122,6 +122,10 @@ type Container struct {
 	BootstrapImagePath string `vic:"0.1" scope:"read-only" key:"bootstrap_image_path"`
 	// Allow custom naming convention for containerVMs
 	ContainerNameConvention string
+	// Whether to create and manage a DRS VM Group for the VCH and its containerVMs
+	UseVMGroup bool
+	// Name to use for the DRS VM Group
+	VMGroupName string
 	// Permitted datastore URLs for container storage for this virtual container host
 	ContainerStores []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 }

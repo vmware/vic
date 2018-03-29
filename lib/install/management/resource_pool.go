@@ -93,6 +93,57 @@ func setResources(spec *types.ResourceAllocationInfo, resource types.ResourceAll
 	}
 }
 
+func (d *Dispatcher) destroyVMGroup(conf *config.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin("", d.op))
+
+	if !conf.UseVMGroup {
+		return nil
+	}
+
+	d.op.Debugf("Checking for existence of DRS VM Group %s on %s", conf.VMGroupName, d.session.Cluster)
+
+	var clusterConfig mo.ClusterComputeResource
+	err := d.session.Cluster.Properties(d.op, d.session.Cluster.Reference(), []string{"configurationEx"}, &clusterConfig)
+	if err != nil {
+		d.op.Warnf("Unable to obtain cluster config: %s", err)
+		return nil
+	}
+
+	groupExists := false
+	clusterConfigEx := clusterConfig.ConfigurationEx.(*types.ClusterConfigInfoEx)
+	for i := range clusterConfigEx.Group {
+		info := clusterConfigEx.Group[i].GetClusterGroupInfo()
+		if info.Name == conf.VMGroupName {
+			groupExists = true
+			break
+		}
+	}
+
+	if !groupExists {
+		d.op.Debugf("Expected VM Group cannot be found; skipping removal.")
+		return nil
+	}
+
+	d.op.Infof("Removing VM Group %q", conf.VMGroupName)
+
+	_, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
+		spec := &types.ClusterConfigSpecEx{
+			GroupSpec: []types.ClusterGroupSpec{
+				{
+					ArrayUpdateSpec: types.ArrayUpdateSpec{
+						Operation: types.ArrayUpdateOperationRemove,
+						RemoveKey: conf.VMGroupName,
+					},
+				},
+			},
+		}
+
+		return d.session.Cluster.Reconfigure(d.op, spec, true)
+	})
+
+	return err
+}
+
 func (d *Dispatcher) destroyResourcePoolIfEmpty(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin("", d.op))
 

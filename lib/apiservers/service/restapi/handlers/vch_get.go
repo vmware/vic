@@ -127,6 +127,9 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 
 	// compute
 	model.Compute = &models.VCHCompute{
+		Affinity: &models.VCHComputeAffinity{
+			UseVMGroup: vchConfig.UseVMGroup,
+		},
 		CPU: &models.VCHComputeCPU{
 			Limit:       asMHz(d.ResourceLimits.VCHCPULimitsMHz),
 			Reservation: asMHz(d.ResourceLimits.VCHCPUReservationsMHz),

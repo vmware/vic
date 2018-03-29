@@ -42,9 +42,6 @@ type Configuration struct {
 	// Cluster is the working reference to the cluster the VCH is present in
 	Cluster *object.ComputeResource
 
-	// VMGroupName is the name of the group all cVMs belong to for this VCH
-	VMGroupName string
-
 	// SelfReference is a reference to the endpointVM, added for VM group membership
 	SelfReference types.ManagedObjectReference
 

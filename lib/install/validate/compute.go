@@ -22,10 +22,12 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/compute"
 )
 
 func (v *Validator) compute(op trace.Operation, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
@@ -37,6 +39,45 @@ func (v *Validator) compute(op trace.Operation, input *data.Data, conf *config.V
 	v.NoteIssue(err)
 	if pool == nil {
 		return
+	}
+
+	if !v.IsVC() {
+		if input.UseVMGroup {
+			v.NoteIssue(errors.New("DRS VM Groups may only be configured when using VC"))
+		}
+		return
+	}
+
+	conf.UseVMGroup = input.UseVMGroup
+	if conf.UseVMGroup {
+		// For now, we always name the VM Group based on the name of the VCH
+		conf.VMGroupName = conf.Name
+		rp := compute.NewResourcePool(op, v.Session, pool.Reference())
+		cluster, err := rp.GetCluster(op)
+		if err != nil {
+			v.NoteIssue(errors.Errorf("Unable to find cluster: %s", err))
+			return
+		}
+
+		op.Debugf("Checking for existence of DRS VM Group %q on %s", conf.VMGroupName, cluster)
+
+		var clusterConfig mo.ClusterComputeResource
+		err = cluster.Properties(op, cluster.Reference(), []string{"configurationEx"}, &clusterConfig)
+		if err != nil {
+			v.NoteIssue(errors.Errorf("Unable to obtain cluster config: %s", err))
+			return
+		}
+
+		clusterConfigEx := clusterConfig.ConfigurationEx.(*types.ClusterConfigInfoEx)
+		for i := range clusterConfigEx.Group {
+			info := clusterConfigEx.Group[i].GetClusterGroupInfo()
+			if info.Name == conf.VMGroupName {
+				v.NoteIssue(errors.Errorf("DRS VM Group named %q already exists", conf.VMGroupName))
+				return
+			}
+		}
+
+		op.Debugf("DRS VM Group named %q does not exist", conf.VMGroupName)
 	}
 
 	// TODO: for vApp creation assert that the name doesn't exist

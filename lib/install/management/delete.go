@@ -118,6 +118,11 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 	if err = d.destroyResourcePoolIfEmpty(conf); err != nil {
 		d.op.Warnf("VCH resource pool is not removed: %s", err)
 	}
+
+	if err = d.destroyVMGroup(conf); err != nil {
+		d.op.Warnf("VCH DRS VM group is not removed: %s", err)
+	}
+
 	return nil
 }
 
