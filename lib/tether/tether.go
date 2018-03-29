@@ -16,10 +16,10 @@ package tether
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"encoding/json"
 	"net/http"
 	_ "net/http/pprof" // allow enabling pprof in contianerVM
 	"os"
@@ -928,6 +928,7 @@ func prepareOCI(session *SessionConfig, rootfs string) error {
 	if configSpec.Root == nil {
 		configSpec.Root = &specs.Root{}
 	}
+	//TODO:  Remove false default.  This is here only for debugging purposes.
 	configSpec.Root.Readonly = false
 	if configSpec.Process == nil {
 		configSpec.Process = &specs.Process{}
@@ -954,6 +955,7 @@ func prepareOCI(session *SessionConfig, rootfs string) error {
 	session.Cmd.Path = runc_path
 	session.Cmd.Args = append(session.Cmd.Args, "run")
 	session.Cmd.Args = append(session.Cmd.Args, "--no-pivot")
+	// Use session.ID as container name
 	session.Cmd.Args = append(session.Cmd.Args, session.ID)
 	session.Cmd.Dir = path.Dir(rootfs)
 
