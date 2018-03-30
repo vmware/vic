@@ -16,8 +16,8 @@
 Documentation  This resource contains any keywords related to using the Nimbus cluster
 
 *** Variables ***
-${ESX_VERSION}  ob-5969303  #6.5 RTM vsphere65u1
-${VC_VERSION}  ob-5973321   #6.5 RTM vsphere65u1
+${ESX_VERSION}  ob-7867845  #6.5 RTM vsphere65u2-rc
+${VC_VERSION}  ob-7867539   #6.5 RTM vsphere65u2-rc
 ${NIMBUS_ESX_PASSWORD}  e2eFunctionalTest
 ${NIMBUS_LOCATION}  ${EMPTY}
 
