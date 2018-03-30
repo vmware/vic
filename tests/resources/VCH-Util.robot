@@ -362,6 +362,11 @@ Run VIC Machine Delete Command
     Assert  ${status}  vic-machine delete failed to remove %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
+
+    # Check that the VCH folder (if created) is removed
+    ${ret}=  Run  govc find %{TEST_DATACENTER}/vm -type f
+    Should Not Contain  ${ret}  %{VCH-NAME}
+
     ${output}=  Run  rm -rf %{VCH-NAME}
     [Return]  ${output}
 

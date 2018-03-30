@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,9 +36,6 @@ import (
 )
 
 func TestDelete(t *testing.T) {
-	// TODO: Skip this until we get folder deletion implemented for some various folder types in VC Sim. We have examples of how to do this.
-	t.Skip()
-
 	log.SetLevel(log.DebugLevel)
 	trace.Logger.Level = log.DebugLevel
 	ctx := context.Background()
@@ -191,10 +188,17 @@ func testDeleteVCH(v *validate.Validator, conf *config.VirtualContainerHostConfi
 	if vm != nil {
 		t.Errorf("Should not found vm %s", vm.Reference())
 	}
-
 	if err != nil {
 		t.Errorf("Unexpected error to get appliance VM: %s", err)
 	}
+
+	// Verify that the VCH folder (if created on VC) is deleted after VCH delete.
+	folderPath := path.Join(d.session.VMFolder.InventoryPath, conf.Name)
+	vchFolder, err := d.session.Finder.Folder(d.op, folderPath)
+	if vchFolder != nil || err == nil {
+		t.Errorf("Should not have found VCH folder %q after VCH delete", folderPath)
+	}
+
 	// delete VM does not clean up resource pool after VM is removed, so resource pool could not be removed
 }
 
