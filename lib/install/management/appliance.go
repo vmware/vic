@@ -543,11 +543,12 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	var info *types.TaskInfo
 
 	// Create the VCH inventory folder
+	vchFolder := d.session.VMFolder
+	folderPath := fmt.Sprintf("%s/%s", d.session.VMFolder.InventoryPath, conf.Name)
 	if d.isVC {
 		d.op.Info("Creating the VCH folder")
 		vchFolder, err := d.session.VMFolder.CreateFolder(d.op, spec.Name)
 		if err != nil {
-			d.op.Debugf("Encountered unexpected error: %s", err)
 			if f, ok := err.(types.HasFault); ok {
 				if _, ok = f.Fault().(*types.DuplicateName); ok {
 					return fmt.Errorf("An object with the same name as the VCH folder (%s) already exists in that path", spec.Name)
