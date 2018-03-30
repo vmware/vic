@@ -168,7 +168,6 @@ Create VCH - specified datacenter
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
-
 Create VCH - defaults
     Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
