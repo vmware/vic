@@ -48,7 +48,7 @@ func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d 
 	op := trace.FromContext(ctx, "SetDataFromVM")
 
 	// display name
-	name, err := vm.Name(op)
+	name, err := vm.ObjectName(op)
 	if err != nil {
 		return err
 	}
