@@ -313,8 +313,6 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInf
 	return vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		return vm.Destroy(ctx)
 	})
-
-	return nil, err
 }
 
 func (vm *VirtualMachine) VMPathName(ctx context.Context) (string, error) {
