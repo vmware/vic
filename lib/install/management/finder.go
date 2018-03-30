@@ -258,16 +258,11 @@ func (d *Dispatcher) searchVCHsFromComputePath(computePath string) ([]*vm.Virtua
 		if _, ok := err.(*find.NotFoundError); ok {
 			return nil, nil
 		}
+		err = errors.Errorf("Failed to search for resource pools for compute path %q: %s", computePath, err)
+		return nil, err
 	}
 
-	var vchs []*vm.VirtualMachine
-	for _, pool := range pools {
-		children, err := d.getChildVCHs(pool, true)
-		if err != nil {
-			return nil, err
-		}
-		vchs = append(vchs, children...)
-	}
+	vchs := d.searchVCHsFromPools(pools)
 	return vchs, nil
 }
 
@@ -283,20 +278,29 @@ func (d *Dispatcher) searchVCHsPerDC(dc *object.Datacenter) ([]*vm.VirtualMachin
 	var vchs []*vm.VirtualMachine
 	if pools, err = d.session.Finder.ResourcePoolList(d.op, "*"); err != nil {
 		if _, ok := err.(*find.NotFoundError); ok {
-			return vchs, nil
+			return vchs, nil // return an empty vch list instead of nil, to avoid errors appending nil to final result later
 		}
 		err = errors.Errorf("Failed to search resource pools for datacenter %q: %s", dc.InventoryPath, err)
 		return nil, err
 	}
 
+	vchs = d.searchVCHsFromPools(pools)
+	return vchs, nil
+}
+
+func (d *Dispatcher) searchVCHsFromPools(pools []*object.ResourcePool) []*vm.VirtualMachine {
+	var vchs []*vm.VirtualMachine
 	for _, pool := range pools {
 		children, err := d.getChildVCHs(pool, true)
+		// #nosec: Errors unhandled.
 		if err != nil {
-			return nil, err
+			d.op.Warnf("Failed to get VCH from resource pool %q: %s", pool.InventoryPath, err)
+		} else {
+			vchs = append(vchs, children...)
 		}
-		vchs = append(vchs, children...)
 	}
-	return vchs, nil
+
+	return vchs
 }
 
 // getVCHs will check vm with same name under this resource pool, to see if that's VCH vm, and it will also check children vApp, to see if that's a VCH.
