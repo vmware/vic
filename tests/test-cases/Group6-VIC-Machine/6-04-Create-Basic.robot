@@ -43,6 +43,17 @@ Create Dummy VM In VCH Folder On ESX
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -net=%{PUBLIC_NETWORK} %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
 
+Create Dummy VM In Place Of The VCH Folder
+    # Grab the vm folder for the VC
+    ${rc}  ${vm-folder-path}=  Run And Return Rc And Output  govc ls | grep vm
+    Should Be Equal As Integers  ${rc}  0
+    # grab path to the cluster
+    ${rc}  ${compute-path}=  Run And Return Rc And Output  govc ls host | grep %{TEST_RESOURCE}
+    Should Be Equal As Integers  ${rc}  0
+    # Create dummy VM at the correct inventory path.
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool=${compute-path} -net=%{PUBLIC_NETWORK} -folder=${vm-folder-path} %{VCH-NAME}
+    Should Be Equal As Integers  ${rc}  0
+
 Cleanup Dummy VM And VCH Folder
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
@@ -252,7 +263,7 @@ Create VCH - Existing VCH name
 
     Cleanup VIC Appliance On Test Server
 
-Create VCH - Existing VM name
+Create VCH - Existing VM Name
     Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
@@ -275,6 +286,24 @@ Create VCH - Existing VM name
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  The name '%{VCH-NAME}' already exists.
 
     Cleanup Dummy VM And VCH Folder
+    Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
+
+Create VCH - Existing VM Name At Folder Location
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    # This case cannot occur on standalone ESXi's
+    Pass Execution If  '%{HOST_TYPE}' == 'ESXi'  ESXi does not support folders, skipping test.
+
+    # setup environment
+    Create Dummy VM In Place Of The VCH Folder
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
+    Log  ${output}
+    Should Contain  ${output}  The name '%{VCH-NAME}' already exists.
+
+    ${rc}=  Run And Return Rc  govc vm.destroy %{VCH-NAME}
     Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
 
 Create VCH - Existing RP on ESX
