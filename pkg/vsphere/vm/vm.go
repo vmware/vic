@@ -272,7 +272,7 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInf
 
 	op := trace.FromContext(ctx, "DeleteExceptDisks")
 
-	op.Debugf("Getting list of the devices for VM %s", vm)
+	op.Debugf("Getting list of the devices for VM %q", vm)
 	devices, err := vm.Device(op)
 	if err != nil {
 		return nil, err
