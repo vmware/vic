@@ -362,3 +362,27 @@ Docker ps with volume and network filters
     Should Contain  ${output}  buzFooContainer
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  2
+
+Create Multi VCH - Docker Ps Only Contains The Correct Containers
+    ${container1}=  Evaluate  'cvm-vch1-' + str(random.randint(1000,9999))  modules=random
+    ${container2}=  Evaluate  'cvm-vch2-' + str(random.randint(1000,9999))  modules=random
+
+    Install VIC Appliance To Test Server
+    Set Suite Variable  ${old-vm}  %{VCH-NAME}
+    Set Suite Variable  ${old-vch-params}  %{VCH-PARAMS}
+    Add VCH to Removal Exception List  ${old-vm}
+    Install VIC Appliance To Test Server
+    Remove VCH from Removal Exception List  ${old-vm}
+
+    ${rc}=  Run And Return Rc  docker ${old-vch-params} create --name ${container1} ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} create --name ${container2} ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${old-vch-params} ps -a
+    Should Contain  ${output}  ${container1}
+    Should Not Contain  ${output}  ${container2}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    Should Contain  ${output}  ${container2}
+    Should Not Contain  ${output}  ${container1}
