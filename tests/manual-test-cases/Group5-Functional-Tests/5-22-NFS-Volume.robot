@@ -123,14 +123,16 @@ Reboot VM and Verify Basic VCH Info
     Should Contain  ${output}  ${busybox}
 
 Gather NFS Logs
+    ${strippedPW}=  Remove String  %{DEPLOYED_PASSWORD}  \\
+
     Open Connection  ${NFS_IP}
-    Login  root  %{DEPLOYED_PASSWORD}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  root  ${strippedPW}
     ${out}=  Execute Command   dmesg -T
     Log  ${out}
     Close Connection
-    
+
     Open Connection  ${NFS_READONLY_IP}
-    Login  root  %{DEPLOYED_PASSWORD}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  root  ${strippedPW}
     ${out}=  Execute Command   dmesg -T
     Log  ${out}
     Close Connection
