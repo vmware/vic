@@ -115,7 +115,7 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 	var err error
 
 	// We should check in the folder first then in the resource pool. If a folder collision occurs we want to fail as soon as possible.
-	folderRef, err := VchFolder(d.op, d.session, conf)
+	folderRef, err := vchFolder(d.op, d.session, conf)
 	if err != nil {
 		// log it and continue, we would expect the folder to not exist in a fresh install
 		d.op.Debugf("VCH folder did not exist during existence check, received error: %s", err)
