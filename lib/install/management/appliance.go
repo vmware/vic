@@ -156,9 +156,8 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 
 					if check {
 						return fmt.Errorf("A VCH with the name '%s' already exists. Please delete it before reinstalling.", conf.Name)
-					} else {
-						return fmt.Errorf("The name '%s' already exists. It was found in folder '%s' Please choose a different name or rename the existing vm.", conf.Name, folderRef.InventoryPath)
 					}
+					return fmt.Errorf("The name '%s' already exists. It was found in folder '%s' Please choose a different name or rename the existing vm.", conf.Name, folderRef.InventoryPath)
 				}
 			default:
 				// skip entry

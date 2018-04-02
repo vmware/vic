@@ -23,6 +23,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/simulator"
 	"github.com/vmware/vic/lib/config"
