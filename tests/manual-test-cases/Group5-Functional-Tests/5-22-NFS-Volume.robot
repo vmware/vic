@@ -56,13 +56,25 @@ Setup ESX And NFS Suite
     Set Suite Variable  ${NFS}  ${nfs}
     Set Suite Variable  ${NFS_READONLY_IP}  ${nfs_readonly_ip}
 
+    # Add the NFS servers to SSH known host list
+    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} exit
+    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} exit
+    ${strippedPW}=  Remove String  %{DEPLOYED_PASSWORD}  \\
+
     # Enable logging on the nfs servers
-    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} rpcdebug -m nfsd -s all
-    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} rpcdebug -m rpc -s all
-    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} service rpcbind restart
-    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} rpcdebug -m nfsd -s all
-    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} rpcdebug -m rpc -s all
-    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} service rpcbind restart
+    Open Connection  ${NFS_IP}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  root  ${strippedPW}
+    ${out}=  Execute Command   rpcdebug -m nfsd -s all
+    ${out}=  Execute Command   rpcdebug -m rpc -s all
+    ${out}=  Execute Command   service rpcbind restart
+    Close Connection
+    
+    Open Connection  ${NFS_READONLY_IP}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  root  ${strippedPW}
+    ${out}=  Execute Command   rpcdebug -m nfsd -s all
+    ${out}=  Execute Command   rpcdebug -m rpc -s all
+    ${out}=  Execute Command   service rpcbind restart
+    Close Connection
 
 Setup ENV Variables for VIC Appliance Install
     Log To Console  \nSetup Environment Variables for VIC Appliance To ESX\n
@@ -111,10 +123,17 @@ Reboot VM and Verify Basic VCH Info
     Should Contain  ${output}  ${busybox}
 
 Gather NFS Logs
-    ${out}=  Run Keyword And Continue On Failure  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} dmesg -T
+    Open Connection  ${NFS_IP}
+    Login  root  %{DEPLOYED_PASSWORD}
+    ${out}=  Execute Command   dmesg -T
     Log  ${out}
-    ${out}=  Run Keyword And Continue On Failure  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} dmesg -T
+    Close Connection
+    
+    Open Connection  ${NFS_READONLY_IP}
+    Login  root  %{DEPLOYED_PASSWORD}
+    ${out}=  Execute Command   dmesg -T
     Log  ${out}
+    Close Connection
 
 NFS Volume Cleanup
     Gather NFS Logs
