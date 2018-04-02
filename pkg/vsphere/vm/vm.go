@@ -279,7 +279,6 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInf
 
 	disks := devices.SelectByType(&types.VirtualDisk{})
 	err = vm.RemoveDevice(op, true, disks...)
-
 	if err != nil {
 		return nil, err
 	}
