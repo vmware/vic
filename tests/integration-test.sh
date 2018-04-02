@@ -32,8 +32,10 @@ else
     export FAST_FAILURE=0
 fi
 
-if (echo $prBody | grep -q "\[shared datastore\]"); then
-    export TEST_DATASTORE='cloud_native_1tb_01'
+if (echo $prBody | grep -q "\[shared datastore="); then
+    command=$(echo $prBody | grep "\[shared datastore=")
+    datastore=$(echo $command | awk -F"\[shared datastore=" '{sub(/\].*/,"",$2);print $2}')
+    export TEST_DATASTORE=$datastore
 fi
 
 jobs="1"
