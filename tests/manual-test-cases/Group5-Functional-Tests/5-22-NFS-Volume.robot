@@ -348,3 +348,6 @@ Kill NFS Server
     ${rc}  ${lsOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "ls mydata"
     Should Be Equal As Integers  ${rc}  125
     #Should Contain  ${lsOutput}  Server error from portlayer: unable to wait for process launch status:
+
+    # Don't try to gather logs for servers that don't exist anymore
+    [Teardown]  NONE
