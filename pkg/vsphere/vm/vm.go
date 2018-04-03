@@ -272,17 +272,26 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInf
 
 	op := trace.FromContext(ctx, "DeleteExceptDisks")
 
+	op.Debugf("Getting list of the devices for VM %q", vm)
 	devices, err := vm.Device(op)
 	if err != nil {
 		return nil, err
 	}
 
 	disks := devices.SelectByType(&types.VirtualDisk{})
-	err = vm.RemoveDevice(op, true, disks...)
+	op.Debug("Removing devices for VM")
+
+	err = retry.Do(func() error {
+		return vm.RemoveDevice(op, true, disks...)
+	}, func(err error) bool {
+		return tasks.IsRetryError(op, err)
+	})
+
 	if err != nil {
 		return nil, err
 	}
 
+	op.Debug("Destroying VM")
 	info, err := vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		return vm.Destroy(ctx)
 	})
@@ -292,21 +301,18 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInf
 	}
 
 	// If destroy method is disabled on this VM, re-enable it and retry
-	if tasks.IsMethodDisabledError(err) {
-		err = retry.Do(func() error {
-			return vm.EnableDestroy(op)
-		}, tasks.IsConcurrentAccessError)
+	op.Debug("Destroying is disabled. Enabling destroying for VM")
+	err = retry.Do(func() error {
+		return vm.EnableDestroy(op)
+	}, tasks.IsConcurrentAccessError)
 
-		if err != nil {
-			return nil, err
-		}
-
-		return vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
-			return vm.Destroy(ctx)
-		})
+	if err != nil {
+		return nil, err
 	}
-
-	return nil, err
+	op.Debug("Destroy VM again")
+	return vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
+		return vm.Destroy(ctx)
+	})
 }
 
 func (vm *VirtualMachine) VMPathName(ctx context.Context) (string, error) {
