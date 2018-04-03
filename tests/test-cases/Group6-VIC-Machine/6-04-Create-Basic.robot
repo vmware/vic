@@ -28,9 +28,7 @@ Manually Create VCH Folder On VC
      Should Be Equal As Integers  ${rc}  0
 
 Create Dummy VM In VCH Folder On VC
-    # Grab the vm folder for the VC
-    ${rc}  ${vm-folder-path}=  Run And Return Rc And Output  govc ls | grep vm
-    Should Be Equal As Integers  ${rc}  0
+    ${vm-folder-path}=  Run  govc ls | grep vm
     # grab path to the cluster
     ${rc}  ${compute-path}=  Run And Return Rc And Output  govc ls host | grep %{TEST_RESOURCE}
     Should Be Equal As Integers  ${rc}  0
@@ -285,7 +283,7 @@ Create VCH - Existing VM Name
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  The name '%{VCH-NAME}' already exists.
 
     Cleanup Dummy VM And VCH Folder
-    Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
+    Cleanup VCH Bridge Network
 
 Create VCH - Existing VM Name At Folder Location
     Set Test Environment Variables
@@ -303,7 +301,7 @@ Create VCH - Existing VM Name At Folder Location
     Should Contain  ${output}  The name '%{VCH-NAME}' already exists.
 
     ${rc}=  Run And Return Rc  govc vm.destroy %{VCH-NAME}
-    Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
+    Cleanup VCH Bridge Network
 
 Create VCH - Existing RP on ESX
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Pass Execution  Test skipped on VC
