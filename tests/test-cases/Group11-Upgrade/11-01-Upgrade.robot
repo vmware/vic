@@ -78,12 +78,13 @@ Run Docker Checks
     Verify Container Rename  new-vch-cont1  new-vch-cont2  ${contID}
 
     # check the display name and datastore folder name of an existing container
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info *-%{ID1}
+    ${id1shortID}=  Get container shortID  %{ID1}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info *-${id1shortID}
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  vch-restart-tes-%{ID1}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls | grep vch-restart-tes-%{ID1}
+    Should Contain  ${output}  vch-restart-tes-${id1shortID}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls | grep vch-restart-tes-${id1shortID}
     Should Be Equal As Integers  ${rc}  0
-    Should Be Equal  ${output}  vch-restart-tes-%{ID1}
+    Should Be Equal  ${output}  vch-restart-tes-${id1shortID}
 
     # check the display name and datastore folder name of a new container
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
