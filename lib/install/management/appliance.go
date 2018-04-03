@@ -114,15 +114,17 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 	defer trace.End(trace.Begin(""))
 	var err error
 
-	// We should check in the folder first then in the resource pool. If a folder collision occurs we want to fail as soon as possible.
-	folderRef, err := vchFolder(d.op, d.session, conf)
-	if err != nil {
-		// log it and continue, we would expect the folder to not exist in a fresh install
-		d.op.Debugf("VCH folder did not exist during existence check, received error: %s", err)
-	}
+	if d.isVC {
+		// We should check in the folder first then in the resource pool. If a folder collision occurs we want to fail as soon as possible.
+		folderRef, err := vchFolder(d.op, d.session, conf)
+		if err != nil {
+			// log it and continue, we would expect the folder to not exist in a fresh install
+			d.op.Debugf("VCH folder did not exist during existence check, received error: %s", err)
+		}
 
-	if folderRef != nil {
-		return fmt.Errorf("the Folder `%s` already exists", path.Join(d.session.VMFolder.InventoryPath, conf.Name))
+		if folderRef != nil {
+			return fmt.Errorf("a vm or folder already exists at path `%s`", path.Join(d.session.VMFolder.InventoryPath, conf.Name))
+		}
 	}
 
 	// Now check the compute path for uniqueness
