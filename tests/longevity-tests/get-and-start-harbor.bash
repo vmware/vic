@@ -26,19 +26,19 @@ version=$1
 echo "Pulling down version ${version} of Harbor..."
 wget https://github.com/vmware/harbor/releases/download/v${version}/harbor-online-installer-v${version}.tgz -qO - | tar xz
 echo "Configuring Harbor"
-sed -i 's/hostname = reg.mydomain.com/hostname = vic-executor1.vcna.io/g' harbor/harbor.cfg
+sed -i 's/hostname = reg.mydomain.com/hostname = vic-executor1.eng.vmware.com/g' harbor/harbor.cfg
 echo "Installing & starting Harbor"
 sudo ./harbor/install.sh
 
 echo "Preparing Harbor..."
 echo "Logging in..."
-docker login vic-executor1.vcna.io --username=admin --password="Harbor12345"
+docker login vic-executor1.eng.vmware.com --username=admin --password="Harbor12345"
 echo "Pulling some images to put in Harbor and putting them in Harbor.."
 
 pushd tests/resources
 for image in $(python -c "vars=__import__('dynamic-vars'); print(\" \".join(vars.images))"); do
     docker pull $image
-    docker tag $image vic-executor1.vcna.io/library/${image}
-    docker push vic-executor1.vcna.io/library/${image}
+    docker tag $image vic-executor1.eng.vmware.com/library/${image}
+    docker push vic-executor1.eng.vmware.com/library/${image}
 done
 popd

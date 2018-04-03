@@ -42,8 +42,8 @@ if [ $# -ne 1 ]; then
     exit 1
 fi
 
-if [[ $1 != "6.0" && $1 != "6.5" ]]; then
-    echo "Please specify a target cluster. One of: 6.0, 6.5"
+if [[ $1 != "6.0" && $1 != "6.5" && $1 != "6.7" ]]; then
+    echo "Please specify a target cluster. One of: 6.0, 6.5, 6.7"
     exit 1
 fi
 
