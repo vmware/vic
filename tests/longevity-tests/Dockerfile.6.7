@@ -13,13 +13,10 @@
 # limitations under the License
 
 FROM longevity-base
-ENV GOVC_URL=10.161.77.43
 ENV TEST_URL_ARRAY=10.161.77.43
-ENV GOVC_DATASTORE=nfs0-1
 ENV TEST_DATASTORE=nfs0-1
 ENV BRIDGE_NETWORK=bridge
 ENV PUBLIC_NETWORK=vm-network
 ENV TEST_DATACENTER=/dc1
-ENV GOVC_DATACENTER=/dc1
 ENV STATIC_VCH_OPTIONS="--insecure-registry=vic-executor1.eng.vmware.com"
 ENV TEST_RESOURCE=cls
