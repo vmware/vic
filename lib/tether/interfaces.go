@@ -47,7 +47,7 @@ type Operations interface {
 	SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, dio.DynamicMultiWriter, error)
 	// Returns a function to invoke after the session state has been persisted
 	HandleSessionExit(config *ExecutorConfig, session *SessionConfig) func()
-	ProcessEnv(env []string) []string
+	ProcessEnv(session *SessionConfig) []string
 	// LaunchUtility starts a process and provides a way to block on completion and retrieve
 	// it's exit code. This is needed to co-exist with a childreaper.
 	LaunchUtility(UtilityFn) (<-chan int, error)
