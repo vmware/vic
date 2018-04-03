@@ -737,5 +737,4 @@ Manually Cleanup VCH
     ${out}=  Run Keyword And Ignore Error  Run  govc pool.destroy host/*/Resources/${vch-name}
     ${out}=  Run Keyword And Ignore Error  Run  govc datastore.rm ${vch-name}
     ${out}=  Run Keyword And Ignore Error  Run  govc host.portgroup.remove ${vch-name}-bridge
-    ${out}=  Run Keyword And Ignore Error  Run  govc ls | grep vm
-    ${out}=  Run Keyword And Ignore Error  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc object.destroy ${out}/${vch-name}
+    ${out}=  Run Keyword And Ignore Error  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc object.destroy vm/${vch-name}

@@ -290,8 +290,7 @@ Check CVM Folder Path
 # Check VCH VM Folder Path will confirm that the VCH VM is in the correct place. if passed no arguments it will use the env var VCH-NAME for the check
 Check VCH VM Folder Path
     [Arguments]  ${vch-name}=%{VCH-NAME}
-    ${rc}  ${vch-path}=  Run And Return Rc And Output  govc find / -type m | grep ${vch-name}
-    Should Be Equal As Integers  ${rc}  0
+    ${vch-path}=  Run  govc find / -type m | grep ${vch-name}
     # If it is esxi - we should find the vch in the vmfolder
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${vch-path}  vm/${vch-name}
     # If it is VC - we should find the vch in a folder named after the VCH.
