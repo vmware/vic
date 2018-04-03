@@ -19,11 +19,11 @@ Suite Teardown  Cleanup VCHs
 
 *** Keywords ***
 Clean Up VCHs
-    Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
+    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
     Set Environment Variable  VCH-NAME  ${old-vm}
     Set Environment Variable  BRIDGE_NETWORK  ${old-vch-bridge}
     Set Environment Variable  VCH-PARAMS  ${old-vch-params}
-    Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
+    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Create Multi VCH - Docker Ps Only Contains The Correct Containers
