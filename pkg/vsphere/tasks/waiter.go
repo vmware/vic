@@ -101,18 +101,14 @@ const (
 )
 
 // IsRetryErrors will return true for vSphere errors, which can be fixed by retry.
-// Currently the error includes TaskInProgress, NetworkDisruptedAndConfigRolledBack and InvalidArgument
+// Currently the error includes TaskInProgress, NetworkDisruptedAndConfigRolledBack, FailToLockFaultToleranceVMs, HostCommunication
 // Retry on NetworkDisruptedAndConfigRolledBack is to workaround vSphere issue
-// Retry on InvalidArgument(invlid path) is to workaround vSAN bug: https://bugzilla.eng.vmware.com/show_bug.cgi?id=1770798. TODO: Should remove it after vSAN fixed the bug
 func IsRetryError(op trace.Operation, err error) bool {
 	if soap.IsSoapFault(err) {
 		switch f := soap.ToSoapFault(err).VimFault().(type) {
 		case types.TaskInProgress:
 			return true
 		case types.NetworkDisruptedAndConfigRolledBack:
-			logExpectedFault(op, soapFault, f)
-			return true
-		case types.InvalidArgument:
 			logExpectedFault(op, soapFault, f)
 			return true
 		case types.VAppTaskInProgress:
@@ -135,9 +131,6 @@ func IsRetryError(op trace.Operation, err error) bool {
 		case *types.TaskInProgress:
 			return true
 		case *types.NetworkDisruptedAndConfigRolledBack:
-			logExpectedFault(op, vimFault, f)
-			return true
-		case *types.InvalidArgument:
 			logExpectedFault(op, vimFault, f)
 			return true
 		case *types.VAppTaskInProgress:
@@ -163,9 +156,6 @@ func IsRetryError(op trace.Operation, err error) bool {
 		case *types.NetworkDisruptedAndConfigRolledBack:
 			logExpectedFault(op, taskFault, f)
 			return true
-		case *types.InvalidArgument:
-			logExpectedFault(op, taskFault, f)
-			return true
 		case *types.HostCommunication:
 			logExpectedFault(op, taskFault, f)
 			return true
@@ -183,6 +173,13 @@ func IsRetryError(op trace.Operation, err error) bool {
 		logError(op, err)
 		return false
 	}
+}
+
+// wrapper to add more types of error additional to the default retry errors.
+// it checks if an error is one of the basic retry error or if operation(error) is true
+// the operation argument passed in is an error filter. Example: IsMethodDisabledError, IsNotFoundError
+func WrapRetryError(op trace.Operation, err error, operation func(error) bool) bool {
+	return IsRetryError(op, err) || operation(err)
 }
 
 // IsConcurrentAccessError checks if a soap fault or vim fault is ConcurrentAccess error

@@ -305,7 +305,9 @@ func (d *Dispatcher) listResourcePools(path string) ([]*object.ResourcePool, err
 			return nil
 		}
 		return err
-	}, tasks.IsNotFoundError)
+	}, func(err error) bool {
+		return tasks.WrapRetryError(d.op, err, tasks.IsNotFoundError)
+	})
 
 	if err != nil {
 		return nil, err
