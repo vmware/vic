@@ -55,6 +55,7 @@ Set Test Environment Variables
     ${noQuotes}=  Strip String  %{TEST_DATASTORE}  characters="
     #"
     Set Environment Variable  GOVC_DATASTORE  ${noQuotes}
+    Set Environment Variable  GOVC_DATACENTER  %{TEST_DATACENTER}
 
     ${about}=  Run  govc about
     ${status}=  Run Keyword And Return Status  Should Contain  ${about}  VMware ESXi
