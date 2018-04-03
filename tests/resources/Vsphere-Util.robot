@@ -194,6 +194,11 @@ Gather Logs From ESX Server
     Environment Variable Should Be Set  TEST_URL
     ${out}=  Run  govc logs.download
 
+Gather VC Logs
+    Log To Console  Collecting VC logs ..
+    Run Keyword And Ignore Error  Gather Logs From ESX Server
+    Log To Console  VC logs collected
+
 Change Log Level On Server
     [Arguments]  ${level}
     ${out}=  Run  govc host.option.set Config.HostAgent.log.level ${level}

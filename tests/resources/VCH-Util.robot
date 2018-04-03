@@ -481,6 +481,10 @@ Cleanup VIC Appliance On Test Server
     Run Keyword And Ignore Error  Run  govc datastore.rm %{VCH-NAME}-VOL
     [Return]  ${output}
 
+Cleanup VIC Appliance And Gather VC Logs
+    Cleanup VIC Appliance On Test Server
+    Run Keyword If Test Failed  Gather VC Logs
+
 Cleanup VCH Bridge Network
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove %{BRIDGE_NETWORK}
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info
