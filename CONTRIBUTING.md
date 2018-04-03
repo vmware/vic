@@ -132,6 +132,8 @@ you can use these keywords in your PR body:
   - To run several specific suites: `[specific ci=$test1 --suite $test2 --suite $test3]`.
 - To skip running the unit tests, use `[skip unit]`.
 - To fail fast (make normal failures fatal) during the integration testing, use `[fast fail]`.
+- To specify a specific datastore you want, use `[shared datastore=nfs-datastore]`.
+- To specify the number of parallel jobs you want, use `[parallel jobs=2]`.
 
 You can run the tests locally before making a PR or view the Drone build results for [unit tests and integration tests][dronevic].
 
