@@ -56,9 +56,11 @@ Cleanup Dummy VM And VCH Folder
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${vm-folder-path}=  Run And Return Rc And Output  govc ls | grep vm
+    ${rc}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc  govc object.destroy vm/%{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc  govc object.destroy ${vm-folder-path}/%{VCH-NAME}
+
+Cleanup Dummy VM In Place Of The VCH Folder
+    ${rc}=  Run And Return Rc  govc vm.destroy %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
 
 *** Test Cases ***
@@ -256,7 +258,7 @@ Create VCH - Existing VCH name
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} ${vicmachinetls}
-    Should Contain  ${output}  already exists. Please delete it before reinstalling.
+    Should Contain  ${output}  a vm or folder alread exists at path `%{VCH-NAME}`
 
     Cleanup VIC Appliance On Test Server
 
@@ -280,10 +282,10 @@ Create VCH - Existing VM Name
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
 
     # VCH creation should fail on VC
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  The name '%{VCH-NAME}' already exists.
+    ${vm-folder-path}=  Run  govc ls | grep vm
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  a vm or folder alread exists at path `${vm-folder-path}/%{VCH-NAME}`
 
-    Cleanup Dummy VM And VCH Folder
-    Cleanup VCH Bridge Network
+    [teardown]  Cleanup Dummy VM And VCH Folder
 
 Create VCH - Existing VM Name At Folder Location
     Set Test Environment Variables
@@ -295,13 +297,13 @@ Create VCH - Existing VM Name At Folder Location
 
     # setup environment
     Create Dummy VM In Place Of The VCH Folder
+    Log To Console  Created Dummy VM at vm/%{VCH-NAME}
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
     Log  ${output}
     Should Contain  ${output}  The name '%{VCH-NAME}' already exists.
 
-    ${rc}=  Run And Return Rc  govc vm.destroy %{VCH-NAME}
-    Cleanup VCH Bridge Network
+    [teardown]  Cleanup Dummy VM In Place Of The VCH Folder
 
 Create VCH - Existing RP on ESX
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Pass Execution  Test skipped on VC
