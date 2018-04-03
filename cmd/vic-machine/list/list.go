@@ -104,17 +104,19 @@ func (l *List) prettyPrint(op trace.Operation, cli *cli.Context, vchs []*vm.Virt
 
 		vchConfig, err := executor.GetNoSecretVCHConfig(vch)
 		var version string
+		var upgradeStatus string
 		if err != nil {
-			op.Error("Failed to get Virtual Container Host configuration")
-			op.Error(err)
+			op.Warnf("Failed to get Virtual Container Host configuration for VCH %q: %s", vch.Reference().Value, err)
+			op.Warnf("Skip listing VCH %q", vch.Reference().Value)
 			version = "unknown"
+			upgradeStatus = "unknown"
 		} else {
 			version = vchConfig.Version.ShortVersion()
+			upgradeStatus = l.upgradeStatusMessage(op, vch, installerVer, vchConfig.Version)
 		}
 
 		parentPath := path.Dir(path.Dir(vch.InventoryPath))
 		name := path.Base(vch.InventoryPath)
-		upgradeStatus := l.upgradeStatusMessage(op, vch, installerVer, vchConfig.Version)
 		data = append(data,
 			items{vch.Reference().Value, parentPath, name, version, upgradeStatus})
 	}

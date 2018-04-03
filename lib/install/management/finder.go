@@ -25,10 +25,12 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/lib/migration"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
+	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
@@ -253,11 +255,12 @@ func (d *Dispatcher) SearchVCHs(computePath string) ([]*vm.VirtualMachine, error
 func (d *Dispatcher) searchVCHsFromComputePath(computePath string) ([]*vm.VirtualMachine, error) {
 	defer trace.End(trace.Begin(computePath, d.op))
 
-	pools, err := d.session.Finder.ResourcePoolList(d.op, path.Join(computePath, "..."))
+	var err error
+	var pools []*object.ResourcePool
+
+	pools, err = d.listResourcePools(path.Join(computePath, "..."))
+
 	if err != nil {
-		if _, ok := err.(*find.NotFoundError); ok {
-			return nil, nil
-		}
 		err = errors.Errorf("Failed to search for resource pools for compute path %q: %s", computePath, err)
 		return nil, err
 	}
@@ -266,6 +269,7 @@ func (d *Dispatcher) searchVCHsFromComputePath(computePath string) ([]*vm.Virtua
 	return vchs, nil
 }
 
+// searchVCHsPerDC outputs a list of all VCH VMs under a datacenter
 func (d *Dispatcher) searchVCHsPerDC(dc *object.Datacenter) ([]*vm.VirtualMachine, error) {
 	defer trace.End(trace.Begin(dc.InventoryPath, d.op))
 
@@ -276,10 +280,9 @@ func (d *Dispatcher) searchVCHsPerDC(dc *object.Datacenter) ([]*vm.VirtualMachin
 	d.session.Finder.SetDatacenter(dc)
 
 	var vchs []*vm.VirtualMachine
-	if pools, err = d.session.Finder.ResourcePoolList(d.op, "*"); err != nil {
-		if _, ok := err.(*find.NotFoundError); ok {
-			return vchs, nil // return an empty vch list instead of nil, to avoid errors appending nil to final result later
-		}
+
+	pools, err = d.listResourcePools("*")
+	if err != nil {
 		err = errors.Errorf("Failed to search resource pools for datacenter %q: %s", dc.InventoryPath, err)
 		return nil, err
 	}
@@ -288,6 +291,30 @@ func (d *Dispatcher) searchVCHsPerDC(dc *object.Datacenter) ([]*vm.VirtualMachin
 	return vchs, nil
 }
 
+// listResourcePool outputs a list of all resource pools under a compute path
+// retries on ObjectNotFound error because sometimes it's due to concurrent modifications of resource pools
+func (d *Dispatcher) listResourcePools(path string) ([]*object.ResourcePool, error) {
+	var err error
+	var pools []*object.ResourcePool
+
+	pools, err = d.session.Finder.ResourcePoolList(d.op, path)
+
+	err = retry.Do(func() error {
+		pools, err = d.session.Finder.ResourcePoolList(d.op, path)
+		if _, ok := err.(*find.NotFoundError); ok {
+			return nil
+		}
+		return err
+	}, tasks.IsNotFoundError)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return pools, nil
+}
+
+// searchVCHsFromPools outputs all VCH VMs under the pools specified in the list in the argument.
 func (d *Dispatcher) searchVCHsFromPools(pools []*object.ResourcePool) []*vm.VirtualMachine {
 	var vchs []*vm.VirtualMachine
 	for _, pool := range pools {
