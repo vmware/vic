@@ -139,8 +139,8 @@ func (t *Mocker) HandleSessionExit(config *ExecutorConfig, session *SessionConfi
 	}
 }
 
-func (t *Mocker) ProcessEnv(env []string) []string {
-	return t.Base.ProcessEnv(env)
+func (t *Mocker) ProcessEnv(session *SessionConfig) []string {
+	return t.Base.ProcessEnv(session)
 }
 
 // SetHostname sets both the kernel hostname and /etc/hostname to the specified string

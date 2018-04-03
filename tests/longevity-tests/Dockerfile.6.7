@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 
-FROM gcr.io/eminent-nation-87317/vic-integration-test:1.48
-RUN mkdir -p /go/src/github.com/vmware/vic
-COPY secrets /go/src/github.com/vmware/vic
-ENV LONGEVITY=1
-ENV GOVC_INSECURE=1
-ENV GOVC_USERNAME=administrator@vsphere.local
-ENV TEST_USERNAME=administrator@vsphere.local
-ENV TEST_TIMEOUT=3m
-ENV TEST_RESOURCE=Cluster
-ENV DOMAIN=
-ENV DOCKER_API_VERSION=1.23
+FROM longevity-base
+ENV TEST_URL_ARRAY=10.161.77.43
+ENV TEST_DATASTORE=nfs0-1
+ENV BRIDGE_NETWORK=bridge
+ENV PUBLIC_NETWORK=vm-network
+ENV TEST_DATACENTER=/dc1
+ENV GOVC_DATACENTER=/dc1
+ENV STATIC_VCH_OPTIONS="--insecure-registry=vic-executor1.eng.vmware.com"
+ENV TEST_RESOURCE=cls
