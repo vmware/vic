@@ -65,11 +65,6 @@ Run Docker Checks
     Run Keyword If  '${status}' == 'closed'  Fail  Exit code check below needs to be updated now that Issue #7534 has been resolved
     #Should Not Contain  ${output}  Exited (0)
 
-    # Check that rename doesn't work on a container from a VCH that doesn't support rename
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename vch-restart-test1 vch-test2
-    Should Not Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  does not support rename
-
     # Check that rename works on a container from a VCH that supports rename
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
