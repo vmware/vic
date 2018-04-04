@@ -52,12 +52,15 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 	var err error
 	var vmm *vm.VirtualMachine
 
+	// TODO: we previously found this appliance...there's no need to
+	// find it again
 	if vmm, err = d.findApplianceByID(conf); err != nil {
 		return err
 	}
 	if vmm == nil {
 		return nil
 	}
+	d.appliance = vmm
 
 	d.parentResourcepool, err = d.getComputeResource(vmm, conf)
 	if err != nil {
@@ -73,7 +76,7 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 
 	// Proceed to delete containers.
 	if d.parentResourcepool != nil {
-		if err = d.DeleteVCHInstances(vmm, conf, containers); err != nil {
+		if err = d.DeleteVCHInstances(conf, containers); err != nil {
 			d.op.Error(err)
 			if !d.force {
 				// if container delete failed, do not remove anything else
@@ -84,7 +87,6 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 			err = nil
 		}
 	}
-	d.appliance = vmm
 
 	if err = d.deleteImages(conf); err != nil {
 		errs = append(errs, err.Error())
@@ -109,8 +111,8 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 		return err
 	}
 
-	// delete the VCH inventory folder
-	d.deleteFolder(conf)
+	// delete the VCH folder
+	d.deleteVCHFolder()
 
 	defaultrp, err := d.session.Cluster.ResourcePool(d.op)
 	if err != nil {
@@ -223,7 +225,9 @@ func (d *Dispatcher) detachAttachedDisks(v *vm.VirtualMachine) error {
 	return err
 }
 
-func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, containers *DeleteContainers) error {
+// DeleteVCHInstances will delete all containers in the target resource pool or folder.  Additionally, it will detach
+// disks of the target VCH
+func (d *Dispatcher) DeleteVCHInstances(conf *config.VirtualContainerHostConfigSpec, containers *DeleteContainers) error {
 	defer trace.End(trace.Begin(conf.Name, d.op))
 
 	deletePoweredOnContainers := d.force || (containers != nil && *containers == AllContainers)
@@ -238,25 +242,18 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 	var err error
 	var children []*vm.VirtualMachine
 
-	folderRef, err := vchFolder(d.op, d.session, conf)
-
-	if err != nil || folderRef == nil {
-
-		if d.session.DRSEnabled != nil && !*d.session.DRSEnabled {
-			// if we are on a DRS disabled cluster and we cannot get the folder we MUST error out.
-			d.op.Errorf("Failed to obtain VCH folder on non DRS deployment: %s", err)
-			return fmt.Errorf("Unable to remove containers, failed to find VCH Folder. See vic-machine.log for more details. ")
-		}
-
-		// use the resource pool to cut down on the number of candidates
-		d.op.Debugf("Looking in the resource pool for delete targets")
-		if children, err = d.parentResourcepool.GetChildrenVMs(d.op, d.session); err != nil {
-			return err
-		}
-	} else {
+	vchFolder, err := d.appliance.Folder(d.op)
+	if err != nil {
+		d.op.Errorf("Failed to obtain the VCH folder: %s", err)
+		return fmt.Errorf("Failed to obtain the VCH folder. See vic-machine.log for more details. ")
+	}
+	// set the VCH Folder on session
+	d.session.VCHFolder = vchFolder
+	// if we have a vchFolder and it's not the VMFolder then gather the children via the folder
+	if vchFolder != nil && vchFolder.Reference() != d.session.VMFolder.Reference() {
 		// vch parent inventory folder exists, get the children from it.
-		d.op.Debugf("Found VCH Parent Folder: %s", folderRef.InventoryPath)
-		folderChildren, err := folderRef.Children(d.op)
+		d.op.Debugf("Finding children in VCH Folder: %s", vchFolder.InventoryPath)
+		folderChildren, err := vchFolder.Children(d.op)
 		if err != nil {
 			return err
 		}
@@ -265,16 +262,23 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 			vmObj, ok := child.(*object.VirtualMachine)
 			if ok {
 				childVM := vm.NewVirtualMachine(d.op, d.session, vmObj.Reference())
+				// The destroy method is disabled for all vic created vms so we need to enable
 				cErr := childVM.EnableDestroy(d.op)
 				if cErr != nil {
-					d.op.Debugf("unable to enable the destroy task on container (%s): due to %s", childVM.InventoryPath, cErr)
+					d.op.Debugf("Unable to enable the destroy task on vm(%s): due to %s", childVM.InventoryPath, cErr)
 				}
 				children = append(children, childVM)
 			}
 		}
+	} else {
+		// Find the children in the RP
+		d.op.Debugf("Finding children in VCH resource pool")
+		if children, err = d.parentResourcepool.GetChildrenVMs(d.op, d.session); err != nil {
+			return err
+		}
 	}
 
-	if d.session.Datastore, err = d.getImageDatastore(vmm, conf, ignoreFailureToFindImageStores); err != nil {
+	if d.session.Datastore, err = d.getImageDatastore(d.appliance, conf, ignoreFailureToFindImageStores); err != nil {
 		return err
 	}
 
@@ -289,7 +293,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 
 		if ok {
 			// Do not delete a VCH in the target RP if it is not the target VCH
-			if child.Reference() != vmm.Reference() {
+			if child.Reference() != d.appliance.Reference() {
 				d.op.Debugf("Skipping VCH in the resource pool that is not the targeted VCH: %s", child)
 				continue
 			}
@@ -382,67 +386,4 @@ func (d *Dispatcher) networkDevices(vmm *vm.VirtualMachine) ([]types.BaseVirtual
 		}
 	}
 	return devices, nil
-}
-
-func (d *Dispatcher) deleteFolder(conf *config.VirtualContainerHostConfigSpec) {
-	var err error
-
-	// no inventory folders if we are targeting ESX
-	if !d.isVC {
-		return
-	}
-
-	d.op.Info("Removing VCH Inventory Folder")
-	folderRef, err := vchFolder(d.op, d.session, conf)
-	if err != nil {
-		folderPath := fmt.Sprintf("%s/%s", d.session.VMFolder.InventoryPath, conf.Name)
-		d.op.Debugf("failed to find VCH folder(%s): %s", folderPath, err)
-		d.op.Warnf("Could not find a VCH folder(%s), continuing with vch deletion", folderPath)
-		return
-	}
-
-	defer func() {
-		if err != nil {
-			d.op.Warnf(manualInventoryCleanWarning, folderRef.InventoryPath)
-			return
-		}
-	}()
-
-	// protections against old vch's since they are directly in the VMFolder
-	dcFolder, err := d.session.Datacenter.Folders(d.op)
-	if err != nil {
-		d.op.Debugf("failed to find the datacenter folders: %s ", err)
-		return
-	}
-	VMFolder := dcFolder.VmFolder
-	if folderRef.Reference() == VMFolder.Reference() {
-		// cannot delete the vm folder
-		return
-	}
-
-	// NOTE: Destroy on Inventory Folders is RECURSIVE
-	folderContents, err := folderRef.Children(d.op)
-	if err != nil || len(folderContents) != 0 {
-		d.op.Debugf("Could not remove VCH folder, %s has existing contents in it. Manual cleanup required.", folderRef.InventoryPath)
-		return
-	}
-
-	err = d.removeFolder(folderRef)
-	if err != nil {
-		d.op.Warnf(manualInventoryCleanWarning, folderRef.InventoryPath)
-		return
-	}
-}
-
-func (d *Dispatcher) removeFolder(folderRef *object.Folder) error {
-	folderRemoveFunction := func(ctx context.Context) (tasks.Task, error) {
-		return folderRef.Destroy(d.op)
-	}
-
-	_, err := tasks.WaitForResult(d.op, folderRemoveFunction)
-	if err != nil {
-		d.op.Debugf("Received error when attempting to remove the vch folder: %s", err)
-		return err
-	}
-	return nil
 }
