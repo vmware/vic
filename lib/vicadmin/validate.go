@@ -277,7 +277,7 @@ func (v *Validator) GetVCHName(ctx context.Context, sess *session.Session) error
 	}
 
 	newVM := vm.NewVirtualMachineFromVM(ctx, sess, self)
-	vchName, err := newVM.Name(ctx)
+	vchName, err := newVM.ObjectName(ctx)
 	if err != nil {
 		v.Hostname = DefaultVCHName
 		return err
