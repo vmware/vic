@@ -24,21 +24,20 @@ version=$1
     && pushd harbor && docker-compose start && popd && exit 0
 
 echo "Pulling down version ${version} of Harbor..."
-wget https://github.com/vmware/harbor/releases/download/v${version}/harbor-online-installer-v${version}.tgz -qO - | tar xz
+wget https://storage.googleapis.com/harbor-releases/harbor-online-installer-v${version}.tgz -qO - | tar xz
+
 echo "Configuring Harbor"
 sed -i 's/hostname = reg.mydomain.com/hostname = vic-executor1.eng.vmware.com/g' harbor/harbor.cfg
+
 echo "Installing & starting Harbor"
 sudo ./harbor/install.sh
 
-echo "Preparing Harbor..."
-echo "Logging in..."
+echo "Logging into Harbor"
 docker login vic-executor1.eng.vmware.com --username=admin --password="Harbor12345"
-echo "Pulling some images to put in Harbor and putting them in Harbor.."
 
-pushd tests/resources
-for image in $(python -c "vars=__import__('dynamic-vars'); print(\" \".join(vars.images))"); do
+echo "Pulling some images to put in Harbor and putting them in Harbor"
+for image in "busybox"; do
     docker pull $image
     docker tag $image vic-executor1.eng.vmware.com/library/${image}
     docker push vic-executor1.eng.vmware.com/library/${image}
 done
-popd
