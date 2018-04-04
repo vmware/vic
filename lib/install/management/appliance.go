@@ -114,19 +114,6 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 	defer trace.End(trace.Begin(""))
 	var err error
 
-	if d.isVC {
-		// We should check in the folder first then in the resource pool. If a folder collision occurs we want to fail as soon as possible.
-		folderRef, err := vchFolder(d.op, d.session, conf)
-		if err != nil {
-			// log it and continue, we would expect the folder to not exist in a fresh install
-			d.op.Debugf("VCH folder did not exist during existence check, received error: %s", err)
-		}
-
-		if folderRef != nil {
-			return fmt.Errorf("a vm or folder already exists at path `%s`", path.Join(d.session.VMFolder.InventoryPath, conf.Name))
-		}
-	}
-
 	// Now check the compute path for uniqueness
 	var orp *object.ResourcePool
 	if orp, err = d.findResourcePool(d.vchPoolPath); err != nil {
@@ -150,7 +137,7 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 		verr = errors.Errorf("Found virtual machine %q, but it is not a VCH. Please choose a different virtual app.", conf.Name)
 		return verr
 	}
-	err = errors.Errorf("Virtual app %q already exists. Please delete it before reinstalling.", conf.Name)
+	err = errors.Errorf("A VCH with the name %q already exists. Please delete it or choose a different VCH name before attempting reinstalling", conf.Name)
 	return err
 }
 
@@ -504,21 +491,25 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 
 	// Create the VCH inventory folder
 	vchFolder := d.session.VMFolder
-	folderPath := fmt.Sprintf("%s/%s", d.session.VMFolder.InventoryPath, conf.Name)
+	folderPath := fmt.Sprintf("%s", path.Join(d.session.VMFolder.InventoryPath, conf.Name))
 	if d.isVC {
 		d.op.Info("Creating the VCH folder")
 		vchFolder, err := d.session.VMFolder.CreateFolder(d.op, spec.Name)
 		if err != nil {
-			if f, ok := err.(types.HasFault); ok {
-				if _, ok = f.Fault().(*types.DuplicateName); ok {
-					return fmt.Errorf("An object with the same name as the VCH folder (%s) already exists in that path", spec.Name)
+			if soap.IsSoapFault(err) {
+				switch soap.ToSoapFault(err).VimFault().(type) {
+				case types.DuplicateName:
+					return fmt.Errorf("a vm or folder already exists on the path for vch folder (%s)", folderPath)
+				}
+			} else if soap.IsVimFault(err) {
+				switch soap.ToVimFault(err).(type) {
+				case *types.DuplicateName:
+					return fmt.Errorf("a vm or folder already exists on the path for vch folder (%s)", folderPath)
 				}
 			}
 
-			folderPath := path.Join(d.session.VMFolder.InventoryPath, spec.Name)
-			return fmt.Errorf("Error when attempting to create the VCH folder %s. Please see vic-machine.log for more information", folderPath)
+			return fmt.Errorf("unexpected err (%s): %s", folderPath, err)
 		}
-		// we've created a VCH Folder, so set the session object accordingly
 		d.session.VCHFolder = vchFolder
 	}
 
