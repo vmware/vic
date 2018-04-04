@@ -15,4 +15,4 @@
 FROM longevity-base
 ENV GOVC_URL=bart.eng.vmware.com
 ENV TEST_URL_ARRAY=bart.eng.vmware.com
-ENV STATIC_VCH_OPTIONS="--insecure-registry=vic-executor1.vcna.io --public-network-ip 10.17.109.6/24 --public-network-gateway 10.17.109.253 --dns-server 10.118.81.1"
+ENV STATIC_VCH_OPTIONS="--insecure-registry=vic-executor1.eng.vmware.com --public-network-ip 10.17.109.6/24 --public-network-gateway 10.17.109.253 --dns-server 10.118.81.1"
