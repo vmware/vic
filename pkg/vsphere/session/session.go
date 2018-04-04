@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -77,9 +77,6 @@ type Config struct {
 	DatastorePath  string
 	HostPath       string
 	PoolPath       string
-
-	// VCH appliance folder location, this could be the VMFolder or a custom folder location(currently <VMFolder>/<VCHNAME>/<VCH>.vm)
-	VCHFolder *object.Folder
 }
 
 // Session caches vSphere objects obtained by querying the SDK.
@@ -94,7 +91,10 @@ type Session struct {
 	Host       *object.HostSystem
 	Pool       *object.ResourcePool
 
+	// Default vSphere VMFolder
 	VMFolder *object.Folder
+	// Folder where appliance is located
+	VCHFolder *object.Folder
 
 	Finder *find.Finder
 
@@ -374,10 +374,15 @@ func (s *Session) Populate(ctx context.Context) (*Session, error) {
 			op.Debugf("Cached folders: %s", s.DatacenterPath)
 		}
 		s.VMFolder = folders.VmFolder
+		// We don't persist the VCH folder location so set
+		// the VCH folder to the default VM folder.
+		// The actual location of the VCH will be determined later
+		// and this folder ref will be updated accordingly.
+		//
+		// This will provide standalone ESXi and backwards
+		// compatibility to non-folder versions.
+		s.VCHFolder = folders.VmFolder
 
-		if s.VCHFolder == nil {
-			s.VCHFolder = folders.VmFolder
-		}
 	}
 
 	if len(errs) > 0 {

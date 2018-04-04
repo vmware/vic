@@ -50,7 +50,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/diag"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
-	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -63,11 +62,6 @@ const (
 
 	// This is a constant also used in the lib/apiservers/engine/backends/system.go to assign custom info the docker types.info struct
 	volumeStoresID = "VolumeStores"
-)
-
-// inventory constants
-const (
-	manualInventoryCleanWarning = "Failed to remove VCH Folder : %s. Manual cleanup may be needed."
 )
 
 var (
@@ -146,15 +140,6 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 	return err
 }
 
-func (d *Dispatcher) getName(vm *vm.VirtualMachine) string {
-	name, err := vm.Name(d.op)
-	if err != nil {
-		d.op.Errorf("VM name not found: %s", err)
-		return ""
-	}
-	return name
-}
-
 func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("vm %q, force %t", vm.String(), force)))
 
@@ -168,7 +153,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 			if err != nil {
 				return err
 			}
-			name := d.getName(vm)
+			name, _ := vm.ObjectName(d.op)
 			if name != "" {
 				err = errors.Errorf("VM %q is powered on", name)
 			} else {
@@ -187,7 +172,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	folder, err := vm.FolderName(d.op)
 	if err != nil {
 		// failed to get folder name, might not be able to remove files for this VM
-		name := d.getName(vm)
+		name, _ := vm.ObjectName(d.op)
 		if name == "" {
 			d.op.Errorf("Unable to automatically remove all files in datastore for VM %q", vm.Reference())
 		} else {
@@ -504,29 +489,27 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	var info *types.TaskInfo
 
 	// Create the VCH inventory folder
-	vchFolder := d.session.VMFolder
 	if d.isVC {
 		d.op.Info("Creating the VCH folder")
-
-		vchFolder, err = d.session.VMFolder.CreateFolder(d.op, spec.Name)
+		vchFolder, err := d.session.VMFolder.CreateFolder(d.op, spec.Name)
 		if err != nil {
 			d.op.Debugf("Encountered unexpected error: %s", err)
 			if f, ok := err.(types.HasFault); ok {
 				if _, ok = f.Fault().(*types.DuplicateName); ok {
-					return fmt.Errorf("an object with the same name as the VCH folder (%s) already exists in that path", spec.Name)
+					return fmt.Errorf("An object with the same name as the VCH folder (%s) already exists in that path", spec.Name)
 				}
 			}
 
 			folderPath := path.Join(d.session.VMFolder.InventoryPath, spec.Name)
-			return fmt.Errorf("unexpected error when attempting to create the VCH folder %s. Please see vic-machine.log for more information", folderPath)
+			return fmt.Errorf("Error when attempting to create the VCH folder %s. Please see vic-machine.log for more information", folderPath)
 		}
-
+		// we've created a VCH Folder, so set the session object accordingly
 		d.session.VCHFolder = vchFolder
 	}
 
 	d.op.Info("Creating the VCH VM")
 	info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-		return vchFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
+		return d.session.VCHFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
 	})
 
 	if err != nil {
@@ -700,7 +683,7 @@ func (d *Dispatcher) decryptVCHConfig(vm *vm.VirtualMachine, cfg map[string]stri
 	defer trace.End(trace.Begin(""))
 
 	if d.secret == nil {
-		name, err := vm.Name(d.op)
+		name, err := vm.ObjectName(d.op)
 		if err != nil {
 			err = errors.Errorf("Failed to get vm name %q: %s", vm.Reference(), err)
 			return nil, err
@@ -1207,15 +1190,24 @@ func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.Virtual
 	return nil
 }
 
-// vchFolder returns the namespaced folder for the VCH or an error.
-func vchFolder(op trace.Operation, sess *session.Session, conf *config.VirtualContainerHostConfigSpec) (*object.Folder, error) {
-	vchFolder := path.Join(sess.VMFolder.InventoryPath, conf.Name)
-	op.Debugf("Looking for VCH folder: %s", vchFolder)
-
-	folderRef, err := sess.Finder.Folder(op, vchFolder)
-	if err != nil {
-		return nil, err
+// deleteVCHFolder will delete an empty VCH Folder
+func (d *Dispatcher) deleteVCHFolder() {
+	// only continue if VC and the VCH Folder is NOT the datacenter wide VM Folder
+	if d.isVC && d.session.VCHFolder != nil && d.session.VCHFolder.Reference() != d.session.VMFolder.Reference() {
+		children, err := d.session.VCHFolder.Children(d.op)
+		if err != nil {
+			d.op.Errorf("Unable to retrieve VCH Folder(%s) contents: %s", d.session.VCHFolder.InventoryPath, err)
+			return
+		}
+		if len(children) > 0 {
+			d.op.Warnf("VCH Folder(%s) contains %d object(s) and will not be removed", d.session.VCHFolder.InventoryPath, len(children))
+			return
+		}
+		_, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
+			return d.session.VCHFolder.Destroy(d.op)
+		})
+		if err != nil {
+			d.op.Errorf("Failed to remove VCH Folder(%s) - manual removal may be needed: %s", d.session.VCHFolder.InventoryPath, err)
+		}
 	}
-
-	return folderRef, nil
 }

@@ -162,7 +162,7 @@ func TestVM(t *testing.T) {
 	assert.Equal(t, types.VirtualMachinePowerStatePoweredOff, state)
 
 	// Check VM name
-	rname, err := vm.Name(ctx)
+	rname, err := vm.ObjectName(ctx)
 	if err != nil {
 		t.Errorf("Failed to load VM name: %s", err)
 	}
@@ -254,7 +254,7 @@ func TestVMAttributes(t *testing.T) {
 		t.Fatalf("ERROR: %s", err)
 	}
 
-	name, err := vm.Name(ctx)
+	name, err := vm.ObjectName(ctx)
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}
