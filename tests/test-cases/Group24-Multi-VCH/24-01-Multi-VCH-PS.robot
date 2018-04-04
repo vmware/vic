@@ -40,9 +40,11 @@ Create Multi VCH - Docker Ps Only Contains The Correct Containers
 
     Install VIC Appliance To Test Server  cleanup=${false}
 
-    ${rc}=  Run And Return Rc  docker ${old-vch-params} create --name ${container1} ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${old-vch-params} create --name ${container1} ${busybox}
+    Log ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} create --name ${container2} ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${container2} ${busybox}
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${old-vch-params} ps -a
