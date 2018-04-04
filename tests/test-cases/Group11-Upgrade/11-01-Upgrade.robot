@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#	http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,8 +15,8 @@
 *** Settings ***
 Documentation  Test 11-01 - Upgrade
 Resource  ../../resources/Util.robot
-# Suite Setup  Install VIC with version to Test Server  7315
-# Suite Teardown  Clean up VIC Appliance And Local Binary
+Suite Setup  Install VIC with version to Test Server  7315
+Suite Teardown  Clean up VIC Appliance And Local Binary
 Default Tags
 
 *** Variables ***
@@ -187,50 +187,49 @@ Check Container Create Timestamps
 
 *** Test Cases ***
 Upgrade Present in vic-machine
-    ${status}=  Get State Of Github Issue  7497
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-01-Upgrade.robot needs to be updated now that Issue #7497 has been resolved
-    # ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux
-    # Should Contain  ${output}  upgrade
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux
+    Should Contain  ${output}  upgrade
 
 Upgrade VCH with unreasonably short timeout and automatic rollback after failure
-    ${status}=  Get State Of Github Issue  7497
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-01-Upgrade.robot needs to be updated now that Issue #7497 has been resolved
-    # Log To Console  \nUpgrading VCH with 1s timeout ...
-    # ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout 1s
-    # Should Contain  ${output}  Upgrading VCH exceeded time limit
-    # Should Not Contain  ${output}  Completed successfully
-    # ${rc}  ${output}=  Run And Return Rc And Output  govc snapshot.tree -vm=%{VCH-NAME}
-    # Should Not Contain  ${output}  upgrade
-
-    # # confirm that the rollback took effect
-    # Check Original Version
+    Log To Console  \nUpgrading VCH with 1s timeout ...
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout 1s
+    Should Contain  ${output}  Upgrading VCH exceeded time limit
+    Should Not Contain  ${output}  Completed successfully
+    # we should have no snapshots
+    ${rc}  ${output}=  Run And Return Rc And Output  govc snapshot.tree -vm=%{VCH-NAME}
+    Should Be Empty  ${output}
+    # the appliance is restarting - attempt to wait until it's ready
+    # version of appliance we rolled back to is old, so we have to set DOCKER_API_VERSION
+    Set Environment Variable  DOCKER_API_VERSION  1.23
+    # keyword will call docker info until response or timeout
+    Wait For VCH Initialization  30x
+    # confirm that the rollback took effect
+    Check Original Version
 
 Upgrade VCH
-    ${status}=  Get State Of Github Issue  7497
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-01-Upgrade.robot needs to be updated now that Issue #7497 has been resolved
-    # Create Docker Containers
+    Create Docker Containers
 
-    # Create Container with Named Volume
+    Create Container with Named Volume
 
-    # # Create check list for Volume Inspect
-    # @{checkList}=  Create List  ${mntTest}  ${mntNamed}  ${namedVolume}
+    # Create check list for Volume Inspect
+    @{checkList}=  Create List  ${mntTest}  ${mntNamed}  ${namedVolume}
 
-    # Upgrade
-    # Check Upgraded Version
-    # Check Container Create Timestamps
+    Upgrade
+    Check Upgraded Version
+    Check Container Create Timestamps
 
-    # Verify Volume Inspect Info  After Upgrade and Before Rollback  ${TestContainerVolume}  ${checkList}
+    Verify Volume Inspect Info  After Upgrade and Before Rollback  ${TestContainerVolume}  ${checkList}
 
-    # Rollback
-    # Check Original Version
+    Rollback
+    Check Original Version
 
-    # Upgrade with ID
-    # Check Upgraded Version
+    Upgrade with ID
+    Check Upgraded Version
 
-    # Verify Volume Inspect Info  After Upgrade with ID  ${TestContainerVolume}  ${checkList}
+    Verify Volume Inspect Info  After Upgrade with ID  ${TestContainerVolume}  ${checkList}
 
-    # Run Docker Checks
+    Run Docker Checks
 
 
-    # Log To Console  Regression Tests...
-    # Run Regression Tests
+    Log To Console  Regression Tests...
+    Run Regression Tests
