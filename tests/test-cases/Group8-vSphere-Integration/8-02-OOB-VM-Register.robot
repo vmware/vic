@@ -19,21 +19,17 @@ Suite Teardown  Extra Cleanup
 
 *** Keywords ***
 Extra Cleanup
-    Manually Cleanup VCH  %{Group-8-VCH}
-    Cleanup VIC Appliance On Test Server
+    Run Keyword And Continue On Failure  Manually Cleanup VCH  %{GROUP-8-VCH}
+    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Verify VIC Still Works When Different VM Is Registered
-    Install VIC Appliance To Test Server
+    Install VIC Appliance To Test Server  cleanup=${false}
     Set Suite Variable  ${old-vm}  %{VCH-NAME}
     Set Environment Variable  GROUP-8-VCH  ${old-vm}
-    Add VCH to Removal Exception List  ${old-vm}
 
-    # Avoid deleting certs
-    Remove Environment Variable  VCH_NAME
-
-    Install VIC Appliance To Test Server
-    Remove VCH from Removal Exception List  ${old-vm}
+    Remove Environment Variable  BRIDGE_NETWORK
+    Install VIC Appliance To Test Server  cleanup=${false}
 
     ${out}=  Run  govc ls vm/${old-vm}
     Should Contain  ${out}  ${old-vm}/${old-vm}

@@ -258,7 +258,8 @@ Create VCH - Existing VCH name
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} ${vicmachinetls}
-    Should Contain  ${output}  a vm or folder alread exists at path `%{VCH-NAME}`
+    ${vm-folder-path}=  Run  govc ls | grep vm
+    Should Contain  ${output}  A VCH with the name \\"%{VCH-NAME}\\" already exists. Please delete it or choose a different VCH name before attempting reinstalling
 
     Cleanup VIC Appliance On Test Server
 
@@ -283,7 +284,7 @@ Create VCH - Existing VM Name
 
     # VCH creation should fail on VC
     ${vm-folder-path}=  Run  govc ls | grep vm
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  a vm or folder alread exists at path `${vm-folder-path}/%{VCH-NAME}`
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  a vm or folder already exists on the path for vch folder (${vm-folder-path}/%{VCH-NAME})
 
     [teardown]  Cleanup Dummy VM And VCH Folder
 

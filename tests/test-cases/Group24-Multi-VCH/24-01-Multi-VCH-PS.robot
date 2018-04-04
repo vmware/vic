@@ -34,6 +34,10 @@ Create Multi VCH - Docker Ps Only Contains The Correct Containers
     Set Suite Variable  ${old-vm}  %{VCH-NAME}
     Set Suite Variable  ${old-vch-params}  %{VCH-PARAMS}
     Set Suite Variable  ${old-vch-bridge}  %{BRIDGE_NETWORK}
+
+    # make sure we create two different bridge networks
+    Remove Environment Variable  BRIDGE_NETWORK
+
     Install VIC Appliance To Test Server  cleanup=${false}
 
     ${rc}=  Run And Return Rc  docker ${old-vch-params} create --name ${container1} ${busybox}
