@@ -113,8 +113,6 @@ func (d *Dispatcher) isContainerVM(vm *vm.VirtualMachine) (bool, error) {
 func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(""))
 	var err error
-
-	// Now check the compute path for uniqueness
 	var orp *object.ResourcePool
 	if orp, err = d.findResourcePool(d.vchPoolPath); err != nil {
 		return err
@@ -137,7 +135,7 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 		verr = errors.Errorf("Found virtual machine %q, but it is not a VCH. Please choose a different virtual app.", conf.Name)
 		return verr
 	}
-	err = errors.Errorf("A VCH with the name %q already exists. Please delete it or choose a different VCH name before attempting reinstalling", conf.Name)
+	err = errors.Errorf("A VCH with the name %q already exists. Please delete it or choose a different VCH name before attempting another reinstall", conf.Name)
 	return err
 }
 
