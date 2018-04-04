@@ -26,20 +26,15 @@ Setup
     Start VIC Machine Server
     Install VIC Appliance To Test Server
 
-
 Teardown
-    Cleanup VIC Appliance On Test Server
     Terminate All Processes    kill=True
-
 
 Get VCH List
     Get Path Under Target    vch
 
-
 Get VCH List Within Datacenter
     ${dcID}=    Get Datacenter ID
     Get Path Under Target    datacenter/${dcID}/vch
-
 
 Verify VCH List
     ${expectedId}=    Get VCH ID    %{VCH-NAME}
@@ -50,7 +45,6 @@ Verify VCH List
     Property Should Not Be Empty    .vchs[] | select(.name=="%{VCH-NAME}").docker_host
     Property Should Not Be Empty    .vchs[] | select(.name=="%{VCH-NAME}").upgrade_status
     Property Should Not Be Empty    .vchs[] | select(.name=="%{VCH-NAME}").version
-
 
 Get VCH List Using Session
     Get Path Under Target Using Session    vch
@@ -98,13 +92,11 @@ Get VCH List Within Invalid Datacenter
     Verify Return Code
     Verify Status Not Found
 
-
 Get VCH List Within Invalid Compute Resource
     Get Path Under Target    vch    compute-resource=INVALID
 
     Verify Return Code
     Verify Status Bad Request
-
 
 Get VCH List Within Invalid Datacenter and Compute Resource
     Get Path Under Target    datacenter/INVALID/vch    compute-resource=INVALID
@@ -112,16 +104,14 @@ Get VCH List Within Invalid Datacenter and Compute Resource
     Verify Return Code
     Verify Status Not Found
 
-    [Teardown]   Run Secret VIC Machine Delete Command   %{VCH-NAME}
+   [Teardown]   Run Secret VIC Machine Delete Command   %{VCH-NAME}
 
-Empty VCH list returned
+Get Empty VCH List When No VCH deployed
     Get VCH List
 
     Verify Return Code
     Verify Status Ok
 
-    Get VCH ID    %{VCH-NAME}
-
-    Output Should Not Contain  .vchs[] | select(.name=="%{VCH-NAME}").admin_portal
-    Output Should Not Contain  .vchs[] | select(.name=="%{VCH-NAME}").id
-    Output Should Not Contain  .vchs[] | select(.name=="%{VCH-NAME}").docker_host
+    ${vchs}=  Run  echo '${OUTPUT}' | jq -r '.vchs[]'
+    Log  ${vchs}
+    Length Should Be  ${vchs}  0
