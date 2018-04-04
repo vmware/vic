@@ -40,7 +40,7 @@ var (
 const (
 	KubeletConfigFile = "/etc/kubelet.conf"
 	KubeletPath       = "/sbin/virtual-kubelet"
-	Provider			= "vic"
+	Provider          = "vic"
 )
 
 func main() {

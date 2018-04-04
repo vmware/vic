@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	_ "net/http/pprof" // allow enabling pprof in contianerVM
+	_ "net/http/pprof" // allow enabling pprof in containerVM
 	"os"
 	"os/exec"
 	"os/signal"
@@ -68,8 +68,8 @@ var (
 )
 
 const (
-	use_runc  = true
-	runc_path = "/bin/runc"
+	useRunc  = true
+	runcPath = "/bin/runc"
 )
 
 type tether struct {
@@ -802,7 +802,7 @@ func (t *tether) launch(session *SessionConfig) error {
 		log.Infof("Configuring session to run in rootfs at %s", rootfs)
 		log.Debugf("Updating %+v for chroot", session.Cmd.SysProcAttr)
 
-		if use_runc {
+		if useRunc {
 			prepareOCI(session, rootfs)
 		} else {
 			session.Cmd.SysProcAttr = chrootSysProcAttr(session.Cmd.SysProcAttr, rootfs)
@@ -907,7 +907,8 @@ func (t *tether) launch(session *SessionConfig) error {
 // prepareOCI creates a config.json for the image.
 func prepareOCI(session *SessionConfig, rootfs string) error {
 	// Use runc to create a default spec
-	cmdRunc := exec.Command(runc_path, "spec")
+	/* #nosec */
+	cmdRunc := exec.Command(runcPath, "spec")
 	cmdRunc.Dir = path.Dir(rootfs)
 
 	err := cmdRunc.Run()
@@ -959,7 +960,7 @@ func prepareOCI(session *SessionConfig, rootfs string) error {
 	log.Infof("Updated OCI spec with process = %#v", *configSpec.Process)
 
 	// Finally, update the session to call runc
-	session.Cmd.Path = runc_path
+	session.Cmd.Path = runcPath
 	session.Cmd.Args = append(session.Cmd.Args, "run")
 	session.Cmd.Args = append(session.Cmd.Args, "--no-pivot")
 	// Use session.ID as container name
