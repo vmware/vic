@@ -125,19 +125,36 @@ func (vm *VirtualMachine) FolderName(ctx context.Context) (string, error) {
 }
 
 // Folder returns a reference to the parent folder that owns the vm
-func (vm *VirtualMachine) Folder(ctx context.Context) (*object.Folder, error) {
-	// NOTE: We must retrieve the folder by assembling the path. If the vm is in a vApp the inventory path will be the compute folder path of the vApp.
-	// right now this will likely not work with upgrade 1.1.1-1.2.1 vapp based deployments.
-
-	element, err := vm.Session.Finder.Element(ctx, vm.Reference())
+func (vm *VirtualMachine) Folder(op trace.Operation) (*object.Folder, error) {
+	name, err := vm.ObjectName(op)
 	if err != nil {
+		op.Errorf("Unable to get VM Name to acquire folder: %s", err)
 		return nil, err
 	}
-
-	parentPath := path.Dir(element.Path)
-	folderRef, err := vm.Session.Finder.Folder(ctx, parentPath)
+	// find the VM by name - this is to ensure we have a
+	// consistent inventory path
+	v, err := vm.Session.Finder.VirtualMachine(op, name)
 	if err != nil {
+		op.Errorf("Unable to find VM(name: %s) to acquire folder: %s", name, err)
 		return nil, err
+	}
+	inv := path.Dir(v.InventoryPath)
+	// Parent to determine if VM or vApp
+	p, err := vm.Parent(op)
+	if err != nil {
+		op.Errorf("Unable to get VM Parent to acquire folder: %s", err)
+		return nil, err
+	}
+	// if vApp then move up a slot in the inventory path
+	if p.Type == "VirtualApp" {
+		inv = path.Dir(inv)
+	}
+	// find the vm folder
+	folderRef, err := vm.Session.Finder.Folder(op, inv)
+	if err != nil {
+		e := fmt.Errorf("Error finding folder: %s", err)
+		op.Errorf(e.Error())
+		return nil, e
 	}
 
 	return folderRef, nil
@@ -259,20 +276,6 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 		return "", err
 	}
 	return detail, nil
-}
-
-func (vm *VirtualMachine) Name(ctx context.Context) (string, error) {
-	op := trace.FromContext(ctx, "Name")
-
-	var err error
-	var mvm mo.VirtualMachine
-
-	if err = vm.Properties(op, vm.Reference(), []string{"summary.config"}, &mvm); err != nil {
-		op.Errorf("Unable to get vm summary.config property: %s", err)
-		return "", err
-	}
-
-	return mvm.Summary.Config.Name, nil
 }
 
 func (vm *VirtualMachine) UUID(ctx context.Context) (string, error) {
