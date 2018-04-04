@@ -302,7 +302,7 @@ Create VCH - Existing VM Name At Folder Location
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
     Log  ${output}
-    Should Contain  ${output}  The name '%{VCH-NAME}' already exists.
+    Should Contain  ${output}  a vm or folder already exists on the path for vch folder (/dc1/vm/VCH-17992-9961)
 
     [teardown]  Cleanup Dummy VM In Place Of The VCH Folder
 
