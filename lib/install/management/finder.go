@@ -312,11 +312,7 @@ func (d *Dispatcher) listResourcePools(path string) ([]*object.ResourcePool, err
 		return tasks.IsTransientError(d.op, err) || tasks.IsNotFoundError(err)
 	})
 
-	if err != nil {
-		return nil, err
-	}
-
-	return pools, nil
+	return pools, err
 }
 
 // searchVCHsFromPools outputs all VCH VMs under the pools specified in the list in the argument.
