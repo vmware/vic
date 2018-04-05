@@ -54,7 +54,7 @@ Cleanup Dummy VM
 
 Cleanup Dummy VM And VCH Folder
     Run Keyword And Continue On Failure  Cleanup Dummy VM  %{VCH-NAME}
-    Run Keyword If '%{HOST_TYPE}' == 'ESXi'  Run Keyword And Continue On Failure  Cleanup Manually Created VCH Folder
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run Keyword And Continue On Failure  Cleanup Manually Created VCH Folder
 
 *** Test Cases ***
 Create VCH - supply DNS server
@@ -279,7 +279,7 @@ Create VCH - Existing VM Name
     ${vm-folder-path}=  Run  govc ls | grep vm
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  already exists
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  (${vm-folder-path}/%{VCH-NAME})
-    Should Be Equal As Integers  ${rc}  0
+    Should Not Be Equal As Integers  ${rc}  0
 
     [teardown]  Cleanup Dummy VM And VCH Folder
 
@@ -299,7 +299,7 @@ Create VCH - Folder Conflict
     ${vm-path}=  Run  govc ls | grep vm
     Should Contain  ${output}  already exists
     Should Contain  ${output}  (${vm-path}/%{VCH-NAME})
-    Should Be Equal As Integers  ${rc}
+    Should Not Be Equal As Integers  ${rc}  0
 
     [teardown]  Cleanup Manually Created VCH Folder
 

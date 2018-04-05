@@ -498,12 +498,12 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			if soap.IsSoapFault(err) {
 				switch soap.ToSoapFault(err).VimFault().(type) {
 				case types.DuplicateName:
-					return fmt.Errorf("a vm or folder already exists on the path for vch folder (%s)", folderPath)
+					return fmt.Errorf("a VM or folder already exists on the path for VCH folder (%s)", folderPath)
 				}
 			} else if soap.IsVimFault(err) {
 				switch soap.ToVimFault(err).(type) {
 				case *types.DuplicateName:
-					return fmt.Errorf("a vm or folder already exists on the path for vch folder (%s)", folderPath)
+					return fmt.Errorf("a VM or folder already exists on the path for VCH folder (%s)", folderPath)
 				}
 			}
 
