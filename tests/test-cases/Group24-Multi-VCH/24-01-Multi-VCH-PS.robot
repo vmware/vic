@@ -37,6 +37,7 @@ Create Multi VCH - Docker Ps Only Contains The Correct Containers
 
     # make sure we create two different bridge networks
     Remove Environment Variable  BRIDGE_NETWORK
+    Remove Environment Variable  VCH_NAME
 
     Install VIC Appliance To Test Server  cleanup=${false}
 
