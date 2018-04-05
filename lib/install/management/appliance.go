@@ -493,7 +493,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		folderPath := fmt.Sprintf("%s", path.Join(d.session.VMFolder.InventoryPath, conf.Name))
 
 		d.op.Info("Creating the VCH folder")
-		vchFolder, err := d.session.VMFolder.CreateFolder(d.op, spec.Name)
+		vchFolder, err = d.session.VMFolder.CreateFolder(d.op, spec.Name)
 		if err != nil {
 			if soap.IsSoapFault(err) {
 				switch soap.ToSoapFault(err).VimFault().(type) {
@@ -509,8 +509,8 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 
 			return fmt.Errorf("unexpected err (%s): %s", folderPath, err)
 		}
-		d.session.VCHFolder = vchFolder
 	}
+	d.session.VCHFolder = vchFolder
 
 	d.op.Info("Creating the VCH VM")
 	info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
