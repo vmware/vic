@@ -36,27 +36,25 @@ Create Dummy VM In VCH Folder On VC
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool=${compute-path} -net=%{PUBLIC_NETWORK} -folder=${vm-folder-path}/%{VCH-NAME} %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
 
-Create Dummy VM In Place Of The VCH Folder
-    # Grab the vm folder for the VC
-    ${rc}  ${vm-folder-path}=  Run And Return Rc And Output  govc ls | grep vm
-    Should Be Equal As Integers  ${rc}  0
-    # grab path to the cluster
+Create Dummy VM On ESX
     ${rc}  ${compute-path}=  Run And Return Rc And Output  govc ls host | grep %{TEST_RESOURCE}
     Should Be Equal As Integers  ${rc}  0
     # Create dummy VM at the correct inventory path.
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool=${compute-path} -net=%{PUBLIC_NETWORK} -folder=${vm-folder-path} %{VCH-NAME}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool=${compute-path} -net=%{PUBLIC_NETWORK} %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
 
-Cleanup Dummy VM And VCH Folder
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}
-    Should Be Equal As Integers  ${rc}  0
-
+Cleanup Manually Created VCH Folder
     ${rc}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc  govc object.destroy vm/%{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
 
-Cleanup Dummy VM In Place Of The VCH Folder
-    ${rc}=  Run And Return Rc  govc vm.destroy %{VCH-NAME}
+Cleanup Dummy VM
+    [Arguments]  ${vm-name}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
+
+Cleanup Dummy VM And VCH Folder
+    Run Keyword And Continue On Failure  Cleanup Dummy VM  %{VCH-NAME}
+    Run Keyword If '%{HOST_TYPE}' == 'ESXi'  Run Keyword And Continue On Failure  Cleanup Manually Created VCH Folder
 
 *** Test Cases ***
 Create VCH - supply DNS server
@@ -268,7 +266,7 @@ Create VCH - Existing VM Name
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Create Dummy VM In VCH Folder On VC
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Create Dummy VM On ESX
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
     Log  ${output}
 
     # VCH creation should succeed on ESXi
@@ -279,11 +277,13 @@ Create VCH - Existing VM Name
 
     # VCH creation should fail on VC
     ${vm-folder-path}=  Run  govc ls | grep vm
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  a vm or folder already exists on the path for vch folder (${vm-folder-path}/%{VCH-NAME})
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  already exists
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  (${vm-folder-path}/%{VCH-NAME})
+    Should Be Equal As Integers  ${rc}  0
 
     [teardown]  Cleanup Dummy VM And VCH Folder
 
-Create VCH - Existing VM Name At Folder Location
+Create VCH - Folder Conflict
     # This case cannot occur on standalone ESXi's
     Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
@@ -292,15 +292,16 @@ Create VCH - Existing VM Name At Folder Location
 
 
     # setup environment
-    Create Dummy VM In Place Of The VCH Folder
-    Log To Console  Created Dummy VM at vm/%{VCH-NAME}
+    Manually Create VCH Folder On VC
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
     Log  ${output}
     ${vm-path}=  Run  govc ls | grep vm
-    Should Contain  ${output}  a vm or folder already exists on the path for vch folder (${vm-path}/%{VCH-NAME})
+    Should Contain  ${output}  already exists
+    Should Contain  ${output}  (${vm-path}/%{VCH-NAME})
+    Should Be Equal As Integers  ${rc}
 
-    [teardown]  Cleanup Dummy VM In Place Of The VCH Folder
+    [teardown]  Cleanup Manually Created VCH Folder
 
 Create VCH - Existing RP on ESX
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Pass Execution  Test skipped on VC
