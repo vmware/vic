@@ -183,7 +183,7 @@ vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} \
 ### Expected Outcome
 * Command failed for VCH is found
 
-
+======
 ## Create VCH - Existing VM name
 1. Create with existing VM name
 2. Run regression tests
@@ -192,6 +192,20 @@ vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} \
 * Deployment succeeds
 * Regression tests pass
 
+## Create VCH - Existing VM Name At Folder Location
+This test is designed to confirm that we return the proper error when a non vch(with the same name) exists 
+at the target vch creation event's folder. e.g. vch_name=my-vch and the dummy vm is located at this path (vm/my-vch/my-vch).
+
+### Steps
+1. Create A dummy vm inside the vch folder with the vch's name.
+2. Attempt to Create a VCH with the name of the dummy vm.
+3. Cleanup the Dummy vm and folder
+
+### Expected Outcome
+Step 1 Should succeed without error
+Step 2 Should fail with the correct error message.
+Step 3 should succeed without error
+======
 
 ## Create VCH - Existing RP on ESX
 1. Create resource pool on ESX
