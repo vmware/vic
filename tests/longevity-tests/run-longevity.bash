@@ -88,7 +88,12 @@ fi
 
 input=$(gsutil ls -l gs://vic-engine-builds/vic_* | grep -v TOTAL | sort -k2 -r | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
 echo "Downloading VIC build $input..."
-wget https://storage.googleapis.com/vic-engine-builds/$input -qO - | tar xz -C vic && mv vic/vic vic/bin
+wget https://storage.googleapis.com/vic-engine-builds/${input} -qO - | tar xz -C vic && mv vic/vic vic/bin
 
-docker run -w /go/vic -i --env-file vic-internal/longevity-${target}-secrets.list -e SYSLOG_VCH_OPTION="${syslogVchOption}" -e DEBUG_VCH_LEVEL="${debugVchLevel}" -v `pwd`/vic:/go/vic gcr.io/eminent-nation-87317/vic-integration-test:1.48 pybot tests/manual-test-cases/Group14-Longevity/14-1-Longevity.robot
+docker run -w /go/vic -i \
+    --env-file vic-internal/longevity-${target}-secrets.list \
+    -e SYSLOG_VCH_OPTION="${syslogVchOption}" \
+    -e DEBUG_VCH_LEVEL="${debugVchLevel}" \
+    -v $(pwd)/vic:/go/vic gcr.io/eminent-nation-87317/vic-integration-test:1.48 \
+    pybot tests/manual-test-cases/Group14-Longevity/14-1-Longevity.robot
 
