@@ -47,7 +47,7 @@ if [[ $1 != "6.0" && $1 != "6.5" && $1 != "6.7" ]]; then
     exit 1
 fi
 
-if [[ ! $(grep dns /etc/docker/daemon.json) && ! $(grep insecure-registries /etc/docker/daemon.json) ]]; then
+if [[ ! $(grep dns /etc/docker/daemon.json) || ! $(grep insecure-registries /etc/docker/daemon.json) ]]; then
     echo "NOTE: /etc/docker/daemon.json should contain
 {
  \"dns\": [\"10.118.81.1\", \"10.16.188.210\"],
