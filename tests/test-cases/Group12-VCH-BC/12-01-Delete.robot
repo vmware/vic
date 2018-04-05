@@ -1,4 +1,4 @@
-# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -65,5 +65,5 @@ Delete VCH with new vic-machine
 
     # Check resource pool is removed
     ${ret}=  Run  govc pool.info -json=true host/*/Resources/%{VCH-NAME}
-	Should Contain  ${ret}  {"ResourcePools":null}
+    Should Contain  ${ret}  {"ResourcePools":null}
     Run  rm -rf vic.tar.gz vic
