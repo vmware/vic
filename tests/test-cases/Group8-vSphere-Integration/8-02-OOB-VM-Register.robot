@@ -19,21 +19,17 @@ Suite Teardown  Extra Cleanup
 
 *** Keywords ***
 Extra Cleanup
-    ${out}=  Run Keyword And Ignore Error  Run  govc vm.destroy ${old-vm}
-    ${out}=  Run Keyword And Ignore Error  Run  govc pool.destroy host/*/Resources/${old-vm}
-    ${out}=  Run Keyword And Ignore Error  Run  govc datastore.rm ${old-vm}
-    ${out}=  Run Keyword And Ignore Error  Run  govc host.portgroup.remove ${old-vm}-bridge
-    Cleanup VIC Appliance On Test Server
+    Run Keyword And Continue On Failure  Manually Cleanup VCH  %{GROUP-8-VCH}
+    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Verify VIC Still Works When Different VM Is Registered
-    Install VIC Appliance To Test Server
+    Install VIC Appliance To Test Server  cleanup=${false}
     Set Suite Variable  ${old-vm}  %{VCH-NAME}
-    Add VCH to Removal Exception List  ${old-vm}
+    Set Environment Variable  GROUP-8-VCH  ${old-vm}
 
-    # we need to be sure that we do not treat the original vch as a dangling entity during the second install
-    Install VIC Appliance To Test Server
-    Remove VCH from Removal Exception List  ${old-vm}
+    Remove Environment Variable  BRIDGE_NETWORK
+    Install VIC Appliance To Test Server  cleanup=${false}
 
     ${out}=  Run  govc ls vm/${old-vm}
     Should Contain  ${out}  ${old-vm}/${old-vm}
@@ -57,5 +53,3 @@ Verify VIC Still Works When Different VM Is Registered
     Should Contain  ${out}  COMMAND
 
     Run Regression Tests
-
-    ${out}=  Run  govc vm.destroy ${old-vm}
