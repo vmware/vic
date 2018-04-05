@@ -89,7 +89,7 @@ func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) e
 				errs = append(errs, err.Error())
 			}
 		} else {
-			d.op.Debug("Image store parent directory not empty, leaving in place.")
+			d.op.Debug("Image store parent directory not empty, leaving in place. Still contains the following entries: %q", strings.Join(children, ", "))
 		}
 	}
 
