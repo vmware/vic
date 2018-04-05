@@ -59,6 +59,10 @@ Get VCH List Within Datacenter Using Session
     ${dcID}=    Get Datacenter ID
     Get Path Under Target Using Session    datacenter/${dcID}/vch
 
+Verify VCH Power State
+    [Arguments]  ${expected}
+    Property Should Be Equal  .vchs[] | select(.name=="%{VCH-NAME}").power_state  ${expected}
+
 
 *** Test Cases ***
 Get VCH List
@@ -88,6 +92,18 @@ Get VCH List Within Datacenter Using Session
     Verify Return Code
     Verify Status Ok
     Verify VCH List
+
+Verify VCH List Power States
+    Get VCH List
+
+    Verify Return Code
+    Verify Status Ok
+    Verify VCH Power State  poweredOn
+    Power Off VM OOB  %{VCH-NAME}
+
+    Get VCH List
+    Verify VCH Power State  poweredOff
+
 
 # TODO: Add test for compute resource (once relevant code is updated to use ID instead of name)
 # TODO: Add test for compute resource within datacenter (once relevant code is updated to use ID instead of name)
