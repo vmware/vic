@@ -285,10 +285,10 @@ Create VCH - Existing VM Name
 
 Create VCH - Existing VM Name At Folder Location
     # This case cannot occur on standalone ESXi's
-    Pass Execution If  '%{HOST_TYPE}' == 'ESXi'  ESXi does not support folders, skipping test.
     Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Pass Execution If  '%{HOST_TYPE}' == 'ESXi'  ESXi does not support folders, skipping test.
 
 
     # setup environment
@@ -297,8 +297,8 @@ Create VCH - Existing VM Name At Folder Location
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
     Log  ${output}
-    Should Contain  ${output}  a vm or folder already exists on the path for vch folder (/dc1/vm/VCH-17992-9961)
-    Check VM Folder Path  %{VCH-NAME}
+    ${vm-path}=  Run  govc ls | grep vm
+    Should Contain  ${output}  a vm or folder already exists on the path for vch folder (${vm-path}/%{VCH-NAME})
 
     [teardown]  Cleanup Dummy VM In Place Of The VCH Folder
 

@@ -280,20 +280,11 @@ Get Hostd Memory Consumption
 # NOTE: this function should only be used in the case where you supply a name to the container. Since inventory names result in `<cvm-name>-<cvm-uuid>`
 Check VM Folder Path
     [Arguments]  ${cvm-name}
-    ${cvm-path}=  Run  govc find / -type m | grep ${cvm-name}
-    # If it is esxi - we should find the vch in the vmfolder
+    ${cvm-path}=  Run  govc find / -type m | grep %{VCH-NAME}/${cvm-name}
+    # If it is esxi - we should find the vm in the vmfolder
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${cvm-path}  vm/${cvm-name}
-    # If it is VC - we should find the vch in a folder named after the VCH.
+    # If it is VC - we should find the vm in a folder named after the VCH.
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${cvm-path}  vm/%{VCH-NAME}/${cvm-name}
-
-# Check VCH VM Folder Path will confirm that the VCH VM is in the correct place. if passed no arguments it will use the env var VCH-NAME for the check
-Check VCH VM Folder Path
-    [Arguments]  ${vch-name}=%{VCH-NAME}
-    ${vch-path}=  Run  govc find / -type m | grep ${vch-name}
-    # If it is esxi - we should find the vch in the vmfolder
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${vch-path}  vm/${vch-name}
-    # If it is VC - we should find the vch in a folder named after the VCH.
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${vch-path}  vm/%{VCH-NAME}/${vch-name}
 
 Get Public Network VLAN ID
     ${noQuotes}=  Strip String  %{PUBLIC_NETWORK}  characters='"
