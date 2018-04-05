@@ -191,8 +191,9 @@ Check Delete Success
     Should Not Contain  ${out}  ${name}
 
 Gather vSphere Logs
-    Environment Variable Should Be Set  TEST_URL
+    Log To Console  Collecting vSphere logs...
     ${out}=  Run  govc logs.download
+    Log To Console  vSphere logs collected
 
 Change Log Level On Server
     [Arguments]  ${level}
