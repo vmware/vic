@@ -135,7 +135,7 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 		verr = errors.Errorf("Found virtual machine %q, but it is not a VCH. Please choose a different virtual app.", conf.Name)
 		return verr
 	}
-	err = errors.Errorf("A VCH with the name %q already exists. Please delete it or choose a different VCH name before attempting another reinstall", conf.Name)
+	err = errors.Errorf("A VCH with the name %q already exists. Please choose a different name before attempting another install", conf.Name)
 	return err
 }
 

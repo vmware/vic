@@ -36,11 +36,6 @@ Create Dummy VM In VCH Folder On VC
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool=${compute-path} -net=%{PUBLIC_NETWORK} -folder=${vm-folder-path}/%{VCH-NAME} %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
 
-Create Dummy VM In VCH Folder On ESX
-    # Create dummy VM in the vm folder
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -net=%{PUBLIC_NETWORK} %{VCH-NAME}
-    Should Be Equal As Integers  ${rc}  0
-
 Create Dummy VM In Place Of The VCH Folder
     # Grab the vm folder for the VC
     ${rc}  ${vm-folder-path}=  Run And Return Rc And Output  govc ls | grep vm
@@ -113,7 +108,7 @@ Create VCH - Folder Structure Correctness
     ${rc}  ${out}=  Run And Return Rc And Output  govc ls vm | grep %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${out}  vm/%{VCH-NAME}
-    Check VCH VM Folder Path
+    Check VM Folder Path  %{VCH-NAME}
     Cleanup VIC Appliance On Test Server
 
 Create VCH - URL without user and password
@@ -247,7 +242,7 @@ Create VCH - long VCH name
     # Delete the portgroup added by env vars keyword
     Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Cleanup VCH Bridge Network
 
-Create VCH - Existing VCH name
+Create VCH - Existing VCH Name
     Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
@@ -259,7 +254,7 @@ Create VCH - Existing VCH name
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} ${vicmachinetls}
     ${vm-folder-path}=  Run  govc ls | grep vm
-    Should Contain  ${output}  A VCH with the name \\"%{VCH-NAME}\\" already exists. Please delete it or choose a different VCH name before attempting reinstalling
+    Should Contain  ${output}  \\"%{VCH-NAME}\\" already exists
 
     Cleanup VIC Appliance On Test Server
 
@@ -289,12 +284,12 @@ Create VCH - Existing VM Name
     [teardown]  Cleanup Dummy VM And VCH Folder
 
 Create VCH - Existing VM Name At Folder Location
+    # This case cannot occur on standalone ESXi's
+    Pass Execution If  '%{HOST_TYPE}' == 'ESXi'  ESXi does not support folders, skipping test.
     Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    # This case cannot occur on standalone ESXi's
-    Pass Execution If  '%{HOST_TYPE}' == 'ESXi'  ESXi does not support folders, skipping test.
 
     # setup environment
     Create Dummy VM In Place Of The VCH Folder
@@ -303,6 +298,7 @@ Create VCH - Existing VM Name At Folder Location
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
     Log  ${output}
     Should Contain  ${output}  a vm or folder already exists on the path for vch folder (/dc1/vm/VCH-17992-9961)
+    Check VM Folder Path  %{VCH-NAME}
 
     [teardown]  Cleanup Dummy VM In Place Of The VCH Folder
 
