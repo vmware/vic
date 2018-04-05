@@ -35,9 +35,7 @@ sudo ./harbor/install.sh
 echo "Logging into Harbor"
 docker login vic-executor1.eng.vmware.com --username=admin --password="Harbor12345"
 
-echo "Pulling some images to put in Harbor and putting them in Harbor"
-for image in "busybox"; do
-    docker pull $image
-    docker tag $image vic-executor1.eng.vmware.com/library/${image}
-    docker push vic-executor1.eng.vmware.com/library/${image}
-done
+echo "Pull required busybox image for longevity test and put it in Harbor"
+docker pull busybox
+docker tag busybox vic-executor1.eng.vmware.com/library/busybox
+docker push vic-executor1.eng.vmware.com/library/busybox
