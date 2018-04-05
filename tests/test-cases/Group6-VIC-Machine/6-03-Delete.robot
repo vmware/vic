@@ -1,4 +1,4 @@
-# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ Test Timeout  20 minutes
 *** Keywords ***
 Initial load
     # Create container VM first
-    Log To Console  \nRunning docker pull ${busybox}...
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
@@ -43,6 +42,23 @@ Cleanup Delete Tests
     Run Keyword If  '${tempvm}'!='${EMPTY}'  Log  ${output}
     Run Keyword If  '${tempvm}'!='${EMPTY}'  Should Be Equal As Integers  ${rc}  0
 
+Cleanup Delete VCH with non-cVM in VCH folder test
+    Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
+
+    Set Environment Variable  TEST_DATACENTER  ${orig-dc}
+
+    # Delete VCH folder and the non-cVM under it
+    ${rc}  ${output}=  Run And Return Rc And Output  govc object.destroy %{VCH-NAME}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Delete resource pool
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "%{TEST_RESOURCE}/Resources/%{VCH-NAME}"
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "%{TEST_RESOURCE}/%{VCH-NAME}"
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
 
 *** Test Cases ***
 Delete VCH and verify
@@ -65,7 +81,11 @@ Delete VCH and verify
     ${ret}=  Run  govc vm.info -json=true %{VCH-NAME}
     Should Contain  ${ret}  {"VirtualMachines":null}
 
-    # Check directories is removed
+    # Check that the VCH folder is removed
+    ${ret}=  Run  govc find %{TEST_DATACENTER}/vm -type f
+    Should Not Contain  ${ret}  %{VCH-NAME}
+
+    # Check directories are removed
     ${ret}=  Run  govc datastore.ls VIC/${uuid}
     Should Contain  ${ret}   was not found
     ${ret}=  Run  govc datastore.ls %{VCH-NAME}
@@ -107,6 +127,14 @@ Attach Disks and Delete VCH
 
 
 Delete VCH with non-cVM in same RP
+    # Don't perform unconditional setup as we skip the test on a non-DRS env
+    [Setup]     NONE
+
+    ${output}=  Query Cluster DRS Setting  %{TEST_RESOURCE}
+    Run Keyword If  '${output}' == 'false'  Pass Execution  Test not applicable on non-DRS env - no resource pools
+
+    Install VIC Appliance To Test Server
+
     ${rand}=  Generate Random String  15
     ${dummyvm}=  Set Variable  anothervm-${rand}
     Set Suite Variable  ${tempvm}  ${dummyvm}
@@ -138,6 +166,9 @@ Delete VCH with non-cVM in same RP
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "%{TEST_RESOURCE}/Resources/%{VCH-NAME}"
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "%{TEST_RESOURCE}/%{VCH-NAME}"
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
@@ -146,10 +177,12 @@ Delete VCH with non-cVM in same RP
 
 
 Delete VCH moved from its RP
-    # Don't perform unconditional setup as we skip the test on ESX
+    # Don't perform unconditional setup as we skip the test on ESX or a non-DRS env
     [Setup]     NONE
 
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESX due to unable to move into RP
+    ${output}=  Query Cluster DRS Setting  %{TEST_RESOURCE}
+    Run Keyword If  '${output}' == 'false'  Pass Execution  Test not applicable on non-DRS env - no resource pools
 
     Install VIC Appliance To Test Server
 
@@ -203,14 +236,15 @@ Delete VCH moved from its RP
 
 
 Delete VCH moved to root RP and original RP deleted
-    # Don't perform unconditional setup as we skip the test on ESX
+    # Don't perform unconditional setup as we skip the test on ESX or a non-DRS env
     [Setup]     NONE
 
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESX due to unable to move into RP
+    ${output}=  Query Cluster DRS Setting  %{TEST_RESOURCE}
+    Run Keyword If  '${output}' == 'false'  Pass Execution  Test not applicable on non-DRS env - no resource pools
 
     Install VIC Appliance To Test Server
 
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESX due to unable to move into RP
     ${rand}=  Generate Random String  15
     ${dummyvm}=  Set Variable  anothervm-${rand}
     Set Suite Variable  ${tempvm}  ${dummyvm}
@@ -244,3 +278,56 @@ Delete VCH moved to root RP and original RP deleted
     Should Be Equal As Integers  ${rc}  0
 
     Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Run Keyword And Ignore Error  Cleanup VCH Bridge Network
+
+
+Delete VCH with non-cVM in VCH folder
+    # Don't perform unconditional setup as we skip the test on ESX
+    [Setup]     NONE
+    # Custom teardown step for this test to clean up VCH folder and resource pool
+    [Teardown]  Cleanup Delete VCH with non-cVM in VCH folder test
+
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Not applicable on ESX - no VCH folder
+
+    Install VIC Appliance To Test Server
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${con}=  Evaluate  'cvm-' + str(random.randint(1000,9999))  modules=random
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${con} ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${dc}=  Get Environment Variable  TEST_DATACENTER
+    Set Suite Variable  ${orig-dc}  ${dc}
+    ${dc}=  Run Keyword If  '%{TEST_DATACENTER}' == '${SPACE}'  Get Datacenter Name
+    Run Keyword If  '%{TEST_DATACENTER}' == '${SPACE}'  Set Environment Variable  TEST_DATACENTER  /${dc}
+
+    # Create a non-cVM in the VCH's parent folder
+    ${rand}=  Generate Random String  15
+    ${dummyvm}=  Set Variable  anothervm-${rand}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -net=%{PUBLIC_NETWORK} -folder=%{TEST_DATACENTER}/vm/%{VCH-NAME} -on=false ${dummyvm}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Verify non-cVM exists
+    ${rc}  ${output}=  Run And Return Rc And Output  govc ls vm/%{VCH-NAME}/${dummyvm}
+    Log  ${output}
+    Should Contain  ${output}  ${dummyvm}
+
+    # Delete VCH with force
+    ${ret}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --force
+    Log  ${output}
+    Should Contain  ${output}  Completed successfully
+
+    # Verify VCH folder exists
+    ${ret}=  Run  govc find %{TEST_DATACENTER}/vm -type f
+    Should Contain  ${ret}  %{VCH-NAME}
+
+    # Verify cVM does not exist
+    ${rc}  ${output}=  Run And Return Rc And Output  govc ls vm/%{VCH-NAME}/${con}
+    Log  ${output}
+    Should Not Contain  ${output}  ${con}
+
+    # Verify non-cVM still exists
+    ${rc}  ${output}=  Run And Return Rc And Output  govc ls vm/%{VCH-NAME}/${dummyvm}
+    Log  ${output}
+    Should Contain  ${output}  ${dummyvm}
+
