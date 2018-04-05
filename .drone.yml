@@ -113,7 +113,7 @@ pipeline:
       - export DOMAIN=$CI_DOMAIN
       - export MULTI_VCH=1
       - echo $DOMAIN
-      - export TEST_URL_ARRAY=$HAAS_URL_ARRAY $OVERFLOW_URL_ARRAY
+      - export TEST_URL_ARRAY="$HAAS_URL_ARRAY $OVERFLOW_URL_ARRAY"
       - tests/integration-test.sh
     volumes:
       - /tmp
