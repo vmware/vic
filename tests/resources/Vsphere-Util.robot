@@ -190,7 +190,7 @@ Check Delete Success
     Log  ${out}
     Should Not Contain  ${out}  ${name}
 
-Gather Logs From ESX Server
+Gather vSphere Logs
     Environment Variable Should Be Set  TEST_URL
     ${out}=  Run  govc logs.download
 

@@ -23,7 +23,7 @@ Test Teardown  Run Keyword If Test Failed  Gather VC Logs
 
 Gather VC Logs
     Log To Console  Collecting VC logs ..
-    Run Keyword And Ignore Error  Gather Logs From ESX Server
+    Run Keyword And Ignore Error  Gather vSphere Logs
     Log To Console  VC logs collected
 
 Ops User Create
