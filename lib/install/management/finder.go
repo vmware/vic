@@ -299,7 +299,7 @@ func (d *Dispatcher) listResourcePools(path string) ([]*object.ResourcePool, err
 
 	pools, err = d.session.Finder.ResourcePoolList(d.op, path)
 
-	// under some circumstances, such as when there is concurrent vic-machine elete operation running in the background,
+	// under some circumstances, such as when there is concurrent vic-machine delete operation running in the background,
 	// listing resource pools might fail because some VCH pool is being destroyed at the same time.
 	// If that happens, we retry and list pools again
 	err = retry.Do(func() error {
@@ -309,7 +309,7 @@ func (d *Dispatcher) listResourcePools(path string) ([]*object.ResourcePool, err
 		}
 		return err
 	}, func(err error) bool {
-		return tasks.WrapRetryError(d.op, err, tasks.IsNotFoundError)
+		return tasks.IsTransientError(d.op, err) || tasks.IsNotFoundError(err)
 	})
 
 	if err != nil {

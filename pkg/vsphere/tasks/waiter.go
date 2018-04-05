@@ -100,10 +100,10 @@ const (
 	taskFault = "task"
 )
 
-// IsRetryErrors will return true for vSphere errors, which can be fixed by retry.
+// IsTransientError will return true for vSphere errors, which can be fixed by retry.
 // Currently the error includes TaskInProgress, NetworkDisruptedAndConfigRolledBack, FailToLockFaultToleranceVMs, HostCommunication
 // Retry on NetworkDisruptedAndConfigRolledBack is to workaround vSphere issue
-func IsRetryError(op trace.Operation, err error) bool {
+func IsTransientError(op trace.Operation, err error) bool {
 	if soap.IsSoapFault(err) {
 		switch f := soap.ToSoapFault(err).VimFault().(type) {
 		case types.TaskInProgress:
@@ -175,11 +175,41 @@ func IsRetryError(op trace.Operation, err error) bool {
 	}
 }
 
-// wrapper to add more types of error additional to the default retry errors.
-// it checks if an error is one of the basic retry error or if operation(error) is true
-// the operation argument passed in is an error filter. Example: IsMethodDisabledError, IsNotFoundError
-func WrapRetryError(op trace.Operation, err error, operation func(error) bool) bool {
-	return IsRetryError(op, err) || operation(err)
+// Add an additional retry error InvalidArgument
+// This is added for potential race conditions concerning vSAN host partition
+// Normally VM configuration is provided without user input. If there's InvalidArgument fault, it would more possibly be a system error.
+// Details see: https://github.com/vmware/vic/pull/4597
+func IsRetryError(op trace.Operation, err error) bool {
+	return IsTransientError(op, err) || IsInvalidArgumentError(err)
+}
+
+// IsInvalidArgumentError checks if a soap fault or vim fault is InvalidArgument error
+func IsInvalidArgumentError(err error) bool {
+	if soap.IsVimFault(err) {
+		if _, ok := soap.ToVimFault(err).(*types.InvalidArgument); ok {
+			return true
+		}
+		if _, ok := soap.ToVimFault(err).(types.InvalidArgumentFault); ok {
+			return true
+		}
+
+		return false
+	}
+
+	if soap.IsSoapFault(err) {
+		if _, ok := soap.ToSoapFault(err).VimFault().(types.InvalidArgument); ok {
+			return true
+		}
+		if _, ok := soap.ToSoapFault(err).VimFault().(types.InvalidArgumentFault); ok {
+			return true
+		}
+
+		// sometimes we get the correct fault but wrong type
+		return soap.ToSoapFault(err).String == "vim.fault.InvalidArgument" ||
+			soap.ToSoapFault(err).String == "vim.fault.InvalidArgumentFault"
+	}
+
+	return false
 }
 
 // IsConcurrentAccessError checks if a soap fault or vim fault is ConcurrentAccess error
