@@ -1,14 +1,14 @@
 # Test 24-01 - Create Multi VCH - Docker Ps Only Contains The Correct Containers
 
-## Purpose 
-Verify that one VCH's `docker ps` output does not contain the containers of another VCH. 
+## Purpose
+Verify that one VCH's `docker ps` output does not contain the containers of another VCH.
 
 # Environment: 
 This test requires that a vsphere server is running and available. Additionally, it will require the
 ability to install two vch's to the target VC/ESXi.
 
 ## Test Steps:
-1. Install two VCH's 
+1. Install two VCH's
 2. Create a container on VCH 1
 3. Create a container on VCH 2
 4. Run `docker ps -a` on VCH 1
