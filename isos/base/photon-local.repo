@@ -1,5 +1,5 @@
 [photon]
 name=VMware Photon Linux 1.0(x86_64)
-baseurl=http://192.168.31.16/photon
+baseurl=http://wdc-yum-builder-ci.eng.vmware.com/photon
 gpgcheck=0
 enabled=1

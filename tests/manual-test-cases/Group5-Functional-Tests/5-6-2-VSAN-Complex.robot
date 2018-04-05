@@ -17,6 +17,7 @@ Documentation  Test 5-6-2 - VSAN-Complex
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  VSAN Complex Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Force Tags  vsan-complex
 
 *** Keywords ***
 VSAN Complex Setup
@@ -25,6 +26,7 @@ VSAN Complex Setup
     ${name}=  Evaluate  'vic-vsan-complex-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${user}  %{NIMBUS_USER}
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --vcfvtBuildPath /dbc/pa-dbc1111/mhagen/ --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-vsan-complex-pxeBoot-vcva --runName ${name}
+    Log  ${out}
     Should Contain  ${out}  "deployment_result"=>"PASS"
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
@@ -61,6 +63,7 @@ VSAN Complex Setup
 *** Test Cases ***
 Complex VSAN
     ${out}=  Run  govc datastore.vsan.dom.ls -ds %{TEST_DATASTORE} -l -o
+    Log  ${out}
     Should Be Empty  ${out}
 
     Custom Testbed Keepalive  /dbc/pa-dbc1111/mhagen
@@ -70,4 +73,5 @@ Complex VSAN
     Cleanup VIC Appliance On Test Server
 
     ${out}=  Run  govc datastore.vsan.dom.ls -ds %{TEST_DATASTORE} -l -o
+    Log  ${out}
     Should Be Empty  ${out}

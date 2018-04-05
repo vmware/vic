@@ -1,4 +1,4 @@
-[![Build Status](https://ci.vcna.io/api/badges/vmware/vic/status.svg)](https://ci.vcna.io/vmware/vic) [![codecov](https://codecov.io/gh/vmware/vic/branch/master/graph/badge.svg)](https://codecov.io/gh/vmware/vic) [![Download](https://img.shields.io/badge/download-latest-blue.svg)](https://github.com/vmware/vic/releases/latest) [![Go Report Card](https://goreportcard.com/badge/github.com/vmware/vic)](https://goreportcard.com/report/github.com/vmware/vic)
+[![Build Status](https://ci-vic.vmware.com/api/badges/vmware/vic/status.svg)](https://ci-vic.vmware.com/vmware/vic) [![codecov](https://codecov.io/gh/vmware/vic/branch/master/graph/badge.svg)](https://codecov.io/gh/vmware/vic) [![Download](https://img.shields.io/badge/download-latest-blue.svg)](https://github.com/vmware/vic/releases/latest) [![Go Report Card](https://goreportcard.com/badge/github.com/vmware/vic)](https://goreportcard.com/report/github.com/vmware/vic)
 
 # vSphere Integrated Containers Engine
 
@@ -53,7 +53,7 @@ Building the project is done with a combination of make and containers, with gol
 
 To build as closely as possible to the formal build:
 ```shell
-drone exec --repo.trusted
+drone exec
 ```
 
 To build inside a Docker container:
@@ -100,6 +100,13 @@ make cleandeps
 ```
 
 After that next "make" run will regenerate dependencies from scratch.
+
+## Updating the appliance with newly built binaries
+After building any of the binaries for the appliance VM (vicadmin, vic-init, port-layer-server, or the docker personality), run `make push` to replace the binaries on your VCH with the newly built ones.
+
+`make push` will prompt you for information that it needs, or you can set your `GOVC` environment variables, as well as `VIC_NAME` (name of your VCH) and `VIC_KEY` with a path to your SSH key in order to run `make push` noninteractively.
+
+Replace individual components with one of: `make push-portlayer`, `make push-vicadmin`, `make push-docker`, or `make push-vic-init`.
 
 
 ## Managing vendor/ directory
@@ -150,9 +157,9 @@ The iso image will be created in `$BIN`
 
 ## Building with CI
 
-[dronevic]:https://ci.vcna.io/vmware/vic
+[dronevic]:https://ci-vic.vmware.com/vmware/vic
 [dronesrc]:https://github.com/drone/drone
-[dronecli]:http://readme.drone.io/0.5/install/cli/
+[dronecli]:http://docs.drone.io/cli-installation/
 
 PRs to this repository will trigger builds on our [Drone CI][dronevic].
 
@@ -160,7 +167,7 @@ To build locally with Drone:
 
 Ensure that you have Docker 1.6 or higher installed.
 Install the [Drone command line tools][dronecli].
-From the root directory of the `vic` repository run `drone exec --repo.trusted`
+From the root directory of the `vic` repository run `drone exec`
 
 ## Common Build Problems
 1. Builds may fail when building either the appliance.iso or bootstrap.iso with the error: `cap_set_file failed - Operation not supported`

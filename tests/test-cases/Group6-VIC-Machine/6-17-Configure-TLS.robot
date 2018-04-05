@@ -27,6 +27,9 @@ Setup Test Environment
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
+
     ${output}=  Run  bin/vic-machine-linux create ${vicmachinetls} --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --tls-cert-path=${EXECDIR}/foo-bar-certs/
     Should Contain  ${output}  --tlscacert=\\"${EXECDIR}/foo-bar-certs/ca.pem\\" --tlscert=\\"${EXECDIR}/foo-bar-certs/cert.pem\\" --tlskey=\\"${EXECDIR}/foo-bar-certs/key.pem\\"
     Should Contain  ${output}  Generating CA certificate/key pair - private key in ${EXECDIR}/foo-bar-certs/ca-key.pem
@@ -61,9 +64,15 @@ Configure VCH - Server cert with untrusted CA
     Should Contain  ${output}  Completed successfully
 
     # Verify that the supplied certificate is presented on web interface
+    ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2376
+    Log  ${output}
+    Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
+
+    # Verify that the supplied certificate is presented on web interface
     ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
     Log  ${output}
     Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
+
 
 Configure VCH - Server cert with trusted CA
     ${domain}=  Get Environment Variable  DOMAIN  ''
@@ -85,9 +94,14 @@ Configure VCH - Server cert with trusted CA
     Should Contain  ${output}  Completed successfully
 
 
+    ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2376
+    Log  ${output}
+    Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
+
     ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
     Log  ${output}
     Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
+
 
     Reload Default Certificate Authorities
 
@@ -105,16 +119,21 @@ Configure VCH - Run Configure Without Cert Options & Ensure Certs Are Unchanged
 
     Run  rm -rf foo-bar-certs
     # Run vic-machine configure, supply server cert and key
-    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-server-key "bundle/*.%{DOMAIN}.key.pem" --tls-server-cert "bundle/*.%{DOMAIN}.cert.pem" ${vicmachinetls} --tls-cert-path=foo-bar-certs --debug 1
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} ${vicmachinetls} --tls-server-key "bundle/*.%{DOMAIN}.key.pem" --tls-server-cert "bundle/*.%{DOMAIN}.cert.pem" --tls-cert-path=foo-bar-certs --debug 1
     Log  ${output}
     Should Contain  ${output}  Loaded server certificate bundle
     Should Contain  ${output}  Unable to locate existing CA in cert path
     Should Contain  ${output}  Completed successfully
 
 
+    ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2376
+    Log  ${output}
+    Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
+
     ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
     Log  ${output}
     Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
+
 
     Run  rm -rf bundle
     Run  rm -f cert-bundle.tgz
@@ -122,29 +141,41 @@ Configure VCH - Run Configure Without Cert Options & Ensure Certs Are Unchanged
 
     Reload Default Certificate Authorities
 
-    # Run vic-machine configure, supply server cert and key
-    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} ${vicmachinetls} --debug 1
+    # Run vic-machine configure, don't supply server cert and key
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --debug 1
 
     Log  ${output}
     Should Contain  ${output}  No certificate regeneration requested. No new certificates provided. Certificates left unchanged
+
+    ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2376
+    Log  ${output}
+    Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
 
     ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
     Log  ${output}
     Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
 
+
     Reload Default Certificate Authorities
 
-Configure VCH - Replace certificates with self-signed certificate using --no-tlsverify
+Configure VCH - Replace certificates with self-signed --no-tlsverify
 
     ${domain}=  Get Environment Variable  DOMAIN  ''
     Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
 
     Run  rm -rf foo-bar-certs
-    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} ${vicmachinetls} --tls-cert-path "foo-bar-certs" --debug 1 --no-tlsverify
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-cert-path "foo-bar-certs" --debug 1 --no-tlsverify
 
     Should Contain  ${output}  Generating self-signed certificate/key pair - private key in foo-bar-certs/server-key.pem
 
     Should Contain  ${output}  Completed successfully
+
+    ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2376
+    Log  ${output}
+
+    Should Contain  ${output}  Verify return code: 21 (unable to verify the first certificate)
+    Should Contain  ${output}  verify error:num=20:unable to get local issuer certificate
+    Should Not Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
 
     ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
     Log  ${output}
@@ -152,3 +183,34 @@ Configure VCH - Replace certificates with self-signed certificate using --no-tls
     Should Contain  ${output}  Verify return code: 21 (unable to verify the first certificate)
     Should Contain  ${output}  verify error:num=20:unable to get local issuer certificate
     Should Not Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
+
+
+Configure VCH - Replace certificates with self-signed --tls-cname
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
+
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-cert-path "new-bar-certs" --debug 1 --tls-cname="*.eng.vmware.com"
+
+    Should Contain  ${output}  Generating CA certificate/key pair - private key in new-bar-certs/ca-key.pem
+    Should Contain  ${output}  Generating server certificate/key pair - private key in new-bar-certs/server-key.pem
+    Should Contain  ${output}  Generating client certificate/key pair - private key in new-bar-certs/key.pem
+    Should Contain  ${output}  Generated browser friendly PFX client certificate - certificate in new-bar-certs/cert.pfx
+    Should Contain  ${output}  Completed successfully
+
+    ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2376
+    Log  ${output}
+
+    Should Contain  ${output}  Verify return code: 21 (unable to verify the first certificate)
+    Should Contain  ${output}  verify error:num=20:unable to get local issuer certificate
+    Should Not Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
+    Should Contain  ${output}  CN = *.eng.vmware.com
+    ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
+    Log  ${output}
+
+    Should Contain  ${output}  Verify return code: 21 (unable to verify the first certificate)
+    Should Contain  ${output}  verify error:num=20:unable to get local issuer certificate
+    Should Not Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
+    Should Contain  ${output}  CN = *.eng.vmware.com
+
+
+    [Teardown]  Run  rm -rf ./new-bar-certs

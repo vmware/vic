@@ -46,18 +46,20 @@ Create with anonymous volume
     Should Not Contain  ${output}  Error
 
 Create with named volume
+    Run  docker %{VCH-PARAMS} volume rm test-named-vol
     ${disk-size}=  Run  docker %{VCH-PARAMS} logs $(docker %{VCH-PARAMS} start $(docker %{VCH-PARAMS} create -v test-named-vol:/testdir ${busybox} /bin/df -Ph) && sleep 10) | grep by-label | awk '{print $2}'
     Should Contain  ${disk-size}  975.9M
 
 Create with a directory as a volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v /dir:/dir ${busybox}
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Error response from daemon: Bad request error from portlayer: vSphere Integrated Containers does not support mounting directories as a data volume.
+    Should Contain  ${output}  Error response from daemon: Bad request error from portlayer: mounting directories as a data volume is not supported.
 
 Create with complex volume topology - overriding image volume with named volume
     # Verify that only anonymous volumes are removed when superseding an image volume with a named volume
     ${suffix}=  Evaluate  '%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
     Set Test Variable  ${namedImageVol}  non-anonymous-image-volume-${suffix}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm ${namedImageVol}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name ${namedImageVol}
     Should Be Equal As Integers  ${rc}  0
     Set Test Variable  ${imageVolumeContainer}  I-Have-Two-Anonymous-Volumes-${suffix}
@@ -176,7 +178,10 @@ Create a container with custom amount of memory in Bytes
     Should Contain  ${output}  2048MB
 
 Create a container using rest api call without HostConfig in the form data
-    ${output}=  Run  curl -sk --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem -H "Content-Type: application/json" -d '{"Image": "${busybox}", "Cmd": ["ping", "127.0.0.1"], "NetworkMode": "bridge"}' https://%{VCH-IP}:2376/containers/create
+    ${status}=  Run Keyword And Return Status  Environment Variable Should Be Set  DOCKER_CERT_PATH
+    ${certs}=  Set Variable If  ${status}  --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem  ${EMPTY}
+
+    ${output}=  Run  curl -sk ${certs} -H "Content-Type: application/json" -d '{"Image": "${busybox}", "Cmd": ["ping", "127.0.0.1"], "NetworkMode": "bridge"}' https://%{VCH-IP}:%{VCH-PORT}/containers/create
     Log  ${output}
     Should contain  ${output}  "Warnings":null
 

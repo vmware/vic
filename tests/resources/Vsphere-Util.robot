@@ -190,9 +190,10 @@ Check Delete Success
     Log  ${out}
     Should Not Contain  ${out}  ${name}
 
-Gather Logs From ESX Server
-    Environment Variable Should Be Set  TEST_URL
+Gather vSphere Logs
+    Log To Console  Collecting vSphere logs...
     ${out}=  Run  govc logs.download
+    Log To Console  vSphere logs collected
 
 Change Log Level On Server
     [Arguments]  ${level}
@@ -276,3 +277,12 @@ Get Hostd Memory Consumption
     Log to console  ${out}
     Close Connection
     [Return]  ${out}
+
+Get Public Network VLAN ID
+    ${noQuotes}=  Strip String  %{PUBLIC_NETWORK}  characters='"
+    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info --json | jq -r '.Portgroup[].Spec | select(.Name == "${noQuotes}") | .VlanId'
+    Return From Keyword If  '%{HOST_TYPE}' == 'ESXi'  ${vlan}
+
+    ${dvs}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc find -type DistributedVirtualSwitch | head -n1
+    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc dvs.portgroup.info -json -pg='${noQuotes}' ${dvs} | jq -r '.Port[0].Config.Setting.Vlan.VlanId'
+    Return From Keyword If  '%{HOST_TYPE}' == 'VC'  ${vlan}

@@ -468,13 +468,6 @@ Delete VCH and delete powered on container
     Verify Container Not Exists       ${POWERED_ON_CONTAINER_NAME}
     Verify Container Not Exists       ${POWERED_OFF_CONTAINER_NAME}
 
-    # should this delete volume stores?
-    # if it should then we should check they're gone, if it shouldn't we should check they're not
-    # if not then we should clean up volume stores in teardown
-
-    # No VCH to delete
-    [Teardown]                        NONE
-
 Delete VCH and powered off containers and volumes
     [Setup]    Install And Prepare VIC Appliance With Volume Stores
     ${id}=    Get VCH ID %{VCH-NAME}

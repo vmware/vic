@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -267,21 +268,51 @@ func (vm *VirtualMachine) UUID(ctx context.Context) (string, error) {
 }
 
 // DeleteExceptDisks destroys the VM after detaching all virtual disks
-func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*object.Task, error) {
+func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInfo, error) {
+
 	op := trace.FromContext(ctx, "DeleteExceptDisks")
 
+	op.Debugf("Getting list of the devices for VM %q", vm)
 	devices, err := vm.Device(op)
 	if err != nil {
 		return nil, err
 	}
 
 	disks := devices.SelectByType(&types.VirtualDisk{})
-	err = vm.RemoveDevice(op, true, disks...)
+	op.Debug("Removing devices for VM")
+
+	err = retry.Do(func() error {
+		return vm.RemoveDevice(op, true, disks...)
+	}, func(err error) bool {
+		return tasks.IsRetryError(op, err)
+	})
+
 	if err != nil {
 		return nil, err
 	}
 
-	return vm.Destroy(op)
+	op.Debug("Destroying VM")
+	info, err := vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
+		return vm.Destroy(ctx)
+	})
+
+	if err == nil || !tasks.IsMethodDisabledError(err) {
+		return info, err
+	}
+
+	// If destroy method is disabled on this VM, re-enable it and retry
+	op.Debug("Destroying is disabled. Enabling destroying for VM")
+	err = retry.Do(func() error {
+		return vm.EnableDestroy(op)
+	}, tasks.IsConcurrentAccessError)
+
+	if err != nil {
+		return nil, err
+	}
+	op.Debug("Destroy VM again")
+	return vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
+		return vm.Destroy(ctx)
+	})
 }
 
 func (vm *VirtualMachine) VMPathName(ctx context.Context) (string, error) {
@@ -616,13 +647,15 @@ func (vm *VirtualMachine) SetVCHUpdateStatus(ctx context.Context, status bool) e
 	return err
 }
 
-// DisableDestroy attempts to disable the VirtualMachine.Destroy_Task method.
-// When the method is disabled, the VC UI will disable/grey out the VM "delete" action.
-// Requires the "Global.Disable" VC privilege.
-// The VirtualMachine.Destroy_Task method can still be invoked via the API.
-func (vm *VirtualMachine) DisableDestroy(ctx context.Context) {
+// DisableDestroy attempts to disable the VirtualMachine.Destroy_Task method on the VM
+// After destroy is disabled for the VM, any session other than the session that disables the destroy can't evoke the method
+// The "VM delete" option will be grayed out on VC UI
+// Requires the "Global.Disable" VC privilege
+func (vm *VirtualMachine) DisableDestroy(ctx context.Context) error {
+	// For nonVC, OOB deletion won't disrupt disk images (ESX doesn't delete parent disks)
+	// See https://github.com/vmware/vic/issues/2928
 	if !vm.IsVC() {
-		return
+		return nil
 	}
 
 	op := trace.FromContext(ctx, "DisableDestroy")
@@ -641,14 +674,18 @@ func (vm *VirtualMachine) DisableDestroy(ctx context.Context) {
 	err := m.DisableMethods(op, obj, method, "VIC")
 	if err != nil {
 		op.Warnf("Failed to disable method %s for %s: %s", method[0].Method, obj[0], err)
+		return err
 	}
+
+	return nil
 }
 
-// EnableDestroy attempts to enable the VirtualMachine.Destroy_Task method
-// so that the VC UI can enable the VM "delete" action.
-func (vm *VirtualMachine) EnableDestroy(ctx context.Context) {
+// EnableDestroy attempts to enable the VirtualMachine.Destroy_Task method for all sessions
+func (vm *VirtualMachine) EnableDestroy(ctx context.Context) error {
+	// For nonVC, OOB deletion won't disrupt disk images (ESX doesn't delete parent disks)
+	// See https://github.com/vmware/vic/issues/2928
 	if !vm.IsVC() {
-		return
+		return nil
 	}
 
 	op := trace.FromContext(ctx, "EnableDestroy")
@@ -660,7 +697,10 @@ func (vm *VirtualMachine) EnableDestroy(ctx context.Context) {
 	err := m.EnableMethods(op, obj, []string{DestroyTask}, "VIC")
 	if err != nil {
 		op.Warnf("Failed to enable Destroy_Task for %s: %s", obj[0], err)
+		return err
 	}
+
+	return nil
 }
 
 // RemoveSnapshot removes a snapshot by reference

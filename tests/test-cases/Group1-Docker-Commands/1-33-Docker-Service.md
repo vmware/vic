@@ -22,7 +22,7 @@ This test requires that a vSphere server is running and available
 9. Issue docker service logs
 
 # Expected Outcome:
-* Step 2-8 should result in an error that contains does not yet support Docker Swarm
+* Step 2-8 should result in an error that contains Docker Swarm is not yet supported
 * Step 9 should result in an error that contains only supported with experimental daemon
 
 # Possible Problems:

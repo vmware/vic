@@ -36,6 +36,9 @@ import (
 	eventtypes "github.com/docker/docker/api/types/events"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
+	"github.com/vmware/vic/lib/apiservers/engine/errors"
+	"github.com/vmware/vic/lib/apiservers/engine/network"
+	"github.com/vmware/vic/lib/apiservers/engine/proxy"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/events"
 	plevents "github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/trace"
@@ -85,22 +88,22 @@ func (ep PlEventProxy) StreamEvents(ctx context.Context, out io.Writer) error {
 
 	plClient := PortLayerClient()
 	if plClient == nil {
-		return InternalServerError("eventproxy.StreamEvents failed to get a portlayer client")
+		return errors.InternalServerError("eventproxy.StreamEvents failed to get a portlayer client")
 	}
 
 	params := events.NewGetEventsParamsWithContext(ctx)
 	if _, err := plClient.Events.GetEvents(params, out); err != nil {
 		switch err := err.(type) {
 		case *events.GetEventsInternalServerError:
-			return InternalServerError("Server error from the events port layer")
+			return errors.InternalServerError("Server error from the events port layer")
 		default:
 			//Check for EOF.  Since the connection, transport, and data handling are
 			//encapsulated inside of Swagger, we can only detect EOF by checking the
 			//error string
-			if strings.Contains(err.Error(), swaggerSubstringEOF) {
+			if strings.Contains(err.Error(), proxy.SwaggerSubstringEOF) {
 				return nil
 			}
-			return InternalServerError(fmt.Sprintf("Unknown error from the interaction port layer: %s", err))
+			return errors.InternalServerError(fmt.Sprintf("Unknown error from the interaction port layer: %s", err))
 		}
 	}
 
@@ -120,8 +123,20 @@ func (m *PortlayerEventMonitor) Start() error {
 	}
 
 	m.stop = make(chan struct{})
-	go m.monitor()
-
+	go func() {
+		var err error
+		for {
+			select {
+			case <-m.stop:
+				log.Infof("Portlayer Event Monitor stopped normally")
+				break
+			default:
+				if err = m.monitor(); err != nil {
+					log.Errorf("Restarting Portlayer event monitor due to error: %s", err)
+				}
+			}
+		}
+	}()
 	return nil
 }
 
@@ -242,7 +257,7 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 		go func() {
 			attrs = make(map[string]string)
 			// get the containerEngine
-			code, _ := NewContainerBackend().containerProxy.exitCode(vc)
+			code, _ := NewContainerBackend().containerProxy.ExitCode(context.Background(), vc)
 
 			log.Infof("Sending die event for container(%s) with exitCode[%s] - eventID(%s)", containerShortID, code, event.ID)
 			// if the docker client is unable to convert the code to an int the client will return 125
@@ -251,7 +266,7 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 			EventService().Log(containerDieEvent, eventtypes.ContainerEventType, actor)
 			// TODO: this really, really shouldn't be in the event publishing code - it's fine to have multiple consumers of events
 			// and this should be registered as a callback by the logic responsible for the MapPorts portion.
-			if err := UnmapPorts(vc.ContainerID, vc); err != nil {
+			if err := network.UnmapPorts(vc.ContainerID, vc); err != nil {
 				log.Errorf("Event Monitor failed to unmap ports for container(%s): %s - eventID(%s)", containerShortID, err, event.ID)
 			}
 
@@ -274,7 +289,7 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 		// pop the destroy event...
 		actor := CreateContainerEventActorWithAttributes(vc, attrs)
 		EventService().Log(containerDestroyEvent, eventtypes.ContainerEventType, actor)
-		if err := UnmapPorts(vc.ContainerID, vc); err != nil {
+		if err := network.UnmapPorts(vc.ContainerID, vc); err != nil {
 			log.Errorf("Event Monitor failed to unmap ports for container(%s): %s - eventID(%s)", containerShortID, err, event.ID)
 		}
 		// remove from the container cache...

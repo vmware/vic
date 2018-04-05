@@ -15,6 +15,7 @@
 package tether
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -34,7 +35,9 @@ import (
 	"github.com/d2g/dhcp4"
 	"github.com/docker/docker/pkg/archive"
 
-	// need to use libcontainer for user validation, for os/user package cannot find user here if container image is busybox
+	"github.com/mdlayher/arp"
+	"github.com/mdlayher/ethernet"
+
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/vishvananda/netlink"
 
@@ -52,6 +55,8 @@ var (
 		Gid:  syscall.Getgid(),
 		Home: "/",
 	}
+
+	defaultUserSpecification = "0:0"
 
 	filesForMinOSLinux = map[string]os.FileMode{
 		"/etc/hostname":            0644,
@@ -324,6 +329,37 @@ func renameLink(t Netlink, link netlink.Link, slot int32, endpoint *NetworkEndpo
 
 	log.Warnf("Unable to add additional alias on link %s for %s", link.Attrs().Name, endpoint.Name)
 	return link, nil
+}
+
+func gratuitous(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error {
+	if ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
+		// refusing to broadcast unspecified IP
+		return nil
+	}
+
+	intf, err := net.InterfaceByIndex(link.Attrs().Index)
+	if err != nil {
+		return err
+	}
+
+	client, err := arp.Dial(intf)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		client.Close()
+	}()
+
+	srcHW := link.Attrs().HardwareAddr
+	srcPA := endpoint.Assigned.IP
+
+	gratuitousPacket, err := arp.NewPacket(arp.OperationRequest, srcHW, srcPA, ethernet.Broadcast, srcPA)
+	if err != nil {
+		return err
+	}
+
+	log.Debugf("Writing gratuitous arp on %s: %+v", endpoint.Name, gratuitousPacket)
+	return client.WriteTo(gratuitousPacket, ethernet.Broadcast)
 }
 
 func getDynamicIP(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) (client.Client, error) {
@@ -656,6 +692,14 @@ func ApplyEndpoint(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) err
 
 	updateEndpoint(newIP, endpoint)
 
+	// notify our peers of the assigned address
+	err = gratuitous(t, link, endpoint)
+	if err != nil {
+		log.Errorf("Failed to issue gratuitous ARP broadcast for %s: %s", endpoint.Name, err)
+		// continue regardless as this will eventually self-correct
+		// if the error is pernacious then we'll likely hit the other early error returns
+	}
+
 	if err = updateRoutes(newIP, nl, link, endpoint); err != nil {
 		return err
 	}
@@ -893,10 +937,19 @@ func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target
 		return fmt.Errorf("unable to create mount point %s: %s", target, err)
 	}
 
-	rawSource := source.Hostname() + ":/" + source.Path
+	var rawSource bytes.Buffer
+	rawSource.WriteString(source.Hostname())
+	rawSource.WriteByte(':')
+	// ensure the path is absolute - not using path.Clean to allow arbitrary content
+	// so as not to bias what can be used for a share identifier.
+	if len(source.Path) == 0 || source.Path[0] != '/' {
+		rawSource.WriteByte('/')
+	}
+	rawSource.WriteString(source.Path)
+
 	// NOTE: by default we are supporting "NOATIME" and it can be configurable later. this must be specfied as a flag.
 	// Additionally, we must parse out the "ro" option and supply it as a flag as well for this flavor of the mount call.
-	if err := Sys.Syscall.Mount(rawSource, target, nfsFileSystemType, syscall.MS_NOATIME, mountOptions); err != nil {
+	if err := Sys.Syscall.Mount(rawSource.String(), target, nfsFileSystemType, syscall.MS_NOATIME, mountOptions); err != nil {
 		log.Errorf("mounting %s on %s failed: %s", source.String(), target, err)
 		return err
 	}
@@ -969,21 +1022,28 @@ func (t *BaseOperations) CopyExistingContent(source string) error {
 }
 
 // ProcessEnv does OS specific checking and munging on the process environment prior to launch
-func (t *BaseOperations) ProcessEnv(env []string) []string {
-	// TODO: figure out how we're going to specify user and pass all the settings along
-	// in the meantime, hardcode HOME to /root
-	homeIndex := -1
-	for i, tuple := range env {
+func (t *BaseOperations) ProcessEnv(session *SessionConfig) []string {
+	env := session.Cmd.Env
+
+	for _, tuple := range env {
 		if strings.HasPrefix(tuple, "HOME=") {
-			homeIndex = i
-			break
+			// no need for further processing as it's explicit
+			return env
 		}
 	}
-	if homeIndex == -1 {
-		return append(env, "HOME=/root")
+
+	usr := session.User
+	if len(session.User) == 0 {
+		usr = defaultUserSpecification
 	}
 
-	return env
+	u, err := getExecUser(usr)
+	if err == nil {
+		// if no home dir is set then we default to /
+		return append(env, "HOME="+path.Join("/", u.Home))
+	}
+
+	return append(env, "HOME=/")
 }
 
 // Fork triggers vmfork and handles the necessary pre/post OS level operations
@@ -1073,6 +1133,20 @@ func (t *BaseOperations) Cleanup() error {
 	return nil
 }
 
+func getExecUser(u string) (*user.ExecUser, error) {
+	passwdPath, err := user.GetPasswdPath()
+	if err != nil {
+		return nil, err
+	}
+
+	groupPath, err := user.GetGroupPath()
+	if err != nil {
+		return nil, err
+	}
+
+	return user.GetExecUserPath(u, defaultExecUser, passwdPath, groupPath)
+}
+
 // Need to put this here because Windows does not support SysProcAttr.Credential
 // getUserSysProcAttr relies on docker user package to verify user specification
 // Examples of valid user specifications are:
@@ -1083,6 +1157,8 @@ func (t *BaseOperations) Cleanup() error {
 //     * "uid:gid
 //     * "user:gid"
 //     * "uid:group"
+// need to use libcontainer "user" package for user validation as os/user package
+// cannot find user if container image is busybox
 func getUserSysProcAttr(uid, gid string) (*syscall.SysProcAttr, error) {
 	if uid == "" && gid == "" {
 		log.Debugf("no user id or group id specified")
@@ -1093,15 +1169,8 @@ func getUserSysProcAttr(uid, gid string) (*syscall.SysProcAttr, error) {
 	if gid != "" {
 		userGroup = fmt.Sprintf("%s:%s", uid, gid)
 	}
-	passwdPath, err := user.GetPasswdPath()
-	if err != nil {
-		return nil, err
-	}
-	groupPath, err := user.GetGroupPath()
-	if err != nil {
-		return nil, err
-	}
-	execUser, err := user.GetExecUserPath(userGroup, defaultExecUser, passwdPath, groupPath)
+
+	execUser, err := getExecUser(userGroup)
 	if err != nil {
 		return nil, err
 	}

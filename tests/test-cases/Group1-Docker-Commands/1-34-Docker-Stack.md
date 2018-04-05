@@ -19,7 +19,7 @@ This test requires that a vSphere server is running and available
 6. Issue docker stack services
 
 # Expected Outcome:
-* Step 2-6 should result in an error that contains does not yet support Docker Swarm
+* Step 2-6 should result in an error that contains Docker Swarm is not yet supported
 
 # Possible Problems:
 None

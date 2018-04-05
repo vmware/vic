@@ -23,12 +23,12 @@ Test Timeout  20 minutes
 Docker service create 
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} service create test-service
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support Docker Swarm
+    Should Contain  ${output}  Docker Swarm is not yet supported
 
 Docker service ls
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} service ls
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support Docker Swarm
+    Should Contain  ${output}  Docker Swarm is not yet supported
 
 Docker service ps
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} service ps test-service
@@ -38,7 +38,7 @@ Docker service ps
 Docker serivce rm
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} service rm test-service
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support Docker Swarm
+    Should Contain  ${output}  Docker Swarm is not yet supported
 
 Docker service scale
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} service scale test-service=3

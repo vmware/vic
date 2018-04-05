@@ -60,7 +60,10 @@ Run Docker Checks
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Exited (0)
+
+    ${status}=  Get State Of Github Issue  7534
+    Run Keyword If  '${status}' == 'closed'  Fail  Exit code check below needs to be updated now that Issue #7534 has been resolved
+    #Should Not Contain  ${output}  Exited (0)
 
     # Check that rename doesn't work on a container from a VCH that doesn't support rename
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename vch-restart-test1 vch-test2
@@ -192,9 +195,11 @@ Upgrade VCH with unreasonably short timeout and automatic rollback after failure
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout 1s
     Should Contain  ${output}  Upgrading VCH exceeded time limit
     Should Not Contain  ${output}  Completed successfully
+    # we should have no snapshots
     ${rc}  ${output}=  Run And Return Rc And Output  govc snapshot.tree -vm=%{VCH-NAME}
-    Should Not Contain  ${output}  upgrade
-
+    Should Be Empty  ${output}
+    # the appliance is restarting - attempt to wait until it's ready
+    Sleep  90
     # confirm that the rollback took effect
     Check Original Version
 
