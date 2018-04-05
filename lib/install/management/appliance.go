@@ -112,7 +112,6 @@ func (d *Dispatcher) isContainerVM(vm *vm.VirtualMachine) (bool, error) {
 
 func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(""))
-
 	var err error
 	var orp *object.ResourcePool
 	if orp, err = d.findResourcePool(d.vchPoolPath); err != nil {
@@ -136,7 +135,7 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 		verr = errors.Errorf("Found virtual machine %q, but it is not a VCH. Please choose a different virtual app.", conf.Name)
 		return verr
 	}
-	err = errors.Errorf("Virtual app %q already exists. Please delete it before reinstalling.", conf.Name)
+	err = errors.Errorf("A VCH with the name %q already exists. Please choose a different name before attempting another install", conf.Name)
 	return err
 }
 
@@ -489,23 +488,29 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	var info *types.TaskInfo
 
 	// Create the VCH inventory folder
+	vchFolder := d.session.VMFolder
 	if d.isVC {
+		folderPath := fmt.Sprintf("%s", path.Join(d.session.VMFolder.InventoryPath, conf.Name))
+
 		d.op.Info("Creating the VCH folder")
-		vchFolder, err := d.session.VMFolder.CreateFolder(d.op, spec.Name)
+		vchFolder, err = d.session.VMFolder.CreateFolder(d.op, spec.Name)
 		if err != nil {
-			d.op.Debugf("Encountered unexpected error: %s", err)
-			if f, ok := err.(types.HasFault); ok {
-				if _, ok = f.Fault().(*types.DuplicateName); ok {
-					return fmt.Errorf("An object with the same name as the VCH folder (%s) already exists in that path", spec.Name)
+			if soap.IsSoapFault(err) {
+				switch soap.ToSoapFault(err).VimFault().(type) {
+				case types.DuplicateName:
+					return fmt.Errorf("a VM or folder already exists on the path for VCH folder (%s)", folderPath)
+				}
+			} else if soap.IsVimFault(err) {
+				switch soap.ToVimFault(err).(type) {
+				case *types.DuplicateName:
+					return fmt.Errorf("a VM or folder already exists on the path for VCH folder (%s)", folderPath)
 				}
 			}
 
-			folderPath := path.Join(d.session.VMFolder.InventoryPath, spec.Name)
-			return fmt.Errorf("Error when attempting to create the VCH folder %s. Please see vic-machine.log for more information", folderPath)
+			return fmt.Errorf("unexpected err (%s): %s", folderPath, err)
 		}
-		// we've created a VCH Folder, so set the session object accordingly
-		d.session.VCHFolder = vchFolder
 	}
+	d.session.VCHFolder = vchFolder
 
 	d.op.Info("Creating the VCH VM")
 	info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {

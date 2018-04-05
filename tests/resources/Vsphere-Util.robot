@@ -280,13 +280,12 @@ Get Hostd Memory Consumption
     [Return]  ${out}
 
 # NOTE: this function should only be used in the case where you supply a name to the container. Since inventory names result in `<cvm-name>-<cvm-uuid>`
-Check CVM Folder Path
+Check VM Folder Path
     [Arguments]  ${cvm-name}
-    ${rc}  ${cvm-path}=  Run And Return Rc And Output  govc find / -type m | grep ${cvm-name}
-    Should Be Equal As Integers  ${rc}  0
-    # If it is esxi - we should find the vch in the vmfolder
+    ${cvm-path}=  Run  govc find / -type m | grep %{VCH-NAME}/${cvm-name}
+    # If it is esxi - we should find the vm in the vmfolder
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${cvm-path}  vm/${cvm-name}
-    # If it is VC - we should find the vch in a folder named after the VCH.
+    # If it is VC - we should find the vm in a folder named after the VCH.
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${cvm-path}  vm/%{VCH-NAME}/${cvm-name}
 
 Get Public Network VLAN ID
