@@ -298,3 +298,10 @@ Get Public Network VLAN ID
     ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc dvs.portgroup.info -json -pg='${noQuotes}' ${dvs} | jq -r '.Port[0].Config.Setting.Vlan.VlanId'
     Return From Keyword If  '%{HOST_TYPE}' == 'VC'  ${vlan}
 
+Query Cluster DRS Setting
+    [Arguments]  ${cluster}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  govc object.collect -json ${cluster} configurationEx | jq '.[].Val.DrsConfig.Enabled'
+    Should Be Equal As Integers  ${rc}  0
+
+    [Return]  ${output}
