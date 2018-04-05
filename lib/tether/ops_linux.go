@@ -56,6 +56,8 @@ var (
 		Home: "/",
 	}
 
+	defaultUserSpecification = "0:0"
+
 	filesForMinOSLinux = map[string]os.FileMode{
 		"/etc/hostname":            0644,
 		"/etc/hosts":               0644,
@@ -1020,21 +1022,28 @@ func (t *BaseOperations) CopyExistingContent(source string) error {
 }
 
 // ProcessEnv does OS specific checking and munging on the process environment prior to launch
-func (t *BaseOperations) ProcessEnv(env []string) []string {
-	// TODO: figure out how we're going to specify user and pass all the settings along
-	// in the meantime, hardcode HOME to /root
-	homeIndex := -1
-	for i, tuple := range env {
+func (t *BaseOperations) ProcessEnv(session *SessionConfig) []string {
+	env := session.Cmd.Env
+
+	for _, tuple := range env {
 		if strings.HasPrefix(tuple, "HOME=") {
-			homeIndex = i
-			break
+			// no need for further processing as it's explicit
+			return env
 		}
 	}
-	if homeIndex == -1 {
-		return append(env, "HOME=/root")
+
+	usr := session.User
+	if len(session.User) == 0 {
+		usr = defaultUserSpecification
 	}
 
-	return env
+	u, err := getExecUser(usr)
+	if err == nil {
+		// if no home dir is set then we default to /
+		return append(env, "HOME="+path.Join("/", u.Home))
+	}
+
+	return append(env, "HOME=/")
 }
 
 // Fork triggers vmfork and handles the necessary pre/post OS level operations
@@ -1124,6 +1133,20 @@ func (t *BaseOperations) Cleanup() error {
 	return nil
 }
 
+func getExecUser(u string) (*user.ExecUser, error) {
+	passwdPath, err := user.GetPasswdPath()
+	if err != nil {
+		return nil, err
+	}
+
+	groupPath, err := user.GetGroupPath()
+	if err != nil {
+		return nil, err
+	}
+
+	return user.GetExecUserPath(u, defaultExecUser, passwdPath, groupPath)
+}
+
 // Need to put this here because Windows does not support SysProcAttr.Credential
 // getUserSysProcAttr relies on docker user package to verify user specification
 // Examples of valid user specifications are:
@@ -1146,15 +1169,8 @@ func getUserSysProcAttr(uid, gid string) (*syscall.SysProcAttr, error) {
 	if gid != "" {
 		userGroup = fmt.Sprintf("%s:%s", uid, gid)
 	}
-	passwdPath, err := user.GetPasswdPath()
-	if err != nil {
-		return nil, err
-	}
-	groupPath, err := user.GetGroupPath()
-	if err != nil {
-		return nil, err
-	}
-	execUser, err := user.GetExecUserPath(userGroup, defaultExecUser, passwdPath, groupPath)
+
+	execUser, err := getExecUser(userGroup)
 	if err != nil {
 		return nil, err
 	}

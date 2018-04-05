@@ -17,15 +17,9 @@ Documentation  Test 5-25 - OPS-User-Grant
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  Ops User Create
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
-Test Teardown  Run Keyword If Test Failed  Gather VC Logs
+Test Teardown  Run Keyword If Test Failed  Gather vSphere Logs
 
 *** Keywords ***
-
-Gather VC Logs
-    Log To Console  Collecting VC logs ..
-    Run Keyword And Ignore Error  Gather Logs From ESX Server
-    Log To Console  VC logs collected
-
 Ops User Create
     [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
