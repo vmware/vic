@@ -25,9 +25,7 @@ vmware-ovftool
 # generally a bad idea to check certificates into repos - whitelist if needed
 **/*.pem
 
-lib/apiservers/portlayer/client/
 lib/apiservers/portlayer/cmd
-lib/apiservers/portlayer/models
 lib/apiservers/portlayer/restapi/*.go
 lib/apiservers/portlayer/restapi/operations
 !lib/apiservers/portlayer/restapi/configure_port_layer.go
