@@ -405,12 +405,13 @@ Check UpdateInProgress
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${expected}
 
+# This keyword is used to match two patterns on the same line occurring in any order
 Portlayer Log Should Match Regexp
     [Tags]  secret
-    [Arguments]  ${pattern}
+    [Arguments]  ${pattern1}  ${pattern2}
     ${out}=  Run  curl -k -D /tmp/cookies-%{VCH-NAME} -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
     Log  ${out}
-    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b /tmp/cookies-%{VCH-NAME} | grep -q -e \'${pattern}\'
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b /tmp/cookies-%{VCH-NAME} | grep -ie \'${pattern1}\' | grep -iqe \'${pattern2}\'
     Should Be Equal As Integers  ${rc}  0
 
 Gather Logs From Test Server
