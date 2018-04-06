@@ -524,9 +524,7 @@ clean: cleandeps
 	@rm -f ./lib/apiservers/portlayer/restapi/doc.go
 	@rm -f ./lib/apiservers/portlayer/restapi/embedded_spec.go
 	@rm -f ./lib/apiservers/portlayer/restapi/server.go
-	@rm -rf ./lib/apiservers/portlayer/client/
 	@rm -rf ./lib/apiservers/portlayer/cmd/
-	@rm -rf ./lib/apiservers/portlayer/models/
 	@rm -rf ./lib/apiservers/portlayer/restapi/operations/
 	@rm -rf ./lib/config/dynamic/admiral/client
 	@rm -rf ./lib/config/dynamic/admiral/models
