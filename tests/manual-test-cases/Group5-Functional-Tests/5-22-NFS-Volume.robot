@@ -60,6 +60,7 @@ Setup ESX And NFS Suite
     ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} exit
     ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} exit
     ${strippedPW}=  Remove String  %{DEPLOYED_PASSWORD}  \\
+    ${strippedPW}=  Remove String  ${strippedPW}  '
 
     # Enable logging on the nfs servers
     Open Connection  ${NFS_IP}
@@ -124,6 +125,7 @@ Reboot VM and Verify Basic VCH Info
 
 Gather NFS Logs
     ${strippedPW}=  Remove String  %{DEPLOYED_PASSWORD}  \\
+    ${strippedPW}=  Remove String  ${strippedPW}  '
 
     Open Connection  ${NFS_IP}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  root  ${strippedPW}

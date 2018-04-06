@@ -66,24 +66,10 @@ pipeline:
       - drone_server
       - drone_token
       - github_automation_api_key
-      - registry_password
-      - test_password
-      - test_url_array
-      - test_username
       - codecov_token
     commands:
-      - 'export BUILD_NUMBER=${DRONE_BUILD_NUMBER}'
-      - 'export COMMIT=${DRONE_COMMIT}'
-      - 'make mark'
-      - 'make all'
-      - 'make sincemark'
-      - 'make mark'
-      - 'echo `ls vendor/github.com/vmware/govmomi/vim25/methods`'
-      - 'echo `ls vendor/github.com/vmware/govmomi/vim25/types`'
-      - 'echo `ls vendor/github.com/docker/docker/vendor/github.com/opencontainers/runc/libcontainer/system`'
-      - 'export VIC_ESX_URL_ARRAY="`tests/get_test_url.sh`"'
+      - make all
       - tests/unit-test-check.sh
-      - 'make sincemark'
     when:
       status: success
 
@@ -116,8 +102,9 @@ pipeline:
       - test_resource
       - test_timeout
       - test_password
-      - test_url_array
       - test_username
+      - haas_url_array
+      - overflow_url_array
     commands:
       - export GOVC_INSECURE=true
       - export GOVC_USERNAME=$TEST_USERNAME
@@ -126,9 +113,8 @@ pipeline:
       - export DOMAIN=$CI_DOMAIN
       - export MULTI_VCH=1
       - echo $DOMAIN
-      - 'make mark'
+      - export TEST_URL_ARRAY="$HAAS_URL_ARRAY $OVERFLOW_URL_ARRAY"
       - tests/integration-test.sh
-      - 'make sincemark'
     volumes:
       - /tmp
     when:
