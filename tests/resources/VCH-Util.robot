@@ -36,6 +36,10 @@ Set Test Environment Variables
     Set Environment Variable  GOVC_USERNAME  %{TEST_USERNAME}
     Set Environment Variable  GOVC_PASSWORD  %{TEST_PASSWORD}
 
+    ${IN_HAAS}=  Run Keyword And Return Status  Should Contain  %{HAAS_URL_ARRAY}  %{TEST_URL}
+    Run Keyword If  ${IN_HAAS}  Log To Console  Test Server is in HaaS
+    Run Keyword Unless  ${IN_HAAS}  Log To Console  Test Server is in Nimbus
+
     ${rc}  ${thumbprint}=  Run And Return Rc And Output  govc about.cert -k -json | jq -r .ThumbprintSHA1
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  TEST_THUMBPRINT  ${thumbprint}
@@ -406,7 +410,7 @@ Portlayer Log Should Match Regexp
 Gather Logs From Test Server
     [Arguments]  ${name-suffix}=${EMPTY}
     Run Keyword And Continue On Failure  Run  zip %{VCH-NAME}-certs -r %{VCH-NAME}
-    Secret Curl Container Logs  ${name-suffix}
+    Curl Container Logs  ${name-suffix}
     ${host}=  Get VM Host Name  %{VCH-NAME}
     Log  ${host}
     ${out}=  Run  govc datastore.download -host ${host} %{VCH-NAME}/vmware.log %{VCH-NAME}-vmware${name-suffix}.log
@@ -417,16 +421,22 @@ Gather Logs From Test Server
     Should Contain  ${out}  OK
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc logs -log=vmkernel -n=10000 > vmkernel${name-suffix}.log
 
+Curl Container Logs
+    [Arguments]  ${name-suffix}=${EMPTY}
+    ${out1}  ${out2}  ${out3}=  Secret Curl Container Logs  ${name-suffix}
+    Log  ${out1}
+    Log  ${out2}
+    Log  ${out3}
+    Should Not Contain  ${out3}  SIGSEGV: segmentation violation
+
 Secret Curl Container Logs
     [Tags]  secret
     [Arguments]  ${name-suffix}=${EMPTY}
-    ${out}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
-    Log  ${out}
-    ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs${name-suffix}.zip
-    Log  ${out}
-    ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/logs/port-layer.log
-    Should Not Contain  ${out}  SIGSEGV: segmentation violation
+    ${out1}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
+    ${out2}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs${name-suffix}.zip
+    ${out3}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/logs/port-layer.log
     Remove File  vic-admin-cookies
+    [Return]  ${out1}  ${out2}  ${out3}
 
 Check For The Proper Log Files
     [Arguments]  ${container}

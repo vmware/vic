@@ -782,7 +782,7 @@ func (t *tether) launch(session *SessionConfig) error {
 		}
 	}
 
-	session.Cmd.Env = t.ops.ProcessEnv(session.Cmd.Env)
+	session.Cmd.Env = t.ops.ProcessEnv(session)
 	// Set Std{in|out|err} to nil, we will control pipes
 	session.Cmd.Stdin = nil
 	session.Cmd.Stdout = nil
