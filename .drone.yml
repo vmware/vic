@@ -34,8 +34,10 @@ pipeline:
     secrets:
       - drone_server
       - drone_token
-      - test_url_array
+      - haas_url_array
+      - overflow_url_array
     commands:
+      - export TEST_URL_ARRAY="$HAAS_URL_ARRAY $OVERFLOW_URL_ARRAY"
       - tests/wait_until_previous_builds_complete.sh
 
   check-org-membership:
