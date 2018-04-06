@@ -123,6 +123,11 @@ Reboot VM and Verify Basic VCH Info
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${busybox}
 
+    # ensure that the volumes we expect to exist are still available
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volumes
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${nfsNamedVolume}
+
 Gather NFS Logs
     ${strippedPW}=  Remove String  %{DEPLOYED_PASSWORD}  \\
     ${strippedPW}=  Remove String  ${strippedPW}  '
