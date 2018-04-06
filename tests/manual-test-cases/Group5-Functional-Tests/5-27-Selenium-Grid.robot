@@ -24,7 +24,7 @@ Selenium Grid Create
     Log To Console  Starting testbed deployment...
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${name}=  Evaluate  'vic-5-27-' + str(random.randint(1000,9999))  modules=random
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-simple-cluster --testbedSpecRubyFile /dbc/pa-dbc1111/mhagen/nimbus-testbeds/testbeds/vic-simple-cluster.rb --runName ${name}
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-iscsi-cluster --testbedSpecRubyFile /dbc/pa-dbc1111/mhagen/nimbus-testbeds/testbeds/vic-iscsi-cluster.rb --runName ${name}
     Log  ${out}
 
     Open Connection  %{NIMBUS_GW}
@@ -32,7 +32,7 @@ Selenium Grid Create
     ${vc-ip}=  Get IP  ${name}.vc.0
     Close Connection
 
-    Set Suite Variable  @{list}  %{NIMBUS_USER}-${name}.esx.0  %{NIMBUS_USER}-${name}.esx.1  %{NIMBUS_USER}-${name}.esx.2  %{NIMBUS_USER}-${name}.nfs.0  %{NIMBUS_USER}-${name}.vc.0
+    Set Suite Variable  @{list}  %{NIMBUS_USER}-${name}.esx.0  %{NIMBUS_USER}-${name}.esx.1  %{NIMBUS_USER}-${name}.esx.2  %{NIMBUS_USER}-${name}.iscsi.0  %{NIMBUS_USER}-${name}.vc.0
     Log To Console  Finished Creating Cluster ${name}
 
     Log To Console  Set environment variables up for GOVC
@@ -47,7 +47,7 @@ Selenium Grid Create
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
     Remove Environment Variable  TEST_DATACENTER
-    Set Environment Variable  TEST_DATASTORE  nfs0-1
+    Set Environment Variable  TEST_DATASTORE  sharedVmfs-0
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  15m
 
@@ -68,6 +68,7 @@ Wait Until Selenium Node Is Ready
     \   Sleep  3
     Fail  Selenium node ${node-name} failed to start properly
 
+*** Test Cases ***    
 Test
     Log To Console  Starting Selenium Grid test...
     Custom Testbed Keepalive  /dbc/pa-dbc1111/mhagen
@@ -93,29 +94,3 @@ Test
 
     :FOR  ${idx}  IN RANGE  1  15
     \   Wait Until Selenium Node Is Ready  firefox${idx}
-    
-*** Test Cases ***    
-Test2    
-    Log To Console  Starting Selenium Grid test...
-    Custom Testbed Keepalive  /dbc/pa-dbc1111/mhagen
-
-    Install VIC Appliance To Test Server
-
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 4444:4444 --name selenium-hub selenium/hub:3.9.1
-    Should Be Equal As Integers  ${rc}  0
-    Wait Until Selenium Hub Is Ready
-
-    :FOR  ${idx}  IN RANGE  1  15
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --link selenium-hub:hub -e HOME=/home/seluser --name chrome${idx} selenium/node-chrome:3.9.1
-    \   Should Be Equal As Integers  ${rc}  0
-
-    :FOR  ${idx}  IN RANGE  1  15
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --link selenium-hub:hub -e HOME=/home/seluser --name firefox${idx} selenium/node-firefox:3.9.1
-    \   Should Be Equal As Integers  ${rc}  0
-
-    :FOR  ${idx}  IN RANGE  1  15
-    \   Wait Until Selenium Node Is Ready  chrome${idx}
-
-    :FOR  ${idx}  IN RANGE  1  15
-    \   Wait Until Selenium Node Is Ready  firefox${idx}
-    
