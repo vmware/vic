@@ -14,27 +14,23 @@
 
 *** Settings ***
 Documentation  Test 11-04 - Upgrade-UpdateInProgress
-# Suite Setup  Install VIC with version to Test Server  7315
-# Suite Teardown  Clean up VIC Appliance And Local Binary
+Suite Setup  Install VIC with version to Test Server  7315
+Suite Teardown  Clean up VIC Appliance And Local Binary
 Resource  ../../resources/Util.robot
 
 *** Test Cases ***
 Upgrade VCH with UpdateInProgress
-    ${status}=  Get State Of Github Issue  7497
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-04-Upgrade-UpdateInProgress.robot needs to be updated now that Issue #7497 has been resolved
-    # Run  govc vm.change -vm=%{VCH-NAME} -e=UpdateInProgress=true
-    # Check UpdateInProgress  true
-    # ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
-    # Should Contain  ${output}  Upgrade failed: another upgrade/configure operation is in progress
-    # ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --reset-progress --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
-    # Should Contain  ${output}  Reset UpdateInProgress flag successfully
-    # Check UpdateInProgress  false
+    Run  govc vm.change -vm=%{VCH-NAME} -e=UpdateInProgress=true
+    Check UpdateInProgress  true
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    Should Contain  ${output}  Upgrade failed: another upgrade/configure operation is in progress
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --reset-progress --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    Should Contain  ${output}  Reset UpdateInProgress flag successfully
+    Check UpdateInProgress  false
 
 Upgrade and inspect VCH
-    ${status}=  Get State Of Github Issue  7497
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-04-Upgrade-UpdateInProgress.robot needs to be updated now that Issue #7497 has been resolved
-    # Start Process  bin/vic-machine-linux upgrade --debug 1 --name %{VCH-NAME} --target %{TEST_URL} --user %{TEST_USERNAME} --password %{TEST_PASSWORD} --force --compute-resource %{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}  shell=True  alias=UpgradeVCH
-    # Wait Until Keyword Succeeds  20x  5s  Inspect VCH   Upgrade/configure in progress
-    # Wait For Process  UpgradeVCH
-    # Inspect VCH  Completed successfully
-    # Check UpdateInProgress  false
+    Start Process  bin/vic-machine-linux upgrade --debug 1 --name %{VCH-NAME} --target %{TEST_URL} --user %{TEST_USERNAME} --password %{TEST_PASSWORD} --force --compute-resource %{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}  shell=True  alias=UpgradeVCH
+    Wait Until Keyword Succeeds  20x  5s  Inspect VCH   Upgrade/configure in progress
+    Wait For Process  UpgradeVCH
+    Inspect VCH  Completed successfully
+    Check UpdateInProgress  false
