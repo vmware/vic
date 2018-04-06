@@ -80,14 +80,12 @@ func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d 
 	// in a DRS disabled environment that inventory path could point to a
 	// cluster, so we need to evaluate the type and set the path accordingly
 	switch r := or.(type) {
-	case *object.ResourcePool:
-		d.ComputeResourcePath = r.InventoryPath
-	case *object.ClusterComputeResource:
+	case *object.Common:
 		d.ComputeResourcePath = r.InventoryPath
 	default:
 		return fmt.Errorf("parent resource %s is not resource pool", mrp.Parent)
 	}
-
+	op.Infof("Common: %s", d.ComputeResourcePath)
 	setVCHResources(op, parent, d)
 	setApplianceResources(op, vm, d)
 	return nil
@@ -110,7 +108,7 @@ func setApplianceResources(op trace.Operation, vm *vm.VirtualMachine, d *data.Da
 // setVCHResources will populate the configuration data based on the deployed VCH config
 func setVCHResources(op trace.Operation, vch *object.ResourcePool, d *data.Data) error {
 	var p mo.ResourcePool
-	ps := []string{"config.cpuAllocation", "config.memoryAllocation"}
+	ps := []string{"config"}
 
 	if err := vch.Properties(op, vch.Reference(), ps, &p); err != nil {
 		return err
