@@ -803,7 +803,9 @@ func (vm *VirtualMachine) PowerOn(op trace.Operation) error {
 		return vm.powerOn(op)
 	}
 
-	op.Warnf("Host is not adequate for power-on, getting placement recommendation")
+	// TODO(jzt): uncomment this once we have CheckHost implemented.
+	// see https://github.com/vmware/vic/issues/7654
+	// op.Warnf("Host is not adequate for power-on, getting placement recommendation")
 
 	var hosts, subset []*object.HostSystem
 
@@ -879,10 +881,34 @@ func (vm *VirtualMachine) relocate(op trace.Operation, host *object.HostSystem) 
 }
 
 func (vm *VirtualMachine) powerOn(op trace.Operation) error {
-	_, err := vm.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
-		return vm.VirtualMachine.PowerOn(op)
+	dc := vm.Datacenter
+
+	option := &types.OptionValue{
+		Key:   string(types.ClusterPowerOnVmOptionOverrideAutomationLevel),
+		Value: string(types.DrsBehaviorFullyAutomated),
+	}
+
+	t, err := vm.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
+		return dc.PowerOnVM(op, []types.ManagedObjectReference{vm.Reference()}, option)
 	})
-	return err
+	if err != nil {
+		return err
+	}
+
+	switch r := t.Result.(type) {
+	case types.ClusterPowerOnVmResult:
+		attempts := len(r.Attempted)
+		if attempts != 1 {
+			return fmt.Errorf("Attempted to power on the wrong number of VMs. Expected 1, attempted %d", attempts)
+		}
+
+		info := r.Attempted[0]
+		task := object.NewTask(vm.Session.Vim25(), *info.Task)
+		_, err := task.WaitForResult(op, nil)
+		return err
+	default:
+		return fmt.Errorf("Unexpected return type when attempting to power on VM: %T", r)
+	}
 }
 
 func (vm *VirtualMachine) InCluster(op trace.Operation) bool {
