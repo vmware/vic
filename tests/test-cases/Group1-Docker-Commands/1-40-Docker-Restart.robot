@@ -94,7 +94,7 @@ Restart with start-stop stress
     ${restart-pid}=  Start Process  while true; do docker %{VCH-PARAMS} restart -t 5 ${container}; done  shell=${true}
     ${restart-pid2}=  Start Process  while true; do docker %{VCH-PARAMS} restart -t 5 ${container}; done  shell=${true}
     ${loopOutput}=  Create List
-    :FOR  ${idx}  IN RANGE  0  150
+    :FOR  ${idx}  IN RANGE  0  10
     \   ${out}=  Run  (docker %{VCH-PARAMS} start ${container} && docker %{VCH-PARAMS} stop -t1 ${container})
     \   Append To List  ${loopOutput}  ${out}
     Terminate Process  ${restart-pid}
