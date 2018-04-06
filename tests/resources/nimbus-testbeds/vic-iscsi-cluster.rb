@@ -4,13 +4,13 @@ $testbed = Proc.new do
   {
     "name" => "vic-iscsi-cluster",
     "version" => 3,
-    "esx" => (0..2).map do | idx |
+    "esx" => (0..5).map do | idx |
       {
         "name" => "esx.#{idx}",
         "vc" => "vc.0",
         "style" => "fullInstall",
         "desiredPassword" => "e2eFunctionalTest",
-        "memory" => 8192, # 2x default
+        "memory" => 16384, # 2x default
         "disks" => [ 30 * oneGB, 30 * oneGB, 30 * oneGB],
         "nics" => 2,
         "iScsi" => ["iscsi.0"],
@@ -21,7 +21,7 @@ $testbed = Proc.new do
     "iscsi" => [
       {
         "name" => "iscsi.0",
-        "luns" => [40],
+        "luns" => [100],
         "iqnRandom" => "nimbus1"
       }
     ],

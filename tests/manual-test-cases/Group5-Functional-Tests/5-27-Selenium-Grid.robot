@@ -32,7 +32,7 @@ Selenium Grid Create
     ${vc-ip}=  Get IP  ${name}.vc.0
     Close Connection
 
-    Set Suite Variable  @{list}  %{NIMBUS_USER}-${name}.esx.0  %{NIMBUS_USER}-${name}.esx.1  %{NIMBUS_USER}-${name}.esx.2  %{NIMBUS_USER}-${name}.iscsi.0  %{NIMBUS_USER}-${name}.vc.0
+    Set Suite Variable  @{list}  %{NIMBUS_USER}-${name}.esx.0  %{NIMBUS_USER}-${name}.esx.1  %{NIMBUS_USER}-${name}.esx.2  %{NIMBUS_USER}-${name}.esx.3  %{NIMBUS_USER}-${name}.esx.4  %{NIMBUS_USER}-${name}.esx.5  %{NIMBUS_USER}-${name}.iscsi.0  %{NIMBUS_USER}-${name}.vc.0
     Log To Console  Finished Creating Cluster ${name}
 
     Log To Console  Set environment variables up for GOVC
