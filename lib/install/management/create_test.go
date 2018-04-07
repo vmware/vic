@@ -223,7 +223,8 @@ func testCleanup(op trace.Operation, sess *session.Session, conf *config.Virtual
 		return
 	}
 
-	d.deleteFolder(conf)
+	d.deleteVCHFolder()
+
 	// in this case we should expect the folder to be gone.
 	folder, err := d.session.Finder.Folder(d.op, path.Join(d.session.VMFolder.InventoryPath, conf.Name))
 	require.Error(t, err)
