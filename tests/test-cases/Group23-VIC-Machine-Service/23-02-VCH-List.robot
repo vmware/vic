@@ -18,6 +18,7 @@ Resource          ../../resources/Util.robot
 Resource          ../../resources/Group23-VIC-Machine-Service-Util.robot
 Suite Setup       Setup
 Suite Teardown    Teardown
+Test Teardown     Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 Default Tags
 
 
@@ -104,15 +105,13 @@ Get VCH List Within Invalid Datacenter and Compute Resource
     Verify Return Code
     Verify Status Not Found
 
-   
+
 Get Empty VCH List When No VCH deployed
-    Run Secret VIC Machine Delete Command   %{VCH-NAME}
+    Cleanup VIC Appliance On Test Server
 
     Get VCH List
 
     Verify Return Code
     Verify Status Ok
 
-    ${vchs}=  Run  echo '${OUTPUT}' | jq -r '.vchs[]'
-    Log  ${vchs}
-    Length Should Be  ${vchs}  0
+    Verify VCH List Empty
