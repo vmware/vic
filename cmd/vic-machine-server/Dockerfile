@@ -7,10 +7,15 @@
 
 FROM vmware/photon:1.0
 
-RUN set -eux; \
-    tdnf distro-sync --refresh -y; \
-    tdnf info installed; \
-    tdnf clean all
+# Use local repo
+RUN rm /etc/yum.repos.d/{photon,photon-updates}.repo
+ADD isos/base/photon-local.repo /etc/yum.repos.d
+
+# TODO update packages in local repo
+# RUN set -eux; \
+#     tdnf distro-sync --refresh -y; \
+#     tdnf info installed; \
+#     tdnf clean all
 
 ENV HOST 0.0.0.0
 ENV PORT 80
