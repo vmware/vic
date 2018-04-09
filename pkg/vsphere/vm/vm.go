@@ -881,34 +881,49 @@ func (vm *VirtualMachine) relocate(op trace.Operation, host *object.HostSystem) 
 }
 
 func (vm *VirtualMachine) powerOn(op trace.Operation) error {
-	dc := vm.Datacenter
+	var f func(context.Context) (tasks.Task, error)
 
-	option := &types.OptionValue{
-		Key:   string(types.ClusterPowerOnVmOptionOverrideAutomationLevel),
-		Value: string(types.DrsBehaviorFullyAutomated),
+	if vm.IsVC() {
+		dc := vm.Datacenter
+
+		option := &types.OptionValue{
+			Key:   string(types.ClusterPowerOnVmOptionOverrideAutomationLevel),
+			Value: string(types.DrsBehaviorFullyAutomated),
+		}
+
+		f = func(op context.Context) (tasks.Task, error) {
+			return dc.PowerOnVM(op, []types.ManagedObjectReference{vm.Reference()}, option)
+
+		}
+	} else {
+		f = func(op context.Context) (tasks.Task, error) {
+			return vm.VirtualMachine.PowerOn(op)
+		}
 	}
 
-	t, err := vm.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
-		return dc.PowerOnVM(op, []types.ManagedObjectReference{vm.Reference()}, option)
-	})
+	t, err := vm.WaitForResult(op, f)
 	if err != nil {
 		return err
 	}
 
-	switch r := t.Result.(type) {
-	case types.ClusterPowerOnVmResult:
-		attempts := len(r.Attempted)
-		if attempts != 1 {
-			return fmt.Errorf("Attempted to power on the wrong number of VMs. Expected 1, attempted %d", attempts)
-		}
+	if vm.IsVC() {
+		switch r := t.Result.(type) {
+		case types.ClusterPowerOnVmResult:
+			attempts := len(r.Attempted)
+			if attempts != 1 {
+				return fmt.Errorf("Attempted to power on the wrong number of VMs. Expected 1, attempted %d", attempts)
+			}
 
-		info := r.Attempted[0]
-		task := object.NewTask(vm.Session.Vim25(), *info.Task)
-		_, err := task.WaitForResult(op, nil)
-		return err
-	default:
-		return fmt.Errorf("Unexpected return type when attempting to power on VM: %T", r)
+			info := r.Attempted[0]
+			task := object.NewTask(vm.Session.Vim25(), *info.Task)
+			_, err := task.WaitForResult(op, nil)
+			return err
+		default:
+			return fmt.Errorf("Unexpected return type when attempting to power on VM: %T", r)
+		}
 	}
+
+	return nil
 }
 
 func (vm *VirtualMachine) InCluster(op trace.Operation) bool {
