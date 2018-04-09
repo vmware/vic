@@ -39,6 +39,7 @@ const (
 	DefaultTTL       = 600 * time.Second
 	DefaultCacheSize = 1024
 	DefaultTimeout   = 4 * time.Second
+	hexDigit         = "0123456789abcdef"
 )
 
 var (
@@ -638,4 +639,95 @@ func (s *Server) Stop() {
 // Wait block until wg returns
 func (s *Server) Wait() {
 	s.wg.Wait()
+}
+
+type FQDNs map[string]bool
+
+// ReverseLookup returns a set of FQDNs for ipAddr from nameservers in /etc/resolv.conf
+// /etc/hosts and /etc/nsswitch.conf are ignored by this function
+func ReverseLookup(ipAddr string) (domains FQDNs) {
+	domains = make(map[string]bool)
+
+	address, err := reverseaddr(ipAddr)
+	if err != nil {
+		log.Errorf("%s", err)
+		return
+	}
+
+	nameservers := resolvconf()
+	log.Infof("Looking up rDNS record for %s\n", address)
+	for _, n := range nameservers {
+		dnsClient := new(mdns.Client)
+		msg := new(mdns.Msg)
+
+		msg.SetQuestion(address, mdns.TypePTR)
+		r, _, err := dnsClient.Exchange(msg, fmt.Sprintf("%s:53", n))
+		if err != nil {
+			log.Warnf("Got error \"%s\" from %s\n", err, n)
+			continue
+		}
+
+		if len(r.Answer) == 0 {
+			log.Warnf("No reply from %s\n", n)
+			continue
+		}
+
+		for _, a := range r.Answer {
+			switch a := a.(type) {
+			case *mdns.PTR:
+				// cut the . off the end of the returned record & store it
+				domains[strings.TrimSuffix(a.Ptr, ".")] = true
+			default:
+				log.Debugf("Got nonstandard answer %s (from nameserver %s)\n", a, n)
+			}
+		}
+	}
+
+	return
+}
+
+// Convert unsigned integer to decimal string.
+// this helper func was lifted from stdlib -- net/dnsclient.go
+func uitoa(val uint) string {
+	if val == 0 { // avoid string allocation
+		return "0"
+	}
+	var buf [20]byte // big enough for 64bit value base 10
+	i := len(buf) - 1
+	for val >= 10 {
+		q := val / 10
+		buf[i] = byte('0' + val - q*10)
+		i--
+		val = q
+	}
+	// val < 10
+	buf[i] = byte('0' + val)
+	return string(buf[i:])
+}
+
+// reverseaddr returns the in-addr.arpa. or ip6.arpa. hostname of the IP
+// address addr suitable for rDNS (PTR) record lookup or an error if it fails
+// to parse the IP address.
+// this helper func was lifted from stdlib -- net/dnsclient.go
+func reverseaddr(addr string) (arpa string, err error) {
+	ip := net.ParseIP(addr)
+	if ip == nil {
+		return "", &net.DNSError{Err: "unrecognized address", Name: addr}
+	}
+	if ip.To4() != nil {
+		return uitoa(uint(ip[15])) + "." + uitoa(uint(ip[14])) + "." + uitoa(uint(ip[13])) + "." + uitoa(uint(ip[12])) + ".in-addr.arpa.", nil
+	}
+	// Must be IPv6
+	buf := make([]byte, 0, len(ip)*4+len("ip6.arpa."))
+	// Add it, in reverse, to the buffer
+	for i := len(ip) - 1; i >= 0; i-- {
+		v := ip[i]
+		buf = append(buf, hexDigit[v&0xF])
+		buf = append(buf, '.')
+		buf = append(buf, hexDigit[v>>4])
+		buf = append(buf, '.')
+	}
+	// Append "ip6.arpa." and return (buf already has the final .)
+	buf = append(buf, "ip6.arpa."...)
+	return string(buf), nil
 }
