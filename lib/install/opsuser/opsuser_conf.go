@@ -51,6 +51,7 @@ var RoleCluster = types.AuthorizationRole{
 		"Datastore.DeleteFile",
 		"Datastore.FileManagement",
 		"Host.Config.SystemManagement",
+		"Host.Inventory.EditCluster",
 	},
 }
 
@@ -116,97 +117,61 @@ var DCReadOnlyConf = rbac.Config{
 	},
 }
 
-// DRSConf stores the RBAC configuration for the ops-user's roles in a DRS environment.
-var DRSConf = rbac.Config{
-	Resources: []rbac.Resource{
-		{
-			Type:      rbac.VCenter,
-			Propagate: false,
-			Role:      RoleVCenter,
+func buildConfig(clusterRole types.AuthorizationRole) rbac.Config {
+	return rbac.Config{
+		Resources: []rbac.Resource{
+			{
+				Type:      rbac.VCenter,
+				Propagate: false,
+				Role:      RoleVCenter,
+			},
+			{
+				Type:      rbac.Datacenter,
+				Propagate: true,
+				Role:      RoleDataCenter,
+			},
+			{
+				Type:      rbac.Cluster,
+				Propagate: true,
+				Role:      clusterRole,
+			},
+			{
+				Type:      rbac.DatastoreFolder,
+				Propagate: true,
+				Role:      RoleDataStore,
+			},
+			{
+				Type:      rbac.Datastore,
+				Propagate: false,
+				Role:      RoleDataStore,
+			},
+			{
+				Type:      rbac.VSANDatastore,
+				Propagate: false,
+				Role:      RoleDataStore,
+			},
+			{
+				Type:      rbac.Network,
+				Propagate: true,
+				Role:      RoleNetwork,
+			},
+			{
+				Type:      rbac.Endpoint,
+				Propagate: true,
+				Role:      RoleEndpoint,
+			},
 		},
-		{
-			Type:      rbac.Datacenter,
-			Propagate: true,
-			Role:      RoleDataCenter,
-		},
-		{
-			Type:      rbac.Cluster,
-			Propagate: true,
-			Role:      RoleDataStore,
-		},
-		{
-			Type:      rbac.DatastoreFolder,
-			Propagate: true,
-			Role:      RoleDataStore,
-		},
-		{
-			Type:      rbac.Datastore,
-			Propagate: false,
-			Role:      RoleDataStore,
-		},
-		{
-			Type:      rbac.VSANDatastore,
-			Propagate: false,
-			Role:      RoleDataStore,
-		},
-		{
-			Type:      rbac.Network,
-			Propagate: true,
-			Role:      RoleNetwork,
-		},
-		{
-			Type:      rbac.Endpoint,
-			Propagate: true,
-			Role:      RoleEndpoint,
-		},
-	},
+	}
 }
+
+// DRSConf stores the RBAC configuration for the ops-user's roles in a DRS environment.
+var DRSConf = buildConfig(RoleDataStore)
 
 // NoDRSConf stores the configuration for the ops-user's roles in a non-DRS environment.
 // It is different from DRSConf in that RoleEndpointDatastore is used for the cluster
 // instead of RoleDataStore. In a non-DRS environment, we need to apply the Endpoint and
 // Datastore roles at the cluster level since there are no resource pools.
-var NoDRSConf = rbac.Config{
-	Resources: []rbac.Resource{
-		{
-			Type:      rbac.VCenter,
-			Propagate: false,
-			Role:      RoleVCenter,
-		},
-		{
-			Type:      rbac.Datacenter,
-			Propagate: true,
-			Role:      RoleDataCenter,
-		},
-		{
-			Type:      rbac.Cluster,
-			Propagate: true,
-			Role:      RoleEndpointDatastore,
-		},
-		{
-			Type:      rbac.DatastoreFolder,
-			Propagate: true,
-			Role:      RoleDataStore,
-		},
-		{
-			Type:      rbac.Datastore,
-			Propagate: false,
-			Role:      RoleDataStore,
-		},
-		{
-			Type:      rbac.VSANDatastore,
-			Propagate: false,
-			Role:      RoleDataStore,
-		},
-		{
-			Type:      rbac.Network,
-			Propagate: true,
-			Role:      RoleNetwork,
-		},
-		{
-			Type:      rbac.Endpoint,
-			Propagate: true,
-			Role:      RoleEndpoint,
-		},
-	},
-}
+var NoDRSConf = buildConfig(RoleEndpointDatastore)
+
+// Configuration for the ops-user with increased cluster-level permissions, required for managing DRS VM Groups
+var ClusterConf = buildConfig(RoleCluster)
