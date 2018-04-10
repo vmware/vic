@@ -17,7 +17,13 @@ Documentation  Test 13-2 - vMotion Container
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  Create a VSAN Cluster  vic-vmotion-13-2
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
-Test Teardown  Run Keyword If Test Failed  Gather vSphere Logs
+Test Teardown  Run Keyword If Test Failed  Gather All vSphere Logs
+
+*** Keywords ***
+Gather All vSphere Logs
+    ${hostList}=  Run  govc ls -t HostSystem host/cls
+    @{hostList}=  Split To Lines  ${hostList}
+    Run  govc logs.download @{hostList}
 
 *** Test Cases ***
 Test
