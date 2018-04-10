@@ -729,3 +729,4 @@ Assert
     [Arguments]  ${status}  ${msg}
     ${envExists}=  Run Keyword And Return Status  Environment Variable Should Be Set  FAST_FAILURE
     Run Keyword If  ${envExists}  Run Keyword If  %{FAST_FAILURE}  Run Keyword Unless  ${status}  Fatal Error  ${msg}
+    Run Keyword Unless  ${status}  Fail  ${msg}
