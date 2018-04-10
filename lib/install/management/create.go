@@ -43,9 +43,18 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 
 	var err error
 
-	// resource pool path determined based on DRS setting.  If enabled then
-	// append the appliance name to the path and a pool will be created.
-	// disabled then no resource pools are supported, so use the provided compute path.
+	// Resource Pools are only available in DRS Enabled environments, so
+	// the resource pool path will be determined on that setting.
+	//
+	// In a DRS disabled environment resource pools aren't available and all
+	// VMs will reside in the cluster pool.  Attempting to create a pool would
+	// result in an error and vic-machine failure.
+	//
+	// DRS Enabled:
+	// append the appliance name to the path with the goal of having the
+	// pool name match the appliance name.
+	// DRS Disabled:
+	// only use the compute path which will avoid a pool creation attempt.
 	if d.session.DRSEnabled != nil && *d.session.DRSEnabled {
 		d.vchPoolPath = path.Join(settings.ResourcePoolPath, conf.Name)
 	} else {
@@ -221,7 +230,7 @@ func (d *Dispatcher) cleanupAfterCreationFailed(conf *config.VirtualContainerHos
 		}
 	}
 
-	// delete the folder -- this will ONLY delete a folder if vic created it
+	// Delete the VCH Folder
 	d.deleteVCHFolder()
 }
 
