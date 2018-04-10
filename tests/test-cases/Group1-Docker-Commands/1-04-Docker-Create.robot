@@ -59,12 +59,15 @@ Simple Creates Verifying Folder Path
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${container1}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
+    Check VM Folder Path Doesn't Exist  ${container1}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${container2}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
+    Check VM Folder Path Doesn't Exist  ${container2}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${container3}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
+    Check VM Folder Path Doesn't Exist  ${container3}
 
 Create with anonymous volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v /var/log ${busybox} ls /var/log
