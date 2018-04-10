@@ -48,17 +48,14 @@ Cleanup Delete VCH with non-cVM in VCH folder test
     Set Environment Variable  TEST_DATACENTER  ${orig-dc}
 
     # Delete VCH folder and the non-cVM under it
-    ${rc}  ${output}=  Run And Return Rc And Output  govc object.destroy %{VCH-NAME}
+    ${output}=  Run  govc object.destroy %{VCH-NAME}
     Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
 
     # Delete resource pool
-    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "%{TEST_RESOURCE}/Resources/%{VCH-NAME}"
+    ${output}=  Run  govc pool.destroy "%{TEST_RESOURCE}/Resources/%{VCH-NAME}"
     Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "%{TEST_RESOURCE}/%{VCH-NAME}"
+    ${output}=  Run  govc pool.destroy "%{TEST_RESOURCE}/%{VCH-NAME}"
     Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
 
 *** Test Cases ***
 Delete VCH and verify
@@ -166,9 +163,7 @@ Delete VCH with non-cVM in same RP
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "%{TEST_RESOURCE}/Resources/%{VCH-NAME}"
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
+    Run Keyword And Continue On Failure  Run  govc pool.destroy "%{TEST_RESOURCE}/Resources/%{VCH-NAME}"
     ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "%{TEST_RESOURCE}/%{VCH-NAME}"
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0

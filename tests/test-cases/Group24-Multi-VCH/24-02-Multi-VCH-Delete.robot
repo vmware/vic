@@ -15,14 +15,14 @@
 *** Settings ***
 Documentation  Test 24-02 - Verify vic-machine delete only removes own cVMs
 Resource  ../../resources/Util.robot
-Suite Teardown  Cleanup VCHs
+Test Teardown  Run Keyword If Test Failed  Cleanup VCHs
 
 *** Keywords ***
 Cleanup VCHs
-    Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
-    Set Environment Variable  VCH-NAME  ${old-vch}
-    Set Environment Variable  BRIDGE_NETWORK  ${old-vch-bridge}
-    Set Environment Variable  VCH-PARAMS  ${old-vch-params}
+    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
+    Run Keyword If  '${old-vch}' != '${EMPTY}'  Set Environment Variable  VCH-NAME  ${old-vch}
+    Run Keyword If  '${old-vch-bridge}' != '${EMPTY}'  Set Environment Variable  BRIDGE_NETWORK  ${old-vch-bridge}
+    Run Keyword If  '${old-vch-params}' != '${EMPTY}'  Set Environment Variable  VCH-PARAMS  ${old-vch-params}
     Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
@@ -52,6 +52,7 @@ VCH delete only removes its own containers
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} create ${busybox}
     Should Be Equal As Integers  ${rc}  0
 
+    # Clean up the second VCH
     Cleanup VIC Appliance On Test Server
 
     # The old VCH's cVM should still exist
@@ -59,3 +60,8 @@ VCH delete only removes its own containers
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${c1}
 
+    # Clean up the first VCH
+    Set Environment Variable  VCH-NAME  ${old-vch}
+    Set Environment Variable  BRIDGE_NETWORK  ${old-vch-bridge}
+    Set Environment Variable  VCH-PARAMS  ${old-vch-params}
+    Cleanup VIC Appliance On Test Server

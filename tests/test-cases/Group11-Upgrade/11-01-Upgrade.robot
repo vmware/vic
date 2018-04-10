@@ -205,6 +205,7 @@ Upgrade VCH with unreasonably short timeout and automatic rollback after failure
     Wait For VCH Initialization  30x
     # confirm that the rollback took effect
     Check Original Version
+    Remove Environment Variable  DOCKER_API_VERSION
 
 Upgrade VCH
     Create Docker Containers

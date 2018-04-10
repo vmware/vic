@@ -15,6 +15,10 @@
 package placement
 
 const (
+	// These default values serve as a simple weighting approach towards unconsumed vs. inactive memory.
+	// They are basically an initial arbitrary guess with the intention of preferring a host with more
+	// unconsumed memory vs. one with more active memory.
+
 	// memDefaultInactiveWeight defines the default value used to weight inactive memory when ranking hosts by metric.
 	memDefaultInactiveWeight = 0.3
 	// memDefaultUnconsumedWeight defines the default value used to weight unconsumed memory when ranking hosts by metric.

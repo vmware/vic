@@ -52,8 +52,6 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 	var err error
 	var vmm *vm.VirtualMachine
 
-	// TODO: we previously found this appliance...there's no need to
-	// find it again
 	if vmm, err = d.findApplianceByID(conf); err != nil {
 		return err
 	}
