@@ -13,6 +13,7 @@ This test requires a running and available vSphere server.
 4. Create a busybox container on the VCH from Step 3
 5. Clean up the VCH from Step 3
 6. Use govc to look for the first VCH's containerVM
+7. Clean up the VCH from Step 1
 
 ## Expected Outcome
 * All steps should succeed
