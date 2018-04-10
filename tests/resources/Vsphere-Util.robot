@@ -90,7 +90,8 @@ Get VM IP
 
 Get VM Host Name
     [Arguments]  ${vm}
-    ${out}=  Run  govc vm.info ${vm}
+    ${rc}  ${out}=  Run And Return Rc And Output  govc vm.info ${vm}
+    Should Be Equal As Integers  ${rc}  0
     ${out}=  Split To Lines  ${out}
     ${host}=  Fetch From Right  @{out}[-1]  ${SPACE}
     [Return]  ${host}
