@@ -17,7 +17,7 @@ Documentation  Test 13-1 - vMotion VCH Appliance
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  Create a VSAN Cluster  vic-vmotion-13-1
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
-Test Teardown  Gather Logs From Test Server 
+Test Teardown  Run Keyword If Test Failed  Gather vSphere Logs
 
 *** Test Cases ***
 #Step 1-5
