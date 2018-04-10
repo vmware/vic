@@ -95,3 +95,19 @@ vic-machine create grants ops-user perms
     Should Be Equal As Integers  ${rc}  0
 
     Cleanup VIC Appliance On Test Server
+
+Test with VM-Host Affinity
+    Log To Console  \nStarting test...
+    Install VIC Appliance To Test Server  additional-args=--ops-user ${ops_user_name} --ops-password ${ops_user_password} --ops-grant-perms --affinity-vm-group
+
+    # Run a govc test to check that access is denied on some resources
+    Log To Console  Running govc to create a resource pool named "5-25-OPS-User-Grant-%{DRONE_BUILD_NUMBER}", it should fail
+    ${rc}  ${output}=  Run And Return Rc And Output  GOVC_USERNAME=${ops_user_name} GOVC_PASSWORD=${ops_user_password} govc pool.create */Resources/5-25-OPS-User-Grant-%{DRONE_BUILD_NUMBER}
+    Log  Govc output: ${output}
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  Permission to perform this operation was denied
+
+
+    Run Regression Tests
+
+    Cleanup VIC Appliance On Test Server
