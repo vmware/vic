@@ -21,9 +21,8 @@ Test Teardown  Run Keyword If Test Failed  Gather All vSphere Logs
 
 *** Keywords ***
 Gather All vSphere Logs
-    ${hostList}=  Run  govc ls -t HostSystem host/cls
-    @{hostList}=  Split To Lines  ${hostList}
-    Run  govc logs.download @{hostList}
+    ${hostList}=  Run  govc ls -t HostSystem host/cls | xargs
+    Run  govc logs.download ${hostList}
 
 *** Test Cases ***
 Test
