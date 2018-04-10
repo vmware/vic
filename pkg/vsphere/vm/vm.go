@@ -271,18 +271,35 @@ func (vm *VirtualMachine) UUID(ctx context.Context) (string, error) {
 func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInfo, error) {
 
 	op := trace.FromContext(ctx, "DeleteExceptDisks")
-
-	op.Debugf("Getting list of the devices for VM %q", vm)
-	devices, err := vm.Device(op)
+	vmName, err := vm.ObjectName(op)
 	if err != nil {
-		return nil, err
+		vmName = vm.String()
+		op.Debugf("Failed to get VM name, using moref %q instead due to: %s", vmName, err)
 	}
 
-	disks := devices.SelectByType(&types.VirtualDisk{})
-	op.Debug("Removing devices for VM")
-
+	firstTime := true
 	err = retry.Do(func() error {
-		return vm.RemoveDevice(op, true, disks...)
+		op.Debugf("Getting list of the devices for VM %q", vmName)
+		devices, err := vm.Device(op)
+		if err != nil {
+			return err
+		}
+
+		disks := devices.SelectByType(&types.VirtualDisk{})
+		if len(disks) > 0 {
+			op.Debugf("Removing disks from VM %q", vmName)
+			firstTime = false
+			return vm.RemoveDevice(op, true, disks...)
+		}
+
+		if firstTime {
+			op.Debugf("Disk list is empty for VM %q", vmName)
+		} else {
+			op.Debugf("All VM %q disks were removed at first call, but the result yielded an error that caused a retry", "%q")
+		}
+
+		return nil
+
 	}, func(err error) bool {
 		return tasks.IsRetryError(op, err)
 	})
@@ -291,7 +308,7 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInf
 		return nil, err
 	}
 
-	op.Debug("Destroying VM")
+	op.Debugf("Destroying VM %q", vmName)
 	info, err := vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		return vm.Destroy(ctx)
 	})
@@ -301,7 +318,7 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInf
 	}
 
 	// If destroy method is disabled on this VM, re-enable it and retry
-	op.Debug("Destroying is disabled. Enabling destroying for VM")
+	op.Debugf("Destroy is disabled. Enabling destroy for VM %q", vmName)
 	err = retry.Do(func() error {
 		return vm.EnableDestroy(op)
 	}, tasks.IsConcurrentAccessError)
@@ -309,7 +326,8 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInf
 	if err != nil {
 		return nil, err
 	}
-	op.Debug("Destroy VM again")
+
+	op.Debugf("Retrying destroy of VM %q again", vmName)
 	return vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		return vm.Destroy(ctx)
 	})
