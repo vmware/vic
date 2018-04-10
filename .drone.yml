@@ -34,8 +34,10 @@ pipeline:
     secrets:
       - drone_server
       - drone_token
-      - test_url_array
+      - haas_url_array
+      - overflow_url_array
     commands:
+      - export TEST_URL_ARRAY="$HAAS_URL_ARRAY $OVERFLOW_URL_ARRAY"
       - tests/wait_until_previous_builds_complete.sh
 
   check-org-membership:
@@ -249,16 +251,12 @@ pipeline:
 
   publish-vic-machine-server-dev:
     image: plugins/gcr
+    pull: true
     repo: eminent-nation-87317/vic-machine-server
     dockerfile: cmd/vic-machine-server/Dockerfile
-    secrets:
-      - gs_client_email
-      - gs_private_key
-      - gs_private_key_id
-      - gs_project_id
+    secrets: [ token ]
     tags:
       - dev
-    json_key: "{   \"type\": \"service_account\",\n  \"project_id\": \"$GS_PROJECT_ID\",\n  \"private_key_id\": \"$GS_PRIVATE_KEY_ID\",\n  \"private_key\": \"$GS_PRIVATE_KEY\",\n  \"client_email\": \"$GS_CLIENT_EMAIL\",\n  \"client_id\": \"$GS_PROJECT_ID\",\n  \"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",\n  \"token_uri\": \"https://accounts.google.com/o/oauth2/token\",\n  \"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",\n  \"client_x509_cert_url\": \"\"\n}\n"
     when:
       repo: vmware/vic
       event: [push]
@@ -267,16 +265,12 @@ pipeline:
 
   publish-vic-machine-server-releases:
     image: plugins/gcr
+    pull: true
     repo: eminent-nation-87317/vic-machine-server
     dockerfile: cmd/vic-machine-server/Dockerfile
-    secrets:
-      - gs_client_email
-      - gs_private_key
-      - gs_private_key_id
-      - gs_project_id
+    secrets: [ token ]
     tags:
       - latest
-    json_key: "{   \"type\": \"service_account\",\n  \"project_id\": \"$GS_PROJECT_ID\",\n  \"private_key_id\": \"$GS_PRIVATE_KEY_ID\",\n  \"private_key\": \"$GS_PRIVATE_KEY\",\n  \"client_email\": \"$GS_CLIENT_EMAIL\",\n  \"client_id\": \"$GS_PROJECT_ID\",\n  \"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",\n  \"token_uri\": \"https://accounts.google.com/o/oauth2/token\",\n  \"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",\n  \"client_x509_cert_url\": \"\"\n}\n"
     when:
       repo: vmware/vic
       event: [push, tag]
