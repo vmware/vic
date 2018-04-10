@@ -17,27 +17,61 @@ package middleware
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
-	vicdns "github.com/vmware/vic/lib/dns"
+	"golang.org/x/net/context"
 
-	context "golang.org/x/net/context"
+	vicdns "github.com/vmware/vic/lib/dns"
 )
 
-// HostCheckMiddleware provides middleware for Host: field checking
+// HostCheckMiddleware provides middleware for Host header correctness enforcement
 type HostCheckMiddleware struct {
-	ValidDomains vicdns.FQDNs
+	ValidDomains vicdns.SetOfDomains
 }
 
-// WrapHandler satisfies the Docker middleware interface for HostCheckMiddleware
-func (h HostCheckMiddleware) WrapHandler(f func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error) func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+// validateHostname trims the port off the Host header in an HTTP request and returns either the bare IP (v4 or v6) or the FQDN with the port truncated. Returns non-nil error if Host field doesn't make sense.
+func validateHostname(r *http.Request) (hostname string, err error) {
+	if r.Host == "" {
+		// this really shouldn't be necessary https://tools.ietf.org/html/rfc2616#section-14.23
+		// you can delete this if stanza if you're braver than me.
+		return "", fmt.Errorf("empty host header from %s", r.RemoteAddr)
+	}
 
-		hostname := strings.Split(r.Host, ":")[0] // trim port if it's there. r.Host should never contain a scheme so this should be fine
+	parsedURL, err := url.Parse(hostname)
+	if parsedURL.Hostname() != "<nil>" && err != nil && parsedURL.Hostname() != "" {
+		return parsedURL.Hostname(), nil
+	}
+	// trim port if it's there. r.Host should never contain a scheme
+	hostnameSplit := strings.Split(r.Host, ":")
+
+	if len(hostnameSplit) > 2 && !strings.HasSuffix(hostnameSplit[len(hostnameSplit)-1], "]") {
+		// if we see >2 colons in the hostname, it's an ipv6 address, last element is port num
+		// unfortunately that means we have to recombine the rest..
+		return fmt.Sprintf("%s", strings.Join(hostnameSplit[:len(hostnameSplit)-1], ":")), nil
+	}
+
+	if len(hostnameSplit) <= 2 {
+		// ipv4 or dns hostname with or without port, first element is hostname
+		return hostnameSplit[0], nil
+	}
+
+	// ipv6 w/o specified port
+	return r.Host, nil
+}
+
+// WrapHandler satisfies the Docker middleware interface for HostCheckMiddleware to reject http requests that do not specify a known DNS name for this endpoint in the Host: field of the request
+func (h HostCheckMiddleware) WrapHandler(f func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error) func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) (err error) {
+		var hostname string
+		if hostname, err = validateHostname(r); err != nil {
+			return err
+		}
+
 		if h.ValidDomains[hostname] {
 			return f(ctx, w, r, vars)
 		}
 
-		return fmt.Errorf("request from %s with HTTP Host header \"%s\" rejected because %s is an invalid hostname for this endpoint", r.RemoteAddr, r.Host, r.Host)
+		return fmt.Errorf("invalid host header from %s to requested host %s", r.RemoteAddr, r.Host)
 	}
 }

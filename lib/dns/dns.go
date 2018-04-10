@@ -20,6 +20,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 
 	"sync"
@@ -641,11 +642,18 @@ func (s *Server) Wait() {
 	s.wg.Wait()
 }
 
-type FQDNs map[string]bool
+// SetOfDomains is a type for storing string-type domain names as an unsorted set
+//     var f SetOfDomains
+//     f = make(map[string]bool)
+// Store in the set
+//     f["foo.com"] = true
+// then to check to see if something is in the 'set':
+//     if f["foo.com"] {
+type SetOfDomains map[string]bool
 
 // ReverseLookup returns a set of FQDNs for ipAddr from nameservers in /etc/resolv.conf
 // /etc/hosts and /etc/nsswitch.conf are ignored by this function
-func ReverseLookup(ipAddr string) (domains FQDNs) {
+func ReverseLookup(ipAddr string) (domains SetOfDomains) {
 	domains = make(map[string]bool)
 
 	address, err := reverseaddr(ipAddr)
@@ -655,20 +663,19 @@ func ReverseLookup(ipAddr string) (domains FQDNs) {
 	}
 
 	nameservers := resolvconf()
-	log.Infof("Looking up rDNS record for %s\n", address)
 	for _, n := range nameservers {
 		dnsClient := new(mdns.Client)
 		msg := new(mdns.Msg)
 
 		msg.SetQuestion(address, mdns.TypePTR)
-		r, _, err := dnsClient.Exchange(msg, fmt.Sprintf("%s:53", n))
+		r, _, err := dnsClient.Exchange(msg, n+":53")
 		if err != nil {
-			log.Warnf("Got error \"%s\" from %s\n", err, n)
+			log.Warnf("got error \"%s\" from %s", err, n)
 			continue
 		}
 
 		if len(r.Answer) == 0 {
-			log.Warnf("No reply from %s\n", n)
+			log.Warnf("no reply from %s", n)
 			continue
 		}
 
@@ -678,31 +685,12 @@ func ReverseLookup(ipAddr string) (domains FQDNs) {
 				// cut the . off the end of the returned record & store it
 				domains[strings.TrimSuffix(a.Ptr, ".")] = true
 			default:
-				log.Debugf("Got nonstandard answer %s (from nameserver %s)\n", a, n)
+				log.Debugf("got nonstandard answer %s (from nameserver %s)", a, n)
 			}
 		}
 	}
 
 	return
-}
-
-// Convert unsigned integer to decimal string.
-// this helper func was lifted from stdlib -- net/dnsclient.go
-func uitoa(val uint) string {
-	if val == 0 { // avoid string allocation
-		return "0"
-	}
-	var buf [20]byte // big enough for 64bit value base 10
-	i := len(buf) - 1
-	for val >= 10 {
-		q := val / 10
-		buf[i] = byte('0' + val - q*10)
-		i--
-		val = q
-	}
-	// val < 10
-	buf[i] = byte('0' + val)
-	return string(buf[i:])
 }
 
 // reverseaddr returns the in-addr.arpa. or ip6.arpa. hostname of the IP
@@ -715,7 +703,7 @@ func reverseaddr(addr string) (arpa string, err error) {
 		return "", &net.DNSError{Err: "unrecognized address", Name: addr}
 	}
 	if ip.To4() != nil {
-		return uitoa(uint(ip[15])) + "." + uitoa(uint(ip[14])) + "." + uitoa(uint(ip[13])) + "." + uitoa(uint(ip[12])) + ".in-addr.arpa.", nil
+		return strconv.FormatUint(uint64(ip[15]), 10) + "." + strconv.FormatUint(uint64(ip[14]), 10) + "." + strconv.FormatUint(uint64(ip[13]), 10) + "." + strconv.FormatUint(uint64(ip[12]), 10) + ".in-addr.arpa.", nil
 	}
 	// Must be IPv6
 	buf := make([]byte, 0, len(ip)*4+len("ip6.arpa."))

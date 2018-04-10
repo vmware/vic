@@ -198,6 +198,16 @@ func loadCAPool() *x509.CertPool {
 	return pool
 }
 
+func enforceHostHeaderCheck(addr string, api *apiserver.Server) {
+	rdnsNames := vicdns.ReverseLookup(addr)
+	if len(rdnsNames) == 0 {
+		log.Warnf("Could not resolve domain names for %s. Docker endpoint will only be accessible via the IP", addr)
+	}
+	rdnsNames[addr] = true // add the client IP because that's always allowed
+	hostCheckMW := vicmiddleware.HostCheckMiddleware{ValidDomains: rdnsNames}
+	api.UseMiddleware(hostCheckMW)
+}
+
 func startServer() *apiserver.Server {
 	serverConfig := &apiserver.Config{
 		Logging: true,
@@ -269,19 +279,14 @@ func startServer() *apiserver.Server {
 	mw := middleware.NewVersionMiddleware(version.DockerAPIVersion,
 		version.DockerDefaultVersion,
 		version.DockerMinimumVersion)
-
 	api.UseMiddleware(mw)
-	if vchConfig.HostCertificate.IsNil() {
-		log.Warnf("Docker endpoint running in plain HTTP mode")
-		rdnsNames := vicdns.ReverseLookup(addr)
-		if len(rdnsNames) == 0 {
-			log.Warnf("Could not resolve domain names for %s. Docker endpoint will only be accessible via the IP", addr)
-		}
 
-		rdnsNames[addr] = true // add the IP because that's always allowed
-		hostCheckMW := vicmiddleware.HostCheckMiddleware{ValidDomains: rdnsNames}
-		api.UseMiddleware(hostCheckMW)
+	if vchConfig.HostCertificate.IsNil() && vchConfig.Diagnostics.DebugLevel <= 2 {
+		// only enforce host header check in non-debug http-only mode
+		log.Warnf("Docker endpoint running in plain HTTP mode")
+		enforceHostHeaderCheck(addr, api)
 	}
+
 	fullserver := fmt.Sprintf("%s:%d", addr, *cli.serverPort)
 	l, err := listeners.Init(cli.proto, fullserver, "", serverConfig.TLSConfig)
 	if err != nil {
