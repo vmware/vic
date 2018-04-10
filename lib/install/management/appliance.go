@@ -485,40 +485,31 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		return err
 	}
 
-	var info *types.TaskInfo
-
 	// Create the VCH inventory folder
-	vchFolder := d.session.VMFolder
 	if d.isVC {
 		folderPath := fmt.Sprintf("%s", path.Join(d.session.VMFolder.InventoryPath, conf.Name))
 
 		d.op.Info("Creating the VCH folder")
-		vchFolder, err = d.session.VMFolder.CreateFolder(d.op, spec.Name)
+		// update the session pointer with the VCH Folder
+		d.session.VCHFolder, err = d.session.VMFolder.CreateFolder(d.op, spec.Name)
 		if err != nil {
 			if soap.IsSoapFault(err) {
 				switch soap.ToSoapFault(err).VimFault().(type) {
 				case types.DuplicateName:
-					return fmt.Errorf("a VM or folder already exists on the path for VCH folder (%s)", folderPath)
-				}
-			} else if soap.IsVimFault(err) {
-				switch soap.ToVimFault(err).(type) {
-				case *types.DuplicateName:
-					return fmt.Errorf("a VM or folder already exists on the path for VCH folder (%s)", folderPath)
+					return fmt.Errorf("Unable to create the VCH due to an existing object with the same name %s", conf.Name)
 				}
 			}
-
-			return fmt.Errorf("unexpected err (%s): %s", folderPath, err)
+			return fmt.Errorf("Unable to create the VCH Folder(%s): %s", folderPath, err)
 		}
 	}
-	d.session.VCHFolder = vchFolder
 
 	d.op.Info("Creating the VCH VM")
-	info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
+	info, err := tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
 		return d.session.VCHFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
 	})
 
 	if err != nil {
-		d.op.Errorf("Unable to create appliance VM: %s", err)
+		d.op.Errorf("Unable to create the appliance VM: %s", err)
 		return err
 	}
 	if info.Error != nil || info.State != types.TaskInfoStateSuccess {
@@ -1195,7 +1186,10 @@ func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.Virtual
 	return nil
 }
 
-// deleteVCHFolder will delete an empty VCH Folder
+// deleteVCHFolder deletes an empty VCH folder.  During a VCH Delete there is a slight possibility vic
+// could delete a folder it didn't create.  The only time a VCH would be in a folder vic didn't create
+// would be outside of normal vic operations.  There is no risk of loss of data as it will this will only
+// delete an empty folder.
 func (d *Dispatcher) deleteVCHFolder() {
 	// only continue if VC and the VCH Folder is NOT the datacenter wide VM Folder
 	if d.isVC && d.session.VCHFolder != nil && d.session.VCHFolder.Reference() != d.session.VMFolder.Reference() {

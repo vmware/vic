@@ -812,6 +812,7 @@ func (c *Container) onEvent(op trace.Operation, newState State, e events.Event) 
 func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, error) {
 	defer trace.End(trace.Begin(""))
 	var vms []mo.VirtualMachine
+	var vmRefs []types.ManagedObjectReference
 	var err error
 
 	// Does the VCH have it's own folder?
@@ -823,13 +824,8 @@ func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, 
 			log.Errorf("List failed to get %s resource pool child vms: %s", name, err)
 			return nil, err
 		}
-		vms, err = populateVMAttributes(ctx, sess, rp.Vm)
-		if err != nil {
-			return nil, err
-		}
+		vmRefs = rp.Vm
 	} else {
-		var childVms []types.ManagedObjectReference
-
 		// vch has it's own folder. get the cvm's from here.
 		children, err := sess.VCHFolder.Children(ctx)
 		if err != nil {
@@ -840,14 +836,14 @@ func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, 
 		for _, child := range children {
 			vmObj, ok := child.(*object.VirtualMachine)
 			if ok {
-				childVms = append(childVms, vmObj.Reference())
+				vmRefs = append(vmRefs, vmObj.Reference())
 			}
 		}
+	}
 
-		vms, err = populateVMAttributes(ctx, sess, childVms)
-		if err != nil {
-			return nil, err
-		}
+	vms, err = populateVMAttributes(ctx, sess, vmRefs)
+	if err != nil {
+		return nil, err
 	}
 
 	return convertInfraContainers(ctx, sess, vms), nil

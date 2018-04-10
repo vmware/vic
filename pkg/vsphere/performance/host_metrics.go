@@ -24,7 +24,6 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 const (
@@ -102,6 +101,12 @@ func (h *HostMetricsProvider) GetMetricsForHosts(op trace.Operation, hosts []*ob
 
 	if h.Client == nil {
 		return nil, fmt.Errorf("client not set")
+	}
+
+	// filter out hosts that are in maintenance mode or disconnected
+	hosts, err := filterHosts(op, h.Client, hosts)
+	if err != nil {
+		return nil, err
 	}
 
 	morefToHost := make(map[string]*object.HostSystem)
@@ -192,7 +197,7 @@ func assembleMetrics(op trace.Operation, morefToHost map[string]*object.HostSyst
 }
 
 // filterHosts removes candidate hosts who are either disconnected or in maintenance mode.
-func filterHosts(op trace.Operation, s *session.Session, hosts []*object.HostSystem) ([]*object.HostSystem, error) {
+func filterHosts(op trace.Operation, client *vim25.Client, hosts []*object.HostSystem) ([]*object.HostSystem, error) {
 	if len(hosts) == 0 {
 		return nil, fmt.Errorf("no candidate hosts to filter check")
 	}
@@ -204,7 +209,7 @@ func filterHosts(op trace.Operation, s *session.Session, hosts []*object.HostSys
 	}
 
 	hs := make([]mo.HostSystem, 0, len(hosts))
-	pc := property.DefaultCollector(s.Vim25())
+	pc := property.DefaultCollector(client)
 	err := pc.Retrieve(op, refs, props, &hs)
 	if err != nil {
 		return nil, err
