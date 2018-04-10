@@ -15,8 +15,7 @@
 *** Settings ***
 Documentation  Test 19-3 - DRS-Disabled-Placement
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  ROBO SKU Setup
-Suite Teardown  Teardown VCH And Cleanup Nimbus
+Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Keywords ***
 Deploy Stress Container And Return Host IP
@@ -54,24 +53,30 @@ Teardown VCH And Cleanup Nimbus
 # TODO(jzt): we need to test against a single ESX host
 
 Simple Placement
+    Set Environment Variable  GOVC_URL  ${vc1-ip}
+    Set Environment Variable  TEST_URL_ARRAY  ${vc1-ip}
+    Set Environment Variable  TEST_RESOURCE  cls3
+    Set Environment Variable  TEST_TIMEOUT  30m
+
+    Log To Console  Deploy VIC to the VC cluster
     Install VIC Appliance To Test Server
+
     ${vch_host}=  Get VM Host Name  %{VCH-NAME}
 
     ${stressed_hosts}=  Create List  ${vch_host}
-    :FOR  ${i}  IN RANGE  2
-    \   ${ip}=  Deploy Stress Container And Return Host IP  stresser${i}
-    \   Should Not Contain  ${stressed_hosts}  ${ip}
-    \   Append To List  ${stressed_hosts}  ${ip}
+    ${ip}=  Deploy Stress Container And Return Host IP  stresser
+    Should Not Contain  ${stressed_hosts}  ${ip}
+    Append To List  ${stressed_hosts}  ${ip}
 
-    # 1 VCH host + 2 stressed hosts out of 4 total, leaving one
+    # 1 VCH host + 1 stressed hosts out of 3 hosts total, leaving one
     # clean host to which a new container should relocate
     ${len}=  Get Length  ${stressed_hosts}
-    Should Be Equal As Integers  ${len}  3
+    Should Be Equal As Integers  ${len}  2
 
     ${id}=  Create Busybox Container VM And Return ID
     ${vm_name}=  Get VM display name  ${id}
 
-    # Move it onto the same host as the VC
+    # Move it onto the same host as the VCH
     Relocate VM To Host  ${vch_host}  ${vm_name}
 
     ${host_ip}=  Get VM Host Name  ${vm_name}

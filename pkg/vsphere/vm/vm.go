@@ -746,7 +746,7 @@ func (vm *VirtualMachine) EnableDestroy(ctx context.Context) error {
 	return nil
 }
 
-// RemoveSnapshot removes a snapshot by reference
+// RemoveSnapshotByRef removes a snapshot by reference
 func (vm *VirtualMachine) RemoveSnapshotByRef(ctx context.Context, snapshot *types.ManagedObjectReference, removeChildren bool, consolidate *bool) (*object.Task, error) {
 	req := types.RemoveSnapshot_Task{
 		This:           snapshot.Reference(),
@@ -762,30 +762,36 @@ func (vm *VirtualMachine) RemoveSnapshotByRef(ctx context.Context, snapshot *typ
 	return object.NewTask(vm.Vim25(), res.Returnval), nil
 }
 
-// CheckHostCompatibility checks that a host is compatible for VM placement.
-func (vm *VirtualMachine) CheckHostCompatibility(ctx context.Context, host *types.ManagedObjectReference) (*object.Task, error) {
-	req := types.CheckCompatibility_Task{
-		This: vm.ServiceContent.VmCompatibilityChecker.Reference(),
-		Vm:   vm.Reference(),
-		Host: host,
-	}
-
-	res, err := methods.CheckCompatibility_Task(ctx, vm.Vim25(), &req)
-	if err != nil {
-		return nil, err
-	}
-	return object.NewTask(vm.Vim25(), res.Returnval), nil
-}
-
 // PowerOn powers on a VM. If the environment is VC without DRS enabled, it will attempt to relocate  the VM
 // to the most suitable host in the cluster. If relocation or subsequent power-on fail, it will attempt the next
 // best host, and repeat this process until a successful power-on is achieved or there are no more hosts to try.
 func (vm *VirtualMachine) PowerOn(op trace.Operation) error {
-	drs := vm.Session.DRSEnabled != nil && *vm.Session.DRSEnabled
-	cls := vm.InCluster(op)
+	// if we aren't in VC, we don't need to recommend or use DRS-aware power-on
+	if !vm.IsVC() {
+		_, err := vm.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
+			return vm.VirtualMachine.PowerOn(op)
+		})
+		return err
+	}
 
+	h, err := vm.Cluster.Hosts(op)
+	if err != nil {
+		return err
+	}
+
+	// we only recommend if the VM is in a cluster with more than one host
+	cls := vm.InCluster(op) && len(h) > 1
+	op.Debugf("%s resides in a multi-host cluster: %t", vm.Reference().String(), cls)
+
+	// or if DRS is disabled
+	drs := vm.Session.DRSEnabled != nil && *vm.Session.DRSEnabled
 	op.Debugf("DRS enabled: %t", drs)
-	op.Debugf("%s resides in a cluster: %t", vm.Reference().String(), cls)
+
+	if !cls || drs {
+		// if we aren't in a multi-host cluster or if we are and DRS is enabled,
+		// there is no reason to recommend a host, so bail early and power-on.
+		return vm.powerOnDRS(op)
+	}
 
 	// otherwise place the VM before powering it on
 	hmp := performance.NewHostMetricsProvider(vm.Session.Vim25())
@@ -794,18 +800,13 @@ func (vm *VirtualMachine) PowerOn(op trace.Operation) error {
 		return err
 	}
 
-	// any of the following conditions are sufficient to power-on the VM:
-	// - environment is not VC
-	// - DRS is enabled
-	// - the VM does not belong to a cluster
-	// - the current host is adequate for power-on
-	if !vm.IsVC() || drs || !cls || rhp.CheckHost(op, vm.VirtualMachine) {
-		return vm.powerOn(op)
+	// first we check if the host on which the VM was created is adequate for power-on
+	if rhp.CheckHost(op, vm.VirtualMachine) {
+		// if so, just power-on, don't bother recommending a better host
+		return vm.powerOnDRS(op)
 	}
 
-	// TODO(jzt): uncomment this once we have CheckHost implemented.
-	// see https://github.com/vmware/vic/issues/7654
-	// op.Warnf("Host is not adequate for power-on, getting placement recommendation")
+	op.Debugf("Host is not adequate for power-on, getting placement recommendation")
 
 	var hosts, subset []*object.HostSystem
 
@@ -833,7 +834,7 @@ func (vm *VirtualMachine) PowerOn(op trace.Operation) error {
 		var err error
 		if err = vm.relocate(op, hosts[0]); err != nil {
 			op.Warnf("VM relocation failed: %s", err.Error())
-		} else if err = vm.powerOn(op); err != nil {
+		} else if err = vm.powerOnDRS(op); err != nil {
 			op.Warnf("VM power-on failed: %s", err.Error())
 		} else {
 			return nil
@@ -848,7 +849,35 @@ func (vm *VirtualMachine) PowerOn(op trace.Operation) error {
 
 	}
 	op.Warnf("vm placement failed: no available hosts. Attempting power-on.")
-	return vm.powerOn(op)
+	return vm.powerOnDRS(op)
+}
+
+func (vm *VirtualMachine) powerOnDRS(op trace.Operation) error {
+	option := &types.OptionValue{
+		Key:   string(types.ClusterPowerOnVmOptionOverrideAutomationLevel),
+		Value: string(types.DrsBehaviorFullyAutomated),
+	}
+
+	t, err := vm.WaitForResult(op, func(op context.Context) (tasks.Task, error) {
+		return vm.Datacenter.PowerOnVM(op, []types.ManagedObjectReference{vm.Reference()}, option)
+	})
+	if err != nil {
+		return err
+	}
+
+	switch r := t.Result.(type) {
+	case types.ClusterPowerOnVmResult:
+		attempts := len(r.Attempted)
+		if attempts != 1 {
+			return fmt.Errorf("Attempted to power on the wrong number of VMs. Expected 1, attempted %d", attempts)
+		}
+		info := r.Attempted[0]
+		task := object.NewTask(vm.Session.Vim25(), *info.Task)
+		_, err := task.WaitForResult(op, nil)
+		return err
+	default:
+		return fmt.Errorf("Unexpected return type when attempting to power on VM: %T", r)
+	}
 }
 
 func (vm *VirtualMachine) relocate(op trace.Operation, host *object.HostSystem) error {
@@ -880,52 +909,7 @@ func (vm *VirtualMachine) relocate(op trace.Operation, host *object.HostSystem) 
 	return nil
 }
 
-func (vm *VirtualMachine) powerOn(op trace.Operation) error {
-	var f func(context.Context) (tasks.Task, error)
-
-	if vm.IsVC() {
-		dc := vm.Datacenter
-
-		option := &types.OptionValue{
-			Key:   string(types.ClusterPowerOnVmOptionOverrideAutomationLevel),
-			Value: string(types.DrsBehaviorFullyAutomated),
-		}
-
-		f = func(op context.Context) (tasks.Task, error) {
-			return dc.PowerOnVM(op, []types.ManagedObjectReference{vm.Reference()}, option)
-
-		}
-	} else {
-		f = func(op context.Context) (tasks.Task, error) {
-			return vm.VirtualMachine.PowerOn(op)
-		}
-	}
-
-	t, err := vm.WaitForResult(op, f)
-	if err != nil {
-		return err
-	}
-
-	if vm.IsVC() {
-		switch r := t.Result.(type) {
-		case types.ClusterPowerOnVmResult:
-			attempts := len(r.Attempted)
-			if attempts != 1 {
-				return fmt.Errorf("Attempted to power on the wrong number of VMs. Expected 1, attempted %d", attempts)
-			}
-
-			info := r.Attempted[0]
-			task := object.NewTask(vm.Session.Vim25(), *info.Task)
-			_, err := task.WaitForResult(op, nil)
-			return err
-		default:
-			return fmt.Errorf("Unexpected return type when attempting to power on VM: %T", r)
-		}
-	}
-
-	return nil
-}
-
+// InCluster returns true if the VM belongs to a cluster
 func (vm *VirtualMachine) InCluster(op trace.Operation) bool {
 	cls := vm.Cluster.Reference().Type == "ClusterComputeResource"
 	op.Debugf("vm compute resource: %s", vm.Cluster.Name())

@@ -11,9 +11,7 @@ The current placement strategy is to avoid bad host selection, instead of select
 
 # Environment:
 This test requires access to VMware Nimbus cluster for dynamic ESXi and vCenter creation. This test should be executed in the following topologies and should have vSAN enabled.
-* 1 vCenter host with 1 cluster containing 4 ESX hosts with DRS disabled.
-
-In addition, this test should be run in multi-ESX-host and single-ESX-host cluster topologies.
+* 1 PSC linking 2 VCs, each containing a 3-host cluster with VSAN enabled and DRS disabled, and a single host cluster.
 
 See https://confluence.eng.vmware.com/display/CNA/VIC+ROBO for more details.
 

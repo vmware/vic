@@ -13,7 +13,7 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 24-01 - Verify docker ps from multiple vchs do not influence eachother
+Documentation  Test 24-01 - Verify docker ps from multiple vchs do not influence each other
 Resource  ../../resources/Util.robot
 Suite Teardown  Cleanup VCHs
 

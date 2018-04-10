@@ -25,18 +25,21 @@ import (
 )
 
 type rankedHost struct {
-	HostReference string
 	*performance.HostMetricsInfo
-	score float64
+
+	HostReference string
+	score         float64
 }
 
+// rankedHosts implements the sort.Sort interface:
+// see https://golang.org/pkg/sort/#Interface
 type rankedHosts []rankedHost
 
 func (r rankedHosts) Len() int           { return len(r) }
 func (r rankedHosts) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r rankedHosts) Less(i, j int) bool { return r[i].score > r[j].score }
 
-// WeightConfiguration holds user-provided weights for different host metrics. These weights are
+// WeightConfiguration holds weights for different host metrics. These weights are
 // used to determine a host ranking.
 type WeightConfiguration struct {
 	memUnconsumedWeight float64
@@ -76,11 +79,9 @@ func (r *RankedHostPolicy) CheckHost(op trace.Operation, vm *object.VirtualMachi
 	return false
 }
 
-// RecommendHost recommends an ideal host on which to place a newly created VM.
-// TODO(jzt): pass *object.VirtualMachine in here in future iteration to consider
-// provisioned resources of the VM in addition to host resources available.
-// Possibly hold onto a reference to the VM in HostPlacementPolicy implementations
-// and leave this signature as-is (or remove the dependency on hosts, cluster altogether).
+// RecommendHost returns an ordered list of the supplied hosts, ranked by current performance
+// metrics and weighting configuration. The front of the list is more ideal, the end of the
+// list is less ideal, with regard to choosing the optimal host on which to power-on a VM.
 func (r *RankedHostPolicy) RecommendHost(op trace.Operation, hosts []*object.HostSystem) ([]*object.HostSystem, error) {
 	var (
 		err error
@@ -130,7 +131,7 @@ func (r *RankedHostPolicy) rankHosts(op trace.Operation, hm map[string]*performa
 }
 
 func (r *RankedHostPolicy) rankMemory(hm *performance.HostMetricsInfo) float64 {
-	free := float64(hm.Memory.TotalKB-hm.Memory.ConsumedKB) / 1024.0
-	inactive := float64(hm.Memory.TotalKB-hm.Memory.ActiveKB) / 1024.0
+	free := float64(hm.Memory.TotalKB - hm.Memory.ConsumedKB)
+	inactive := float64(hm.Memory.TotalKB - hm.Memory.ActiveKB)
 	return free*r.config.memUnconsumedWeight + inactive*r.config.memInactiveWeight
 }

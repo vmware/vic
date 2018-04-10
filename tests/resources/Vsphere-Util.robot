@@ -279,14 +279,22 @@ Get Hostd Memory Consumption
     Close Connection
     [Return]  ${out}
 
-# NOTE: this function should only be used in the case where you supply a name to the container. Since inventory names result in `<cvm-name>-<cvm-uuid>`
+# This function will use %{VCH-NAME} and the provided vm name to confirm that the supplied vm will exist at `vm/%{VCH-NAME}/vm-name`
 Check VM Folder Path
-    [Arguments]  ${cvm-name}
-    ${cvm-path}=  Run  govc find / -type m | grep %{VCH-NAME}/${cvm-name}
+    [Arguments]  ${vm-name}
+    ${vm-path}=  Run  govc find / -type m | grep ${vm-name}
     # If it is esxi - we should find the vm in the vmfolder
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${cvm-path}  vm/${cvm-name}
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${vm-path}  vm/${vm-name}
     # If it is VC - we should find the vm in a folder named after the VCH.
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${cvm-path}  vm/%{VCH-NAME}/${cvm-name}
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${vm-path}  vm/%{VCH-NAME}/${vm-name}
+
+Check VM Folder Path Doesn't Exist
+    [Arguments]  ${vm-name}
+    ${vm-path}=  Run  govc find / -type m | grep ${vm-name}
+    # If it is esxi - we should find the vm in the vmfolder
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${vm-path}  vm/${vm-name}
+    # If it is VC - we should find the vm in a folder named after the VCH.
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${vm-path}  vm/%{VCH-NAME}/${vm-name}
 
 Get Public Network VLAN ID
     ${noQuotes}=  Strip String  %{PUBLIC_NETWORK}  characters='"
