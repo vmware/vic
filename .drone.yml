@@ -253,7 +253,7 @@ pipeline:
     image: plugins/gcr
     pull: true
     repo: eminent-nation-87317/vic-machine-server
-    dockerfile: cmd/vic-machine-server/Dockerfile
+    dockerfile: cmd/vic-machine-server/Dockerfile-CI
     secrets: [ token ]
     tags:
       - dev
@@ -267,7 +267,7 @@ pipeline:
     image: plugins/gcr
     pull: true
     repo: eminent-nation-87317/vic-machine-server
-    dockerfile: cmd/vic-machine-server/Dockerfile
+    dockerfile: cmd/vic-machine-server/Dockerfile-CI
     secrets: [ token ]
     tags:
       - latest
