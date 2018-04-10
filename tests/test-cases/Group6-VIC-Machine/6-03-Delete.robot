@@ -157,6 +157,8 @@ Delete VCH moved from its RP
 
     ${rand}=  Generate Random String  15
     ${dummyvm}=  Set Variable  anothervm-${rand}
+    ${dummyRP}=  Set Variable  rp-${rand}
+
     Set Suite Variable  ${tempvm}  ${dummyvm}
     Log To Console  Create VM ${dummyvm} in ${test-resource}/%{VCH-NAME} net %{PUBLIC_NETWORK}
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool=${test-resource}/%{VCH-NAME} -net=%{PUBLIC_NETWORK} -on=false ${dummyvm}
@@ -168,11 +170,11 @@ Delete VCH moved from its RP
     Should Contain  ${output}  ${dummyvm}
 
     # Create temp RP
-    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.create "${test-resource}/rp-${rand}"
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.create "${test-resource}/${dummyRP}"
     Should Be Equal As Integers  ${rc}  0
 
     # Move VCH to temp RP
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.migrate -pool "${test-resource}/rp-${rand}" %{VCH-NAME}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.migrate -pool "${test-resource}/${dummyRP}" %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
 
     # Delete with force
@@ -195,7 +197,7 @@ Delete VCH moved from its RP
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "${test-resource}/temp-%{VCH-NAME}"
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "${dummyRP}"
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
