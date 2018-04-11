@@ -4,13 +4,35 @@ codecov:
 coverage:
   precision: 2
   round: down
-  range: "70...100"
+  range: "31...80"
 
   status:
     project:
-      default: on
+      cmd:
+        enabled: true
+        paths: "cmd"
+        target: auto
+      lib:
+        enabled: true
+        paths: "lib"
+        target: auto
+      pkg:
+        enabled: true
+        paths: "pkg"
+        target: auto
     patch:
-      default: on
+      cmd:
+        enabled: true
+        paths: "cmd"
+        target: auto
+      lib:
+        enabled: true
+        paths: "lib"
+        target: auto
+      pkg:
+        enabled: true
+        paths: "pkg"
+        target: auto
     changes:
       default: off
 
