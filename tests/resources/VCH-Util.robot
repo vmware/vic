@@ -443,7 +443,10 @@ Check For The Proper Log Files
     # Ensure container logs are correctly being gathered for debugging purposes
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/authentication -XPOST -F username=%{TEST_USERNAME} -F password=%{TEST_PASSWORD} -D /tmp/cookies-%{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b /tmp/cookies-%{VCH-NAME} | tar tvzf -
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b /tmp/cookies-%{VCH-NAME} -o container-logs.tar.gz
+    Should Be Equal As Integers  ${rc}  0
+    Log  ${output}
+    ${rc}  ${output}=  Run And Return Rc and Output  tar tvzf container-logs.tar.gz
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
     @{words}=  Split String  ${container}  -
