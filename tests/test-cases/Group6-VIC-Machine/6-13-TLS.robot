@@ -32,11 +32,7 @@ Check that normal requests are accepted
     Should Not Contain  ${output}  500 Internal Server Error
 
     # also make sure it works if the port isn't part of the host header
-    ${dockerHost}=  Get Environment Variable  DOCKER_HOST
-    @{hostParts}=  Split String  ${dockerHost}  :
-    ${ip}=  Strip String  @{hostParts}[0]
-
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -vvv -H"Host: ${ip}" %{DOCKER_HOST}/_ping
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -vvv -H"Host: %{VCH-IP}" %{DOCKER_HOST}/_ping
     Should Contain  ${output}  200 OK
     Should Not Contain  ${output}  500 Internal Server Error
 
