@@ -207,3 +207,27 @@ Docker run --hostname to set hostname and domainname
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  vic.test
 
+Docker run --rm concurrent
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${ubuntu}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${pids}=  Create List
+    :FOR  ${idx}  IN RANGE  0  16
+    \   ${pid}=  Start Process  docker %{VCH-PARAMS} run -d --rm --name rm-concurrent-${idx} ubuntu /bin/sh -c'a\=0; while [ $a -lt 75 ]; do echo "line $a"; a\=expr $a + 1; sleep 2; done;'  shell=True
+    \   Append To List  ${pids}  ${pid}
+
+    :FOR  ${pid}  IN  @{pids}
+    \   Log To Console  \nWaiting for ${pid}
+    \   ${res}=  Wait For Process  ${pid}
+    \   Log  ${res.stdout}
+    \   Should Be Equal As Integers  ${res.rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a --format '{{.Names}}'
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output2}=  Run And Return Rc And Output  govc ls vm
+    Should Be Equal As Integers  ${rc}  0
+    :FOR  ${idx}  IN RANGE  0  16
+    \   # Verify docker persona cleaned up properly
+    \   Should Not Contain  ${output}  rm-concurrent-${idx}
+    \   # Verify that vSphere VMs were cleaned up properly
+    \   Should Not Contain  ${output2}  rm-concurrent-${idx}
