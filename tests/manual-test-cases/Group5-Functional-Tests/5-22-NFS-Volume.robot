@@ -124,7 +124,7 @@ Reboot VM and Verify Basic VCH Info
     Should Contain  ${output}  ${busybox}
 
     # ensure that the volumes we expect to exist are still available
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volumes
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${nfsNamedVolume}
 
