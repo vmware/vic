@@ -158,7 +158,7 @@ func TestFilterHosts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	filteredHosts, err := filterHosts(op, sess, hosts)
+	filteredHosts, err := filterHosts(op, sess.Vim25(), hosts)
 	assert.NoError(t, err)
 	assert.Len(t, filteredHosts, len(hosts))
 
@@ -170,7 +170,7 @@ func TestFilterHosts(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	filteredHosts, err = filterHosts(op, sess, hosts)
+	filteredHosts, err = filterHosts(op, sess.Vim25(), hosts)
 	assert.NoError(t, err)
 	assert.Len(t, filteredHosts, len(hosts)-1)
 	assert.NotContains(t, filteredHosts, h0)

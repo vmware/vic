@@ -36,7 +36,12 @@ func (p *RandomHostPolicy) CheckHost(op trace.Operation, vm *object.VirtualMachi
 	return false
 }
 
-// RecommendHost recommends a random host on which to place a newly created VM.
+// RecommendHost recommends a random host on which to place a newly created VM. As this
+// HostPlacementPolicy implementation does not rely on host metrics in its recommendation
+// logic, hosts that are disconnected or in maintenance mode are not filtered from the
+// returned list. Subsequent attempts to relocate to one of these hosts should result in
+// the host being removed from the list and the resulting subset being used in a new call
+// to RecommendHost.
 func (p *RandomHostPolicy) RecommendHost(op trace.Operation, hosts []*object.HostSystem) ([]*object.HostSystem, error) {
 	var err error
 	if hosts == nil {

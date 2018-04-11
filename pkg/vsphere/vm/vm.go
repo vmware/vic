@@ -744,21 +744,6 @@ func (vm *VirtualMachine) RemoveSnapshotByRef(ctx context.Context, snapshot *typ
 	return object.NewTask(vm.Vim25(), res.Returnval), nil
 }
 
-// CheckHostCompatibility checks that a host is compatible for VM placement.
-func (vm *VirtualMachine) CheckHostCompatibility(ctx context.Context, host *types.ManagedObjectReference) (*object.Task, error) {
-	req := types.CheckCompatibility_Task{
-		This: vm.ServiceContent.VmCompatibilityChecker.Reference(),
-		Vm:   vm.Reference(),
-		Host: host,
-	}
-
-	res, err := methods.CheckCompatibility_Task(ctx, vm.Vim25(), &req)
-	if err != nil {
-		return nil, err
-	}
-	return object.NewTask(vm.Vim25(), res.Returnval), nil
-}
-
 // PowerOn powers on a VM. If the environment is VC without DRS enabled, it will attempt to relocate  the VM
 // to the most suitable host in the cluster. If relocation or subsequent power-on fail, it will attempt the next
 // best host, and repeat this process until a successful power-on is achieved or there are no more hosts to try.
@@ -803,9 +788,7 @@ func (vm *VirtualMachine) PowerOn(op trace.Operation) error {
 		return vm.powerOnDRS(op)
 	}
 
-	// TODO(jzt): uncomment this once we have CheckHost implemented.
-	// see https://github.com/vmware/vic/issues/7654
-	// op.Warnf("Host is not adequate for power-on, getting placement recommendation")
+	op.Debugf("Host is not adequate for power-on, getting placement recommendation")
 
 	var hosts, subset []*object.HostSystem
 

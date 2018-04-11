@@ -53,12 +53,13 @@ Teardown VCH And Cleanup Nimbus
 # TODO(jzt): we need to test against a single ESX host
 
 Simple Placement
-    Install VIC Appliance To Test Server
-    Log To Console  Deploy VIC to the VC cluster
     Set Environment Variable  GOVC_URL  ${vc1-ip}
     Set Environment Variable  TEST_URL_ARRAY  ${vc1-ip}
     Set Environment Variable  TEST_RESOURCE  cls3
     Set Environment Variable  TEST_TIMEOUT  30m
+
+    Log To Console  Deploy VIC to the VC cluster
+    Install VIC Appliance To Test Server
 
     ${vch_host}=  Get VM Host Name  %{VCH-NAME}
 

@@ -26,8 +26,8 @@ type HostPlacementPolicy interface {
 	// CheckHost checks whether or not the host a VM was created on is adequate for power-on.
 	CheckHost(trace.Operation, *object.VirtualMachine) bool
 
-	// RecommendHost recommends an adequate host for the supplied VM power-on. If a nil or empty
-	// set of hosts is specified, it will choose from the hosts contained in the cluster in which
-	// the VM is located.
+	// RecommendHost recommends an ordered list of hosts on which a VM
+	// may be placed prior to power-on. The list is ordered from more
+	// ideal to less ideal based on weighted host metrics.
 	RecommendHost(trace.Operation, []*object.HostSystem) ([]*object.HostSystem, error)
 }
