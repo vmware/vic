@@ -5,17 +5,20 @@
 # gcloud auth login
 # gcloud docker -- push gcr.io/eminent-nation-87317/vic-machine-server:1.x
 
-FROM vmware/photon:1.0
+FROM wdc-harbor-ci.eng.vmware.com/default-project/photon:1.0
 
 # Use local repo
-RUN rm /etc/yum.repos.d/{photon,photon-updates}.repo
+RUN mv /etc/yum.repos.d/{photon,photon-updates}.repo /tmp
 ADD isos/base/photon-local.repo /etc/yum.repos.d
+ADD isos/base/photon-updates-local.repo /etc/yum.repos.d
 
-# TODO update packages in local repo
-# RUN set -eux; \
-#     tdnf distro-sync --refresh -y; \
-#     tdnf info installed; \
-#     tdnf clean all
+RUN set -eux; \
+     tdnf distro-sync --refresh -y; \
+     tdnf info installed; \
+     tdnf clean all
+
+RUN rm /etc/yum.repos.d/{photon-local,photon-updates-local}.repo
+RUN mv /tmp/{photon,photon-updates}.repo /etc/yum.repos.d/
 
 ENV HOST 0.0.0.0
 ENV PORT 80
