@@ -39,7 +39,7 @@ This test requires that a vSphere server is running and available
 26. Issue docker ps to the VIC appliance to verify that test-mariadb is running and clean up afterward
 27. Issue docker run -d --name test-postgres postgres to the VIC appliance
 28. Issue docker ps to the VIC appliance to verify that test-postgres is running and clean up afterward
-29. Issue docker %{VCH-PARAMS} run -d --rm --name ${idx} ubuntu /bin/sh -c'a\=0; while [ $a -lt 75 ]; do echo "line $a"; a\=expr $a + 1; sleep 2; done;' 16 times concurrently in order to test docker run --rm concurrency
+29. Issue docker run -d --rm --name ${idx} ubuntu /bin/sh -c'a\=0; while [ $a -lt 75 ]; do echo "line $a"; a\=expr $a + 1; sleep 2; done;' 16 times concurrently in order to test docker run --rm concurrency
 
 # Expected Outcome:
 * Step 2 and 3 should result in success and print the dmesg of the container
