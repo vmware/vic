@@ -37,22 +37,22 @@ func validateHostname(r *http.Request) (hostname string, err error) {
 		return "", fmt.Errorf("empty host header from %s", r.RemoteAddr)
 	}
 
+	if r.Host[len(r.Host)-1] == ']' {
+		// ipv6 w/o specified port
+		return r.Host, nil
+	}
+
 	// trim port if it's there. r.Host should never contain a scheme
 	hostnameSplit := strings.Split(r.Host, ":")
-
-	if len(hostnameSplit) > 2 && !strings.HasSuffix(hostnameSplit[len(hostnameSplit)-1], "]") {
-		// if we see >2 colons in the hostname, it's an ipv6 address, last element is port num
-		// unfortunately that means we have to recombine the rest..
-		return fmt.Sprintf("%s", strings.Join(hostnameSplit[:len(hostnameSplit)-1], ":")), nil
-	}
 
 	if len(hostnameSplit) <= 2 {
 		// ipv4 or dns hostname with or without port, first element is hostname
 		return hostnameSplit[0], nil
 	}
 
-	// ipv6 w/o specified port
-	return r.Host, nil
+	// if we see >2 colons in the hostname, it's an ipv6 address w/ port
+	// unfortunately that means we have to recombine the rest..
+	return fmt.Sprintf("%s", strings.Join(hostnameSplit[:len(hostnameSplit)-1], ":")), nil
 }
 
 // WrapHandler satisfies the Docker middleware interface for HostCheckMiddleware to reject http requests that do not specify a known DNS name for this endpoint in the Host: field of the request
