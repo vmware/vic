@@ -17,7 +17,6 @@ package middleware
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"golang.org/x/net/context"
@@ -38,10 +37,6 @@ func validateHostname(r *http.Request) (hostname string, err error) {
 		return "", fmt.Errorf("empty host header from %s", r.RemoteAddr)
 	}
 
-	parsedURL, err := url.Parse(hostname)
-	if parsedURL.Hostname() != "<nil>" && err != nil && parsedURL.Hostname() != "" {
-		return parsedURL.Hostname(), nil
-	}
 	// trim port if it's there. r.Host should never contain a scheme
 	hostnameSplit := strings.Split(r.Host, ":")
 
