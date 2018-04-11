@@ -97,7 +97,7 @@ func listVCHs(op trace.Operation, d *data.Data, validator *validate.Validator) (
 
 func vchsToModels(op trace.Operation, vchs []*vm.VirtualMachine, executor *management.Dispatcher) []*models.VCHListItem {
 	installerVer := version.GetBuild()
-	var payload []*models.VCHListItem
+	payload := make([]*models.VCHListItem, 0)
 
 	for _, vch := range vchs {
 		name := path.Base(vch.InventoryPath)
