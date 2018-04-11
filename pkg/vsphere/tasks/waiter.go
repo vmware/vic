@@ -186,26 +186,17 @@ func IsRetryError(op trace.Operation, err error) bool {
 // IsInvalidArgumentError checks if a soap fault or vim fault is InvalidArgument error
 func IsInvalidArgumentError(err error) bool {
 	if soap.IsVimFault(err) {
-		if _, ok := soap.ToVimFault(err).(*types.InvalidArgument); ok {
-			return true
-		}
-		if _, ok := soap.ToVimFault(err).(types.InvalidArgumentFault); ok {
-			return true
-		}
-
-		return false
+		_, ok1 := soap.ToVimFault(err).(*types.InvalidArgument)
+		_, ok2 := soap.ToVimFault(err).(types.InvalidArgumentFault)
+		return ok1 || ok2
 	}
 
 	if soap.IsSoapFault(err) {
-		if _, ok := soap.ToSoapFault(err).VimFault().(types.InvalidArgument); ok {
-			return true
-		}
-		if _, ok := soap.ToSoapFault(err).VimFault().(types.InvalidArgumentFault); ok {
-			return true
-		}
+		_, ok1 := soap.ToSoapFault(err).VimFault().(types.InvalidArgument)
+		_, ok2 := soap.ToSoapFault(err).VimFault().(types.InvalidArgumentFault)
 
 		// sometimes we get the correct fault but wrong type
-		return soap.ToSoapFault(err).String == "vim.fault.InvalidArgument" ||
+		return ok1 || ok2 || soap.ToSoapFault(err).String == "vim.fault.InvalidArgument" ||
 			soap.ToSoapFault(err).String == "vim.fault.InvalidArgumentFault"
 	}
 
@@ -215,26 +206,17 @@ func IsInvalidArgumentError(err error) bool {
 // IsConcurrentAccessError checks if a soap fault or vim fault is ConcurrentAccess error
 func IsConcurrentAccessError(err error) bool {
 	if soap.IsVimFault(err) {
-		if _, ok := soap.ToVimFault(err).(*types.ConcurrentAccess); ok {
-			return true
-		}
-		if _, ok := soap.ToVimFault(err).(*types.ConcurrentAccessFault); ok {
-			return true
-		}
-
-		return false
+		_, ok1 := soap.ToVimFault(err).(*types.ConcurrentAccess)
+		_, ok2 := soap.ToVimFault(err).(*types.ConcurrentAccessFault)
+		return ok1 || ok2
 	}
 
 	if soap.IsSoapFault(err) {
-		if _, ok := soap.ToSoapFault(err).VimFault().(types.ConcurrentAccess); ok {
-			return true
-		}
-		if _, ok := soap.ToSoapFault(err).VimFault().(types.ConcurrentAccessFault); ok {
-			return true
-		}
+		_, ok1 := soap.ToSoapFault(err).VimFault().(types.ConcurrentAccess)
+		_, ok2 := soap.ToSoapFault(err).VimFault().(types.ConcurrentAccessFault)
 
 		// sometimes we get the correct fault but wrong type
-		return soap.ToSoapFault(err).String == "vim.fault.ConcurrentAccess" ||
+		return ok1 || ok2 || soap.ToSoapFault(err).String == "vim.fault.ConcurrentAccess" ||
 			soap.ToSoapFault(err).String == "vim.fault.ConcurrentAccessFault"
 	}
 
@@ -244,26 +226,17 @@ func IsConcurrentAccessError(err error) bool {
 // IsMethodDisabledError checks if a soap fault or vim fault is MethodDisabled error
 func IsMethodDisabledError(err error) bool {
 	if soap.IsVimFault(err) {
-		if _, ok := soap.ToVimFault(err).(*types.MethodDisabled); ok {
-			return true
-		}
-		if _, ok := soap.ToVimFault(err).(*types.MethodDisabledFault); ok {
-			return true
-		}
-
-		return false
+		_, ok1 := soap.ToVimFault(err).(*types.MethodDisabled)
+		_, ok2 := soap.ToVimFault(err).(*types.MethodDisabledFault)
+		return ok1 || ok2
 	}
 
 	if soap.IsSoapFault(err) {
-		if _, ok := soap.ToSoapFault(err).VimFault().(types.MethodDisabled); ok {
-			return true
-		}
-		if _, ok := soap.ToSoapFault(err).VimFault().(types.MethodDisabledFault); ok {
-			return true
-		}
+		_, ok1 := soap.ToSoapFault(err).VimFault().(types.MethodDisabled)
+		_, ok2 := soap.ToSoapFault(err).VimFault().(types.MethodDisabledFault)
 
 		// sometimes we get the correct fault but wrong type
-		return soap.ToSoapFault(err).String == "vim.fault.MethodDisabled" ||
+		return ok1 || ok2 || soap.ToSoapFault(err).String == "vim.fault.MethodDisabled" ||
 			soap.ToSoapFault(err).String == "vim.fault.MethodDisabledFault"
 	}
 
@@ -273,25 +246,17 @@ func IsMethodDisabledError(err error) bool {
 // IsNotFoundError checks if a soap fault or vim fault is ManagementObjectNotFound error
 func IsNotFoundError(err error) bool {
 	if soap.IsVimFault(err) {
-		if _, ok := soap.ToVimFault(err).(*types.ManagedObjectNotFound); ok {
-			return true
-		}
-		if _, ok := soap.ToVimFault(err).(*types.ManagedObjectNotFoundFault); ok {
-			return true
-		}
-
-		return false
+		_, ok1 := soap.ToVimFault(err).(*types.ManagedObjectNotFound)
+		_, ok2 := soap.ToVimFault(err).(*types.ManagedObjectNotFoundFault)
+		return ok1 || ok2
 	}
 
 	if soap.IsSoapFault(err) {
-		if _, ok := soap.ToSoapFault(err).VimFault().(types.ManagedObjectNotFound); ok {
-			return true
-		}
-		if _, ok := soap.ToSoapFault(err).VimFault().(types.ManagedObjectNotFoundFault); ok {
-			return true
-		}
+		_, ok1 := soap.ToSoapFault(err).VimFault().(types.ManagedObjectNotFound)
+		_, ok2 := soap.ToSoapFault(err).VimFault().(types.ManagedObjectNotFoundFault)
 
-		return soap.ToSoapFault(err).String == "vim.fault.ManagedObjectNotFound" ||
+		// sometimes we get the correct fault but wrong type
+		return ok1 || ok2 || soap.ToSoapFault(err).String == "vim.fault.ManagedObjectNotFound" ||
 			soap.ToSoapFault(err).String == "vim.fault.ManagedObjectNotFoundFault"
 	}
 

@@ -294,10 +294,7 @@ func (d *Dispatcher) searchVCHsPerDC(dc *object.Datacenter) ([]*vm.VirtualMachin
 // listResourcePool outputs a list of all resource pools under a compute path
 // retries on ObjectNotFound error because sometimes it's due to concurrent modifications of resource pools
 func (d *Dispatcher) listResourcePools(path string) ([]*object.ResourcePool, error) {
-	var err error
-	var pools []*object.ResourcePool
-
-	pools, err = d.session.Finder.ResourcePoolList(d.op, path)
+	pools, err := d.session.Finder.ResourcePoolList(d.op, path)
 
 	// under some circumstances, such as when there is concurrent vic-machine delete operation running in the background,
 	// listing resource pools might fail because some VCH pool is being destroyed at the same time.
