@@ -183,6 +183,11 @@ func IsRetryError(op trace.Operation, err error) bool {
 	return IsTransientError(op, err) || IsInvalidArgumentError(err)
 }
 
+// Helper functions checking if a error has a specific vim type
+// TODO[AngieCris]: somtimes we got the correct fault but a wrong type (i.e. the error type cannot be captured)
+// It could be due to pointer/non-pointer type, or it could be govmomi bug on error type wrappers
+// Need to figure out which type, pointer or non-pointer, should the vim fault have
+
 // IsInvalidArgumentError checks if a soap fault or vim fault is InvalidArgument error
 func IsInvalidArgumentError(err error) bool {
 	if soap.IsVimFault(err) {
