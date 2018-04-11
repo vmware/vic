@@ -411,7 +411,7 @@ Gather Logs From Test Server
     [Arguments]  ${name-suffix}=${EMPTY}
     Run Keyword And Continue On Failure  Run  zip %{VCH-NAME}-certs -r %{VCH-NAME}
     Curl Container Logs  ${name-suffix}
-    ${host}=  Get VM Host Name  %{VCH-NAME}
+    ${host}=  Wait Until Keyword Succeeds  12x  10s  Get VM Host Name  %{VCH-NAME}
     Log  ${host}
     ${out}=  Run  govc datastore.download -host ${host} %{VCH-NAME}/vmware.log %{VCH-NAME}-vmware${name-suffix}.log
     Log  ${out}
@@ -729,3 +729,4 @@ Assert
     [Arguments]  ${status}  ${msg}
     ${envExists}=  Run Keyword And Return Status  Environment Variable Should Be Set  FAST_FAILURE
     Run Keyword If  ${envExists}  Run Keyword If  %{FAST_FAILURE}  Run Keyword Unless  ${status}  Fatal Error  ${msg}
+    Run Keyword Unless  ${status}  Fail  ${msg}
