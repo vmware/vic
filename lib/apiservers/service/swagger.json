@@ -859,6 +859,9 @@
         "version": {
           "type": "string"
         },
+        "power_state": {
+          "type": "string"
+        },
         "upgrade_status": {
           "type": "string"
         },
