@@ -1006,7 +1006,7 @@ func TestOpsUserPermsFromConfigSimulatorVPX(t *testing.T) {
 	require.NoError(t, err)
 
 	// Set up the Authz Manager
-	mgr, err := opsuser.NewRBACManager(ctx, sess, &opsuser.OpsuserRBACConf, configSpec)
+	mgr, err := opsuser.NewRBACManager(ctx, sess, &opsuser.DRSConf, configSpec)
 	require.NoError(t, err)
 
 	resourcePermissions, err := mgr.SetupRolesAndPermissions(ctx)
