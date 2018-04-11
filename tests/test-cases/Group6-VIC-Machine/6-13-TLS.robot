@@ -57,213 +57,213 @@ Create VCH - defaults with --no-tls
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
-# Create VCH - defaults custom cert path
-#     ${domain}=  Get Environment Variable  DOMAIN  ''
-#     Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
+Create VCH - defaults custom cert path
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
 
-#     Set Test Environment Variables
-#     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-#     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-#     ${output}=  Run  bin/vic-machine-linux create ${vicmachinetls} --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --tls-cert-path=${EXECDIR}/foo-bar-certs/ --insecure-registry wdc-harbor-ci.eng.vmware.com
-#     Should Contain  ${output}  --tlscacert=\\"${EXECDIR}/foo-bar-certs/ca.pem\\" --tlscert=\\"${EXECDIR}/foo-bar-certs/cert.pem\\" --tlskey=\\"${EXECDIR}/foo-bar-certs/key.pem\\"
-#     Should Contain  ${output}  Generating CA certificate/key pair - private key in ${EXECDIR}/foo-bar-certs/ca-key.pem
-#     Should Contain  ${output}  Generating server certificate/key pair - private key in ${EXECDIR}/foo-bar-certs/server-key.pem
-#     Should Contain  ${output}  Generating client certificate/key pair - private key in ${EXECDIR}/foo-bar-certs/key.pem
-#     Should Contain  ${output}  Generated browser friendly PFX client certificate - certificate in ${EXECDIR}/foo-bar-certs/cert.pfx
+    ${output}=  Run  bin/vic-machine-linux create ${vicmachinetls} --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --tls-cert-path=${EXECDIR}/foo-bar-certs/ --insecure-registry wdc-harbor-ci.eng.vmware.com
+    Should Contain  ${output}  --tlscacert=\\"${EXECDIR}/foo-bar-certs/ca.pem\\" --tlscert=\\"${EXECDIR}/foo-bar-certs/cert.pem\\" --tlskey=\\"${EXECDIR}/foo-bar-certs/key.pem\\"
+    Should Contain  ${output}  Generating CA certificate/key pair - private key in ${EXECDIR}/foo-bar-certs/ca-key.pem
+    Should Contain  ${output}  Generating server certificate/key pair - private key in ${EXECDIR}/foo-bar-certs/server-key.pem
+    Should Contain  ${output}  Generating client certificate/key pair - private key in ${EXECDIR}/foo-bar-certs/key.pem
+    Should Contain  ${output}  Generated browser friendly PFX client certificate - certificate in ${EXECDIR}/foo-bar-certs/cert.pfx
 
-#     Should Contain  ${output}  Installer completed successfully
-#     Get Docker Params  ${output}  ${true}
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
 
-#     ${save_env}=  Run  cat ${EXECDIR}/foo-bar-certs/%{VCH-NAME}.env
-#     Should Contain  ${save_env}  DOCKER_CERT_PATH=${EXECDIR}/foo-bar-certs
-#     Log To Console  Installer completed successfully: %{VCH-NAME}
+    ${save_env}=  Run  cat ${EXECDIR}/foo-bar-certs/%{VCH-NAME}.env
+    Should Contain  ${save_env}  DOCKER_CERT_PATH=${EXECDIR}/foo-bar-certs
+    Log To Console  Installer completed successfully: %{VCH-NAME}
 
-#     Run Regression Tests
-#     Cleanup VIC Appliance On Test Server
+    Run Regression Tests
+    Cleanup VIC Appliance On Test Server
 
-# Create VCH - force accept target thumbprint
-#     Set Test Environment Variables
-#     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-#     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+Create VCH - force accept target thumbprint
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-#     # Test that --force without --thumbprint accepts the --target thumbprint
-#     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --force --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --insecure-registry wdc-harbor-ci.eng.vmware.com
-#     Log  ${output}
-#     Should Contain  ${output}  Installer completed successfully
-#     Get Docker Params  ${output}  ${true}
-#     Log To Console  Installer completed successfully: %{VCH-NAME}
+    # Test that --force without --thumbprint accepts the --target thumbprint
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --force --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --insecure-registry wdc-harbor-ci.eng.vmware.com
+    Log  ${output}
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: %{VCH-NAME}
 
-#     Run Regression Tests
-#     Cleanup VIC Appliance On Test Server
-
-
-
-# Create VCH - Specified keys
-#     Pass execution  Test not implemented until vic-machine can poll status correctly
+    Run Regression Tests
+    Cleanup VIC Appliance On Test Server
 
 
 
-# Create VCH - Server certificate with multiple blocks
-#     Set Test Environment Variables
-#     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-#     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-
-#     # Install first to generate certificates
-#     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
-#     Should Contain  ${output}  Installer completed successfully
-#     Get Docker Params  ${output}  ${true}
-#     Log To Console  Installer completed successfully: %{VCH-NAME}
-
-#     # Remove the installed VCH
-#     ${ret}=  Run  bin/vic-machine-linux delete --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --name=%{VCH-NAME} --force
-#     Should Contain  ${ret}  Completed successfully
-
-#     # Update server-cert.pem with a junk block in the beginning
-#     Run  echo "-----BEGIN RSA PRIVATE KEY-----\nJUNK\n-----END RSA PRIVATE KEY-----" | cat - ./%{VCH-NAME}/server-cert.pem > /tmp/%{VCH-NAME}-server-cert.pem && mv /tmp/%{VCH-NAME}-server-cert.pem ./%{VCH-NAME}/server-cert.pem
-
-#     # Install VCH
-#     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --no-tlsverify
-#     Should Contain  ${output}  Failed to load x509 leaf
-#     Should Contain  ${output}  Loaded server certificate
-#     Should Contain  ${output}  Installer completed successfully
-
-#     Cleanup VIC Appliance On Test Server
+Create VCH - Specified keys
+    Pass execution  Test not implemented until vic-machine can poll status correctly
 
 
 
-# Create VCH - Invalid keys
-#     ${domain}=  Get Environment Variable  DOMAIN  ''
-#     Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
+Create VCH - Server certificate with multiple blocks
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-#     Set Test Environment Variables
-#     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-#     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    # Install first to generate certificates
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: %{VCH-NAME}
 
-#     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
+    # Remove the installed VCH
+    ${ret}=  Run  bin/vic-machine-linux delete --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --name=%{VCH-NAME} --force
+    Should Contain  ${ret}  Completed successfully
 
-#     # Invalid server key
-#     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --tls-ca="./%{VCH-NAME}/ca.pem" --tls-server-cert="./%{VCH-NAME}/server-cert.pem" --tls-server-key="./%{VCH-NAME}/ca.pem"
-#     Should Contain  ${output}  found a certificate rather than a key in the PEM for the private key
+    # Update server-cert.pem with a junk block in the beginning
+    Run  echo "-----BEGIN RSA PRIVATE KEY-----\nJUNK\n-----END RSA PRIVATE KEY-----" | cat - ./%{VCH-NAME}/server-cert.pem > /tmp/%{VCH-NAME}-server-cert.pem && mv /tmp/%{VCH-NAME}-server-cert.pem ./%{VCH-NAME}/server-cert.pem
 
-#     # Invalid server cert
-#     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --tls-ca="./%{VCH-NAME}/ca.pem" --tls-server-cert="./%{VCH-NAME}/server-key.pem" --tls-server-key="./%{VCH-NAME}/server-key.pem"
-#     Should Contain  ${output}  did find a private key; PEM inputs may have been switched
+    # Install VCH
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --no-tlsverify
+    Should Contain  ${output}  Failed to load x509 leaf
+    Should Contain  ${output}  Loaded server certificate
+    Should Contain  ${output}  Installer completed successfully
 
-#     # Invalid CA
-#     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --tls-ca="./%{VCH-NAME}/key.pem" --tls-server-cert="./%{VCH-NAME}/server-cert.pem" --tls-server-key="./%{VCH-NAME}/server-key.pem"
-#     Should Contain  ${output}  Unable to load certificate authority data
-
-#     Cleanup VIC Appliance On Test Server
-
-
-
-# Create VCH - Reuse keys
-#     ${domain}=  Get Environment Variable  DOMAIN  ''
-#     Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
-
-#     Set Test Environment Variables
-
-#     # use one install to generate certificates
-#     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
-#     Should Contain  ${output}  Installer completed successfully
-#     Get Docker Params  ${output}  ${true}
-#     Log To Console  Installer completed successfully: %{VCH-NAME}
-
-#     # remove the initial deployment
-#     ${ret}=  Run  bin/vic-machine-linux delete --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --name=%{VCH-NAME} --force
-#     Should Contain  ${ret}  Completed successfully
-
-#     # deploy using the same name - should reuse certificates
-#     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
-#     Should Contain  ${output}  Installer completed successfully
-
-#     Should Contain  ${output}  Loaded server certificate
-#     Should Contain  ${output}  Loaded CA with default name from certificate path
-#     Should Contain  ${output}  Loaded client certificate with default name from certificate path
-
-#     Cleanup VIC Appliance On Test Server
+    Cleanup VIC Appliance On Test Server
 
 
 
-# Create VCH - Server cert with untrusted CA
-#     ${domain}=  Get Environment Variable  DOMAIN  ''
-#     Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
+Create VCH - Invalid keys
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
 
-#     Set Test Environment Variables
-#     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-#     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-#     # Generate CA and wildcard cert for *.<DOMAIN>
-#     Generate Certificate Authority
-#     Generate Wildcard Server Certificate
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
 
-#     ${out}=  Run  cp /root/ca/cert-bundle.tgz .; tar xvf cert-bundle.tgz
-#     Log  ${out}
+    # Invalid server key
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --tls-ca="./%{VCH-NAME}/ca.pem" --tls-server-cert="./%{VCH-NAME}/server-cert.pem" --tls-server-key="./%{VCH-NAME}/ca.pem"
+    Should Contain  ${output}  found a certificate rather than a key in the PEM for the private key
 
-#     # Run vic-machine install, supply server cert and key
-#     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-server-key "bundle/*.${domain}.key.pem" --tls-server-cert "bundle/*.${domain}.cert.pem" --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --debug 1
-#     Log  ${output}
-#     Should Contain  ${output}  Loaded server certificate bundle
-#     Should Contain  ${output}  Unable to locate existing CA in cert path
-#     Should Contain  ${output}  Failed to find a viable address for Docker API from certificates
-#     Should Contain  ${output}  Server certificate hostname doesn't match
-#     Should Contain  ${output}  Installer completed successfully
+    # Invalid server cert
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --tls-ca="./%{VCH-NAME}/ca.pem" --tls-server-cert="./%{VCH-NAME}/server-key.pem" --tls-server-key="./%{VCH-NAME}/server-key.pem"
+    Should Contain  ${output}  did find a private key; PEM inputs may have been switched
 
-#     # Verify that the supplied certificate is presented on web interface
-#     Get Docker Params  ${output}  ${true}
-#     ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
-#     Log  ${output}
-#     Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
+    # Invalid CA
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --tls-ca="./%{VCH-NAME}/key.pem" --tls-server-cert="./%{VCH-NAME}/server-cert.pem" --tls-server-key="./%{VCH-NAME}/server-key.pem"
+    Should Contain  ${output}  Unable to load certificate authority data
 
-#     Run  rm -rf bundle
-#     Run  rm -f cert-bundle.tgz
-#     Run  rm -rf /root/ca
-#     Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
+    Cleanup VIC Appliance On Test Server
 
 
 
-# Create VCH - Server cert with trusted CA
-#     ${domain}=  Get Environment Variable  DOMAIN  ''
-#     Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
+Create VCH - Reuse keys
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
 
-#     Set Test Environment Variables
-#     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-#     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Set Test Environment Variables
 
-#     # Generate CA and wildcard cert for *.<DOMAIN>, install CA into root store
-#     Generate Certificate Authority
-#     Generate Wildcard Server Certificate
-#     Trust Certificate Authority
+    # use one install to generate certificates
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: %{VCH-NAME}
 
-#     ${out}=  Run  cp /root/ca/cert-bundle.tgz .; tar xvf cert-bundle.tgz
-#     Log  ${out}
+    # remove the initial deployment
+    ${ret}=  Run  bin/vic-machine-linux delete --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --name=%{VCH-NAME} --force
+    Should Contain  ${ret}  Completed successfully
 
-#     # Run vic-machine install, supply server cert and key
-#     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-server-key "bundle/*.%{DOMAIN}.key.pem" --tls-server-cert "bundle/*.%{DOMAIN}.cert.pem" --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --debug 1
-#     Log  ${output}
-#     Should Contain  ${output}  Loaded server certificate bundle
-#     Should Contain  ${output}  Unable to locate existing CA in cert path
-#     Should Contain  ${output}  Installer completed successfully
+    # deploy using the same name - should reuse certificates
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
+    Should Contain  ${output}  Installer completed successfully
 
+    Should Contain  ${output}  Loaded server certificate
+    Should Contain  ${output}  Loaded CA with default name from certificate path
+    Should Contain  ${output}  Loaded client certificate with default name from certificate path
 
-#     # Verify that the supplied certificate is presented on web interface
-#     Get Docker Params  ${output}  ${true}
-#     ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
-#     Log  ${output}
-#     Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
-
-#     Run  rm -rf bundle
-#     Run  rm -f cert-bundle.tgz
-#     Run  rm -rf /root/ca
-
-#     Reload Default Certificate Authorities
-
-#     Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
+    Cleanup VIC Appliance On Test Server
 
 
 
-# Create VCH - Server cert with intermediate CA
-#     ${domain}=  Get Environment Variable  DOMAIN  ''
-#     Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
-#     Pass execution  Test not implemented
+Create VCH - Server cert with untrusted CA
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
+
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    # Generate CA and wildcard cert for *.<DOMAIN>
+    Generate Certificate Authority
+    Generate Wildcard Server Certificate
+
+    ${out}=  Run  cp /root/ca/cert-bundle.tgz .; tar xvf cert-bundle.tgz
+    Log  ${out}
+
+    # Run vic-machine install, supply server cert and key
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-server-key "bundle/*.${domain}.key.pem" --tls-server-cert "bundle/*.${domain}.cert.pem" --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --debug 1
+    Log  ${output}
+    Should Contain  ${output}  Loaded server certificate bundle
+    Should Contain  ${output}  Unable to locate existing CA in cert path
+    Should Contain  ${output}  Failed to find a viable address for Docker API from certificates
+    Should Contain  ${output}  Server certificate hostname doesn't match
+    Should Contain  ${output}  Installer completed successfully
+
+    # Verify that the supplied certificate is presented on web interface
+    Get Docker Params  ${output}  ${true}
+    ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
+    Log  ${output}
+    Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
+
+    Run  rm -rf bundle
+    Run  rm -f cert-bundle.tgz
+    Run  rm -rf /root/ca
+    Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
+
+
+
+Create VCH - Server cert with trusted CA
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
+
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    # Generate CA and wildcard cert for *.<DOMAIN>, install CA into root store
+    Generate Certificate Authority
+    Generate Wildcard Server Certificate
+    Trust Certificate Authority
+
+    ${out}=  Run  cp /root/ca/cert-bundle.tgz .; tar xvf cert-bundle.tgz
+    Log  ${out}
+
+    # Run vic-machine install, supply server cert and key
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-server-key "bundle/*.%{DOMAIN}.key.pem" --tls-server-cert "bundle/*.%{DOMAIN}.cert.pem" --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --debug 1
+    Log  ${output}
+    Should Contain  ${output}  Loaded server certificate bundle
+    Should Contain  ${output}  Unable to locate existing CA in cert path
+    Should Contain  ${output}  Installer completed successfully
+
+
+    # Verify that the supplied certificate is presented on web interface
+    Get Docker Params  ${output}  ${true}
+    ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
+    Log  ${output}
+    Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
+
+    Run  rm -rf bundle
+    Run  rm -f cert-bundle.tgz
+    Run  rm -rf /root/ca
+
+    Reload Default Certificate Authorities
+
+    Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
+
+
+
+Create VCH - Server cert with intermediate CA
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
+    Pass execution  Test not implemented
