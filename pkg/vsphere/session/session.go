@@ -359,6 +359,13 @@ func (s *Session) Populate(ctx context.Context) (*Session, error) {
 		} else {
 			op.Debugf("Cached folders: %s", s.DatacenterPath)
 		}
+		// There could be cases where no error from Datacenter.Folders, but nil folder is returned. In this case we should bail out.
+		// It's also possible that there's an error, but a valid vm folder is returned
+		if folders == nil {
+			errs = append(errs, fmt.Sprintf("Nil folder returned when finding folders (%s)", s.DatacenterPath))
+			return nil, errors.New(strings.Join(errs, "\n"))
+		}
+
 		s.VMFolder = folders.VmFolder
 	}
 

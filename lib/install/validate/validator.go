@@ -163,6 +163,15 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 		op.Debugf("new validator Session.Populate: %s", err)
 	}
 
+	if v.Session.VMFolder == nil {
+		op.Debugf("Failed to set validator session VM folder")
+		// it's possible that VMFolder is not set, but session.Populate doesn't return any error
+		if err == nil {
+			err = errors.New("validator Session.Populate: no datacenter folder (nil) is found")
+		}
+		return nil, err
+	}
+
 	if strings.Contains(sessionconfig.DatacenterPath, "/") {
 		detail := "--target should only specify datacenter in the path (e.g. https://addr/datacenter) - specify cluster, resource pool, or folder with --compute-resource"
 		op.Error(detail)
