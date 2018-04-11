@@ -255,10 +255,7 @@ func (d *Dispatcher) SearchVCHs(computePath string) ([]*vm.VirtualMachine, error
 func (d *Dispatcher) searchVCHsFromComputePath(computePath string) ([]*vm.VirtualMachine, error) {
 	defer trace.End(trace.Begin(computePath, d.op))
 
-	var err error
-	var pools []*object.ResourcePool
-
-	pools, err = d.listResourcePools(path.Join(computePath, "..."))
+	pools, err := d.listResourcePools(path.Join(computePath, "..."))
 
 	if err != nil {
 		err = errors.Errorf("Failed to search for resource pools for compute path %q: %s", computePath, err)
@@ -273,21 +270,16 @@ func (d *Dispatcher) searchVCHsFromComputePath(computePath string) ([]*vm.Virtua
 func (d *Dispatcher) searchVCHsPerDC(dc *object.Datacenter) ([]*vm.VirtualMachine, error) {
 	defer trace.End(trace.Begin(dc.InventoryPath, d.op))
 
-	var err error
-	var pools []*object.ResourcePool
-
 	d.session.Datacenter = dc
 	d.session.Finder.SetDatacenter(dc)
 
-	var vchs []*vm.VirtualMachine
-
-	pools, err = d.listResourcePools("*")
+	pools, err := d.listResourcePools("*")
 	if err != nil {
 		err = errors.Errorf("Failed to search resource pools for datacenter %q: %s", dc.InventoryPath, err)
 		return nil, err
 	}
 
-	vchs = d.searchVCHsFromPools(pools)
+	vchs := d.searchVCHsFromPools(pools)
 	return vchs, nil
 }
 

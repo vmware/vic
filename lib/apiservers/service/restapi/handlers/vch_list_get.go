@@ -123,7 +123,14 @@ func vchsToModels(op trace.Operation, vchs []*vm.VirtualMachine, executor *manag
 			powerState = "error"
 		}
 
-		model := &models.VCHListItem{ID: id, Name: name, AdminPortal: adminPortal, DockerHost: dockerHost, PowerState: string(powerState)}
+		model := &models.VCHListItem{
+			ID: id,
+			Name: name,
+			AdminPortal: adminPortal,
+			DockerHost: dockerHost,
+			PowerState: string(powerState),
+		}
+
 		if version != nil {
 			model.Version = version.ShortVersion()
 			model.UpgradeStatus = upgradeStatusMessage(op, vch, installerVer, version)
