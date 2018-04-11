@@ -258,6 +258,8 @@ func startServer() *apiserver.Server {
 			tlsConfig.ClientCAs = loadCAPool()
 			tlsConfig.InsecureSkipVerify = false
 		}
+	} else {
+		log.Warnf("Docker endpoint running in plain HTTP mode")
 	}
 
 	addr := "0.0.0.0"
@@ -283,7 +285,6 @@ func startServer() *apiserver.Server {
 
 	if vchConfig.HostCertificate.IsNil() && vchConfig.Diagnostics.DebugLevel <= 2 {
 		// only enforce host header check in non-debug http-only mode
-		log.Warnf("Docker endpoint running in plain HTTP mode")
 		enforceHostHeaderCheck(addr, api)
 	}
 
