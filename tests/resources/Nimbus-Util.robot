@@ -16,8 +16,8 @@
 Documentation  This resource contains any keywords related to using the Nimbus cluster
 
 *** Variables ***
-${ESX_VERSION}  ob-5969303  #6.5 RTM vsphere65u1
-${VC_VERSION}  ob-5973321   #6.5 RTM vsphere65u1
+${ESX_VERSION}  ob-7867845
+${VC_VERSION}  ob-7867539
 ${NIMBUS_ESX_PASSWORD}  e2eFunctionalTest
 ${NIMBUS_LOCATION}  ${EMPTY}
 
@@ -60,6 +60,7 @@ Deploy Nimbus ESXi Server
 
     :FOR  ${IDX}  IN RANGE  1  5
     \   ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --lease=0.25 --nics 2 ${version}
+    \   Log  ${out}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  To manage this VM use
     \   Exit For Loop If  ${status}
@@ -114,6 +115,7 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     @{processes}=  Create List
     :FOR  ${name}  IN  @{names}
     \    ${output}=  Deploy Nimbus ESXi Server Async  ${name}
+    \    Log  ${output}
     \    Append To List  ${processes}  ${output}
 
     :FOR  ${process}  IN  @{processes}
@@ -146,6 +148,7 @@ Deploy Nimbus vCenter Server
 
     :FOR  ${IDX}  IN RANGE  1  5
     \   ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-vcvadeploy --lease=0.25 --vcvaBuild ${version} ${name}
+    \   Log  ${out}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  Overall Status: Succeeded
     \   Exit For Loop If  ${status}

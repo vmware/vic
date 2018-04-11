@@ -47,8 +47,11 @@ func NewUpgrade() *Upgrade {
 func (u *Upgrade) Flags() []cli.Flag {
 	util := []cli.Flag{
 		cli.BoolFlag{
-			Name:        "force, f",
-			Usage:       "Force the upgrade (ignores version checks)",
+			Name: "force, f",
+			// TODO: having a single force to facilitate multiple things has been problematic
+			// updated description clarifies the intent, but still open to issue
+			// https://github.com/vmware/vic/issues/3118
+			Usage:       "Force the upgrade (ignores version check & thumbprint)",
 			Destination: &u.Force,
 		},
 		cli.DurationFlag{
@@ -197,7 +200,7 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 	vConfig.Timeout = u.Timeout
 
 	// only care about versions if we're not doing a manual rollback
-	if !u.Data.Rollback {
+	if !u.Data.Rollback && !u.Data.Force {
 		if err := validator.AssertVersion(op, vchConfig); err != nil {
 			op.Error(err)
 			return errors.New("upgrade failed")

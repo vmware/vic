@@ -4,21 +4,16 @@ workspace:
   base: /go
   path: src/github.com/vmware/vic
 
-pipeline:
-
-  clone:
+clone:
+  git:
     image: plugins/git
     tags: true
     recursive: false
 
-  clone-pr:
-    image: wdc-harbor-ci.eng.vmware.com/default-project/git-clone:1.0
-    pull: true
-    when:
-      event: [ pull_request ]
+pipeline:
 
   display-status:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
     pull: true
     environment:
       BIN: bin
@@ -30,7 +25,7 @@ pipeline:
       - 'git log -1 --pretty=oneline | grep "^${DRONE_COMMIT}" > /dev/null && echo ''Build matches'' || (git log -1 --pretty=oneline | grep "Merge ${DRONE_COMMIT}" > /dev/null && echo ''Build is of a merge commit'' || (echo ''Build does not match!'' && exit 1))'
 
   wait-for-build:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
     pull: true
     environment:
       BIN: bin
@@ -39,12 +34,14 @@ pipeline:
     secrets:
       - drone_server
       - drone_token
-      - test_url_array
+      - haas_url_array
+      - overflow_url_array
     commands:
+      - export TEST_URL_ARRAY="$HAAS_URL_ARRAY $OVERFLOW_URL_ARRAY"
       - tests/wait_until_previous_builds_complete.sh
 
   check-org-membership:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
     pull: true
     environment:
       BIN: bin
@@ -52,14 +49,16 @@ pipeline:
       SHELL: /bin/bash
     secrets:
       - github_automation_api_key
+      - skip_check_membership
     commands:
       - echo ${DRONE_COMMIT_AUTHOR}
-      - /bin/bash -c '[[ ! $(curl --silent "https://api.github.com/orgs/vmware/members/${DRONE_COMMIT_AUTHOR}?access_token=$GITHUB_AUTOMATION_API_KEY") ]]'
+      - echo $SKIP_CHECK_MEMBERSHIP
+      - if "$SKIP_CHECK_MEMBERSHIP" == true; then echo 'check-org-membership step skipped'; else /bin/bash -c '[[ ! $(curl --silent "https://api.github.com/orgs/vmware/members/${DRONE_COMMIT_AUTHOR}?access_token=$GITHUB_AUTOMATION_API_KEY") ]]'; fi
     when:
       status: success
 
   vic-engine:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
     pull: true
     environment:
       BIN: bin
@@ -69,28 +68,15 @@ pipeline:
       - drone_server
       - drone_token
       - github_automation_api_key
-      - registry_password
-      - test_password
-      - test_url_array
-      - test_username
+      - codecov_token
     commands:
-      - 'export BUILD_NUMBER=${DRONE_BUILD_NUMBER}'
-      - 'export COMMIT=${DRONE_COMMIT}'
-      - 'make mark'
-      - 'make all'
-      - 'make sincemark'
-      - 'make mark'
-      - 'echo `ls vendor/github.com/vmware/govmomi/vim25/methods`'
-      - 'echo `ls vendor/github.com/vmware/govmomi/vim25/types`'
-      - 'echo `ls vendor/github.com/docker/docker/vendor/github.com/opencontainers/runc/libcontainer/system`'
-      - 'export VIC_ESX_URL_ARRAY="`tests/get_test_url.sh`"'
+      - make all
       - tests/unit-test-check.sh
-      - 'make sincemark'
     when:
       status: success
 
   vic-integration-test-on-pr:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
     pull: true
     privileged: true
     environment:
@@ -99,7 +85,6 @@ pipeline:
       SHELL: /bin/bash
       LOG_TEMP_DIR: install-logs
     secrets:
-      - bridge_network
       - ci_domain
       - debug_vch
       - drone_server
@@ -119,8 +104,9 @@ pipeline:
       - test_resource
       - test_timeout
       - test_password
-      - test_url_array
       - test_username
+      - haas_url_array
+      - overflow_url_array
     commands:
       - export GOVC_INSECURE=true
       - export GOVC_USERNAME=$TEST_USERNAME
@@ -129,16 +115,15 @@ pipeline:
       - export DOMAIN=$CI_DOMAIN
       - export MULTI_VCH=1
       - echo $DOMAIN
-      - 'make mark'
+      - export TEST_URL_ARRAY="$HAAS_URL_ARRAY $OVERFLOW_URL_ARRAY"
       - tests/integration-test.sh
-      - 'make sincemark'
     volumes:
       - /tmp
     when:
       status: success
 
   vic-ui:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
     pull: true
     environment:
      BIN: bin
@@ -160,7 +145,7 @@ pipeline:
       branch: [master]
 
   vic-ui-release:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
     pull: true
     environment:
       BIN: bin
@@ -266,16 +251,12 @@ pipeline:
 
   publish-vic-machine-server-dev:
     image: plugins/gcr
+    pull: true
     repo: eminent-nation-87317/vic-machine-server
     dockerfile: cmd/vic-machine-server/Dockerfile
-    secrets:
-      - gs_client_email
-      - gs_private_key
-      - gs_private_key_id
-      - gs_project_id
+    secrets: [ token ]
     tags:
       - dev
-    json_key: "{   \"type\": \"service_account\",\n  \"project_id\": \"$GS_PROJECT_ID\",\n  \"private_key_id\": \"$GS_PRIVATE_KEY_ID\",\n  \"private_key\": \"$GS_PRIVATE_KEY\",\n  \"client_email\": \"$GS_CLIENT_EMAIL\",\n  \"client_id\": \"$GS_PROJECT_ID\",\n  \"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",\n  \"token_uri\": \"https://accounts.google.com/o/oauth2/token\",\n  \"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",\n  \"client_x509_cert_url\": \"\"\n}\n"
     when:
       repo: vmware/vic
       event: [push]
@@ -284,16 +265,12 @@ pipeline:
 
   publish-vic-machine-server-releases:
     image: plugins/gcr
+    pull: true
     repo: eminent-nation-87317/vic-machine-server
     dockerfile: cmd/vic-machine-server/Dockerfile
-    secrets:
-      - gs_client_email
-      - gs_private_key
-      - gs_private_key_id
-      - gs_project_id
+    secrets: [ token ]
     tags:
       - latest
-    json_key: "{   \"type\": \"service_account\",\n  \"project_id\": \"$GS_PROJECT_ID\",\n  \"private_key_id\": \"$GS_PRIVATE_KEY_ID\",\n  \"private_key\": \"$GS_PRIVATE_KEY\",\n  \"client_email\": \"$GS_CLIENT_EMAIL\",\n  \"client_id\": \"$GS_PROJECT_ID\",\n  \"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",\n  \"token_uri\": \"https://accounts.google.com/o/oauth2/token\",\n  \"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",\n  \"client_x509_cert_url\": \"\"\n}\n"
     when:
       repo: vmware/vic
       event: [push, tag]
@@ -312,13 +289,6 @@ pipeline:
       event: [push, tag]
       branch: [master, 'releases/*', 'refs/tags/*']
       status: success
-
-  report-coverage:
-    image: robertstettner/drone-codecov
-    secrets:
-      - codecov_token
-    files:
-      - .cover/cover.out
 
   notify-slack-on-fail:
     image: plugins/slack
@@ -359,7 +329,7 @@ pipeline:
       branch: ['refs/tags/*']
 
   pass-rate:
-    image: 'gcr.io/eminent-nation-87317/vic-integration-test:1.46'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
     pull: true
     environment:
       BIN: bin

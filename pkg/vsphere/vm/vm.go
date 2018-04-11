@@ -271,18 +271,44 @@ func (vm *VirtualMachine) UUID(ctx context.Context) (string, error) {
 func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInfo, error) {
 
 	op := trace.FromContext(ctx, "DeleteExceptDisks")
+	vmName, err := vm.ObjectName(op)
+	if err != nil {
+		vmName = vm.String()
+		op.Debugf("Failed to get VM name, using moref %q instead due to: %s", vmName, err)
+	}
 
-	devices, err := vm.Device(op)
+	firstTime := true
+	err = retry.Do(func() error {
+		op.Debugf("Getting list of the devices for VM %q", vmName)
+		devices, err := vm.Device(op)
+		if err != nil {
+			return err
+		}
+
+		disks := devices.SelectByType(&types.VirtualDisk{})
+		if len(disks) > 0 {
+			op.Debugf("Removing disks from VM %q", vmName)
+			firstTime = false
+			return vm.RemoveDevice(op, true, disks...)
+		}
+
+		if firstTime {
+			op.Debugf("Disk list is empty for VM %q", vmName)
+		} else {
+			op.Debugf("All VM %q disks were removed at first call, but the result yielded an error that caused a retry", "%q")
+		}
+
+		return nil
+
+	}, func(err error) bool {
+		return tasks.IsRetryError(op, err)
+	})
+
 	if err != nil {
 		return nil, err
 	}
 
-	disks := devices.SelectByType(&types.VirtualDisk{})
-	err = vm.RemoveDevice(op, true, disks...)
-	if err != nil {
-		return nil, err
-	}
-
+	op.Debugf("Destroying VM %q", vmName)
 	info, err := vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		return vm.Destroy(ctx)
 	})
@@ -292,21 +318,19 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInf
 	}
 
 	// If destroy method is disabled on this VM, re-enable it and retry
-	if tasks.IsMethodDisabledError(err) {
-		err = retry.Do(func() error {
-			return vm.EnableDestroy(op)
-		}, tasks.IsConcurrentAccessError)
+	op.Debugf("Destroy is disabled. Enabling destroy for VM %q", vmName)
+	err = retry.Do(func() error {
+		return vm.EnableDestroy(op)
+	}, tasks.IsConcurrentAccessError)
 
-		if err != nil {
-			return nil, err
-		}
-
-		return vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
-			return vm.Destroy(ctx)
-		})
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, err
+	op.Debugf("Retrying destroy of VM %q again", vmName)
+	return vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
+		return vm.Destroy(ctx)
+	})
 }
 
 func (vm *VirtualMachine) VMPathName(ctx context.Context) (string, error) {

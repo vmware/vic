@@ -787,7 +787,11 @@ func TestPortInformation(t *testing.T) {
 	cache.ContainerCache().AddContainer(co)
 
 	// unless there are entries in vicnetwork.ContainerByPort we won't report them as bound
-	ports := network.PortForwardingInformation(co, ips)
+	ports := network.PortForwardingInformation(nil, ips)
+	assert.Empty(t, ports, "No ports should be returned for nil container")
+
+	// unless there are entries in vicnetwork.ContainerByPort we won't report them as bound
+	ports = network.PortForwardingInformation(co, ips)
 	assert.Empty(t, ports, "There should be no bound IPs at this point for forwarding")
 
 	// the current port binding should show up as a direct port

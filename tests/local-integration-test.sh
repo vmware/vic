@@ -73,7 +73,7 @@ workspace:
 
 pipeline:
   vic-integration-test-on-pr:
-    image: gcr.io/eminent-nation-87317/vic-integration-test:1.46
+    image: gcr.io/eminent-nation-87317/vic-integration-test:1.48
     pull: true
     environment:
       GITHUB_AUTOMATION_API_KEY: $GITHUB_TOKEN

@@ -57,7 +57,7 @@ Delete VCH and verify
     ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --force
     Should Contain  ${ret}  Completed successfully
     Should Not Contain  ${ret}  Operation failed: Error caused by file
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
+    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Run Keyword And Ignore Error  Cleanup VCH Bridge Network
 
     # Check VM is removed
     ${ret}=  Run  govc vm.info -json=true ${containerName}-*
@@ -100,7 +100,7 @@ Attach Disks and Delete VCH
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
+    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Run Keyword And Ignore Error  Cleanup VCH Bridge Network
 
     ${rc}=  Run And Return Rc  govc datastore.ls -dc=%{TEST_DATACENTER} %{VCH-NAME}/VIC/
     Should Be Equal As Integers  ${rc}  1
@@ -142,7 +142,7 @@ Delete VCH with non-cVM in same RP
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
+    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Run Keyword And Ignore Error  Cleanup VCH Bridge Network
 
 
 Delete VCH moved from its RP
@@ -157,6 +157,8 @@ Delete VCH moved from its RP
 
     ${rand}=  Generate Random String  15
     ${dummyvm}=  Set Variable  anothervm-${rand}
+    ${dummyRP}=  Set Variable  rp-${rand}
+
     Set Suite Variable  ${tempvm}  ${dummyvm}
     Log To Console  Create VM ${dummyvm} in ${test-resource}/%{VCH-NAME} net %{PUBLIC_NETWORK}
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool=${test-resource}/%{VCH-NAME} -net=%{PUBLIC_NETWORK} -on=false ${dummyvm}
@@ -168,11 +170,11 @@ Delete VCH moved from its RP
     Should Contain  ${output}  ${dummyvm}
 
     # Create temp RP
-    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.create "${test-resource}/rp-${rand}"
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.create "${test-resource}/${dummyRP}"
     Should Be Equal As Integers  ${rc}  0
 
     # Move VCH to temp RP
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.migrate -pool "${test-resource}/rp-${rand}" %{VCH-NAME}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.migrate -pool "${test-resource}/${dummyRP}" %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
 
     # Delete with force
@@ -195,11 +197,11 @@ Delete VCH moved from its RP
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "${test-resource}/temp-%{VCH-NAME}"
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy "${dummyRP}"
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
+    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Run Keyword And Ignore Error  Cleanup VCH Bridge Network
 
 
 Delete VCH moved to root RP and original RP deleted
@@ -243,5 +245,4 @@ Delete VCH moved to root RP and original RP deleted
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{BRIDGE_NETWORK}
-
+    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Run Keyword And Ignore Error  Cleanup VCH Bridge Network

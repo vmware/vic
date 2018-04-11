@@ -112,7 +112,7 @@ curl https://cdn.rawgit.com/tommarshall/git-good-commit/v0.6.1/hook.sh > .git/ho
 
 [dronevic]:https://ci-vic.vmware.com/vmware/vic
 [dronesrc]:https://github.com/drone/drone
-[dronecli]:http://readme.drone.io/0.5/install/cli/
+[dronecli]:http://docs.drone.io/cli-installation/
 [commithook]:https://github.com/tommarshall/git-good-commit
 
 ## Automated Testing
@@ -132,6 +132,8 @@ you can use these keywords in your PR body:
   - To run several specific suites: `[specific ci=$test1 --suite $test2 --suite $test3]`.
 - To skip running the unit tests, use `[skip unit]`.
 - To fail fast (make normal failures fatal) during the integration testing, use `[fast fail]`.
+- To specify a specific datastore you want, use `[shared datastore=nfs-datastore]`.
+- To specify the number of parallel jobs you want, use `[parallel jobs=2]`.
 
 You can run the tests locally before making a PR or view the Drone build results for [unit tests and integration tests][dronevic].
 
@@ -144,6 +146,10 @@ export DRONE_TOKEN=<Drone Token>
 export DRONE_SERVER=https://ci-vic.vmware.com
 
 drone build start vmware/vic <Build Number>
+```
+If you are not a member of `vmware` org in github, then your PR build may fail. In that case, request one of the existing members / reviewers to fork your failed build to skip membership checking.
+```shell
+drone build start --param SKIP_CHECK_MEMBERSHIP=true vmware/vic <Build Number>
 ```
 
 ### Testing locally

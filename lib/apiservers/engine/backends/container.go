@@ -1402,7 +1402,11 @@ payloadLoop:
 				ips = []string{""}
 			}
 			c := cache.ContainerCache().GetContainer(t.ContainerConfig.ContainerID)
-			ports = append(ports, network.PortForwardingInformation(c, ips)...)
+			if c != nil {
+				ports = append(ports, network.PortForwardingInformation(c, ips)...)
+			} else {
+				log.Warningf("Container is not found in cache: %s", t.ContainerConfig.ContainerID)
+			}
 		}
 
 		// verify that the repo:tag exists for the container -- if it doesn't then we should present the

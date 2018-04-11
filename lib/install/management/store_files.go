@@ -89,7 +89,7 @@ func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) e
 				errs = append(errs, err.Error())
 			}
 		} else {
-			d.op.Debug("Image store parent directory not empty, leaving in place.")
+			d.op.Debug("Image store parent directory not empty, leaving in place. Still contains the following entries: %q", strings.Join(children, ", "))
 		}
 	}
 
@@ -187,9 +187,9 @@ func (d *Dispatcher) deleteFilesIteratively(m *object.DatastoreFileManager, ds *
 func (d *Dispatcher) deleteVMFSFiles(m *object.DatastoreFileManager, ds *object.Datastore, dsPath string) error {
 	defer trace.End(trace.Begin(dsPath, d.op))
 
-	for _, ext := range []string{"-delta.vmdk", "-flat.vmdk"} {
+	for _, ext := range []string{"-delta.vmdk", "-flat.vmdk", "-sesparse.vmdk"} {
 		if strings.HasSuffix(dsPath, ext) {
-			// Skip backing files as Delete() will do so via DeleteVirtualDisk
+			// Skip backing files, as Delete() call below will remove all related vmdk files via DeleteVirtualDisk
 			return nil
 		}
 	}

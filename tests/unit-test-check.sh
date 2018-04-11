@@ -18,4 +18,5 @@ prBody=$(curl https://api.github.com/repos/vmware/vic/pulls/$prNumber?access_tok
 
 if ! (echo $prBody | grep -q "\[skip unit\]"); then
   make test
+  codecov --token $CODECOV_TOKEN --file .cover/cover.out
 fi

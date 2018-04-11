@@ -252,7 +252,7 @@ func updateSessionEnv(sess *executor.SessionConfig, envName, envValue string) {
 
 func (c *Configure) processCertificates(op trace.Operation, client, public, management data.NetworkConfig) error {
 
-	if !c.certificates.NoTLSverify && (c.certificates.Skey == "" || c.certificates.Scert == "") {
+	if c.certificates.Cname == "" && !c.certificates.NoTLSverify && (c.certificates.Skey == "" || c.certificates.Scert == "") {
 		op.Info("No certificate regeneration requested. No new certificates provided. Certificates left unchanged.")
 		return nil
 	}
