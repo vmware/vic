@@ -124,11 +124,11 @@ func vchsToModels(op trace.Operation, vchs []*vm.VirtualMachine, executor *manag
 		}
 
 		model := &models.VCHListItem{
-			ID: id,
-			Name: name,
+			ID:          id,
+			Name:        name,
 			AdminPortal: adminPortal,
-			DockerHost: dockerHost,
-			PowerState: string(powerState),
+			DockerHost:  dockerHost,
+			PowerState:  string(powerState),
 		}
 
 		if version != nil {
