@@ -442,13 +442,14 @@ Check For The Proper Log Files
     [Arguments]  ${container}
     # Ensure container logs are correctly being gathered for debugging purposes
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/authentication -XPOST -F username=%{TEST_USERNAME} -F password=%{TEST_PASSWORD} -D /tmp/cookies-%{VCH-NAME}
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b /tmp/cookies-%{VCH-NAME} -o container-logs.tar.gz
-    Should Be Equal As Integers  ${rc}  0
     Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc and Output  tar tvzf container-logs.tar.gz
-    Should Be Equal As Integers  ${rc}  0
     Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
     @{words}=  Split String  ${container}  -
     Should Contain Any  ${output}  @{words}[0]/output.log  @{words}[1]/output.log
     Should Contain Any  ${output}  @{words}[0]/vmware.log  @{words}[1]/vmware.log
