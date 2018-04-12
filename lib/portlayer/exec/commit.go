@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -79,7 +79,7 @@ func Commit(op trace.Operation, sess *session.Session, h *Handle, waitTime *int3
 		c = newContainer(&h.containerBase)
 		Containers.Put(c)
 
-		if sess.IsVC() {
+		if Config.Container.UseVMGroup {
 			affinity := func(ctx context.Context) (tasks.Task, error) {
 				op2 := trace.FromContext(ctx, "vm group membership")
 
@@ -87,7 +87,7 @@ func Commit(op trace.Operation, sess *session.Session, h *Handle, waitTime *int3
 
 				group := &types.ClusterVmGroup{
 					ClusterGroupInfo: types.ClusterGroupInfo{
-						Name: Config.VMGroupName,
+						Name: Config.Container.VMGroupName,
 					},
 					Vm: append(containers, Config.SelfReference),
 				}
@@ -107,10 +107,7 @@ func Commit(op trace.Operation, sess *session.Session, h *Handle, waitTime *int3
 				return Config.Cluster.Reconfigure(op2, spec, true)
 			}
 
-			// TODO: change tasks package so InvalidArgument does not trigger a retry - or allow for more specific filtering
-			// if it turns out that specifying a deleted VM triggers this. Basically we do not want to end in a loop if the group doesn't
-			// exist - it's not something that's going to fix itself.
-			res, err = tasks.WaitForResult(op, affinity)
+			res, err = tasks.WaitForResultAndRetryIf(op, affinity, tasks.IsTransientError)
 			if err != nil {
 				op.Errorf("Failed to add VM to VMgroup: %s", err)
 				return err

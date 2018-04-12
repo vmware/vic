@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/compute"
 )
 
 func (v *Validator) compute(op trace.Operation, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
@@ -40,6 +41,39 @@ func (v *Validator) compute(op trace.Operation, input *data.Data, conf *config.V
 	}
 
 	// TODO: for RP creation assert whatever we decide about the pool - most likely that it's empty
+
+	if input.UseVMGroup {
+		if !v.IsVC() {
+			v.NoteIssue(errors.New("DRS VM Groups may only be configured when using VC"))
+			return
+		}
+
+		if v.Session.DRSEnabled == nil || !*v.Session.DRSEnabled {
+			v.NoteIssue(errors.New("DRS VM Groups may not be used without DRS"))
+			return
+		}
+
+		conf.UseVMGroup = input.UseVMGroup
+
+		// For now, we always name the VM Group based on the name of the VCH
+		conf.VMGroupName = conf.Name
+		rp := compute.NewResourcePool(op, v.Session, pool.Reference())
+		cluster, err := rp.GetCluster(op)
+		if err != nil {
+			v.NoteIssue(errors.Errorf("Unable to find cluster: %s", err))
+			return
+		}
+
+		exists, err := VMGroupExists(op, cluster, conf.VMGroupName)
+		if err != nil {
+			v.NoteIssue(err)
+			return
+		}
+		if exists {
+			v.NoteIssue(errors.Errorf("DRS VM Group named %q already exists", conf.VMGroupName))
+			return
+		}
+	}
 }
 
 func (v *Validator) inventoryPath(op trace.Operation, obj object.Reference) string {
