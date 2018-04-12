@@ -76,7 +76,6 @@ func (d *Dispatcher) destroyVMGroup(conf *config.VirtualContainerHostConfigSpec)
 
 	d.op.Infof("Removing VM Group %q", conf.VMGroupName)
 
-
 	spec := &types.ClusterConfigSpecEx{
 		GroupSpec: []types.ClusterGroupSpec{
 			{
