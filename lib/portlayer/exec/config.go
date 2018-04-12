@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,9 +41,6 @@ type Configuration struct {
 
 	// Cluster is the working reference to the cluster the VCH is present in
 	Cluster *object.ComputeResource
-
-	// VMGroupName is the name of the group all cVMs belong to for this VCH
-	VMGroupName string
 
 	// SelfReference is a reference to the endpointVM, added for VM group membership
 	SelfReference types.ManagedObjectReference
