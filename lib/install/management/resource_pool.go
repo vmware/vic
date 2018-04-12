@@ -111,9 +111,8 @@ func (d *Dispatcher) destroyVMGroup(conf *config.VirtualContainerHostConfigSpec)
 
 	groupExists := false
 	clusterConfigEx := clusterConfig.ConfigurationEx.(*types.ClusterConfigInfoEx)
-	for i := range clusterConfigEx.Group {
-		info := clusterConfigEx.Group[i].GetClusterGroupInfo()
-		if info.Name == conf.VMGroupName {
+	for _, g := range clusterConfigEx.Group {
+		if g.GetClusterGroupInfo().Name == conf.VMGroupName {
 			groupExists = true
 			break
 		}
