@@ -69,7 +69,7 @@ var (
 
 const (
 	useRunc  = true
-	runcPath = "/bin/runc"
+	runcPath = "/sbin/runc"
 )
 
 type tether struct {

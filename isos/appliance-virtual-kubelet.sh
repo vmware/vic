@@ -153,8 +153,6 @@ cp ${BIN}/unpack $(rootfs_dir $PKGDIR)/bin/
 cp ${BIN}/kubelet-starter $(rootfs_dir $PKGDIR)/sbin/kubelet-starter
 
 echo "pkgdir = " $PKGDIR
-# runc
-cp /usr/sbin/runc $(rootfs_dir $PKGDIR)/sbin/runc
 
 # Extra binaries
 APPLIANCE_NAME=$(basename ${APPLIANCE_OUTNAME})
