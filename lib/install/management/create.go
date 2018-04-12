@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -82,6 +82,10 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 		if err != nil {
 			return errors.Errorf("Cannot init ops-user permissions, failure: %s. Exiting...", err)
 		}
+	}
+
+	if err = d.createVMGroup(conf); err != nil {
+		return err
 	}
 
 	return d.startAppliance(conf)

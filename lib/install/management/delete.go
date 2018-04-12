@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -118,6 +118,11 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 	if err = d.destroyResourcePoolIfEmpty(conf); err != nil {
 		d.op.Warnf("VCH resource pool is not removed: %s", err)
 	}
+
+	if err = d.destroyVMGroup(conf); err != nil {
+		d.op.Warnf("VCH DRS VM group is not removed: %s", err)
+	}
+
 	return nil
 }
 
