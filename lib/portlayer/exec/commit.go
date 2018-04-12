@@ -100,10 +100,7 @@ func Commit(op trace.Operation, sess *session.Session, h *Handle, waitTime *int3
 				return Config.Cluster.Reconfigure(op2, spec, true)
 			}
 
-			// TODO: change tasks package so InvalidArgument does not trigger a retry - or allow for more specific filtering
-			// if it turns out that specifying a deleted VM triggers this. Basically we do not want to end in a loop if the group doesn't
-			// exist - it's not something that's going to fix itself.
-			res, err = tasks.WaitForResult(op, affinity)
+			res, err = tasks.WaitForResultAndRetryIf(op, affinity, tasks.IsTransientError)
 			if err != nil {
 				op.Errorf("Failed to add VM to VMgroup: %s", err)
 				return err
