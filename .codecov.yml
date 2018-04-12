@@ -8,18 +8,7 @@ coverage:
 
   status:
     project:
-      cmd:
-        enabled: true
-        paths: "cmd"
-        target: auto
-      lib:
-        enabled: true
-        paths: "lib"
-        target: auto
-      pkg:
-        enabled: true
-        paths: "pkg"
-        target: auto
+      default: off
     patch:
       cmd:
         enabled: true
@@ -37,13 +26,13 @@ coverage:
       default: off
 
   ignore:
-    - "tests/.*"
-    - "vendor/.*"
-    - "bin/.*"
-    - "doc/.*"
-    - "demos/.*"
-    - "infra/.*"
-    - "isos/.*"
+    - "tests"
+    - "vendor"
+    - "bin"
+    - "doc"
+    - "demos"
+    - "infra"
+    - "isos"
 
   notify:
     slack:
@@ -56,7 +45,7 @@ coverage:
         paths: null
 
 comment:
-  layout: "header, reach, diff, flags, files, footer"
+  layout: "header, diff, files, footer"
   behavior: default
   require_changes: no
   require_base: no
