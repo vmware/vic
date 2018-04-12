@@ -5,7 +5,7 @@
 # gcloud auth login
 # gcloud docker -- push gcr.io/eminent-nation-87317/vic-machine-server:1.x
 
-FROM wdc-harbor-ci.eng.vmware.com/default-project/photon:1.0
+FROM gcr.io/eminent-nation-87317/photon:1.0
 
 # Use local repo
 RUN mv /etc/yum.repos.d/{photon,photon-updates}.repo /tmp
