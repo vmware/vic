@@ -17,11 +17,11 @@ package management
 import (
 	"context"
 
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
-	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/vic/lib/install/validate"
 )
 
 func (d *Dispatcher) createVMGroup(conf *config.VirtualContainerHostConfigSpec) error {
@@ -63,25 +63,12 @@ func (d *Dispatcher) destroyVMGroup(conf *config.VirtualContainerHostConfigSpec)
 		return nil
 	}
 
-	d.op.Debugf("Checking for existence of DRS VM Group %s on %s", conf.VMGroupName, d.session.Cluster)
-
-	var clusterConfig mo.ClusterComputeResource
-	err := d.session.Cluster.Properties(d.op, d.session.Cluster.Reference(), []string{"configurationEx"}, &clusterConfig)
+	exists, err := validate.VMGroupExists(d.op, d.session.Cluster, conf.VMGroupName)
 	if err != nil {
-		d.op.Warnf("Unable to obtain cluster config: %s", err)
+		d.op.Warn(err)
 		return nil
 	}
-
-	groupExists := false
-	clusterConfigEx := clusterConfig.ConfigurationEx.(*types.ClusterConfigInfoEx)
-	for _, g := range clusterConfigEx.Group {
-		if g.GetClusterGroupInfo().Name == conf.VMGroupName {
-			groupExists = true
-			break
-		}
-	}
-
-	if !groupExists {
+	if !exists {
 		d.op.Debugf("Expected VM Group cannot be found; skipping removal.")
 		return nil
 	}
