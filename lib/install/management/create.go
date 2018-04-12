@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/opsuser"
@@ -103,38 +102,6 @@ func (d *Dispatcher) createPool(conf *config.VirtualContainerHostConfigSpec, set
 	}
 
 	return nil
-}
-
-func (d *Dispatcher) createVMGroup(conf *config.VirtualContainerHostConfigSpec) error {
-	defer trace.End(trace.Begin("", d.op))
-
-	if !conf.UseVMGroup {
-		return nil
-	}
-
-	d.op.Debugf("Creating DRS VM Group %q on %q", conf.VMGroupName, d.appliance.Cluster)
-
-	spec := &types.ClusterConfigSpecEx{
-		GroupSpec: []types.ClusterGroupSpec{
-			{
-				ArrayUpdateSpec: types.ArrayUpdateSpec{
-					Operation: types.ArrayUpdateOperationAdd,
-				},
-				Info: &types.ClusterVmGroup{
-					ClusterGroupInfo: types.ClusterGroupInfo{
-						Name: conf.VMGroupName,
-					},
-					Vm: []types.ManagedObjectReference{d.appliance.Reference()},
-				},
-			},
-		},
-	}
-
-	_, err := tasks.WaitForResultAndRetryIf(d.op, func(op context.Context) (tasks.Task, error) {
-		return d.appliance.Cluster.Reconfigure(op, spec, true)
-	}, tasks.IsTransientError)
-
-	return err
 }
 
 func (d *Dispatcher) startAppliance(conf *config.VirtualContainerHostConfigSpec) error {

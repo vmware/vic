@@ -29,7 +29,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-	"github.com/vmware/vic/pkg/retry"
 )
 
 func (d *Dispatcher) createResourcePool(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*object.ResourcePool, error) {
@@ -92,57 +91,6 @@ func setResources(spec *types.ResourceAllocationInfo, resource types.ResourceAll
 	if resource.ExpandableReservation != nil {
 		spec.ExpandableReservation = resource.ExpandableReservation
 	}
-}
-
-func (d *Dispatcher) destroyVMGroup(conf *config.VirtualContainerHostConfigSpec) error {
-	defer trace.End(trace.Begin("", d.op))
-
-	if !conf.UseVMGroup {
-		return nil
-	}
-
-	d.op.Debugf("Checking for existence of DRS VM Group %s on %s", conf.VMGroupName, d.session.Cluster)
-
-	var clusterConfig mo.ClusterComputeResource
-	err := d.session.Cluster.Properties(d.op, d.session.Cluster.Reference(), []string{"configurationEx"}, &clusterConfig)
-	if err != nil {
-		d.op.Warnf("Unable to obtain cluster config: %s", err)
-		return nil
-	}
-
-	groupExists := false
-	clusterConfigEx := clusterConfig.ConfigurationEx.(*types.ClusterConfigInfoEx)
-	for _, g := range clusterConfigEx.Group {
-		if g.GetClusterGroupInfo().Name == conf.VMGroupName {
-			groupExists = true
-			break
-		}
-	}
-
-	if !groupExists {
-		d.op.Debugf("Expected VM Group cannot be found; skipping removal.")
-		return nil
-	}
-
-	d.op.Infof("Removing VM Group %q", conf.VMGroupName)
-
-
-	spec := &types.ClusterConfigSpecEx{
-		GroupSpec: []types.ClusterGroupSpec{
-			{
-				ArrayUpdateSpec: types.ArrayUpdateSpec{
-					Operation: types.ArrayUpdateOperationRemove,
-					RemoveKey: conf.VMGroupName,
-				},
-			},
-		},
-	}
-
-	_, err := tasks.WaitForResultAndRetryIf(d.op, func(op context.Context) (tasks.Task, error) {
-		return d.appliance.Cluster.Reconfigure(op, spec, true)
-	}, tasks.IsTransientError)
-
-	return err
 }
 
 func (d *Dispatcher) destroyResourcePoolIfEmpty(conf *config.VirtualContainerHostConfigSpec) error {
