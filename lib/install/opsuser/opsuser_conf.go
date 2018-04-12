@@ -80,6 +80,7 @@ var RoleEndpoint = types.AuthorizationRole{
 		"DVPortgroup.PolicyOp",
 		"DVPortgroup.ScopeOp",
 		"Resource.AssignVMToPool",
+		"Resource.ColdMigrate",
 		"VirtualMachine.Config.AddExistingDisk",
 		"VirtualMachine.Config.AddNewDisk",
 		"VirtualMachine.Config.AddRemoveDevice",
