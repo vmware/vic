@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
+	"github.com/vmware/vic/pkg/retry"
 )
 
 func (d *Dispatcher) createResourcePool(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*object.ResourcePool, error) {
@@ -125,20 +126,21 @@ func (d *Dispatcher) destroyVMGroup(conf *config.VirtualContainerHostConfigSpec)
 
 	d.op.Infof("Removing VM Group %q", conf.VMGroupName)
 
-	_, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-		spec := &types.ClusterConfigSpecEx{
-			GroupSpec: []types.ClusterGroupSpec{
-				{
-					ArrayUpdateSpec: types.ArrayUpdateSpec{
-						Operation: types.ArrayUpdateOperationRemove,
-						RemoveKey: conf.VMGroupName,
-					},
+
+	spec := &types.ClusterConfigSpecEx{
+		GroupSpec: []types.ClusterGroupSpec{
+			{
+				ArrayUpdateSpec: types.ArrayUpdateSpec{
+					Operation: types.ArrayUpdateOperationRemove,
+					RemoveKey: conf.VMGroupName,
 				},
 			},
-		}
+		},
+	}
 
-		return d.session.Cluster.Reconfigure(d.op, spec, true)
-	})
+	_, err := tasks.WaitForResultAndRetryIf(d.op, func(op context.Context) (tasks.Task, error) {
+		return d.appliance.Cluster.Reconfigure(op, spec, true)
+	}, tasks.IsTransientError)
 
 	return err
 }

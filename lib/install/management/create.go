@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
@@ -131,36 +130,9 @@ func (d *Dispatcher) createVMGroup(conf *config.VirtualContainerHostConfigSpec) 
 		},
 	}
 
-	_, err := tasks.WaitForResult(d.op, func(op context.Context) (tasks.Task, error) {
-		d.op.Debugf("Attempting to create VM group %q for VCH.", conf.VMGroupName)
-		t, err := d.appliance.Cluster.Reconfigure(op, spec, true)
-
-		// Unfortunately, WaitForResult treats InvalidArgument as retry-able. In this case, it is not. So let's get the
-		// error and if it's an InvalidArgument, we'll replaces it with a new error. This is terrible for a variety of
-		// reasons, but it's unclear just how much code may be relying on WaitForResult's current behavior to handle
-		// potential race-like cases (see, e.g., discussion in #4597).
-		//
-		// Note: This should be tested carefully if changed; group name collisions should be detected earlier in the
-		//       process, so we should only encounter one here if a colliding group was created between then and now.
-
-		if err == nil {
-			d.op.Debugf("Waiting for a result for task %s", t)
-			_, err = t.WaitForResult(op, nil)
-		}
-
-		if err != nil {
-			switch err := err.(type) {
-			case task.Error:
-				switch f := err.Fault().(type) {
-				case *types.InvalidArgument:
-					d.op.Debugf("Replacing InvalidArgument to avoid retry: %+v", f)
-					return nil, fmt.Errorf("Encountered InvalidArgument error creating DRS VM Group %q; a group with the same name probably exists.", conf.VMGroupName)
-				}
-			}
-		}
-
-		return t, err
-	})
+	_, err := tasks.WaitForResultAndRetryIf(d.op, func(op context.Context) (tasks.Task, error) {
+		return d.appliance.Cluster.Reconfigure(op, spec, true)
+	}, tasks.IsTransientError)
 
 	return err
 }
