@@ -18,10 +18,11 @@ import (
 	"context"
 
 	"github.com/vmware/govmomi/vim25/types"
+
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
-	"github.com/vmware/vic/lib/install/validate"
 )
 
 func (d *Dispatcher) createVMGroup(conf *config.VirtualContainerHostConfigSpec) error {
