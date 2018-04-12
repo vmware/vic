@@ -44,7 +44,8 @@ all-files() {
         # Check .go files, Makefile, sh files, bash files, and robot files
         grep -e "\.go$" -e "Makefile$" -e "\.sh$" -e "\.bash$" -e "\.robot$" |\
             # Ignore vendor/
-        grep -v vendor/
+        grep -v vendor/ |\
+        grep -v lib/apiservers/portlayer/client | grep -v lib/apiservers/portlayer/models
 }
 
 for file in $(all-files); do
