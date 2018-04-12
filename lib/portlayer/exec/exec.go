@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ import (
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 
 	"github.com/vmware/vic/lib/portlayer/event"
@@ -35,7 +34,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
 var (
@@ -85,8 +83,6 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			Config.ResourcePool = o.ResourcePool
 		case *object.ResourcePool:
 			Config.ResourcePool = o
-			// TODO: need to check vmgroup name constraints vs resource pool constraints
-			Config.VMGroupName = o.Name()
 			rp := compute.NewResourcePool(ctx, sess, cr)
 			Config.Cluster, err = rp.GetCluster(ctx)
 			if err != nil {
@@ -94,7 +90,6 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 				log.Error(err)
 				return
 			}
-
 		default:
 			err = fmt.Errorf("could not get resource pool or virtual app from reference %q: object type is wrong", cr.String())
 			log.Error(err)
@@ -108,30 +103,6 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		//
 		// stash this aside for future use in vm group manipulation
 		Config.SelfReference = self
-
-		// create the VM group for DRS rule use
-		var clusterConfig mo.ClusterComputeResource
-		vmGroupOpType := types.ArrayUpdateOperationAdd
-
-		err = Config.Cluster.Properties(ctx, Config.Cluster.Reference(), []string{"configurationEx"}, &clusterConfig)
-		if err != nil {
-			log.Errorf("Unable to obtain cluster config: %s", err)
-			return
-		}
-
-		clusterConfigEx := clusterConfig.ConfigurationEx.(*types.ClusterConfigInfoEx)
-
-		for i := range clusterConfigEx.Group {
-			info := clusterConfigEx.Group[i].GetClusterGroupInfo()
-			if info.Name != Config.VMGroupName {
-				continue
-			}
-
-			if _, ok := clusterConfigEx.Group[i].(*types.ClusterVmGroup); ok {
-				vmGroupOpType = types.ArrayUpdateOperationEdit
-				break
-			}
-		}
 
 		// we want to monitor the cluster, so create a vSphere Event Collector
 		// The cluster managed object will either be a proper vSphere Cluster or
@@ -180,31 +151,6 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			log.Errorf("Error encountered during container cache sync during init process: %s", err)
 			return
 		}
-
-		log.Info("Updating VM group membership for existing VCH members")
-		spec := &types.ClusterConfigSpecEx{
-			GroupSpec: []types.ClusterGroupSpec{
-				{
-					ArrayUpdateSpec: types.ArrayUpdateSpec{
-						Operation: vmGroupOpType,
-					},
-					Info: &types.ClusterVmGroup{
-						ClusterGroupInfo: types.ClusterGroupInfo{
-							Name: Config.VMGroupName,
-						},
-						Vm: append(Containers.References(), Config.SelfReference),
-					},
-				},
-			},
-		}
-
-		res, err := tasks.WaitForResult(ctx, func(op context.Context) (tasks.Task, error) {
-			log.Debugf("Attempting to add existing container VMs to group")
-			return Config.Cluster.Reconfigure(op, spec, true)
-		})
-
-		log.Debugf("Result of adding VM to group: %+v", res)
-
 	})
 
 	return initializer.err

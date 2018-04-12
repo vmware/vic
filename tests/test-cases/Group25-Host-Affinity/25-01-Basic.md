@@ -43,7 +43,7 @@ Positive Testing
 * The DRS VM Group is deleted when the VCH is deleted.
 
 
-### 3. Removing containers cleans up the VM group
+### 3. Deleting a container cleans up its VM group
 
 #### Test Steps:
 1. Verify that no DRS VM Group exists by the expected name.
@@ -54,4 +54,47 @@ Positive Testing
 6. Verify that the DRS VM Group still exists, but does not include the removed containers.
 
 #### Expected Outcome:
-* Containers are removed from the DRS VM Group when they are deleted.
+* Container VMs are removed from the DRS VM Group when they are deleted.
+
+
+### 4. Create a VCH without a VM group
+
+#### Test Steps:
+1. Verify that no DRS VM Group exists by the expected name.
+2. Create a DRS VM Group with the expected name.
+3. Verify that the DRS VM Group is empty.
+4. Create a VCH which does not use a DRS VM Group.
+5. Verify that the DRS VM Group is empty.
+6. Create a variety of containers.
+7. Verify that the DRS VM Group is empty.
+
+#### Expected Outcome:
+* Neither the VCH Endpoint VM nor the Container VMs are added to the DRS VM Group the VCH is not configured to use.
+* VCH creation succeeds even though a DRS VM Group with the same name exists, as use of a group is not configured.
+
+
+### 5. Attempt to create a VCH when a VM group with the same name already exists
+
+#### Test Steps:
+1. Verify that no DRS VM Group exists by the expected name.
+2. Create a DRS VM Group with the expected name.
+3. Verify that the DRS VM Group is empty.
+4. Attempt to create a VCH which would use a DRS VM Group and expect an error.
+5. Verify that the DRS VM Group is empty.
+
+#### Expected Outcome:
+* VCH creation fails if a DRS VM Group with the same name already exists, instead of silently using the existing group.
+
+
+### 6. Deleting a VCH gracefully handles missing VM group
+
+#### Test Steps:
+1. Verify that no DRS VM Group exists by the expected name.
+2. Create a VCH.
+3. Verify that a DRS VM Group was created and that the endpoint VM was added to it.
+4. Remove the DRS VM Group with an out-of-band operation.
+5. Verify that the DRS VM Group no longer exists.
+6. Delete the VCH.
+
+#### Expected Outcome:
+* The overall deletion operation succeeds even though the DRS VM Group has already been deleted.
