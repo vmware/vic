@@ -105,6 +105,7 @@ yum_cached -c $cache -u -p $PKGDIR install \
     haveged \
     systemd \
     iptables \
+    runc \
     -y --nogpgcheck
 
 # https://www.freedesktop.org/wiki/Software/systemd/InitrdInterface/
