@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#	http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -199,9 +199,13 @@ Upgrade VCH with unreasonably short timeout and automatic rollback after failure
     ${rc}  ${output}=  Run And Return Rc And Output  govc snapshot.tree -vm=%{VCH-NAME}
     Should Be Empty  ${output}
     # the appliance is restarting - attempt to wait until it's ready
-    Sleep  90
+    # version of appliance we rolled back to is old, so we have to set DOCKER_API_VERSION
+    Set Environment Variable  DOCKER_API_VERSION  1.23
+    # keyword will call docker info until response or timeout
+    Wait For VCH Initialization  30x
     # confirm that the rollback took effect
     Check Original Version
+    Remove Environment Variable  DOCKER_API_VERSION
 
 Upgrade VCH
     Create Docker Containers

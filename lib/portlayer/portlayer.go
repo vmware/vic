@@ -38,7 +38,7 @@ import (
 // Init initializes portlayer components at startup
 func Init(ctx context.Context, sess *session.Session) error {
 	defer trace.End(trace.Begin(""))
-
+	op := trace.FromContext(ctx, "portLayer Init")
 	source, err := extraconfig.GuestInfoSource()
 	if err != nil {
 		return err
@@ -71,6 +71,13 @@ func Init(ctx context.Context, sess *session.Session) error {
 	if err != nil {
 		return err
 	}
+
+	// store the reference to the vch inventory folder before portlayer init
+	vchFolder, err := vchvm.Folder(op)
+	if err != nil {
+		return err
+	}
+	sess.VCHFolder = vchFolder
 
 	if err = storage.Init(ctx, sess, vmParentPool, source, sink); err != nil {
 		return err

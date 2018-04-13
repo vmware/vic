@@ -310,6 +310,7 @@ Install VIC Appliance To Test Server With Current Environment Variables
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Containers On Test Server
+    Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Folders On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Resource Pools On Test Server
 
     # Install the VCH now
@@ -366,6 +367,11 @@ Run VIC Machine Delete Command
     Assert  ${status}  vic-machine delete failed to remove %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
+
+    # Check that the VCH folder (if created) is removed
+    ${ret}=  Run  govc find %{TEST_DATACENTER}/vm -type f
+    Should Not Contain  ${ret}  %{VCH-NAME}
+
     ${output}=  Run  rm -rf %{VCH-NAME}
     [Return]  ${output}
 
@@ -399,12 +405,13 @@ Check UpdateInProgress
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${expected}
 
+# This keyword is used to match two patterns on the same line occurring in any order
 Portlayer Log Should Match Regexp
     [Tags]  secret
-    [Arguments]  ${pattern}
+    [Arguments]  ${pattern1}  ${pattern2}
     ${out}=  Run  curl -k -D /tmp/cookies-%{VCH-NAME} -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
     Log  ${out}
-    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b /tmp/cookies-%{VCH-NAME} | grep -q -e \'${pattern}\'
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b /tmp/cookies-%{VCH-NAME} | grep -ie \'${pattern1}\' | grep -iqe \'${pattern2}\'
     Should Be Equal As Integers  ${rc}  0
 
 Gather Logs From Test Server
@@ -548,6 +555,27 @@ Cleanup Dangling VMs On Test Server
     \   Continue For Loop If  '${state}' == 'running'
     \   ${uuid}=  Run  govc vm.info -json\=true ${vm} | jq -r '.VirtualMachines[0].Config.Uuid'
     \   Log To Console  Destroying dangling VCH: ${vm}
+    \   ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vm}
+    \   Run Keyword And Continue On Failure  Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vm}
+
+Cleanup Dangling Folders On Test Server
+    ${out}=  Run  govc ls vm
+    Log  ${out}
+    ${exceptions}=  Get Environment Variable  VM_EXCEPTIONS  ${EMPTY}
+    ${vms}=  Split To Lines  ${out}
+    :FOR  ${vm}  IN  @{vms}
+    \   ${vm}=  Fetch From Right  ${vm}  /
+    \   ${build}=  Split String  ${vm}  -
+    \   # Skip any VM that is not associated with integration tests
+    \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   ${skip}=  Check If VCH Is In Exception  vch=${vm}  exceptions=${exceptions}
+    \   Continue For Loop If  ${skip}
+    \   # Skip any VM that is still running
+    \   ${state}=  Get State Of Drone Build  @{build}[1]
+    \   Continue For Loop If  '${state}' == 'running'
+    \   Log To Console  Destroying dangling VCH Folder: vm/${vm}
+    \   ${rc}=  Run and Return Rc  govc object.destroy vm/${vm}
+    \   Run KeyWord If  '$rc' != '0'  Log  failed to clean up vch folder path vm/${vm}
     \   ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vm}
     \   Run Keyword And Continue On Failure  Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vm}
 
@@ -734,3 +762,11 @@ Assert
     ${envExists}=  Run Keyword And Return Status  Environment Variable Should Be Set  FAST_FAILURE
     Run Keyword If  ${envExists}  Run Keyword If  %{FAST_FAILURE}  Run Keyword Unless  ${status}  Fatal Error  ${msg}
     Run Keyword Unless  ${status}  Fail  ${msg}
+
+Manually Cleanup VCH
+    [Arguments]  ${vch-name}
+    ${out}=  Run Keyword And Ignore Error  Run  govc vm.destroy ${vch-name}
+    ${out}=  Run Keyword And Ignore Error  Run  govc pool.destroy host/*/Resources/${vch-name}
+    ${out}=  Run Keyword And Ignore Error  Run  govc datastore.rm ${vch-name}
+    ${out}=  Run Keyword And Ignore Error  Run  govc host.portgroup.remove ${vch-name}-bridge
+    ${out}=  Run Keyword And Ignore Error  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc object.destroy vm/${vch-name}

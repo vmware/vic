@@ -70,6 +70,6 @@ Check Password Change When Expired
 Check Error From Incorrect ID
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux debug --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --id=wrong
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Failed to get Virtual Container Host 
+    Should Contain  ${output}  Failed to get Virtual Container Host
     Should Contain  ${output}  id \\"wrong\\" could not be found
-    
+
