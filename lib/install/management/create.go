@@ -163,6 +163,7 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 			op.Infof("Uploading %s as %s", baseName, key)
 
 			return d.session.Datastore.UploadFile(op, image, path.Join(d.vmPathName, key),
+
 				nil)
 		}
 
