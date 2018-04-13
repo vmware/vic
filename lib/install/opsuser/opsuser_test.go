@@ -54,7 +54,7 @@ func TestOpsUserRolesSimulatorVPX(t *testing.T) {
 	require.NoError(t, err, "Cannot connect to VPX Simulator")
 
 	am := rbac.NewAuthzManager(ctx, sess.Vim25())
-	am.InitConfig(opsuser, rolePrefix, &OpsuserRBACConf)
+	am.InitConfig(opsuser, rolePrefix, &DRSConf)
 
 	var testRoleNames = []string{
 		"datastore",
@@ -84,7 +84,7 @@ func TestOpsUserRolesVCenter(t *testing.T) {
 	}
 
 	am := rbac.NewAuthzManager(ctx, sess.Vim25())
-	am.InitConfig(opsuser, rolePrefix, &OpsuserRBACConf)
+	am.InitConfig(opsuser, rolePrefix, &DRSConf)
 
 	var testRoleNames = []string{
 		"datastore",
@@ -128,7 +128,7 @@ func TestOpsUserPermsSimulatorVPX(t *testing.T) {
 		},
 	}
 
-	mgr, err := NewRBACManager(ctx, sess, &OpsuserRBACConf, configSpec)
+	mgr, err := NewRBACManager(ctx, sess, &DRSConf, configSpec)
 	require.NoError(t, err)
 	am := mgr.AuthzManager
 
