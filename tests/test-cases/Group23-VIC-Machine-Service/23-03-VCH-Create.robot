@@ -123,9 +123,7 @@ Create minimal VCH
     Property Should Contain         .runtime.power_state                 poweredOn
     Property Should Contain         .runtime.upgrade_status              Up to date
 
-    ${vch_name}=    Set Variable    %{VCH-NAME}-api-test-minimal
-
-    Get Docker Host Params    vch    ${vch_name}
+    Get Docker Host Params    vch    %{VCH-NAME}-api-test-minimal
 
     [Teardown]    Run Secret VIC Machine Delete Command    %{VCH-NAME}-api-test-minimal
 
