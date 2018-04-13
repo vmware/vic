@@ -48,7 +48,7 @@ func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d 
 	op := trace.FromContext(ctx, "SetDataFromVM")
 
 	// display name
-	name, err := vm.Name(op)
+	name, err := vm.ObjectName(op)
 	if err != nil {
 		return err
 	}
@@ -72,13 +72,19 @@ func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d 
 	if err != nil {
 		return err
 	}
-	rp, ok := or.(*object.ResourcePool)
-	if !ok {
+
+	// we are attempting to present the resource pool inventory path
+	// in a DRS disabled environment that inventory path could point to a
+	// cluster, so we need to evaluate the type and set the path accordingly
+	switch r := or.(type) {
+	case *object.ResourcePool:
+		d.ComputeResourcePath = r.InventoryPath
+	case *object.ClusterComputeResource:
+		d.ComputeResourcePath = r.InventoryPath
+	default:
 		return fmt.Errorf("parent resource %s is not resource pool", mrp.Parent)
 	}
-	d.ComputeResourcePath = rp.InventoryPath
 
-	// Set VCH resource limits and VCH endpoint VM resource limits
 	setVCHResources(op, parent, d)
 	setApplianceResources(op, vm, d)
 	return nil

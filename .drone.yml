@@ -254,6 +254,7 @@ pipeline:
     pull: true
     repo: eminent-nation-87317/vic-machine-server
     dockerfile: cmd/vic-machine-server/Dockerfile
+    custom_dns: 10.142.7.21, 10.142.7.22, 10.166.17.90
     secrets: [ token ]
     tags:
       - dev
@@ -268,6 +269,7 @@ pipeline:
     pull: true
     repo: eminent-nation-87317/vic-machine-server
     dockerfile: cmd/vic-machine-server/Dockerfile
+    custom_dns: 10.142.7.21, 10.142.7.22, 10.166.17.90
     secrets: [ token ]
     tags:
       - latest

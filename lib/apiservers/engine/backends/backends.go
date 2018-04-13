@@ -50,7 +50,6 @@ import (
 	"github.com/vmware/vic/pkg/registry"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/sys"
-	//"github.com/vishvananda/netlink"
 )
 
 const (
