@@ -76,7 +76,16 @@ func GrantDCReadOnlyPerms(ctx context.Context, session *session.Session, configS
 }
 
 func GrantOpsUserPerms(ctx context.Context, session *session.Session, configSpec *config.VirtualContainerHostConfigSpec) error {
-	mgr, err := NewRBACManager(ctx, session, &OpsuserRBACConf, configSpec)
+	var rbacConfig *rbac.Config
+
+	// Use a separate RBAC configuration depending on whether DRS is enabled.
+	if session.DRSEnabled != nil && *session.DRSEnabled {
+		rbacConfig = &DRSConf
+	} else {
+		rbacConfig = &NoDRSConf
+	}
+
+	mgr, err := NewRBACManager(ctx, session, rbacConfig, configSpec)
 	if err != nil {
 		return err
 	}
@@ -189,6 +198,9 @@ func (mgr *RBACManager) setupPermissions(ctx context.Context) ([]rbac.ResourcePe
 	if err != nil {
 		return nil, errors.Errorf("Ops-User: RBACManager, Unable to find Cluster: %s", err.Error())
 	}
+
+	// In a DRS environment, this will add RoleDataStore to the cluster. In a non-DRS environment,
+	// this will add RoleEndpointDatastore to the cluster per the no-DRS RBAC configuration.
 	resourceDescs = append(resourceDescs, resourceDesc{rbac.Cluster, cluster.Reference()})
 
 	// Find image and volume datastores
@@ -213,14 +225,13 @@ func (mgr *RBACManager) setupPermissions(ctx context.Context) ([]rbac.ResourcePe
 		resourceDescs = append(resourceDescs, resourceDesc{rbac.Network, *netRef})
 	}
 
-	// In a DRS environment, add the endpoint role to the resource pool(s). In a non-DRS
-	// environment, add the endpoint role to the cluster.
+	// In a DRS environment, add the endpoint role to the resource pool(s). In a
+	// non-DRS environment, this role's privileges are applied at the cluster
+	// level by using RoleEndpointDatastore.
 	if mgr.session.DRSEnabled != nil && *mgr.session.DRSEnabled {
 		for _, rPoolRef := range mgr.configSpec.ComputeResources {
 			resourceDescs = append(resourceDescs, resourceDesc{rbac.Endpoint, rPoolRef})
 		}
-	} else {
-		resourceDescs = append(resourceDescs, resourceDesc{rbac.Endpoint, cluster.Reference()})
 	}
 
 	// For vCenter, apply the endpoint role to the VCH inventory folder as well.

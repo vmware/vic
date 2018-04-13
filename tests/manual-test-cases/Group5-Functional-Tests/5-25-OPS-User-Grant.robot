@@ -74,7 +74,13 @@ vic-machine create grants ops-user perms
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${c3}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net public -v barVol:/dir ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c1} ${c2} ${c3}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create existingvol
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${c4}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v existingvol:/dir ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c1} ${c2} ${c3} ${c4}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm existingvol
     Should Be Equal As Integers  ${rc}  0
 
     Cleanup VIC Appliance On Test Server
