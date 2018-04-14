@@ -60,14 +60,14 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 
 	// if compute-resource is unspecified is there a default
 	if path == "" {
-		if v.Session.Pool != nil {
-			op.Debugf("Using default resource pool for compute resource: %q", v.Session.Pool.InventoryPath)
-			return v.Session.Pool, nil
+		if v.Session.Pool == nil {
+			// if no path specified and no default available the show all
+			v.suggestComputeResource(op)
+			return nil, errors.New("No unambiguous default compute resource available: --compute-resource must be specified")
 		}
 
-		// if no path specified and no default available the show all
-		v.suggestComputeResource(op)
-		return nil, errors.New("No unambiguous default compute resource available: --compute-resource must be specified")
+		path = v.Session.Pool.InventoryPath
+		op.Debugf("Using default resource pool for compute resource: %q", v.Session.Pool.InventoryPath)
 	}
 
 	pool, err := v.Session.Finder.ResourcePool(op, path)

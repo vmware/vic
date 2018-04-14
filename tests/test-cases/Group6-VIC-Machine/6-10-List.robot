@@ -1,4 +1,4 @@
-# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,6 +20,15 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
 *** Keywords ***
+Verify No Machines
+    [Arguments]  ${list}
+    Should Contain  ${list}  ID
+    Should Contain  ${list}  PATH
+    Should Contain  ${list}  NAME
+    Should Not Contain  ${list}  Error
+    ${machines}=  Get Lines Containing String  ${list}  %{VCH-NAME}
+    Should Be Empty  ${machines}
+
 Verify Listed Machines
     [Arguments]  ${list}
     Should Contain  ${list}  ID
@@ -74,3 +83,14 @@ List with valid datacenter
     ${ret}=  Run  bin/vic-machine-linux ls --target %{TEST_URL}/%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD}
     Set Environment Variable  TEST_DATACENTER  ${orig}
     Verify Listed Machines  ${ret}
+
+List with empty cluster
+    Pass Execution If  '%{HOST_TYPE}' == 'ESXi'  This test is not applicable to ESXi
+    # if there are multiple datacenters this call will fail
+    ${rc}  ${output}=  Run And Return Rc And Output  govc cluster.create EmptyCluster
+    Should Be Equal As Integers  ${rc}  0
+    ${ret}=  Run  bin/vic-machine-linux ls --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource EmptyCluster
+    Verify No Machines  ${ret}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc object.destroy EmptyCluster
+    Should Be Equal As Integers  ${rc}  0
+

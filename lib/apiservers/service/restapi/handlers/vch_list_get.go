@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"path"
 
 	"github.com/go-openapi/runtime/middleware"
 
@@ -87,7 +86,7 @@ func (h *VCHDatacenterListGet) Handle(params operations.GetTargetTargetDatacente
 
 func listVCHs(op trace.Operation, d *data.Data, validator *validate.Validator) ([]*models.VCHListItem, error) {
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
-	vchs, err := executor.SearchVCHs(validator.ClusterPath)
+	vchs, err := executor.SearchVCHs(validator.Session.ClusterPath)
 	if err != nil {
 		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to search VCHs in %s: %s", validator.ResourcePoolPath, err))
 	}
@@ -100,7 +99,7 @@ func vchsToModels(op trace.Operation, vchs []*vm.VirtualMachine, executor *manag
 	payload := make([]*models.VCHListItem, 0)
 
 	for _, vch := range vchs {
-		name := path.Base(vch.InventoryPath)
+		name := vch.Name()
 		id := vch.Reference().Value
 
 		vchConfig, err := executor.GetNoSecretVCHConfig(vch)
