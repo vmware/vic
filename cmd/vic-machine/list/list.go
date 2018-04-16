@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -114,11 +114,10 @@ func (l *List) prettyPrint(op trace.Operation, cli *cli.Context, vchs []*vm.Virt
 			version = vchConfig.Version.ShortVersion()
 			upgradeStatus = l.upgradeStatusMessage(op, vch, installerVer, vchConfig.Version)
 		}
-
-		parentPath := path.Dir(path.Dir(vch.InventoryPath))
-		name := path.Base(vch.InventoryPath)
+		// When the VCH was found the inventory path was overwritten with the resource pool path, so
+		// to print the path to the pool we need to call Dir twice.
 		data = append(data,
-			items{vch.Reference().Value, parentPath, name, version, upgradeStatus})
+			items{vch.Reference().Value, path.Dir(path.Dir(vch.InventoryPath)), vch.Name(), version, upgradeStatus})
 	}
 	t := template.New("vic-machine ls")
 	// #nosec: Errors unhandled.
@@ -178,7 +177,7 @@ func (l *List) Run(clic *cli.Context) (err error) {
 		return errors.New("list failed")
 	}
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
-	vchs, err := executor.SearchVCHs(validator.ClusterPath)
+	vchs, err := executor.SearchVCHs(validator.Session.ClusterPath)
 	if err != nil {
 		op.Errorf("List cannot continue - failed to search VCHs in %s: %s", validator.ResourcePoolPath, err)
 	}
