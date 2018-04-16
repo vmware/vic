@@ -26,7 +26,6 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/compute"
 )
 
 func (v *Validator) compute(op trace.Operation, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
@@ -41,6 +40,10 @@ func (v *Validator) compute(op trace.Operation, input *data.Data, conf *config.V
 	}
 
 	// TODO: for RP creation assert whatever we decide about the pool - most likely that it's empty
+}
+
+func (v *Validator) checkVMGroup(op trace.Operation, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin("", op))
 
 	if input.UseVMGroup {
 		if !v.IsVC() {
@@ -54,17 +57,16 @@ func (v *Validator) compute(op trace.Operation, input *data.Data, conf *config.V
 		}
 
 		conf.UseVMGroup = input.UseVMGroup
-
 		// For now, we always name the VM Group based on the name of the VCH
 		conf.VMGroupName = conf.Name
-		rp := compute.NewResourcePool(op, v.Session, pool.Reference())
-		cluster, err := rp.GetCluster(op)
-		if err != nil {
-			v.NoteIssue(errors.Errorf("Unable to find cluster: %s", err))
+
+		if v.Session.Cluster == nil {
+			// We already note a more helpful issue for this following the compute method's call to ResourcePoolHelper.
+			v.NoteIssue(errors.New("Unable to determine presence of DRS VM Groups due to previous errors"))
 			return
 		}
 
-		exists, err := VMGroupExists(op, cluster, conf.VMGroupName)
+		exists, err := VMGroupExists(op, v.Session.Cluster, conf.VMGroupName)
 		if err != nil {
 			v.NoteIssue(err)
 			return
