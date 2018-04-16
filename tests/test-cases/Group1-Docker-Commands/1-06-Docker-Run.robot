@@ -219,6 +219,9 @@ Docker run --hostname to set hostname and domainname
     Should Contain  ${output}  vic.test
 
 Docker run --rm concurrent
+    ${IN_HAAS}=  Run Keyword And Return Status  Should Contain  %{HAAS_URL_ARRAY}  %{TEST_URL}
+    Run Keyword Unless  ${IN_HAAS}  Pass Execution  This test is too resource intensive for Nimbus currently
+
     # Make sure all old containers are cleaned up first, to maximize likelihood of not hitting insufficient resources issue
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -aq | xargs docker %{VCH-PARAMS} rm -f
     
