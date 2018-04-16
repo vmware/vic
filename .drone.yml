@@ -191,6 +191,9 @@ pipeline:
       - 'mkdir bundle-release'
       - 'cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle'
       - 'cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle-release/vic_`git describe --tags $(git rev-list --tags --max-count=1)`.tar.gz'
+    when:
+      repo: vmware/vic
+      event: [push, tag]
 
   publish-gcs-builds-on-pass:
     image: 'victest/drone-gcs:1'
