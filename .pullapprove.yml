@@ -220,15 +220,6 @@ groups:
       files:
         include:
           - "vendor/*"
-  ui:
-    users:
-      - jooskim
-      - cristianfalcone
-      - jak-atx
-    conditions:
-      files:
-        include:
-          - "ui/*"
 
   ui-cmd:
     users:
