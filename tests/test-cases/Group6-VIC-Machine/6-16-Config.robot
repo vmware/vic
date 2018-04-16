@@ -24,7 +24,6 @@ Wait For DNS Update
     [Arguments]  ${shouldContain}
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep dns
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  assigned.dns
     Run Keyword If  ${shouldContain}  Should Contain  ${output}  network/dns
     Run Keyword If  ${shouldContain}  Should Not Contain  ${output}  assigned.dns
 
