@@ -26,6 +26,9 @@ Wait For DNS Update
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  assigned.dns
     Run Keyword If  ${shouldContain}  Should Contain  ${output}  network/dns
+    Run Keyword If  ${shouldContain}  Should Not Contain  ${output}  assigned.dns
+
+    Run Keyword Unless  ${shouldContain}  Should Contain  ${output}  assigned.dns
     Run Keyword Unless  ${shouldContain}  Should Not Contain  ${output}  network/dns
 
 *** Test Cases ***
