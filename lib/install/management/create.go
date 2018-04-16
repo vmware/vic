@@ -25,7 +25,6 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/opsuser"
 	"github.com/vmware/vic/lib/install/vchlog"
-	"github.com/vmware/vic/lib/progresslog"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
@@ -163,12 +162,8 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 
 			op.Infof("Uploading %s as %s", baseName, key)
 
-			ul := progresslog.NewUploadLogger(op.Infof, baseName, time.Second*3)
-			// need to wait since UploadLogger is asynchronous.
-			defer ul.Wait()
-
 			return d.session.Datastore.UploadFile(op, image, path.Join(d.vmPathName, key),
-				progresslog.UploadParams(ul))
+				nil)
 		}
 
 		// counter for retry decider
