@@ -70,6 +70,7 @@ pipeline:
       - github_automation_api_key
       - codecov_token
     commands:
+      - export BUILD_NUMBER=${DRONE_BUILD_NUMBER}
       - make all
       - tests/unit-test-check.sh
     when:
