@@ -101,7 +101,6 @@ pipeline:
       - syslog_passwd
       - syslog_server
       - syslog_user
-      - test_datastore
       - test_resource
       - test_timeout
       - test_password
@@ -112,6 +111,7 @@ pipeline:
       - export GOVC_INSECURE=true
       - export GOVC_USERNAME=$TEST_USERNAME
       - export GOVC_PASSWORD=$TEST_PASSWORD
+      - export TEST_DATASTORE=cloud_native_1tb_01
       - export GOVC_DATASTORE=$TEST_DATASTORE
       - export DOMAIN=$CI_DOMAIN
       - export MULTI_VCH=1
