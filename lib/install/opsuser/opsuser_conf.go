@@ -31,6 +31,8 @@ var RoleVCenter = types.AuthorizationRole{
 	Name: "vcenter",
 	Privilege: []string{
 		"Datastore.Config",
+		"Global.EnableMethods",
+		"Global.DisableMethods",
 	},
 }
 
