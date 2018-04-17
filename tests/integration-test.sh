@@ -47,7 +47,7 @@ fi
 if [[ $DRONE_BRANCH == "master" || $DRONE_BRANCH == "releases/"* ]] && [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "push" ]]; then
     echo "Running full CI for $DRONE_BUILD_EVENT on $DRONE_BRANCH"
     pabot --verbose --processes $jobs --removekeywords TAG:secret --exclude skip tests/test-cases
-elif [[ $DRONE_BRANCH == *"refs/tags"* ]] && [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "tag" ]]; then
+elif [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "tag" ]]; then
     echo "Running only Group11-Upgrade and 7-01-Regression for $DRONE_BUILD_EVENT on $DRONE_BRANCH"
     pabot --verbose --processes $jobs --removekeywords TAG:secret --suite Group11-Upgrade --suite 7-01-Regression tests/test-cases
 elif (echo $prBody | grep -q "\[full ci\]"); then
