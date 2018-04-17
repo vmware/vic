@@ -52,4 +52,5 @@ Group 5 - Functional Tests
 -
 [Test 5-27 - Selenium Grid](5-27-Selenium-Grid.md)
 -
-
+[Test 5-28 - Failed Install](5-28-Failed-Install.md)
+-
