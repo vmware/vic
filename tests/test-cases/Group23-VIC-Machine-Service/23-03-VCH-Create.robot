@@ -76,8 +76,8 @@ Pull Busy Box
 
 
 Get Docker Host Params
-    [Arguments]    ${vch}    ${vch_name}
-    Run Keyword And Continue On Failure    Wait Until Keyword Succeeds    20x    10s    Get Docker Params API    ${vch}    ${vch_name}
+    [Arguments]    ${vch_name}
+    Run Keyword And Continue On Failure    Wait Until Keyword Succeeds    30x    10s    Get Docker Params API    ${vch_name}
     Run Keyword If    "${docker_host}" == "null"    Run VIC Machine Inspect Command   ${vch_name}
     ${vch_params}=    Get Environment Variable    VCH-PARAMS    ${EMPTY}
     Run Keyword if    "${vch_params}" != "${EMPTY}"    Extract Docker IP And Port    ${vch_params}
@@ -123,7 +123,7 @@ Create minimal VCH
     Property Should Contain         .runtime.power_state                 poweredOn
     Property Should Contain         .runtime.upgrade_status              Up to date
 
-    Get Docker Host Params    vch    %{VCH-NAME}-api-test-minimal
+    Get Docker Host Params    %{VCH-NAME}-api-test-minimal
 
     [Teardown]    Run Secret VIC Machine Delete Command    %{VCH-NAME}-api-test-minimal
 
@@ -159,7 +159,7 @@ Create minimal VCH within datacenter
     Property Should Contain         .runtime.power_state                 poweredOn
     Property Should Contain         .runtime.upgrade_status              Up to date
 
-    Get Docker Host Params    vch    %{VCH-NAME}-api-test-dc
+    Get Docker Host Params    %{VCH-NAME}-api-test-dc
 
 
     [Teardown]    Run Secret VIC Machine Delete Command    %{VCH-NAME}-api-test-dc
@@ -342,13 +342,16 @@ Fail to create VCH with a name that is already in use
     Create VCH    '{"name":"${there_can_only_be_one}","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"${PUBLIC_NETWORK}"}}},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
     
     Verify Return Code
+
+    ${status}=    Get State Of Github Issue    7749
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 23-03-VCH-Create.robot "Fail to create VCH with a name that is already in use" needs to be updated now that Issue #7749 has been resolved
+    # Issue 7749 should provide the correct return error
     Verify Status Internal Server Error
 
     Output Should Contain    already exists
 
-    Get VCH ${there_can_only_be_one}
+    [Teardown]    Run Secret VIC Machine Delete Command    ${there_can_only_be_one}
 
-    Delete Path Under Target    vch/${id}
 
 Fail to create a VCH with an invalid container name name convention
     ${invalid_name_convention}=    Set Variable    192.168.1.1-mycontainer
@@ -423,14 +426,14 @@ Fail to create VCH where whitelist contains invalid character - registry setting
 
 
 Create VCH where whitelist registry contains valid registry wildcard domain and validate
-    ${wildcard_registry}=    Set Variable    "*hub.docker.com"
+    ${wildcard_registry}=    Set Variable    "*.docker.com"
 
     Create VCH    '{"name":"%{VCH-NAME}","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"${PUBLIC_NETWORK}"}}},"registry":{"whitelist":[${wildcard_registry}]},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
 
     Verify Return Code
     Verify Status Created
 
-    Get Docker Host Params    vch    %{VCH-NAME}
+    Get Docker Host Params    %{VCH-NAME}
 
     Wait Until Keyword Succeeds    10x    2s    Pull Busy Box    ${docker_host} --tls    0    Digest
 
@@ -438,14 +441,14 @@ Create VCH where whitelist registry contains valid registry wildcard domain and 
 
 
 Fail to validate created VCH where whitelist registry contains unauthorized registry wildcard domain - whitelist settings
-    ${invalid_wildcard_registry}=    Set Variable    "*hub.docker.gov"
+    ${invalid_wildcard_registry}=    Set Variable    "*.docker.gov"
 
     Create VCH    '{"name":"%{VCH-NAME}","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"${PUBLIC_NETWORK}"}}},"registry":{"whitelist":[${invalid_wildcard_registry}]},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
 
     Verify Return Code
     Verify Status Created
 
-    Get Docker Host Params    vch    %{VCH-NAME}
+    Get Docker Host Params    %{VCH-NAME}
 
     Wait Until Keyword Succeeds    10x    2s    Pull Busy Box    ${docker_host} --tls    1    Access denied to unauthorized registry
 
@@ -477,12 +480,17 @@ Fail to create VCH where compute resource property contains invalid data - resou
     Verify Status Bad Request
 
     Output Should Contain    not found
+    Output Should Contain    TEST_RESOURCE
 
 
 Fail to create VCH where compute cpu limit property is very high - resource settings
     Create VCH    '{"name":"%{VCH-NAME}-invalid_resource","compute":{"cpu":{"limit":{"units":"GHz","value":6969696969696969},"reservation":{"units":"GHz","value":2969696969696969},"shares":{"level":"high"}},"memory":{"limit":{"units":"MiB","value":1200},"reservation":{"units":"MiB","value":501},"shares":{"number":81910}},"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"${PUBLIC_NETWORK}"}}},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
 
     Verify Return Code
+
+    ${status}=    Get State Of Github Issue    7750
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 23-03-VCH-Create.robot "Fail to create VCH where compute cpu limit property is very high - resource settings" needs to be updated now that Issue #7750 has been resolved
+    # Issue 7750 should provide the correct return error
     Verify Status Internal Server Error
 
     Output Should Contain    The amount of CPU resource available in the parent resource pool is insufficient for the operation.
@@ -526,7 +534,7 @@ Create VCH setting tls to false and validate - security settings
     Verify Return Code
     Verify Status Created
 
-    Get Docker Host Params    vch    %{VCH-NAME}
+    Get Docker Host Params    %{VCH-NAME}
 
     Wait Until Keyword Succeeds    10x    2s    Pull Busy Box    ${docker_host}    0    Digest
 
@@ -544,7 +552,7 @@ Create VCH setting tls to true and validate - security settings
     Verify Return Code
     Verify Status Created
 
-    Get Docker Host Params    vch    %{VCH-NAME}
+    Get Docker Host Params    %{VCH-NAME}
 
     Wait Until Keyword Succeeds    20x    5s    Pull Busy Box    ${docker_host}    0    Digest
 
@@ -557,7 +565,7 @@ Create VCH with no auth - security settings
     Verify Return Code
     Verify Status Created
 
-    Get Docker Host Params    vch    %{VCH-NAME}
+    Get Docker Host Params    %{VCH-NAME}
 
     Wait Until Keyword Succeeds    20x    5s    Pull Busy Box    ${docker_host}    0    Digest
 
@@ -570,7 +578,7 @@ Create VCH without specifying certs on client params - security settings
     Verify Return Code
     Verify Status Created
 
-    Get Docker Host Params    vch    %{VCH-NAME}
+    Get Docker Host Params    %{VCH-NAME}
 
     Wait Until Keyword Succeeds    20x    5s    Pull Busy Box    ${docker_host} --tlsverify    1    could not read CA certificate
 

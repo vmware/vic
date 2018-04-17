@@ -152,8 +152,8 @@ Verify VCH List Empty
     Length Should Be  ${vchs}  0
 
 Get Docker Params API
-    [Arguments]    ${vch}    ${vch_name}
-    Get Path Under Target    ${vch}
+    [Arguments]    ${vch_name}
+    Get Path Under Target    vch
     ${docker_host}=    Run    echo '${OUTPUT}' | jq -r '.vchs[] | select(.name=="${vch_name}").docker_host'
     Set Test Variable    ${docker_host}
     Should Not Be Empty    ${docker_host}
