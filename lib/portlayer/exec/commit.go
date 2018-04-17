@@ -79,40 +79,10 @@ func Commit(op trace.Operation, sess *session.Session, h *Handle, waitTime *int3
 		c = newContainer(&h.containerBase)
 		Containers.Put(c)
 
-		if Config.Container.UseVMGroup {
-			affinity := func(ctx context.Context) (tasks.Task, error) {
-				op2 := trace.FromContext(ctx, "vm group membership")
-
-				containers := Containers.References()
-
-				group := &types.ClusterVmGroup{
-					ClusterGroupInfo: types.ClusterGroupInfo{
-						Name: Config.Container.VMGroupName,
-					},
-					Vm: append(containers, Config.SelfReference),
-				}
-
-				spec := &types.ClusterConfigSpecEx{
-					GroupSpec: []types.ClusterGroupSpec{
-						{
-							ArrayUpdateSpec: types.ArrayUpdateSpec{
-								Operation: types.ArrayUpdateOperationEdit,
-							},
-							Info: group,
-						},
-					},
-				}
-
-				op.Debugf("Attempting to update vm group: %+v", group)
-				return Config.Cluster.Reconfigure(op2, spec, true)
-			}
-
-			res, err = tasks.WaitForResultAndRetryIf(op, affinity, tasks.IsTransientError)
-			if err != nil {
-				op.Errorf("Failed to add VM to VMgroup: %s", err)
-				return err
-			}
-			op.Debugf("VM to group result: %+v", res)
+		err = Config.addToVMGroup(op)
+		if err != nil {
+			op.Errorf("Failed to add VM to VMGroup: %s", err)
+			return err
 		}
 
 		// inform of creation irrespective of remaining operations
@@ -244,6 +214,85 @@ func Commit(op trace.Operation, sess *session.Session, h *Handle, waitTime *int3
 	}
 
 	return nil
+}
+
+// batchBlockOnFunc is a batching routine that batch processes incoming requests.
+// Incoming request signals the batching routine by throwing into a batch channel. When this routine is performing operation on
+// the previous requests, new requests will be batched in the channel, waiting for next iteration to process.
+func batchBlockOnFunc(ctx context.Context, batch chan chan error, operation func(operation trace.Operation) error) {
+	op := trace.FromContext(ctx, "Add container VM to VMGroup dispatch routine")
+
+	for {
+		members := make([]chan error, 0, 5) // batching queue
+		var req chan error
+		var ok bool
+
+		// block and wait for first request
+		select {
+		case req, ok = <-batch:
+			if !ok {
+				return // channel closed, quit
+			}
+			if req == nil {
+				continue
+			}
+			members = append(members, req)
+		case <-op.Done(): // when parent context is cancelled, quit
+			return
+		}
+
+		// fetch batched requests
+		for len(batch) > 0 {
+			req = <-batch
+			if req != nil {
+				members = append(members, req)
+			}
+		}
+
+		// process requests
+		err := operation(op)
+
+		// signal batched operations and throw back result
+		for _, member := range members {
+			member <- err
+			close(member)
+		}
+	}
+}
+
+// reconfigureVMGroup reconfigures the VM group associated with the endpoint VM on the cluster, by adding all containers in
+// cache and endpoint VM to the VM group
+func reconfigureVMGroup(op trace.Operation) error {
+	affinity := func(ctx context.Context) (tasks.Task, error) {
+		op2 := trace.FromContext(ctx, "vm group membership")
+
+		containers := Containers.References()
+
+		group := &types.ClusterVmGroup{
+			ClusterGroupInfo: types.ClusterGroupInfo{
+				Name: Config.Container.VMGroupName,
+			},
+			Vm: append(containers, Config.SelfReference),
+		}
+
+		spec := &types.ClusterConfigSpecEx{
+			GroupSpec: []types.ClusterGroupSpec{
+				{
+					ArrayUpdateSpec: types.ArrayUpdateSpec{
+						Operation: types.ArrayUpdateOperationEdit,
+					},
+					Info: group,
+				},
+			},
+		}
+
+		op.Debugf("Attempting to update vm group: %+v", group)
+		return Config.Cluster.Reconfigure(op2, spec, true)
+	}
+
+	_, err := tasks.WaitForResultAndRetryIf(op, affinity, tasks.IsTransientError)
+
+	return err
 }
 
 // HELPER FUNCTIONS BELOW

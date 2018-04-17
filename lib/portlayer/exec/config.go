@@ -22,6 +22,7 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/event"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 var Config Configuration
@@ -61,4 +62,7 @@ type Configuration struct {
 
 	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
 	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"storage/image_stores"`
+
+	// addToVMGroup sends signal for batching dispatcher to add container VM to VMGroup
+	addToVMGroup func(trace.Operation) error
 }
