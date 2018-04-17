@@ -39,7 +39,6 @@ func (v *Validator) compute(op trace.Operation, input *data.Data, conf *config.V
 		return
 	}
 
-	// TODO: for vApp creation assert that the name doesn't exist
 	// TODO: for RP creation assert whatever we decide about the pool - most likely that it's empty
 }
 
@@ -56,19 +55,19 @@ func (v *Validator) inventoryPath(op trace.Operation, obj object.Reference) stri
 // ResourcePoolHelper finds a resource pool from the input compute path and shows
 // suggestions if unable to do so when the path is ambiguous.
 func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*object.ResourcePool, error) {
-	op := trace.FromContext(ctx, "DatastoreHelper")
+	op := trace.FromContext(ctx, "ResourcePoolHelper")
 	defer trace.End(trace.Begin(path, op))
 
 	// if compute-resource is unspecified is there a default
 	if path == "" {
-		if v.Session.Pool != nil {
-			op.Debugf("Using default resource pool for compute resource: %q", v.Session.Pool.InventoryPath)
-			return v.Session.Pool, nil
+		if v.Session.Pool == nil {
+			// if no path specified and no default available the show all
+			v.suggestComputeResource(op)
+			return nil, errors.New("No unambiguous default compute resource available: --compute-resource must be specified")
 		}
 
-		// if no path specified and no default available the show all
-		v.suggestComputeResource(op)
-		return nil, errors.New("No unambiguous default compute resource available: --compute-resource must be specified")
+		path = v.Session.Pool.InventoryPath
+		op.Debugf("Using default resource pool for compute resource: %q", v.Session.Pool.InventoryPath)
 	}
 
 	pool, err := v.Session.Finder.ResourcePool(op, path)

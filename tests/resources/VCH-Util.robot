@@ -36,6 +36,10 @@ Set Test Environment Variables
     Set Environment Variable  GOVC_USERNAME  %{TEST_USERNAME}
     Set Environment Variable  GOVC_PASSWORD  %{TEST_PASSWORD}
 
+    ${IN_HAAS}=  Run Keyword And Return Status  Should Contain  %{HAAS_URL_ARRAY}  %{TEST_URL}
+    Run Keyword If  ${IN_HAAS}  Log To Console  Test Server is in HaaS
+    Run Keyword Unless  ${IN_HAAS}  Log To Console  Test Server is in Nimbus
+
     ${rc}  ${thumbprint}=  Run And Return Rc And Output  govc about.cert -k -json | jq -r .ThumbprintSHA1
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  TEST_THUMBPRINT  ${thumbprint}
@@ -306,6 +310,7 @@ Install VIC Appliance To Test Server With Current Environment Variables
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Containers On Test Server
+    Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Folders On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Resource Pools On Test Server
 
     # Install the VCH now
@@ -362,6 +367,11 @@ Run VIC Machine Delete Command
     Assert  ${status}  vic-machine delete failed to remove %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
+
+    # Check that the VCH folder (if created) is removed
+    ${ret}=  Run  govc find %{TEST_DATACENTER}/vm -type f
+    Should Not Contain  ${ret}  %{VCH-NAME}
+
     ${output}=  Run  rm -rf %{VCH-NAME}
     [Return]  ${output}
 
@@ -395,19 +405,20 @@ Check UpdateInProgress
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${expected}
 
+# This keyword is used to match two patterns on the same line occurring in any order
 Portlayer Log Should Match Regexp
     [Tags]  secret
-    [Arguments]  ${pattern}
+    [Arguments]  ${pattern1}  ${pattern2}
     ${out}=  Run  curl -k -D /tmp/cookies-%{VCH-NAME} -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
     Log  ${out}
-    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b /tmp/cookies-%{VCH-NAME} | grep -q -e \'${pattern}\'
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b /tmp/cookies-%{VCH-NAME} | grep -ie \'${pattern1}\' | grep -iqe \'${pattern2}\'
     Should Be Equal As Integers  ${rc}  0
 
 Gather Logs From Test Server
     [Arguments]  ${name-suffix}=${EMPTY}
     Run Keyword And Continue On Failure  Run  zip %{VCH-NAME}-certs -r %{VCH-NAME}
-    Secret Curl Container Logs  ${name-suffix}
-    ${host}=  Get VM Host Name  %{VCH-NAME}
+    Curl Container Logs  ${name-suffix}
+    ${host}=  Wait Until Keyword Succeeds  12x  10s  Get VM Host Name  %{VCH-NAME}
     Log  ${host}
     ${out}=  Run  govc datastore.download -host ${host} %{VCH-NAME}/vmware.log %{VCH-NAME}-vmware${name-suffix}.log
     Log  ${out}
@@ -417,25 +428,35 @@ Gather Logs From Test Server
     Should Contain  ${out}  OK
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc logs -log=vmkernel -n=10000 > vmkernel${name-suffix}.log
 
+Curl Container Logs
+    [Arguments]  ${name-suffix}=${EMPTY}
+    ${out1}  ${out2}  ${out3}=  Secret Curl Container Logs  ${name-suffix}
+    Log  ${out1}
+    Log  ${out2}
+    Log  ${out3}
+    Should Not Contain  ${out3}  SIGSEGV: segmentation violation
+
 Secret Curl Container Logs
     [Tags]  secret
     [Arguments]  ${name-suffix}=${EMPTY}
-    ${out}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
-    Log  ${out}
-    ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs${name-suffix}.zip
-    Log  ${out}
-    ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/logs/port-layer.log
-    Should Not Contain  ${out}  SIGSEGV: segmentation violation
+    ${out1}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
+    ${out2}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs${name-suffix}.zip
+    ${out3}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/logs/port-layer.log
     Remove File  vic-admin-cookies
+    [Return]  ${out1}  ${out2}  ${out3}
 
 Check For The Proper Log Files
     [Arguments]  ${container}
     # Ensure container logs are correctly being gathered for debugging purposes
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/authentication -XPOST -F username=%{TEST_USERNAME} -F password=%{TEST_PASSWORD} -D /tmp/cookies-%{VCH-NAME}
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b /tmp/cookies-%{VCH-NAME} | tar tvzf -
-    Should Be Equal As Integers  ${rc}  0
     Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b /tmp/cookies-%{VCH-NAME} -o container-logs.tar.gz
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc and Output  tar tvzf container-logs.tar.gz
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
     @{words}=  Split String  ${container}  -
     Should Contain Any  ${output}  @{words}[0]/output.log  @{words}[1]/output.log
     Should Contain Any  ${output}  @{words}[0]/vmware.log  @{words}[1]/vmware.log
@@ -534,6 +555,27 @@ Cleanup Dangling VMs On Test Server
     \   Continue For Loop If  '${state}' == 'running'
     \   ${uuid}=  Run  govc vm.info -json\=true ${vm} | jq -r '.VirtualMachines[0].Config.Uuid'
     \   Log To Console  Destroying dangling VCH: ${vm}
+    \   ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vm}
+    \   Run Keyword And Continue On Failure  Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vm}
+
+Cleanup Dangling Folders On Test Server
+    ${out}=  Run  govc ls vm
+    Log  ${out}
+    ${exceptions}=  Get Environment Variable  VM_EXCEPTIONS  ${EMPTY}
+    ${vms}=  Split To Lines  ${out}
+    :FOR  ${vm}  IN  @{vms}
+    \   ${vm}=  Fetch From Right  ${vm}  /
+    \   ${build}=  Split String  ${vm}  -
+    \   # Skip any VM that is not associated with integration tests
+    \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   ${skip}=  Check If VCH Is In Exception  vch=${vm}  exceptions=${exceptions}
+    \   Continue For Loop If  ${skip}
+    \   # Skip any VM that is still running
+    \   ${state}=  Get State Of Drone Build  @{build}[1]
+    \   Continue For Loop If  '${state}' == 'running'
+    \   Log To Console  Destroying dangling VCH Folder: vm/${vm}
+    \   ${rc}=  Run and Return Rc  govc object.destroy vm/${vm}
+    \   Run KeyWord If  '$rc' != '0'  Log  failed to clean up vch folder path vm/${vm}
     \   ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vm}
     \   Run Keyword And Continue On Failure  Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vm}
 
@@ -648,7 +690,7 @@ Get VCH ID
 Install VIC with version to Test Server
     [Arguments]  ${version}=7315  ${insecureregistry}=  ${cleanup}=${true}
     Log To Console  \nDownloading vic ${version} from gcp...
-    ${rc}  ${output}=  Run And Return Rc And Output  wget https://storage.googleapis.com/vic-engine-builds/vic_${version}.tar.gz -O vic.tar.gz
+    ${rc}  ${output}=  Run And Return Rc And Output  wget https://storage.googleapis.com/vic-engine-releases/vic_${version}.tar.gz -O vic.tar.gz
     ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
     Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}  cleanup=${cleanup}  vol=default ${insecureregistry}
 
@@ -719,3 +761,12 @@ Assert
     [Arguments]  ${status}  ${msg}
     ${envExists}=  Run Keyword And Return Status  Environment Variable Should Be Set  FAST_FAILURE
     Run Keyword If  ${envExists}  Run Keyword If  %{FAST_FAILURE}  Run Keyword Unless  ${status}  Fatal Error  ${msg}
+    Run Keyword Unless  ${status}  Fail  ${msg}
+
+Manually Cleanup VCH
+    [Arguments]  ${vch-name}
+    ${out}=  Run Keyword And Ignore Error  Run  govc vm.destroy ${vch-name}
+    ${out}=  Run Keyword And Ignore Error  Run  govc pool.destroy host/*/Resources/${vch-name}
+    ${out}=  Run Keyword And Ignore Error  Run  govc datastore.rm ${vch-name}
+    ${out}=  Run Keyword And Ignore Error  Run  govc host.portgroup.remove ${vch-name}-bridge
+    ${out}=  Run Keyword And Ignore Error  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc object.destroy vm/${vch-name}

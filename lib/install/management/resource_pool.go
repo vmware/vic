@@ -17,7 +17,6 @@ package management
 import (
 	"context"
 	"fmt"
-	"path"
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
@@ -33,8 +32,6 @@ import (
 
 func (d *Dispatcher) createResourcePool(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*object.ResourcePool, error) {
 	defer trace.End(trace.Begin("", d.op))
-
-	d.vchPoolPath = path.Join(settings.ResourcePoolPath, conf.Name)
 
 	rp, err := d.session.Finder.ResourcePool(d.op, d.vchPoolPath)
 	if err != nil {
@@ -109,7 +106,7 @@ func (d *Dispatcher) destroyResourcePoolIfEmpty(conf *config.VirtualContainerHos
 		return err
 	}
 	if len(vms) != 0 {
-		err = errors.Errorf("Resource pool is not empty: %q", d.parentResourcepool.Name())
+		err = errors.Errorf("Resource pool is not empty: found %d vms under %q", len(vms), d.parentResourcepool.Name())
 		return err
 	}
 	if _, err := tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {

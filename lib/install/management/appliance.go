@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -112,9 +112,7 @@ func (d *Dispatcher) isContainerVM(vm *vm.VirtualMachine) (bool, error) {
 
 func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(""))
-
 	var err error
-	d.vchPoolPath = path.Join(settings.ResourcePoolPath, conf.Name)
 	var orp *object.ResourcePool
 	if orp, err = d.findResourcePool(d.vchPoolPath); err != nil {
 		return err
@@ -137,17 +135,8 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 		verr = errors.Errorf("Found virtual machine %q, but it is not a VCH. Please choose a different virtual app.", conf.Name)
 		return verr
 	}
-	err = errors.Errorf("Virtual app %q already exists. Please delete it before reinstalling.", conf.Name)
+	err = errors.Errorf("A VCH with the name %q already exists. Please choose a different name before attempting another install", conf.Name)
 	return err
-}
-
-func (d *Dispatcher) getName(vm *vm.VirtualMachine) string {
-	name, err := vm.Name(d.op)
-	if err != nil {
-		d.op.Errorf("VM name not found: %s", err)
-		return ""
-	}
-	return name
 }
 
 func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
@@ -163,7 +152,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 			if err != nil {
 				return err
 			}
-			name := d.getName(vm)
+			name, _ := vm.ObjectName(d.op)
 			if name != "" {
 				err = errors.Errorf("VM %q is powered on", name)
 			} else {
@@ -177,11 +166,12 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 			d.op.Debugf("Failed to power off existing appliance for %s, try to remove anyway", err)
 		}
 	}
+
 	// get the actual folder name before we delete it
 	folder, err := vm.FolderName(d.op)
 	if err != nil {
 		// failed to get folder name, might not be able to remove files for this VM
-		name := d.getName(vm)
+		name, _ := vm.ObjectName(d.op)
 		if name == "" {
 			d.op.Errorf("Unable to automatically remove all files in datastore for VM %q", vm.Reference())
 		} else {
@@ -393,6 +383,12 @@ func (d *Dispatcher) findApplianceByID(conf *config.VirtualContainerHostConfigSp
 		return nil, err
 	}
 	vmm = vm.NewVirtualMachine(d.op, d.session, ovm.Reference())
+
+	element, err := d.session.Finder.Element(d.op, vmm.Reference())
+	if err != nil {
+		return nil, err
+	}
+	vmm.SetInventoryPath(element.Path)
 	return vmm, nil
 }
 
@@ -481,7 +477,6 @@ func (d *Dispatcher) setDockerPort(conf *config.VirtualContainerHostConfigSpec, 
 
 func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(""))
-
 	d.op.Info("Creating appliance on target")
 
 	spec, err := d.createApplianceSpec(conf, settings)
@@ -490,21 +485,31 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		return err
 	}
 
-	var info *types.TaskInfo
-	// create appliance VM
-	if d.isVC && d.vchVapp != nil {
-		info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-			return d.vchVapp.CreateChildVM(ctx, *spec, d.session.Host)
-		})
-	} else {
-		// if vapp is not created, fall back to create VM under default resource pool
-		info, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-			return d.session.VMFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
-		})
+	// Create the VCH inventory folder
+	if d.isVC {
+		folderPath := fmt.Sprintf("%s", path.Join(d.session.VMFolder.InventoryPath, conf.Name))
+
+		d.op.Info("Creating the VCH folder")
+		// update the session pointer with the VCH Folder
+		d.session.VCHFolder, err = d.session.VMFolder.CreateFolder(d.op, spec.Name)
+		if err != nil {
+			if soap.IsSoapFault(err) {
+				switch soap.ToSoapFault(err).VimFault().(type) {
+				case types.DuplicateName:
+					return fmt.Errorf("Unable to create the VCH due to an existing object with the same name %s", conf.Name)
+				}
+			}
+			return fmt.Errorf("Unable to create the VCH Folder(%s): %s", folderPath, err)
+		}
 	}
 
+	d.op.Info("Creating the VCH VM")
+	info, err := tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
+		return d.session.VCHFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
+	})
+
 	if err != nil {
-		d.op.Errorf("Unable to create appliance VM: %s", err)
+		d.op.Errorf("Unable to create the appliance VM: %s", err)
 		return err
 	}
 	if info.Error != nil || info.State != types.TaskInfoStateSuccess {
@@ -674,7 +679,7 @@ func (d *Dispatcher) decryptVCHConfig(vm *vm.VirtualMachine, cfg map[string]stri
 	defer trace.End(trace.Begin(""))
 
 	if d.secret == nil {
-		name, err := vm.Name(d.op)
+		name, err := vm.ObjectName(d.op)
 		if err != nil {
 			err = errors.Errorf("Failed to get vm name %q: %s", vm.Reference(), err)
 			return nil, err
@@ -1179,4 +1184,29 @@ func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.Virtual
 		return err
 	}
 	return nil
+}
+
+// deleteVCHFolder deletes an empty VCH folder.  During a VCH Delete there is a slight possibility vic
+// could delete a folder it didn't create.  The only time a VCH would be in a folder vic didn't create
+// would be outside of normal vic operations.  There is no risk of loss of data as it will this will only
+// delete an empty folder.
+func (d *Dispatcher) deleteVCHFolder() {
+	// only continue if VC and the VCH Folder is NOT the datacenter wide VM Folder
+	if d.isVC && d.session.VCHFolder != nil && d.session.VCHFolder.Reference() != d.session.VMFolder.Reference() {
+		children, err := d.session.VCHFolder.Children(d.op)
+		if err != nil {
+			d.op.Errorf("Unable to retrieve VCH Folder(%s) contents: %s", d.session.VCHFolder.InventoryPath, err)
+			return
+		}
+		if len(children) > 0 {
+			d.op.Warnf("VCH Folder(%s) contains %d object(s) and will not be removed", d.session.VCHFolder.InventoryPath, len(children))
+			return
+		}
+		_, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
+			return d.session.VCHFolder.Destroy(d.op)
+		})
+		if err != nil {
+			d.op.Errorf("Failed to remove VCH Folder(%s) - manual removal may be needed: %s", d.session.VCHFolder.InventoryPath, err)
+		}
+	}
 }

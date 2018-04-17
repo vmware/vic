@@ -34,8 +34,10 @@ pipeline:
     secrets:
       - drone_server
       - drone_token
-      - test_url_array
+      - haas_url_array
+      - overflow_url_array
     commands:
+      - export TEST_URL_ARRAY="$HAAS_URL_ARRAY $OVERFLOW_URL_ARRAY"
       - tests/wait_until_previous_builds_complete.sh
 
   check-org-membership:
@@ -66,24 +68,11 @@ pipeline:
       - drone_server
       - drone_token
       - github_automation_api_key
-      - registry_password
-      - test_password
-      - test_url_array
-      - test_username
       - codecov_token
     commands:
-      - 'export BUILD_NUMBER=${DRONE_BUILD_NUMBER}'
-      - 'export COMMIT=${DRONE_COMMIT}'
-      - 'make mark'
-      - 'make all'
-      - 'make sincemark'
-      - 'make mark'
-      - 'echo `ls vendor/github.com/vmware/govmomi/vim25/methods`'
-      - 'echo `ls vendor/github.com/vmware/govmomi/vim25/types`'
-      - 'echo `ls vendor/github.com/docker/docker/vendor/github.com/opencontainers/runc/libcontainer/system`'
-      - 'export VIC_ESX_URL_ARRAY="`tests/get_test_url.sh`"'
+      - export BUILD_NUMBER=${DRONE_BUILD_NUMBER}
+      - make all
       - tests/unit-test-check.sh
-      - 'make sincemark'
     when:
       status: success
 
@@ -116,8 +105,9 @@ pipeline:
       - test_resource
       - test_timeout
       - test_password
-      - test_url_array
       - test_username
+      - haas_url_array
+      - overflow_url_array
     commands:
       - export GOVC_INSECURE=true
       - export GOVC_USERNAME=$TEST_USERNAME
@@ -126,9 +116,8 @@ pipeline:
       - export DOMAIN=$CI_DOMAIN
       - export MULTI_VCH=1
       - echo $DOMAIN
-      - 'make mark'
+      - export TEST_URL_ARRAY="$HAAS_URL_ARRAY $OVERFLOW_URL_ARRAY"
       - tests/integration-test.sh
-      - 'make sincemark'
     volumes:
       - /tmp
     when:
@@ -153,8 +142,7 @@ pipeline:
       - 'ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1'
       - 'rm $BIN/vic_ui_*.tar.gz'
     when:
-      status: [success, failure]
-      branch: [master]
+      event: push
 
   vic-ui-release:
     image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
@@ -175,8 +163,7 @@ pipeline:
       - 'ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1'
       - 'rm $BIN/vic_ui_*.tar.gz'
     when:
-     status: success
-     branch: ['releases/*', 'refs/tags/*']
+      event: tag
 
   bundle:
     image: 'wdc-harbor-ci.eng.vmware.com/default-project/golang:1.8'
@@ -187,7 +174,6 @@ pipeline:
       GOPATH: /go
       SHELL: /bin/bash
     commands:
-      - 'make mark'
       - 'rm -rf $BIN_TEMP_DIR'
       - 'mkdir -p $BIN_TEMP_DIR'
       - 'mv $BIN/ui $BIN_TEMP_DIR'
@@ -206,12 +192,9 @@ pipeline:
       - 'mkdir bundle-release'
       - 'cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle'
       - 'cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle-release/vic_`git describe --tags $(git rev-list --tags --max-count=1)`.tar.gz'
-      - 'make sincemark'
     when:
       repo: vmware/vic
       event: [push, tag]
-      branch: [master, 'releases/*', 'refs/tags/*']
-      status: [success, failure]
 
   publish-gcs-builds-on-pass:
     image: 'victest/drone-gcs:1'
@@ -225,7 +208,7 @@ pipeline:
     cache_control: 'public,max-age=3600'
     when:
       repo: vmware/vic
-      event: [push]
+      event: push
       branch: [master, 'releases/*']
       status: success
 
@@ -241,7 +224,7 @@ pipeline:
     cache_control: 'public,max-age=3600'
     when:
       repo: vmware/vic
-      event: [push]
+      event: [push, tag]
       branch: [master, 'releases/*']
       status: failure
 
@@ -257,44 +240,36 @@ pipeline:
     cache_control: 'public,max-age=3600'
     when:
       repo: vmware/vic
-      event: [push, tag]
-      branch: ['refs/tags/*']
+      event: tag
       status: success
 
   publish-vic-machine-server-dev:
     image: plugins/gcr
+    pull: true
     repo: eminent-nation-87317/vic-machine-server
     dockerfile: cmd/vic-machine-server/Dockerfile
-    secrets:
-      - gs_client_email
-      - gs_private_key
-      - gs_private_key_id
-      - gs_project_id
+    custom_dns: 10.142.7.21, 10.142.7.22, 10.166.17.90
+    secrets: [ token ]
     tags:
       - dev
-    json_key: "{   \"type\": \"service_account\",\n  \"project_id\": \"$GS_PROJECT_ID\",\n  \"private_key_id\": \"$GS_PRIVATE_KEY_ID\",\n  \"private_key\": \"$GS_PRIVATE_KEY\",\n  \"client_email\": \"$GS_CLIENT_EMAIL\",\n  \"client_id\": \"$GS_PROJECT_ID\",\n  \"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",\n  \"token_uri\": \"https://accounts.google.com/o/oauth2/token\",\n  \"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",\n  \"client_x509_cert_url\": \"\"\n}\n"
     when:
       repo: vmware/vic
-      event: [push]
-      branch: [master]
+      event: push
+      branch: [master, 'releases/*']
       status: success
 
   publish-vic-machine-server-releases:
     image: plugins/gcr
+    pull: true
     repo: eminent-nation-87317/vic-machine-server
     dockerfile: cmd/vic-machine-server/Dockerfile
-    secrets:
-      - gs_client_email
-      - gs_private_key
-      - gs_private_key_id
-      - gs_project_id
+    custom_dns: 10.142.7.21, 10.142.7.22, 10.166.17.90
+    secrets: [ token ]
     tags:
       - latest
-    json_key: "{   \"type\": \"service_account\",\n  \"project_id\": \"$GS_PROJECT_ID\",\n  \"private_key_id\": \"$GS_PRIVATE_KEY_ID\",\n  \"private_key\": \"$GS_PRIVATE_KEY\",\n  \"client_email\": \"$GS_CLIENT_EMAIL\",\n  \"client_id\": \"$GS_PROJECT_ID\",\n  \"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",\n  \"token_uri\": \"https://accounts.google.com/o/oauth2/token\",\n  \"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",\n  \"client_x509_cert_url\": \"\"\n}\n"
     when:
       repo: vmware/vic
-      event: [push, tag]
-      branch: ['refs/tags/*', 'releases/*']
+      event: tag
       status: success
 
   trigger-downstream:
@@ -307,7 +282,7 @@ pipeline:
     when:
       repo: vmware/vic
       event: [push, tag]
-      branch: [master, 'releases/*', 'refs/tags/*']
+      branch: [master, 'releases/*']
       status: success
 
   notify-slack-on-fail:
@@ -319,8 +294,8 @@ pipeline:
     template: "Build https://ci-vic.vmware.com/vmware/vic/{{ build.number }} by {{ build.author }} finished with a {{ build.status }} status. Logs: https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/integration_logs_{{ build.number }}_{{ build.commit }}.zip?authuser=1\n"
     when:
       repo: vmware/vic
-      event: [push, tag, deployment]
-      branch: [master, 'releases/*', 'refs/tags/*']
+      event: [push, tag]
+      branch: [master, 'releases/*']
       status: failure
 
   notify-slack-on-pass:
@@ -332,7 +307,7 @@ pipeline:
     template: "Build https://ci-vic.vmware.com/vmware/vic/{{ build.number }} by {{ build.author }} finished with a {{ build.status }} status, find the build at: https://storage.googleapis.com/vic-engine-builds/vic_{{ build.number }}.tar.gz\n"
     when:
       repo: vmware/vic
-      event: [push, tag, deployment]
+      event: push
       branch: [master, 'releases/*']
       status: success
 
@@ -345,8 +320,8 @@ pipeline:
     template: "The latest version of VIC engine has been released, find the build here: https://console.cloud.google.com/storage/browser/vic-engine-releases\n"
     when:
       repo: vmware/vic
-      event: [push, tag, deployment]
-      branch: ['refs/tags/*']
+      event: tag
+      status: success
 
   pass-rate:
     image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'

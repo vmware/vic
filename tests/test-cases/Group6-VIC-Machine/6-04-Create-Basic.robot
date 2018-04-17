@@ -18,6 +18,44 @@ Resource  ../../resources/Util.robot
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
+*** Keywords ***
+Manually Create VCH Folder On VC
+     # Grab the vm folder for the VC
+     ${rc}  ${vm-folder-path}=  Run And Return Rc And Output  govc ls | grep vm
+     Should Be Equal As Integers  ${rc}  0
+     # Create vch named folder for
+     ${rc}=  Run And Return Rc  govc folder.create ${vm-folder-path}/%{VCH-NAME}
+     Should Be Equal As Integers  ${rc}  0
+
+Create Dummy VM In VCH Folder On VC
+    ${vm-folder-path}=  Run  govc ls | grep vm
+    # grab path to the cluster
+    ${rc}  ${compute-path}=  Run And Return Rc And Output  govc ls host | grep %{TEST_RESOURCE}
+    Should Be Equal As Integers  ${rc}  0
+    # Create dummy VM at the correct inventory path.
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool=${compute-path} -net=%{PUBLIC_NETWORK} -folder=${vm-folder-path}/%{VCH-NAME} %{VCH-NAME}
+    Should Be Equal As Integers  ${rc}  0
+
+Create Dummy VM On ESX
+    ${rc}  ${compute-path}=  Run And Return Rc And Output  govc ls host | grep %{TEST_RESOURCE}
+    Should Be Equal As Integers  ${rc}  0
+    # Create dummy VM at the correct inventory path.
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool=${compute-path} -net=%{PUBLIC_NETWORK} %{VCH-NAME}
+    Should Be Equal As Integers  ${rc}  0
+
+Cleanup Manually Created VCH Folder
+    ${rc}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc  govc object.destroy vm/%{VCH-NAME}
+    Should Be Equal As Integers  ${rc}  0
+
+Cleanup Dummy VM
+    [Arguments]  ${vm-name}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}
+    Should Be Equal As Integers  ${rc}  0
+
+Cleanup Dummy VM And VCH Folder
+    Run Keyword And Continue On Failure  Cleanup Dummy VM  %{VCH-NAME}
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run Keyword And Continue On Failure  Cleanup Manually Created VCH Folder
+
 *** Test Cases ***
 Create VCH - supply DNS server
     Set Test Environment Variables
@@ -61,6 +99,14 @@ Create VCH - custom base disk
     Should Be Equal As Integers  ${rc}  0
 
     Run Regression Tests
+    Cleanup VIC Appliance On Test Server
+
+Create VCH - Folder Structure Correctness
+    Install VIC Appliance To Test Server
+    ${rc}  ${out}=  Run And Return Rc And Output  govc ls vm | grep %{VCH-NAME}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${out}  vm/%{VCH-NAME}
+    Check VM Folder Path  %{VCH-NAME}
     Cleanup VIC Appliance On Test Server
 
 Create VCH - URL without user and password
@@ -114,7 +160,6 @@ Create VCH - specified datacenter
 
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
-
 
 Create VCH - defaults
     Set Test Environment Variables
@@ -195,7 +240,7 @@ Create VCH - long VCH name
     # Delete the portgroup added by env vars keyword
     Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Cleanup VCH Bridge Network
 
-Create VCH - Existing VCH name
+Create VCH - Existing VCH Name
     Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
@@ -206,20 +251,22 @@ Create VCH - Existing VCH name
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} ${vicmachinetls}
-    Should Contain  ${output}  already exists. Please delete it before reinstalling.
+    ${vm-folder-path}=  Run  govc ls | grep vm
+    Should Contain  ${output}  \\"%{VCH-NAME}\\" already exists
 
     Cleanup VIC Appliance On Test Server
 
-Create VCH - Existing VM name
+Create VCH - Existing VM Name
     Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    # Create dummy VM
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -net=%{PUBLIC_NETWORK} %{VCH-NAME}
-    Should Be Equal As Integers  ${rc}  0
+    # setup environment
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Manually Create VCH Folder On VC
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Create Dummy VM In VCH Folder On VC
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Create Dummy VM On ESX
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
     Log  ${output}
 
     # VCH creation should succeed on ESXi
@@ -229,11 +276,32 @@ Create VCH - Existing VM name
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
 
     # VCH creation should fail on VC
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  The name '%{VCH-NAME}' already exists.
+    ${vm-folder-path}=  Run  govc ls | grep vm
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  existing
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  %{VCH-NAME}
+    Should Not Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}
-    Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Cleanup VCH Bridge Network
+    [teardown]  Cleanup Dummy VM And VCH Folder
+
+Create VCH - Folder Conflict
+    # This case cannot occur on standalone ESXi's
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Pass Execution If  '%{HOST_TYPE}' == 'ESXi'  ESXi does not support folders, skipping test.
+
+
+    # setup environment
+    Manually Create VCH Folder On VC
+
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
+    Log  ${output}
+    ${vm-path}=  Run  govc ls | grep vm
+    Should Contain  ${output}  existing
+    Should Contain  ${output}  %{VCH-NAME}
+    Should Not Be Equal As Integers  ${rc}  0
+
+    [teardown]  Cleanup Manually Created VCH Folder
 
 Create VCH - Existing RP on ESX
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Pass Execution  Test skipped on VC

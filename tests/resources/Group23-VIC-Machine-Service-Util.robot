@@ -145,3 +145,8 @@ Property Should Not Be Empty
 
     ${actual}=  Run    echo '${OUTPUT}' | jq -r '${jq}'
     Should Not Be Empty    ${actual}
+
+Verify VCH List Empty
+    ${vchs}=  Run  echo '${OUTPUT}' | jq -r '.vchs[]'
+    Log  ${vchs}
+    Length Should Be  ${vchs}  0

@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"path"
 
 	"github.com/go-openapi/runtime/middleware"
 
@@ -87,7 +86,7 @@ func (h *VCHDatacenterListGet) Handle(params operations.GetTargetTargetDatacente
 
 func listVCHs(op trace.Operation, d *data.Data, validator *validate.Validator) ([]*models.VCHListItem, error) {
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
-	vchs, err := executor.SearchVCHs(validator.ClusterPath)
+	vchs, err := executor.SearchVCHs(validator.Session.ClusterPath)
 	if err != nil {
 		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to search VCHs in %s: %s", validator.ResourcePoolPath, err))
 	}
@@ -98,28 +97,43 @@ func listVCHs(op trace.Operation, d *data.Data, validator *validate.Validator) (
 func vchsToModels(op trace.Operation, vchs []*vm.VirtualMachine, executor *management.Dispatcher) []*models.VCHListItem {
 	installerVer := version.GetBuild()
 	payload := make([]*models.VCHListItem, 0)
+
 	for _, vch := range vchs {
-		var version *version.Build
-		var dockerHost string
-		var adminPortal string
-		name := path.Base(vch.InventoryPath)
+		name := vch.Name()
 		id := vch.Reference().Value
 
-		if vchConfig, err := executor.GetNoSecretVCHConfig(vch); err == nil {
-			version = vchConfig.Version
-			dockerHost, adminPortal, err = getAddresses(executor, vchConfig)
-			if err != nil {
-				op.Warnf("Failed to get docker host and admin portal address for VCH %s: %s", id, err)
-			}
+		vchConfig, err := executor.GetNoSecretVCHConfig(vch)
+		// If we can't get the extra config from this VCH, the VCH at this point could already been deleted / partially created / corrupted
+		// we ignore this partial VCH, log the error and skip to next one
+		if err != nil {
+			op.Warnf("Failed to get extra config from VCH %s: %s", id, err)
+			continue
 		}
 
-		model := &models.VCHListItem{ID: id, Name: name, AdminPortal: adminPortal, DockerHost: dockerHost}
+		version := vchConfig.Version
+		dockerHost, adminPortal, err := getAddresses(executor, vchConfig)
+		if err != nil {
+			op.Warnf("Failed to get docker host and admin portal address for VCH %s: %s", id, err)
+		}
+
+		powerState, err := vch.PowerState(op)
+		if err != nil {
+			op.Warnf("Failed to get power state of VCH %s: %s", id, err)
+			powerState = "error"
+		}
+
+		model := &models.VCHListItem{
+			ID:          id,
+			Name:        name,
+			AdminPortal: adminPortal,
+			DockerHost:  dockerHost,
+			PowerState:  string(powerState),
+		}
 
 		if version != nil {
 			model.Version = version.ShortVersion()
 			model.UpgradeStatus = upgradeStatusMessage(op, vch, installerVer, version)
 		}
-
 		payload = append(payload, model)
 	}
 

@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -113,7 +113,7 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 
 	// If successful try to grant permissions to the ops-user
 	if err == nil && conf.ShouldGrantPerms() {
-		err = opsuser.GrantOpsUserPerms(d.op, d.session.Vim25(), conf)
+		err = opsuser.GrantOpsUserPerms(d.op, d.session, conf)
 		if err != nil {
 			// Update error message and fall through to roll back
 			err = errors.Errorf("Failed to grant permissions to ops-user, failure: %s", err)
@@ -333,7 +333,7 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 		return err
 	}
 
-	if err = d.startAppliance(conf); err != nil {
+	if err = d.appliance.PowerOn(d.op); err != nil {
 		return err
 	}
 
@@ -367,7 +367,9 @@ func (d *Dispatcher) rollback(conf *config.VirtualContainerHostConfigSpec, snaps
 func (d *Dispatcher) ensureRollbackReady(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(conf.Name, d.op))
 
-	if err := d.startAppliance(conf); err != nil {
+	// we've rolled back to the previous snap which didn't include
+	// memory, so we need to powerOn the VM
+	if err := d.appliance.PowerOn(d.op); err != nil {
 		return err
 	}
 
@@ -377,6 +379,7 @@ func (d *Dispatcher) ensureRollbackReady(conf *config.VirtualContainerHostConfig
 		// do not return error in this case, to make sure clean up continues
 		d.op.Info("\tAPI may be slow to start - try to connect to API after a few minutes")
 	}
+
 	return nil
 }
 
