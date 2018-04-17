@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 11-01 - Upgrade
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC with version to Test Server  7315
+Suite Setup  Install VIC with version to Test Server  1.2.1
 Suite Teardown  Clean up VIC Appliance And Local Binary
 Default Tags
 
@@ -65,11 +65,6 @@ Run Docker Checks
     Run Keyword If  '${status}' == 'closed'  Fail  Exit code check below needs to be updated now that Issue #7534 has been resolved
     #Should Not Contain  ${output}  Exited (0)
 
-    # Check that rename doesn't work on a container from a VCH that doesn't support rename
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename vch-restart-test1 vch-test2
-    Should Not Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  does not support rename
-
     # Check that rename works on a container from a VCH that supports rename
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
@@ -83,12 +78,13 @@ Run Docker Checks
     Verify Container Rename  new-vch-cont1  new-vch-cont2  ${contID}
 
     # check the display name and datastore folder name of an existing container
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info *-%{ID1}
+    ${id1shortID}=  Get container shortID  %{ID1}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info *-${id1shortID}
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  vch-restart-tes-%{ID1}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls | grep vch-restart-tes-%{ID1}
+    Should Contain  ${output}  vch-restart-test1-${id1shortID}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls | grep %{ID1}
     Should Be Equal As Integers  ${rc}  0
-    Should Be Equal  ${output}  vch-restart-tes-%{ID1}
+    Should Be Equal  ${output}  %{ID1}
 
     # check the display name and datastore folder name of a new container
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
