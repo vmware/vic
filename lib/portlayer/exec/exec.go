@@ -43,6 +43,9 @@ var (
 	}
 )
 
+// batchingLimit: the maximum number of requests of adding cVM to VMGroup that can be processed concurrently
+const batchingLimit = 100
+
 // Init is the main initializaton function for the exec component.
 // sess - active session object used for vmomi access
 // source - source from which to deserialize component configuration
@@ -150,6 +153,26 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		if err = Containers.sync(ctx, sess); err != nil {
 			log.Errorf("Error encountered during container cache sync during init process: %s", err)
 			return
+		}
+
+		if Config.UseVMGroup {
+			vmGroupChan := make(chan chan error, batchingLimit)
+			Config.addToVMGroup = func(op trace.Operation) error {
+				errChan := make(chan error)
+				vmGroupChan <- errChan
+				select {
+				case <-op.Done(): // context cancelled, quit
+					return nil
+				case err := <-errChan:
+					return err
+				}
+			}
+			// fire background listener to add container VM to group
+			go batchBlockOnFunc(ctx, vmGroupChan, reconfigureVMGroup)
+		} else {
+			Config.addToVMGroup = func(op trace.Operation) error {
+				return nil
+			}
 		}
 	})
 
