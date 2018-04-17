@@ -707,11 +707,11 @@ Get VCH ID
 
 # VCH upgrade helpers
 Install VIC with version to Test Server
-    [Arguments]  ${version}=7315  ${insecureregistry}=  ${cleanup}=${true}
+    [Arguments]  ${version}  ${insecureregistry}=  ${cleanup}=${true}  ${additional-args}=
     Log To Console  \nDownloading vic ${version} from gcp...
     ${rc}  ${output}=  Run And Return Rc And Output  wget https://storage.googleapis.com/vic-engine-releases/vic_${version}.tar.gz -O vic.tar.gz
     ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
-    Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}  cleanup=${cleanup}  vol=default ${insecureregistry}
+    Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}  cleanup=${cleanup}  additional-args=${additional-args}  vol=default ${insecureregistry}
 
     Set Environment Variable  VIC-ADMIN  %{VCH-IP}:2378
     Set Environment Variable  INITIAL-VERSION  ${version}
