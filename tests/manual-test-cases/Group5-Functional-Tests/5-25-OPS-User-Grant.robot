@@ -83,4 +83,15 @@ vic-machine create grants ops-user perms
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm existingvol
     Should Be Equal As Integers  ${rc}  0
 
+    # Verify that containers cannot be destroyed out-of-band, i.e., the Destroy_VM task is
+    # successfully disabled with an ops-user.
+    ${c5}=  Evaluate  'cvm-' + str(random.randint(1000,9999))  modules=random
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${c5} ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy "${c5}*"
+    Should Not Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  The method is disabled by 'VIC'
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c5}
+    Should Be Equal As Integers  ${rc}  0
+
     Cleanup VIC Appliance On Test Server
