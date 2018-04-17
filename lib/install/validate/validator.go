@@ -325,6 +325,7 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	v.CheckPersistNetworkBacking(op, false)
 	v.CheckLicense(op)
 	v.CheckDRS(op, input)
+	v.checkVMGroup(op, input, conf) // Depends on a side-effect of the CheckDRS method.
 
 	v.certificate(op, input, conf)
 	v.certificateAuthorities(op, input, conf)
