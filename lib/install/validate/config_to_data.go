@@ -54,6 +54,9 @@ func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d 
 	}
 	d.DisplayName = name
 
+	// id
+	d.ID = vm.Reference().Value
+
 	// compute resource
 	parent, err := vm.ResourcePool(op)
 	if err != nil {

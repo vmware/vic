@@ -82,13 +82,22 @@ Delete Containers
     ${rc}  ${out}=    Run And Return Rc And Output    docker %{VCH-PARAMS} rm -f ${RUN_CONTAINER_NAME}
 
 
+Configure VCH without modifying affinity
+    ${rc}  ${out}=    Secret configure VCH without modifying affinity
+    Log    ${out}
+    Should Be Equal As Integers    ${RC}    0
+
+Secret configure VCH without modifying affinity
+    [Tags]    secret
+    ${rc}  ${out}=    Run And Return Rc And Output    bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:default --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-conf:configure
+    [Return]    ${rc}  ${out}
+
+
 *** Test Cases ***
 Creating a VCH creates a VM group and container VMs get added to it
     Verify Group Not Found       %{VCH-NAME}
 
     Install VIC Appliance To Test Server With Current Environment Variables    additional-args=--affinity-vm-group
-
-    Log To Console  %{VCH-NAME} created
 
     Verify Group Contains VMs    %{VCH-NAME}    1
 
@@ -169,3 +178,19 @@ Deleting a VCH gracefully handles missing VM group
     Verify Group Not Found       %{VCH-NAME}
 
     Run VIC Machine Delete Command
+
+
+Configuring VCH does not affect affinity
+    Verify Group Not Found       %{VCH-NAME}
+
+    Install VIC Appliance To Test Server With Current Environment Variables    additional-args=--affinity-vm-group
+
+    Verify Group Contains VMs    %{VCH-NAME}    1
+
+    Configure VCH without modifying affinity
+
+    Verify Group Contains VMs    %{VCH-NAME}    1
+
+    Create Three Containers
+
+    Verify Group Contains VMs    %{VCH-NAME}    4

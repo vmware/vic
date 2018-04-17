@@ -56,6 +56,11 @@ func (v *Validator) checkVMGroup(op trace.Operation, input *data.Data, conf *con
 			return
 		}
 
+		if input.ID != "" {
+			op.Debug("Skipping DRS VM Group existence check as VCH has already been created")
+			return
+		}
+
 		conf.UseVMGroup = input.UseVMGroup
 		// For now, we always name the VM Group based on the name of the VCH
 		conf.VMGroupName = conf.Name
