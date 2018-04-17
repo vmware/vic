@@ -84,7 +84,14 @@ echo "default_project_id = $GS_PROJECT_ID" >> $botofile
 
 
 if [ -f "$outfile" ]; then
-  gsutil cp $outfile gs://vic-ci-logs
+  echo `ls -al $outfile`
+  n=0
+  until [ $n -ge 5 ]
+  do
+    gsutil cp $outfile gs://vic-ci-logs && break
+    n=$[$n+1]
+    sleep 15
+  done
   source "$(dirname "${BASH_SOURCE[0]}")/save-test-results.sh"
 
   echo "----------------------------------------------"
