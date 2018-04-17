@@ -70,7 +70,15 @@ type VirtualMachine struct {
 
 // NewVirtualMachine returns a NewVirtualMachine object
 func NewVirtualMachine(ctx context.Context, session *session.Session, moref types.ManagedObjectReference) *VirtualMachine {
-	return NewVirtualMachineFromVM(ctx, session, object.NewVirtualMachine(session.Vim25(), moref))
+	vm := NewVirtualMachineFromVM(ctx, session, object.NewVirtualMachine(session.Vim25(), moref))
+	// best effort to get the correct path
+	if session.Finder != nil {
+		e, _ := session.Finder.Element(ctx, moref)
+		if e != nil {
+			vm.VirtualMachine.InventoryPath = e.Path
+		}
+	}
+	return vm
 }
 
 // NewVirtualMachineFromVM returns a NewVirtualMachine object
