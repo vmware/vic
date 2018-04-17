@@ -18,5 +18,5 @@
 
 docker pull drone/drone
 
-curl http://downloads.drone.io/0.5.0/release/linux/amd64/drone.tar.gz | tar zx
+curl -L https://github.com/drone/drone-cli/releases/download/v0.8.5/drone_linux_amd64.tar.gz | tar zx
 sudo install -t /usr/local/bin drone
