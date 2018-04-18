@@ -28,6 +28,8 @@ const (
 	// create time is stored in nanoseconds (previously seconds) in the portlayer.
 	ContainerCreateTimestampVersion
 
+	VMFolderSupportVersion
+
 	// Add new feature flag here
 
 	// MaxPluginVersion must be the last
