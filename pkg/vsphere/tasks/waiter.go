@@ -278,6 +278,16 @@ func IsNotFoundError(err error) bool {
 	return false
 }
 
+func IsInvalidPowerStateError(err error) bool {
+	if soap.IsSoapFault(err) {
+		_, ok := soap.ToSoapFault(err).VimFault().(types.InvalidPowerState)
+		if ok {
+			return true
+		}
+	}
+	return false
+}
+
 // Helper Functions
 func logFault(op trace.Operation, fault types.BaseMethodFault) {
 	op.Errorf("unexpected fault on task retry: %#v", fault)

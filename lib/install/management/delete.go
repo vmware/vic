@@ -326,7 +326,7 @@ func (d *Dispatcher) DeleteVCHInstances(conf *config.VirtualContainerHostConfigS
 				errs = append(errs, err.Error())
 				mu.Unlock()
 			}
-			d.op.Debugf("Successfully deleted container: %s", child.InventoryPath)
+			d.op.Debugf("Successfully deleted container: %s", child.Reference().String())
 		}(child)
 	}
 	wg.Wait()
