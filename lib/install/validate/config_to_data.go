@@ -23,6 +23,7 @@ import (
 
 	"github.com/docker/go-units"
 
+	"github.com/vmware/govmomi/list"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
@@ -41,6 +42,7 @@ const (
 // Finder is defined for easy to test
 type Finder interface {
 	ObjectReference(ctx context.Context, ref types.ManagedObjectReference) (object.Reference, error)
+	Element(ctx context.Context, ref types.ManagedObjectReference) (*list.Element, error)
 }
 
 // SetDataFromVM set value based on VCH VM properties
@@ -62,8 +64,8 @@ func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d 
 	if err != nil {
 		return err
 	}
-
 	var mrp mo.ResourcePool
+
 	if err = parent.Properties(op, parent.Reference(), []string{"parent"}, &mrp); err != nil {
 		return err
 	}
@@ -71,22 +73,13 @@ func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d 
 	if mrp.Parent == nil {
 		return fmt.Errorf("Failed to get parent resource pool")
 	}
-	or, err := finder.ObjectReference(op, *mrp.Parent)
+
+	element, err := finder.Element(op, *mrp.Parent)
 	if err != nil {
 		return err
 	}
-
-	// we are attempting to present the resource pool inventory path
-	// in a DRS disabled environment that inventory path could point to a
-	// cluster, so we need to evaluate the type and set the path accordingly
-	switch r := or.(type) {
-	case *object.ResourcePool:
-		d.ComputeResourcePath = r.InventoryPath
-	case *object.ClusterComputeResource:
-		d.ComputeResourcePath = r.InventoryPath
-	default:
-		return fmt.Errorf("parent resource %s is not resource pool", mrp.Parent)
-	}
+	// Element returns error if not found, so nil check not needed
+	d.ComputeResourcePath = element.Path
 
 	setVCHResources(op, parent, d)
 	setApplianceResources(op, vm, d)
