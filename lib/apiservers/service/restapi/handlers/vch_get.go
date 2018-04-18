@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -127,6 +127,9 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 
 	// compute
 	model.Compute = &models.VCHCompute{
+		Affinity: &models.VCHComputeAffinity{
+			UseVMGroup: vchConfig.UseVMGroup,
+		},
 		CPU: &models.VCHComputeCPU{
 			Limit:       asMHz(d.ResourceLimits.VCHCPULimitsMHz),
 			Reservation: asMHz(d.ResourceLimits.VCHCPUReservationsMHz),
