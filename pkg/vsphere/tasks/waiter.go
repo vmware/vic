@@ -279,11 +279,18 @@ func IsNotFoundError(err error) bool {
 }
 
 func IsInvalidPowerStateError(err error) bool {
+	if soap.IsVimFault(err) {
+		_, ok1 := soap.ToVimFault(err).(*types.InvalidPowerState)
+		_, ok2 := soap.ToVimFault(err).(*types.InvalidPowerStateFault)
+		return ok1 || ok2
+	}
+
 	if soap.IsSoapFault(err) {
-		_, ok := soap.ToSoapFault(err).VimFault().(types.InvalidPowerState)
-		if ok {
-			return true
-		}
+		_, ok1 := soap.ToSoapFault(err).VimFault().(types.InvalidPowerState)
+		_, ok2 := soap.ToSoapFault(err).VimFault().(types.InvalidPowerStateFault)
+		// sometimes we get the correct fault but wrong type
+		return ok1 || ok2 || soap.ToSoapFault(err).String == "vim.fault.InvalidArgument" ||
+			soap.ToSoapFault(err).String == "vim.fault.InvalidArgumentFault"
 	}
 	return false
 }
