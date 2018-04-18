@@ -28,7 +28,9 @@ const (
 	// create time is stored in nanoseconds (previously seconds) in the portlayer.
 	ContainerCreateTimestampVersion
 
-	VMFolderSupportVersion
+	// VCHFolderSupportVersion represents the VCH version that first introduced
+	// VM folder support for the VCH.
+	VCHFolderSupportVersion
 
 	// Add new feature flag here
 

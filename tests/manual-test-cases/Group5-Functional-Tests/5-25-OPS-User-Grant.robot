@@ -15,9 +15,10 @@
 *** Settings ***
 Documentation  Test 5-25 - OPS-User-Grant
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Ops User Create
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
-Test Teardown  Run Keyword If Test Failed  Gather vSphere Logs
+Suite Setup  Ops User Create
+#Suite Setup  Wait Until Keyword Succeeds  10x  10m  Ops User Create
+#Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+#Test Teardown  Run Keyword If Test Failed  Gather vSphere Logs
 
 *** Keywords ***
 Ops User Create
@@ -82,16 +83,31 @@ Run privilege-dependent docker operations
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c5}
     Should Be Equal As Integers  ${rc}  0
 
-*** Test Cases ***
-vic-machine create grants ops-user perms
-    Install VIC Appliance To Test Server  additional-args=--ops-user ${ops_user_name} --ops-password ${ops_user_password} --ops-grant-perms
+Reconfigure VCH With Ops User
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux configure --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --ops-user=${ops_user_name} --ops-password=${ops_user_password} --ops-grant-perms --thumbprint=%{TEST_THUMBPRINT} --debug=1
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Completed successfully
 
-    # Run a govc test to check that access is denied on some resources
+Attempt To Disable DRS
     Log To Console  Running govc to set drs-enabled, it should fail
     ${rc}  ${output}=  Run And Return Rc And Output  GOVC_USERNAME=${ops_user_name} GOVC_PASSWORD=${ops_user_password} govc cluster.change -drs-enabled /${datacenter}/host/${cluster}
     Log  Govc output: ${output}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Permission to perform this operation was denied
+
+Attempt To Create Resource Pool
+    Log To Console  Running govc to create a resource pool named "5-25-OPS-User-Grant-%{DRONE_BUILD_NUMBER}", it should fail
+    ${rc}  ${output}=  Run And Return Rc And Output  GOVC_USERNAME=${ops_user_name} GOVC_PASSWORD=${ops_user_password} govc pool.create */Resources/5-25-OPS-User-Grant-%{DRONE_BUILD_NUMBER}
+    Log  Govc output: ${output}
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  Permission to perform this operation was denied
+
+*** Test Cases ***
+vic-machine create grants ops-user perms
+    Install VIC Appliance To Test Server  additional-args=--ops-user ${ops_user_name} --ops-password ${ops_user_password} --ops-grant-perms
+
+    # Run a govc test to check that access is denied on some resources
+    Attempt To Disable DRS
 
     Run Regression Tests
 
@@ -107,11 +123,7 @@ granted ops-user perms work after upgrade
     Check Upgraded Version
 
     # Run a govc test to check that access is denied on some resources
-    Log To Console  Running govc to set drs-enabled, it should fail
-    ${rc}  ${output}=  Run And Return Rc And Output  GOVC_USERNAME=${ops_user_name} GOVC_PASSWORD=${ops_user_password} govc cluster.change -drs-enabled /${datacenter}/host/${cluster}
-    Log  Govc output: ${output}
-    Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Permission to perform this operation was denied
+    Attempt To Create Resource Pool
 
     Run Regression Tests
 
@@ -124,13 +136,21 @@ Test with VM-Host Affinity
     Install VIC Appliance To Test Server  additional-args=--ops-user ${ops_user_name} --ops-password ${ops_user_password} --ops-grant-perms --affinity-vm-group
 
     # Run a govc test to check that access is denied on some resources
-    Log To Console  Running govc to create a resource pool named "5-25-OPS-User-Grant-%{DRONE_BUILD_NUMBER}", it should fail
-    ${rc}  ${output}=  Run And Return Rc And Output  GOVC_USERNAME=${ops_user_name} GOVC_PASSWORD=${ops_user_password} govc pool.create */Resources/5-25-OPS-User-Grant-%{DRONE_BUILD_NUMBER}
-    Log  Govc output: ${output}
-    Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Permission to perform this operation was denied
+    Attempt To Create Resource Pool
 
     Run Regression Tests
+
+    Run privilege-dependent docker operations
+
+    Cleanup VIC Appliance On Test Server
+
+vic-machine configure grants ops-user perms
+    Install VIC Appliance To Test Server
+
+    Reconfigure VCH With Ops User
+
+    # Run a govc test to check that access is denied on some resources
+    Attempt To Disable DRS
 
     Run privilege-dependent docker operations
 
