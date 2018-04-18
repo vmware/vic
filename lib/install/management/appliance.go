@@ -181,31 +181,39 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		}
 	}
 
-	// Only retry VM destroy on CurrentAccess error
+	retryRemovalError := func(err error) bool {
+		return tasks.IsConcurrentAccessError(err) || tasks.IsInvalidPowerStateError(err)
+	}
+
+	// Only retry VM destroy on ConcurrentAccess error
+	var destroyFirstAttempt bool
 	err = retry.Do(func() error {
+		if !destroyFirstAttempt {
+			d.op.Debugf("detected an OOB powerOn for container (%s) attempting an additional shutdown before removal", vm.Reference().String())
+			vm.PowerOff(d.op)
+		}
+		destroyFirstAttempt = true
+
 		_, err := vm.DeleteExceptDisks(d.op)
 		return err
-	}, tasks.IsConcurrentAccessError)
+	}, retryRemovalError)
 
 	if err != nil {
 		d.op.Warnf("Destroy VM %s failed with %s, unregister the VM instead", vm.Reference(), err)
 
-		var firstAttempt bool
-		retryUnregister := func(err error) bool {
-			return tasks.IsConcurrentAccessError(err) || tasks.IsInvalidPowerStateError(err)
-		}
+		var unregisterFirstAttempt bool
 		// Only retry VM unregister on InvalidPowerState error, This will allow us to avoid OOB power ups of target vms.
 		err = retry.Do(func() error {
-			if !firstAttempt {
+			if !unregisterFirstAttempt {
 				d.op.Debugf("detected an OOB powerOn for container (%s) attempting an additional shutdown before unregister", vm.Reference().String())
 				// NOTE: ignore the error here. If it is a RuntimeFault then the following unregister will fail as well.
 				vm.PowerOff(d.op)
 			}
-			firstAttempt = true
+			unregisterFirstAttempt = true
 
 			return vm.Unregister(d.op)
 			// TODO: retry on InvalidPowerState. Unregister does not have the potential to return a ConcurrentAccess return
-		}, retryUnregister)
+		}, retryRemovalError)
 
 		if err != nil {
 			d.op.Errorf("Unregister the VM failed: %s", err)
