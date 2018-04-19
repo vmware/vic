@@ -1,4 +1,4 @@
-# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,12 +29,11 @@ Setup VCH With No WAN
 
     ${dvs}=  Run  govc find -type DistributedVirtualSwitch | head -n1
     ${rc}  ${output}=  Run And Return Rc And Output  govc dvs.portgroup.add -vlan=${vlan} -dvs ${dvs} dpg-no-wan
+    Should Be Equal As Integers  ${rc}  0
     
     ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --no-tlsverify --bridge-network=%{BRIDGE_NETWORK} --management-network=%{PUBLIC_NETWORK} --client-network=%{PUBLIC_NETWORK} --client-network-ip &{static}[ip]/&{static}[netmask] --client-network-gateway &{static}[gateway] --public-network dpg-no-wan --public-network-ip 192.168.100.2/24 --public-network-gateway 192.168.100.1 --dns-server 10.170.16.48 --insecure-registry wdc-harbor-ci.eng.vmware.com
 
     Get Docker Params  ${output}  ${false}
-
-    Set Environment Variable  VIC-ADMIN  %{VCH-IP}:2378
 
 Teardown VCH With No WAN
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
@@ -86,10 +85,12 @@ Get Container Logs
     ${vmName}=  Get VM Display Name  ${container}
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b /tmp/cookies-%{VCH-NAME} | (cd /tmp; tar xvzf - ${vmName}/tether.debug ${vmName}/vmware.log)
     Log  ${output}
-    ${rc}  ${output}=  Run And Return Rc and Output  ls -l /tmp/${vmName}/vmware.log
+    ${rc}  ${output}=  Run And Return Rc and Output  cat /tmp/${vmName}/vmware.log
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc and Output  ls -l /tmp/${vmName}/tether.debug
+    Should Not Be Empty  ${output}
+    ${rc}  ${output}=  Run And Return Rc and Output  cat /tmp/${vmName}/tether.debug
     Should Be Equal As Integers  ${rc}  0
+    Should Not Be Empty  ${output}
     ${rc}  ${output}=  Run And Return Rc and Output  grep 'prepping for switch to container filesystem' /tmp/${vmName}/tether.debug
     Should Be Equal As Integers  ${rc}  0
     Run  rm -f /tmp/${vmName}/tether.debug /tmp/${vmName}/vmware.log
