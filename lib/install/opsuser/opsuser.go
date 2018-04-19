@@ -80,7 +80,11 @@ func GrantOpsUserPerms(ctx context.Context, session *session.Session, configSpec
 
 	// Use a separate RBAC configuration depending on whether DRS is enabled.
 	if session.DRSEnabled != nil && *session.DRSEnabled {
-		rbacConfig = &DRSConf
+		if configSpec.UseVMGroup {
+			rbacConfig = &ClusterConf
+		} else {
+			rbacConfig = &DRSConf
+		}
 	} else {
 		rbacConfig = &NoDRSConf
 	}

@@ -99,6 +99,10 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 		}
 	}
 
+	if err = d.createVMGroup(conf); err != nil {
+		return err
+	}
+
 	return d.appliance.PowerOn(d.op)
 }
 
