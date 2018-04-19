@@ -59,7 +59,8 @@ Static IP Address Create
 
 Setup VCH With No WAN
     Wait Until Keyword Succeeds  10x  10m  Static IP Address Create
-
+    Set Test Environment Variables
+    
     Log To Console  Create a vch with a public network on a no-wan portgroup.
 
     ${vlan}=  Evaluate  str(random.randint(1, 195))  modules=random
@@ -69,7 +70,7 @@ Setup VCH With No WAN
     
     ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --no-tlsverify --bridge-network=%{BRIDGE_NETWORK} --management-network=%{PUBLIC_NETWORK} --client-network=%{PUBLIC_NETWORK} --client-network-ip &{static}[ip]/&{static}[netmask] --client-network-gateway &{static}[gateway] --public-network dpg-no-wan --public-network-ip 192.168.100.2/24 --public-network-gateway 192.168.100.1 --dns-server 10.170.16.48 --insecure-registry wdc-harbor-ci.eng.vmware.com
 
-    Get Docker Params  ${output}
+    Get Docker Params  ${output}  ${false}
 
     Set Environment Variable  VIC-ADMIN  %{VCH-IP}:2378
 
