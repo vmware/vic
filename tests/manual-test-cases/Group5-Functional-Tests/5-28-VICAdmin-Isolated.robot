@@ -14,11 +14,15 @@
 *** Settings ***
 Documentation  Test 5-28 - VICAdmin Isolated
 Resource  ../../resources/Util.robot
-Suite Setup  Setup VCH With No WAN
+Suite Setup  Deploy Testbed With Static IP
 Suite Teardown  Teardown VCH With No WAN
 Default Tags
 
 *** Keywords ***
+Deploy Testbed With Static IP
+    Setup VCH With No WAN
+    Deploy VCH With No WAN
+
 Setup VCH With No WAN
     Wait Until Keyword Succeeds  10x  10m  Static IP Address Create
     Set Test Environment Variables
@@ -31,13 +35,13 @@ Setup VCH With No WAN
     ${rc}  ${output}=  Run And Return Rc And Output  govc dvs.portgroup.add -vlan=${vlan} -dvs ${dvs} dpg-no-wan
     Should Be Equal As Integers  ${rc}  0
     
-    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --no-tlsverify --bridge-network=%{BRIDGE_NETWORK} --management-network=%{PUBLIC_NETWORK} --client-network=%{PUBLIC_NETWORK} --client-network-ip &{static}[ip]/&{static}[netmask] --client-network-gateway &{static}[gateway] --public-network dpg-no-wan --public-network-ip 192.168.100.2/24 --public-network-gateway 192.168.100.1 --dns-server 10.170.16.48 --insecure-registry wdc-harbor-ci.eng.vmware.com
+Deploy VCH With No WAN
+    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --no-tlsverify --bridge-network=%{BRIDGE_NETWORK} --management-network=%{PUBLIC_NETWORK} --client-network=%{PUBLIC_NETWORK} --client-network-ip &{static}[ip]/&{static}[netmask] --client-network-gateway 10.0.0.0/8:&{static}[gateway] --public-network dpg-no-wan --public-network-ip 192.168.100.2/24 --public-network-gateway 192.168.100.1 --dns-server 10.170.16.48 --insecure-registry wdc-harbor-ci.eng.vmware.com
 
     Get Docker Params  ${output}  ${false}
 
 Teardown VCH With No WAN
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
-    Cleanup VIC Appliance On Test Server
 
 Login And Save Cookies
     [Tags]  secret
