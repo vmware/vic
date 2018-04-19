@@ -91,6 +91,20 @@ func (d *Dispatcher) Configure(conf *config.VirtualContainerHostConfigSpec, sett
 		}()
 	}
 
+	if settings.CreateVMGroup {
+		err = d.createVMGroup(conf)
+		if err != nil {
+			err = errors.Errorf("Failed to create DRS VM Group, failure: %s", err)
+			return err
+		}
+
+		defer func() {
+			if err != nil {
+				d.rollbackVMGroupCreation(conf, settings)
+			}
+		}()
+	}
+
 	// ensure that we wait for components to come up
 	for _, s := range conf.ExecutorConfig.Sessions {
 		s.Started = ""
@@ -127,6 +141,15 @@ func (d *Dispatcher) Configure(conf *config.VirtualContainerHostConfigSpec, sett
 		return err
 	}
 
+	if settings.DeleteVMGroup {
+		e := d.deleteVMGroupIfExists(conf)
+		if e != nil {
+			// Report error message, but *do not* roll back. (We've already made a lot of changes, some of which we
+			// can't easily undo, and it's not clear that failing to delete the group should be considered fatal.)
+			d.op.Errorf("Failed to delete DRS VM Group %q, failure: %s. Please remove the group manually.", conf.VMGroupName, e)
+		}
+	}
+
 	// compatible with old version's upgrade snapshot name
 	if oldSnapshot != nil && (vm.IsConfigureSnapshot(oldSnapshot, ConfigurePrefix) || vm.IsConfigureSnapshot(oldSnapshot, UpgradePrefix)) {
 		d.deleteSnapshot(&oldSnapshot.Snapshot, oldSnapshot.Name, conf.Name)
@@ -141,6 +164,14 @@ func (d *Dispatcher) rollbackResourceSettings(poolName string, settings *data.In
 		return nil
 	}
 	return updateResourcePoolConfig(d.op, d.vchPool, poolName, d.oldVCHResources)
+}
+
+func (d *Dispatcher) rollbackVMGroupCreation(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+	if !settings.CreateVMGroup {
+		return nil
+	}
+
+	return d.deleteVMGroupIfExists(conf)
 }
 
 func (d *Dispatcher) updateResourceSettings(poolName string, settings *data.InstallerData) error {

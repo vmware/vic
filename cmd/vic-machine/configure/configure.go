@@ -93,6 +93,7 @@ func (c *Configure) Flags() []cli.Flag {
 	id := c.IDFlags()
 	volume := c.volStores.Flags()
 	compute := c.ComputeFlags()
+	affinity := c.AffinityFlags(false)
 	container := c.ContainerFlags()
 	debug := c.DebugFlags(false)
 	cNetwork := c.cNetworks.CNetworkFlags(false)
@@ -104,7 +105,7 @@ func (c *Configure) Flags() []cli.Flag {
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, ops, id, compute, container, volume, dns, cNetwork, memory, cpu, certificates, registries, proxies, util, debug} {
+	for _, f := range [][]cli.Flag{target, ops, id, compute, affinity, container, volume, dns, cNetwork, memory, cpu, certificates, registries, proxies, util, debug} {
 		flags = append(flags, f...)
 	}
 
@@ -230,6 +231,14 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 
 	if n.RegistryCertificateAuthorities != nil {
 		o.RegistryCertificateAuthorities = n.RegistryCertificateAuthorities
+	}
+
+	o.UseVMGroup = n.UseVMGroup
+
+	if n.VMGroupName != "" {
+		// If we're disabling use of a VM Group, we need to keep track of the name so that we can delete it. This has a
+		// side effect of leaving behind the old VMGroupName value in the VCH's configuration, but it will not be used.
+		o.VMGroupName = n.VMGroupName
 	}
 }
 
@@ -387,6 +396,22 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		return err
 	}
 
+	// Handle the three options for the --affinity-vm-group flag: unset, true, false.
+	//
+	// If the user hasn't specified the flag, we don't want to make a change. If they have
+	// specified it and are requesting a change, track that.
+	if clic.IsSet("affinity-vm-group") {
+		if !oldData.UseVMGroup && c.Data.UseVMGroup {
+			oldData.CreateVMGroup = true
+		}
+
+		if oldData.UseVMGroup && !c.Data.UseVMGroup {
+			oldData.DeleteVMGroup = true
+		}
+
+		oldData.UseVMGroup = c.Data.UseVMGroup
+	}
+
 	// using new configuration override configuration query from guestinfo
 	if err = oldData.CopyNonEmpty(c.Data); err != nil {
 		op.Error("Configuring cannot continue: copying configuration failed")
@@ -427,6 +452,8 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	vConfig := validator.AddDeprecatedFields(op, vchConfig, c.Data)
 	vConfig.Timeout = c.Timeout
 	vConfig.VCHSizeIsSet = c.ResourceLimits.IsSet
+	vConfig.CreateVMGroup = c.CreateVMGroup
+	vConfig.DeleteVMGroup = c.DeleteVMGroup
 
 	updating, err := vch.VCHUpdateStatus(op)
 	if err != nil {
