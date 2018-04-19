@@ -36,6 +36,7 @@ Setup VCH With No WAN
     Should Be Equal As Integers  ${rc}  0
     
 Deploy VCH With No WAN
+    [Tags]  secret
     ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --no-tlsverify --bridge-network=%{BRIDGE_NETWORK} --management-network=%{PUBLIC_NETWORK} --client-network=%{PUBLIC_NETWORK} --client-network-ip &{static}[ip]/&{static}[netmask] --client-network-gateway 10.0.0.0/8:&{static}[gateway] --public-network dpg-no-wan --public-network-ip 192.168.100.2/24 --public-network-gateway 192.168.100.1 --dns-server 10.170.16.48 --insecure-registry wdc-harbor-ci.eng.vmware.com
 
     Get Docker Params  ${output}  ${false}
@@ -54,10 +55,16 @@ Display HTML
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b /tmp/cookies-%{VCH-NAME}
     Should contain  ${output}  <title>VIC: %{VCH-NAME}</title>
 
-WAN Status
+WAN Status Should Fail
     Login And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b /tmp/cookies-%{VCH-NAME}
     Should contain  ${output}  <div class="sixty">Registry and Internet Connectivity<span class="error-message">
+
+Fail To Pull Docker Image
+    Login And Save Cookies
+    ${rc}  ${output}=  Run And Return Rc and Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  1
+    Should contain  ${output}  no route to host
 
 Get Portlayer Log
     Login And Save Cookies
@@ -73,31 +80,6 @@ Get Docker Personality Log
     Login And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/docker-personality.log -b /tmp/cookies-%{VCH-NAME}
     Should contain  ${output}  docker personality
-
-Get Container Logs
-    Login And Save Cookies
-    ${rc}  ${output}=  Run And Return Rc and Output  docker %{VCH-PARAMS} pull ${busybox}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${container}=  Run And Return Rc and Output  docker %{VCH-PARAMS} create ${busybox} /bin/top
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${container}  Error
-    ${rc}  ${output}=  Run And Return Rc and Output  docker %{VCH-PARAMS} start ${container}
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${vmName}=  Get VM Display Name  ${container}
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b /tmp/cookies-%{VCH-NAME} | (cd /tmp; tar xvzf - ${vmName}/tether.debug ${vmName}/vmware.log)
-    Log  ${output}
-    ${rc}  ${output}=  Run And Return Rc and Output  cat /tmp/${vmName}/vmware.log
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Be Empty  ${output}
-    ${rc}  ${output}=  Run And Return Rc and Output  cat /tmp/${vmName}/tether.debug
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Be Empty  ${output}
-    ${rc}  ${output}=  Run And Return Rc and Output  grep 'prepping for switch to container filesystem' /tmp/${vmName}/tether.debug
-    Should Be Equal As Integers  ${rc}  0
-    Run  rm -f /tmp/${vmName}/tether.debug /tmp/${vmName}/vmware.log
 
 Get VICAdmin Log
     Login And Save Cookies

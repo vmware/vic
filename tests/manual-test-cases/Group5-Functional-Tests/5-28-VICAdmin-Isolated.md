@@ -24,9 +24,14 @@ This test requires that a vSphere environment be running and available, which dS
 1. Log in
 2. Page displays vic-machine name in title
 
-## WAN Status
+## WAN Status Should Fail
 1. Log in
 2. Page displays warning symbols for wan connection status
+
+## Fail To Pull Docker Image
+1. Log in
+2. Pull docker busybox
+3. Fail to pull busybox
 
 ## Get Portlayer Log
 1. Log in
@@ -39,10 +44,6 @@ This test requires that a vSphere environment be running and available, which dS
 ## Get Docker Personality Log
 1. Log in
 2. Docker Personality Log access is allowed and logs are downloaded
-
-## Get Container Logs
-1. Log in
-2. Container Log access is allowed and logs are downloaded
 
 ## Get VICAdmin Log
 1. Log in
