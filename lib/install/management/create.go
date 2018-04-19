@@ -218,7 +218,7 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 	}
 
 	if uploadFailed {
-		return errors.New("Failed to upload iso images successfully.")
+		return errors.New("Failed to upload iso images.")
 	}
 	return nil
 }
