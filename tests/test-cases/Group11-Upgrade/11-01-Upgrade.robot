@@ -172,6 +172,11 @@ Check Container Create Timestamps
 
     # Pause for 2 seconds to allow for the time check below
     Sleep  2
+    # Wait up to a minute extra to allow for time skew between machines
+    Wait Until Keyword Succeeds  30x  2s  Attempt To Check Container Create Timestamps  ${newc}
+
+Attempt To Check Container Create Timestamps
+    [Arguments]    ${newc}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
     ${oldcshortID}=  Get container shortID  ${TestContainerVolume}
@@ -180,6 +185,7 @@ Check Container Create Timestamps
     ${newcshortID}=  Get container shortID  ${newc}
     ${lines}=  Get Lines Containing String  ${output}  ${newcshortID}
     Should Not Contain  ${lines}  Less than a second ago
+
 
 *** Test Cases ***
 Upgrade Present in vic-machine
