@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53,6 +53,9 @@ func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d 
 		return err
 	}
 	d.DisplayName = name
+
+	// id
+	d.ID = vm.Reference().Value
 
 	// compute resource
 	parent, err := vm.ResourcePool(op)
@@ -225,6 +228,7 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 	}
 
 	d.ContainerNameConvention = conf.ContainerNameConvention
+	d.UseVMGroup = conf.UseVMGroup
 	return
 }
 
