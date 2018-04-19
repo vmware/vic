@@ -312,6 +312,7 @@ Install VIC Appliance To Test Server With Current Environment Variables
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Containers On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Folders On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Resource Pools On Test Server
+    Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling VM Groups On Test Server
 
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
@@ -620,6 +621,24 @@ Cleanup Dangling Networks On Test Server
     \   ${uuid}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${net}
     \   ${uuid}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  ${net}
 
+Cleanup Dangling VM Groups On Test Server
+    ${out}=  Run  govc cluster.group.ls
+    Log  ${out}
+    ${exceptions}=  Get Environment Variable  VM_EXCEPTIONS  ${EMPTY}
+    ${groups}=  Split To Lines  ${out}
+    :FOR  ${group}  IN  @{groups}
+    \   ${build}=  Split String  ${group}  -
+    \   # Skip any group that is not associated with integration tests
+    \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   # Skip any Group that is attached to a VCH in the exception list
+    \   ${skip}=  Check If VCH Is In Exception  vch=${group}  exceptions=${exceptions}
+    \   Continue For Loop If  ${skip}
+    \   # Skip any Group that is still running
+    \   ${state}=  Get State Of Drone Build  @{build}[1]
+    \   Continue For Loop If  '${state}' == 'running'
+    \   Log To Console  Destroying dangling DRS VM Group: ${group}
+    \   ${output}=  Run  govc cluster.group.remove -name ${group}
+
 Cleanup Dangling vSwitches On Test Server
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.vswitch.info | grep VCH
     Log  ${out}
@@ -688,11 +707,11 @@ Get VCH ID
 
 # VCH upgrade helpers
 Install VIC with version to Test Server
-    [Arguments]  ${version}=7315  ${insecureregistry}=  ${cleanup}=${true}
+    [Arguments]  ${version}  ${insecureregistry}=  ${cleanup}=${true}  ${additional-args}=
     Log To Console  \nDownloading vic ${version} from gcp...
     ${rc}  ${output}=  Run And Return Rc And Output  wget https://storage.googleapis.com/vic-engine-builds/vic_${version}.tar.gz -O vic.tar.gz
     ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
-    Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}  cleanup=${cleanup}  vol=default ${insecureregistry}
+    Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}  cleanup=${cleanup}  additional-args=${additional-args}  vol=default ${insecureregistry}
 
     Set Environment Variable  VIC-ADMIN  %{VCH-IP}:2378
     Set Environment Variable  INITIAL-VERSION  ${version}

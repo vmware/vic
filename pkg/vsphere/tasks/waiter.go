@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -60,6 +60,16 @@ func Wait(ctx context.Context, f func(context.Context) (Task, error)) error {
 //       return vm, vm.Reconfigure(ctx, config)
 //    })
 func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (*types.TaskInfo, error) {
+	return WaitForResultAndRetryIf(ctx, f, IsRetryError)
+}
+
+// WaitForResultAndRetryIf wraps govmomi operations and wait the operation to complete, retrying under specified conditions.
+// Return the operation result
+// Sample usage:
+//    info, err := WaitForResult(ctx, func(ctx) (*TaskInfo, error) {
+//       return vm, vm.Reconfigure(ctx, config)
+//    })
+func WaitForResultAndRetryIf(ctx context.Context, f func(context.Context) (Task, error), shouldRetry func(op trace.Operation, err error) bool) (*types.TaskInfo, error) {
 	var err error
 	var backoffFactor int64 = 1
 
@@ -75,7 +85,7 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 			}
 		}
 
-		if !IsRetryError(op, err) {
+		if !shouldRetry(op, err) {
 			return info, err
 		}
 
