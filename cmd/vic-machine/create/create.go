@@ -270,6 +270,15 @@ func (c *Create) Flags() []cli.Flag {
 		},
 	}
 
+	affinity := []cli.Flag{
+		cli.BoolFlag{
+			Name:        "affinity-vm-group",
+			Usage:       "Use a DRS VM Group to allow VM-Host affinity rules to be defined for the VCH",
+			Destination: &c.UseVMGroup,
+			Hidden:      true,
+		},
+	}
+
 	util := []cli.Flag{
 		// miscellaneous
 		cli.BoolFlag{
@@ -313,7 +322,7 @@ func (c *Create) Flags() []cli.Flag {
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, compute, ops, create, container, volume, dns, networks, cNetwork, memory, cpu, tls, registries, proxies, syslog, iso, util, debug, help} {
+	for _, f := range [][]cli.Flag{target, compute, ops, create, affinity, container, volume, dns, networks, cNetwork, memory, cpu, tls, registries, proxies, syslog, iso, util, debug, help} {
 		flags = append(flags, f...)
 	}
 
