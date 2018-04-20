@@ -60,11 +60,17 @@ VSAN Complex Setup
     Set Environment Variable  TEST_RESOURCE  cluster-vsan-1
     Set Environment Variable  TEST_TIMEOUT  30m
 
-*** Test Cases ***
-Complex VSAN
-    ${out}=  Run  govc datastore.vsan.dom.ls -ds %{TEST_DATASTORE} -l -o
+
+Check VSAN DOMs In Datastore
+    [Arguments]  ${test_datastore}
+    ${out}=  Run  govc datastore.vsan.dom.ls -ds ${test_datastore} -l -o
     Log  ${out}
     Should Be Empty  ${out}
+
+*** Test Cases ***
+Complex VSAN
+    Wait Until Keyword Succeeds  10x  30s  Check VSAN DOMs In Datastore  %{TEST_DATASTORE}
+
 
     Custom Testbed Keepalive  /dbc/pa-dbc1111/mhagen
 
@@ -72,6 +78,4 @@ Complex VSAN
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
-    ${out}=  Run  govc datastore.vsan.dom.ls -ds %{TEST_DATASTORE} -l -o
-    Log  ${out}
-    Should Be Empty  ${out}
+    Wait Until Keyword Succeeds  10x  30s  Check VSAN DOMs In Datastore  %{TEST_DATASTORE}
