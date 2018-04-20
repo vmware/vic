@@ -20,7 +20,7 @@ REMOTE_DLV_ATTACH=/usr/local/bin/dlv-attach-headless.sh
 REMOTE_DLV_DETACH=/usr/local/bin/dlv-detach-headless.sh
 
 function usage() {
-    echo "Usage: $0 -h vch-address [-a/-d] -p password [attach/detach] target" >&2
+    echo "Usage: $0 -h vch-address [-a/-d] [attach/detach] target" >&2
     echo "Valid targets are: "
     echo "    vic-init"
     echo "    vic-admin"
@@ -31,17 +31,13 @@ function usage() {
     exit 1
 }
 
-while getopts "h:p:ad" flag
+while getopts "h:ad" flag
 do
     case $flag in
 
         h)
             # Optional
             export DLV_TARGET_HOST="$OPTARG"
-            ;;
-
-        p)
-            export SSHPASS="$OPTARG"
             ;;
 
         a)
@@ -80,6 +76,8 @@ case ${TARGET} in
         ;;
 
     vic-admin)
+        # Change target to vicadmin
+        TARGET=vicadmin
         PORT=2346
         ;;
 
@@ -106,16 +104,6 @@ esac
 
 if [ -z "${DLV_TARGET_HOST}" ]; then
     usage
-fi
-
-if [ -n "${SSHPASS}" ]; then
-    SSH="sshpass -e ${SSH}"
-    SCP="sshpass -e ${SCP}"
-
-    if [ ! -f /usr/bin/sshpass ]; then
-        echo sshpass must be installed. Run \"apt-get install sshpass\"
-        exit 1
-    fi
 fi
 
 if [ ${COMMAND} == "attach" ]; then
