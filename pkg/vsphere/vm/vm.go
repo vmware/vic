@@ -577,7 +577,7 @@ func (vm *VirtualMachine) IsInvalidState(ctx context.Context) bool {
 	return false
 }
 
-// IsInvalidPowerStateError is a error certifier function for errors coming back from vsphere. It checks for an InvalidPowerStateFault
+// IsInvalidPowerStateError is an error certifier function for errors coming back from vsphere. It checks for an InvalidPowerStateFault
 func (vm *VirtualMachine) IsInvalidPowerStateError(err error) bool {
 	if soap.IsVimFault(err) {
 		_, ok1 := soap.ToVimFault(err).(*types.InvalidPowerState)
