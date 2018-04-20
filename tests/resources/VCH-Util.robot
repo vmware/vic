@@ -704,6 +704,7 @@ Get VCH ID
     \   Log To Console  \nVCH ID: ${vch-id}
     \   Log  VCH ID ${vch-id}
     \   Return From Keyword  ${vch-id}
+    Fail  Failed to find any VCH with expected name ${vch-name}
 
 # VCH upgrade helpers
 Install VIC with version to Test Server
@@ -731,7 +732,7 @@ Upgrade
 
 Upgrade with ID
     Log To Console  \nUpgrading VCH using vch ID...
-    ${vch-id}=  Get VCH ID  %{VCH-NAME}
+    ${vch-id}=  Wait Until Keyword Succeeds  6x  10s  Get VCH ID  %{VCH-NAME}
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --id=${vch-id} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     Log  ${output}
     Should Contain  ${output}  Completed successfully
