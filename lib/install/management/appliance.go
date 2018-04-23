@@ -181,19 +181,33 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		}
 	}
 
-	// Only retry VM destroy on CurrentAccess error
+	// Power off the VM if necessary
+	retryErrHandler := func(err error) bool {
+		if vm.IsInvalidPowerStateError(err) {
+			_, terr := vm.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
+				return vm.PowerOff(ctx)
+			})
+
+			if terr == nil || tasks.IsTransientError(d.op, terr) || vm.IsInvalidPowerStateError(terr) {
+				return true
+			}
+		}
+
+		return tasks.IsTransientError(d.op, err) || tasks.IsConcurrentAccessError(err)
+	}
+
+	// Only retry VM destroy on ConcurrentAccess error
 	err = retry.Do(func() error {
 		_, err := vm.DeleteExceptDisks(d.op)
 		return err
-	}, tasks.IsConcurrentAccessError)
+	}, retryErrHandler)
 
 	if err != nil {
 		d.op.Warnf("Destroy VM %s failed with %s, unregister the VM instead", vm.Reference(), err)
 
-		// Only retry VM unregister on ConcurrentAccess error
 		err = retry.Do(func() error {
 			return vm.Unregister(d.op)
-		}, tasks.IsConcurrentAccessError)
+		}, retryErrHandler)
 
 		if err != nil {
 			d.op.Errorf("Unregister the VM failed: %s", err)
