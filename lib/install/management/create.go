@@ -54,10 +54,10 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 	// pool name match the appliance name.
 	// DRS Disabled:
 	// only use the compute path which will avoid a pool creation attempt.
-	if d.session.DRSEnabled != nil && *d.session.DRSEnabled {
-		d.vchPoolPath = path.Join(settings.ResourcePoolPath, conf.Name)
-	} else {
+	if d.session.DRSEnabled != nil && !*d.session.DRSEnabled {
 		d.vchPoolPath = settings.ResourcePoolPath
+	} else {
+		d.vchPoolPath = path.Join(settings.ResourcePoolPath, conf.Name)
 	}
 
 	if err = d.checkExistence(conf, settings); err != nil {
@@ -97,6 +97,10 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 		if err != nil {
 			return errors.Errorf("Cannot init ops-user permissions, failure: %s. Exiting...", err)
 		}
+	}
+
+	if err = d.createVMGroup(conf); err != nil {
+		return err
 	}
 
 	return d.appliance.PowerOn(d.op)

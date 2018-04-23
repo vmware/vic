@@ -53,7 +53,7 @@ pipeline:
     commands:
       - echo ${DRONE_COMMIT_AUTHOR}
       - echo $SKIP_CHECK_MEMBERSHIP
-      - if "$SKIP_CHECK_MEMBERSHIP" == true; then echo 'check-org-membership step skipped'; else /bin/bash -c '[[ ! $(curl --silent "https://api.github.com/orgs/vmware/members/${DRONE_COMMIT_AUTHOR}?access_token=$GITHUB_AUTOMATION_API_KEY") ]]'; fi
+      - if [ "$SKIP_CHECK_MEMBERSHIP" = "true" ]; then echo 'check-org-membership step skipped'; else /bin/bash -c '[[ ! $(curl --silent "https://api.github.com/orgs/vmware/members/${DRONE_COMMIT_AUTHOR}?access_token=$GITHUB_AUTOMATION_API_KEY") ]]'; fi
     when:
       status: success
 
@@ -163,6 +163,7 @@ pipeline:
       - 'ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1'
       - 'rm $BIN/vic_ui_*.tar.gz'
     when:
+      branch: ['releases/*']
       event: tag
 
   bundle:
@@ -191,9 +192,10 @@ pipeline:
       - 'mkdir bundle'
       - 'mkdir bundle-release'
       - 'cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle'
-      - 'cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle-release/vic_`git describe --tags $(git rev-list --tags --max-count=1)`.tar.gz'
+      - 'cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle-release/vic_`git describe --tags --abbrev=0)`.tar.gz'
     when:
       repo: vmware/vic
+      branch: [master, 'releases/*']
       event: [push, tag]
 
   publish-gcs-builds-on-pass:
@@ -240,6 +242,7 @@ pipeline:
     cache_control: 'public,max-age=3600'
     when:
       repo: vmware/vic
+      branch: ['releases/*']
       event: tag
       status: success
 
@@ -269,6 +272,7 @@ pipeline:
       - latest
     when:
       repo: vmware/vic
+      branch: ['releases/*']
       event: tag
       status: success
 
@@ -320,6 +324,7 @@ pipeline:
     template: "The latest version of VIC engine has been released, find the build here: https://console.cloud.google.com/storage/browser/vic-engine-releases\n"
     when:
       repo: vmware/vic
+      branch: ['releases/*']
       event: tag
       status: success
 

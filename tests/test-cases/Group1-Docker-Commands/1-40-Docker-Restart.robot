@@ -15,8 +15,8 @@
 *** Settings ***
 Documentation   Test 1-40 - Docker Restart
 Resource        ../../resources/Util.robot
-#Suite Setup  Conditional Install VIC Appliance To Test Server
-#Suite Teardown  Cleanup VIC Appliance On Test Server
+Suite Setup  Conditional Install VIC Appliance To Test Server
+Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  30 minutes
 
 *** Keywords ***
@@ -31,6 +31,8 @@ Create test containers
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  CREATOR  ${output}
 
+
+*** Test Cases ***
 Restart Running Container
     Create test containers
     # grab the containerVM ip address - will compare after restart to ensure it remains the same
@@ -100,9 +102,3 @@ Restart with start-stop stress
     Terminate Process  ${restart-pid2}
     Log  ${loopOutput}
     Should Not Contain Match  ${loopOutput}  *EOF*
-
-*** Test Cases ***
-test
-    ${status}=  Get State Of Github Issue  7716
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-40-Docker-Restart.robot needs to be updated now that Issue #7716 has been resolved
-    Log  Issue \#7716 is blocking implementation  WARN

@@ -125,6 +125,11 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 	if err = d.destroyResourcePoolIfEmpty(conf); err != nil {
 		d.op.Warnf("VCH resource pool is not removed: %s", err)
 	}
+
+	if err = d.destroyVMGroup(conf); err != nil {
+		d.op.Warnf("VCH DRS VM group is not removed: %s", err)
+	}
+
 	return nil
 }
 
@@ -315,13 +320,19 @@ func (d *Dispatcher) DeleteVCHInstances(conf *config.VirtualContainerHostConfigS
 
 		wg.Add(1)
 		go func(child *vm.VirtualMachine) {
+			name, err := child.ObjectName(d.op)
 			defer wg.Done()
 			if err = d.deleteVM(child, deletePoweredOnContainers); err != nil {
 				mu.Lock()
 				errs = append(errs, err.Error())
 				mu.Unlock()
 			}
-			d.op.Debugf("Successfully deleted container: %s", child.InventoryPath)
+
+			if name != "" {
+				d.op.Debugf("Successfully deleted container: %s", name)
+			} else {
+				d.op.Debugf("Successfully deleted container: %q", child.Reference())
+			}
 		}(child)
 	}
 	wg.Wait()
