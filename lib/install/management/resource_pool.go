@@ -101,7 +101,7 @@ func (d *Dispatcher) destroyResourcePoolIfEmpty(conf *config.VirtualContainerHos
 	}
 	var vms []*vm.VirtualMachine
 	var err error
-	if vms, err = d.parentResourcepool.GetChildrenVMs(d.op, d.session); err != nil {
+	if vms, err = d.parentResourcepool.GetChildrenVMs(d.op); err != nil {
 		err = errors.Errorf("Unable to get children vm of resource pool %q: %s", d.parentResourcepool.Name(), err)
 		return err
 	}

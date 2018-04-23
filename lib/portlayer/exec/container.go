@@ -841,7 +841,8 @@ func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, 
 		}
 	}
 
-	vms, err = populateVMAttributes(ctx, sess, vmRefs)
+	// Retrieve slice of mo.VirtualMachine with default attributes populated
+	vms, err = vm.Attributes(ctx, sess, vmRefs)
 	if err != nil {
 		return nil, err
 	}
@@ -860,19 +861,6 @@ func instanceUUID(id string) (string, error) {
 		return "", errors.Errorf("unable to parse VCH uuid: %s", err)
 	}
 	return uuid.NewSHA1(namespace, []byte(id)).String(), nil
-}
-
-// populate the vm attributes for the specified morefs
-func populateVMAttributes(ctx context.Context, sess *session.Session, refs []types.ManagedObjectReference) ([]mo.VirtualMachine, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("populating %d refs", len(refs))))
-	var vms []mo.VirtualMachine
-
-	// current attributes we care about
-	attrib := []string{"config", "runtime.powerState", "summary"}
-
-	// populate the vm properties
-	err := sess.Retrieve(ctx, refs, attrib, &vms)
-	return vms, err
 }
 
 // convert the infra containers to a container object

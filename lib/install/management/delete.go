@@ -110,7 +110,7 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec, cont
 	}
 
 	// delete the VCH folder
-	d.deleteVCHFolder()
+	d.deleteFolder(d.session.VCHFolder)
 
 	defaultrp, err := d.session.Cluster.ResourcePool(d.op)
 	if err != nil {
@@ -276,7 +276,7 @@ func (d *Dispatcher) DeleteVCHInstances(conf *config.VirtualContainerHostConfigS
 	} else {
 		// Find the children in the RP
 		d.op.Debugf("Finding children in VCH resource pool")
-		if children, err = d.parentResourcepool.GetChildrenVMs(d.op, d.session); err != nil {
+		if children, err = d.parentResourcepool.GetChildrenVMs(d.op); err != nil {
 			return err
 		}
 	}

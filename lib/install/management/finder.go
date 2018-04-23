@@ -42,7 +42,6 @@ func (d *Dispatcher) NewVCHFromID(id string) (*vm.VirtualMachine, error) {
 	defer trace.End(trace.Begin(id, d.op))
 
 	var err error
-	var vmm *vm.VirtualMachine
 
 	moref := &types.ManagedObjectReference{
 		Type:  vchIDType,
@@ -62,10 +61,10 @@ func (d *Dispatcher) NewVCHFromID(id string) (*vm.VirtualMachine, error) {
 		d.op.Errorf("Failed to find VM %q: %s", moref, err)
 		return nil, err
 	}
-	vmm = vm.NewVirtualMachine(d.op, d.session, ovm.Reference())
+	d.appliance = vm.NewVirtualMachine(d.op, d.session, ovm.Reference())
 
 	// check if it's VCH
-	if ok, err = d.isVCH(vmm); err != nil {
+	if ok, err = d.isVCH(d.appliance); err != nil {
 		d.op.Error(err)
 		return nil, err
 	}
@@ -74,19 +73,18 @@ func (d *Dispatcher) NewVCHFromID(id string) (*vm.VirtualMachine, error) {
 		d.op.Error(err)
 		return nil, err
 	}
-	pool, err := vmm.ResourcePool(d.op)
+	d.vchPool, err = d.appliance.ResourcePool(d.op)
 	if err != nil {
 		d.op.Errorf("Failed to get VM parent resource pool: %s", err)
 		return nil, err
 	}
 
-	rp := compute.NewResourcePool(d.op, d.session, pool.Reference())
+	rp := compute.NewResourcePool(d.op, d.session, d.vchPool.Reference())
 	if d.session.Cluster, err = rp.GetCluster(d.op); err != nil {
 		d.op.Debugf("Unable to get the cluster for the VCH's resource pool: %s", err)
 	}
-
-	d.InitDiagnosticLogsFromVCH(vmm)
-	return vmm, nil
+	d.InitDiagnosticLogsFromVCH(d.appliance)
+	return d.appliance, nil
 }
 
 func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *validate.Validator) (*vm.VirtualMachine, error) {
@@ -99,7 +97,6 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *v
 		return nil, err
 	}
 	d.vchPoolPath = path.Join(parent.InventoryPath, name)
-	var vchPool *object.ResourcePool
 	if d.isVC {
 		vapp, err := d.findVirtualApp(d.vchPoolPath)
 		if err != nil {
@@ -107,16 +104,16 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *v
 			return nil, err
 		}
 		if vapp != nil {
-			vchPool = vapp.ResourcePool
+			d.vchPool = vapp.ResourcePool
 		}
 	}
-	if vchPool == nil {
-		vchPool, err = d.session.Finder.ResourcePool(d.op, d.vchPoolPath)
+	if d.vchPool == nil {
+		d.vchPool, err = d.session.Finder.ResourcePool(d.op, d.vchPoolPath)
 		if err != nil {
 			// we didn't find the ResourcePool with a name matching the appliance, so
 			// lets look for just the resource pool -- this could be at the cluster level
 			d.vchPoolPath = parent.InventoryPath
-			vchPool, err = d.session.Finder.ResourcePool(d.op, d.vchPoolPath)
+			d.vchPool, err = d.session.Finder.ResourcePool(d.op, d.vchPoolPath)
 			if err != nil {
 				d.op.Errorf("Failed to find VCH resource pool %q: %s", d.vchPoolPath, err)
 				return nil, err
@@ -125,27 +122,26 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *v
 	}
 
 	// creating a pkg/vsphere resource pool for use of convenience method
-	rp := compute.NewResourcePool(d.op, d.session, vchPool.Reference())
+	rp := compute.NewResourcePool(d.op, d.session, d.vchPool.Reference())
 
 	if d.session.Cluster, err = rp.GetCluster(d.op); err != nil {
 		d.op.Debugf("Unable to get the cluster for the VCH's resource pool: %s", err)
 	}
 
-	var vmm *vm.VirtualMachine
-	if vmm, err = rp.GetChildVM(d.op, d.session, name); err != nil {
+	if d.appliance, err = rp.GetChildVM(d.op, name); err != nil {
 		d.op.Errorf("Failed to get VCH VM: %s", err)
 		return nil, err
 	}
-	if vmm == nil {
+	if d.appliance == nil {
 		err = errors.Errorf("Didn't find VM %q in resource pool %q", name, rp.Reference())
 		d.op.Error(err)
 		return nil, err
 	}
-	vmm.InventoryPath = path.Join(d.vchPoolPath, name)
+	d.appliance.InventoryPath = path.Join(d.vchPoolPath, name)
 
 	// check if it's VCH
 	var ok bool
-	if ok, err = d.isVCH(vmm); err != nil {
+	if ok, err = d.isVCH(d.appliance); err != nil {
 		d.op.Error(err)
 		return nil, err
 	}
@@ -154,8 +150,9 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *v
 		d.op.Error(err)
 		return nil, err
 	}
-	d.InitDiagnosticLogsFromVCH(vmm)
-	return vmm, nil
+
+	d.InitDiagnosticLogsFromVCH(d.appliance)
+	return d.appliance, nil
 }
 
 // GetVCHConfig queries VCH configuration and decrypts secret information
@@ -378,11 +375,10 @@ func (d *Dispatcher) findVCHs(pool *object.ResourcePool, multiPool bool) ([]*vm.
 	var vchs []*vm.VirtualMachine
 	var err error
 	computeResource := compute.NewResourcePool(d.op, d.session, pool.Reference())
-
 	// The compute resource had multiple pools, so the assumption is that any VCH that exists will be the same
 	// name as it's resource pool
 	if multiPool {
-		vm, err := computeResource.GetChildVM(d.op, d.session, pool.Name())
+		vm, err := computeResource.GetChildVM(d.op, pool.Name())
 		if err != nil {
 			return nil, errors.Errorf("Failed to query children VM in resource pool %q: %s", pool.InventoryPath, err)
 		}
@@ -392,7 +388,7 @@ func (d *Dispatcher) findVCHs(pool *object.ResourcePool, multiPool bool) ([]*vm.
 
 	} else {
 		// We only had one pool, so we'll look at all the VMs in that pool
-		vms, err = computeResource.GetChildrenVMs(d.op, d.session)
+		vms, err = computeResource.GetChildrenVMs(d.op)
 		if err != nil {
 			return nil, errors.Errorf("Failed to query children VM in resource pool %q: %s", pool.InventoryPath, err)
 		}
