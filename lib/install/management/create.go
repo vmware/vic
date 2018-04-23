@@ -17,7 +17,7 @@ package management
 import (
 	"fmt"
 	"path"
-	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/vmware/govmomi/object"
@@ -125,83 +125,102 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 	// upload the images
 	d.op.Info("Uploading images for container")
 
-	// Build retry config
-	backoffConf := retry.NewBackoffConfig()
-	backoffConf.InitialInterval = uploadInitialInterval
-	backoffConf.MaxInterval = uploadMaxInterval
-	backoffConf.MaxElapsedTime = uploadMaxElapsedTime
+	results := make(chan error, len(files))
+	var wg sync.WaitGroup
 
 	for key, image := range files {
-		baseName := filepath.Base(image)
-		// upload function that is passed to retry
-		isoTargetPath := path.Join(d.vmPathName, key)
 
-		operationForRetry := func() error {
-			op, cancel := trace.WithCancel(&d.op, "uploadImages")
-			defer cancel()
+		wg.Add(1)
 
-			// attempt to delete the iso image first in case of failed upload
-			dc := d.session.Datacenter
-			fm := d.session.Datastore.NewFileManager(dc, false)
-			ds := d.session.Datastore
+		go func(key string, image string) {
+			finalMessage := ""
+			d.op.Infof("\t%q", image)
 
-			// check iso first
-			op.Debugf("Checking if file already exists: %s", isoTargetPath)
-			_, err := ds.Stat(op, isoTargetPath)
-			if err != nil {
-				switch err.(type) {
-				case object.DatastoreNoSuchFileError:
-					op.Debug("File not found. Nothing to do.")
-				case object.DatastoreNoSuchDirectoryError:
-					op.Debug("Directory not found. Nothing to do.")
-				default:
-					op.Debugf("ISO file already exists, deleting: %s", isoTargetPath)
-					err := fm.Delete(d.op, isoTargetPath)
-					if err != nil {
-						op.Debugf("Failed to delete image (%s) with error (%s)", image, err.Error())
-						return err
+			// upload function that is passed to retry
+			operationForRetry := func() error {
+				opr, cancel := trace.WithCancel(&d.op, "uploadImages")
+				defer cancel()
+				// attempt to delete the iso image first in case of failed upload
+				dc := d.session.Datacenter
+				fm := d.session.Datastore.NewFileManager(dc, false)
+				ds := d.session.Datastore
+
+				isoTargetPath := path.Join(d.vmPathName, key)
+				// check iso first
+				opr.Debugf("target delete path = %s", isoTargetPath)
+				_, err := ds.Stat(opr, isoTargetPath)
+				if err != nil {
+					switch err.(type) {
+					case object.DatastoreNoSuchFileError:
+						opr.Debug("File not found. Nothing to do.")
+					case object.DatastoreNoSuchDirectoryError:
+						opr.Debug("Directory not found. Nothing to do.")
+					default:
+						// otherwise force delete
+						err := fm.Delete(opr, isoTargetPath)
+						if err != nil {
+							opr.Debugf("Failed to delete image (%s) with error (%s)", image, err.Error())
+							return err
+						}
 					}
 				}
+				return d.session.Datastore.UploadFile(opr, image, path.Join(d.vmPathName, key), nil)
 			}
 
-			op.Infof("Uploading %s as %s", baseName, key)
+			// counter for retry decider
+			retryCount := uploadRetryLimit
 
-			return d.session.Datastore.UploadFile(op, image, path.Join(d.vmPathName, key),
-				nil)
+			// decider for our retry, will retry the upload uploadRetryLimit times
+			uploadRetryDecider := func(err error) bool {
+				if err == nil {
+					return false
+				}
+
+				retryCount--
+				if retryCount < 0 {
+					d.op.Warnf("Attempted upload a total of %d times without success, Upload process failed.", uploadRetryLimit)
+					return false
+				}
+				d.op.Warnf("failed an attempt to upload isos with err (%s), %d retries remain", err.Error(), retryCount)
+				return true
+			}
+
+			// Build retry config
+			backoffConf := retry.NewBackoffConfig()
+			backoffConf.InitialInterval = uploadInitialInterval
+			backoffConf.MaxInterval = uploadMaxInterval
+			backoffConf.MaxElapsedTime = uploadMaxElapsedTime
+
+			uploadErr := retry.DoWithConfig(operationForRetry, uploadRetryDecider, backoffConf)
+			if uploadErr != nil {
+				finalMessage = fmt.Sprintf("\t\tUpload failed for %q: %s\n", image, uploadErr)
+				if d.force {
+					finalMessage = fmt.Sprintf("%s\t\tContinuing despite failures (due to --force option)\n", finalMessage)
+					finalMessage = fmt.Sprintf("%s\t\tNote: The VCH will not function without %q...", finalMessage, image)
+					results <- errors.New(finalMessage)
+				} else {
+					results <- errors.New(finalMessage)
+				}
+			}
+			wg.Done()
+		}(key, image)
+	}
+
+	wg.Wait()
+	close(results)
+
+	uploadFailed := false
+	for err := range results {
+		if err != nil {
+			d.op.Error(err)
+			uploadFailed = true
 		}
+	}
 
-		// counter for retry decider
-		retryCount := uploadRetryLimit
-
-		// decider for our retry, will retry the upload uploadRetryLimit times
-		uploadRetryDecider := func(err error) bool {
-			if err == nil {
-				return false
-			}
-
-			retryCount--
-			if retryCount < 0 {
-				d.op.Warnf("Attempted upload a total of %d times without success, Upload process failed.", uploadRetryLimit)
-				return false
-			}
-			d.op.Warnf("Failed an attempt to upload isos with err (%s), %d retries remain", err.Error(), retryCount)
-			return true
-		}
-
-		uploadErr := retry.DoWithConfig(operationForRetry, uploadRetryDecider, backoffConf)
-		if uploadErr != nil {
-			finalMessage := fmt.Sprintf("\t\tUpload failed for %q: %s\n", image, uploadErr)
-			if d.force {
-				finalMessage = fmt.Sprintf("%s\t\tContinuing despite failures (due to --force option)\n", finalMessage)
-				finalMessage = fmt.Sprintf("%s\t\tNote: The VCH will not function without %q...", finalMessage, image)
-			}
-			d.op.Error(finalMessage)
-			return errors.New("Failed to upload iso images.")
-		}
-
+	if uploadFailed {
+		return errors.New("Failed to upload iso images.")
 	}
 	return nil
-
 }
 
 // cleanupAfterCreationFailed cleans up the dangling resource pool for the failed VCH and any bridge network if there is any.
