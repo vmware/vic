@@ -71,7 +71,7 @@ func (r *ResourceLimits) VCHCPULimitFlags(hidden bool) []cli.Flag {
 		cli.GenericFlag{
 			Name:   "cpu-shares, cpus",
 			Value:  flags.NewSharesFlag(&r.VCHCPUShares),
-			Usage:  "VCH VCH resource pool vCPUs shares, in level or share number, e.g. high, normal, low, or 4000",
+			Usage:  "VCH resource pool vCPUs shares, in level or share number, e.g. high, normal, low, or 4000",
 			Hidden: hidden,
 		},
 	}
