@@ -185,6 +185,11 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 	d.op.Info("Published ports can be reached at:")
 	d.op.Infof("%s", publicIP.String())
 
+	d.op.Info("")
+	managementIP := conf.ExecutorConfig.Networks["management"].Assigned.IP
+	d.op.Info("Management traffic will use:")
+	d.op.Infof("%s", managementIP.String())
+
 	cmd, env := d.GetDockerAPICommand(conf, key, cert, cacert, certpath)
 
 	d.op.Info("")
