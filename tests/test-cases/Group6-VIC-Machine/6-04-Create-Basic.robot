@@ -277,7 +277,7 @@ Create VCH - Existing VM Name
 
     # VCH creation should fail on VC
     ${vm-folder-path}=  Run  govc ls | grep vm
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  existing
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  already in use
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  %{VCH-NAME}
     Should Not Be Equal As Integers  ${rc}  0
 
@@ -297,7 +297,7 @@ Create VCH - Folder Conflict
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
     Log  ${output}
     ${vm-path}=  Run  govc ls | grep vm
-    Should Contain  ${output}  existing
+    Should Contain  ${output}  already in use
     Should Contain  ${output}  %{VCH-NAME}
     Should Not Be Equal As Integers  ${rc}  0
 
