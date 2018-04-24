@@ -88,8 +88,8 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 	}
 	receiver.Signal(datastoreReadySignal)
 
-	if err = d.uploadImages(settings.ImageFiles); err != nil {
-		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
+	if err = d.uploadISOs(settings.ImageFiles); err != nil {
+		return errors.Errorf("Uploading vic isos failed with %s. Exiting...", err)
 	}
 
 	if conf.ShouldGrantPerms() {
@@ -119,11 +119,11 @@ func (d *Dispatcher) createPool(conf *config.VirtualContainerHostConfigSpec, set
 	return nil
 }
 
-func (d *Dispatcher) uploadImages(files map[string]string) error {
+func (d *Dispatcher) uploadISOs(files map[string]string) error {
 	defer trace.End(trace.Begin("", d.op))
 
 	// upload the images
-	d.op.Info("Uploading images for container")
+	d.op.Info("Uploading ISO images")
 
 	// Build retry config
 	backoffConf := retry.NewBackoffConfig()
@@ -137,7 +137,7 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 		isoTargetPath := path.Join(d.vmPathName, key)
 
 		operationForRetry := func() error {
-			op, cancel := trace.WithCancel(&d.op, "uploadImages")
+			op, cancel := trace.WithCancel(&d.op, "uploadISOs")
 			defer cancel()
 
 			// attempt to delete the iso image first in case of failed upload
@@ -230,7 +230,7 @@ func (d *Dispatcher) cleanupAfterCreationFailed(conf *config.VirtualContainerHos
 	}
 
 	// Delete the VCH Folder
-	d.deleteVCHFolder()
+	d.deleteFolder(d.session.VCHFolder)
 }
 
 // cleanupEmptyPool cleans up any dangling empty VCH resource pool when creating this VCH. no-op when VCH pool is nonempty.

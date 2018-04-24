@@ -110,7 +110,7 @@ func setApplianceResources(op trace.Operation, vm *vm.VirtualMachine, d *data.Da
 // setVCHResources will populate the configuration data based on the deployed VCH config
 func setVCHResources(op trace.Operation, vch *object.ResourcePool, d *data.Data) error {
 	var p mo.ResourcePool
-	ps := []string{"config.cpuAllocation", "config.memoryAllocation"}
+	ps := []string{"config"}
 
 	if err := vch.Properties(op, vch.Reference(), ps, &p); err != nil {
 		return err

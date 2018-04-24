@@ -48,7 +48,6 @@ type Configure struct {
 
 	certificates common.CertFactory
 
-	upgrade  bool
 	executor *management.Dispatcher
 
 	Force bool
@@ -84,12 +83,6 @@ func (c *Configure) Flags() []cli.Flag {
 			Name:        "rollback",
 			Usage:       "Roll back VCH configuration to before the current upgrade/configure",
 			Destination: &c.Rollback,
-			Hidden:      true,
-		},
-		cli.BoolFlag{
-			Name:        "upgrade",
-			Usage:       "Upgrade VCH to latest version together with configure",
-			Destination: &c.upgrade,
 			Hidden:      true,
 		},
 	}
@@ -317,12 +310,6 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		return errors.New("invalid CLI arguments")
 	}
 
-	// TODO: add additional parameter processing, reuse same code with create command as well
-
-	if c.upgrade {
-		// verify upgrade required parameters here
-	}
-
 	op.Infof("### Configuring VCH ####")
 
 	validator, err := validate.NewValidator(op, c.Data)
@@ -337,7 +324,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		op.Errorf("Configuring cannot continue - target validation failed: %s", err)
 		return errors.New("configure failed")
 	}
-	executor := management.NewDispatcher(validator.Context, validator.Session, nil, c.Force)
+	executor := management.NewDispatcher(validator.Context, validator.Session, management.ConfigureAction, c.Force)
 
 	var vch *vm.VirtualMachine
 	if c.Data.ID != "" {
@@ -364,12 +351,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		return nil
 	}
 
-	var vchConfig *config.VirtualContainerHostConfigSpec
-	if c.upgrade {
-		vchConfig, err = executor.FetchAndMigrateVCHConfig(vch)
-	} else {
-		vchConfig, err = executor.GetVCHConfig(vch)
-	}
+	vchConfig, err := executor.GetVCHConfig(vch)
 	if err != nil {
 		op.Error("Failed to get Virtual Container Host configuration")
 		op.Error(err)
@@ -405,7 +387,18 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		op.Error("Configuring cannot continue: copying configuration failed")
 		return err
 	}
+	// Copy original and merged resources
+	// This copy is needed so that we validate only the resource settings
+	// (--mem, --cpu, etc) supplied by the user.
+	inputResources := c.Data.ResourceLimits
+	mergedResources := oldData.ResourceLimits
+
+	// overwriting user input w/merged dataset
 	c.Data = oldData
+
+	// Set the ResourceLimits to the input received from
+	// the user
+	oldData.ResourceLimits = inputResources
 
 	// in Create we process certificates as part of processParams but we need the old conf
 	// to do this in the context of Configure so we need to call this method here instead
@@ -419,6 +412,9 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		op.Error("Configuring cannot continue: configuration validation failed")
 		return err
 	}
+	// The user supplied resource information has been validated, so
+	// switch back to the merged results
+	c.Data.ResourceLimits = mergedResources
 
 	// TODO: copy changed configuration here. https://github.com/vmware/vic/issues/2911
 	c.copyChangedConf(vchConfig, newConfig)
@@ -453,9 +449,10 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	}()
 
 	if !c.Data.Rollback {
-		err = executor.Configure(vch, vchConfig, vConfig, true)
+		err = executor.Configure(vchConfig, vConfig)
 	} else {
-		err = executor.Rollback(vch, vchConfig, vConfig)
+		executor.Action = management.RollbackAction
+		err = executor.Rollback(vchConfig, vConfig)
 	}
 
 	if err != nil {

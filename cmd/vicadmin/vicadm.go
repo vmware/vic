@@ -325,7 +325,8 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 
 	ref := vchConfig.ComputeResources[0]
 	rp := compute.NewResourcePool(ctx, s, ref)
-	if children, err = rp.GetChildrenVMs(ctx, s); err != nil {
+	op := trace.NewOperation(ctx, "GetChildren")
+	if children, err = rp.GetChildrenVMs(op); err != nil {
 		return nil, err
 	}
 

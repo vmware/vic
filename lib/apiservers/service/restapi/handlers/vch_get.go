@@ -95,7 +95,7 @@ func (h *VCHDatacenterGet) Handle(params operations.GetTargetTargetDatacenterDat
 }
 
 func getVCH(op trace.Operation, d *data.Data, validator *validate.Validator) (*models.VCH, error) {
-	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
+	executor := management.NewDispatcher(validator.Context, validator.Session, management.NoAction, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
 		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Failed to inspect VCH: %s", err))
