@@ -164,6 +164,12 @@ func findCertPaths(op trace.Operation, vchName, certPath string) []string {
 }
 
 func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key string, cert string, cacert string, envfile string, certpath string) {
+	moref := new(types.ManagedObjectReference)
+	if ok := moref.FromString(conf.ID); ok {
+		d.op.Info("")
+		d.op.Infof("VCH ID: %s", moref.Value)
+	}
+
 	if d.sshEnabled {
 		d.op.Info("")
 		d.op.Info("SSH to appliance:")
