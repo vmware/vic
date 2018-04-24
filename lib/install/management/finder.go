@@ -341,25 +341,24 @@ func (d *Dispatcher) searchResourcePools(pools []*object.ResourcePool) []*vm.Vir
 		} else {
 			vchs = append(vchs, children...)
 		}
-		// if we have more than one resource pool we will search for vApps
-		// in each of the pools
-		if multiPool {
-			vappPath := path.Join(pool.InventoryPath, "*")
-			vapps, err := d.session.Finder.VirtualAppList(d.op, vappPath)
-			if err != nil {
-				if _, ok := err.(*find.NotFoundError); !ok {
-					d.op.Errorf("Failed to query vapp %q: %s", vappPath, err)
-				}
-			}
-			for _, vapp := range vapps {
-				children, err := d.findVCHs(vapp.ResourcePool, multiPool)
-				if err != nil {
-					d.op.Warnf("Failed to get VCH from vApp resource pool %q: %s", pool.InventoryPath, err)
-					continue
-				}
-				vchs = append(vchs, children...)
+
+		// search for a vApp
+		vappPath := path.Join(pool.InventoryPath, "*")
+		vapps, err := d.session.Finder.VirtualAppList(d.op, vappPath)
+		if err != nil {
+			if _, ok := err.(*find.NotFoundError); !ok {
+				d.op.Errorf("Failed to query vapp %q: %s", vappPath, err)
 			}
 		}
+		for _, vapp := range vapps {
+			children, err := d.findVCHs(vapp.ResourcePool, multiPool)
+			if err != nil {
+				d.op.Warnf("Failed to get VCH from vApp resource pool %q: %s", pool.InventoryPath, err)
+				continue
+			}
+			vchs = append(vchs, children...)
+		}
+
 	}
 	return vchs
 }
