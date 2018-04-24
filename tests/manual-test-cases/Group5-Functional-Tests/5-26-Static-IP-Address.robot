@@ -15,9 +15,15 @@
 *** Settings ***
 Documentation  Test 5-26 - Static IP Address
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Static IP Address Create
+Suite Setup  Setup VC With Static IP
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
+
+*** Keywords ***
+Setup VC With Static IP
+    ${name}=  Evaluate  'vic-5-26-' + str(random.randint(1000,9999))  modules=random
+    Wait Until Keyword Succeeds  10x  10m  Create Simple VC Cluster With Static IP  ${name}
+    
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...

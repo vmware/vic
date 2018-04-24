@@ -20,11 +20,12 @@ Default Tags
 
 *** Keywords ***
 Deploy Testbed With Static IP
-    Setup VCH With No WAN
+    Setup VC With No WAN
     Deploy VCH With No WAN
 
-Setup VCH With No WAN
-    Wait Until Keyword Succeeds  10x  10m  Static IP Address Create
+Setup VC With No WAN
+    ${name}=  Evaluate  'vic-5-28-' + str(random.randint(1000,9999))  modules=random
+    Wait Until Keyword Succeeds  10x  10m  Create Simple VC Cluster With Static IP  ${name}
     Set Test Environment Variables
     
     Log To Console  Create a vch with a public network on a no-wan portgroup.
@@ -36,10 +37,14 @@ Setup VCH With No WAN
     Should Be Equal As Integers  ${rc}  0
     
 Deploy VCH With No WAN
+    ${out}=  Deploy VCH With No WAN Secret
+    Log  ${out}
+    Get Docker Params  ${out}  ${false}
+
+Deploy VCH With No WAN Secret
     [Tags]  secret
     ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --no-tlsverify --bridge-network=%{BRIDGE_NETWORK} --management-network=%{PUBLIC_NETWORK} --client-network=%{PUBLIC_NETWORK} --client-network-ip &{static}[ip]/&{static}[netmask] --client-network-gateway 10.0.0.0/8:&{static}[gateway] --public-network dpg-no-wan --public-network-ip 192.168.100.2/24 --public-network-gateway 192.168.100.1 --dns-server 10.170.16.48 --insecure-registry wdc-harbor-ci.eng.vmware.com
-
-    Get Docker Params  ${output}  ${false}
+    [Return]  ${output}
 
 Teardown VCH With No WAN
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
@@ -53,32 +58,38 @@ Login And Save Cookies
 Display HTML
     Login And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b /tmp/cookies-%{VCH-NAME}
+    Log  ${output}
     Should contain  ${output}  <title>VIC: %{VCH-NAME}</title>
 
 WAN Status Should Fail
     Login And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b /tmp/cookies-%{VCH-NAME}
+    Log  ${output}
     Should contain  ${output}  <div class="sixty">Registry and Internet Connectivity<span class="error-message">
 
 Fail To Pull Docker Image
     Login And Save Cookies
     ${rc}  ${output}=  Run And Return Rc and Output  docker %{VCH-PARAMS} pull ${busybox}
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  1
     Should contain  ${output}  no route to host
 
 Get Portlayer Log
     Login And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b /tmp/cookies-%{VCH-NAME}
+    Log  ${output}
     Should contain  ${output}  Launching portlayer server
 
 Get VCH-Init Log
     Login And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/init.log -b /tmp/cookies-%{VCH-NAME}
+    Log  ${output}
     Should contain  ${output}  reaping child processes
 
 Get Docker Personality Log
     Login And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/docker-personality.log -b /tmp/cookies-%{VCH-NAME}
+    Log  ${output}
     Should contain  ${output}  docker personality
 
 Get VICAdmin Log

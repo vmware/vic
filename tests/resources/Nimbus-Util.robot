@@ -451,13 +451,14 @@ Power Off Host
     ${out}=  Execute Command  poweroff -d 0 -f
     Close connection
 
-Static IP Address Create
+Create Simple VC Cluster With Static IP
+    [Arguments]  ${name}=vic-simple-vc-static-ip
     [Timeout]    110 minutes
-    Log To Console  Starting Static IP Address test...
     Set Suite Variable  ${NIMBUS_LOCATION}  NIMBUS_LOCATION=wdc
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
-    ${name}=  Evaluate  'vic-5-26-' + str(random.randint(1000,9999))  modules=random
+    Log To Console  Create a new simple vc cluser with static ip support...
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-simple-cluster --testbedSpecRubyFile /dbc/pa-dbc1111/mhagen/nimbus-testbeds/testbeds/vic-simple-cluster.rb --runName ${name}
+    Log  ${out}
 
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
