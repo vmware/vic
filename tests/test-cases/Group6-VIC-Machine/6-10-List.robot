@@ -83,14 +83,3 @@ List with valid datacenter
     ${ret}=  Run  bin/vic-machine-linux ls --target %{TEST_URL}/%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD}
     Set Environment Variable  TEST_DATACENTER  ${orig}
     Verify Listed Machines  ${ret}
-
-List with empty cluster
-    Pass Execution If  '%{HOST_TYPE}' == 'ESXi'  This test is not applicable to ESXi
-    # if there are multiple datacenters this call will fail
-    ${rc}  ${output}=  Run And Return Rc And Output  govc cluster.create EmptyCluster
-    Should Be Equal As Integers  ${rc}  0
-    ${ret}=  Run  bin/vic-machine-linux ls --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource EmptyCluster
-    Verify No Machines  ${ret}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc object.destroy EmptyCluster
-    Should Be Equal As Integers  ${rc}  0
-
