@@ -21,14 +21,15 @@ Test Timeout     20 minutes
 
 *** Keywords ***
 Wait For DNS Update
-    [Arguments]  ${shouldContain}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep dns
-    Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  ${shouldContain}  Should Contain  ${output}  network/dns
-    Run Keyword If  ${shouldContain}  Should Not Contain  ${output}  assigned.dns
+    [Arguments]    ${shouldContain}
+    ${output}=    Run And Verify RC    govc vm.info -e %{VCH-NAME} | grep dns
 
-    Run Keyword Unless  ${shouldContain}  Should Contain  ${output}  assigned.dns
-    Run Keyword Unless  ${shouldContain}  Should Not Contain  ${output}  network/dns
+    Run Keyword If        ${shouldContain}    Should Contain        ${output}    network/dns
+    Run Keyword If        ${shouldContain}    Should Not Contain    ${output}    assigned.dns
+
+    Run Keyword Unless    ${shouldContain}    Should Contain        ${output}    assigned.dns
+    Run Keyword Unless    ${shouldContain}    Should Not Contain    ${output}    network/dns
+
 
 *** Test Cases ***
 Configure VCH debug state
