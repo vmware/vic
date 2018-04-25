@@ -354,13 +354,6 @@ Run Secret VIC Machine Delete Command
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     [Return]  ${rc}  ${output}
 
-Run Secret VIC Machine Inspect Command
-    [Tags]  secret
-    [Arguments]  ${name}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --thumbprint=%{TEST_THUMBPRINT} --compute-resource=%{TEST_RESOURCE}
-
-    [Return]  ${rc}  ${output}
-
 Run VIC Machine Delete Command
     ${rc}  ${output}=  Run Secret VIC Machine Delete Command  %{VCH-NAME}
     Log  ${output}
@@ -376,18 +369,36 @@ Run VIC Machine Delete Command
     ${output}=  Run  rm -rf %{VCH-NAME}
     [Return]  ${output}
 
+Run Secret VIC Machine Inspect Command
+    [Tags]  secret
+    [Arguments]  ${name}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --thumbprint=%{TEST_THUMBPRINT} --compute-resource=%{TEST_RESOURCE}
+
+    [Return]  ${rc}  ${output}
+
 Run VIC Machine Inspect Command
     [Arguments]  ${name}=%{VCH-NAME}
     ${rc}  ${output}=  Run Secret VIC Machine Inspect Command  ${name}
     Log  ${output}
     Get Docker Params  ${output}  ${true}
 
-Inspect VCH
+Inspect Should Contain
     [Arguments]  ${expected}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  ${expected}
+
+    ${out}=    Run And Verify Rc     bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --timeout=%{TEST_TIMEOUT}
+               Should Contain        ${out}    ${expected}
+
+Inspect Config Should Contain
+    [Arguments]    ${expected}
+
+    ${out}=    Run And Verify Rc     bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout=%{TEST_TIMEOUT}
+               Should Contain        ${out}    ${expected}
+
+Inspect Config Should Not Contain
+    [Arguments]    ${unexpected}
+
+    ${out}=    Run And Verify Rc     bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout=%{TEST_TIMEOUT}
+               Should Not Contain    ${out}    ${unexpected}
 
 Wait For VCH Initialization
     [Arguments]  ${attempts}=12x  ${interval}=10 seconds  ${name}=%{VCH-NAME}

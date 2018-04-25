@@ -37,18 +37,6 @@ Guestinfo Should Contain
     ${out}=    Check VM Guestinfo    ${vm}     ${key}
                Should Contain        ${out}    ${expected}
 
-Inspect Should Contain
-    [Arguments]    ${expected}
-
-    ${out}=    Run And Verify Rc     bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout=%{TEST_TIMEOUT}
-               Should Contain        ${out}    ${expected}
-
-Inspect Should Not Contain
-    [Arguments]    ${unexpected}
-
-    ${out}=    Run And Verify Rc     bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout=%{TEST_TIMEOUT}
-               Should Not Contain    ${out}    ${unexpected}
-
 Configure VCH
     [Arguments]    ${additional-args}
 
@@ -58,33 +46,33 @@ Configure VCH
 
 *** Test Cases ***
 Configure VCH debug state
-    ${out}=    Run And Verify Rc     bin/vic-machine-linux configure --help
-               Should Contain        ${out}    --debug
+    ${out}=    Run And Verify Rc      bin/vic-machine-linux configure --help
+               Should Contain                       ${out}    --debug
 
-               Run And Verify Rc     docker %{VCH-PARAMS} pull ${busybox}
-    ${id1}=    Run And Verify Rc     docker %{VCH-PARAMS} run -itd ${busybox}
-    ${vm1}=    Get VM display name   ${id1}
+               Run And Verify Rc      docker %{VCH-PARAMS} pull ${busybox}
+    ${id1}=    Run And Verify Rc      docker %{VCH-PARAMS} run -itd ${busybox}
+    ${vm1}=    Get VM display name    ${id1}
 
-               Inspect Should Contain      --debug=1
-               Guestinfo Should Contain    %{VCH-NAME}    guestinfo.vice./init/diagnostics/debug    1
-               Guestinfo Should Contain    ${vm1}         guestinfo.vice./diagnostics/debug         1
+               Inspect Config Should Contain        --debug=1
+               Guestinfo Should Contain             %{VCH-NAME}    guestinfo.vice./init/diagnostics/debug    1
+               Guestinfo Should Contain             ${vm1}         guestinfo.vice./diagnostics/debug         1
 
-               Configure VCH               --debug=0
+               Configure VCH          --debug=0
 
-               Inspect Should Not Contain  --debug=1
-               Guestinfo Should Contain    %{VCH-NAME}    guestinfo.vice./init/diagnostics/debug    0
-               Guestinfo Should Contain    ${vm1}         guestinfo.vice./diagnostics/debug         1
+               Inspect Config Should Not Contain    --debug=1
+               Guestinfo Should Contain             %{VCH-NAME}    guestinfo.vice./init/diagnostics/debug    0
+               Guestinfo Should Contain             ${vm1}         guestinfo.vice./diagnostics/debug         1
 
-    ${id2}=    Run And Verify Rc     docker %{VCH-PARAMS} run -itd ${busybox}
-    ${vm2}=    Get VM display name   ${id2}
+    ${id2}=    Run And Verify Rc      docker %{VCH-PARAMS} run -itd ${busybox}
+    ${vm2}=    Get VM display name    ${id2}
 
-               Guestinfo Should Contain    ${vm2}         guestinfo.vice./diagnostics/debug         0
+               Guestinfo Should Contain             ${vm2}         guestinfo.vice./diagnostics/debug         0
 
-               Configure VCH               --debug=1
+               Configure VCH          --debug=1
 
-               Inspect Should Contain      --debug=1
-               Guestinfo Should Contain    %{VCH-NAME}    guestinfo.vice./init/diagnostics/debug    1
-               Guestinfo Should Contain    ${vm2}         guestinfo.vice./diagnostics/debug         0
+               Inspect Config Should Contain        --debug=1
+               Guestinfo Should Contain             %{VCH-NAME}    guestinfo.vice./init/diagnostics/debug    1
+               Guestinfo Should Contain             ${vm2}         guestinfo.vice./diagnostics/debug         0
 
 Configure VCH Container Networks
     ${vlan}=  Get Public Network VLAN ID

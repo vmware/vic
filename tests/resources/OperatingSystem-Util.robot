@@ -23,6 +23,7 @@ Run And Verify Rc
     [Arguments]    ${command}    ${expectedRC}=0
 
     ${rc}    ${output}=    Run And Return Rc And Output    ${command}
+    Log    ${output}
     Should Be Equal As Integers    ${rc}    ${expectedRC}
 
     [Return]    ${output}
