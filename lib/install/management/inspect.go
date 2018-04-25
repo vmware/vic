@@ -164,6 +164,12 @@ func findCertPaths(op trace.Operation, vchName, certPath string) []string {
 }
 
 func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key string, cert string, cacert string, envfile string, certpath string) {
+	moref := new(types.ManagedObjectReference)
+	if ok := moref.FromString(conf.ID); ok {
+		d.op.Info("")
+		d.op.Infof("VCH ID: %s", moref.Value)
+	}
+
 	if d.sshEnabled {
 		d.op.Info("")
 		d.op.Info("SSH to appliance:")
@@ -178,6 +184,13 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 	publicIP := conf.ExecutorConfig.Networks["public"].Assigned.IP
 	d.op.Info("Published ports can be reached at:")
 	d.op.Infof("%s", publicIP.String())
+
+	if management := conf.ExecutorConfig.Networks["management"]; management != nil {
+		d.op.Info("")
+		managementIP := management.Assigned.IP
+		d.op.Info("Management traffic will use:")
+		d.op.Infof("%s", managementIP.String())
+	}
 
 	cmd, env := d.GetDockerAPICommand(conf, key, cert, cacert, certpath)
 
