@@ -194,7 +194,6 @@ Configure VCH DNS server
     Should Contain  ${output}  --dns-server=10.118.81.1
     Should Contain  ${output}  --dns-server=10.118.81.2
 
-    Wait Until Keyword Succeeds  10x  6s  Wait For DNS Update  ${true}
     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --dns-server ""
     Should Contain  ${output}  Completed successfully
     Should Not Contain  ${output}  --dns-server
