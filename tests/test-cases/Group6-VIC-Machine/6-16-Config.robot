@@ -37,6 +37,19 @@ Guestinfo Should Contain
     ${out}=    Check VM Guestinfo    ${vm}     ${key}
                Should Contain        ${out}    ${expected}
 
+Inspect Should Contain
+    [Arguments]    ${expected}
+
+    ${out}=    Run And Verify Rc     bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout=%{TEST_TIMEOUT}
+               Should Contain        ${out}    ${expected}
+
+Configure VCH
+    [Arguments]    ${additional-args}
+
+    ${out}=    Run And Verify Rc     bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout=%{TEST_TIMEOUT} ${additional-args}
+               Should Contain        ${out}    Completed successfully
+
+
 
 *** Test Cases ***
 Configure VCH debug state
@@ -55,12 +68,10 @@ Configure VCH debug state
                Guestinfo Should Contain    ${vm1}         guestinfo.vice./diagnostics/debug         1
 
     # Use configure to change debug to 0
-    ${out}=    Run And Verify Rc     bin/vic-machine-linux configure --debug 0 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
-               Should Contain        ${out}    Completed successfully
+               Configure VCH    --debug 0
 
     # Verify that the inspect output is updated
-    ${out}=    Run And Verify Rc      bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
-               Should Contain        ${out}    --debug=0
+               Inspect Should Contain    --debug=0
 
     # Verify that the VCH was affected, but the existing container VM was not
                Guestinfo Should Contain    %{VCH-NAME}    guestinfo.vice./init/diagnostics/debug    0
@@ -72,13 +83,11 @@ Configure VCH debug state
 
                Guestinfo Should Contain    ${vm2}         guestinfo.vice./diagnostics/debug         0
 
-    # Use configure to change debug back to 1
-    ${out}=    Run And Verify Rc     bin/vic-machine-linux configure --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
-               Should Contain        ${out}    Completed successfully
+    # Use configure to change debug to 1
+               Configure VCH    --debug 1
 
     # Verify that the inspect output is updated
-    ${out}=    Run And Verify Rc     bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
-               Should Contain        ${out}    --debug=1
+               Inspect Should Contain    --debug=1
 
     # Verify that the VCH was affected, but the existing container VM was not
                Guestinfo Should Contain    %{VCH-NAME}    guestinfo.vice./init/diagnostics/debug    1
