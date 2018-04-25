@@ -382,7 +382,6 @@ func (s *Session) Populate(ctx context.Context) (*Session, error) {
 		// This will provide standalone ESXi and backwards
 		// compatibility to non-folder versions.
 		s.VCHFolder = folders.VmFolder
-
 	}
 
 	if len(errs) > 0 {
