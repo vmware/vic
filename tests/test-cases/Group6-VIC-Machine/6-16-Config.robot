@@ -31,35 +31,42 @@ Wait For DNS Update
     Run Keyword Unless    ${shouldContain}    Should Not Contain    ${output}    network/dns
 
 
+Guestinfo Should Contain
+    [Arguments]    ${vm}    ${key}    ${expected}
+
+    ${out}=    Check VM Guestinfo    ${vm}     ${key}
+               Should Contain        ${out}    ${expected}
+
+
 *** Test Cases ***
 Configure VCH debug state
-    ${output}=  Run  bin/vic-machine-linux configure --help
-    Should Contain  ${output}  --debug
-    ${output}=  Check VM Guestinfo  %{VCH-NAME}  guestinfo.vice./init/diagnostics/debug
-    Should Contain  ${output}  1
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${id1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd ${busybox}
-    Should Be Equal As Integers  ${rc}  0
-    ${vm1}=  Get VM display name  ${id1}
-    ${output}=  Check VM Guestinfo  ${vm1}  guestinfo.vice./diagnostics/debug
-    Should Contain  ${output}  1
-    ${output}=  Run  bin/vic-machine-linux configure --debug 0 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
-    Should Contain  ${output}  Completed successfully
-    ${output}=  Check VM Guestinfo  %{VCH-NAME}  guestinfo.vice./init/diagnostics/debug
-    Should Contain  ${output}  0
-    ${output}=  Check VM Guestinfo  ${vm1}  guestinfo.vice./diagnostics/debug
-    Should Contain  ${output}  1
-    ${rc}  ${id2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd ${busybox}
-    Should Be Equal As Integers  ${rc}  0
-    ${vm2}=  Get VM display name  ${id2}
-    ${output}=  Check VM Guestinfo  ${vm2}  guestinfo.vice./diagnostics/debug
-    Should Contain  ${output}  0
-    ${output}=  Run  bin/vic-machine-linux configure --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
-    Should Contain  ${output}  Completed successfully
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
-    Should Be Equal As Integers  0  ${rc}
-    Should Contain  ${output}  --debug=1
+    ${out}=    Run                   bin/vic-machine-linux configure --help
+               Should Contain        ${out}    --debug
+
+               Guestinfo Should Contain    %{VCH-NAME}    guestinfo.vice./init/diagnostics/debug    1
+
+               Run And Verify Rc     docker %{VCH-PARAMS} pull ${busybox}
+    ${id1}=    Run And Verify Rc     docker %{VCH-PARAMS} run -itd ${busybox}
+    ${vm1}=    Get VM display name   ${id1}
+
+               Guestinfo Should Contain    ${vm1}         guestinfo.vice./diagnostics/debug         1
+
+    ${out}=    Run                   bin/vic-machine-linux configure --debug 0 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
+               Should Contain        ${out}    Completed successfully
+
+               Guestinfo Should Contain    %{VCH-NAME}    guestinfo.vice./init/diagnostics/debug    0
+               Guestinfo Should Contain    ${vm1}         guestinfo.vice./diagnostics/debug         1
+
+    ${id2}=    Run And Verify Rc     docker %{VCH-PARAMS} run -itd ${busybox}
+    ${vm2}=    Get VM display name   ${id2}
+
+               Guestinfo Should Contain    ${vm2}         guestinfo.vice./diagnostics/debug         0
+
+    ${out}=    Run                   bin/vic-machine-linux configure --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
+               Should Contain        ${out}    Completed successfully
+
+    ${out}=    Run And Verify Rc      bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
+               Should Contain        ${out}    --debug=1
 
 Configure VCH Container Networks
     ${vlan}=  Get Public Network VLAN ID
