@@ -43,6 +43,12 @@ Inspect Should Contain
     ${out}=    Run And Verify Rc     bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout=%{TEST_TIMEOUT}
                Should Contain        ${out}    ${expected}
 
+Inspect Should Not Contain
+    [Arguments]    ${unexpected}
+
+    ${out}=    Run And Verify Rc     bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout=%{TEST_TIMEOUT}
+               Should Not Contain    ${out}    ${unexpected}
+
 Configure VCH
     [Arguments]    ${additional-args}
 
@@ -65,7 +71,7 @@ Configure VCH debug state
 
                Configure VCH               --debug=0
 
-               Inspect Should Contain      --debug=0
+               Inspect Should Not Contain  --debug=1
                Guestinfo Should Contain    %{VCH-NAME}    guestinfo.vice./init/diagnostics/debug    0
                Guestinfo Should Contain    ${vm1}         guestinfo.vice./diagnostics/debug         1
 
