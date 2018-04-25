@@ -15,82 +15,10 @@
 *** Settings ***
 Documentation     Suite 25-01 - Basic
 Resource          ../../resources/Util.robot
+Resource          ../../resources/Group25-Host-Affinity-Util.robot
 Test Setup        Set Test Environment Variables
 Test Teardown     Cleanup
 Default Tags
-
-
-*** Keywords ***
-Cleanup
-    Run Keyword And Continue On Failure    Remove Group     %{VCH-NAME}
-
-    Cleanup VIC Appliance On Test Server
-
-
-Create Group
-    [Arguments]    ${name}
-
-    ${rc}  ${out}=    Run And Return Rc And Output     govc cluster.group.create -name "${name}" -vm --json 2>&1
-    Should Be Equal As Integers    ${rc}    0
-
-Remove Group
-    [Arguments]    ${name}
-
-    ${rc}  ${out}=    Run And Return Rc And Output     govc cluster.group.remove -name "${name}" --json 2>&1
-    Should Be Equal As Integers    ${rc}    0
-
-
-Verify Group Not Found
-    [Arguments]    ${name}
-
-    ${out}=    Run     govc cluster.group.ls -name "${name}" --json 2>&1
-    Should Be Equal As Strings    ${out}    govc: group "${name}" not found
-
-Verify Group Empty
-    [Arguments]    ${name}
-
-    ${out}=    Run     govc cluster.group.ls -name "${name}" --json 2>&1
-    Should Be Equal As Strings    ${out}    null
-
-Verify Group Contains VMs
-    [Arguments]    ${name}    ${count}
-
-    ${out}=    Run    govc cluster.group.ls -name "${name}" --json | jq 'length'
-    Should Be Equal As Integers    ${out}    ${count}
-
-
-Create Three Containers
-    ${POWERED_OFF_CONTAINER_NAME}=    Generate Random String  15
-    ${rc}  ${out}=    Run And Return Rc And Output    docker %{VCH-PARAMS} create --name ${POWERED_OFF_CONTAINER_NAME} ${busybox} /bin/top
-
-    Set Test Variable    ${POWERED_OFF_CONTAINER_NAME}
-
-    ${POWERED_ON_CONTAINER_NAME}=    Generate Random String  15
-    ${rc}  ${out}=    Run And Return Rc And Output    docker %{VCH-PARAMS} create --name ${POWERED_ON_CONTAINER_NAME} ${busybox} /bin/top
-    ${rc}  ${out}=    Run And Return Rc And Output    docker %{VCH-PARAMS} start ${out}
-
-    Set Test Variable    ${POWERED_ON_CONTAINER_NAME}
-
-    ${RUN_CONTAINER_NAME}=    Generate Random String  15
-    ${rc}  ${out}=    Run And Return Rc And Output    docker %{VCH-PARAMS} run -d --name ${RUN_CONTAINER_NAME} ${busybox} /bin/top
-
-    Set Test Variable    ${RUN_CONTAINER_NAME}
-
-Delete Containers
-    ${rc}  ${out}=    Run And Return Rc And Output    docker %{VCH-PARAMS} rm ${POWERED_OFF_CONTAINER_NAME}
-    ${rc}  ${out}=    Run And Return Rc And Output    docker %{VCH-PARAMS} rm -f ${POWERED_ON_CONTAINER_NAME}
-    ${rc}  ${out}=    Run And Return Rc And Output    docker %{VCH-PARAMS} rm -f ${RUN_CONTAINER_NAME}
-
-
-Configure VCH without modifying affinity
-    ${rc}  ${out}=    Secret configure VCH without modifying affinity
-    Log    ${out}
-    Should Be Equal As Integers    ${RC}    0
-
-Secret configure VCH without modifying affinity
-    [Tags]    secret
-    ${rc}  ${out}=    Run And Return Rc And Output    bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:default --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-conf:configure
-    [Return]    ${rc}  ${out}
 
 
 *** Test Cases ***
@@ -178,19 +106,3 @@ Deleting a VCH gracefully handles missing VM group
     Verify Group Not Found       %{VCH-NAME}
 
     Run VIC Machine Delete Command
-
-
-Configuring VCH does not affect affinity
-    Verify Group Not Found       %{VCH-NAME}
-
-    Install VIC Appliance To Test Server With Current Environment Variables    additional-args=--affinity-vm-group
-
-    Verify Group Contains VMs    %{VCH-NAME}    1
-
-    Configure VCH without modifying affinity
-
-    Verify Group Contains VMs    %{VCH-NAME}    1
-
-    Create Three Containers
-
-    Verify Group Contains VMs    %{VCH-NAME}    4
