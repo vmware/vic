@@ -179,10 +179,6 @@ END {
 ensure_apt_packages() {
     local install
 
-    if [ -x /usr/local/bin/xorriso -a -x /usr/bin/cpio ]; then
-        return 0
-    fi
-
     # ensure we've got the utils we need
     for pkg in "$@"; do
         dpkg -s $pkg >/dev/null 2>&1 || install="$install $pkg"
