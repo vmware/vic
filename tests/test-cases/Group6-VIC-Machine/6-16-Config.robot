@@ -40,33 +40,42 @@ Guestinfo Should Contain
 
 *** Test Cases ***
 Configure VCH debug state
+    # Test whether the --debug flag is included in vic-machine configure's help output
     ${out}=    Run                   bin/vic-machine-linux configure --help
                Should Contain        ${out}    --debug
 
+    # Check that the VCH was created with a debug value of 1
                Guestinfo Should Contain    %{VCH-NAME}    guestinfo.vice./init/diagnostics/debug    1
 
+    # Create a container VM and check that it also has a debug value of 1
                Run And Verify Rc     docker %{VCH-PARAMS} pull ${busybox}
     ${id1}=    Run And Verify Rc     docker %{VCH-PARAMS} run -itd ${busybox}
     ${vm1}=    Get VM display name   ${id1}
 
                Guestinfo Should Contain    ${vm1}         guestinfo.vice./diagnostics/debug         1
 
+    # Use configure to change debug to 0
     ${out}=    Run                   bin/vic-machine-linux configure --debug 0 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
                Should Contain        ${out}    Completed successfully
 
+    # Verify that the VCH was affected, but the existing container VM was not
                Guestinfo Should Contain    %{VCH-NAME}    guestinfo.vice./init/diagnostics/debug    0
                Guestinfo Should Contain    ${vm1}         guestinfo.vice./diagnostics/debug         1
 
+    # Create another container VM and verify that its debug value is affected
     ${id2}=    Run And Verify Rc     docker %{VCH-PARAMS} run -itd ${busybox}
     ${vm2}=    Get VM display name   ${id2}
 
                Guestinfo Should Contain    ${vm2}         guestinfo.vice./diagnostics/debug         0
 
+    # Use configure to change debug back to 1
     ${out}=    Run                   bin/vic-machine-linux configure --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
                Should Contain        ${out}    Completed successfully
 
+    # Verify that the inspect output is updated
     ${out}=    Run And Verify Rc      bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
                Should Contain        ${out}    --debug=1
+
 
 Configure VCH Container Networks
     ${vlan}=  Get Public Network VLAN ID
