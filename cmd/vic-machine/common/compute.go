@@ -20,6 +20,8 @@ type Compute struct {
 	ComputeResourcePath string `cmd:"compute-resource"`
 	DisplayName         string `cmd:"name"`
 	UseVMGroup          bool   `cmd:"affinity-vm-group"`
+	CreateVMGroup       bool
+	DeleteVMGroup       bool
 }
 
 func (c *Compute) ComputeFlags() []cli.Flag {
@@ -48,6 +50,17 @@ func (c *Compute) ComputeFlagsNoName() []cli.Flag {
 			Usage:       "Use a DRS VM Group to allow VM-Host affinity rules to be defined for the VCH",
 			Destination: &c.UseVMGroup,
 			Hidden:      true,
+		},
+	}
+}
+
+func (c *Compute) AffinityFlags(hidden bool) []cli.Flag {
+	return []cli.Flag{
+		cli.BoolFlag{
+			Name:        "affinity-vm-group",
+			Usage:       "Use a DRS VM Group to allow VM-Host affinity rules to be defined for the VCH",
+			Destination: &c.UseVMGroup,
+			Hidden:      hidden,
 		},
 	}
 }
