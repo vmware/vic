@@ -15,10 +15,9 @@
 *** Settings ***
 Documentation  Test 5-25 - OPS-User-Grant
 Resource  ../../resources/Util.robot
-Suite Setup  Ops User Create
-#Suite Setup  Wait Until Keyword Succeeds  10x  10m  Ops User Create
-#Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
-#Test Teardown  Run Keyword If Test Failed  Gather vSphere Logs
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Ops User Create
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Test Teardown  Run Keyword If Test Failed  Gather vSphere Logs
 
 *** Keywords ***
 Ops User Create
