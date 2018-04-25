@@ -131,6 +131,9 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 		Insecure:   input.Force,
 	}
 
+	// if a compute resource path was specified, set it
+	v.ClusterPath = input.ComputeResourcePath
+
 	// if a datacenter was specified, set it
 	v.DatacenterPath = tURL.Path
 	if v.DatacenterPath != "" {
