@@ -111,8 +111,8 @@ func (d *Dispatcher) Configure(conf *config.VirtualContainerHostConfigSpec, sett
 		return err
 	}
 
-	// rollback function
-	rollback := func() {
+	err = d.update(conf, settings)
+	if err != nil {
 		// Roll back
 		d.op.Errorf("Failed to %s: %s", d.Action.String(), err)
 		d.op.Infof("Rolling back %s", d.Action.String())
@@ -124,32 +124,7 @@ func (d *Dispatcher) Configure(conf *config.VirtualContainerHostConfigSpec, sett
 		d.op.Infof("Appliance is rolled back to previous version")
 		d.deleteISOs(ds, settings)
 		d.deleteSnapshot(newSnapshotRef, snapshotName, conf.Name)
-	}
-
-	err = d.update(conf, settings)
-	if err != nil {
-		rollback()
 		return err
-	}
-
-	// if we are upgrading evaluate need for inventory upgrade
-	// vApp support planned: https://github.com/vmware/vic/issues/7670
-	if d.Action == UpgradeAction && d.session.IsVC() && d.vchPool.Reference().Type != "VirtualApp" {
-		err := d.inventoryUpdate(conf.Name)
-		if err != nil {
-			rollback()
-			return err
-		}
-	}
-
-	// If successful try to grant permissions to the ops-user
-	if conf.ShouldGrantPerms() {
-		err := opsuser.GrantOpsUserPerms(d.op, d.session, conf)
-		if err != nil {
-			err = errors.Errorf("Failed to grant permissions to ops-user, failure: %s", err)
-			rollback()
-			return err
-		}
 	}
 
 	// compatible with old version's upgrade snapshot name
@@ -307,6 +282,32 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 
 	if err = d.reconfigVCH(conf, isoFile); err != nil {
 		return err
+	}
+
+	// if we are upgrading evaluate need for inventory upgrade
+	// vApp support planned: https://github.com/vmware/vic/issues/7670
+	if d.Action == UpgradeAction && d.session.IsVC() && d.vchPool.Reference().Type != "VirtualApp" {
+		err = d.inventoryUpdate(conf.Name)
+		if err != nil {
+			return errors.Errorf("Failed to perform inventory update: %s", err)
+		}
+	}
+
+	// if we're on VC, update the VCH folder now that we've updated the inventory
+	if d.appliance.IsVC() {
+		vchFolder, err := d.appliance.Folder(d.op)
+		if err != nil {
+			return err
+		}
+		d.session.VCHFolder = vchFolder
+	}
+
+	// try to grant permissions to the ops-user
+	if conf.ShouldGrantPerms() {
+		err = opsuser.GrantOpsUserPerms(d.op, d.session, conf)
+		if err != nil {
+			return errors.Errorf("Failed to grant permissions to ops-user, failure: %s", err)
+		}
 	}
 
 	if err = d.appliance.PowerOn(d.op); err != nil {

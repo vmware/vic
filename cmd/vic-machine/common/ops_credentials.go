@@ -63,7 +63,7 @@ func (o *OpsCredentials) Flags(hidden bool) []cli.Flag {
 // operation, adminUser and adminPassword are not needed.
 func (o *OpsCredentials) ProcessOpsCredentials(op trace.Operation, isCreateOp bool, adminUser string, adminPassword *string) error {
 	if o.OpsUser == nil && o.OpsPassword != nil {
-		return errors.New("Password for operations user specified without user having been specified")
+		return errors.New("Password for operations user specified without operations username")
 	}
 
 	if isCreateOp {
