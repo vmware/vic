@@ -93,6 +93,7 @@ func (c *Configure) Flags() []cli.Flag {
 	id := c.IDFlags()
 	volume := c.volStores.Flags()
 	compute := c.ComputeFlags()
+	affinity := c.AffinityFlags(false)
 	container := c.ContainerFlags()
 	debug := c.DebugFlags(false)
 	cNetwork := c.cNetworks.CNetworkFlags(false)
@@ -104,7 +105,7 @@ func (c *Configure) Flags() []cli.Flag {
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, ops, id, compute, container, volume, dns, cNetwork, memory, cpu, certificates, registries, proxies, util, debug} {
+	for _, f := range [][]cli.Flag{target, ops, id, compute, affinity, container, volume, dns, cNetwork, memory, cpu, certificates, registries, proxies, util, debug} {
 		flags = append(flags, f...)
 	}
 
@@ -158,7 +159,7 @@ func (c *Configure) processParams(op trace.Operation) error {
 // copyChangedConf takes the mostly-empty new config and copies it to the old one. NOTE: o gets installed on the VCH, not n
 // Currently we cannot automatically override old configuration with any difference in the new configuration, because some options are set during the VCH
 // Creation process, for example, image store path, volume store path, network slot id, etc. So we'll copy changes based on user input
-func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n *config.VirtualContainerHostConfigSpec) {
+func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n *config.VirtualContainerHostConfigSpec, clic *cli.Context) {
 	//TODO: copy changed data
 	personaSession := o.ExecutorConfig.Sessions[config.PersonaService]
 	vicAdminSession := o.ExecutorConfig.Sessions[config.VicAdminService]
@@ -197,6 +198,11 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 	if c.OpsCredentials.IsSet {
 		o.Username = n.Username
 		o.Token = n.Token
+
+		// if the user explicitly set the `ops-grant-user` option, update the permissions level
+		if clic.IsSet("ops-grant-perms") {
+			o.GrantPermsLevel = n.GrantPermsLevel
+		}
 	}
 
 	// Copy the thumbprint directly since it has already been validated.
@@ -225,6 +231,14 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 
 	if n.RegistryCertificateAuthorities != nil {
 		o.RegistryCertificateAuthorities = n.RegistryCertificateAuthorities
+	}
+
+	o.UseVMGroup = n.UseVMGroup
+
+	if n.VMGroupName != "" {
+		// If we're disabling use of a VM Group, we need to keep track of the name so that we can delete it. This has a
+		// side effect of leaving behind the old VMGroupName value in the VCH's configuration, but it will not be used.
+		o.VMGroupName = n.VMGroupName
 	}
 }
 
@@ -314,7 +328,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 
 	validator, err := validate.NewValidator(op, c.Data)
 	if err != nil {
-		op.Errorf("Configuring cannot continue - failed to create validator: %s", err)
+		op.Errorf("Configure cannot continue - failed to create validator: %s", err)
 		return errors.New("configure failed")
 	}
 	defer validator.Session.Logout(parentOp) // parentOp is used here to ensure the logout occurs, even in the event of timeout
@@ -382,6 +396,22 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		return err
 	}
 
+	// Handle the three options for the --affinity-vm-group flag: unset, true, false.
+	//
+	// If the user hasn't specified the flag, we don't want to make a change. If they have
+	// specified it and are requesting a change, track that.
+	if clic.IsSet("affinity-vm-group") {
+		if !oldData.UseVMGroup && c.Data.UseVMGroup {
+			oldData.CreateVMGroup = true
+		}
+
+		if oldData.UseVMGroup && !c.Data.UseVMGroup {
+			oldData.DeleteVMGroup = true
+		}
+
+		oldData.UseVMGroup = c.Data.UseVMGroup
+	}
+
 	// using new configuration override configuration query from guestinfo
 	if err = oldData.CopyNonEmpty(c.Data); err != nil {
 		op.Error("Configuring cannot continue: copying configuration failed")
@@ -417,11 +447,13 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	c.Data.ResourceLimits = mergedResources
 
 	// TODO: copy changed configuration here. https://github.com/vmware/vic/issues/2911
-	c.copyChangedConf(vchConfig, newConfig)
+	c.copyChangedConf(vchConfig, newConfig, clic)
 
 	vConfig := validator.AddDeprecatedFields(op, vchConfig, c.Data)
 	vConfig.Timeout = c.Timeout
 	vConfig.VCHSizeIsSet = c.ResourceLimits.IsSet
+	vConfig.CreateVMGroup = c.CreateVMGroup
+	vConfig.DeleteVMGroup = c.DeleteVMGroup
 
 	updating, err := vch.VCHUpdateStatus(op)
 	if err != nil {

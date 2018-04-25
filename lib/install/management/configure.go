@@ -91,6 +91,20 @@ func (d *Dispatcher) Configure(conf *config.VirtualContainerHostConfigSpec, sett
 		}()
 	}
 
+	if settings.CreateVMGroup {
+		err = d.createVMGroup(conf)
+		if err != nil {
+			err = errors.Errorf("Failed to create DRS VM Group, failure: %s", err)
+			return err
+		}
+
+		defer func() {
+			if err != nil {
+				d.rollbackVMGroupCreation(conf, settings)
+			}
+		}()
+	}
+
 	// ensure that we wait for components to come up
 	for _, s := range conf.ExecutorConfig.Sessions {
 		s.Started = ""
@@ -111,8 +125,8 @@ func (d *Dispatcher) Configure(conf *config.VirtualContainerHostConfigSpec, sett
 		return err
 	}
 
-	// rollback function
-	rollback := func() {
+	err = d.update(conf, settings)
+	if err != nil {
 		// Roll back
 		d.op.Errorf("Failed to %s: %s", d.Action.String(), err)
 		d.op.Infof("Rolling back %s", d.Action.String())
@@ -124,31 +138,15 @@ func (d *Dispatcher) Configure(conf *config.VirtualContainerHostConfigSpec, sett
 		d.op.Infof("Appliance is rolled back to previous version")
 		d.deleteISOs(ds, settings)
 		d.deleteSnapshot(newSnapshotRef, snapshotName, conf.Name)
-	}
-
-	err = d.update(conf, settings)
-	if err != nil {
-		rollback()
 		return err
 	}
 
-	// if we are upgrading evaluate need for inventory upgrade
-	// vApp support planned: https://github.com/vmware/vic/issues/7670
-	if d.Action == UpgradeAction && d.session.IsVC() && d.vchPool.Reference().Type != "VirtualApp" {
-		err := d.inventoryUpdate(conf.Name)
-		if err != nil {
-			rollback()
-			return err
-		}
-	}
-
-	// If successful try to grant permissions to the ops-user
-	if conf.ShouldGrantPerms() {
-		err := opsuser.GrantOpsUserPerms(d.op, d.session, conf)
-		if err != nil {
-			err = errors.Errorf("Failed to grant permissions to ops-user, failure: %s", err)
-			rollback()
-			return err
+	if settings.DeleteVMGroup {
+		e := d.deleteVMGroupIfExists(conf)
+		if e != nil {
+			// Report error message, but *do not* roll back. (We've already made a lot of changes, some of which we
+			// can't easily undo, and it's not clear that failing to delete the group should be considered fatal.)
+			d.op.Errorf("Failed to delete DRS VM Group %q, failure: %s. Please remove the group manually.", conf.VMGroupName, e)
 		}
 	}
 
@@ -166,6 +164,14 @@ func (d *Dispatcher) rollbackResourceSettings(poolName string, settings *data.In
 		return nil
 	}
 	return updateResourcePoolConfig(d.op, d.vchPool, poolName, d.oldVCHResources)
+}
+
+func (d *Dispatcher) rollbackVMGroupCreation(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+	if !settings.CreateVMGroup {
+		return nil
+	}
+
+	return d.deleteVMGroupIfExists(conf)
 }
 
 func (d *Dispatcher) updateResourceSettings(poolName string, settings *data.InstallerData) error {
@@ -307,6 +313,32 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 
 	if err = d.reconfigVCH(conf, isoFile); err != nil {
 		return err
+	}
+
+	// if we are upgrading evaluate need for inventory upgrade
+	// vApp support planned: https://github.com/vmware/vic/issues/7670
+	if d.Action == UpgradeAction && d.session.IsVC() && d.vchPool.Reference().Type != "VirtualApp" {
+		err = d.inventoryUpdate(conf.Name)
+		if err != nil {
+			return errors.Errorf("Failed to perform inventory update: %s", err)
+		}
+	}
+
+	// if we're on VC, update the VCH folder now that we've updated the inventory
+	if d.appliance.IsVC() {
+		vchFolder, err := d.appliance.Folder(d.op)
+		if err != nil {
+			return err
+		}
+		d.session.VCHFolder = vchFolder
+	}
+
+	// try to grant permissions to the ops-user
+	if conf.ShouldGrantPerms() {
+		err = opsuser.GrantOpsUserPerms(d.op, d.session, conf)
+		if err != nil {
+			return errors.Errorf("Failed to grant permissions to ops-user, failure: %s", err)
+		}
 	}
 
 	if err = d.appliance.PowerOn(d.op); err != nil {
