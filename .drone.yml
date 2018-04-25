@@ -225,15 +225,4 @@ pipeline:
       event: tag
       status: success
 
-  pass-rate:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
-    pull: true
-    environment:
-      BIN: bin
-      SHELL: /bin/bash
-    secrets:
-      - github_automation_api_key
-      - slack_url
-    commands:
-      - tests/pass-rate.sh
 
