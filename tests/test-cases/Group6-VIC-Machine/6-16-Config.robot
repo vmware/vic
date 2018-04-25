@@ -13,11 +13,11 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 6-16 - Verify vic-machine configure
-Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
-Suite Teardown  Cleanup VIC Appliance On Test Server
-Test Timeout  20 minutes
+Documentation    Test 6-16 - Verify vic-machine configure
+Resource         ../../resources/Util.robot
+Suite Setup      Install VIC Appliance To Test Server
+Suite Teardown   Cleanup VIC Appliance On Test Server
+Test Timeout     20 minutes
 
 *** Keywords ***
 Wait For DNS Update
