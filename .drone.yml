@@ -143,6 +143,7 @@ pipeline:
       - 'rm $BIN/vic_ui_*.tar.gz'
     when:
       event: push
+      status: [ success, failure ]
 
   vic-ui-release:
     image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
@@ -165,6 +166,7 @@ pipeline:
     when:
       branch: ['releases/*']
       event: tag
+      status: [ success, failure ]
 
   bundle:
     image: 'wdc-harbor-ci.eng.vmware.com/default-project/golang:1.8'
@@ -197,6 +199,7 @@ pipeline:
       repo: vmware/vic
       branch: [master, 'releases/*']
       event: [push, tag]
+      status: [ success, failure ]
 
   publish-gcs-builds-on-pass:
     image: 'victest/drone-gcs:1'
