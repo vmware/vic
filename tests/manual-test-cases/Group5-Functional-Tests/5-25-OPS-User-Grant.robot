@@ -83,6 +83,33 @@ Run privilege-dependent docker operations
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c5}
     Should Be Equal As Integers  ${rc}  0
 
+    # Verify that the required privileges for docker cp operations with a running container are present.
+    Create File  ${CURDIR}/on-host.txt   hello world
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --name online-cont ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online-cont sh -c 'echo "goodbye world" > /on-cont.txt'
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
+    # Copy from host to container.
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/on-host.txt online-cont:/
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online-cont ls /
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  on-host.txt
+
+    # Copy from container to host.
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online-cont:/on-cont.txt ${CURDIR}/on-cont.txt
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${content}=  OperatingSystem.Get File  ${CURDIR}/on-cont.txt
+    Should Contain  ${content}  goodbye world
+
+    # Clean up both files.
+    Run Keyword and Ignore Error  Remove File  ${CURDIR}/on-cont.txt
+    Run Keyword and Ignore Error  Remove File  ${CURDIR}/on-host.txt
+
 Reconfigure VCH With Ops User
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux configure --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --ops-user=${ops_user_name} --ops-password=${ops_user_password} --ops-grant-perms --thumbprint=%{TEST_THUMBPRINT} --debug=1
     Should Be Equal As Integers  ${rc}  0

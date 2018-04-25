@@ -92,6 +92,8 @@ var RoleEndpoint = types.AuthorizationRole{
 		"VirtualMachine.Config.RemoveDisk",
 		"VirtualMachine.Config.Rename",
 		"VirtualMachine.GuestOperations.Execute",
+		"VirtualMachine.GuestOperations.Modify",
+		"VirtualMachine.GuestOperations.Query",
 		"VirtualMachine.Interact.DeviceConnection",
 		"VirtualMachine.Interact.PowerOff",
 		"VirtualMachine.Interact.PowerOn",
