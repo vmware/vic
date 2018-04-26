@@ -114,7 +114,7 @@ func main() {
 		},
 		{
 			Name:  "update",
-			Usage: "Modify configuration",
+			Usage: "Modify infrastructure configuration",
 			Subcommands: []cli.Command{
 				{
 					Name:   "firewall",
