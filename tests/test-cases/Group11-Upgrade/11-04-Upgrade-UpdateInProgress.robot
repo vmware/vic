@@ -30,7 +30,7 @@ Upgrade VCH with UpdateInProgress
 
 Upgrade and inspect VCH
     Start Process  bin/vic-machine-linux upgrade --debug 1 --name %{VCH-NAME} --target %{TEST_URL} --user %{TEST_USERNAME} --password %{TEST_PASSWORD} --force --compute-resource %{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}  shell=True  alias=UpgradeVCH
-    Wait Until Keyword Succeeds  20x  5s  Inspect VCH   Upgrade/configure in progress
+    Wait Until Keyword Succeeds  20x  5s  Inspect Should Contain   Upgrade/configure in progress
     Wait For Process  UpgradeVCH
-    Inspect VCH  Completed successfully
+    Inspect Should Contain  Completed successfully
     Check UpdateInProgress  false
