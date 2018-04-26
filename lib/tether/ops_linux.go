@@ -416,6 +416,8 @@ func updateEndpoint(newIP *net.IPNet, endpoint *NetworkEndpoint) {
 		return
 	}
 
+	log.Debugf("DHCP data: %#v", dhcp)
+	log.Debugf("DHCP DNS Servers %s: ", dhcp.Nameservers)
 	endpoint.Assigned = dhcp.Assigned
 	endpoint.Network.Assigned.Gateway = dhcp.Gateway
 	if len(dhcp.Nameservers) > 0 {
@@ -582,11 +584,15 @@ func (t *BaseOperations) updateHosts(endpoint *NetworkEndpoint) error {
 func (t *BaseOperations) updateNameservers(endpoint *NetworkEndpoint) error {
 	gw := endpoint.Network.Assigned.Gateway
 	ns := endpoint.Network.Assigned.Nameservers
-	// if `--dns-server` option is supplied at VCH creation, do not overwrite with
-	// dhcp-provided name servers, and make sure they appear at the top of the list
-	if len(endpoint.Network.Nameservers) > 0 {
-		ns = append(endpoint.Network.Nameservers, ns...)
+
+	if len(ns) > 0 && len(endpoint.Network.Nameservers) > 0 {
+		log.Debugf("DHCP server returned DNS server configuration, they will be ignored")
 	}
+	// Manually set DNS servers should always be DNS servers that are being in use.
+	if len(endpoint.Network.Nameservers) > 0 {
+		ns = endpoint.Network.Nameservers
+	}
+
 	// Add nameservers
 	// This is incredibly trivial for now - should be updated to a less messy approach
 	if len(ns) > 0 {
@@ -615,6 +621,8 @@ func ApplyEndpoint(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) err
 		log.Infof("skipping applying config for network %s as it has been applied already", endpoint.Network.Name)
 		return nil // already applied
 	}
+
+	log.Debugf("Static name servers: %s", endpoint.Network.Nameservers)
 
 	// Locate interface
 	slot, err := strconv.Atoi(endpoint.ID)

@@ -190,6 +190,10 @@ Configure VCH DNS server
     Should Contain  ${output}  nameserver 10.118.81.1
     Should Contain  ${output}  nameserver 10.118.81.2
 
+    ${rc}  ${output}=  Run And Return Rc and Output  sshpass -p %{TEST_PASSWORD} ssh -o StrictHostKeyChecking=no root@%{VCH-IP} cat /etc/resolv.conf | grep nameserver | wc -l
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  2
+
     ${output}=  Run  bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
     Should Contain  ${output}  --dns-server=10.118.81.1
     Should Contain  ${output}  --dns-server=10.118.81.2
