@@ -123,7 +123,7 @@ func main() {
 		},
 		{
 			Name:         "update",
-			Usage:        "Modify configuration",
+			Usage:        "Modify infrastructure configuration",
 			BashComplete: common.BashComplete(nil, "help", "firewall"),
 			Subcommands: []cli.Command{
 				{
