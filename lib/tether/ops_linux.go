@@ -586,7 +586,7 @@ func (t *BaseOperations) updateNameservers(endpoint *NetworkEndpoint) error {
 	ns := endpoint.Network.Assigned.Nameservers
 
 	if len(ns) > 0 && len(endpoint.Network.Nameservers) > 0 {
-		log.Debugf("DHCP server returned DNS server configuration, they will be ignored")
+		log.Debugf("DHCP server returned DNS server configuration, it will be ignored")
 	}
 	// Manually set DNS servers should always be DNS servers that are being in use.
 	if len(endpoint.Network.Nameservers) > 0 {
