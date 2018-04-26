@@ -104,7 +104,7 @@ func NewDiskManager(op trace.Operation, session *session.Session, v *view.Contai
 func (m *Manager) toSpec(config *VirtualDiskConfig) *types.VirtualDisk {
 	backing := &types.VirtualDiskFlatVer2BackingInfo{
 		DiskMode:        string(config.DiskMode),
-		ThinProvisioned: types.NewBool(true),
+		ThinProvisioned: config.IsThinProvisioned(),
 		VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
 			FileName: config.DatastoreURI.String(),
 		},
@@ -232,7 +232,7 @@ func (m *Manager) Create(op trace.Operation, config *VirtualDiskConfig) (*Virtua
 
 	spec := &types.FileBackedVirtualDiskSpec{
 		VirtualDiskSpec: types.VirtualDiskSpec{
-			DiskType:    string(types.VirtualDiskTypeThin),
+			DiskType:    string(config.ProvisionType),
 			AdapterType: string(types.VirtualDiskAdapterTypeLsiLogic),
 		},
 		CapacityKb: config.CapacityInKB,

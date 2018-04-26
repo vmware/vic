@@ -36,22 +36,27 @@ type VirtualDiskConfig struct {
 	// Underlying filesystem
 	Filesystem Filesystem
 
+	// Storage provisioning mode
+	ProvisionType types.VirtualDiskType
+
 	DiskMode types.VirtualDiskMode
 }
 
 func NewPersistentDisk(URI *object.DatastorePath) *VirtualDiskConfig {
 	return &VirtualDiskConfig{
-		DatastoreURI: URI,
-		DiskMode:     types.VirtualDiskModeIndependent_persistent,
-		Filesystem:   fs.NewExt4(),
+		DatastoreURI:  URI,
+		DiskMode:      types.VirtualDiskModeIndependent_persistent,
+		Filesystem:    fs.NewExt4(),
+		ProvisionType: types.VirtualDiskTypeThin,
 	}
 }
 
 func NewNonPersistentDisk(URI *object.DatastorePath) *VirtualDiskConfig {
 	return &VirtualDiskConfig{
-		DatastoreURI: URI,
-		DiskMode:     types.VirtualDiskModeIndependent_nonpersistent,
-		Filesystem:   fs.NewExt4(),
+		DatastoreURI:  URI,
+		DiskMode:      types.VirtualDiskModeIndependent_nonpersistent,
+		Filesystem:    fs.NewExt4(),
+		ProvisionType: types.VirtualDiskTypeThin,
 	}
 }
 
@@ -77,6 +82,12 @@ func (d *VirtualDiskConfig) WithCapacity(capacity int64) *VirtualDiskConfig {
 	return d
 }
 
+func (d *VirtualDiskConfig) WithProvisionType(ptype types.VirtualDiskType) *VirtualDiskConfig {
+	d.ProvisionType = ptype
+
+	return d
+}
+
 func (d *VirtualDiskConfig) Hash() uint64 {
 	key := fmt.Sprintf("%s-%t", d.DatastoreURI, d.IsPersistent())
 
@@ -88,4 +99,8 @@ func (d *VirtualDiskConfig) Hash() uint64 {
 
 func (d *VirtualDiskConfig) IsPersistent() bool {
 	return d.DiskMode == types.VirtualDiskModeIndependent_persistent || d.DiskMode == types.VirtualDiskModePersistent
+}
+
+func (d *VirtualDiskConfig) IsThinProvisioned() *bool {
+	return types.NewBool(d.ProvisionType == types.VirtualDiskTypeThin)
 }
