@@ -209,9 +209,6 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 	op := common.NewOperation(clic, i.Debug.Debug)
 
 	return i.run(clic, op, func(s state) error {
-		op.Infof("")
-		op.Infof("VCH ID: %s", s.vch.Reference().String())
-
 		installerVer := version.GetBuild()
 
 		op.Info("")

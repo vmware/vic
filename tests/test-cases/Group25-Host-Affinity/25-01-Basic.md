@@ -98,18 +98,3 @@ Positive Testing
 
 #### Expected Outcome:
 * The overall deletion operation succeeds even though the DRS VM Group has already been deleted.
-
-
-### 7. Configuring VCH does not affect affinity
-
-#### Test Steps:
-1. Verify that no DRS VM Group exists by the expected name.
-2. Create a VCH.
-3. Verify that a DRS VM Group was created and that the endpoint VM was added to it.
-4. Reconfigure the VCH to make a minor change unrelated to VM-Host affinity.
-5. Verify that the DRS VM Group still exists and the endpoint VM is still a member of it.
-6. Create a variety of containers.
-7. Verify that the container VMs were added to the DRS VM Group.
-
-#### Expected Outcome:
-* The VCH can be safely reconfigured without affecting the use of a DRS VM Group.
