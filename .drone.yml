@@ -256,34 +256,48 @@ pipeline:
       event: tag
       status: success
 
-  publish-vic-machine-server-dev:
-    image: plugins/gcr
+  vic-machine-server-tags-dev:
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
     pull: true
-    repo: eminent-nation-87317/vic-machine-server
-    dockerfile: cmd/vic-machine-server/Dockerfile
-    custom_dns: 10.142.7.21, 10.142.7.22, 10.166.17.90
-    secrets: [ token ]
-    tags:
-      - dev
+    environment:
+      BIN: bin
+      SHELL: /bin/bash
+    commands:
+      - 'echo -n "$(git describe --tags --abbrev=0)-${DRONE_BUILD_NUMBER}-$(git rev-parse --short=8 HEAD)" > .tags;'
+      - 'if [ -n "$(echo "${DRONE_BRANCH}" | grep "master")" ]; then echo ",dev" >> .tags; fi'
+      - 'cat .tags'
     when:
       repo: vmware/vic
       event: push
       branch: [master, 'releases/*']
       status: success
 
-  publish-vic-machine-server-releases:
+  vic-machine-server-tags-release:
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
+    pull: true
+    environment:
+      BIN: bin
+      SHELL: /bin/bash
+    commands:
+      - 'echo -n "$(git describe --tags --abbrev=0)-${DRONE_BUILD_NUMBER}-$(git rev-parse --short=8 HEAD),$(git describe --tags --abbrev=0),latest" > .tags;'
+      - 'cat .tags'
+    when:
+      repo: vmware/vic
+      event: tag
+      branch: 'releases/*'
+      status: success
+
+  vic-machine-server-publish:
     image: plugins/gcr
     pull: true
     repo: eminent-nation-87317/vic-machine-server
     dockerfile: cmd/vic-machine-server/Dockerfile
     custom_dns: 10.142.7.21, 10.142.7.22, 10.166.17.90
     secrets: [ token ]
-    tags:
-      - latest
     when:
       repo: vmware/vic
-      branch: ['releases/*']
-      event: tag
+      event: [push, tag]
+      branch: [master, 'releases/*']
       status: success
 
   trigger-downstream:
