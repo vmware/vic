@@ -201,7 +201,7 @@ func (c *Create) Flags() []cli.Flag {
 		},
 	}
 	var memory, cpu []cli.Flag
-	memory = append(memory, c.VCHMemoryLimitFlags(true)...)
+	memory = append(memory, c.VCHMemoryLimitFlags()...)
 	memory = append(memory,
 		cli.IntFlag{
 			Name:        "endpoint-memory",
@@ -210,7 +210,7 @@ func (c *Create) Flags() []cli.Flag {
 			Hidden:      true,
 			Destination: &c.MemoryMB,
 		})
-	cpu = append(cpu, c.VCHCPULimitFlags(true)...)
+	cpu = append(cpu, c.VCHCPULimitFlags()...)
 	cpu = append(cpu,
 		cli.IntFlag{
 			Name:        "endpoint-cpu",
@@ -275,15 +275,15 @@ func (c *Create) Flags() []cli.Flag {
 	}
 
 	target := c.TargetFlags()
-	ops := c.OpsCredentials.Flags(true)
+	ops := c.OpsCredentials.Flags()
 	compute := c.ComputeFlags()
-	affinity := c.AffinityFlags(true)
+	affinity := c.AffinityFlags()
 	container := c.ContainerFlags()
 	volume := c.volumeStores.Flags()
 	iso := c.ImageFlags(true)
-	cNetwork := c.containerNetworks.CNetworkFlags(true)
-	dns := c.Nameservers.DNSFlags(true)
-	proxies := c.Proxies.ProxyFlags(true)
+	cNetwork := c.containerNetworks.CNetworkFlags()
+	dns := c.Nameservers.DNSFlags()
+	proxies := c.Proxies.ProxyFlags()
 	debug := c.DebugFlags(true)
 	help := c.help.HelpFlags()
 
