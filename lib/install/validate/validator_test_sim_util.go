@@ -151,7 +151,7 @@ var testInputConfigVPX = data.Data{
 	SyslogConfig:        data.SyslogConfig{},
 }
 
-func GetVcsimInputConfig(ctx context.Context, URL *url.URL) *data.Data {
+func getVcsimInputConfig(ctx context.Context, URL *url.URL) *data.Data {
 	localInputConfig := testInputConfigVPX
 	// Fix the URL to point to vcsim
 	if URL != nil {
@@ -169,7 +169,7 @@ func GetVcsimInputConfig(ctx context.Context, URL *url.URL) *data.Data {
 // This method allows to perform validation of a configuration when
 // interacting with GO vmomi simulator, it skips some of the tests
 // that otherwise would fail (e.g. Firewall)
-func (v *Validator) VcsimValidate(ctx context.Context, localInputConfig *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
+func (v *Validator) vcsimValidate(ctx context.Context, localInputConfig *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
 	op := trace.FromContext(ctx, "validateForSim")
 	log.Infof("Validating supplied configuration")
