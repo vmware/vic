@@ -83,7 +83,7 @@ func TestFinder(t *testing.T) {
 			t.Errorf("Failed to valiate target: %s", err)
 		}
 		prefix := fmt.Sprintf("p%d-", i)
-		if err = createTestData(ctx, validator.Session, prefix); err != nil {
+		if err = createTestData(ctx, validator.Session(), prefix); err != nil {
 			t.Errorf("Failed to create test data: %s", err)
 		}
 
@@ -105,9 +105,9 @@ func TestFinder(t *testing.T) {
 
 func testSearchVCHs(ctx context.Context, t *testing.T, v *validate.Validator, expect bool) int {
 	d := &Dispatcher{
-		session: v.Session,
+		session: v.Session(),
 		op:      trace.FromContext(ctx, "testSearchVCHs"),
-		isVC:    v.Session.IsVC(),
+		isVC:    v.Session().IsVC(),
 	}
 
 	if expect {

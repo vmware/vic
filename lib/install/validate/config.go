@@ -120,7 +120,7 @@ func (v *Validator) CheckFirewallForTether(ctx context.Context, mgmtIP net.IPNet
 		return status
 	}
 
-	if hosts, err = v.Session.Datastore.AttachedClusterHosts(op, v.Session.Cluster); err != nil {
+	if hosts, err = v.session.Datastore.AttachedClusterHosts(op, v.session.Cluster); err != nil {
 		op.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
 		v.NoteIssue(err)
 		return status
@@ -423,9 +423,9 @@ func (v *Validator) checkAssignedLicenses(op trace.Operation) error {
 	var invalidLic []string
 	var validLic []string
 	var err error
-	client := v.Session.Client.Client
+	client := v.session.Client.Client
 
-	if hosts, err = v.Session.Datastore.AttachedClusterHosts(op, v.Session.Cluster); err != nil {
+	if hosts, err = v.session.Datastore.AttachedClusterHosts(op, v.session.Cluster); err != nil {
 		op.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
 		return err
 	}
@@ -479,7 +479,7 @@ func (v *Validator) checkAssignedLicenses(op trace.Operation) error {
 // checkESXLicense checks for the features required on standalone ESXi
 func (v *Validator) checkESXLicense(op trace.Operation) error {
 	var invalidLic []string
-	client := v.Session.Client.Client
+	client := v.session.Client.Client
 
 	lm := license.NewManager(client)
 	licenses, err := lm.List(op)
@@ -515,20 +515,20 @@ func (v *Validator) checkDRS(ctx context.Context, input *data.Data) {
 	defer trace.End(trace.Begin("", op))
 
 	errMsg := "DRS check SKIPPED"
-	if !v.sessionValid(op, errMsg) || !v.Session.IsVC() {
+	if !v.sessionValid(op, errMsg) || !v.session.IsVC() {
 		return
 	}
 
 	// TODO:  Cluster should only every be a cluster
-	if v.Session.Cluster.Reference().Type != "ClusterComputeResource" {
+	if v.session.Cluster.Reference().Type != "ClusterComputeResource" {
 		op.Info("DRS check SKIPPED - target is standalone host")
 		return
 	}
 
 	// TODO: @ROBO - if we can't verify DRS is vic placement acceptable
 	// TODO: Practice DRY -- this is also in session.Populate
-	if v.Session.DRSEnabled == nil {
-		cc := object.NewClusterComputeResource(v.Session.Client.Client, v.Session.Cluster.Reference())
+	if v.session.DRSEnabled == nil {
+		cc := object.NewClusterComputeResource(v.session.Client.Client, v.session.Cluster.Reference())
 		clusterConfig, err := cc.Configuration(op)
 		if err != nil {
 			op.Error("DRS check FAILED")
@@ -536,13 +536,13 @@ func (v *Validator) checkDRS(ctx context.Context, input *data.Data) {
 			v.NoteIssue(errors.New("Unable to verify DRS Status"))
 			return
 		}
-		v.Session.DRSEnabled = clusterConfig.DrsConfig.Enabled
+		v.session.DRSEnabled = clusterConfig.DrsConfig.Enabled
 	}
 
 	// if DRS is disabled warn
-	if !*v.Session.DRSEnabled {
+	if !*v.session.DRSEnabled {
 		op.Warn("DRS is recommended, but is disabled:")
-		op.Warnf("  VIC will select container hosts from %q", v.Session.Cluster.InventoryPath)
+		op.Warnf("  VIC will select container hosts from %q", v.session.Cluster.InventoryPath)
 
 		// DRS is disabled so there are no resource pools -- if resource pool config options have
 		// been provided let the user know that they will not be used
@@ -583,7 +583,7 @@ func (v *Validator) checkDRS(ctx context.Context, input *data.Data) {
 	}
 
 	op.Info("DRS check OK on:")
-	op.Infof("  %q", v.Session.Cluster.InventoryPath)
+	op.Infof("  %q", v.session.Cluster.InventoryPath)
 }
 
 // check that PersistNetworkBacking is set
@@ -600,7 +600,7 @@ func (v *Validator) checkPersistNetworkBacking(ctx context.Context, quiet bool) 
 		return true
 	}
 
-	val, err := optmanager.QueryOptionValue(ctx, v.Session, persistNetworkBackingKey)
+	val, err := optmanager.QueryOptionValue(ctx, v.session, persistNetworkBackingKey)
 	if err != nil {
 		// the key is not set
 		val = "false"

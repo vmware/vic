@@ -95,13 +95,13 @@ func (h *VCHDatacenterGet) Handle(params operations.GetTargetTargetDatacenterDat
 }
 
 func getVCH(op trace.Operation, d *data.Data, validator *validate.Validator) (*models.VCH, error) {
-	executor := management.NewDispatcher(op, validator.Session, management.NoAction, false)
+	executor := management.NewDispatcher(op, validator.Session(), management.NoAction, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
 		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Failed to inspect VCH: %s", err))
 	}
 
-	err = validate.SetDataFromVM(op, validator.Session.Finder, vch, d)
+	err = validate.SetDataFromVM(op, validator.Session().Finder, vch, d)
 	if err != nil {
 		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
 	}

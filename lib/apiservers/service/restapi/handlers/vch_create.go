@@ -83,7 +83,7 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	c, err := buildCreate(op, d, finder(validator.Session.Finder), params.Vch)
+	c, err := buildCreate(op, d, finder(validator.Session().Finder), params.Vch)
 	if err != nil {
 		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -114,7 +114,7 @@ func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacente
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	c, err := buildCreate(op, d, validator.Session.Finder, params.Vch)
+	c, err := buildCreate(op, d, validator.Session().Finder, params.Vch)
 	if err != nil {
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -475,7 +475,7 @@ func handleCreate(op trace.Operation, c *create.Create, validator *validate.Vali
 	vConfig.HTTPProxy = c.HTTPProxy
 	vConfig.HTTPSProxy = c.HTTPSProxy
 
-	executor := management.NewDispatcher(op, validator.Session, management.CreateAction, false)
+	executor := management.NewDispatcher(op, validator.Session(), management.CreateAction, false)
 	err = executor.CreateVCH(vchConfig, vConfig, receiver)
 	if err != nil {
 		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to create VCH: %s", err))

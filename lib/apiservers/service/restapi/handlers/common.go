@@ -85,7 +85,7 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 
 		datacenterManagedObjectReference := types.ManagedObjectReference{Type: "Datacenter", Value: *params.datacenter}
 
-		datacenterObject, err := v.Session.Finder.ObjectReference(op, datacenterManagedObjectReference)
+		datacenterObject, err := v.Session().Finder.ObjectReference(op, datacenterManagedObjectReference)
 		if err != nil {
 			return nil, nil, util.WrapError(http.StatusNotFound, err)
 		}
@@ -97,17 +97,17 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 
 		// Set validator datacenter path and correspondent validator session config
 		v.SetDatacenterPath(dc.Name())
-		v.Session.DatacenterPath = v.DatacenterPath()
-		v.Session.Datacenter = dc
-		v.Session.Finder.SetDatacenter(dc)
+		v.Session().DatacenterPath = v.DatacenterPath()
+		v.Session().Datacenter = dc
+		v.Session().Finder.SetDatacenter(dc)
 
-		// Do what validator.session.Populate would have done if datacenterPath is set
-		if v.Session.Datacenter != nil {
-			folders, err := v.Session.Datacenter.Folders(op)
+		// Do what validator.Session().Populate would have done if datacenterPath is set
+		if v.Session().Datacenter != nil {
+			folders, err := v.Session().Datacenter.Folders(op)
 			if err != nil {
 				return data, nil, util.NewError(http.StatusBadRequest, "Validation Error: error finding datacenter folders: %s", err)
 			}
-			v.Session.VMFolder = folders.VmFolder
+			v.Session().VMFolder = folders.VmFolder
 		}
 
 		validator = v
@@ -139,13 +139,13 @@ func upgradeStatusMessage(op trace.Operation, vch *vm.VirtualMachine, installerV
 }
 
 func getVCHConfig(op trace.Operation, d *data.Data, validator *validate.Validator) (*config.VirtualContainerHostConfigSpec, error) {
-	executor := management.NewDispatcher(op, validator.Session, management.NoAction, false)
+	executor := management.NewDispatcher(op, validator.Session(), management.NoAction, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
 		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))
 	}
 
-	err = validate.SetDataFromVM(op, validator.Session.Finder, vch, d)
+	err = validate.SetDataFromVM(op, validator.Session().Finder, vch, d)
 	if err != nil {
 		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
 	}

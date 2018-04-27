@@ -55,7 +55,7 @@ const registryValidationTime = 10 * time.Second
 type Validator struct {
 	datacenterPath string
 
-	Session *session.Session
+	session *session.Session
 
 	isVC   bool
 	issues []error
@@ -71,12 +71,16 @@ func (v *Validator) SetDatacenterPath(datacenterPath string) {
 	v.datacenterPath = datacenterPath
 }
 
+func (v *Validator) Session() *session.Session {
+	return v.session
+}
+
 func CreateFromSession(ctx context.Context, sess *session.Session) (*Validator, error) {
 	defer trace.End(trace.Begin("", ctx))
 
 	v := &Validator{}
-	v.Session = sess
-	v.isVC = v.Session.IsVC()
+	v.session = sess
+	v.isVC = v.session.IsVC()
 
 	return v, nil
 }
@@ -142,20 +146,20 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 
 	sessionconfig.CloneTicket = input.CloneTicket
 
-	v.Session = session.NewSession(sessionconfig)
-	v.Session.UserAgent = version.UserAgent("vic-machine")
-	v.Session, err = v.Session.Connect(ctx)
+	v.session = session.NewSession(sessionconfig)
+	v.session.UserAgent = version.UserAgent("vic-machine")
+	v.session, err = v.session.Connect(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// cached here to allow a modicum of testing while session is still in use.
-	v.isVC = v.Session.IsVC()
-	finder := find.NewFinder(v.Session.Client.Client, false)
-	v.Session.Finder = finder
+	v.isVC = v.session.IsVC()
+	finder := find.NewFinder(v.session.Client.Client, false)
+	v.session.Finder = finder
 
 	// Intentionally ignore any error returned by Populate
-	_, err = v.Session.Populate(ctx)
+	_, err = v.session.Populate(ctx)
 	if err != nil {
 		op.Debugf("new validator Session.Populate: %s", err)
 	}
@@ -178,8 +182,8 @@ func (v *Validator) datacenter(op trace.Operation) error {
 	if v.allowEmptyDC && v.datacenterPath == "" {
 		return nil
 	}
-	if v.Session.Datacenter != nil {
-		v.datacenterPath = v.Session.Datacenter.InventoryPath
+	if v.session.Datacenter != nil {
+		v.datacenterPath = v.session.Datacenter.InventoryPath
 		return nil
 	}
 	var detail string
@@ -195,7 +199,7 @@ func (v *Validator) datacenter(op trace.Operation) error {
 }
 
 func (v *Validator) listDatacenters(op trace.Operation) ([]string, error) {
-	dcs, err := v.Session.Finder.DatacenterList(op, "*")
+	dcs, err := v.session.Finder.DatacenterList(op, "*")
 	if err != nil {
 		return nil, fmt.Errorf("unable to list datacenters: %s", err)
 	}
@@ -368,10 +372,10 @@ func (v *Validator) basics(op trace.Operation, input *data.Data, conf *config.Vi
 func (v *Validator) checkSessionSet() []string {
 	var errs []string
 
-	if v.Session.Datastore == nil {
+	if v.session.Datastore == nil {
 		errs = append(errs, "datastore not set")
 	}
-	if v.Session.Cluster == nil {
+	if v.session.Cluster == nil {
 		errs = append(errs, "cluster not set")
 	}
 
@@ -403,7 +407,7 @@ func (v *Validator) managedbyVC(op trace.Operation) {
 	if v.IsVC() {
 		return
 	}
-	host, err := v.Session.Finder.DefaultHostSystem(op)
+	host, err := v.session.Finder.DefaultHostSystem(op)
 	if err != nil {
 		v.NoteIssue(fmt.Errorf("Failed to get host system: %s", err))
 		return
@@ -457,7 +461,7 @@ func (v *Validator) credentials(op trace.Operation, input *data.Data, conf *conf
 	// Eventually, this must be moved to the Dispatcher as the Validator
 	// should not modify VC configuration.
 	if conf.ShouldGrantPerms() {
-		err := opsuser.GrantDCReadOnlyPerms(op, v.Session, conf)
+		err := opsuser.GrantDCReadOnlyPerms(op, v.session, conf)
 		if err != nil {
 			v.NoteIssue(fmt.Errorf("Failed to validate operations credentials: %s", err))
 			return
@@ -715,7 +719,7 @@ func (v *Validator) compatibility(op trace.Operation, conf *config.VirtualContai
 	}
 
 	// check session's datastore(s) exist
-	_, err := v.Session.Datastore.AttachedClusterHosts(op, v.Session.Cluster)
+	_, err := v.session.Datastore.AttachedClusterHosts(op, v.session.Cluster)
 	v.NoteIssue(err)
 
 	v.checkDatastoresAreWriteable(op, conf)
@@ -727,7 +731,7 @@ func (v *Validator) getDatastore(op trace.Operation, u *url.URL, datastoreSet ma
 		datastoreSet = make(map[types.ManagedObjectReference]*object.Datastore)
 	}
 
-	datastores, err := v.Session.Finder.DatastoreList(op, u.Host)
+	datastores, err := v.session.Finder.DatastoreList(op, u.Host)
 	v.NoteIssue(err)
 
 	if len(datastores) != 1 {
@@ -764,7 +768,7 @@ func (v *Validator) checkDatastoresAreWriteable(op trace.Operation, conf *config
 	defer trace.End(trace.Begin("", op))
 
 	// gather compute host references
-	clusterDatastores, err := v.Session.Cluster.Datastores(op)
+	clusterDatastores, err := v.session.Cluster.Datastores(op)
 	v.NoteIssue(err)
 
 	// check that the cluster can see all of the datastores in question
@@ -782,7 +786,7 @@ func (v *Validator) checkDatastoresAreWriteable(op trace.Operation, conf *config
 		v.NoteIssue(errors.Errorf("Datastore %q is not accessible by the compute resource", store.Name()))
 	}
 
-	clusterHosts, err := v.Session.Cluster.Hosts(op)
+	clusterHosts, err := v.session.Cluster.Hosts(op)
 	justOneHost := len(clusterHosts) == 1
 	v.NoteIssue(err)
 
@@ -796,7 +800,7 @@ func (v *Validator) checkDatastoresAreWriteable(op trace.Operation, conf *config
 		v.NoteIssue(errors.New("No single host can access all of the requested datastores. Installation cannot continue."))
 	}
 
-	if len(clusterHosts) == 1 && v.Session.IsVC() && !justOneHost {
+	if len(clusterHosts) == 1 && v.session.IsVC() && !justOneHost {
 		// if we have a cluster with >1 host to begin with, on VC, and only one host can talk to all the datastores, warn
 		// on ESX and clusters with only one host to begin with, this warning would be redundant/irrelevant
 		op.Warn("Only one host can access all of the image/volume datastores. This may be a point of contention/performance degradation and HA/DRS may not work as intended.")
@@ -831,21 +835,21 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.Virtua
 	dconfig.ApplianceSize.CPU.Limit = &cpuLimit
 	dconfig.ApplianceSize.Memory.Limit = &memLimit
 
-	if v.Session.Datacenter != nil {
-		dconfig.Datacenter = v.Session.Datacenter.Reference()
-		dconfig.DatacenterName = v.Session.Datacenter.Name()
+	if v.session.Datacenter != nil {
+		dconfig.Datacenter = v.session.Datacenter.Reference()
+		dconfig.DatacenterName = v.session.Datacenter.Name()
 	} else {
 		op.Debug("session datacenter is nil")
 	}
 
-	if v.Session.Cluster != nil {
-		dconfig.Cluster = v.Session.Cluster.Reference()
-		dconfig.ClusterPath = v.Session.Cluster.InventoryPath
+	if v.session.Cluster != nil {
+		dconfig.Cluster = v.session.Cluster.Reference()
+		dconfig.ClusterPath = v.session.Cluster.InventoryPath
 	} else {
 		op.Debug("session cluster is nil")
 	}
 
-	dconfig.ResourcePoolPath = v.Session.PoolPath
+	dconfig.ResourcePoolPath = v.session.PoolPath
 
 	op.Debugf("Datacenter: %q, Cluster: %q, Resource Pool: %q", dconfig.DatacenterName, dconfig.Cluster, dconfig.ResourcePoolPath)
 
@@ -925,7 +929,7 @@ func (v *Validator) configureVCenter(ctx context.Context) error {
 		return nil
 	}
 
-	err := optmanager.UpdateOptionValue(ctx, v.Session, persistNetworkBackingKey, "true")
+	err := optmanager.UpdateOptionValue(ctx, v.session, persistNetworkBackingKey, "true")
 	if err != nil {
 		msg := fmt.Sprintf("Failed to set required value \"true\" for %s: %s", persistNetworkBackingKey, err)
 		return errors.New(msg)

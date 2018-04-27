@@ -206,7 +206,7 @@ func (v *Validator) vcsimValidate(ctx context.Context, localInputConfig *data.Da
 	conf.ComputeResources = append(conf.ComputeResources, pool.Reference())
 
 	// Add the VM
-	vm, err := v.Session.Finder.VirtualMachine(op, "/DC0/vm/DC0_C0_RP0_VM0")
+	vm, err := v.session.Finder.VirtualMachine(op, "/DC0/vm/DC0_C0_RP0_VM0")
 	v.NoteIssue(err)
 
 	if vm == nil {

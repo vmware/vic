@@ -151,7 +151,7 @@ func (i *Inspect) run(clic *cli.Context, op trace.Operation, cmd command) (err e
 		op.Errorf("Inspect cannot continue - failed to create validator: %s", err)
 		return errors.New("inspect failed")
 	}
-	defer validator.Session.Logout(op)
+	defer validator.Session().Logout(op)
 
 	_, err = validator.ValidateTarget(op, i.Data)
 	if err != nil {
@@ -159,7 +159,7 @@ func (i *Inspect) run(clic *cli.Context, op trace.Operation, cmd command) (err e
 		return errors.New("inspect failed")
 	}
 
-	executor := management.NewDispatcher(op, validator.Session, management.InspectAction, i.Force)
+	executor := management.NewDispatcher(op, validator.Session(), management.InspectAction, i.Force)
 
 	var vch *vm.VirtualMachine
 	if i.Data.ID != "" {
@@ -196,7 +196,7 @@ func (i *Inspect) RunConfig(clic *cli.Context) (err error) {
 	}
 
 	return i.run(clic, op, func(s state) error {
-		err = i.showConfiguration(s.op, s.validator.Session.Finder, s.vchConfig, s.vch)
+		err = i.showConfiguration(s.op, s.validator.Session().Finder, s.vchConfig, s.vch)
 		if err != nil {
 			op.Error("Failed to print Virtual Container Host configuration")
 			op.Error(err)
