@@ -86,12 +86,12 @@ func (e *FirewallMisconfiguredAllowedIPError) Error() string {
 		e.Host, e.Rule.PortType, e.Rule.Port, e.Rule.Protocol, e.Rule.Direction, e.TargetIP.IP, e.AllowedIPs)
 }
 
-// CheckFirewall verifies that host firewall configuration allows tether traffic and outputs results
-func (v *Validator) CheckFirewall(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) {
-	op := trace.FromContext(ctx, "CheckFirewall")
+// checkFirewall verifies that host firewall configuration allows tether traffic and outputs results
+func (v *Validator) checkFirewall(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) {
+	op := trace.FromContext(ctx, "checkFirewall")
 	defer trace.End(trace.Begin("", op))
 
-	mgmtIP := v.GetMgmtIP(conf)
+	mgmtIP := v.getMgmtIP(conf)
 	op.Debugf("Checking firewall with management network IP %s", mgmtIP)
 	fwStatus := v.CheckFirewallForTether(op, mgmtIP)
 
@@ -133,7 +133,7 @@ func (v *Validator) CheckFirewallForTether(ctx context.Context, mgmtIP net.IPNet
 			break
 		}
 
-		mgmtAllowed, err := v.ManagementNetAllowed(op, mgmtIP, host, requiredRule)
+		mgmtAllowed, err := v.managementNetAllowed(op, mgmtIP, host, requiredRule)
 		if mgmtAllowed && err == nil {
 			status.Correct = append(status.Correct, host.InventoryPath)
 		}
@@ -254,8 +254,8 @@ func (v *Validator) firewallCheckDHCPMessage(op trace.Operation, hosts []string,
 	}
 }
 
-// CheckIPInNets checks that an IP is within allowedIPs or allowedNets
-func (v *Validator) CheckIPInNets(checkIP net.IPNet, allowedIPs []string, allowedNets []string) bool {
+// checkIPInNets checks that an IP is within allowedIPs or allowedNets
+func (v *Validator) checkIPInNets(checkIP net.IPNet, allowedIPs []string, allowedNets []string) bool {
 	for _, a := range allowedIPs {
 		aIP := net.ParseIP(a)
 		if aIP != nil && checkIP.IP.Equal(aIP) {
@@ -301,8 +301,8 @@ func (v *Validator) firewallEnabled(op trace.Operation, host *object.HostSystem)
 	return false, nil
 }
 
-// GetMgmtIP finds the management network IP in config
-func (v *Validator) GetMgmtIP(conf *config.VirtualContainerHostConfigSpec) net.IPNet {
+// getMgmtIP finds the management network IP in config
+func (v *Validator) getMgmtIP(conf *config.VirtualContainerHostConfigSpec) net.IPNet {
 	var mgmtIP net.IPNet
 	if conf != nil {
 		n := conf.ExecutorConfig.Networks[config.ManagementNetworkName]
@@ -316,11 +316,11 @@ func (v *Validator) GetMgmtIP(conf *config.VirtualContainerHostConfigSpec) net.I
 	return mgmtIP
 }
 
-// ManagementNetAllowed checks if the management network is allowed based
+// managementNetAllowed checks if the management network is allowed based
 // on the host firewall's allowed IP settings
-func (v *Validator) ManagementNetAllowed(ctx context.Context, mgmtIP net.IPNet,
+func (v *Validator) managementNetAllowed(ctx context.Context, mgmtIP net.IPNet,
 	host *object.HostSystem, requiredRule types.HostFirewallRule) (bool, error) {
-	op := trace.FromContext(ctx, "ManagementNetAllowed")
+	op := trace.FromContext(ctx, "managementNetAllowed")
 
 	fs, err := host.ConfigManager().FirewallSystem(op)
 	if err != nil {
@@ -374,7 +374,7 @@ func (v *Validator) ManagementNetAllowed(ctx context.Context, mgmtIP net.IPNet,
 	}
 
 	// static management IP, check that it is allowed
-	mgmtAllowed := v.CheckIPInNets(mgmtIP, allowedIPs, allowedNets)
+	mgmtAllowed := v.checkIPInNets(mgmtIP, allowedIPs, allowedNets)
 	if mgmtAllowed {
 		return true, nil
 	}
@@ -401,7 +401,7 @@ func (v *Validator) CheckLicense(ctx context.Context) {
 			return
 		}
 	} else {
-		if err = v.checkLicense(op); err != nil {
+		if err = v.checkESXLicense(op); err != nil {
 			v.NoteIssue(err)
 			return
 		}
@@ -476,8 +476,8 @@ func (v *Validator) checkAssignedLicenses(op trace.Operation) error {
 	return nil
 }
 
-// checkLicense checks for the features required on standalone ESXi
-func (v *Validator) checkLicense(op trace.Operation) error {
+// checkESXLicense checks for the features required on standalone ESXi
+func (v *Validator) checkESXLicense(op trace.Operation) error {
 	var invalidLic []string
 	client := v.Session.Client.Client
 
@@ -508,10 +508,10 @@ func (v *Validator) checkLicense(op trace.Operation) error {
 	return nil
 }
 
-// CheckDRS will validate DRS settings.  If DRS is disabled then config
+// checkDRS will validate DRS settings.  If DRS is disabled then config
 // options surrounding resource pools will be ignored.
-func (v *Validator) CheckDRS(ctx context.Context, input *data.Data) {
-	op := trace.FromContext(ctx, "CheckDRS")
+func (v *Validator) checkDRS(ctx context.Context, input *data.Data) {
+	op := trace.FromContext(ctx, "checkDRS")
 	defer trace.End(trace.Begin("", op))
 
 	errMsg := "DRS check SKIPPED"
@@ -587,7 +587,7 @@ func (v *Validator) CheckDRS(ctx context.Context, input *data.Data) {
 }
 
 // check that PersistNetworkBacking is set
-func (v *Validator) CheckPersistNetworkBacking(ctx context.Context, quiet bool) bool {
+func (v *Validator) checkPersistNetworkBacking(ctx context.Context, quiet bool) bool {
 	op := trace.FromContext(ctx, "Check vCenter serial port backing")
 	defer trace.End(trace.Begin("", op))
 

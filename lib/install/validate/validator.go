@@ -278,19 +278,19 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	v.network(op, input, conf)
 	// FIXME ATC DEBT setting this value needs to be moved to Dispatcher
 	// https://github.com/vmware/vic/issues/6803
-	ok := v.CheckPersistNetworkBacking(op, true)
+	ok := v.checkPersistNetworkBacking(op, true)
 	if !ok {
-		err := v.ConfigureVCenter(op)
+		err := v.configureVCenter(op)
 		if err != nil {
 			op.Errorf("%s", err)
 			op.Errorf("vCenter settings update FAILED")
 		}
 	}
-	v.CheckFirewall(op, conf)
-	v.CheckPersistNetworkBacking(op, false)
+	v.checkFirewall(op, conf)
+	v.checkPersistNetworkBacking(op, false)
 	v.CheckLicense(op)
-	v.CheckDRS(op, input)
-	v.checkVMGroup(op, input, conf) // Depends on a side-effect of the CheckDRS method.
+	v.checkDRS(op, input)
+	v.checkVMGroup(op, input, conf) // Depends on a side-effect of the checkDRS method.
 
 	v.certificate(op, input, conf)
 	v.certificateAuthorities(op, input, conf)
@@ -904,7 +904,7 @@ func (v *Validator) syslog(op trace.Operation, conf *config.VirtualContainerHost
 // FIXME ATC DEBT setting this value needs to be moved to Dispatcher
 // https://github.com/vmware/vic/issues/6803
 // set PersistNetworkBacking key to "true"
-func (v *Validator) ConfigureVCenter(ctx context.Context) error {
+func (v *Validator) configureVCenter(ctx context.Context) error {
 	op := trace.FromContext(ctx, "Set vCenter serial port backing")
 	defer trace.End(trace.Begin("", op))
 
