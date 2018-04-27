@@ -374,9 +374,11 @@ func getDynamicIP(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) (clie
 
 	params := []byte{byte(dhcp4.OptionSubnetMask)}
 	if ip.IsUnspecifiedIP(endpoint.Network.Gateway.IP) {
+		log.Debugf("No gateway IP. Asking DHCP.")
 		params = append(params, byte(dhcp4.OptionRouter))
 	}
 	if len(endpoint.Network.Nameservers) == 0 {
+		log.Debugf("No name servers configured. Asking DHCP.")
 		params = append(params, byte(dhcp4.OptionDomainNameServer))
 	}
 
