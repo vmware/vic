@@ -227,7 +227,7 @@ func (v *Validator) suggestResourcePool(op trace.Operation, path string) {
 
 	op.Info("Suggested resource pool values for --compute-resource:")
 	for _, c := range pools {
-		p := strings.TrimPrefix(c, v.DatacenterPath+"/host/")
+		p := strings.TrimPrefix(c, v.datacenterPath+"/host/")
 		op.Infof("  %q", p)
 	}
 }
