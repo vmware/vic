@@ -12,51 +12,6 @@ clone:
 
 pipeline:
 
-  display-status:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
-    pull: true
-    environment:
-      BIN: bin
-      SHELL: /bin/bash
-    commands:
-      - 'export COMMIT=${DRONE_COMMIT}'
-      - 'echo "Expecting ${DRONE_COMMIT}"'
-      - 'git log -5'
-      - 'git log -1 --pretty=oneline | grep "^${DRONE_COMMIT}" > /dev/null && echo ''Build matches'' || (git log -1 --pretty=oneline | grep "Merge ${DRONE_COMMIT}" > /dev/null && echo ''Build is of a merge commit'' || (echo ''Build does not match!'' && exit 1))'
-
-  wait-for-build:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
-    pull: true
-    environment:
-      BIN: bin
-      GOPATH: /go
-      SHELL: /bin/bash
-    secrets:
-      - drone_server
-      - drone_token
-      - haas_url_array
-      - overflow_url_array
-    commands:
-      - export TEST_URL_ARRAY="$HAAS_URL_ARRAY $OVERFLOW_URL_ARRAY"
-      - tests/wait_until_previous_builds_complete.sh
-
-  check-org-membership:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
-    pull: true
-    environment:
-      BIN: bin
-      GOPATH: /go
-      SHELL: /bin/bash
-    secrets:
-      - github_automation_api_key
-      - skip_check_membership
-    commands:
-      - echo ${DRONE_COMMIT_AUTHOR}
-      - echo $SKIP_CHECK_MEMBERSHIP
-      - if [ "$SKIP_CHECK_MEMBERSHIP" = "true" ]; then echo 'check-org-membership step skipped'; else /bin/bash -c '[[ ! $(curl --silent "https://api.github.com/orgs/vmware/members/${DRONE_COMMIT_AUTHOR}?access_token=$GITHUB_AUTOMATION_API_KEY") ]]'; fi
-    when:
-      status: success
-
   vic-engine:
     image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
     pull: true
@@ -73,53 +28,6 @@ pipeline:
       - export BUILD_NUMBER=${DRONE_BUILD_NUMBER}
       - make all
       - tests/unit-test-check.sh
-    when:
-      status: success
-
-  vic-integration-test-on-pr:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
-    pull: true
-    privileged: true
-    environment:
-      BIN: bin
-      GOPATH: /go
-      SHELL: /bin/bash
-      LOG_TEMP_DIR: install-logs
-    secrets:
-      - ci_domain
-      - debug_vch
-      - drone_server
-      - drone_token
-      - drone_machine
-      - github_automation_api_key
-      - gs_client_email
-      - gs_private_key
-      - gs_project_id
-      - public_network
-      - registry_password
-      - reporting_server_url
-      - syslog_passwd
-      - syslog_server
-      - syslog_user
-      - test_datastore
-      - test_resource
-      - test_timeout
-      - test_password
-      - test_username
-      - haas_url_array
-      - overflow_url_array
-    commands:
-      - export GOVC_INSECURE=true
-      - export GOVC_USERNAME=$TEST_USERNAME
-      - export GOVC_PASSWORD=$TEST_PASSWORD
-      - export GOVC_DATASTORE=$TEST_DATASTORE
-      - export DOMAIN=$CI_DOMAIN
-      - export MULTI_VCH=1
-      - echo $DOMAIN
-      - export TEST_URL_ARRAY="$HAAS_URL_ARRAY $OVERFLOW_URL_ARRAY"
-      - tests/integration-test.sh
-    volumes:
-      - /tmp
     when:
       status: success
 
@@ -141,8 +49,6 @@ pipeline:
       - 'tar -xvzf $BIN/vic_ui_*.tar.gz'
       - 'ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1'
       - 'rm $BIN/vic_ui_*.tar.gz'
-    when:
-      event: push
 
   vic-ui-release:
     image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
@@ -201,10 +107,6 @@ pipeline:
       - 'mkdir bundle-release'
       - 'cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle'
       - 'cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle-release/vic_`git describe --tags --abbrev=0)`.tar.gz'
-    when:
-      repo: vmware/vic
-      branch: [master, 'releases/*']
-      event: [push, tag]
 
   publish-gcs-builds-on-pass:
     image: 'victest/drone-gcs:1'
@@ -216,11 +118,6 @@ pipeline:
     acl:
       - 'allUsers:READER'
     cache_control: 'public,max-age=3600'
-    when:
-      repo: vmware/vic
-      event: push
-      branch: [master, 'releases/*']
-      status: success
 
   publish-gcs-builds-on-fail:
     image: 'victest/drone-gcs:1'
@@ -336,15 +233,4 @@ pipeline:
       event: tag
       status: success
 
-  pass-rate:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
-    pull: true
-    environment:
-      BIN: bin
-      SHELL: /bin/bash
-    secrets:
-      - github_automation_api_key
-      - slack_url
-    commands:
-      - tests/pass-rate.sh
 
