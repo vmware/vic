@@ -356,7 +356,7 @@ func testStorage(ctx context.Context, v *Validator, input *data.Data, conf *conf
 	testURL3, _ := url.Parse("LocalDS_0/volumes/volume1")
 	testURL3.Scheme = "ds"
 
-	// These two should report errors due to bad characters in the url. These should test how DatastoreHelper handles a nil or malformed url.
+	// These two should report errors due to bad characters in the url. These should test how datastoreHelper handles a nil or malformed url.
 	testURL4, _ := url.Parse("😗/volumes/volume1")
 	testURL5, _ := url.Parse("ds://😗/volumes/volume2")
 

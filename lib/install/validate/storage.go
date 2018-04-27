@@ -33,7 +33,7 @@ func (v *Validator) storage(op trace.Operation, input *data.Data, conf *config.V
 	defer trace.End(trace.Begin("", op))
 
 	// Image Store
-	imageDSpath, ds, err := v.DatastoreHelper(op, input.ImageDatastorePath, "", "--image-store")
+	imageDSpath, ds, err := v.datastoreHelper(op, input.ImageDatastorePath, "", "--image-store")
 
 	if err != nil {
 		v.NoteIssue(err)
@@ -46,7 +46,7 @@ func (v *Validator) storage(op trace.Operation, input *data.Data, conf *config.V
 	}
 
 	if ds != nil {
-		v.SetDatastore(ds, imageDSpath)
+		v.setDatastore(ds, imageDSpath)
 		conf.AddImageStore(imageDSpath)
 	}
 
@@ -61,12 +61,12 @@ func (v *Validator) storage(op trace.Operation, input *data.Data, conf *config.V
 			vsErr := validateNFSTarget(targetURL)
 			v.NoteIssue(vsErr)
 		case common.DsScheme:
-			// TODO: change v.DatastoreHelper to take url struct instead of string and modify tests.
-			targetURL, _, vsErr = v.DatastoreHelper(op, targetURL.Path, label, "--volume-store")
+			// TODO: change v.datastoreHelper to take url struct instead of string and modify tests.
+			targetURL, _, vsErr = v.datastoreHelper(op, targetURL.Path, label, "--volume-store")
 			v.NoteIssue(vsErr)
 		default:
 			// We should not reach here, if we do we will attempt to treat this as a vsphere datastore
-			targetURL, _, vsErr = v.DatastoreHelper(op, targetURL.String(), label, "--volume-store")
+			targetURL, _, vsErr = v.datastoreHelper(op, targetURL.String(), label, "--volume-store")
 			v.NoteIssue(vsErr)
 		}
 
@@ -91,8 +91,8 @@ func validateNFSTarget(nfsURL *url.URL) error {
 	return nil
 }
 
-func (v *Validator) DatastoreHelper(ctx context.Context, path string, label string, flag string) (*url.URL, *object.Datastore, error) {
-	op := trace.FromContext(ctx, "DatastoreHelper")
+func (v *Validator) datastoreHelper(ctx context.Context, path string, label string, flag string) (*url.URL, *object.Datastore, error) {
+	op := trace.FromContext(ctx, "datastoreHelper")
 	defer trace.End(trace.Begin(path, op))
 
 	stripRawTarget := path
@@ -167,7 +167,7 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string, label stri
 	return dsURL, stores[0], nil
 }
 
-func (v *Validator) SetDatastore(ds *object.Datastore, path *url.URL) {
+func (v *Validator) setDatastore(ds *object.Datastore, path *url.URL) {
 	v.Session.Datastore = ds
 	v.Session.DatastorePath = path.Host
 }

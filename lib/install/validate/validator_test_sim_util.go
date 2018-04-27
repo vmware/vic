@@ -188,7 +188,7 @@ func (v *Validator) VcsimValidate(ctx context.Context, localInputConfig *data.Da
 	v.storage(op, localInputConfig, conf)
 	v.network(op, localInputConfig, conf)
 	v.CheckLicense(op)
-	v.CheckDRS(op, localInputConfig)
+	v.checkDRS(op, localInputConfig)
 
 	// Perform the higher level compatibility and consistency checks
 	v.compatibility(op, conf)
