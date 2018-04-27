@@ -142,7 +142,7 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 		return errors.New("upgrade failed")
 	}
 
-	executor := management.NewDispatcher(validator.Context, validator.Session, action, u.Force)
+	executor := management.NewDispatcher(op, validator.Session, action, u.Force)
 
 	var vch *vm.VirtualMachine
 	if u.Data.ID != "" {

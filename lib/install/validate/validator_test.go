@@ -89,10 +89,10 @@ func TestValidator(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to new validator: %s", err)
 		}
-		ds, _ := validator.Session.Finder.Datastore(validator.Context, "LocalDS_1")
+		ds, _ := validator.Session.Finder.Datastore(ctx, "LocalDS_1")
 		simulator.Map.Get(ds.Reference()).(mo.Entity).Entity().Name = "Local DS_0"
 
-		ds, _ = validator.Session.Finder.Datastore(validator.Context, "LocalDS_2")
+		ds, _ = validator.Session.Finder.Datastore(ctx, "LocalDS_2")
 		simulator.Map.Get(ds.Reference()).(mo.Entity).Entity().Name = `😗`
 
 		t.Logf("session pool: %s", validator.Session.Pool)
@@ -100,9 +100,9 @@ func TestValidator(t *testing.T) {
 			t.Errorf("Unable to create resource pool: %s", err)
 		}
 
-		conf := testCompute(validator, input, t)
-		testTargets(validator, input, conf, t)
-		testStorage(validator, input, conf, t)
+		conf := testCompute(ctx, validator, input, t)
+		testTargets(ctx, validator, input, conf, t)
+		testStorage(ctx, validator, input, conf, t)
 	}
 }
 
@@ -285,8 +285,8 @@ func createPool(ctx context.Context, sess *session.Session, poolPath string, nam
 	return nil
 }
 
-func testCompute(v *Validator, input *data.Data, t *testing.T) *config.VirtualContainerHostConfigSpec {
-	op := trace.FromContext(v.Context, "testCompute")
+func testCompute(ctx context.Context, v *Validator, input *data.Data, t *testing.T) *config.VirtualContainerHostConfigSpec {
+	op := trace.FromContext(ctx, "testCompute")
 
 	tests := []struct {
 		path   string
@@ -332,8 +332,8 @@ func testCompute(v *Validator, input *data.Data, t *testing.T) *config.VirtualCo
 	return conf
 }
 
-func testTargets(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
-	op := trace.FromContext(v.Context, "testTargets")
+func testTargets(ctx context.Context, v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
+	op := trace.FromContext(ctx, "testTargets")
 
 	v.target(op, input, conf)
 	v.credentials(op, input, conf)
@@ -346,8 +346,8 @@ func testTargets(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 
 }
 
-func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
-	op := trace.FromContext(v.Context, "testStorage")
+func testStorage(ctx context.Context, v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
+	op := trace.FromContext(ctx, "testStorage")
 
 	// specifically ignoring err here because we do not care about the parse result.
 	testURL1, _ := url.Parse("LocalDS_0/volumes/volume1")

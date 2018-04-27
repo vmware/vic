@@ -345,7 +345,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		op.Errorf("Configuring cannot continue - target validation failed: %s", err)
 		return errors.New("configure failed")
 	}
-	executor := management.NewDispatcher(validator.Context, validator.Session, management.ConfigureAction, c.Force)
+	executor := management.NewDispatcher(op, validator.Session, management.ConfigureAction, c.Force)
 
 	var vch *vm.VirtualMachine
 	if c.Data.ID != "" {

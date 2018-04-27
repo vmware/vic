@@ -56,7 +56,6 @@ type Validator struct {
 	DatacenterPath string
 
 	Session *session.Session
-	Context context.Context
 
 	isVC   bool
 	issues []error
@@ -69,7 +68,6 @@ func CreateFromSession(ctx context.Context, sess *session.Session) (*Validator, 
 
 	v := &Validator{}
 	v.Session = sess
-	v.Context = ctx
 	v.isVC = v.Session.IsVC()
 
 	return v, nil
@@ -82,7 +80,6 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 	var err error
 
 	v := &Validator{}
-	v.Context = ctx
 	tURL := input.URL
 
 	// normalize the path - strip trailing /
@@ -139,7 +136,7 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 
 	v.Session = session.NewSession(sessionconfig)
 	v.Session.UserAgent = version.UserAgent("vic-machine")
-	v.Session, err = v.Session.Connect(v.Context)
+	v.Session, err = v.Session.Connect(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -189,8 +186,8 @@ func (v *Validator) datacenter(op trace.Operation) error {
 	return errors.New(detail)
 }
 
-func (v *Validator) ListDatacenters() ([]string, error) {
-	dcs, err := v.Session.Finder.DatacenterList(v.Context, "*")
+func (v *Validator) listDatacenters(op trace.Operation) ([]string, error) {
+	dcs, err := v.Session.Finder.DatacenterList(op, "*")
 	if err != nil {
 		return nil, fmt.Errorf("unable to list datacenters: %s", err)
 	}
@@ -212,7 +209,7 @@ func (v *Validator) suggestDatacenter(op trace.Operation) {
 
 	op.Info("Suggesting valid values for datacenter in --target")
 
-	dcs, err := v.ListDatacenters()
+	dcs, err := v.listDatacenters(op)
 	if err != nil {
 		op.Error(err)
 		return
@@ -452,7 +449,7 @@ func (v *Validator) credentials(op trace.Operation, input *data.Data, conf *conf
 	// Eventually, this must be moved to the Dispatcher as the Validator
 	// should not modify VC configuration.
 	if conf.ShouldGrantPerms() {
-		err := opsuser.GrantDCReadOnlyPerms(v.Context, v.Session, conf)
+		err := opsuser.GrantDCReadOnlyPerms(op, v.Session, conf)
 		if err != nil {
 			v.NoteIssue(fmt.Errorf("Failed to validate operations credentials: %s", err))
 			return
@@ -710,7 +707,7 @@ func (v *Validator) compatibility(op trace.Operation, conf *config.VirtualContai
 	}
 
 	// check session's datastore(s) exist
-	_, err := v.Session.Datastore.AttachedClusterHosts(v.Context, v.Session.Cluster)
+	_, err := v.Session.Datastore.AttachedClusterHosts(op, v.Session.Cluster)
 	v.NoteIssue(err)
 
 	v.checkDatastoresAreWriteable(op, conf)

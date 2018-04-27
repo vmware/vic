@@ -584,7 +584,7 @@ func (v *Validator) checkVDSMembership(op trace.Operation, network types.Managed
 func (v *Validator) listNetworks(op trace.Operation, incStdNets bool) ([]string, error) {
 	var selectedNets []string
 
-	nets, err := v.Session.Finder.NetworkList(v.Context, "*")
+	nets, err := v.Session.Finder.NetworkList(op, "*")
 	if err != nil {
 		return nil, fmt.Errorf("unable to list networks: %s", err)
 	}
@@ -641,7 +641,7 @@ func (v *Validator) isDVSUplink(op trace.Operation, ref types.ManagedObjectRefer
 	var dvp mo.DistributedVirtualPortgroup
 
 	r := object.NewDistributedVirtualPortgroup(v.Session.Client.Client, ref)
-	if err := r.Properties(v.Context, r.Reference(), []string{"tag"}, &dvp); err != nil {
+	if err := r.Properties(op, r.Reference(), []string{"tag"}, &dvp); err != nil {
 		op.Errorf("Unable to check tags on %q: %s", ref, err)
 		return false
 	}
