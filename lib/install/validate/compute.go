@@ -158,10 +158,6 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 		compute.InventoryPath = v.inventoryPath(op, compute.Reference())
 	}
 
-	// stash the pool for later use
-	v.ResourcePoolPath = pool.InventoryPath
-
-	// some hoops for while we're still using session package
 	v.Session.Pool = pool
 	v.Session.PoolPath = pool.InventoryPath
 

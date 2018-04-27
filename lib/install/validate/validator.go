@@ -53,9 +53,8 @@ const defaultSyslogPort = 514
 const registryValidationTime = 10 * time.Second
 
 type Validator struct {
-	DatacenterPath   string
-	ClusterPath      string
-	ResourcePoolPath string
+	DatacenterPath string
+	ClusterPath    string
 
 	Session *session.Session
 	Context context.Context
@@ -845,7 +844,7 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.Virtua
 		op.Debug("session cluster is nil")
 	}
 
-	dconfig.ResourcePoolPath = v.ResourcePoolPath
+	dconfig.ResourcePoolPath = v.Session.PoolPath
 
 	op.Debugf("Datacenter: %q, Cluster: %q, Resource Pool: %q", dconfig.DatacenterName, dconfig.Cluster, dconfig.ResourcePoolPath)
 

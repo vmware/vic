@@ -89,7 +89,7 @@ func listVCHs(op trace.Operation, d *data.Data, validator *validate.Validator) (
 	executor := management.NewDispatcher(validator.Context, validator.Session, management.NoAction, false)
 	vchs, err := executor.SearchVCHs(validator.ClusterPath)
 	if err != nil {
-		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to search VCHs in %s: %s", validator.ResourcePoolPath, err))
+		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to search VCHs in %s: %s", validator.Session.PoolPath, err))
 	}
 
 	return vchsToModels(op, vchs, executor), nil

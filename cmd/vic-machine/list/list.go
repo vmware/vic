@@ -180,7 +180,7 @@ func (l *List) Run(clic *cli.Context) (err error) {
 	executor := management.NewDispatcher(validator.Context, validator.Session, management.ListAction, false)
 	vchs, err := executor.SearchVCHs(validator.ClusterPath)
 	if err != nil {
-		op.Errorf("List cannot continue - failed to search VCHs in %s: %s", validator.ResourcePoolPath, err)
+		op.Errorf("List cannot continue - failed to search VCHs in %s: %s", validator.Session.PoolPath, err)
 	}
 	l.prettyPrint(op, clic, vchs, executor)
 	return nil
