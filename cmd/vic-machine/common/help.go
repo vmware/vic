@@ -16,7 +16,7 @@ package common
 
 import "gopkg.in/urfave/cli.v1"
 
-var EntireOptionHelpTemplate = `NAME:
+const entireOptionHelpTemplate = `NAME:
    {{.HelpName}} - {{.Usage}}
 
 USAGE:
@@ -34,7 +34,7 @@ OPTIONS:
 `
 
 type Help struct {
-	AdvancedOptions bool
+	advancedOptions bool
 }
 
 func (h *Help) HelpFlags() []cli.Flag {
@@ -42,7 +42,17 @@ func (h *Help) HelpFlags() []cli.Flag {
 		cli.BoolFlag{
 			Name:        "extended-help, x",
 			Usage:       "Show all options - this must be specified instead of --help",
-			Destination: &h.AdvancedOptions,
+			Destination: &h.advancedOptions,
 		},
 	}
+}
+
+func (h *Help) Print(clic *cli.Context) bool {
+	if h.advancedOptions {
+		cli.HelpPrinter(clic.App.Writer, entireOptionHelpTemplate, clic.Command)
+
+		return true
+	}
+
+	return false
 }
