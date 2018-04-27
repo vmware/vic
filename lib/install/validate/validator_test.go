@@ -874,12 +874,12 @@ func TestDCReadOnlyPermsFromConfigSimulatorVPX(t *testing.T) {
 
 	fmt.Println(s.URL.String())
 
-	input := GetVcsimInputConfig(ctx, s.URL)
+	input := getVcsimInputConfig(ctx, s.URL)
 	require.NotNil(t, input)
 	v, err := NewValidator(ctx, input)
 	require.NoError(t, err)
 	require.NotNil(t, v)
-	configSpec, err := v.VcsimValidate(ctx, input)
+	configSpec, err := v.vcsimValidate(ctx, input)
 	require.NoError(t, err)
 	require.NotNil(t, configSpec)
 
@@ -919,12 +919,12 @@ func TestOpsUserPermsFromConfigSimulatorVPX(t *testing.T) {
 	sess, err := test.SessionWithVPX(ctx, s.URL.String())
 	require.NoError(t, err)
 
-	input := GetVcsimInputConfig(ctx, s.URL)
+	input := getVcsimInputConfig(ctx, s.URL)
 	require.NotNil(t, input)
 	v, err := NewValidator(ctx, input)
 	require.NoError(t, err)
 	require.NotNil(t, v)
-	configSpec, err := v.VcsimValidate(ctx, input)
+	configSpec, err := v.vcsimValidate(ctx, input)
 	require.NoError(t, err)
 	require.NotNil(t, configSpec)
 
