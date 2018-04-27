@@ -44,44 +44,44 @@ type FirewallStatus struct {
 	Correct                       []string
 }
 
-type FirewallConfigUnavailableError struct {
+type firewallConfigUnavailableError struct {
 	Host string
 }
 
-func (e *FirewallConfigUnavailableError) Error() string {
+func (e *firewallConfigUnavailableError) Error() string {
 	return fmt.Sprintf("Firewall configuration unavailable on %q", e.Host)
 }
 
-type FirewallMisconfiguredError struct {
+type firewallMisconfiguredError struct {
 	Host string
 	Rule types.HostFirewallRule
 }
 
-func (e *FirewallMisconfiguredError) Error() string {
+func (e *firewallMisconfiguredError) Error() string {
 	return fmt.Sprintf("Firewall configuration on %q does not permit %s %d/%s %s",
 		e.Host, e.Rule.PortType, e.Rule.Port, e.Rule.Protocol, e.Rule.Direction)
 }
 
-type FirewallUnknownDHCPAllowedIPError struct {
+type firewallUnknownDHCPAllowedIPError struct {
 	AllowedIPs []string
 	Host       string
 	Rule       types.HostFirewallRule
 	TargetIP   net.IPNet
 }
 
-func (e *FirewallUnknownDHCPAllowedIPError) Error() string {
+func (e *firewallUnknownDHCPAllowedIPError) Error() string {
 	return fmt.Sprintf("Firewall configuration on %q may prevent connection on %s %d/%s %s with allowed IPs: %s",
 		e.Host, e.Rule.PortType, e.Rule.Port, e.Rule.Protocol, e.Rule.Direction, e.AllowedIPs)
 }
 
-type FirewallMisconfiguredAllowedIPError struct {
+type firewallMisconfiguredAllowedIPError struct {
 	AllowedIPs []string
 	Host       string
 	Rule       types.HostFirewallRule
 	TargetIP   net.IPNet
 }
 
-func (e *FirewallMisconfiguredAllowedIPError) Error() string {
+func (e *firewallMisconfiguredAllowedIPError) Error() string {
 	return fmt.Sprintf("Firewall configuration on %q does not permit %s %d/%s %s for %s with allowed IPs: %s",
 		e.Host, e.Rule.PortType, e.Rule.Port, e.Rule.Protocol, e.Rule.Direction, e.TargetIP.IP, e.AllowedIPs)
 }
@@ -139,7 +139,7 @@ func (v *Validator) CheckFirewallForTether(ctx context.Context, mgmtIP net.IPNet
 		}
 		if err != nil {
 			switch err.(type) {
-			case *FirewallMisconfiguredError:
+			case *firewallMisconfiguredError:
 				if firewallEnabled {
 					op.Debugf("fw misconfigured with fw enabled %q", host.InventoryPath)
 					status.MisconfiguredEnabled = append(status.MisconfiguredEnabled, host.InventoryPath)
@@ -147,7 +147,7 @@ func (v *Validator) CheckFirewallForTether(ctx context.Context, mgmtIP net.IPNet
 					op.Debugf("fw misconfigured with fw disabled %q", host.InventoryPath)
 					status.MisconfiguredDisabled = append(status.MisconfiguredDisabled, host.InventoryPath)
 				}
-			case *FirewallUnknownDHCPAllowedIPError:
+			case *firewallUnknownDHCPAllowedIPError:
 				if firewallEnabled {
 					op.Debugf("fw unknown (dhcp) with fw enabled %q", host.InventoryPath)
 					status.UnknownEnabled = append(status.UnknownEnabled, host.InventoryPath)
@@ -156,7 +156,7 @@ func (v *Validator) CheckFirewallForTether(ctx context.Context, mgmtIP net.IPNet
 					status.UnknownDisabled = append(status.UnknownDisabled, host.InventoryPath)
 				}
 				op.Warn(err)
-			case *FirewallMisconfiguredAllowedIPError:
+			case *firewallMisconfiguredAllowedIPError:
 				if firewallEnabled {
 					op.Debugf("fw misconfigured allowed IP with fw enabled %q", host.InventoryPath)
 					status.MisconfiguredAllowedIPEnabled = append(status.MisconfiguredAllowedIPEnabled, host.InventoryPath)
@@ -166,7 +166,7 @@ func (v *Validator) CheckFirewallForTether(ctx context.Context, mgmtIP net.IPNet
 					status.MisconfiguredDisabled = append(status.MisconfiguredDisabled, host.InventoryPath)
 					op.Warn(err)
 				}
-			case *FirewallConfigUnavailableError:
+			case *firewallConfigUnavailableError:
 				if firewallEnabled {
 					op.Debugf("fw configuration unavailable %q", host.InventoryPath)
 					status.UnknownEnabled = append(status.UnknownEnabled, host.InventoryPath)
@@ -333,13 +333,13 @@ func (v *Validator) managementNetAllowed(ctx context.Context, mgmtIP net.IPNet,
 
 	// we've seen cases where the firewall config isn't available
 	if info == nil {
-		return false, &FirewallConfigUnavailableError{Host: host.InventoryPath}
+		return false, &firewallConfigUnavailableError{Host: host.InventoryPath}
 	}
 
 	rs := object.HostFirewallRulesetList(info.Ruleset)
 	filteredRules, err := rs.EnabledByRule(requiredRule, true) // find matching rules that are enabled
 	if err != nil {                                            // rule not enabled (fw is misconfigured)
-		return false, &FirewallMisconfiguredError{Host: host.InventoryPath, Rule: requiredRule}
+		return false, &firewallMisconfiguredError{Host: host.InventoryPath, Rule: requiredRule}
 	}
 	op.Debugf("filtered rules: %v", filteredRules)
 
@@ -364,13 +364,13 @@ func (v *Validator) managementNetAllowed(ctx context.Context, mgmtIP net.IPNet,
 
 	if mgmtIP.IP == nil { // DHCP
 		if len(allowedIPs) > 0 || len(allowedNets) > 0 {
-			return false, &FirewallUnknownDHCPAllowedIPError{AllowedIPs: append(allowedNets, allowedIPs...),
+			return false, &firewallUnknownDHCPAllowedIPError{AllowedIPs: append(allowedNets, allowedIPs...),
 				Host:     host.InventoryPath,
 				Rule:     requiredRule,
 				TargetIP: mgmtIP}
 		}
 		// no allowed IPs
-		return false, &FirewallMisconfiguredError{Host: host.InventoryPath, Rule: requiredRule}
+		return false, &firewallMisconfiguredError{Host: host.InventoryPath, Rule: requiredRule}
 	}
 
 	// static management IP, check that it is allowed
@@ -378,7 +378,7 @@ func (v *Validator) managementNetAllowed(ctx context.Context, mgmtIP net.IPNet,
 	if mgmtAllowed {
 		return true, nil
 	}
-	return false, &FirewallMisconfiguredAllowedIPError{AllowedIPs: append(allowedNets, allowedIPs...),
+	return false, &firewallMisconfiguredAllowedIPError{AllowedIPs: append(allowedNets, allowedIPs...),
 		Host:     host.InventoryPath,
 		Rule:     requiredRule,
 		TargetIP: mgmtIP}
