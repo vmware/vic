@@ -303,8 +303,7 @@ func (c *Configure) processCertificates(op trace.Operation, client, public, mana
 
 func (c *Configure) Run(clic *cli.Context) (err error) {
 
-	if c.help.AdvancedOptions {
-		cli.HelpPrinter(clic.App.Writer, common.EntireOptionHelpTemplate, clic.Command)
+	if c.help.Print(clic) {
 		return nil
 	}
 
