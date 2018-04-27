@@ -45,23 +45,6 @@ const (
 	MaxDisplayNameLen = 31
 )
 
-var EntireOptionHelpTemplate = `NAME:
-   {{.HelpName}} - {{.Usage}}
-
-USAGE:
-   {{.HelpName}}{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{if .Category}}
-
-CATEGORY:
-   {{.Category}}{{end}}{{if .Description}}
-
-DESCRIPTION:
-   {{.Description}}{{end}}{{if .VisibleFlags}}
-
-OPTIONS:
-   {{range .Flags}}{{.}}
-   {{end}}{{end}}
-`
-
 // Create has all input parameters for vic-machine create command
 type Create struct {
 	common.Networks
@@ -77,8 +60,8 @@ type Create struct {
 	memoryReservLimits string
 	cpuReservLimits    string
 
-	advancedOptions bool
-	BridgeIPRange   string
+	help          Help
+	BridgeIPRange string
 
 	Proxies common.Proxies
 
@@ -291,15 +274,6 @@ func (c *Create) Flags() []cli.Flag {
 		},
 	}
 
-	help := []cli.Flag{
-		// help options
-		cli.BoolFlag{
-			Name:        "extended-help, x",
-			Usage:       "Show all options - this must be specified instead of --help",
-			Destination: &c.advancedOptions,
-		},
-	}
-
 	target := c.TargetFlags()
 	ops := c.OpsCredentials.Flags(true)
 	compute := c.ComputeFlags()
@@ -311,6 +285,7 @@ func (c *Create) Flags() []cli.Flag {
 	dns := c.Nameservers.DNSFlags(true)
 	proxies := c.Proxies.ProxyFlags(true)
 	debug := c.DebugFlags(true)
+	help := c.help.HelpFlags()
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
@@ -664,7 +639,7 @@ func (c *Create) logArguments(op trace.Operation, cliContext *cli.Context) []str
 
 func (c *Create) Run(clic *cli.Context) (err error) {
 
-	if c.advancedOptions {
+	if c.help.AdvancedOptions {
 		cli.HelpPrinter(clic.App.Writer, EntireOptionHelpTemplate, clic.Command)
 		return nil
 	}
