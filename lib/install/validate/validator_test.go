@@ -121,7 +121,7 @@ func TestParseURL(t *testing.T) {
 	}
 }
 
-func TestMain(t *testing.T) {
+func TestValidator(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	trace.Logger.Level = log.DebugLevel
 	ctx := context.Background()
