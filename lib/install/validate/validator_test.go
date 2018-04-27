@@ -798,7 +798,7 @@ func TestValidateWithFolders(t *testing.T) {
 
 	validator.AddDeprecatedFields(op, spec, input)
 
-	_, err = CreateFromVCHConfig(op, spec, vs)
+	_, err = CreateFromSession(op, vs)
 	if err != nil {
 		t.Fatal(err)
 	}
