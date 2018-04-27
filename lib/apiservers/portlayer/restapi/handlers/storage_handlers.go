@@ -435,7 +435,7 @@ func (h *StorageHandlersImpl) CreateVolume(params storage.CreateVolumeParams) mi
 	}
 
 	op := trace.NewOperation(context.Background(), fmt.Sprintf("VolumeCreate(%s)", params.VolumeRequest.Name))
-	vol, err := h.volumeCache.VolumeCreate(op, params.VolumeRequest.Name, storeURL, capacity*1024, byteMap)
+	vol, err := h.volumeCache.VolumeCreate(op, params.VolumeRequest.Name, storeURL, capacity*1024, params.VolumeRequest.DriverArgs, byteMap)
 	if err != nil {
 
 		if os.IsExist(err) {

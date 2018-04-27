@@ -172,7 +172,7 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 	// Create a Volume
 	testVolName := "testVolume"
 
-	vol, err := vs.VolumeCreate(op, testVolName, vs.SelfLink, 0 /*we do not use this*/, info)
+	vol, err := vs.VolumeCreate(op, testVolName, vs.SelfLink, 0 /*we do not use this*/, nil, info)
 	if !assert.NoError(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
 		return
 	}
@@ -231,7 +231,7 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 		return
 	}
 
-	volToCheck, err := vs.VolumeCreate(op, testVolName, vs.SelfLink, 0, info)
+	volToCheck, err := vs.VolumeCreate(op, testVolName, vs.SelfLink, 0, nil, info)
 	if !assert.NoError(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
 		return
 	}
@@ -314,7 +314,7 @@ func TestMultipleVolumes(t *testing.T) {
 	infoThree[testThreeInfoKeyTwo] = []byte("maybeSomeLabels")
 
 	//make volume one
-	volOne, err := vs.VolumeCreate(op, testVolNameOne, vs.SelfLink, 0 /*we do not use this*/, infoOne)
+	volOne, err := vs.VolumeCreate(op, testVolNameOne, vs.SelfLink, 0 /*we do not use this*/, nil, infoOne)
 
 	if !assert.NoError(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
 		return
@@ -334,7 +334,7 @@ func TestMultipleVolumes(t *testing.T) {
 	}
 
 	// make volume two
-	volTwo, err := vs.VolumeCreate(op, testVolNameTwo, vs.SelfLink, 0 /*we do not use this*/, infoTwo)
+	volTwo, err := vs.VolumeCreate(op, testVolNameTwo, vs.SelfLink, 0 /*we do not use this*/, nil, infoTwo)
 
 	if !assert.NoError(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
 		return
@@ -363,7 +363,7 @@ func TestMultipleVolumes(t *testing.T) {
 	}
 
 	// make volume three
-	volThree, err := vs.VolumeCreate(op, testVolNameThree, vs.SelfLink, 0 /*we do not use this*/, infoThree)
+	volThree, err := vs.VolumeCreate(op, testVolNameThree, vs.SelfLink, 0 /*we do not use this*/, nil, infoThree)
 
 	if !assert.NoError(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
 		return

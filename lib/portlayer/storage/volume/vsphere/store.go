@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/vic/lib/portlayer/storage/volume"
 	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/lib/portlayer/util"
+	"github.com/vmware/vic/pkg/fs"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
@@ -38,6 +39,8 @@ const (
 	// TODO: this was shared with image store hence the disjoint naming. Should be updated
 	// but migration/upgrade implications are unclear
 	metaDataDir = "imageMetadata"
+
+	DefaultFilesystem = "ext4"
 )
 
 var (
@@ -107,50 +110,73 @@ func (v *VolumeStore) volDiskDSPath(ID string) *object.DatastorePath {
 	}
 }
 
-func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*volume.Volume, error) {
+// hickeng TODO: there should be a disk delete on the error paths in this function or we potenially leak vmdk's that do
+// not have volume metadata associated.
+func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, args map[string]string, info map[string][]byte) (*volume.Volume, error) {
+	fsname := args[constants.OptsFilesystemKey]
+	if fsname == "" {
+		fsname = DefaultFilesystem
+	}
+	fstype := fs.FilesystemType(fsname)
+	if fs.GetFilesystem(fstype) == nil {
+		return nil, fmt.Errorf("unknown filesystem: %s", fsname)
+	}
 
 	// Create the volume directory in the store.
-	if _, err := v.Mkdir(op, false, v.volDirPath(ID)); err != nil {
+	_, err := v.Mkdir(op, false, v.volDirPath(ID))
+	if err != nil {
 		return nil, err
 	}
 
 	// Get the path to the disk in datastore uri format
 	volDiskDSPath := v.volDiskDSPath(ID)
 
-	config := disk.NewPersistentDisk(volDiskDSPath).WithCapacity(int64(capacityKB))
-	// Create the disk
-	vmdisk, err := v.CreateAndAttach(op, config)
-	if err != nil {
-		return nil, err
+	config := disk.NewPersistentDisk(volDiskDSPath).WithCapacity(int64(capacityKB)).WithFilesystem(fstype).WithUUID(volume.Label(ID))
+	var vmdisk *disk.VirtualDisk
+	if fstype != fs.TypeRaw {
+		// Create the disk
+		vmdisk, err = v.CreateAndAttach(op, config)
+		if err != nil {
+			return nil, err
+		}
+		defer v.Detach(op, vmdisk.VirtualDiskConfig)
+	} else {
+		// No need for attach and format
+		vmdisk, err = v.Manager.Create(op, config)
+		if err != nil {
+			return nil, err
+		}
 	}
-	defer v.Detach(op, vmdisk.VirtualDiskConfig)
+
 	vol, err := volume.NewVolume(store, ID, info, vmdisk, executor.CopyNew)
 	if err != nil {
 		return nil, err
 	}
 
-	// Make the filesystem and set its label
-	if err = vmdisk.Mkfs(op, vol.Label); err != nil {
-		return nil, err
-	}
+	if fstype != fs.TypeRaw {
+		// Make the filesystem and set its label
+		if err = vmdisk.Mkfs(op, vol.Label); err != nil {
+			return nil, err
+		}
 
-	// mask lost+found from containerVM
-	opts := []string{"noatime"}
-	path, err := vmdisk.Mount(op, opts)
-	if err != nil {
-		return nil, err
-	}
-	defer vmdisk.Unmount(op)
+		// mask lost+found from containerVM
+		opts := []string{"noatime"}
+		path, err := vmdisk.Mount(op, opts)
+		if err != nil {
+			return nil, err
+		}
+		defer vmdisk.Unmount(op)
 
-	// #nosec
-	err = os.Mkdir(filepath.Join(path, disk.VolumeDataDir), 0755)
-	if err != nil {
-		return nil, err
+		// #nosec
+		err = os.Mkdir(filepath.Join(path, disk.VolumeDataDir), 0755)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Persist the metadata
 	metaDataDir := v.volMetadataDirPath(ID)
-	if err = vsphere.WriteMetadata(op, v.Helper, metaDataDir, info); err != nil {
+	if err := vsphere.WriteMetadata(op, v.Helper, metaDataDir, info); err != nil {
 		return nil, err
 	}
 

@@ -34,7 +34,7 @@ type VirtualDiskConfig struct {
 	CapacityInKB int64
 
 	// Underlying filesystem
-	Filesystem Filesystem
+	Filesystem fs.Filesystem
 
 	// Storage provisioning mode
 	ProvisionType types.VirtualDiskType
@@ -69,13 +69,8 @@ func (d *VirtualDiskConfig) WithParent(parent *object.DatastorePath) *VirtualDis
 	return d
 }
 
-func (d *VirtualDiskConfig) WithFilesystem(ftype FilesystemType) *VirtualDiskConfig {
-	switch ftype {
-	case Xfs:
-		d.Filesystem = fs.NewXFS()
-	default:
-		d.Filesystem = fs.NewExt4()
-	}
+func (d *VirtualDiskConfig) WithFilesystem(ftype fs.FilesystemType) *VirtualDiskConfig {
+	d.Filesystem = fs.GetFilesystem(ftype)
 	return d
 }
 

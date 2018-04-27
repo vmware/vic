@@ -96,7 +96,7 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 				info[ID] = []byte(ID)
 			}
 
-			outVol, err := firstCache.VolumeCreate(op, ID, storeURL, 10240, info)
+			outVol, err := firstCache.VolumeCreate(op, ID, storeURL, 10240, nil, info)
 			if !assert.NoError(t, err) || !assert.NotNil(t, outVol) {
 				return
 			}

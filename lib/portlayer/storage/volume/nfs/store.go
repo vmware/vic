@@ -114,7 +114,7 @@ func (v *VolumeStore) volMetadataDirPath(ID string) string {
 }
 
 // Creates a volume directory and volume object for NFS based volumes
-func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*volume.Volume, error) {
+func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, args map[string]string, info map[string][]byte) (*volume.Volume, error) {
 	target, err := v.Service.Mount(op)
 	if err != nil {
 		return nil, err

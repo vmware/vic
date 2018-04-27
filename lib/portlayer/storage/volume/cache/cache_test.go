@@ -54,7 +54,7 @@ func (m *MockVolumeStore) VolumeStoresList(op trace.Operation) (map[string]url.U
 }
 
 // Creates a volume on the given volume store, of the given size, with the given metadata.
-func (m *MockVolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*volume.Volume, error) {
+func (m *MockVolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, args map[string]string, info map[string][]byte) (*volume.Volume, error) {
 	storeName, err := util.VolumeStoreName(store)
 	if err != nil {
 		return nil, err
@@ -156,7 +156,7 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 		id := fmt.Sprintf("ID-%d", i)
 
 		// Write to the datastore
-		vol, err := v.VolumeCreate(op, id, storeURL, 0, nil)
+		vol, err := v.VolumeCreate(op, id, storeURL, 0, nil, nil)
 		if !assert.NoError(t, err) || !assert.NotNil(t, vol) {
 			return
 		}
@@ -223,7 +223,7 @@ func createVolumes(t *testing.T, op trace.Operation, v *VolumeLookupCache, store
 		id := fmt.Sprintf("ID-%d", i)
 
 		// Write to the datastore
-		vol, err := v.VolumeCreate(op, id, storeURL, 0, nil)
+		vol, err := v.VolumeCreate(op, id, storeURL, 0, nil, nil)
 		if !assert.NoError(t, err) || !assert.NotNil(t, vol) {
 			return nil
 		}

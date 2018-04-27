@@ -75,6 +75,10 @@ const (
 
 	// Scratch layer ID
 	ScratchLayerID = "scratch"
+
+	// vSphere storage driver option keys
+	OptsFilesystemKey = "filesystem"
+	OptsProvisionKey  = "provision"
 )
 
 func DefaultAltVCHGuestName() string {

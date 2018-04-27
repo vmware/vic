@@ -38,8 +38,8 @@ type Disk interface {
 
 // VolumeStorer is an interface to create, remove, enumerate, and get Volumes.
 type VolumeStorer interface {
-	// Creates a volume on the given volume store, of the given size, with the given metadata.
-	VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*Volume, error)
+	// Creates a volume on the given volume store, of the given size, driver arguments and given metadata.
+	VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, args map[string]string, info map[string][]byte) (*Volume, error)
 
 	// Destroys a volume
 	VolumeDestroy(op trace.Operation, vol *Volume) error

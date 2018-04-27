@@ -120,7 +120,7 @@ func (v *VolumeLookupCache) VolumeStoresList(op trace.Operation) ([]string, erro
 	return stores, nil
 }
 
-func (v *VolumeLookupCache) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*volume.Volume, error) {
+func (v *VolumeLookupCache) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, args map[string]string, info map[string][]byte) (*volume.Volume, error) {
 	v.vlcLock.Lock()
 	defer v.vlcLock.Unlock()
 
@@ -135,7 +135,7 @@ func (v *VolumeLookupCache) VolumeCreate(op trace.Operation, ID string, store *u
 		return nil, err
 	}
 
-	vol, err := vs.VolumeCreate(op, ID, store, capacityKB, info)
+	vol, err := vs.VolumeCreate(op, ID, store, capacityKB, args, info)
 	if err != nil {
 		return nil, err
 	}
