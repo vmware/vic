@@ -131,7 +131,7 @@ func (v *Validator) datastoreHelper(ctx context.Context, path string, label stri
 
 	if dsURL.Host == "" {
 		// see if we can find a default datastore
-		store, err := v.Session.Finder.DatastoreOrDefault(op, "*")
+		store, err := v.session.Finder.DatastoreOrDefault(op, "*")
 		if err != nil {
 			v.suggestDatastore(op, "*", label, flag)
 			return nil, nil, errors.New("datastore empty")
@@ -141,7 +141,7 @@ func (v *Validator) datastoreHelper(ctx context.Context, path string, label stri
 		op.Infof("Using default datastore: %s", dsURL.Host)
 	}
 
-	stores, err := v.Session.Finder.DatastoreList(op, dsURL.Host)
+	stores, err := v.session.Finder.DatastoreList(op, dsURL.Host)
 	if err != nil {
 		op.Debugf("no such datastore %#v", dsURL)
 		v.suggestDatastore(op, path, label, flag)
@@ -168,12 +168,12 @@ func (v *Validator) datastoreHelper(ctx context.Context, path string, label stri
 }
 
 func (v *Validator) setDatastore(ds *object.Datastore, path *url.URL) {
-	v.Session.Datastore = ds
-	v.Session.DatastorePath = path.Host
+	v.session.Datastore = ds
+	v.session.DatastorePath = path.Host
 }
 
 func (v *Validator) listDatastores(op trace.Operation) ([]string, error) {
-	dss, err := v.Session.Finder.DatastoreList(op, "*")
+	dss, err := v.session.Finder.DatastoreList(op, "*")
 	if err != nil {
 		return nil, fmt.Errorf("Unable to list datastores: %s", err)
 	}

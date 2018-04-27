@@ -161,7 +161,7 @@ func (l *List) Run(clic *cli.Context) (err error) {
 		op.Errorf("List cannot continue - failed to create validator: %s", err)
 		return errors.New("list failed")
 	}
-	defer validator.Session.Logout(op)
+	defer validator.Session().Logout(op)
 
 	// If dc is not set, and multiple datacenter is available, vic-machine ls will list VCHs under all datacenters.
 	validator.AllowEmptyDC()
@@ -177,10 +177,10 @@ func (l *List) Run(clic *cli.Context) (err error) {
 		return errors.New("list failed")
 	}
 
-	executor := management.NewDispatcher(op, validator.Session, management.ListAction, false)
-	vchs, err := executor.SearchVCHs(validator.Session.ClusterPath)
+	executor := management.NewDispatcher(op, validator.Session(), management.ListAction, false)
+	vchs, err := executor.SearchVCHs(validator.Session().ClusterPath)
 	if err != nil {
-		op.Errorf("List cannot continue - failed to search VCHs in %s: %s", validator.Session.PoolPath, err)
+		op.Errorf("List cannot continue - failed to search VCHs in %s: %s", validator.Session().PoolPath, err)
 	}
 	l.prettyPrint(op, clic, vchs, executor)
 	return nil

@@ -97,13 +97,13 @@ func (h *VCHDatacenterLogGet) Handle(params operations.GetTargetTargetDatacenter
 
 // getDatastoreHelper validates the VCH and returns the datastore helper for the VCH. It errors when validation fails or when datastore is not ready
 func getDatastoreHelper(op trace.Operation, d *data.Data, validator *validate.Validator) (*datastore.Helper, error) {
-	executor := management.NewDispatcher(op, validator.Session, management.NoAction, false)
+	executor := management.NewDispatcher(op, validator.Session(), management.NoAction, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
 		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))
 	}
 
-	if err := validate.SetDataFromVM(op, validator.Session.Finder, vch, d); err != nil {
+	if err := validate.SetDataFromVM(op, validator.Session().Finder, vch, d); err != nil {
 		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
 	}
 
@@ -114,13 +114,13 @@ func getDatastoreHelper(op trace.Operation, d *data.Data, validator *validate.Va
 	}
 
 	// Get VCH datastore object
-	ds, err := validator.Session.Finder.Datastore(op, vmPath.Host)
+	ds, err := validator.Session().Finder.Datastore(op, vmPath.Host)
 	if err != nil {
 		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Datastore folder not found for VCH %s: %s", d.ID, err))
 	}
 
 	// Create a new datastore helper for file finding
-	helper, err := datastore.NewHelper(op, validator.Session, ds, vmPath.Path)
+	helper, err := datastore.NewHelper(op, validator.Session(), ds, vmPath.Path)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get datastore helper: %s", err)
 	}

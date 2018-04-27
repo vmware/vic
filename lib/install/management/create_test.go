@@ -78,15 +78,15 @@ func TestCreate(t *testing.T) {
 			validator.ListIssues(op)
 		}
 
-		testCreateNetwork(op, validator.Session, conf, t)
+		testCreateNetwork(op, validator.Session(), conf, t)
 
-		testCreateVolumeStores(op, validator.Session, conf, false, t)
-		testDeleteVolumeStores(op, validator.Session, conf, 1, t)
+		testCreateVolumeStores(op, validator.Session(), conf, false, t)
+		testDeleteVolumeStores(op, validator.Session(), conf, 1, t)
 		errConf := &config.VirtualContainerHostConfigSpec{}
 		*errConf = *conf
 		errConf.VolumeLocations = make(map[string]*url.URL)
 		errConf.VolumeLocations["volume-store"], _ = url.Parse("ds://store_not_exist/volumes/test")
-		testCreateVolumeStores(op, validator.Session, errConf, true, t)
+		testCreateVolumeStores(op, validator.Session(), errConf, true, t)
 
 		// FIXME: (pull vic/7088) have to make another VCH config from validator for negative test case and cleanup test
 		// If we re-use the previous validator like we did in the earlier test (*errConf = *conf), it's not a deep copy of conf
@@ -94,10 +94,10 @@ func TestCreate(t *testing.T) {
 		// The other way around, if we test positive case first, the VCH data and session data are modified, so we are not able to test the negative case
 		conf2, err := validator.Validate(op, input)
 		conf2.ImageStores[0].Host = "http://non-exist"
-		testCreateAppliance(op, validator.Session, conf2, installSettings, true, t)
-		testCleanup(op, validator.Session, conf2, t)
+		testCreateAppliance(op, validator.Session(), conf2, installSettings, true, t)
+		testCleanup(op, validator.Session(), conf2, t)
 
-		testCreateAppliance(op, validator.Session, conf, installSettings, false, t)
+		testCreateAppliance(op, validator.Session(), conf, installSettings, false, t)
 
 		// cannot run test for func not implemented in vcsim: ResourcePool:resourcepool-24 does not implement: UpdateConfig
 		// testUpdateResources(ctx, validator.Session, conf, installSettings, false, t)

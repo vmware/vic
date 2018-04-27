@@ -89,14 +89,14 @@ func TestValidator(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to new validator: %s", err)
 		}
-		ds, _ := validator.Session.Finder.Datastore(ctx, "LocalDS_1")
+		ds, _ := validator.session.Finder.Datastore(ctx, "LocalDS_1")
 		simulator.Map.Get(ds.Reference()).(mo.Entity).Entity().Name = "Local DS_0"
 
-		ds, _ = validator.Session.Finder.Datastore(ctx, "LocalDS_2")
+		ds, _ = validator.session.Finder.Datastore(ctx, "LocalDS_2")
 		simulator.Map.Get(ds.Reference()).(mo.Entity).Entity().Name = `😗`
 
-		t.Logf("session pool: %s", validator.Session.Pool)
-		if err = createPool(ctx, validator.Session, input.ComputeResourcePath, "validator", t); err != nil {
+		t.Logf("session pool: %s", validator.session.Pool)
+		if err = createPool(ctx, validator.session, input.ComputeResourcePath, "validator", t); err != nil {
 			t.Errorf("Unable to create resource pool: %s", err)
 		}
 
@@ -675,7 +675,7 @@ func TestValidateWithFolders(t *testing.T) {
 	}
 
 	// we have valid input at this point, test various compute-resource suggestions
-	vs := validator.Session
+	vs := validator.session
 	crs := []struct {
 		flag    string
 		pool    string
@@ -884,7 +884,7 @@ func TestDCReadOnlyPermsFromConfigSimulatorVPX(t *testing.T) {
 	require.NotNil(t, configSpec)
 
 	// Set up the Authz Manager
-	mgr, err := opsuser.NewRBACManager(ctx, v.Session, &opsuser.DCReadOnlyConf, configSpec)
+	mgr, err := opsuser.NewRBACManager(ctx, v.session, &opsuser.DCReadOnlyConf, configSpec)
 	require.NoError(t, err)
 
 	resourcePermission, err := mgr.SetupDCReadOnlyPermissions(ctx)
