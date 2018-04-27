@@ -96,8 +96,8 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 		}
 
 		// Set validator datacenter path and correspondent validator session config
-		v.DatacenterPath = dc.Name()
-		v.Session.DatacenterPath = v.DatacenterPath
+		v.SetDatacenterPath(dc.Name())
+		v.Session.DatacenterPath = v.DatacenterPath()
 		v.Session.Datacenter = dc
 		v.Session.Finder.SetDatacenter(dc)
 
