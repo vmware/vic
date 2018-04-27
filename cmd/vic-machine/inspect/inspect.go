@@ -159,7 +159,7 @@ func (i *Inspect) run(clic *cli.Context, op trace.Operation, cmd command) (err e
 		return errors.New("inspect failed")
 	}
 
-	executor := management.NewDispatcher(validator.Context, validator.Session, management.InspectAction, i.Force)
+	executor := management.NewDispatcher(op, validator.Session, management.InspectAction, i.Force)
 
 	var vch *vm.VirtualMachine
 	if i.Data.ID != "" {

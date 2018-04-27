@@ -84,13 +84,13 @@ func (h *VCHDatacenterDelete) Handle(params operations.DeleteTargetTargetDatacen
 }
 
 func deleteVCH(op trace.Operation, d *data.Data, validator *validate.Validator, specification *models.DeletionSpecification) error {
-	executor := management.NewDispatcher(validator.Context, validator.Session, management.DeleteAction, false)
+	executor := management.NewDispatcher(op, validator.Session, management.DeleteAction, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
 		return util.NewError(http.StatusNotFound, fmt.Sprintf("Failed to find VCH: %s", err))
 	}
 
-	err = validate.SetDataFromVM(validator.Context, validator.Session.Finder, vch, d)
+	err = validate.SetDataFromVM(op, validator.Session.Finder, vch, d)
 	if err != nil {
 		return util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
 	}

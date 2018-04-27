@@ -167,8 +167,8 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 	return pool, nil
 }
 
-func (v *Validator) ListComputeResource() ([]string, error) {
-	compute, err := v.Session.Finder.ComputeResourceList(v.Context, "*")
+func (v *Validator) listComputeResource(op trace.Operation) ([]string, error) {
+	compute, err := v.Session.Finder.ComputeResourceList(op, "*")
 	if err != nil {
 		return nil, fmt.Errorf("unable to list compute resource: %s", err)
 	}
@@ -187,7 +187,7 @@ func (v *Validator) ListComputeResource() ([]string, error) {
 func (v *Validator) suggestComputeResource(op trace.Operation) {
 	defer trace.End(trace.Begin("", op))
 
-	compute, err := v.ListComputeResource()
+	compute, err := v.listComputeResource(op)
 	if err != nil {
 		op.Error(err)
 		return
@@ -199,8 +199,8 @@ func (v *Validator) suggestComputeResource(op trace.Operation) {
 	}
 }
 
-func (v *Validator) ListResourcePool(path string) ([]string, error) {
-	pools, err := v.Session.Finder.ResourcePoolList(v.Context, path)
+func (v *Validator) listResourcePool(op trace.Operation, path string) ([]string, error) {
+	pools, err := v.Session.Finder.ResourcePoolList(op, path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to list resource pool: %s", err)
 	}
@@ -219,7 +219,7 @@ func (v *Validator) ListResourcePool(path string) ([]string, error) {
 func (v *Validator) suggestResourcePool(op trace.Operation, path string) {
 	defer trace.End(trace.Begin("", op))
 
-	pools, err := v.ListResourcePool(path)
+	pools, err := v.listResourcePool(op, path)
 	if err != nil {
 		op.Error(err)
 		return

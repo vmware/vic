@@ -172,8 +172,8 @@ func (v *Validator) SetDatastore(ds *object.Datastore, path *url.URL) {
 	v.Session.DatastorePath = path.Host
 }
 
-func (v *Validator) ListDatastores() ([]string, error) {
-	dss, err := v.Session.Finder.DatastoreList(v.Context, "*")
+func (v *Validator) listDatastores(op trace.Operation) ([]string, error) {
+	dss, err := v.Session.Finder.DatastoreList(op, "*")
 	if err != nil {
 		return nil, fmt.Errorf("Unable to list datastores: %s", err)
 	}
@@ -201,7 +201,7 @@ func (v *Validator) suggestDatastore(op trace.Operation, path string, label stri
 	}
 	op.Infof("Suggesting valid values for %s based on %q", flag, val)
 
-	dss, err := v.ListDatastores()
+	dss, err := v.listDatastores(op)
 	if err != nil {
 		op.Error(err)
 		return
