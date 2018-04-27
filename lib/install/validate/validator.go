@@ -54,7 +54,6 @@ const registryValidationTime = 10 * time.Second
 
 type Validator struct {
 	DatacenterPath string
-	ClusterPath    string
 
 	Session *session.Session
 	Context context.Context
@@ -123,9 +122,6 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 		Thumbprint: input.Thumbprint,
 		Insecure:   input.Force,
 	}
-
-	// if a compute resource path was specified, set it
-	v.ClusterPath = input.ComputeResourcePath
 
 	// if a datacenter was specified, set it
 	v.DatacenterPath = tURL.Path
