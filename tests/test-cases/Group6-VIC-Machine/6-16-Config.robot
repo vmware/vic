@@ -33,6 +33,8 @@ Wait For DNS Update
 *** Test Cases ***
 Configure VCH debug state
     ${output}=  Run  bin/vic-machine-linux configure --help
+    Should Not Contain  ${output}  --debug
+    ${output}=  Run  bin/vic-machine-linux configure --extended-help
     Should Contain  ${output}  --debug
     ${output}=  Check VM Guestinfo  %{VCH-NAME}  guestinfo.vice./init/diagnostics/debug
     Should Contain  ${output}  1
