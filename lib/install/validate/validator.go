@@ -53,14 +53,9 @@ const defaultSyslogPort = 514
 const registryValidationTime = 10 * time.Second
 
 type Validator struct {
-	TargetPath        string
-	DatacenterPath    string
-	ClusterPath       string
-	ResourcePoolPath  string
-	ImageStorePath    string
-	PublicNetworkPath string
-	BridgeNetworkPath string
-	BridgeNetworkName string
+	DatacenterPath   string
+	ClusterPath      string
+	ResourcePoolPath string
 
 	Session *session.Session
 	Context context.Context
