@@ -53,22 +53,12 @@ const defaultSyslogPort = 514
 const registryValidationTime = 10 * time.Second
 
 type Validator struct {
-	datacenterPath string
-
 	session *session.Session
 
 	isVC   bool
 	issues []error
 
 	allowEmptyDC bool
-}
-
-func (v *Validator) DatacenterPath() string {
-	return v.datacenterPath
-}
-
-func (v *Validator) SetDatacenterPath(datacenterPath string) {
-	v.datacenterPath = datacenterPath
 }
 
 func (v *Validator) Session() *session.Session {
@@ -133,10 +123,10 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 	}
 
 	// if a datacenter was specified, set it
-	v.datacenterPath = tURL.Path
-	if v.datacenterPath != "" {
-		v.datacenterPath = strings.TrimPrefix(v.datacenterPath, "/")
-		sessionconfig.DatacenterPath = v.datacenterPath
+	datacenterPath := tURL.Path
+	if datacenterPath != "" {
+		datacenterPath = strings.TrimPrefix(datacenterPath, "/")
+		sessionconfig.DatacenterPath = datacenterPath
 		// path needs to be stripped before we can use it as a service url
 		tURL.Path = ""
 	}
@@ -179,16 +169,16 @@ func (v *Validator) AllowEmptyDC() {
 }
 
 func (v *Validator) datacenter(op trace.Operation) error {
-	if v.allowEmptyDC && v.datacenterPath == "" {
+	if v.allowEmptyDC && v.session.DatacenterPath == "" {
 		return nil
 	}
 	if v.session.Datacenter != nil {
-		v.datacenterPath = v.session.Datacenter.InventoryPath
+		v.session.DatacenterPath = v.session.Datacenter.InventoryPath
 		return nil
 	}
 	var detail string
-	if v.datacenterPath != "" {
-		detail = fmt.Sprintf("Datacenter %q in --target is not found", path.Base(v.datacenterPath))
+	if v.session.DatacenterPath != "" {
+		detail = fmt.Sprintf("Datacenter %q in --target is not found", path.Base(v.session.DatacenterPath))
 	} else {
 		// this means multiple datacenter exists, but user did not specify it in --target
 		detail = "Datacenter must be specified in --target (e.g. https://addr/datacenter)"
