@@ -51,6 +51,7 @@ type Configure struct {
 	executor *management.Dispatcher
 
 	Force bool
+	help  common.Help
 }
 
 func NewConfigure() *Configure {
@@ -87,25 +88,26 @@ func (c *Configure) Flags() []cli.Flag {
 		},
 	}
 
-	dns := c.dns.DNSFlags(false)
+	dns := c.dns.DNSFlags()
 	target := c.TargetFlags()
-	ops := c.OpsCredentials.Flags(false)
+	ops := c.OpsCredentials.Flags()
 	id := c.IDFlags()
 	volume := c.volStores.Flags()
 	compute := c.ComputeFlags()
-	affinity := c.AffinityFlags(false)
+	affinity := c.AffinityFlags()
 	container := c.ContainerFlags()
-	debug := c.DebugFlags(false)
-	cNetwork := c.cNetworks.CNetworkFlags(false)
-	proxies := c.proxies.ProxyFlags(false)
-	memory := c.VCHMemoryLimitFlags(false)
-	cpu := c.VCHCPULimitFlags(false)
+	debug := c.DebugFlags(true)
+	cNetwork := c.cNetworks.CNetworkFlags()
+	proxies := c.proxies.ProxyFlags()
+	memory := c.VCHMemoryLimitFlags()
+	cpu := c.VCHCPULimitFlags()
 	certificates := c.certificates.CertFlags()
 	registries := c.registries.Flags()
+	help := c.help.HelpFlags()
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, ops, id, compute, affinity, container, volume, dns, cNetwork, memory, cpu, certificates, registries, proxies, util, debug} {
+	for _, f := range [][]cli.Flag{target, ops, id, compute, affinity, container, volume, dns, cNetwork, memory, cpu, certificates, registries, proxies, util, debug, help} {
 		flags = append(flags, f...)
 	}
 
@@ -300,6 +302,11 @@ func (c *Configure) processCertificates(op trace.Operation, client, public, mana
 }
 
 func (c *Configure) Run(clic *cli.Context) (err error) {
+
+	if c.help.Print(clic) {
+		return nil
+	}
+
 	parentOp := common.NewOperation(clic, c.Debug.Debug)
 	defer func(op trace.Operation) {
 		// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
