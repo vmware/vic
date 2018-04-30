@@ -206,6 +206,7 @@ pipeline:
       branch: [master, 'releases/*']
       event: [push, tag]
 
+
   publish-gcs-builds-on-pass:
     image: 'victest/drone-gcs:1'
     pull: true
