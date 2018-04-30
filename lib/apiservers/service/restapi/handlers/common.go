@@ -95,9 +95,8 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 			return data, nil, util.NewError(http.StatusBadRequest, "Validation Error: datacenter parameter is not a datacenter moref")
 		}
 
-		// Set validator datacenter path and correspondent validator session config
-		v.SetDatacenterPath(dc.Name())
-		v.Session().DatacenterPath = v.DatacenterPath()
+		// Set datacenter path and corresponding finder config
+		v.Session().DatacenterPath = dc.Name()
 		v.Session().Datacenter = dc
 		v.Session().Finder.SetDatacenter(dc)
 
