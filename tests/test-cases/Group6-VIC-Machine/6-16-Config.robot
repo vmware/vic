@@ -19,6 +19,17 @@ Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
+*** Keywords ***
+Wait For DNS Update
+    [Arguments]  ${shouldContain}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep dns
+    Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  ${shouldContain}  Should Contain  ${output}  network/dns
+    Run Keyword If  ${shouldContain}  Should Not Contain  ${output}  assigned.dns
+
+    Run Keyword Unless  ${shouldContain}  Should Contain  ${output}  assigned.dns
+    Run Keyword Unless  ${shouldContain}  Should Not Contain  ${output}  network/dns
+
 *** Test Cases ***
 Configure VCH debug state
     ${output}=  Run  bin/vic-machine-linux configure --help
@@ -45,10 +56,6 @@ Configure VCH debug state
     Should Contain  ${output}  0
     ${output}=  Run  bin/vic-machine-linux configure --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
     Should Contain  ${output}  Completed successfully
-    ${rc}  ${output}=  Run And Return Rc And Output  govc snapshot.tree -vm %{VCH-NAME} | grep reconfigure
-    Should Be Equal As Integers  ${rc}  0
-    ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  1
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
     Should Be Equal As Integers  0  ${rc}
     Should Contain  ${output}  --debug=1
@@ -84,7 +91,7 @@ Configure VCH Container Networks
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  management
     ${dvs}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc find -type DistributedVirtualSwitch | head -n1
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc dvs.portgroup.add -dvs ${dvs} management
-    
+
     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --container-network=%{PUBLIC_NETWORK}:public --container-network management:mgmt --container-network-ip-range=management:10.10.10.0/24 --container-network-gateway=management:10.10.10.1/24
     Should Contain  ${output}  all existing container networks must also be specified
     Should Not Contain  ${output}  Completed successfully
@@ -176,20 +183,34 @@ Configure VCH DNS server
     Should Not Contain  ${output}  --dns-server
     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --dns-server 10.118.81.1 --dns-server 10.118.81.2
     Should Contain  ${output}  Completed successfully
+
+    Enable VCH SSH
+    ${rc}  ${output}=  Run And Return Rc and Output  sshpass -p %{TEST_PASSWORD} ssh -o StrictHostKeyChecking=no root@%{VCH-IP} cat /etc/resolv.conf
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  nameserver 10.118.81.1
+    Should Contain  ${output}  nameserver 10.118.81.2
+
+    ${rc}  ${output}=  Run And Return Rc and Output  sshpass -p %{TEST_PASSWORD} ssh -o StrictHostKeyChecking=no root@%{VCH-IP} cat /etc/resolv.conf | grep nameserver | wc -l
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  2
+
     ${output}=  Run  bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
     Should Contain  ${output}  --dns-server=10.118.81.1
     Should Contain  ${output}  --dns-server=10.118.81.2
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep dns
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  network/dns
-    Should Not Contain  ${output}  assigned.dns
+
     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --dns-server ""
     Should Contain  ${output}  Completed successfully
     Should Not Contain  ${output}  --dns-server
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep dns
+
+    # Remove old SSH key since it changes after reboot.
+    ${rc}=  Run And Return Rc  ssh-keygen -f "/root/.ssh/known_hosts" -R %{VCH-IP}
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  assigned.dns
-    Should Not Contain  ${output}  network/dns
+
+    Enable VCH SSH
+    ${rc}  ${output}=  Run And Return Rc and Output  sshpass -p %{TEST_PASSWORD} ssh -o StrictHostKeyChecking=no root@%{VCH-IP} cat /etc/resolv.conf
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  nameserver 10.118.81.1
+    Should Not Contain  ${output}  nameserver 10.118.81.2
 
 Configure VCH resources
     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --cpu 5129 --cpu-reservation 10 --cpu-shares 8000 --memory 4096 --memory-reservation 10 --memory-shares 163840

@@ -181,7 +181,7 @@ Run Secret SSHPASS command
     [Tags]  secret
     [Arguments]  ${user}  ${password}  ${cmd}
 
-    ${out}=  Start Process  sshpass -p ${password} ssh -o StrictHostKeyChecking\=no ${user}@%{NIMBUS_GW} ${cmd}  shell=True
+    ${out}=  Start Process  sshpass -p ${password} ssh -o StrictHostKeyChecking\=no -o ServerAliveInterval\=60 -o ServerAliveCountMax\=10 ${user}@%{NIMBUS_GW} ${cmd}  shell=True
     [Return]  ${out}
 
 Deploy Nimbus vCenter Server Async
@@ -450,6 +450,45 @@ Power Off Host
     Login  root  ${NIMBUS_ESX_PASSWORD}
     ${out}=  Execute Command  poweroff -d 0 -f
     Close connection
+
+Create Simple VC Cluster With Static IP
+    [Arguments]  ${name}=vic-simple-vc-static-ip
+    [Timeout]    110 minutes
+    Set Suite Variable  ${NIMBUS_LOCATION}  NIMBUS_LOCATION=wdc
+    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
+    Log To Console  Create a new simple vc cluser with static ip support...
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-simple-cluster --testbedSpecRubyFile /dbc/pa-dbc1111/mhagen/nimbus-testbeds/testbeds/vic-simple-cluster.rb --runName ${name}
+    Log  ${out}
+
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc-ip}=  Get IP  ${name}.vc.0
+    ${pod}=  Fetch POD  ${name}.vc.0
+    Set Suite Variable  ${NIMBUS_POD}  ${pod}
+    Close Connection
+
+    Set Suite Variable  @{list}  %{NIMBUS_USER}-${name}.esx.0  %{NIMBUS_USER}-${name}.esx.1  %{NIMBUS_USER}-${name}.esx.2  %{NIMBUS_USER}-${name}.nfs.0  %{NIMBUS_USER}-${name}.vc.0
+    Log To Console  Finished Creating Cluster ${name}
+
+    ${out}=  Get Static IP Address
+    Set Suite Variable  ${static}  ${out}
+    Append To List  ${list}  %{STATIC_WORKER_NAME}
+
+    Log To Console  Set environment variables up for GOVC
+    Set Environment Variable  GOVC_URL  ${vc-ip}
+    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  GOVC_PASSWORD  Admin\!23
+
+    Log To Console  Deploy VIC to the VC cluster
+    Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
+    Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  TEST_PASSWORD  Admin\!23
+    Set Environment Variable  BRIDGE_NETWORK  bridge
+    Set Environment Variable  PUBLIC_NETWORK  vm-network
+    Remove Environment Variable  TEST_DATACENTER
+    Set Environment Variable  TEST_DATASTORE  nfs0-1
+    Set Environment Variable  TEST_RESOURCE  cls
+    Set Environment Variable  TEST_TIMEOUT  15m
 
 Create Static IP Worker
     Open Connection  %{NIMBUS_GW}

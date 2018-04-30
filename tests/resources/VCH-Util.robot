@@ -310,7 +310,9 @@ Install VIC Appliance To Test Server With Current Environment Variables
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Containers On Test Server
+    Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Folders On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Resource Pools On Test Server
+    Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling VM Groups On Test Server
 
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
@@ -366,6 +368,11 @@ Run VIC Machine Delete Command
     Assert  ${status}  vic-machine delete failed to remove %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
+
+    # Check that the VCH folder (if created) is removed
+    ${ret}=  Run  govc find %{TEST_DATACENTER}/vm -type f
+    Should Not Contain  ${ret}  %{VCH-NAME}
+
     ${output}=  Run  rm -rf %{VCH-NAME}
     [Return]  ${output}
 
@@ -399,12 +406,13 @@ Check UpdateInProgress
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${expected}
 
+# This keyword is used to match two patterns on the same line occurring in any order
 Portlayer Log Should Match Regexp
     [Tags]  secret
-    [Arguments]  ${pattern}
+    [Arguments]  ${pattern1}  ${pattern2}
     ${out}=  Run  curl -k -D /tmp/cookies-%{VCH-NAME} -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
     Log  ${out}
-    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b /tmp/cookies-%{VCH-NAME} | grep -q -e \'${pattern}\'
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b /tmp/cookies-%{VCH-NAME} | grep -ie \'${pattern1}\' | grep -iqe \'${pattern2}\'
     Should Be Equal As Integers  ${rc}  0
 
 Gather Logs From Test Server
@@ -551,6 +559,27 @@ Cleanup Dangling VMs On Test Server
     \   ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vm}
     \   Run Keyword And Continue On Failure  Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vm}
 
+Cleanup Dangling Folders On Test Server
+    ${out}=  Run  govc ls vm
+    Log  ${out}
+    ${exceptions}=  Get Environment Variable  VM_EXCEPTIONS  ${EMPTY}
+    ${vms}=  Split To Lines  ${out}
+    :FOR  ${vm}  IN  @{vms}
+    \   ${vm}=  Fetch From Right  ${vm}  /
+    \   ${build}=  Split String  ${vm}  -
+    \   # Skip any VM that is not associated with integration tests
+    \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   ${skip}=  Check If VCH Is In Exception  vch=${vm}  exceptions=${exceptions}
+    \   Continue For Loop If  ${skip}
+    \   # Skip any VM that is still running
+    \   ${state}=  Get State Of Drone Build  @{build}[1]
+    \   Continue For Loop If  '${state}' == 'running'
+    \   Log To Console  Destroying dangling VCH Folder: vm/${vm}
+    \   ${rc}=  Run and Return Rc  govc object.destroy vm/${vm}
+    \   Run KeyWord If  '$rc' != '0'  Log  failed to clean up vch folder path vm/${vm}
+    \   ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vm}
+    \   Run Keyword And Continue On Failure  Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vm}
+
 Cleanup Dangling Resource Pools On Test Server
     ${out}=  Run  govc ls host/*/Resources/*
     Log  ${out}
@@ -591,6 +620,24 @@ Cleanup Dangling Networks On Test Server
     \   Continue For Loop If  '${state}' == 'running'
     \   ${uuid}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${net}
     \   ${uuid}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  ${net}
+
+Cleanup Dangling VM Groups On Test Server
+    ${out}=  Run  govc cluster.group.ls
+    Log  ${out}
+    ${exceptions}=  Get Environment Variable  VM_EXCEPTIONS  ${EMPTY}
+    ${groups}=  Split To Lines  ${out}
+    :FOR  ${group}  IN  @{groups}
+    \   ${build}=  Split String  ${group}  -
+    \   # Skip any group that is not associated with integration tests
+    \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   # Skip any Group that is attached to a VCH in the exception list
+    \   ${skip}=  Check If VCH Is In Exception  vch=${group}  exceptions=${exceptions}
+    \   Continue For Loop If  ${skip}
+    \   # Skip any Group that is still running
+    \   ${state}=  Get State Of Drone Build  @{build}[1]
+    \   Continue For Loop If  '${state}' == 'running'
+    \   Log To Console  Destroying dangling DRS VM Group: ${group}
+    \   ${output}=  Run  govc cluster.group.remove -name ${group}
 
 Cleanup Dangling vSwitches On Test Server
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.vswitch.info | grep VCH
@@ -660,11 +707,11 @@ Get VCH ID
 
 # VCH upgrade helpers
 Install VIC with version to Test Server
-    [Arguments]  ${version}=7315  ${insecureregistry}=  ${cleanup}=${true}
+    [Arguments]  ${version}  ${insecureregistry}=  ${cleanup}=${true}  ${additional-args}=
     Log To Console  \nDownloading vic ${version} from gcp...
-    ${rc}  ${output}=  Run And Return Rc And Output  wget https://storage.googleapis.com/vic-engine-builds/vic_${version}.tar.gz -O vic.tar.gz
+    ${rc}  ${output}=  Run And Return Rc And Output  wget https://storage.googleapis.com/vic-engine-releases/vic_${version}.tar.gz -O vic.tar.gz
     ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
-    Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}  cleanup=${cleanup}  vol=default ${insecureregistry}
+    Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}  cleanup=${cleanup}  additional-args=${additional-args}  vol=default ${insecureregistry}
 
     Set Environment Variable  VIC-ADMIN  %{VCH-IP}:2378
     Set Environment Variable  INITIAL-VERSION  ${version}
@@ -734,3 +781,11 @@ Assert
     ${envExists}=  Run Keyword And Return Status  Environment Variable Should Be Set  FAST_FAILURE
     Run Keyword If  ${envExists}  Run Keyword If  %{FAST_FAILURE}  Run Keyword Unless  ${status}  Fatal Error  ${msg}
     Run Keyword Unless  ${status}  Fail  ${msg}
+
+Manually Cleanup VCH
+    [Arguments]  ${vch-name}
+    ${out}=  Run Keyword And Ignore Error  Run  govc vm.destroy ${vch-name}
+    ${out}=  Run Keyword And Ignore Error  Run  govc pool.destroy host/*/Resources/${vch-name}
+    ${out}=  Run Keyword And Ignore Error  Run  govc datastore.rm ${vch-name}
+    ${out}=  Run Keyword And Ignore Error  Run  govc host.portgroup.remove ${vch-name}-bridge
+    ${out}=  Run Keyword And Ignore Error  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc object.destroy vm/${vch-name}

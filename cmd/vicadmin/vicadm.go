@@ -325,7 +325,8 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 
 	ref := vchConfig.ComputeResources[0]
 	rp := compute.NewResourcePool(ctx, s, ref)
-	if children, err = rp.GetChildrenVMs(ctx, s); err != nil {
+	op := trace.NewOperation(ctx, "GetChildren")
+	if children, err = rp.GetChildrenVMs(op); err != nil {
 		return nil, err
 	}
 
@@ -346,7 +347,7 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 			continue
 		}
 
-		logname, err := child.Name(ctx)
+		logname, err := child.ObjectName(ctx)
 		if err != nil {
 			log.Errorf("Unable to get the vm name for %s: %s", child.Reference(), err)
 			continue

@@ -303,6 +303,7 @@ func (c *Create) Flags() []cli.Flag {
 	target := c.TargetFlags()
 	ops := c.OpsCredentials.Flags(true)
 	compute := c.ComputeFlags()
+	affinity := c.AffinityFlags(true)
 	container := c.ContainerFlags()
 	volume := c.volumeStores.Flags()
 	iso := c.ImageFlags(true)
@@ -313,7 +314,7 @@ func (c *Create) Flags() []cli.Flag {
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, compute, ops, create, container, volume, dns, networks, cNetwork, memory, cpu, tls, registries, proxies, syslog, iso, util, debug, help} {
+	for _, f := range [][]cli.Flag{target, compute, ops, create, affinity, container, volume, dns, networks, cNetwork, memory, cpu, tls, registries, proxies, syslog, iso, util, debug, help} {
 		flags = append(flags, f...)
 	}
 
@@ -733,7 +734,8 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	// separate initial validation from dispatch of creation task
 	op.Info("")
 
-	executor := management.NewDispatcher(op, validator.Session, vchConfig, c.Force)
+	executor := management.NewDispatcher(op, validator.Session, management.CreateAction, c.Force)
+	executor.InitDiagnosticLogsFromConf(vchConfig)
 	if err = executor.CreateVCH(vchConfig, vConfig, datastoreLog); err != nil {
 		executor.CollectDiagnosticLogs()
 		op.Error(err)

@@ -16,7 +16,7 @@
 # Run robot integration tests locally, no .yml files required.
 # Set GITHUB_TOKEN once and switch environments just by changing GOVC_URL
 
-cmd="pybot"
+cmd="pybot -L DEBUG --debugfile debug.log"
 
 while getopts t: flag
 do

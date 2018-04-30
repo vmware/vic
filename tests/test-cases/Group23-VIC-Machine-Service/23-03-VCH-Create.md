@@ -24,7 +24,9 @@ These tests are intended to verify the feature at a basic level.
 
 ###  1. Create a simple VCH (i.e., one using as many defaults as possible)
 
-###  2. Create a complex VCH (i.e., one which explicitly specifies as many settings as possible)
+###  2. Create minimal VCH within datacenter
+
+###  3. Create a complex VCH (i.e., one which explicitly specifies as many settings as possible)
 
 
 Negative Cases
@@ -44,31 +46,21 @@ These tests are intended to verify the behavior in various failure cases. We mus
 
 ###  6. Attempt to create a VCH with a name containing invalid characters
 
+###  7. Attempt to create VCH with a very long name (over 31 characters)
+
+###  8. Attempt to create a VCH with a name that is already in use
+
+###  9. Attempt to create a VCH with an invalid container name convention
+
+###  10. Attempt to create a VCH specifying an ID
 (Not implemented.)
 
-###  7. Attempt to create a VCH with a name that is already in use
 
-(Not implemented.)
+### 11. Attempt to create various VCHs with invalid resource settings
 
-###  8. Attempt to create a VCH with an invalid container name convention
+### 12. Attempt to create various VCHs with invalid registry settings
 
-(Not implemented.)
-
-###  9. Attempt to create a VCH specifying an ID
-
-(Not implemented.)
-
-### 10. Attempt to create various VCHs with invalid resource settings
-
-(Not implemented.)
-
-### 11. Attempt to create various VCHs with invalid registry settings
-
-(Not implemented.)
-
-### 12. Attempt to create various VCHs with invalid security settings
-
-(Not implemented.)
+### 13. Attempt to create various VCHs with invalid security settings
 
 
 Interoperability
@@ -77,8 +69,6 @@ Interoperability
 These tests are intended to verify that the API and CLI can coexist without issue.
 
 ###  1. Verify that the CLI can be used to delete a VCH created by the API
-
-(Not implemented.)
 
 
 Concurrency

@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
@@ -807,18 +808,41 @@ func (c *Container) onEvent(op trace.Operation, newState State, e events.Event) 
 	}
 }
 
-// get the containerVMs from infrastructure for this resource pool
+// get the containerVMs from infrastructure for this resource pool or the VCH Folder
 func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, error) {
 	defer trace.End(trace.Begin(""))
-	var rp mo.ResourcePool
+	var vms []mo.VirtualMachine
+	var vmRefs []types.ManagedObjectReference
+	var err error
 
-	// popluate the vm property of the vch resource pool
-	if err := Config.ResourcePool.Properties(ctx, Config.ResourcePool.Reference(), []string{"vm"}, &rp); err != nil {
-		name := Config.ResourcePool.Name()
-		log.Errorf("List failed to get %s resource pool child vms: %s", name, err)
-		return nil, err
+	// Does the VCH have it's own folder?
+	if sess.VCHFolder.Reference() == sess.VMFolder.Reference() {
+		var rp mo.ResourcePool
+		// populate the vm property of the vch resource pool
+		if err := Config.ResourcePool.Properties(ctx, Config.ResourcePool.Reference(), []string{"vm"}, &rp); err != nil {
+			name := Config.ResourcePool.Name()
+			log.Errorf("List failed to get %s resource pool child vms: %s", name, err)
+			return nil, err
+		}
+		vmRefs = rp.Vm
+	} else {
+		// vch has it's own folder. get the cvm's from here.
+		children, err := sess.VCHFolder.Children(ctx)
+		if err != nil {
+			log.Errorf("List failed to get the children of Folder %s: %s", sess.VCHFolder.InventoryPath, err)
+			return nil, err
+		}
+
+		for _, child := range children {
+			vmObj, ok := child.(*object.VirtualMachine)
+			if ok {
+				vmRefs = append(vmRefs, vmObj.Reference())
+			}
+		}
 	}
-	vms, err := populateVMAttributes(ctx, sess, rp.Vm)
+
+	// Retrieve slice of mo.VirtualMachine with default attributes populated
+	vms, err = vm.Attributes(ctx, sess, vmRefs)
 	if err != nil {
 		return nil, err
 	}
@@ -837,19 +861,6 @@ func instanceUUID(id string) (string, error) {
 		return "", errors.Errorf("unable to parse VCH uuid: %s", err)
 	}
 	return uuid.NewSHA1(namespace, []byte(id)).String(), nil
-}
-
-// populate the vm attributes for the specified morefs
-func populateVMAttributes(ctx context.Context, sess *session.Session, refs []types.ManagedObjectReference) ([]mo.VirtualMachine, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("populating %d refs", len(refs))))
-	var vms []mo.VirtualMachine
-
-	// current attributes we care about
-	attrib := []string{"config", "runtime.powerState", "summary"}
-
-	// populate the vm properties
-	err := sess.Retrieve(ctx, refs, attrib, &vms)
-	return vms, err
 }
 
 // convert the infra containers to a container object

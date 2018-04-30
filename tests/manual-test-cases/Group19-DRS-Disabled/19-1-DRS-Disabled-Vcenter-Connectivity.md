@@ -1,8 +1,8 @@
-Test 19-5 - ROBO vCenter Connectivity
+Test 19-1 - DRS Disabled vCenter Connectivity
 =======
 
 # Purpose:
-To verify that the applications deployed in containerVMs in a ROBO Advanced environment are functional when the ESXi(s) hosting the containerVMs are disconnected from the vSphere host. This test exercises the WAN connectivity and resiliency support for a ROBO environment that could represent a customer's cluster topology. 
+To verify that the applications deployed in containerVMs in a disabled DRS environment are functional when the ESXi(s) hosting the containerVMs are disconnected from the vSphere host. This test exercises the WAN connectivity and resiliency support for an environment that could represent a customer's cluster topology with remote elements, such as a ROBO deployement or an environment where one or more VC(s) and/or ESX hosts are in different locations.
 
 # References:
 1. [vSphere Remote Office and Branch Office](http://www.vmware.com/products/vsphere/remote-office-branch-office.html)
