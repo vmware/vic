@@ -408,11 +408,9 @@ Check UpdateInProgress
 
 # This keyword is used to match two patterns on the same line occurring in any order
 Portlayer Log Should Match Regexp
-    [Tags]  secret
     [Arguments]  ${pattern1}  ${pattern2}
-    ${out}=  Run  curl -k -D /tmp/cookies-%{VCH-NAME} -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
-    Log  ${out}
-    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b /tmp/cookies-%{VCH-NAME} | grep -ie \'${pattern1}\' | grep -iqe \'${pattern2}\'
+    Login To VCH Admin And Save Cookies
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b vic-admin-cookies | grep -ie \'${pattern1}\' | grep -iqe \'${pattern2}\'
     Should Be Equal As Integers  ${rc}  0
 
 Gather Logs From Test Server
@@ -431,28 +429,30 @@ Gather Logs From Test Server
 
 Curl Container Logs
     [Arguments]  ${name-suffix}=${EMPTY}
-    ${out1}  ${out2}  ${out3}=  Secret Curl Container Logs  ${name-suffix}
-    Log  ${out1}
-    Log  ${out2}
-    Log  ${out3}
-    Should Not Contain  ${out3}  SIGSEGV: segmentation violation
-
-Secret Curl Container Logs
-    [Tags]  secret
-    [Arguments]  ${name-suffix}=${EMPTY}
-    ${out1}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
-    ${out2}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs${name-suffix}.zip
-    ${out3}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/logs/port-layer.log
+    Login To VCH Admin And Save Cookies
+    ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs${name-suffix}.zip
+    Log  ${out}
+    ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/logs/port-layer.log
+    Log  ${out}
     Remove File  vic-admin-cookies
-    [Return]  ${out1}  ${out2}  ${out3}
+    Should Not Contain  ${out}  SIGSEGV: segmentation violation
+
+Curl VCH Admin Cookies
+    [Tags]  secret
+    ${rc}  ${out}=  Run And Return Rc and Output  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
+    [Return]  ${rc}  ${out}
+
+Login To VCH Admin And Save Cookies
+    ${rc}  ${out}=  Curl VCH Admin Cookies
+    Log  ${out}
+    Should Be Equal As Integers  ${rc}  0
 
 Check For The Proper Log Files
     [Arguments]  ${container}
     # Ensure container logs are correctly being gathered for debugging purposes
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/authentication -XPOST -F username=%{TEST_USERNAME} -F password=%{TEST_PASSWORD} -D /tmp/cookies-%{VCH-NAME}
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b /tmp/cookies-%{VCH-NAME} -o container-logs.tar.gz
+    Login To VCH Admin And Save Cookies
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b vic-admin-cookies -o container-logs.tar.gz
+    Remove File  vic-admin-cookies
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc and Output  tar tvzf container-logs.tar.gz
@@ -465,19 +465,17 @@ Check For The Proper Log Files
 
 Scrape Logs For the Password
     [Tags]  secret
-    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/authentication -XPOST -F username=%{TEST_USERNAME} -F password=%{TEST_PASSWORD} -D /tmp/cookies-%{VCH-NAME}
-    Should Be Equal As Integers  ${rc}  0
-
-    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b /tmp/cookies-%{VCH-NAME} | grep -q "%{TEST_PASSWORD}"
+    Login To VCH Admin And Save Cookies
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b vic-admin-cookies | grep -q "%{TEST_PASSWORD}"
     Should Be Equal As Integers  ${rc}  1
-    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/init.log -b /tmp/cookies-%{VCH-NAME} | grep -q "%{TEST_PASSWORD}"
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/init.log -b vic-admin-cookies | grep -q "%{TEST_PASSWORD}"
     Should Be Equal As Integers  ${rc}  1
-    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/docker-personality.log -b /tmp/cookies-%{VCH-NAME} | grep -q "%{TEST_PASSWORD}"
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/docker-personality.log -b vic-admin-cookies | grep -q "%{TEST_PASSWORD}"
     Should Be Equal As Integers  ${rc}  1
-    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/vicadmin.log -b /tmp/cookies-%{VCH-NAME} | grep -q "%{TEST_PASSWORD}"
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/vicadmin.log -b vic-admin-cookies | grep -q "%{TEST_PASSWORD}"
     Should Be Equal As Integers  ${rc}  1
 
-    Remove File  /tmp/cookies-%{VCH-NAME}
+    Remove File  vic-admin-cookies
 
 Cleanup VIC Appliance On Test Server
     ${sessions}=  Run Keyword And Ignore Error  Get Session List
