@@ -674,6 +674,44 @@ func TestValidateWithFolders(t *testing.T) {
 		}
 	}
 
+	input.URL.Path = ""
+	validator, err = NewValidator(op, input)
+	if err != nil {
+		t.Fatalf("Expected instantiation to succeed")
+	}
+	_, err = validator.Validate(op, input, false)
+	if err == nil {
+		t.Fatalf("Expected multiple datacenter validation to fail")
+	} else if !strings.Contains(err.Error(), "Datacenter must be specified") {
+		t.Fatalf("Multiple datacenter validation failed with wrong message")
+	}
+
+	debug := 1
+	cnc := "prefix-{id}-suffix"
+	syslog, _ := url.Parse("tcp://syslog.example.vmware.com")
+
+	input.URL.Path = dc
+	input.Debug.Debug = &debug
+	input.ContainerNameConvention = cnc
+	input.SyslogConfig.Addr = syslog
+	validator, err = NewValidator(op, input)
+	if err != nil {
+		t.Fatalf("Expected instantiation to succeed")
+	}
+	conf, err := validator.Validate(op, input, false)
+	if err != nil {
+		t.Fatalf("Expected validation to succeed")
+	}
+	if conf.ExecutorConfig.Diagnostics.DebugLevel != debug {
+		t.Fatalf("Expected debug level to be stored")
+	}
+	if conf.ContainerNameConvention != cnc {
+		t.Fatalf("Expected container name convention to be stored")
+	}
+	if conf.Diagnostics.SysLogConfig == nil || conf.Diagnostics.SysLogConfig.Network != syslog.Scheme || !strings.Contains(conf.Diagnostics.SysLogConfig.RAddr, syslog.Host) {
+		t.Fatalf("Expected syslog server to be stored")
+	}
+
 	// we have valid input at this point, test various compute-resource suggestions
 	vs := validator.session
 	crs := []struct {
@@ -747,6 +785,17 @@ func TestValidateWithFolders(t *testing.T) {
 	validator.certificateAuthorities(op, input, spec)
 
 	validator.registries(op, input, spec)
+	insecure := "insecure.example.vmware.com"
+	whitelist := "whitelist.example.vmware.com"
+	input.InsecureRegistries = []string{insecure}
+	input.WhitelistRegistries = []string{whitelist}
+	validator.registries(op, input, spec)
+	if len(spec.InsecureRegistries) != 1 || spec.InsecureRegistries[0] != insecure {
+		t.Fatal("Insecure registry not stored")
+	}
+	if len(spec.RegistryWhitelist) != 2 || spec.RegistryWhitelist[0] != whitelist {
+		t.Fatal("Whitelist registry not stored")
+	}
 	input.RegistryCAs = input.ClientCAs
 	validator.registries(op, input, spec)
 }
