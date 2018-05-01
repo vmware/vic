@@ -312,10 +312,10 @@ func testCompute(ctx context.Context, v *Validator, input *data.Data, t *testing
 	conf := &config.VirtualContainerHostConfigSpec{}
 
 	for _, test := range tests {
-		if v.isVC && !test.vc {
+		if v.isVC() && !test.vc {
 			continue
 		}
-		if !v.isVC && test.vc {
+		if !v.isVC() && test.vc {
 			continue
 		}
 		t.Logf("%+v", test)

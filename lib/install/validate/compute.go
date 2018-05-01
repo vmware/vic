@@ -46,7 +46,7 @@ func (v *Validator) checkVMGroup(op trace.Operation, input *data.Data, conf *con
 	defer trace.End(trace.Begin("", op))
 
 	if input.UseVMGroup {
-		if !v.IsVC() {
+		if !v.isVC() {
 			v.NoteIssue(errors.New("DRS VM Groups may only be configured when using VC"))
 			return
 		}

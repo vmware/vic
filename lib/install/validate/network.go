@@ -286,7 +286,7 @@ func (v *Validator) network(op trace.Operation, input *data.Data, conf *config.V
 
 	checkBridgeVDS := true
 	if err != nil {
-		if _, ok := err.(*find.NotFoundError); !ok || v.IsVC() {
+		if _, ok := err.(*find.NotFoundError); !ok || v.isVC() {
 			v.NoteIssue(fmt.Errorf("An existing distributed port group must be specified for bridge network on vCenter: %s", err))
 			v.suggestNetwork(op, "--bridge-network", false)
 			checkBridgeVDS = false // prevent duplicate error output
@@ -491,7 +491,7 @@ func (v *Validator) dpgMorefHelper(op trace.Operation, ref string) (string, erro
 
 	// ensure that the type of the network is a Distributed Port Group if the target is a vCenter
 	// if it's not then any network suffices
-	if v.IsVC() {
+	if v.isVC() {
 		_, dpg := net.(*object.DistributedVirtualPortgroup)
 		if !dpg {
 			return "", fmt.Errorf("%q is not a Distributed Port Group", ref)
@@ -511,7 +511,7 @@ func (v *Validator) dpgHelper(op trace.Operation, path string) (types.ManagedObj
 
 	// ensure that the type of the network is a Distributed Port Group if the target is a vCenter
 	// if it's not then any network suffices
-	if v.IsVC() {
+	if v.isVC() {
 		_, dpg := net.(*object.DistributedVirtualPortgroup)
 		if !dpg {
 			return types.ManagedObjectReference{}, fmt.Errorf("%q is not a Distributed Port Group", path)
@@ -540,7 +540,7 @@ func (v *Validator) checkVDSMembership(op trace.Operation, network types.Managed
 	var dvp mo.DistributedVirtualPortgroup
 	var nonMembers []string
 
-	if !v.IsVC() {
+	if !v.isVC() {
 		return nil
 	}
 

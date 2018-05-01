@@ -55,7 +55,6 @@ const registryValidationTime = 10 * time.Second
 type Validator struct {
 	session *session.Session
 
-	isVC   bool
 	issues []error
 
 	allowEmptyDC bool
@@ -70,7 +69,6 @@ func CreateFromSession(ctx context.Context, sess *session.Session) (*Validator, 
 
 	v := &Validator{}
 	v.session = sess
-	v.isVC = v.session.IsVC()
 
 	return v, nil
 }
@@ -143,8 +141,6 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 		return nil, err
 	}
 
-	// cached here to allow a modicum of testing while session is still in use.
-	v.isVC = v.session.IsVC()
 	finder := find.NewFinder(v.session.Client.Client, false)
 	v.session.Finder = finder
 
@@ -394,7 +390,7 @@ func (v *Validator) target(op trace.Operation, input *data.Data, conf *config.Vi
 func (v *Validator) managedbyVC(op trace.Operation) {
 	defer trace.End(trace.Begin("", op))
 
-	if v.IsVC() {
+	if v.isVC() {
 		return
 	}
 	host, err := v.session.Finder.DefaultHostSystem(op)
@@ -810,8 +806,8 @@ func intersect(one []*object.HostSystem, two []*object.HostSystem) []*object.Hos
 	return result
 }
 
-func (v *Validator) IsVC() bool {
-	return v.isVC
+func (v *Validator) isVC() bool {
+	return v.session.IsVC()
 }
 
 func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, input *data.Data) *data.InstallerData {
@@ -914,7 +910,7 @@ func (v *Validator) configureVCenter(ctx context.Context) error {
 	if !v.sessionValid(op, errMsg) {
 		return nil
 	}
-	if !v.IsVC() {
+	if !v.isVC() {
 		op.Debug(errMsg)
 		return nil
 	}
