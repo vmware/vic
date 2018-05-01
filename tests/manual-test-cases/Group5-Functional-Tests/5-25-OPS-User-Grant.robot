@@ -17,7 +17,6 @@ Documentation  Test 5-25 - OPS-User-Grant
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  Ops User Create
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
-Test Teardown  Run Keyword If Test Failed  Gather vSphere Logs
 
 *** Keywords ***
 Ops User Create
@@ -139,27 +138,23 @@ vic-machine create grants ops-user perms
 
     Run privilege-dependent docker operations
 
-    Cleanup VIC Appliance On Test Server
+    [Teardown]  Cleanup VIC Appliance On Test Server
 
 granted ops-user perms work after upgrade
-    ${status}=  Get State Of Github Issue  7796
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 5-25-OPS-User-Grant.robot needs to be updated now that Issue #7796 has been resolved
-    Log  Issue \#7796 is blocking implementation  WARN
+    Install VIC with version to Test Server  v1.3.1  additional-args=--ops-user ${ops_user_name} --ops-password ${ops_user_password} --ops-grant-perms
 
-    #Install VIC with version to Test Server  v1.3.0  additional-args=--ops-user ${ops_user_name} --ops-password ${ops_user_password} --ops-grant-perms
-    #
-    #Check Original Version
-    #Upgrade
-    #Check Upgraded Version
-    #
+    Check Original Version
+    Upgrade
+    Check Upgraded Version
+
     # Run a govc test to check that access is denied on some resources
-    #Attempt To Create Resource Pool
-    #
-    #Run Regression Tests
-    #
-    #Run privilege-dependent docker operations
-    #
-    #Cleanup VIC Appliance On Test Server
+    Attempt To Create Resource Pool
+
+    Run Regression Tests
+
+    Run privilege-dependent docker operations
+
+    [Teardown]  Cleanup VIC Appliance On Test Server
 
 Test with VM-Host Affinity
     Log To Console  \nStarting test...
@@ -172,7 +167,7 @@ Test with VM-Host Affinity
 
     Run privilege-dependent docker operations
 
-    Cleanup VIC Appliance On Test Server
+    [Teardown]  Cleanup VIC Appliance On Test Server
 
 vic-machine configure grants ops-user perms
     Install VIC Appliance To Test Server
@@ -184,4 +179,4 @@ vic-machine configure grants ops-user perms
 
     Run privilege-dependent docker operations
 
-    Cleanup VIC Appliance On Test Server
+    [Teardown]  Cleanup VIC Appliance On Test Server
