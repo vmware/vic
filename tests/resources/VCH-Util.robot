@@ -439,7 +439,7 @@ Curl Container Logs
 
 Curl VCH Admin Cookies
     [Tags]  secret
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
+    ${rc}  ${out}=  Run And Return Rc and Output  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
     [Return]  ${rc}  ${out}
 
 Login To VCH Admin And Save Cookies
