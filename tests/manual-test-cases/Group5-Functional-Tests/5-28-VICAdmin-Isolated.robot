@@ -49,51 +49,53 @@ Deploy VCH With No WAN Secret
 Teardown VCH With No WAN
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
-Login And Save Cookies
-    [Tags]  secret
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/authentication -XPOST -F username=%{TEST_USERNAME} -F password=%{TEST_PASSWORD} -D /tmp/cookies-%{VCH-NAME}
-    Should Be Equal As Integers  ${rc}  0
-
 *** Test Cases ***
 Display HTML
-    Login And Save Cookies
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b /tmp/cookies-%{VCH-NAME}
+    Login To VCH Admin And Save Cookies
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b vic-admin-cookies
     Log  ${output}
+    Remove File  vic-admin-cookies
     Should contain  ${output}  <title>VIC: %{VCH-NAME}</title>
 
 WAN Status Should Fail
-    Login And Save Cookies
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b /tmp/cookies-%{VCH-NAME}
+    Login To VCH Admin And Save Cookies
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b vic-admin-cookies
     Log  ${output}
+    Remove File  vic-admin-cookies
     Should contain  ${output}  <div class="sixty">Registry and Internet Connectivity<span class="error-message">
 
 Fail To Pull Docker Image
-    Login And Save Cookies
+    Login To VCH Admin And Save Cookies
     ${rc}  ${output}=  Run And Return Rc and Output  docker %{VCH-PARAMS} pull ${busybox}
     Log  ${output}
+    Remove File  vic-admin-cookies
     Should Be Equal As Integers  ${rc}  1
     Should contain  ${output}  no route to host
 
 Get Portlayer Log
-    Login And Save Cookies
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b /tmp/cookies-%{VCH-NAME}
+    Login To VCH Admin And Save Cookies
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b vic-admin-cookies
     Log  ${output}
+    Remove File  vic-admin-cookies
     Should contain  ${output}  Launching portlayer server
 
 Get VCH-Init Log
-    Login And Save Cookies
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/init.log -b /tmp/cookies-%{VCH-NAME}
+    Login To VCH Admin And Save Cookies
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/init.log -b vic-admin-cookies
     Log  ${output}
+    Remove File  vic-admin-cookies
     Should contain  ${output}  reaping child processes
 
 Get Docker Personality Log
-    Login And Save Cookies
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/docker-personality.log -b /tmp/cookies-%{VCH-NAME}
+    Login To VCH Admin And Save Cookies
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/docker-personality.log -b vic-admin-cookies
     Log  ${output}
+    Remove File  vic-admin-cookies
     Should contain  ${output}  docker personality
 
 Get VICAdmin Log
-    Login And Save Cookies
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/vicadmin.log -b /tmp/cookies-%{VCH-NAME}
+    Login To VCH Admin And Save Cookies
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/vicadmin.log -b vic-admin-cookies
     Log  ${output}
+    Remove File  vic-admin-cookies
     Should contain  ${output}  Launching vicadmin pprof server
