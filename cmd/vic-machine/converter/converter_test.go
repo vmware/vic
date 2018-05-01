@@ -61,25 +61,7 @@ func (c testObject) Name() string {
 	}
 }
 
-func TestMain(t *testing.T) {
-	//	EnableLog()
-	//	trace.Logger.Level = log.DebugLevel
-
-	testInit(t)
-	testConvertImageStore(t)
-	testConvertVolumeStore(t)
-	testConvertVCHName(t)
-	testConvertTarget(t)
-	testConvertOps(t)
-	testConvertBaseImageSize(t)
-	testConvertPublicNetwork(t)
-	testConvertClientNetwork(t)
-	testConvertMgmtNetwork(t)
-	testGuestinfo(t)
-	testConvertSharesInfo(t)
-}
-
-func testInit(t *testing.T) {
+func TestInit(t *testing.T) {
 	var ok bool
 	_, ok = kindConverters[reflect.Struct]
 	assert.True(t, ok, fmt.Sprintf("Struct converter is not found"))
@@ -127,7 +109,7 @@ func testInit(t *testing.T) {
 	assert.True(t, ok, fmt.Sprintf("key-value handler is not found"))
 }
 
-func testConvertImageStore(t *testing.T) {
+func TestConvertImageStore(t *testing.T) {
 	data := data.NewData()
 	data.ImageDatastorePath = "ds://vsan/path"
 	options, err := DataToOption(data)
@@ -136,7 +118,7 @@ func testConvertImageStore(t *testing.T) {
 	assert.Equal(t, "ds://vsan/path", options["image-store"][0], "not expected image-store option")
 }
 
-func testConvertVolumeStore(t *testing.T) {
+func TestConvertVolumeStore(t *testing.T) {
 	tests := []struct {
 		in  map[string]*url.URL
 		out []string
@@ -182,7 +164,7 @@ func testConvertVolumeStore(t *testing.T) {
 	}
 }
 
-func testConvertVCHName(t *testing.T) {
+func TestConvertVCHName(t *testing.T) {
 	data := data.NewData()
 	data.DisplayName = "vch1"
 	options, err := DataToOption(data)
@@ -191,7 +173,7 @@ func testConvertVCHName(t *testing.T) {
 	assert.Equal(t, "vch1", options["name"][0], "not expected name option")
 }
 
-func testConvertTarget(t *testing.T) {
+func TestConvertTarget(t *testing.T) {
 	data := data.NewData()
 	data.Target.URL, _ = url.Parse("1.1.1.1")
 	options, err := DataToOption(data)
@@ -200,7 +182,7 @@ func testConvertTarget(t *testing.T) {
 	assert.Equal(t, "1.1.1.1", options["target"][0], "not expected target option")
 }
 
-func testConvertOps(t *testing.T) {
+func TestConvertOps(t *testing.T) {
 	data := data.NewData()
 	adminUser := "admin"
 	data.OpsCredentials.OpsUser = &adminUser
@@ -215,7 +197,7 @@ func testConvertOps(t *testing.T) {
 	assert.Equal(t, data.Thumbprint, options["thumbprint"][0], "not expected thumbprint option")
 }
 
-func testConvertBaseImageSize(t *testing.T) {
+func TestConvertBaseImageSize(t *testing.T) {
 	data := data.NewData()
 	data.ScratchSize = "8GB"
 	options, err := DataToOption(data)
@@ -237,7 +219,7 @@ func testConvertBridgeNetwork(t *testing.T) {
 	assert.Equal(t, data.BridgeNetworkName, options["bridge-network"][0], "not expected bridge-network option")
 }
 
-func testConvertPublicNetwork(t *testing.T) {
+func TestConvertPublicNetwork(t *testing.T) {
 	gwIP := net.ParseIP("172.16.0.1")
 	_, destination, _ := net.ParseCIDR("172.16.0.0/12")
 	ip, ipNet, _ := net.ParseCIDR("172.16.0.2/12")
@@ -257,7 +239,7 @@ func testConvertPublicNetwork(t *testing.T) {
 	assert.Equal(t, "172.16.0.2/12", options["public-network-ip"][0], "not expected public-network-ip option")
 }
 
-func testConvertClientNetwork(t *testing.T) {
+func TestConvertClientNetwork(t *testing.T) {
 	gwIP := net.ParseIP("172.16.0.1")
 	_, destination, _ := net.ParseCIDR("172.16.0.0/12")
 	ip, ipNet, _ := net.ParseCIDR("172.16.0.2/12")
@@ -277,7 +259,7 @@ func testConvertClientNetwork(t *testing.T) {
 	assert.Equal(t, "172.16.0.2/12", options["client-network-ip"][0], "not expected client-network-ip option")
 }
 
-func testConvertMgmtNetwork(t *testing.T) {
+func TestConvertMgmtNetwork(t *testing.T) {
 	gwIP := net.ParseIP("172.16.0.1")
 	_, destination, _ := net.ParseCIDR("172.16.0.0/12")
 	ip, ipNet, _ := net.ParseCIDR("172.16.0.2/12")
@@ -317,7 +299,7 @@ func testConvertContainerNetworks(t *testing.T) {
 	assert.Equal(t, "172.16.0.2/12", options["management-network-ip"][0], "not expected management-network-ip option")
 }
 
-func testConvertSharesInfo(t *testing.T) {
+func TestConvertSharesInfo(t *testing.T) {
 	data := data.NewData()
 	cLimit, cReserve := 29300, 1024
 	data.NumCPUs = 2
@@ -348,7 +330,7 @@ func testConvertSharesInfo(t *testing.T) {
 	assert.Equal(t, "6000", options["cpu-shares"][0], "not expected cpu-shares option")
 }
 
-func testGuestinfo(t *testing.T) {
+func TestGuestInfo(t *testing.T) {
 	kv := map[string]string{
 		"guestinfo.vice..init.sessions|docker-personality.detail.createtime":           "0",
 		"guestinfo.vice./init/sessions|docker-personality/Group":                       "",
