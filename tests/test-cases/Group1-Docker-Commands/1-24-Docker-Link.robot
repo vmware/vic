@@ -67,7 +67,7 @@ Link and alias
     # check if we can use alias "c1" from another container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net jedi debian ping -c1 1st
     Should Not Be Equal As Integers  ${rc}  0
-    Should contain  ${output}  unknown host
+    Should Contain Any  ${output}  unknown host  Name or service not known
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it -d --net jedi --net-alias 2nd busybox
     Should Be Equal As Integers  ${rc}  0
