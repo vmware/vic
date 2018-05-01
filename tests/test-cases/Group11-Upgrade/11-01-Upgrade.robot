@@ -204,32 +204,29 @@ Upgrade VCH with unreasonably short timeout and automatic rollback after failure
     Remove Environment Variable  DOCKER_API_VERSION
 
 Upgrade VCH
-    ${status}=  Get State Of Github Issue  7800
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-01-Upgrade.robot needs to be updated now that Issue #7800 has been resolved
-    Log  Issue \#7800 is blocking implementation  WARN
-#    Create Docker Containers
+    Create Docker Containers
 
-#    Create Container with Named Volume
+    Create Container with Named Volume
 
     # Create check list for Volume Inspect
-#    @{checkList}=  Create List  ${mntTest}  ${mntNamed}  ${namedVolume}
+    @{checkList}=  Create List  ${mntTest}  ${mntNamed}  ${namedVolume}
 
-#    Upgrade
-#    Check Upgraded Version
-#    Check Container Create Timestamps
+    Upgrade
+    Check Upgraded Version
+    Check Container Create Timestamps
 
-#    Verify Volume Inspect Info  After Upgrade and Before Rollback  ${TestContainerVolume}  ${checkList}
+    Verify Volume Inspect Info  After Upgrade and Before Rollback  ${TestContainerVolume}  ${checkList}
 
-#    Rollback
-#    Check Original Version
+    Rollback
+    Check Original Version
 
-#    Upgrade with ID
-#    Check Upgraded Version
+    Upgrade with ID
+    Check Upgraded Version
 
-#    Verify Volume Inspect Info  After Upgrade with ID  ${TestContainerVolume}  ${checkList}
+    Verify Volume Inspect Info  After Upgrade with ID  ${TestContainerVolume}  ${checkList}
 
-#    Run Docker Checks
+    Run Docker Checks
 
 
-#    Log To Console  Regression Tests...
-#    Run Regression Tests
+    Log To Console  Regression Tests...
+    Run Regression Tests

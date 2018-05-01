@@ -92,7 +92,7 @@ func TestDeleteExceptDisk(t *testing.T) {
 	// Wrap the result with our version of VirtualMachine
 	vm := NewVirtualMachine(ctx, session, *moref)
 
-	folder, err := vm.FolderName(ctx)
+	folder, err := vm.DatastoreFolderName(ctx)
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}
@@ -249,7 +249,7 @@ func TestVMAttributes(t *testing.T) {
 	// Wrap the result with our version of VirtualMachine
 	vm := NewVirtualMachine(ctx, session, *moref)
 
-	folder, err := vm.FolderName(ctx)
+	folder, err := vm.DatastoreFolderName(ctx)
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}

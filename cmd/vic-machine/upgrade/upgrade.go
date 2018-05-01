@@ -76,7 +76,7 @@ func (u *Upgrade) Flags() []cli.Flag {
 	id := u.IDFlags()
 	compute := u.ComputeFlags()
 	iso := u.ImageFlags(false)
-	debug := u.DebugFlags(true)
+	debug := u.DebugFlags(false)
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
@@ -120,7 +120,14 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 		return err
 	}
 
-	op.Infof("### Upgrading VCH ####")
+	var action management.Action
+	if !u.Data.Rollback {
+		op.Infof("### Upgrading VCH ####")
+		action = management.UpgradeAction
+	} else {
+		op.Infof("### Rolling back VCH ####")
+		action = management.RollbackAction
+	}
 
 	validator, err := validate.NewValidator(op, u.Data)
 	if err != nil {
@@ -134,7 +141,8 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 		op.Errorf("Upgrade cannot continue - target validation failed: %s", err)
 		return errors.New("upgrade failed")
 	}
-	executor := management.NewDispatcher(validator.Context, validator.Session, nil, u.Force)
+
+	executor := management.NewDispatcher(validator.Context, validator.Session, action, u.Force)
 
 	var vch *vm.VirtualMachine
 	if u.Data.ID != "" {
@@ -214,9 +222,9 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 	}
 
 	if !u.Data.Rollback {
-		err = executor.Configure(vch, vchConfig, vConfig, false)
+		err = executor.Configure(vchConfig, vConfig)
 	} else {
-		err = executor.Rollback(vch, vchConfig, vConfig)
+		err = executor.Rollback(vchConfig, vConfig)
 	}
 
 	if err != nil {

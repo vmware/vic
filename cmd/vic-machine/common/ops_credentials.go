@@ -34,25 +34,25 @@ type OpsCredentials struct {
 	IsSet       bool
 }
 
-func (o *OpsCredentials) Flags(hidden bool) []cli.Flag {
+func (o *OpsCredentials) Flags() []cli.Flag {
 	return []cli.Flag{
 		cli.GenericFlag{
 			Name:   "ops-user",
 			Value:  flags.NewOptionalString(&o.OpsUser),
 			Usage:  "The user with which the VCH operates after creation. Defaults to the credential supplied with target",
-			Hidden: hidden,
+			Hidden: true,
 		},
 		cli.GenericFlag{
 			Name:   "ops-password",
 			Value:  flags.NewOptionalString(&o.OpsPassword),
 			Usage:  "Password or token for the operations user. Defaults to the credential supplied with target",
-			Hidden: hidden,
+			Hidden: true,
 		},
 		cli.GenericFlag{
 			Name:   "ops-grant-perms",
 			Value:  flags.NewOptionalBool(&o.GrantPerms),
 			Usage:  "Create roles and grant required permissions to the specified ops-user",
-			Hidden: hidden,
+			Hidden: true,
 		},
 	}
 }
@@ -63,7 +63,7 @@ func (o *OpsCredentials) Flags(hidden bool) []cli.Flag {
 // operation, adminUser and adminPassword are not needed.
 func (o *OpsCredentials) ProcessOpsCredentials(op trace.Operation, isCreateOp bool, adminUser string, adminPassword *string) error {
 	if o.OpsUser == nil && o.OpsPassword != nil {
-		return errors.New("Password for operations user specified without user having been specified")
+		return errors.New("Password for operations user specified without operations username")
 	}
 
 	if isCreateOp {

@@ -69,6 +69,22 @@ type VirtualMachine struct {
 	fixing int32
 }
 
+// Attributes will retrieve the properties for the provided references.  A variadic arg of attribs
+// is provided to allow overriding the default properties retrieved
+func Attributes(ctx context.Context, session *session.Session, refs []types.ManagedObjectReference, attribs ...string) ([]mo.VirtualMachine, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("populating %d refs", len(refs))))
+	var vms []mo.VirtualMachine
+	// default attributes to retrieve
+	props := []string{"config", "runtime.powerState", "summary"}
+	// if attributes provided then use those instead of default
+	if len(attribs) > 0 {
+		props = attribs
+	}
+	// retrieve the properties via the session property collector
+	err := session.Retrieve(ctx, refs, props, &vms)
+	return vms, err
+}
+
 // NewVirtualMachine returns a NewVirtualMachine object
 func NewVirtualMachine(ctx context.Context, session *session.Session, moref types.ManagedObjectReference) *VirtualMachine {
 	vm := NewVirtualMachineFromVM(ctx, session, object.NewVirtualMachine(session.Vim25(), moref))
@@ -120,10 +136,10 @@ func (vm *VirtualMachine) VMPathNameAsURL(ctx context.Context) (url.URL, error) 
 	return val, nil
 }
 
-// FolderName returns the name of the namespace(vsan) or directory(vmfs) that holds the VM
+// DatastoreFolderName returns the name of the namespace(vsan) or directory(vmfs) that holds the VM
 // this equates to the normal directory that contains the vmx file, stripped of any parent path
-func (vm *VirtualMachine) FolderName(ctx context.Context) (string, error) {
-	op := trace.FromContext(ctx, "FolderName")
+func (vm *VirtualMachine) DatastoreFolderName(ctx context.Context) (string, error) {
+	op := trace.FromContext(ctx, "DatastoreFolderName")
 
 	u, err := vm.VMPathNameAsURL(op)
 	if err != nil {
@@ -773,15 +789,15 @@ func (vm *VirtualMachine) EnableDestroy(ctx context.Context) error {
 	return nil
 }
 
-// RemoveSnapshotByRef removes a snapshot by reference
-func (vm *VirtualMachine) RemoveSnapshotByRef(ctx context.Context, snapshot *types.ManagedObjectReference, removeChildren bool, consolidate *bool) (*object.Task, error) {
+// RemoveSnapshot removes the provided snapshot
+func (vm *VirtualMachine) RemoveSnapshot(op trace.Operation, snapshot *types.ManagedObjectReference, removeChildren bool, consolidate *bool) (*object.Task, error) {
 	req := types.RemoveSnapshot_Task{
 		This:           snapshot.Reference(),
 		RemoveChildren: removeChildren,
 		Consolidate:    consolidate,
 	}
 
-	res, err := methods.RemoveSnapshot_Task(ctx, vm.Vim25(), &req)
+	res, err := methods.RemoveSnapshot_Task(op, vm.Vim25(), &req)
 	if err != nil {
 		return nil, err
 	}
