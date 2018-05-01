@@ -142,20 +142,24 @@ vic-machine create grants ops-user perms
     Cleanup VIC Appliance On Test Server
 
 granted ops-user perms work after upgrade
-    Install VIC with version to Test Server  v1.3.0  additional-args=--ops-user ${ops_user_name} --ops-password ${ops_user_password} --ops-grant-perms
+    ${status}=  Get State Of Github Issue  7796
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 5-25-OPS-User-Grant.robot needs to be updated now that Issue #7796 has been resolved
+    Log  Issue \#7796 is blocking implementation  WARN
 
-    Check Original Version
-    Upgrade
-    Check Upgraded Version
-
+    #Install VIC with version to Test Server  v1.3.0  additional-args=--ops-user ${ops_user_name} --ops-password ${ops_user_password} --ops-grant-perms
+    #
+    #Check Original Version
+    #Upgrade
+    #Check Upgraded Version
+    #
     # Run a govc test to check that access is denied on some resources
-    Attempt To Create Resource Pool
-
-    Run Regression Tests
-
-    Run privilege-dependent docker operations
-
-    Cleanup VIC Appliance On Test Server
+    #Attempt To Create Resource Pool
+    #
+    #Run Regression Tests
+    #
+    #Run privilege-dependent docker operations
+    #
+    #Cleanup VIC Appliance On Test Server
 
 Test with VM-Host Affinity
     Log To Console  \nStarting test...
