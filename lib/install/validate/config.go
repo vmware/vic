@@ -395,7 +395,7 @@ func (v *Validator) CheckLicense(ctx context.Context) {
 		return
 	}
 
-	if v.IsVC() {
+	if v.isVC() {
 		if err = v.checkAssignedLicenses(op); err != nil {
 			v.NoteIssue(err)
 			return
@@ -595,7 +595,7 @@ func (v *Validator) checkPersistNetworkBacking(ctx context.Context, quiet bool) 
 	if !v.sessionValid(op, errMsg) {
 		return false
 	}
-	if !v.IsVC() {
+	if !v.isVC() {
 		op.Debug(errMsg)
 		return true
 	}
