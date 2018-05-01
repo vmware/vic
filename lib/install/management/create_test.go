@@ -33,7 +33,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
-func TestMain(t *testing.T) {
+func TestCreate(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	op := trace.NewOperation(context.Background(), "TestMain")
 
