@@ -51,27 +51,21 @@ Teardown VCH With No WAN
 
 *** Test Cases ***
 Display HTML
-    ${rc}  ${out}=  Curl VCH Admin Cookies
-    Log  ${out}
-    Should Be Equal As Integers  ${rc}  0
+    Login To VCH Admin And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b vic-admin-cookies
     Log  ${output}
     Remove File  vic-admin-cookies
     Should contain  ${output}  <title>VIC: %{VCH-NAME}</title>
 
 WAN Status Should Fail
-    ${rc}  ${out}=  Curl VCH Admin Cookies
-    Log  ${out}
-    Should Be Equal As Integers  ${rc}  0
+    Login To VCH Admin And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b vic-admin-cookies
     Log  ${output}
     Remove File  vic-admin-cookies
     Should contain  ${output}  <div class="sixty">Registry and Internet Connectivity<span class="error-message">
 
 Fail To Pull Docker Image
-    ${rc}  ${out}=  Curl VCH Admin Cookies
-    Log  ${out}
-    Should Be Equal As Integers  ${rc}  0
+    Login To VCH Admin And Save Cookies
     ${rc}  ${output}=  Run And Return Rc and Output  docker %{VCH-PARAMS} pull ${busybox}
     Log  ${output}
     Remove File  vic-admin-cookies
@@ -79,36 +73,28 @@ Fail To Pull Docker Image
     Should contain  ${output}  no route to host
 
 Get Portlayer Log
-    ${rc}  ${out}=  Curl VCH Admin Cookies
-    Log  ${out}
-    Should Be Equal As Integers  ${rc}  0
+    Login To VCH Admin And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b vic-admin-cookies
     Log  ${output}
     Remove File  vic-admin-cookies
     Should contain  ${output}  Launching portlayer server
 
 Get VCH-Init Log
-    ${rc}  ${out}=  Curl VCH Admin Cookies
-    Log  ${out}
-    Should Be Equal As Integers  ${rc}  0
+    Login To VCH Admin And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/init.log -b vic-admin-cookies
     Log  ${output}
     Remove File  vic-admin-cookies
     Should contain  ${output}  reaping child processes
 
 Get Docker Personality Log
-    ${rc}  ${out}=  Curl VCH Admin Cookies
-    Log  ${out}
-    Should Be Equal As Integers  ${rc}  0
+    Login To VCH Admin And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/docker-personality.log -b vic-admin-cookies
     Log  ${output}
     Remove File  vic-admin-cookies
     Should contain  ${output}  docker personality
 
 Get VICAdmin Log
-    ${rc}  ${out}=  Curl VCH Admin Cookies
-    Log  ${out}
-    Should Be Equal As Integers  ${rc}  0
+    Login To VCH Admin And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/vicadmin.log -b vic-admin-cookies
     Log  ${output}
     Remove File  vic-admin-cookies
