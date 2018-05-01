@@ -56,8 +56,6 @@ type Validator struct {
 	session *session.Session
 
 	issues []error
-
-	allowEmptyDC bool
 }
 
 func (v *Validator) Session() *session.Session {
@@ -160,12 +158,8 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 	return v, nil
 }
 
-func (v *Validator) AllowEmptyDC() {
-	v.allowEmptyDC = true
-}
-
-func (v *Validator) datacenter(op trace.Operation) error {
-	if v.allowEmptyDC && v.session.DatacenterPath == "" {
+func (v *Validator) datacenter(op trace.Operation, allowEmptyDC bool) error {
+	if allowEmptyDC && v.session.DatacenterPath == "" {
 		return nil
 	}
 	if v.session.Datacenter != nil {
@@ -257,14 +251,14 @@ func (v *Validator) ClearIssues() {
 
 // Validate runs through various validations, starting with basics such as naming, moving onto vSphere entities
 // and then the compatibility between those entities. It assembles a set of issues that are found for reporting.
-func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
+func (v *Validator) Validate(ctx context.Context, input *data.Data, allowEmptyDC bool) (*config.VirtualContainerHostConfigSpec, error) {
 	op := trace.FromContext(ctx, "Validate")
 	defer trace.End(trace.Begin("", op))
 	op.Info("Validating supplied configuration")
 
 	conf := &config.VirtualContainerHostConfigSpec{}
 
-	if err := v.datacenter(op); err != nil {
+	if err := v.datacenter(op, allowEmptyDC); err != nil {
 		return conf, err
 	}
 
@@ -304,14 +298,14 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 
 }
 
-func (v *Validator) ValidateTarget(ctx context.Context, input *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
+func (v *Validator) ValidateTarget(ctx context.Context, input *data.Data, allowEmptyDC bool) (*config.VirtualContainerHostConfigSpec, error) {
 	op := trace.FromContext(ctx, "ValidateTarget")
 	defer trace.End(trace.Begin("", op))
 
 	conf := &config.VirtualContainerHostConfigSpec{}
 
 	op.Info("Validating target")
-	if err := v.datacenter(op); err != nil {
+	if err := v.datacenter(op, allowEmptyDC); err != nil {
 		return conf, err
 	}
 	v.target(op, input, conf)

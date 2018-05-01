@@ -153,7 +153,7 @@ func (i *Inspect) run(clic *cli.Context, op trace.Operation, cmd command) (err e
 	}
 	defer validator.Session().Logout(op)
 
-	_, err = validator.ValidateTarget(op, i.Data)
+	_, err = validator.ValidateTarget(op, i.Data, false)
 	if err != nil {
 		op.Errorf("Inspect cannot continue - target validation failed: %s", err)
 		return errors.New("inspect failed")

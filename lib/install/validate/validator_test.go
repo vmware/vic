@@ -657,7 +657,7 @@ func TestValidateWithFolders(t *testing.T) {
 			t.Fatalf("%d: expected error", i)
 		}
 
-		_, err = validator.Validate(op, input)
+		_, err = validator.Validate(op, input, true)
 		if i == len(steps)-1 {
 			if err != nil {
 				t.Fatal(err)
@@ -719,7 +719,7 @@ func TestValidateWithFolders(t *testing.T) {
 	}
 
 	// cover some other paths now that we have a valid config
-	spec, err := validator.ValidateTarget(op, input)
+	spec, err := validator.ValidateTarget(op, input, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -810,9 +810,7 @@ func TestValidateWithESX(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		validator.AllowEmptyDC()
-
-		_, err = validator.Validate(op, input)
+		_, err = validator.Validate(op, input, false)
 		if i == len(steps)-1 {
 			if err != nil {
 				t.Fatal(err)

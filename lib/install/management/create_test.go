@@ -72,7 +72,7 @@ func TestCreate(t *testing.T) {
 			t.Fatalf("Failed to validator: %s", err)
 		}
 
-		conf, err := validator.Validate(op, input)
+		conf, err := validator.Validate(op, input, false)
 		if err != nil {
 			log.Errorf("Failed to validate conf: %s", err)
 			validator.ListIssues(op)
@@ -92,7 +92,7 @@ func TestCreate(t *testing.T) {
 		// If we re-use the previous validator like we did in the earlier test (*errConf = *conf), it's not a deep copy of conf
 		// This conf will get modified by appliance creation and cleanup test, and we can't test create appliance in positive case
 		// The other way around, if we test positive case first, the VCH data and session data are modified, so we are not able to test the negative case
-		conf2, err := validator.Validate(op, input)
+		conf2, err := validator.Validate(op, input, false)
 		conf2.ImageStores[0].Host = "http://non-exist"
 		testCreateAppliance(op, validator.Session(), conf2, installSettings, true, t)
 		testCleanup(op, validator.Session(), conf2, t)

@@ -77,6 +77,7 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 
 	// TODO (#6032): clean this up
 	var validator *validate.Validator
+	var allowEmptyDC bool
 	if params.datacenter != nil {
 		v, err := validate.NewValidator(op, data)
 		if err != nil {
@@ -117,12 +118,12 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 		}
 
 		// If dc is not set, and multiple datacenters are available, operate on all datacenters.
-		v.AllowEmptyDC()
+		allowEmptyDC = true
 
 		validator = v
 	}
 
-	if _, err := validator.ValidateTarget(op, data); err != nil {
+	if _, err := validator.ValidateTarget(op, data, allowEmptyDC); err != nil {
 		return data, nil, util.NewError(http.StatusBadRequest, "Target validation failed: %s", err)
 	}
 
