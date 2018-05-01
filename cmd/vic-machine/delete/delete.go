@@ -115,7 +115,7 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 		return errors.New("delete failed")
 	}
 	defer validator.Session().Logout(op)
-	_, err = validator.ValidateTarget(op, d.Data)
+	_, err = validator.ValidateTarget(op, d.Data, false)
 	if err != nil {
 		op.Errorf("Delete cannot continue - target validation failed: %s", err)
 		return errors.New("delete failed")

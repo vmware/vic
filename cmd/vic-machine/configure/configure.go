@@ -340,7 +340,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	}
 	defer validator.Session().Logout(parentOp) // parentOp is used here to ensure the logout occurs, even in the event of timeout
 
-	_, err = validator.ValidateTarget(op, c.Data)
+	_, err = validator.ValidateTarget(op, c.Data, false)
 	if err != nil {
 		op.Errorf("Configuring cannot continue - target validation failed: %s", err)
 		return errors.New("configure failed")
@@ -444,7 +444,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	}
 
 	// evaluate merged configuration
-	newConfig, err := validator.Validate(op, c.Data)
+	newConfig, err := validator.Validate(op, c.Data, false)
 	if err != nil {
 		op.Error("Configuring cannot continue: configuration validation failed")
 		return err

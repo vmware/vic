@@ -140,7 +140,7 @@ func (d *Debug) Run(clic *cli.Context) (err error) {
 	}
 	defer validator.Session().Logout(op)
 
-	_, err = validator.ValidateTarget(op, d.Data)
+	_, err = validator.ValidateTarget(op, d.Data, false)
 	if err != nil {
 		op.Errorf("Debug cannot continue - target validation failed: %s", err)
 		return errors.New("debug failed")

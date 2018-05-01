@@ -75,11 +75,10 @@ func TestFinder(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to create validator: %s", err)
 		}
-		if _, err = validator.ValidateTarget(ctx, input); err != nil {
+		if _, err = validator.ValidateTarget(ctx, input, false); err != nil {
 			t.Logf("Got expected error to validate target: %s", err)
 		}
-		validator.AllowEmptyDC()
-		if _, err = validator.ValidateTarget(ctx, input); err != nil {
+		if _, err = validator.ValidateTarget(ctx, input, true); err != nil {
 			t.Errorf("Failed to valiate target: %s", err)
 		}
 		prefix := fmt.Sprintf("p%d-", i)

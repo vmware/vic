@@ -163,10 +163,7 @@ func (l *List) Run(clic *cli.Context) (err error) {
 	}
 	defer validator.Session().Logout(op)
 
-	// If dc is not set, and multiple datacenter is available, vic-machine ls will list VCHs under all datacenters.
-	validator.AllowEmptyDC()
-
-	_, err = validator.ValidateTarget(op, l.Data)
+	_, err = validator.ValidateTarget(op, l.Data, true)
 	if err != nil {
 		op.Errorf("List cannot continue - target validation failed: %s", err)
 		return errors.New("list failed")

@@ -686,7 +686,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	}
 	defer validator.Session().Logout(op)
 
-	vchConfig, err := validator.Validate(op, c.Data)
+	vchConfig, err := validator.Validate(op, c.Data, false)
 	if err != nil {
 		op.Error("Create cannot continue: configuration validation failed")
 		return err

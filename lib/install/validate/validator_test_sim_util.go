@@ -176,7 +176,7 @@ func (v *Validator) vcsimValidate(ctx context.Context, localInputConfig *data.Da
 
 	conf := &config.VirtualContainerHostConfigSpec{}
 
-	if err := v.datacenter(op); err != nil {
+	if err := v.datacenter(op, false); err != nil {
 		return conf, err
 	}
 

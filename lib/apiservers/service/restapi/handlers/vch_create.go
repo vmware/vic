@@ -453,7 +453,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 }
 
 func handleCreate(op trace.Operation, c *create.Create, validator *validate.Validator, receiver vchlog.Receiver) (*strfmt.URI, error) {
-	vchConfig, err := validator.Validate(op, c.Data)
+	vchConfig, err := validator.Validate(op, c.Data, false)
 	if err != nil {
 		issues := validator.GetIssues()
 		messages := make([]string, 0, len(issues))

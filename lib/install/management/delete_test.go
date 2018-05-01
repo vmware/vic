@@ -77,7 +77,7 @@ func TestDelete(t *testing.T) {
 			t.Errorf("Failed to validator: %s", err)
 		}
 
-		conf, err := validator.Validate(ctx, input)
+		conf, err := validator.Validate(ctx, input, false)
 		if err != nil {
 			log.Errorf("Failed to validate conf: %s", err)
 			validator.ListIssues(op)
