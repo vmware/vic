@@ -138,6 +138,7 @@ Create VCH - Invalid keys
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
+    Get Docker Params  ${output}  ${true}
 
     # Invalid server key
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --tls-ca="./%{VCH-NAME}/ca.pem" --tls-server-cert="./%{VCH-NAME}/server-cert.pem" --tls-server-key="./%{VCH-NAME}/ca.pem"
@@ -178,6 +179,7 @@ Create VCH - Reuse keys
     Should Contain  ${output}  Loaded server certificate
     Should Contain  ${output}  Loaded CA with default name from certificate path
     Should Contain  ${output}  Loaded client certificate with default name from certificate path
+    Get Docker Params  ${output}  ${true}
 
     Cleanup VIC Appliance On Test Server
 
