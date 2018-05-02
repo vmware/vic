@@ -123,6 +123,7 @@ Create VCH - Server certificate with multiple blocks
     Should Contain  ${output}  Failed to load x509 leaf
     Should Contain  ${output}  Loaded server certificate
     Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
 
     Cleanup VIC Appliance On Test Server
 

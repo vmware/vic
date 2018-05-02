@@ -23,6 +23,7 @@ Clean Up VCHs
     Set Environment Variable  VCH-NAME  ${old-vm}
     Set Environment Variable  BRIDGE_NETWORK  ${old-vch-bridge}
     Set Environment Variable  VCH-PARAMS  ${old-vch-params}
+    Set Environment Variable  VIC-ADMIN  ${old-vic-admin}
     Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
@@ -34,6 +35,7 @@ Create Multi VCH - Docker Ps Only Contains The Correct Containers
     Set Suite Variable  ${old-vm}  %{VCH-NAME}
     Set Suite Variable  ${old-vch-params}  %{VCH-PARAMS}
     Set Suite Variable  ${old-vch-bridge}  %{BRIDGE_NETWORK}
+    Set Suite Variable  ${old-vic-admin}  %{VIC-ADMIN}
 
     # make sure we create two different bridge networks
     Remove Environment Variable  BRIDGE_NETWORK
