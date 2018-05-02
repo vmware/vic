@@ -621,11 +621,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 
 	// Kubelet
 	if conf.KubernetesServerAddress != "" && conf.KubeletConfigFile != "" {
-		vmName, err := vm2.Name(d.op)
-		if err != nil {
-			d.op.Errorf("Failed to get VM name, error: %s", err)
-			return err
-		}
+		vmName := vm2.Name()
 		kubeletName := fmt.Sprintf("kubelet-%s", vmName)
 		kubeletStarter := executor.Cmd{
 			Path: "/sbin/kubelet-starter",
