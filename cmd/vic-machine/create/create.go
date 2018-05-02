@@ -284,7 +284,7 @@ func (c *Create) Flags() []cli.Flag {
 	cNetwork := c.containerNetworks.CNetworkFlags()
 	dns := c.Nameservers.DNSFlags()
 	proxies := c.Proxies.ProxyFlags()
-	kubelet := c.Kubelet.Flags()
+	kubelet := c.Kubelet.Flags(true)
 	debug := c.DebugFlags(true)
 	help := c.help.HelpFlags()
 
