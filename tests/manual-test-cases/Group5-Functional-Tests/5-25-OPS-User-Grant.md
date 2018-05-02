@@ -17,7 +17,7 @@ This test requires access to VMware Nimbus cluster for dynamic ESXi and vCenter 
 7. Create a container
 8. Use govc to attempt to out-of-band destroy the container from Step 7
 9. Clean up the VCH
-10. Install version v1.3.0 of the VIC appliance into the cluster with the --ops-grant-perms option
+10. Install version v1.3.1 of the VIC appliance into the cluster with the --ops-grant-perms option
 11. Perform a VCH upgrade to the current version
 12. With the ops-user, use govc to attempt to create a resource pool
 13. Run a variety of docker operations on the VCH
