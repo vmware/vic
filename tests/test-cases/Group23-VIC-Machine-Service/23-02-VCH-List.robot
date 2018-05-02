@@ -120,14 +120,3 @@ Get VCH List Within Invalid Datacenter and Compute Resource
 
     Verify Return Code
     Verify Status Not Found
-
-
-Get Empty VCH List When No VCH deployed
-    Cleanup VIC Appliance On Test Server
-
-    Get VCH List
-
-    Verify Return Code
-    Verify Status Ok
-
-    Verify VCH List Empty

@@ -45,23 +45,6 @@ const (
 	MaxDisplayNameLen = 31
 )
 
-var EntireOptionHelpTemplate = `NAME:
-   {{.HelpName}} - {{.Usage}}
-
-USAGE:
-   {{.HelpName}}{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{if .Category}}
-
-CATEGORY:
-   {{.Category}}{{end}}{{if .Description}}
-
-DESCRIPTION:
-   {{.Description}}{{end}}{{if .VisibleFlags}}
-
-OPTIONS:
-   {{range .Flags}}{{.}}
-   {{end}}{{end}}
-`
-
 // Create has all input parameters for vic-machine create command
 type Create struct {
 	common.Networks
@@ -77,8 +60,8 @@ type Create struct {
 	memoryReservLimits string
 	cpuReservLimits    string
 
-	advancedOptions bool
-	BridgeIPRange   string
+	help          common.Help
+	BridgeIPRange string
 
 	Proxies common.Proxies
 
@@ -218,7 +201,7 @@ func (c *Create) Flags() []cli.Flag {
 		},
 	}
 	var memory, cpu []cli.Flag
-	memory = append(memory, c.VCHMemoryLimitFlags(true)...)
+	memory = append(memory, c.VCHMemoryLimitFlags()...)
 	memory = append(memory,
 		cli.IntFlag{
 			Name:        "endpoint-memory",
@@ -227,7 +210,7 @@ func (c *Create) Flags() []cli.Flag {
 			Hidden:      true,
 			Destination: &c.MemoryMB,
 		})
-	cpu = append(cpu, c.VCHCPULimitFlags(true)...)
+	cpu = append(cpu, c.VCHCPULimitFlags()...)
 	cpu = append(cpu,
 		cli.IntFlag{
 			Name:        "endpoint-cpu",
@@ -291,26 +274,18 @@ func (c *Create) Flags() []cli.Flag {
 		},
 	}
 
-	help := []cli.Flag{
-		// help options
-		cli.BoolFlag{
-			Name:        "extended-help, x",
-			Usage:       "Show all options - this must be specified instead of --help",
-			Destination: &c.advancedOptions,
-		},
-	}
-
 	target := c.TargetFlags()
-	ops := c.OpsCredentials.Flags(true)
+	ops := c.OpsCredentials.Flags()
 	compute := c.ComputeFlags()
-	affinity := c.AffinityFlags(true)
+	affinity := c.AffinityFlags()
 	container := c.ContainerFlags()
 	volume := c.volumeStores.Flags()
 	iso := c.ImageFlags(true)
-	cNetwork := c.containerNetworks.CNetworkFlags(true)
-	dns := c.Nameservers.DNSFlags(true)
-	proxies := c.Proxies.ProxyFlags(true)
+	cNetwork := c.containerNetworks.CNetworkFlags()
+	dns := c.Nameservers.DNSFlags()
+	proxies := c.Proxies.ProxyFlags()
 	debug := c.DebugFlags(true)
+	help := c.help.HelpFlags()
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
@@ -664,8 +639,7 @@ func (c *Create) logArguments(op trace.Operation, cliContext *cli.Context) []str
 
 func (c *Create) Run(clic *cli.Context) (err error) {
 
-	if c.advancedOptions {
-		cli.HelpPrinter(clic.App.Writer, EntireOptionHelpTemplate, clic.Command)
+	if c.help.Print(clic) {
 		return nil
 	}
 

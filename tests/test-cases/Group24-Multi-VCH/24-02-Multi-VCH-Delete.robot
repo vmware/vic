@@ -23,6 +23,7 @@ Cleanup VCHs
     Run Keyword If  '${old-vch}' != '${EMPTY}'  Set Environment Variable  VCH-NAME  ${old-vch}
     Run Keyword If  '${old-vch-bridge}' != '${EMPTY}'  Set Environment Variable  BRIDGE_NETWORK  ${old-vch-bridge}
     Run Keyword If  '${old-vch-params}' != '${EMPTY}'  Set Environment Variable  VCH-PARAMS  ${old-vch-params}
+    Run Keyword If  '${old-vic-admin}' != '${EMPTY}'  Set Environment Variable  VIC-ADMIN  ${old-vic-admin}
     Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
@@ -40,6 +41,7 @@ VCH delete only removes its own containers
     Set Suite Variable  ${old-vch}  %{VCH-NAME}
     Set Suite Variable  ${old-vch-params}  %{VCH-PARAMS}
     Set Suite Variable  ${old-vch-bridge}  %{BRIDGE_NETWORK}
+    Set Suite Variable  ${old-vic-admin}  %{VIC-ADMIN}
 
     # Unset BRIDGE_NETWORK so the new VCH uses a unique bridge network
     Remove Environment Variable  BRIDGE_NETWORK
@@ -64,4 +66,5 @@ VCH delete only removes its own containers
     Set Environment Variable  VCH-NAME  ${old-vch}
     Set Environment Variable  BRIDGE_NETWORK  ${old-vch-bridge}
     Set Environment Variable  VCH-PARAMS  ${old-vch-params}
+    Set Environment Variable  VIC-ADMIN  ${old-vic-admin}
     Cleanup VIC Appliance On Test Server
