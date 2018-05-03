@@ -51,6 +51,7 @@ Ops User Create
     Log  Output, govc role.usage: ${out}
 
 Run privilege-dependent docker operations
+    [Timeout]  15 minutes
     # Run containers with volumes and container networks to test scenarios requiring containerVMs
     # to have the highest privileges.
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
