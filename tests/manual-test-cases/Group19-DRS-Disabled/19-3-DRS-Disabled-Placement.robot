@@ -49,13 +49,14 @@ Teardown VCH And Cleanup Nimbus
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Test Cases ***
-
 # TODO(jzt): we need to test against a single ESX host
 
 Simple Placement
-    Set Environment Variable  GOVC_URL  ${vc1-ip}
-    Set Environment Variable  TEST_URL_ARRAY  ${vc1-ip}
-    Set Environment Variable  TEST_RESOURCE  cls3
+    # TODO(anchal): these are currently set to the static testbed in the secrets file.
+    # Set Environment Variable  GOVC_URL  ${vc1-ip}
+    # Set Environment Variable  TEST_URL_ARRAY  ${vc1-ip}
+    # Set Environment Variable  TEST_RESOURCE  cls3
+
     Set Environment Variable  TEST_TIMEOUT  30m
 
     Log To Console  Deploy VIC to the VC cluster
