@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/create"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/interaction"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
@@ -296,44 +297,6 @@ func (i *Inspect) sortedOutput(mapOptions map[string][]string) (output []string)
 
 // upgradeStatusMessage generates a user facing status string about upgrade progress and status
 func (i *Inspect) upgradeStatusMessage(op trace.Operation, vch *vm.VirtualMachine, installerVer *version.Build, vchVer *version.Build) {
-	if sameVer := installerVer.Equal(vchVer); sameVer {
-		op.Info("Installer has same version as VCH")
-		op.Info("No upgrade available with this installer version")
-		return
-	}
-
-	upgrading, err := vch.VCHUpdateStatus(op)
-	if err != nil {
-		op.Errorf("Unable to determine if upgrade/configure is in progress: %s", err)
-		return
-	}
-	if upgrading {
-		op.Info("Upgrade/configure in progress")
-		return
-	}
-
-	canUpgrade, err := installerVer.IsNewer(vchVer)
-	if err != nil {
-		op.Errorf("Unable to determine if upgrade is available: %s", err)
-		return
-	}
-	if canUpgrade {
-		op.Info("Upgrade available")
-		return
-	}
-
-	oldInstaller, err := installerVer.IsOlder(vchVer)
-	if err != nil {
-		op.Errorf("Unable to determine if upgrade is available: %s", err)
-		return
-	}
-	if oldInstaller {
-		op.Info("Installer has older version than VCH")
-		op.Info("No upgrade available with this installer version")
-		return
-	}
-
-	// can't get here
-	op.Warn("Invalid upgrade status")
+	interaction.LogUpgradeStatusLongMessage(op, vch, installerVer, vchVer)
 	return
 }
