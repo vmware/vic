@@ -35,10 +35,10 @@ n=0
 n=0
    until [ $n -ge 5 ]
    do
-      mkdir bin
+      mkdir vic/bin
       echo "Extracting .tar.gz"
-      tar xvzf $input -C bin/ --strip 1
-      if [ -f "bin/vic-machine-linux" ]
+      tar xvzf $input -C vic/bin --strip 1
+      if [ -f "vic/bin/vic-machine-linux" ]
       then
       echo "tar extraction complete.."
       canContinue="Yes"
@@ -46,7 +46,7 @@ n=0
       else
       echo "tar extraction failed"
       canContinue="No"
-      rm -rf bin
+      rm -rf vic/bin
       fi
       n=$[$n+1]
       sleep 15
@@ -77,5 +77,5 @@ sed -i -e 's|FAIL|<font color="red">FAIL</font>|g' console.log
 
 # Run the log upload script in a container
 cmd="tests/drs-disabled/upload-logs.sh"
-docker run --rm -v $PWD/vic:/go --env-file $envfile $image $cmd
+docker run --rm -e BUILD_TIMESTAMP -v $PWD/vic:/go --env-file $envfile $image $cmd
 
