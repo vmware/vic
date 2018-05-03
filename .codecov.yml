@@ -8,18 +8,7 @@ coverage:
 
   status:
     project:
-      cmd:
-        enabled: true
-        paths: "cmd"
-        target: auto
-      lib:
-        enabled: true
-        paths: "lib"
-        target: auto
-      pkg:
-        enabled: true
-        paths: "pkg"
-        target: auto
+      default: off
     patch:
       cmd:
         enabled: true
@@ -37,26 +26,16 @@ coverage:
       default: off
 
   ignore:
-    - "tests/.*"
-    - "vendor/.*"
-    - "bin/.*"
-    - "doc/.*"
-    - "demos/.*"
-    - "infra/.*"
-    - "isos/.*"
-
-  notify:
-    slack:
-      default:
-        url: secret:4pFXYokWG94wD+p6Ik8TOyoGCMjIt1oC64dJI6bfN3NRSq9ON/VplYzuANYGq5DotCsxx+VOCbnshdKATbRUmRysanEs3C2E9FWk2+pOa7OEygT3QRoiYZJXLSGl77Ki5fPWx/cUlvfcJPDGGpvKB+zl007cqOgFSU26qZqff+w=
-        threshold: 1%
-        only_pulls: false
-        branches: master
-        flags: null
-        paths: null
+    - "tests"
+    - "vendor"
+    - "bin"
+    - "doc"
+    - "demos"
+    - "infra"
+    - "isos"
 
 comment:
-  layout: "header, reach, diff, flags, files, footer"
+  layout: "header, diff, files, footer"
   behavior: default
   require_changes: no
   require_base: no
