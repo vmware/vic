@@ -152,6 +152,14 @@ Property Length Should Be
     ${actual}=  Run    echo '${OUTPUT}' | jq -r '${jq} | length'
     Should Be Equal    ${actual}    ${expected}
 
+
+Get Service Version String
+    ${rc}  ${output}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X GET "http://127.0.0.1:${HTTP_PORT}/container/version"
+    ${output}    ${status}=    Split String From Right    ${output}    \n    1
+    Should Be Equal As Integers    ${rc}    0
+    Should Be Equal As Integers    ${status}    200
+    [Return]  ${output}
+
 Verify VCH List Empty
     ${vchs}=  Run  echo '${OUTPUT}' | jq -r '.vchs[]'
     Log  ${vchs}
