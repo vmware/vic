@@ -16,7 +16,6 @@ package list
 
 import (
 	"context"
-	"fmt"
 	"path"
 	"text/tabwriter"
 	"text/template"
@@ -26,6 +25,7 @@ import (
 
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/interaction"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
@@ -186,36 +186,6 @@ func (l *List) Run(clic *cli.Context) (err error) {
 	return nil
 }
 
-// upgradeStatusMessage generates a user facing status string about upgrade progress and status
 func (l *List) upgradeStatusMessage(op trace.Operation, vch *vm.VirtualMachine, installerVer *version.Build, vchVer *version.Build) string {
-	if sameVer := installerVer.Equal(vchVer); sameVer {
-		return "Up to date"
-	}
-
-	upgrading, err := vch.VCHUpdateStatus(op)
-	if err != nil {
-		return fmt.Sprintf("Unknown: %s", err)
-	}
-	if upgrading {
-		return "Upgrade in progress"
-	}
-
-	canUpgrade, err := installerVer.IsNewer(vchVer)
-	if err != nil {
-		return fmt.Sprintf("Unknown: %s", err)
-	}
-	if canUpgrade {
-		return fmt.Sprintf("Upgradeable to %s", installerVer.ShortVersion())
-	}
-
-	oldInstaller, err := installerVer.IsOlder(vchVer)
-	if err != nil {
-		return fmt.Sprintf("Unknown: %s", err)
-	}
-	if oldInstaller {
-		return fmt.Sprintf("VCH has newer version")
-	}
-
-	// can't get here
-	return "Invalid upgrade status"
+	return interaction.GetUpgradeStatusShortMessage(op, vch, installerVer, vchVer)
 }
