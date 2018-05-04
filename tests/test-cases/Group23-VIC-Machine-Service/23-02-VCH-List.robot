@@ -98,7 +98,8 @@ Verify VCH List Power States
 
     Get VCH List
     Verify VCH Power State  poweredOff
-
+    Power On VM OOB  %{VCH-NAME}
+    Wait For VCH Initialization  12x  20 seconds
 
 # TODO: Add test for compute resource (once relevant code is updated to use ID instead of name)
 # TODO: Add test for compute resource within datacenter (once relevant code is updated to use ID instead of name)
