@@ -254,6 +254,10 @@ Verify Volume Store Not Exists
 #    Verify Return Code
 #    Output Should Not Match Regexp    ^VolumeStores:\s[^$]*${name}
 
+Cleanup VIC Appliance and Specified Volume
+    [Arguments]  ${volume-cleanup}
+    Run Keyword And Continue On Failure  Run  govc datastore.rm ${volume-cleanup}-VOL
+    Cleanup VIC Appliance On Test Server 
 
 *** Test Cases ***
 Delete VCH
@@ -268,7 +272,7 @@ Delete VCH
     Verify VCH Not Exists             vch/${id}
 
     # No VCH to delete
-    [Teardown]                        NONE
+    [Teardown]                        Run  govc datastore.rm %{VCH-NAME}-VOL
 
 Delete VCH within datacenter
     ${dc}=    Get Datacenter ID
@@ -283,7 +287,7 @@ Delete VCH within datacenter
     Verify VCH Not Exists             datacenter/${dc}/vch/${id}
 
     # No VCH to delete
-    [Teardown]                        NONE
+    [Teardown]                        Run  govc datastore.rm %{VCH-NAME}-VOL
 
 Delete the correct VCH
     ${one}=    Get VCH ID %{VCH-NAME}
@@ -307,7 +311,7 @@ Delete the correct VCH
     Verify VCH Not Exists             vch/${one}    ${old}
     Verify VCH Exists                 vch/${two}
 
-    [Teardown]                        Cleanup VIC Appliance On Test Server
+    [Teardown]                        Cleanup VIC Appliance and Specified Volume  ${old}
 
 
 Delete invalid VCH
@@ -382,7 +386,7 @@ Delete VCH with powered off container
     Verify Container Not Exists       ${POWERED_OFF_CONTAINER_NAME}
 
     # No VCH to delete
-    [Teardown]                        NONE
+    [Teardown]                        Run  govc datastore.rm %{VCH-NAME}-VOL
 
 Delete VCH with powered off container deletes files
     ${id}=    Get VCH ID %{VCH-NAME}

@@ -18,7 +18,6 @@ Resource          ../../resources/Util.robot
 Resource          ../../resources/Group23-VIC-Machine-Service-Util.robot
 Suite Setup       Setup
 Suite Teardown    Teardown
-Test Teardown     Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 Default Tags
 
 
@@ -28,6 +27,7 @@ Setup
     Install VIC Appliance To Test Server
 
 Teardown
+    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
     Terminate All Processes    kill=True
 
 Get VCH List

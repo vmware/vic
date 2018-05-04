@@ -115,6 +115,7 @@ Attach Disks and Delete VCH
 
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME}
     Log  ${output}
+    Run  govc datastore.rm %{VCH-NAME}-VOL
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
     Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Run Keyword And Ignore Error  Cleanup VCH Bridge Network
