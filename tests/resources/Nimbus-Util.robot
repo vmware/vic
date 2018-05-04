@@ -230,6 +230,12 @@ Nimbus Cleanup
     ${list}=  Catenate  @{vm_list}
     Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${list}
 
+Nimbus Cleanup Single VM
+    [Arguments]  ${vm}  ${collect_log}=True  ${dontDelete}=${false}
+    Run Keyword If  ${collect_log}  Run Keyword And Continue On Failure  Gather Logs From Test Server
+    Return From Keyword If  ${dontDelete}
+    Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${vm}
+
 Gather Host IPs
     ${out}=  Run  govc ls host/cls
     ${out}=  Split To Lines  ${out}
