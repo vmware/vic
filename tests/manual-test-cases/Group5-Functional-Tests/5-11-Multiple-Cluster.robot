@@ -16,7 +16,7 @@
 Documentation  Test 5-11 - Multiple Clusters
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  Multiple Cluster Setup
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  '*5-11-multiple-cluster*'
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-11-multiple-cluster*'
 
 *** Keywords ***
 # Insert elements from dict2 into dict1, overwriting conflicts in dict1 & returning new dict
@@ -30,7 +30,8 @@ Combine Dictionaries
 
 Multiple Cluster Setup
     [Timeout]    110 minutes
-    Run Keyword And Ignore Error  Nimbus Cleanup  '*5-11-multiple-cluster*'  ${false}
+    Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-11-multiple-cluster*'  ${false}
+    Log To Console  \nStarting testbed deploy...
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-multiple-cluster --testbedSpecRubyFile /dbc/pa-dbc1111/mhagen/nimbus-testbeds/testbeds/vic-multiple-cluster.rb --runName 5-11-multiple-cluster
     Log  ${out}
 

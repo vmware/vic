@@ -85,7 +85,7 @@ $testbed = Proc.new do
       Log.info "Found a datacenter successfully in the system, name: #{datacenter.name}"
       clusters = datacenter.hostFolder.children
       raise "Couldn't find a cluster precreated"  if clusters.length == 0
-      cluster = clusters.first
+      cluster = datacenter.hostFolder.allChildren.find{|x| x.name == 'cls'}
       Log.info "Found a cluster successfully in the system, name: #{cluster.name}"
 
       dvs = datacenter.networkFolder.CreateDVS_Task(
