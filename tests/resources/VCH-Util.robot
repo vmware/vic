@@ -296,9 +296,9 @@ Conditional Install VIC Appliance To Test Server
 Install VIC Appliance To Test Server
     [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${additional-args}=${EMPTY}
     Set Test Environment Variables
-    ${opsuser-args}=  Set Variable  ${EMPTY}
     ${run-as-ops-user}=  Get Environment Variable  RUN_AS_OPS_USER
     ${opsuser-args}=  Run Keyword If  '${run-as-ops-user}' == '1'  Get Ops User Args
+    ...  ELSE  Set Variable  ${EMPTY}
     ${output}=  Install VIC Appliance To Test Server With Current Environment Variables  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${cleanup}  ${debug}  ${opsuser-args}  ${additional-args}
     Log  ${output}
     [Return]  ${output}
