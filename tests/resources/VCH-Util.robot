@@ -298,7 +298,7 @@ Install VIC Appliance To Test Server
     Set Test Environment Variables
     ${run-as-ops-user}=  Get Environment Variable  RUN_AS_OPS_USER
     Run Keyword If  '${run-as-ops-user}' == '1'  Log To Console  Running tests as ops user...
-    Create Ops User Account On Test Server
+    Run Keyword If  '${run-as-ops-user}' == '1'  Create Ops User Account On Test Server
     Set Environment Variable  opsuser-args  ${EMPTY}
     ${opsuser-args}=  Run Keyword If  '${run-as-ops-user}' == '1'  Set Variable  --ops-user='%{VCH_OPS_USERNAME}' --ops-password='%{VCH_OPS_PASSWORD}' --ops-grant-perms
     ${output}=  Install VIC Appliance To Test Server With Current Environment Variables  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${cleanup}  ${debug}  ${opsuser-args}  ${additional-args}
@@ -795,9 +795,10 @@ Manually Cleanup VCH
 
 Create Ops User Account On Test Server
     Log To Console  \nChecking ops user account...
-    ${ops-username}=  Split String  %{VCH_OPS_USERNAME}  @
-    ${ops-username}=  Get From List  ${ops-username}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  sshpass -p vmware ssh -o StrictHostKeyChecking=no root@%{TEST_URL} /usr/lib/vmware-vmafd/bin/dir-cli user find-by-name --account ${ops-username} --login %{TEST_USERNAME} --password %{TEST_PASSWORD}
+    ${tokens}=  Split String  %{VCH_OPS_USERNAME}  @
+    ${ops-username}=  Get From List  ${tokens}  0
+    ${ops-domain}=  Get From List  ${tokens}  1
+    ${rc}  ${output}=  Run And Return Rc And Output  sshpass -p %{SSH_TEST_PASSWORD} ssh -o StrictHostKeyChecking=no %{SSH_TEST_USERNAME}@%{TEST_URL} /usr/lib/vmware-vmafd/bin/dir-cli user find-by-name --account ${ops-username} --login %{TEST_USERNAME} --password %{TEST_PASSWORD}
     ${status}=  Run Keyword And Return Status  Should Not Contain  ${output}  ERROR_NO_SUCH_USER
 
     # If output does not contain ERROR_NO_SUCH_USER, the user already exists and we bail
@@ -806,5 +807,5 @@ Create Ops User Account On Test Server
 
     # Otherwise, create the user
     Log To Console  \nCreating ops user...\n
-    ${rc}  ${output}=  Run And Return Rc And Output  sshpass -p vmware ssh -o StrictHostKeyChecking=no root@%{TEST_URL} /usr/lib/vmware-vmafd/bin/dir-cli user create --account ${ops-username} --user-password %{VCH_OPS_PASSWORD} --first-name %{VCH_OPS_USERNAME} --last-name vsphere.local --login %{TEST_USERNAME} --password %{TEST_PASSWORD}
+    ${rc}  ${output}=  Run And Return Rc And Output  sshpass -p %{SSH_TEST_PASSWORD} ssh -o StrictHostKeyChecking=no %{SSH_TEST_USERNAME}@%{TEST_URL} /usr/lib/vmware-vmafd/bin/dir-cli user create --account ${ops-username} --user-password %{VCH_OPS_PASSWORD} --first-name %{VCH_OPS_USERNAME} --last-name ${ops-domain} --login %{TEST_USERNAME} --password %{TEST_PASSWORD}
     Should Contain  ${output}  created successfully
