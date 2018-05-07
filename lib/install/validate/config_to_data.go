@@ -44,7 +44,7 @@ type Finder interface {
 }
 
 // SetDataFromVM set value based on VCH VM properties
-func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d *data.Data) error {
+func (v *Validator) SetDataFromVM(ctx context.Context, vm *vm.VirtualMachine, d *data.Data) error {
 	op := trace.FromContext(ctx, "SetDataFromVM")
 
 	// display name
@@ -71,7 +71,7 @@ func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d 
 	if mrp.Parent == nil {
 		return fmt.Errorf("Failed to get parent resource pool")
 	}
-	or, err := finder.ObjectReference(op, *mrp.Parent)
+	or, err := v.session.Finder.ObjectReference(op, *mrp.Parent)
 	if err != nil {
 		return err
 	}

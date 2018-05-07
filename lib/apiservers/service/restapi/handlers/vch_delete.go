@@ -90,7 +90,7 @@ func deleteVCH(op trace.Operation, d *data.Data, validator *validate.Validator, 
 		return util.NewError(http.StatusNotFound, fmt.Sprintf("Failed to find VCH: %s", err))
 	}
 
-	err = validate.SetDataFromVM(op, validator.Session().Finder, vch, d)
+	err = validator.SetDataFromVM(op, vch, d)
 	if err != nil {
 		return util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
 	}
