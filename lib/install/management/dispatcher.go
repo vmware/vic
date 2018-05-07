@@ -42,12 +42,13 @@ type Action int
 
 // Action definitions
 const (
-	ActionNone Action = iota
-	ActionConfigure
+	ActionConfigure Action = iota
 	ActionCreate
 	ActionDebug
 	ActionDelete
 	ActionInspect
+	ActionInspectCertificates
+	ActionInspectLogs
 	ActionList
 	ActionRollback
 	ActionUpdate
@@ -66,7 +67,7 @@ func (a Action) String() string {
 		act = "debug"
 	case ActionDelete:
 		act = "delete"
-	case ActionInspect:
+	case ActionInspect, ActionInspectCertificates, ActionInspectLogs:
 		act = "inspect"
 	case ActionList:
 		act = "list"
