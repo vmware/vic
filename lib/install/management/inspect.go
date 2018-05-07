@@ -117,9 +117,9 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 	return nil
 }
 
-func (d *Dispatcher) GetTLSFriendlyHostIP(clientIP net.IP, cert *x509.Certificate, CertificateAuthorities []byte) string {
+func (d *Dispatcher) GetTLSFriendlyHostIP(clientIP net.IP, cert *x509.Certificate, certificateAuthorities []byte) string {
 	hostIP := clientIP.String()
-	name, _ := viableHostAddress(d.op, []net.IP{clientIP}, cert, CertificateAuthorities)
+	name, _ := viableHostAddress(d.op, []net.IP{clientIP}, cert, certificateAuthorities)
 
 	if name != "" {
 		d.op.Debugf("Retrieved proposed name from host certificate: %q", name)
