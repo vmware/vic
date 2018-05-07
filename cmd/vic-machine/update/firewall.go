@@ -140,7 +140,7 @@ func (i *UpdateFw) Run(clic *cli.Context) (err error) {
 		return errors.New("update firewall failed")
 	}
 
-	executor := management.NewDispatcher(op, validator.Session(), management.UpdateAction, false)
+	executor := management.NewDispatcher(op, validator.Session(), management.ActionUpdate, false)
 
 	if i.enableFw {
 		op.Info("")

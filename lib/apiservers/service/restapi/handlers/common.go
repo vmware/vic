@@ -139,7 +139,7 @@ func upgradeStatusMessage(op trace.Operation, vch *vm.VirtualMachine, installerV
 }
 
 func getVCHConfig(op trace.Operation, d *data.Data, validator *validate.Validator) (*config.VirtualContainerHostConfigSpec, error) {
-	executor := management.NewDispatcher(op, validator.Session(), management.NoAction, false)
+	executor := management.NewDispatcher(op, validator.Session(), management.ActionNone, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
 		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))

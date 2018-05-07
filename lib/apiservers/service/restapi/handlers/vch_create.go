@@ -475,7 +475,7 @@ func handleCreate(op trace.Operation, c *create.Create, validator *validate.Vali
 	vConfig.HTTPProxy = c.HTTPProxy
 	vConfig.HTTPSProxy = c.HTTPSProxy
 
-	executor := management.NewDispatcher(op, validator.Session(), management.CreateAction, false)
+	executor := management.NewDispatcher(op, validator.Session(), management.ActionCreate, false)
 	err = executor.CreateVCH(vchConfig, vConfig, receiver)
 	if err != nil {
 		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to create VCH: %s", err))
