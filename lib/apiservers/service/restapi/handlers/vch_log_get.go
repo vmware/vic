@@ -22,7 +22,7 @@ import (
 
 	"github.com/go-openapi/runtime/middleware"
 
-	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/util"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
@@ -51,17 +51,17 @@ func (h *VCHLogGet) Handle(params operations.GetTargetTargetVchVchIDLogParams, p
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
-		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
+		return operations.NewGetTargetTargetVchVchIDLogDefault(errors.StatusCode(err)).WithPayload(err.Error())
 	}
 
 	helper, err := getDatastoreHelper(op, d, validator)
 	if err != nil {
-		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
+		return operations.NewGetTargetTargetVchVchIDLogDefault(errors.StatusCode(err)).WithPayload(err.Error())
 	}
 
 	output, err := getAllLogs(op, helper)
 	if err != nil {
-		return operations.NewGetTargetTargetVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
+		return operations.NewGetTargetTargetVchVchIDLogDefault(errors.StatusCode(err)).WithPayload(err.Error())
 	}
 
 	return operations.NewGetTargetTargetVchVchIDLogOK().WithPayload(output)
@@ -79,17 +79,17 @@ func (h *VCHDatacenterLogGet) Handle(params operations.GetTargetTargetDatacenter
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
-		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
+		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(errors.StatusCode(err)).WithPayload(err.Error())
 	}
 
 	helper, err := getDatastoreHelper(op, d, validator)
 	if err != nil {
-		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
+		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(errors.StatusCode(err)).WithPayload(err.Error())
 	}
 
 	output, err := getAllLogs(op, helper)
 	if err != nil {
-		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(util.StatusCode(err)).WithPayload(err.Error())
+		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogDefault(errors.StatusCode(err)).WithPayload(err.Error())
 	}
 
 	return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDLogOK().WithPayload(output)
@@ -100,23 +100,23 @@ func getDatastoreHelper(op trace.Operation, d *data.Data, validator *validate.Va
 	executor := management.NewDispatcher(op, validator.Session(), management.ActionInspectLogs, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
-		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))
+		return nil, errors.NewError(http.StatusNotFound, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))
 	}
 
-	if err := validator.SetDataFromVM(op, vch, d); err != nil {
-		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
+	if err := validate.SetDataFromVM(op, validator.Session().Finder, vch, d); err != nil {
+		return nil, errors.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
 	}
 
 	// Relative path of datastore folder
 	vmPath, err := vch.VMPathNameAsURL(op)
 	if err != nil {
-		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Unable to retrieve VCH datastore information: %s", err))
+		return nil, errors.NewError(http.StatusNotFound, fmt.Sprintf("Unable to retrieve VCH datastore information: %s", err))
 	}
 
 	// Get VCH datastore object
 	ds, err := validator.Session().Finder.Datastore(op, vmPath.Host)
 	if err != nil {
-		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Datastore folder not found for VCH %s: %s", d.ID, err))
+		return nil, errors.NewError(http.StatusNotFound, fmt.Sprintf("Datastore folder not found for VCH %s: %s", d.ID, err))
 	}
 
 	// Create a new datastore helper for file finding
@@ -136,7 +136,7 @@ func getAllLogs(op trace.Operation, helper *datastore.Helper) (string, error) {
 	}
 
 	if len(res.File) == 0 {
-		return "", util.NewError(http.StatusNotFound, "No log file available in datastore folder")
+		return "", errors.NewError(http.StatusNotFound, "No log file available in datastore folder")
 	}
 
 	var paths []string

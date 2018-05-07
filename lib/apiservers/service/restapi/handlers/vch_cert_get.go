@@ -22,7 +22,7 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 
 	"github.com/vmware/vic/lib/apiservers/service/models"
-	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/util"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
@@ -46,13 +46,13 @@ func (h *VCHCertGet) Handle(params operations.GetTargetTargetVchVchIDCertificate
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDCertificateDefault(
-			util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+			errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	c, err := getVCHCert(op, d, validator)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDCertificateDefault(
-			util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+			errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	cert := asPemCertificate(c.Cert)
@@ -72,13 +72,13 @@ func (h *VCHDatacenterCertGet) Handle(params operations.GetTargetTargetDatacente
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDCertificateDefault(
-			util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+			errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	c, err := getVCHCert(op, d, validator)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDCertificateDefault(
-			util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+			errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	cert := asPemCertificate(c.Cert)
@@ -92,7 +92,7 @@ func getVCHCert(op trace.Operation, d *data.Data, validator *validate.Validator)
 	}
 
 	if vchConfig.HostCertificate.IsNil() {
-		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("No certificate found for VCH %s", d.ID))
+		return nil, errors.NewError(http.StatusNotFound, fmt.Sprintf("No certificate found for VCH %s", d.ID))
 	}
 
 	return vchConfig.HostCertificate, nil

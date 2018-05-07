@@ -28,7 +28,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/apiservers/service/models"
-	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/util"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
@@ -60,12 +60,12 @@ func (h *VCHGet) Handle(params operations.GetTargetTargetVchVchIDParams, princip
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
-		return operations.NewGetTargetTargetVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetVchVchIDDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	vch, err := getVCH(op, d, validator)
 	if err != nil {
-		return operations.NewGetTargetTargetVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetVchVchIDDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	return operations.NewGetTargetTargetVchVchIDOK().WithPayload(vch)
@@ -83,12 +83,12 @@ func (h *VCHDatacenterGet) Handle(params operations.GetTargetTargetDatacenterDat
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
-		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	vch, err := getVCH(op, d, validator)
 	if err != nil {
-		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDOK().WithPayload(vch)
@@ -98,17 +98,17 @@ func getVCH(op trace.Operation, d *data.Data, validator *validate.Validator) (*m
 	executor := management.NewDispatcher(op, validator.Session(), management.ActionInspect, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
-		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Failed to inspect VCH: %s", err))
+		return nil, errors.NewError(http.StatusNotFound, fmt.Sprintf("Failed to inspect VCH: %s", err))
 	}
 
 	err = validator.SetDataFromVM(op, vch, d)
 	if err != nil {
-		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
+		return nil, errors.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
 	}
 
 	model, err := vchToModel(op, vch, d, executor)
 	if err != nil {
-		return nil, util.WrapError(http.StatusInternalServerError, err)
+		return nil, errors.WrapError(http.StatusInternalServerError, err)
 	}
 
 	return model, nil

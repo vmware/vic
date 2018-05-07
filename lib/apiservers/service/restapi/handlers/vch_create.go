@@ -34,7 +34,7 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/cmd/vic-machine/create"
 	"github.com/vmware/vic/lib/apiservers/service/models"
-	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/util"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/constants"
@@ -80,17 +80,17 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
-		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewPostTargetTargetVchDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	c, err := buildCreate(op, d, finder(validator.Session().Finder), params.Vch)
 	if err != nil {
-		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewPostTargetTargetVchDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	task, err := handleCreate(op, c, validator, datastoreLogger)
 	if err != nil {
-		return operations.NewPostTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewPostTargetTargetVchDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	return operations.NewPostTargetTargetVchCreated().WithPayload(operations.PostTargetTargetVchCreatedBody{Task: task})
@@ -111,17 +111,17 @@ func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacente
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
-		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	c, err := buildCreate(op, d, validator.Session().Finder, params.Vch)
 	if err != nil {
-		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	task, err := handleCreate(op, c, validator, datastoreLogger)
 	if err != nil {
-		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	return operations.NewPostTargetTargetDatacenterDatacenterVchCreated().WithPayload(operations.PostTargetTargetDatacenterDatacenterVchCreatedBody{Task: task})
@@ -149,17 +149,17 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 
 	if vch != nil {
 		if vch.Version != "" && version.String() != string(vch.Version) {
-			return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Invalid version: %s", vch.Version))
+			return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Invalid version: %s", vch.Version))
 		}
 
 		c.DisplayName = vch.Name
 
 		// TODO (#6710): move validation to swagger
 		if err := common.CheckUnsupportedChars(c.DisplayName); err != nil {
-			return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Invalid display name: %s", err))
+			return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Invalid display name: %s", err))
 		}
 		if len(c.DisplayName) > create.MaxDisplayNameLen {
-			return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Invalid display name: length exceeds %d characters", create.MaxDisplayNameLen))
+			return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Invalid display name: length exceeds %d characters", create.MaxDisplayNameLen))
 		}
 
 		debug := int(vch.Debug)
@@ -180,10 +180,10 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 
 			resourcePath, err := fromManagedObject(op, finder, "ResourcePool", vch.Compute.Resource) // TODO (#6711): Do we need to handle clusters differently?
 			if err != nil {
-				return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding resource pool: %s", err))
+				return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding resource pool: %s", err))
 			}
 			if resourcePath == "" {
-				return nil, util.NewError(http.StatusBadRequest, "Resource pool must be specified (by name or id)")
+				return nil, errors.NewError(http.StatusBadRequest, "Resource pool must be specified (by name or id)")
 			}
 			c.ComputeResourcePath = resourcePath
 
@@ -196,67 +196,67 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 			if vch.Network.Bridge != nil {
 				path, err := fromManagedObject(op, finder, "Network", vch.Network.Bridge.PortGroup)
 				if err != nil {
-					return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding bridge network: %s", err))
+					return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding bridge network: %s", err))
 				}
 				if path == "" {
-					return nil, util.NewError(http.StatusBadRequest, "Bridge network portgroup must be specified (by name or id)")
+					return nil, errors.NewError(http.StatusBadRequest, "Bridge network portgroup must be specified (by name or id)")
 				}
 				c.BridgeNetworkName = path
 				c.BridgeIPRange = fromCIDR(&vch.Network.Bridge.IPRange)
 
 				if err := c.ProcessBridgeNetwork(); err != nil {
-					return nil, util.WrapError(http.StatusBadRequest, err)
+					return nil, errors.WrapError(http.StatusBadRequest, err)
 				}
 			}
 
 			if vch.Network.Client != nil {
 				path, err := fromManagedObject(op, finder, "Network", vch.Network.Client.PortGroup)
 				if err != nil {
-					return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding client network portgroup: %s", err))
+					return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding client network portgroup: %s", err))
 				}
 				if path == "" {
-					return nil, util.NewError(http.StatusBadRequest, "Client network portgroup must be specified (by name or id)")
+					return nil, errors.NewError(http.StatusBadRequest, "Client network portgroup must be specified (by name or id)")
 				}
 				c.ClientNetworkName = path
 				c.ClientNetworkGateway = fromGateway(vch.Network.Client.Gateway)
 				c.ClientNetworkIP = fromCIDR(&vch.Network.Client.Static)
 
 				if err := c.ProcessNetwork(op, &c.Data.ClientNetwork, "client", c.ClientNetworkName, c.ClientNetworkIP, c.ClientNetworkGateway); err != nil {
-					return nil, util.WrapError(http.StatusBadRequest, err)
+					return nil, errors.WrapError(http.StatusBadRequest, err)
 				}
 			}
 
 			if vch.Network.Management != nil {
 				path, err := fromManagedObject(op, finder, "Network", vch.Network.Management.PortGroup)
 				if err != nil {
-					return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding management network portgroup: %s", err))
+					return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding management network portgroup: %s", err))
 				}
 				if path == "" {
-					return nil, util.NewError(http.StatusBadRequest, "Management network portgroup must be specified (by name or id)")
+					return nil, errors.NewError(http.StatusBadRequest, "Management network portgroup must be specified (by name or id)")
 				}
 				c.ManagementNetworkName = path
 				c.ManagementNetworkGateway = fromGateway(vch.Network.Management.Gateway)
 				c.ManagementNetworkIP = fromCIDR(&vch.Network.Management.Static)
 
 				if err := c.ProcessNetwork(op, &c.Data.ManagementNetwork, "management", c.ManagementNetworkName, c.ManagementNetworkIP, c.ManagementNetworkGateway); err != nil {
-					return nil, util.WrapError(http.StatusBadRequest, err)
+					return nil, errors.WrapError(http.StatusBadRequest, err)
 				}
 			}
 
 			if vch.Network.Public != nil {
 				path, err := fromManagedObject(op, finder, "Network", vch.Network.Public.PortGroup)
 				if err != nil {
-					return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding public network portgroup: %s", err))
+					return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding public network portgroup: %s", err))
 				}
 				if path == "" {
-					return nil, util.NewError(http.StatusBadRequest, "Public network portgroup must be specified (by name or id)")
+					return nil, errors.NewError(http.StatusBadRequest, "Public network portgroup must be specified (by name or id)")
 				}
 				c.PublicNetworkName = path
 				c.PublicNetworkGateway = fromGateway(vch.Network.Public.Gateway)
 				c.PublicNetworkIP = fromCIDR(&vch.Network.Public.Static)
 
 				if err := c.ProcessNetwork(op, &c.Data.PublicNetwork, "public", c.PublicNetworkName, c.PublicNetworkIP, c.PublicNetworkGateway); err != nil {
-					return nil, util.WrapError(http.StatusBadRequest, err)
+					return nil, errors.WrapError(http.StatusBadRequest, err)
 				}
 
 				c.Nameservers = common.DNS{
@@ -264,7 +264,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				}
 				c.DNS, err = c.Nameservers.ProcessDNSServers(op)
 				if err != nil {
-					return nil, util.WrapError(http.StatusBadRequest, err)
+					return nil, errors.WrapError(http.StatusBadRequest, err)
 				}
 			}
 
@@ -282,24 +282,24 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 
 					path, err := fromManagedObject(op, finder, "Network", cnetwork.PortGroup)
 					if err != nil {
-						return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding portgroup for container network %s: %s", alias, err))
+						return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding portgroup for container network %s: %s", alias, err))
 					}
 					if path == "" {
-						return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Container network %s portgroup must be specified (by name or id)", alias))
+						return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Container network %s portgroup must be specified (by name or id)", alias))
 					}
 					containerNetworks.MappedNetworks[alias] = path
 
 					if cnetwork.Gateway != nil {
 						address := net.ParseIP(string(cnetwork.Gateway.Address))
 						if address == nil {
-							return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing gateway IP %s for container network %s", cnetwork.Gateway.Address, alias))
+							return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing gateway IP %s for container network %s", cnetwork.Gateway.Address, alias))
 						}
 						if cnetwork.Gateway.RoutingDestinations == nil || len(cnetwork.Gateway.RoutingDestinations) != 1 {
-							return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: exactly one subnet must be specified", alias))
+							return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: exactly one subnet must be specified", alias))
 						}
 						_, mask, err := net.ParseCIDR(string(cnetwork.Gateway.RoutingDestinations[0]))
 						if err != nil {
-							return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: %s", alias, err))
+							return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: %s", alias, err))
 						}
 						containerNetworks.MappedNetworksGateways[alias] = net.IPNet{
 							IP:   address,
@@ -325,7 +325,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 					if cnetwork.Firewall != "" {
 						trustLevel, err := executor.ParseTrustLevel(cnetwork.Firewall)
 						if err != nil {
-							return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing trust level for container network %s: %s", alias, err))
+							return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing trust level for container network %s: %s", alias, err))
 						}
 
 						containerNetworks.MappedNetworksFirewalls[alias] = trustLevel
@@ -342,7 +342,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 			}
 
 			if err := common.CheckUnsupportedCharsDatastore(c.ImageDatastorePath); err != nil {
-				return nil, util.WrapError(http.StatusBadRequest, err)
+				return nil, errors.WrapError(http.StatusBadRequest, err)
 			}
 
 			if vch.Storage.VolumeStores != nil {
@@ -354,7 +354,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				vs := common.VolumeStores{VolumeStores: cli.StringSlice(volumes)}
 				volumeLocations, err := vs.ProcessVolumeStores()
 				if err != nil {
-					return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error processing volume stores: %s", err))
+					return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error processing volume stores: %s", err))
 				}
 				c.VolumeLocations = volumeLocations
 			}
@@ -384,7 +384,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 					c.Certs.NoSaveToDisk = true
 					c.Certs.Networks = c.Networks
 					if err := c.Certs.ProcessCertificates(op, c.DisplayName, c.Force, 0); err != nil {
-						return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error generating certificates: %s", err))
+						return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error generating certificates: %s", err))
 					}
 				} else {
 					c.Certs.CertPEM = []byte(vch.Auth.Server.Certificate.Pem)
@@ -416,7 +416,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 			}
 		}
 		if err := c.OpsCredentials.ProcessOpsCredentials(op, true, c.Target.User, c.Target.Password); err != nil {
-			return nil, util.WrapError(http.StatusBadRequest, err)
+			return nil, errors.WrapError(http.StatusBadRequest, err)
 		}
 
 		if vch.Registry != nil {
@@ -430,7 +430,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 
 				hproxy, sproxy, err := c.Proxies.ProcessProxies()
 				if err != nil {
-					return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error processing proxies: %s", err))
+					return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error processing proxies: %s", err))
 				}
 				c.HTTPProxy = hproxy
 				c.HTTPSProxy = sproxy
@@ -440,7 +440,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 		if vch.SyslogAddr != "" {
 			c.SyslogAddr = vch.SyslogAddr.String()
 			if err := c.ProcessSyslog(); err != nil {
-				return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error processing syslog server address: %s", err))
+				return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error processing syslog server address: %s", err))
 			}
 		}
 
@@ -461,7 +461,7 @@ func handleCreate(op trace.Operation, c *create.Create, validator *validate.Vali
 			messages = append(messages, issue.Error())
 		}
 
-		return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Failed to validate VCH: %s", strings.Join(messages, ", ")))
+		return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Failed to validate VCH: %s", strings.Join(messages, ", ")))
 	}
 
 	vConfig := validator.AddDeprecatedFields(op, vchConfig, c.Data)
@@ -478,7 +478,7 @@ func handleCreate(op trace.Operation, c *create.Create, validator *validate.Vali
 	executor := management.NewDispatcher(op, validator.Session(), management.ActionCreate, false)
 	err = executor.CreateVCH(vchConfig, vConfig, receiver)
 	if err != nil {
-		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to create VCH: %s", err))
+		return nil, errors.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to create VCH: %s", err))
 	}
 
 	return nil, nil
