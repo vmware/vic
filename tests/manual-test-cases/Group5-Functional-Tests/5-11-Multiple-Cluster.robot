@@ -50,7 +50,7 @@ Multiple Cluster Setup
     ${hosts}=  Run  govc ls -t HostSystem host/cls
     @{hosts}=  Split To Lines  ${hosts}
     ${datastore}=  Get Name of First Local Storage For Host  @{hosts}[0]
-    Set Environment Variable  TEST_DATASTORE  '${datastore}'
+    Set Environment Variable  TEST_DATASTORE  "${datastore}"
 
 *** Test Cases ***
 Test
