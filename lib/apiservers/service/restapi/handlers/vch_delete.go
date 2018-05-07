@@ -21,6 +21,7 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 
 	"github.com/vmware/vic/lib/apiservers/service/models"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/decode"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/install/data"
@@ -106,47 +107,11 @@ func deleteVCH(op trace.Operation, d *data.Data, validator *validate.Validator, 
 		op.Debugf("VCH version %q is different than API version %s", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
 	}
 
-	deleteContainers, deleteVolumeStores := fromDeletionSpecification(specification)
+	deleteContainers, deleteVolumeStores := decode.FromDeletionSpecification(specification)
 	err = executor.DeleteVCH(vchConfig, deleteContainers, deleteVolumeStores)
 	if err != nil {
 		return errors.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to delete VCH: %s", err))
 	}
 
 	return nil
-}
-
-func fromDeletionSpecification(specification *models.DeletionSpecification) (deleteContainers *management.DeleteContainers, deleteVolumeStores *management.DeleteVolumeStores) {
-	if specification != nil {
-		if specification.Containers != nil {
-			var dc management.DeleteContainers
-
-			switch *specification.Containers {
-			case models.DeletionSpecificationContainersAll:
-				dc = management.AllContainers
-			case models.DeletionSpecificationContainersOff:
-				dc = management.PoweredOffContainers
-			default:
-				panic("Deletion API handler received unexpected input")
-			}
-
-			deleteContainers = &dc
-		}
-
-		if specification.VolumeStores != nil {
-			var dv management.DeleteVolumeStores
-
-			switch *specification.VolumeStores {
-			case models.DeletionSpecificationVolumeStoresAll:
-				dv = management.AllVolumeStores
-			case models.DeletionSpecificationVolumeStoresNone:
-				dv = management.NoVolumeStores
-			default:
-				panic("Deletion API handler received unexpected input")
-			}
-
-			deleteVolumeStores = &dv
-		}
-	}
-
-	return
 }

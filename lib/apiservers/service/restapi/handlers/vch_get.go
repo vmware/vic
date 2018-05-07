@@ -15,27 +15,21 @@
 package handlers
 
 import (
-	"bytes"
-	"encoding/pem"
 	"fmt"
-	"net"
 	"net/http"
-	"strings"
 
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/strfmt"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/apiservers/service/models"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/encode"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/config"
-	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
-	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -131,17 +125,17 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 			UseVMGroup: vchConfig.UseVMGroup,
 		},
 		CPU: &models.VCHComputeCPU{
-			Limit:       asMHz(d.ResourceLimits.VCHCPULimitsMHz),
-			Reservation: asMHz(d.ResourceLimits.VCHCPUReservationsMHz),
-			Shares:      asShares(d.ResourceLimits.VCHCPUShares),
+			Limit:       encode.AsMHz(d.ResourceLimits.VCHCPULimitsMHz),
+			Reservation: encode.AsMHz(d.ResourceLimits.VCHCPUReservationsMHz),
+			Shares:      encode.AsShares(d.ResourceLimits.VCHCPUShares),
 		},
 		Memory: &models.VCHComputeMemory{
-			Limit:       asMiB(d.ResourceLimits.VCHMemoryLimitsMB),
-			Reservation: asMiB(d.ResourceLimits.VCHMemoryReservationsMB),
-			Shares:      asShares(d.ResourceLimits.VCHMemoryShares),
+			Limit:       encode.AsMiB(d.ResourceLimits.VCHMemoryLimitsMB),
+			Reservation: encode.AsMiB(d.ResourceLimits.VCHMemoryReservationsMB),
+			Shares:      encode.AsShares(d.ResourceLimits.VCHMemoryShares),
 		},
 		Resource: &models.ManagedObject{
-			ID: mobidToID(vchConfig.Container.ComputeResources[0].String()),
+			ID: encode.AsManagedObjectID(vchConfig.Container.ComputeResources[0].String()),
 		},
 	}
 
@@ -149,13 +143,13 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 	model.Network = &models.VCHNetwork{
 		Bridge: &models.VCHNetworkBridge{
 			PortGroup: &models.ManagedObject{
-				ID: mobidToID(vchConfig.ExecutorConfig.Networks[vchConfig.Network.BridgeNetwork].Network.Common.ID),
+				ID: encode.AsManagedObjectID(vchConfig.ExecutorConfig.Networks[vchConfig.Network.BridgeNetwork].Network.Common.ID),
 			},
-			IPRange: asCIDR(vchConfig.Network.BridgeIPRange),
+			IPRange: encode.AsCIDR(vchConfig.Network.BridgeIPRange),
 		},
-		Client:     asNetwork(vchConfig.ExecutorConfig.Networks["client"]),
-		Management: asNetwork(vchConfig.ExecutorConfig.Networks["management"]),
-		Public:     asNetwork(vchConfig.ExecutorConfig.Networks["public"]),
+		Client:     encode.AsNetwork(vchConfig.ExecutorConfig.Networks["client"]),
+		Management: encode.AsNetwork(vchConfig.ExecutorConfig.Networks["management"]),
+		Public:     encode.AsNetwork(vchConfig.ExecutorConfig.Networks["public"]),
 	}
 
 	containerNetworks := make([]*models.ContainerNetwork, 0, len(vchConfig.Network.ContainerNetworks))
@@ -164,14 +158,14 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 			containerNetworks = append(containerNetworks, &models.ContainerNetwork{
 				Alias: value.Name,
 				PortGroup: &models.ManagedObject{
-					ID: mobidToID(value.Common.ID),
+					ID: encode.AsManagedObjectID(value.Common.ID),
 				},
-				Nameservers: *asIPAddresses(&value.Nameservers),
+				Nameservers: *encode.AsIPAddresses(&value.Nameservers),
 				Gateway: &models.Gateway{
-					Address:             asIPAddress(value.Gateway.IP),
-					RoutingDestinations: []models.CIDR{asCIDR(&value.Gateway)},
+					Address:             encode.AsIPAddress(value.Gateway.IP),
+					RoutingDestinations: []models.CIDR{encode.AsCIDR(&value.Gateway)},
 				},
-				IPRanges: *rangesAsIPRanges(&value.Pools),
+				IPRanges: *encode.AsIPRanges(&value.Pools),
 				Firewall: value.TrustLevel.String(),
 			})
 		}
@@ -181,7 +175,7 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 	// storage
 	scratchSize := int(vchConfig.Storage.ScratchSize)
 	model.Storage = &models.VCHStorage{
-		BaseImageSize: asKB(&scratchSize),
+		BaseImageSize: encode.AsKB(&scratchSize),
 	}
 
 	volumeLocations := make([]*models.VCHStorageVolumeStoresItems0, 0, len(vchConfig.Storage.VolumeLocations))
@@ -210,15 +204,15 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 
 	if vchConfig.Certificate.HostCertificate != nil {
 		model.Auth.Server = &models.VCHAuthServer{
-			Certificate: asPemCertificate(vchConfig.Certificate.HostCertificate.Cert),
+			Certificate: encode.AsPemCertificate(vchConfig.Certificate.HostCertificate.Cert),
 		}
 	}
 
-	model.Auth.Client.CertificateAuthorities = asPemCertificates(vchConfig.Certificate.CertificateAuthorities)
+	model.Auth.Client.CertificateAuthorities = encode.AsPemCertificates(vchConfig.Certificate.CertificateAuthorities)
 
 	// endpoint
 	model.Endpoint = &models.VCHEndpoint{
-		Memory: asMiB(&d.MemoryMB),
+		Memory: encode.AsMiB(&d.MemoryMB),
 		CPU: &models.VCHEndpointCPU{
 			Sockets: int64(d.NumCPUs),
 		},
@@ -232,8 +226,8 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 	model.Registry = &models.VCHRegistry{
 		Insecure:               vchConfig.Registry.InsecureRegistries,
 		Whitelist:              vchConfig.Registry.RegistryWhitelist,
-		CertificateAuthorities: asPemCertificates(vchConfig.Certificate.RegistryCertificateAuthorities),
-		ImageFetchProxy:        asImageFetchProxy(vchConfig.ExecutorConfig.Sessions[config.VicAdminService], config.VICAdminHTTPProxy, config.VICAdminHTTPSProxy),
+		CertificateAuthorities: encode.AsPemCertificates(vchConfig.Certificate.RegistryCertificateAuthorities),
+		ImageFetchProxy:        encode.AsImageFetchProxy(vchConfig.ExecutorConfig.Sessions[config.VicAdminService], config.VICAdminHTTPProxy, config.VICAdminHTTPSProxy),
 	}
 
 	// runtime
@@ -265,200 +259,4 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 	}
 
 	return model, nil
-}
-
-func asBytes(value *int, units string) *models.ValueBytes {
-	if value == nil || *value == 0 {
-		return nil
-	}
-
-	return &models.ValueBytes{
-		Value: models.Value{
-			Value: int64(*value),
-			Units: units,
-		},
-	}
-}
-
-func asMiB(value *int) *models.ValueBytes {
-	return asBytes(value, models.ValueBytesUnitsMiB)
-}
-
-func asBytesMetric(value *int, units string) *models.ValueBytesMetric {
-	if value == nil || *value == 0 {
-		return nil
-	}
-
-	return &models.ValueBytesMetric{
-		Value: models.Value{
-			Value: int64(*value),
-			Units: units,
-		},
-	}
-}
-
-func asKB(value *int) *models.ValueBytesMetric {
-	return asBytesMetric(value, models.ValueBytesMetricUnitsKB)
-}
-
-func asMHz(value *int) *models.ValueHertz {
-	if value == nil || *value == 0 {
-		return nil
-	}
-
-	return &models.ValueHertz{
-		Value: models.Value{
-			Value: int64(*value),
-			Units: models.ValueHertzUnitsMHz,
-		},
-	}
-}
-
-func asShares(shares *types.SharesInfo) *models.Shares {
-	if shares == nil {
-		return nil
-	}
-
-	return &models.Shares{
-		Level:  string(shares.Level),
-		Number: int64(shares.Shares),
-	}
-}
-
-func asIPAddress(address net.IP) models.IPAddress {
-	return models.IPAddress(address.String())
-}
-
-func asIPAddresses(addresses *[]net.IP) *[]models.IPAddress {
-	m := make([]models.IPAddress, 0, len(*addresses))
-	for _, value := range *addresses {
-		m = append(m, asIPAddress(value))
-	}
-
-	return &m
-}
-
-func asCIDR(network *net.IPNet) models.CIDR {
-	if network == nil {
-		return models.CIDR("")
-	}
-
-	return models.CIDR(network.String())
-}
-
-func asCIDRs(networks *[]net.IPNet) *[]models.CIDR {
-	m := make([]models.CIDR, 0, len(*networks))
-	for _, value := range *networks {
-		m = append(m, asCIDR(&value))
-	}
-
-	return &m
-}
-
-func asIPRange(network *net.IPNet) models.IPRange {
-	if network == nil {
-		return models.IPRange("")
-	}
-
-	return models.IPRange(models.CIDR(network.String()))
-}
-
-func asIPRanges(networks *[]net.IPNet) *[]models.IPRange {
-	m := make([]models.IPRange, 0, len(*networks))
-	for _, value := range *networks {
-		m = append(m, asIPRange(&value))
-	}
-
-	return &m
-}
-
-func rangesAsIPRanges(networks *[]ip.Range) *[]models.IPRange {
-	m := make([]models.IPRange, 0, len(*networks))
-	for _, value := range *networks {
-		m = append(m, asIPRange(value.Network()))
-	}
-
-	return &m
-}
-
-func asNetwork(network *executor.NetworkEndpoint) *models.Network {
-	if network == nil {
-		return nil
-	}
-
-	m := &models.Network{
-		PortGroup: &models.ManagedObject{
-			ID: mobidToID(network.Network.Common.ID),
-		},
-		Nameservers: *asIPAddresses(&network.Network.Nameservers),
-	}
-
-	if network.Network.Gateway.IP != nil {
-		m.Gateway = &models.Gateway{
-			Address:             asIPAddress(network.Network.Gateway.IP),
-			RoutingDestinations: *asCIDRs(&network.Network.Destinations),
-		}
-	}
-
-	return m
-}
-
-func mobidToID(mobid string) string {
-	moref := new(types.ManagedObjectReference)
-	ok := moref.FromString(mobid)
-	if !ok {
-		return "" // TODO (#6717): Handle? (We probably don't want to let this fail the request, but may want to convey that something unexpected happened.)
-	}
-
-	return moref.Value
-}
-
-func asPemCertificates(certificates []byte) []*models.X509Data {
-	var buf bytes.Buffer
-
-	m := make([]*models.X509Data, 0)
-	for c := &certificates; len(*c) > 0; {
-		b, rest := pem.Decode(*c)
-
-		err := pem.Encode(&buf, b)
-		if err != nil {
-			continue // TODO (#6716): Handle? (We probably don't want to let this fail the request, but may want to convey that something unexpected happened.)
-		}
-
-		m = append(m, &models.X509Data{
-			Pem: models.PEM(buf.String()),
-		})
-
-		c = &rest
-	}
-
-	return m
-}
-
-func asPemCertificate(certificates []byte) *models.X509Data {
-	m := asPemCertificates(certificates)
-
-	if len(m) > 1 {
-		// TODO (#6716): Error? (We probably don't want to let this fail the request, but may want to convey that something unexpected happened.)
-	}
-
-	return m[0]
-}
-
-func asImageFetchProxy(sessionConfig *executor.SessionConfig, http, https string) *models.VCHRegistryImageFetchProxy {
-	var httpProxy, httpsProxy strfmt.URI
-	for _, env := range sessionConfig.Cmd.Env {
-		if strings.HasPrefix(env, http+"=") {
-			httpProxy = strfmt.URI(strings.SplitN(env, "=", 2)[1])
-		}
-		if strings.HasPrefix(env, https+"=") {
-			httpsProxy = strfmt.URI(strings.SplitN(env, "=", 2)[1])
-		}
-	}
-
-	if httpProxy == "" && httpsProxy == "" {
-		return nil
-	}
-
-	return &models.VCHRegistryImageFetchProxy{HTTP: httpProxy, HTTPS: httpsProxy}
 }
