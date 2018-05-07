@@ -86,7 +86,7 @@ func (h *VCHDatacenterListGet) Handle(params operations.GetTargetTargetDatacente
 
 func listVCHs(op trace.Operation, d *data.Data, validator *validate.Validator) ([]*models.VCHListItem, error) {
 
-	executor := management.NewDispatcher(op, validator.Session(), management.ActionNone, false)
+	executor := management.NewDispatcher(op, validator.Session(), management.ActionList, false)
 	vchs, err := executor.SearchVCHs(validator.Session().ClusterPath)
 	if err != nil {
 		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to search VCHs in %s: %s", validator.Session().PoolPath, err))
