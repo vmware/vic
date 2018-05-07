@@ -123,10 +123,10 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 	var action management.Action
 	if !u.Data.Rollback {
 		op.Infof("### Upgrading VCH ####")
-		action = management.UpgradeAction
+		action = management.ActionUpgrade
 	} else {
 		op.Infof("### Rolling back VCH ####")
-		action = management.RollbackAction
+		action = management.ActionRollback
 	}
 
 	validator, err := validate.NewValidator(op, u.Data)

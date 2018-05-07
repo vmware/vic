@@ -146,7 +146,7 @@ func (d *Debug) Run(clic *cli.Context) (err error) {
 		return errors.New("debug failed")
 	}
 
-	executor := management.NewDispatcher(op, validator.Session(), management.DebugAction, d.Force)
+	executor := management.NewDispatcher(op, validator.Session(), management.ActionDebug, d.Force)
 
 	var vch *vm.VirtualMachine
 	if d.Data.ID != "" {

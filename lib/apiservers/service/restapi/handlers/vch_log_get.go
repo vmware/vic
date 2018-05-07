@@ -97,7 +97,7 @@ func (h *VCHDatacenterLogGet) Handle(params operations.GetTargetTargetDatacenter
 
 // getDatastoreHelper validates the VCH and returns the datastore helper for the VCH. It errors when validation fails or when datastore is not ready
 func getDatastoreHelper(op trace.Operation, d *data.Data, validator *validate.Validator) (*datastore.Helper, error) {
-	executor := management.NewDispatcher(op, validator.Session(), management.NoAction, false)
+	executor := management.NewDispatcher(op, validator.Session(), management.ActionNone, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
 		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))

@@ -708,7 +708,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	// separate initial validation from dispatch of creation task
 	op.Info("")
 
-	executor := management.NewDispatcher(op, validator.Session(), management.CreateAction, c.Force)
+	executor := management.NewDispatcher(op, validator.Session(), management.ActionCreate, c.Force)
 	executor.InitDiagnosticLogsFromConf(vchConfig)
 	if err = executor.CreateVCH(vchConfig, vConfig, datastoreLog); err != nil {
 		executor.CollectDiagnosticLogs()
