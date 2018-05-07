@@ -226,6 +226,9 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 	}
 
 	soapClient.UserAgent = s.UserAgent
+	if s.UserAgent == "" {
+		op.Debug("DEVNOTICE: Session created with default user agent.")
+	}
 
 	soapClient.SetThumbprint(soapURL.Host, s.Thumbprint)
 

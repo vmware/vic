@@ -48,6 +48,7 @@ import (
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/registry"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
@@ -528,6 +529,7 @@ func newSession(ctx context.Context, config *config.VirtualContainerHostConfigSp
 		User:       url.UserPassword(config.Username, config.Token),
 		Thumbprint: config.TargetThumbprint,
 		Keepalive:  defaultSessionKeepAlive,
+		UserAgent:  version.UserAgent("vic-engine"),
 	}
 
 	sess := session.NewSession(sessCfg)

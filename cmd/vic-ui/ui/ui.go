@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/vic/lib/install/plugin"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -300,6 +301,7 @@ func (p *Plugin) Install(cli *cli.Context) error {
 			User:       p.Target.URL.User,
 			Thumbprint: p.Thumbprint,
 			Insecure:   true,
+			UserAgent:  version.UserAgent("vic-ui-installer"),
 		}
 
 		// Configure the OVA vm to be managed by this plugin
