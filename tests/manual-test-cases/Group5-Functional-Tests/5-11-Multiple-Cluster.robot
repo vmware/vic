@@ -16,7 +16,7 @@
 Documentation  Test 5-11 - Multiple Clusters
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  Multiple Cluster Setup
-#Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-11-multiple-cluster*'
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-11-multiple-cluster*'
 
 *** Keywords ***
 # Insert elements from dict2 into dict1, overwriting conflicts in dict1 & returning new dict
