@@ -8,7 +8,18 @@ coverage:
 
   status:
     project:
-      default: off
+      cmd:
+        enabled: true
+        paths: "cmd"
+        target: auto
+      lib:
+        enabled: true
+        paths: "lib"
+        target: auto
+      pkg:
+        enabled: true
+        paths: "pkg"
+        target: auto
     patch:
       cmd:
         enabled: true
