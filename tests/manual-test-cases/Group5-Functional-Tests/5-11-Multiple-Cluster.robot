@@ -19,15 +19,6 @@ Suite Setup  Wait Until Keyword Succeeds  10x  10m  Multiple Cluster Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-11-multiple-cluster*'
 
 *** Keywords ***
-# Insert elements from dict2 into dict1, overwriting conflicts in dict1 & returning new dict
-Combine Dictionaries
-    [Arguments]  ${dict1}  ${dict2}
-    ${dict2keys}=  Get Dictionary Keys  ${dict2}
-    :FOR  ${key}  IN  @{dict2keys}
-    \    ${elem}=  Get From Dictionary  ${dict2}  ${key}
-    \    Set To Dictionary  ${dict1}  ${key}  ${elem}
-    [Return]  ${dict1}
-
 Multiple Cluster Setup
     [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-11-multiple-cluster*'  ${false}
