@@ -16,7 +16,7 @@
 Documentation  Test 5-11 - Multiple Clusters
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  Multiple Cluster Setup
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-11-multiple-cluster*'
+#Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-11-multiple-cluster*'
 
 *** Keywords ***
 # Insert elements from dict2 into dict1, overwriting conflicts in dict1 & returning new dict
@@ -52,9 +52,14 @@ Multiple Cluster Setup
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
     Remove Environment Variable  TEST_DATACENTER
-    Set Environment Variable  TEST_DATASTORE  local-0
-    Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  15m
+    Set Environment Variable  TEST_RESOURCE  cls
+
+    # Get one of the hosts in the cluster we want and make sure we use the correct local datastore
+    ${hosts}=  Run  govc ls -t HostSystem host/cls
+    @{hosts}=  Split To Lines  ${hosts}
+    ${datastore}=  Get Name of First Local Storage For Host  @{hosts}[0]
+    Set Environment Variable  TEST_DATASTORE  '${datastore}'
 
 *** Test Cases ***
 Test
