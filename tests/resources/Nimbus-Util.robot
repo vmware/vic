@@ -487,23 +487,22 @@ Create Simple VC Cluster With Static IP
     [Timeout]    110 minutes
     Set Suite Variable  ${NIMBUS_LOCATION}  NIMBUS_LOCATION=wdc
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
-    Log To Console  Create a new simple vc cluser with static ip support...
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-simple-cluster --testbedSpecRubyFile /dbc/pa-dbc1111/mhagen/nimbus-testbeds/testbeds/vic-simple-cluster.rb --runName ${name}
+    Log To Console  Create a new simple vc cluster with static ip support...
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-simple-cluster-with-static --testbedSpecRubyFile /dbc/pa-dbc1111/mhagen/nimbus-testbeds/testbeds/vic-simple-cluster-with-static.rb --runName ${name}
     Log  ${out}
 
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     ${vc-ip}=  Get IP  ${name}.vc.0
-    ${pod}=  Fetch POD  ${name}.vc.0
-    Set Suite Variable  ${NIMBUS_POD}  ${pod}
+    ${worker-ip}=  Get IP  ${name}.worker.0
     Close Connection
 
-    Set Suite Variable  @{list}  %{NIMBUS_USER}-${name}.esx.0  %{NIMBUS_USER}-${name}.esx.1  %{NIMBUS_USER}-${name}.esx.2  %{NIMBUS_USER}-${name}.nfs.0  %{NIMBUS_USER}-${name}.vc.0
-    Log To Console  Finished Creating Cluster ${name}
+    Set Suite Variable  @{list}  %{NIMBUS_USER}-${name}.esx.0  %{NIMBUS_USER}-${name}.esx.1  %{NIMBUS_USER}-${name}.esx.2  %{NIMBUS_USER}-${name}.nfs.0  %{NIMBUS_USER}-${name}.vc.0  %{NIMBUS_USER}-${name}.worker.0
+    Log To Console  Finished creating cluster ${name}
 
+    Set Environment Variable  STATIC_WORKER_IP  ${worker-ip}
     ${out}=  Get Static IP Address
     Set Suite Variable  ${static}  ${out}
-    Append To List  ${list}  %{STATIC_WORKER_NAME}
 
     Log To Console  Set environment variables up for GOVC
     Set Environment Variable  GOVC_URL  ${vc-ip}
