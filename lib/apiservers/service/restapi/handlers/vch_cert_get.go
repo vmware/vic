@@ -22,6 +22,7 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 
 	"github.com/vmware/vic/lib/apiservers/service/models"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/encode"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/config"
@@ -55,7 +56,7 @@ func (h *VCHCertGet) Handle(params operations.GetTargetTargetVchVchIDCertificate
 			errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	cert := asPemCertificate(c.Cert)
+	cert := encode.AsPemCertificate(c.Cert)
 	return NewGetTargetTargetVchVchIDCertificateOK(cert.Pem)
 }
 
@@ -81,7 +82,7 @@ func (h *VCHDatacenterCertGet) Handle(params operations.GetTargetTargetDatacente
 			errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	cert := asPemCertificate(c.Cert)
+	cert := encode.AsPemCertificate(c.Cert)
 	return NewGetTargetTargetDatacenterDatacenterVchVchIDCertificateOK(cert.Pem)
 }
 
