@@ -562,3 +562,9 @@ Is Nimbus Location WDC
     ${status}=  Run Keyword And Return Status  Should Not Be Empty  ${out}
     Close Connection
     [Return]  ${status}
+
+Get Name of First Local Storage For Host
+    [Arguments]  ${host}
+    ${datastores}=  Run  govc host.info -host ${host} -json | jq -r '.HostSystems[].Config.FileSystemVolume.MountInfo[].Volume | select (.Type\=\="VMFS") | select (.Local\=\=true) | .Name'
+    @{datastores}=  Split To Lines  ${datastores}
+    [Return]  @{datastores}[0]
