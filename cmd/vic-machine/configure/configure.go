@@ -397,7 +397,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		return err
 	}
 
-	if err = validate.SetDataFromVM(op, validator.Session().Finder, vch, oldData); err != nil {
+	if err = validator.SetDataFromVM(op, vch, oldData); err != nil {
 		op.Error("Configuring cannot continue: querying configuration from VM failed")
 		op.Error(err)
 		return err
