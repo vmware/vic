@@ -46,12 +46,12 @@ func (v *Validator) checkVMGroup(op trace.Operation, input *data.Data, conf *con
 	defer trace.End(trace.Begin("", op))
 
 	if input.UseVMGroup {
-		if !v.IsVC() {
+		if !v.isVC() {
 			v.NoteIssue(errors.New("DRS VM Groups may only be configured when using VC"))
 			return
 		}
 
-		if v.Session.DRSEnabled == nil || !*v.Session.DRSEnabled {
+		if v.session.DRSEnabled == nil || !*v.session.DRSEnabled {
 			v.NoteIssue(errors.New("DRS VM Groups may not be used without DRS"))
 			return
 		}
@@ -65,13 +65,13 @@ func (v *Validator) checkVMGroup(op trace.Operation, input *data.Data, conf *con
 			return
 		}
 
-		if v.Session.Cluster == nil {
+		if v.session.Cluster == nil {
 			// We already note a more helpful issue for this following the compute method's call to ResourcePoolHelper.
 			v.NoteIssue(errors.New("Unable to determine presence of DRS VM Groups due to previous errors"))
 			return
 		}
 
-		exists, err := VMGroupExists(op, v.Session.Cluster, conf.VMGroupName)
+		exists, err := VMGroupExists(op, v.session.Cluster, conf.VMGroupName)
 		if err != nil {
 			v.NoteIssue(err)
 			return
@@ -84,7 +84,7 @@ func (v *Validator) checkVMGroup(op trace.Operation, input *data.Data, conf *con
 }
 
 func (v *Validator) inventoryPath(op trace.Operation, obj object.Reference) string {
-	elt, err := v.Session.Finder.Element(op, obj.Reference())
+	elt, err := v.session.Finder.Element(op, obj.Reference())
 	if err != nil {
 		op.Warnf("failed to get inventory path for %s: %s", obj.Reference(), err)
 		return ""
@@ -101,17 +101,17 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 
 	// if compute-resource is unspecified is there a default
 	if path == "" {
-		if v.Session.Pool == nil {
+		if v.session.Pool == nil {
 			// if no path specified and no default available the show all
 			v.suggestComputeResource(op)
 			return nil, errors.New("No unambiguous default compute resource available: --compute-resource must be specified")
 		}
 
-		path = v.Session.Pool.InventoryPath
-		op.Debugf("Using default resource pool for compute resource: %q", v.Session.Pool.InventoryPath)
+		path = v.session.Pool.InventoryPath
+		op.Debugf("Using default resource pool for compute resource: %q", v.session.Pool.InventoryPath)
 	}
 
-	pool, err := v.Session.Finder.ResourcePool(op, path)
+	pool, err := v.session.Finder.ResourcePool(op, path)
 	if err != nil {
 		switch err.(type) {
 		case *find.NotFoundError:
@@ -129,7 +129,7 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 
 	if pool == nil {
 		// check if its a ComputeResource or ClusterComputeResource
-		compute, err = v.Session.Finder.ComputeResource(op, path)
+		compute, err = v.session.Finder.ComputeResource(op, path)
 		if err != nil {
 			switch err.(type) {
 			case *find.NotFoundError, *find.MultipleFoundError:
@@ -158,21 +158,17 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 		compute.InventoryPath = v.inventoryPath(op, compute.Reference())
 	}
 
-	// stash the pool for later use
-	v.ResourcePoolPath = pool.InventoryPath
+	v.session.Pool = pool
+	v.session.PoolPath = pool.InventoryPath
 
-	// some hoops for while we're still using session package
-	v.Session.Pool = pool
-	v.Session.PoolPath = pool.InventoryPath
-
-	v.Session.Cluster = compute
-	v.Session.ClusterPath = compute.InventoryPath
+	v.session.Cluster = compute
+	v.session.ClusterPath = compute.InventoryPath
 
 	return pool, nil
 }
 
-func (v *Validator) ListComputeResource() ([]string, error) {
-	compute, err := v.Session.Finder.ComputeResourceList(v.Context, "*")
+func (v *Validator) listComputeResource(op trace.Operation) ([]string, error) {
+	compute, err := v.session.Finder.ComputeResourceList(op, "*")
 	if err != nil {
 		return nil, fmt.Errorf("unable to list compute resource: %s", err)
 	}
@@ -191,7 +187,7 @@ func (v *Validator) ListComputeResource() ([]string, error) {
 func (v *Validator) suggestComputeResource(op trace.Operation) {
 	defer trace.End(trace.Begin("", op))
 
-	compute, err := v.ListComputeResource()
+	compute, err := v.listComputeResource(op)
 	if err != nil {
 		op.Error(err)
 		return
@@ -203,8 +199,8 @@ func (v *Validator) suggestComputeResource(op trace.Operation) {
 	}
 }
 
-func (v *Validator) ListResourcePool(path string) ([]string, error) {
-	pools, err := v.Session.Finder.ResourcePoolList(v.Context, path)
+func (v *Validator) listResourcePool(op trace.Operation, path string) ([]string, error) {
+	pools, err := v.session.Finder.ResourcePoolList(op, path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to list resource pool: %s", err)
 	}
@@ -223,7 +219,7 @@ func (v *Validator) ListResourcePool(path string) ([]string, error) {
 func (v *Validator) suggestResourcePool(op trace.Operation, path string) {
 	defer trace.End(trace.Begin("", op))
 
-	pools, err := v.ListResourcePool(path)
+	pools, err := v.listResourcePool(op, path)
 	if err != nil {
 		op.Error(err)
 		return
@@ -231,7 +227,7 @@ func (v *Validator) suggestResourcePool(op trace.Operation, path string) {
 
 	op.Info("Suggested resource pool values for --compute-resource:")
 	for _, c := range pools {
-		p := strings.TrimPrefix(c, v.DatacenterPath+"/host/")
+		p := strings.TrimPrefix(c, v.session.DatacenterPath+"/host/")
 		op.Infof("  %q", p)
 	}
 }

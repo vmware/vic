@@ -138,7 +138,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		v.VCHReachable = true
 		// Firewall status check
 		// #nosec: Errors unhandled.
-		v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
+		v2, _ := validate.CreateFromSession(ctx, sess)
 		mgmtIP := GetMgmtIP()
 		log.Infof("Using management IP %s for firewall check", mgmtIP)
 		fwStatus := v2.CheckFirewallForTether(ctx, mgmtIP)

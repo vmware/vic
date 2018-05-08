@@ -87,7 +87,6 @@ groups:
       - cgtexmex
       - jzt
       - vburenin
-      - anchal-agrawal
     conditions:
       files:
         include:
@@ -99,7 +98,8 @@ groups:
   install:
     users:
       - zjs
-      - anchal-agrawal
+      - AngieCris
+      - morris-jason
     conditions:
       files:
         include:
@@ -108,7 +108,8 @@ groups:
   upgrade:
     users:
       - zjs
-      - anchal-agrawal
+      - AngieCris
+      - morris-jason
     conditions:
       files:
         include:
@@ -225,7 +226,8 @@ groups:
 
   ui-cmd:
     users:
-      - andrewtchin
+      - morris-jason
+      - zjs
     conditions:
       files:
         include:
@@ -234,7 +236,8 @@ groups:
   pullapprove:
     users:
       - gigawhitlocks
-      - anchal-agrawal
+      - mdubya66
+      - mhagen-vmware
     conditions:
       files:
         include:
@@ -242,7 +245,6 @@ groups:
 
   drone:
     users:
-      - jakedsouza
       - rajanashok
       - mhagen-vmware
       - mdharamadas1

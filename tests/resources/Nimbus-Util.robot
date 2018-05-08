@@ -230,6 +230,12 @@ Nimbus Cleanup
     ${list}=  Catenate  @{vm_list}
     Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${list}
 
+Nimbus Cleanup Single VM
+    [Arguments]  ${vm}  ${collect_log}=True  ${dontDelete}=${false}
+    Run Keyword If  ${collect_log}  Run Keyword And Continue On Failure  Gather Logs From Test Server
+    Return From Keyword If  ${dontDelete}
+    Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${vm}
+
 Gather Host IPs
     ${out}=  Run  govc ls host/cls
     ${out}=  Split To Lines  ${out}
@@ -402,6 +408,31 @@ Get Vsphere Version
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  Version:
     \   Run Keyword And Return If  ${status}  Fetch From Right  ${line}  ${SPACE}
 
+Deploy Simple NFS Testbed
+    [Arguments]  ${user}  ${password}  ${additional-args}=
+    ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
+    Log To Console  \nDeploying Nimbus NFS testbed: ${name}
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
+
+    ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-testbeddeploy --testbedName nfs --runName ${name} ${additional-args}
+    Log  ${out}
+    # Make sure the deploy actually worked
+    Should Contain  ${out}  ${name}.nfs.0' is up. IP:
+
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${nfs-ip}=  Get IP  ${name}.nfs.0
+    ${nfs-ro-ip}=  Get IP  ${name}.nfs.1
+    ${esx-ip}=  Get IP  ${name}.esx.0
+    Close Connection
+
+    Log To Console  \nNFS IP: ${nfs-ip}
+    Log To Console  \nNFS READ-Only IP: ${nfs-ro-ip}
+    Log To Console  \nESX IP: ${esx-ip}
+
+    [Return]  ${user}-${name}.nfs.0  ${user}-${name}.nfs.1  ${user}-${name}.esx.0  ${nfs-ip}  ${nfs-ro-ip}  ${esx-ip}
+
 Deploy Nimbus NFS Datastore
     [Arguments]  ${user}  ${password}  ${additional-args}=
     ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
@@ -531,3 +562,9 @@ Is Nimbus Location WDC
     ${status}=  Run Keyword And Return Status  Should Not Be Empty  ${out}
     Close Connection
     [Return]  ${status}
+
+Get Name of First Local Storage For Host
+    [Arguments]  ${host}
+    ${datastores}=  Run  govc host.info -host ${host} -json | jq -r '.HostSystems[].Config.FileSystemVolume.MountInfo[].Volume | select (.Type\=\="VMFS") | select (.Local\=\=true) | .Name'
+    @{datastores}=  Split To Lines  ${datastores}
+    [Return]  @{datastores}[0]

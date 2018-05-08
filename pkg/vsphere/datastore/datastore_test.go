@@ -15,21 +15,77 @@
 package datastore
 
 import (
-	"math/rand"
+	"context"
 	"net/url"
 	"os"
 	"path"
 	"testing"
 	"time"
 
-	"context"
-
+	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/tasks"
+	"github.com/vmware/vic/pkg/vsphere/test/env"
 )
+
+func testSession(ctx context.Context, t *testing.T) *session.Session {
+	config := &session.Config{
+		Service: env.URL(t),
+
+		/// XXX Why does this insist on having this field populated?
+		DatastorePath: env.DS(t),
+
+		Insecure:  true,
+		Keepalive: time.Duration(5) * time.Minute,
+	}
+
+	s := session.NewSession(config)
+	_, err := s.Connect(ctx)
+	if err != nil {
+		s.Client.Logout(ctx)
+		t.Log(err.Error())
+		t.SkipNow()
+	}
+
+	_, err = s.Populate(ctx)
+	if err != nil {
+		t.Log(err.Error())
+		t.SkipNow()
+	}
+
+	return s
+}
+
+func dsSetup(t *testing.T) (context.Context, *Helper, func()) {
+	log.SetLevel(log.DebugLevel)
+	ctx := context.Background()
+	sess := testSession(ctx, t)
+
+	ds, err := NewHelper(ctx, sess, sess.Datastore, TestName("dstests"))
+	if !assert.NoError(t, err) {
+		return ctx, nil, nil
+	}
+
+	f := func() {
+		log.Infof("Removing test root %s", ds.RootURL.String())
+		err := tasks.Wait(ctx, func(context.Context) (tasks.Task, error) {
+			return ds.fm.DeleteDatastoreFile(ctx, ds.RootURL.String(), sess.Datacenter)
+		})
+
+		if err != nil {
+			log.Errorf(err.Error())
+			return
+		}
+	}
+
+	return ctx, ds, f
+}
 
 // test if we can get a Datastore via the rooturl
 func TestDatastoreGetDatastores(t *testing.T) {
-	ctx, ds, cleanupfunc := DSsetup(t)
+	ctx, ds, cleanupfunc := dsSetup(t)
 	if t.Failed() {
 		return
 	}
@@ -73,7 +129,7 @@ func TestDatastoreGetDatastores(t *testing.T) {
 
 func TestDatastoreRestart(t *testing.T) {
 	// creates a root in the datastore
-	ctx, ds, cleanupfunc := DSsetup(t)
+	ctx, ds, cleanupfunc := dsSetup(t)
 	if t.Failed() {
 		return
 	}
@@ -114,7 +170,7 @@ func TestDatastoreRestart(t *testing.T) {
 }
 
 func TestDatastoreCreateDir(t *testing.T) {
-	ctx, ds, cleanupfunc := DSsetup(t)
+	ctx, ds, cleanupfunc := dsSetup(t)
 	if t.Failed() {
 		return
 	}
@@ -138,7 +194,7 @@ func TestDatastoreCreateDir(t *testing.T) {
 }
 
 func TestDatastoreMkdirAndLs(t *testing.T) {
-	ctx, ds, cleanupfunc := DSsetup(t)
+	ctx, ds, cleanupfunc := dsSetup(t)
 	if t.Failed() {
 		return
 	}
@@ -205,15 +261,4 @@ func TestDatastoreToURLParsing(t *testing.T) {
 			return
 		}
 	}
-}
-
-// From https://siongui.github.io/2015/04/13/go-generate-random-string/
-func RandomString(strlen int) string {
-	rand.Seed(time.Now().UTC().UnixNano())
-	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-	result := make([]byte, strlen)
-	for i := 0; i < strlen; i++ {
-		result[i] = chars[rand.Intn(len(chars))]
-	}
-	return string(result)
 }

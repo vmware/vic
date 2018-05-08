@@ -18,7 +18,6 @@ Resource          ../../resources/Util.robot
 Resource          ../../resources/Group23-VIC-Machine-Service-Util.robot
 Suite Setup       Setup
 Suite Teardown    Teardown
-Test Teardown     Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 Default Tags
 
 
@@ -28,6 +27,7 @@ Setup
     Install VIC Appliance To Test Server
 
 Teardown
+    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
     Terminate All Processes    kill=True
 
 Get VCH List
@@ -98,7 +98,8 @@ Verify VCH List Power States
 
     Get VCH List
     Verify VCH Power State  poweredOff
-
+    Power On VM OOB  %{VCH-NAME}
+    Wait For VCH Initialization  12x  20 seconds
 
 # TODO: Add test for compute resource (once relevant code is updated to use ID instead of name)
 # TODO: Add test for compute resource within datacenter (once relevant code is updated to use ID instead of name)
@@ -120,14 +121,3 @@ Get VCH List Within Invalid Datacenter and Compute Resource
 
     Verify Return Code
     Verify Status Not Found
-
-
-Get Empty VCH List When No VCH deployed
-    Cleanup VIC Appliance On Test Server
-
-    Get VCH List
-
-    Verify Return Code
-    Verify Status Ok
-
-    Verify VCH List Empty

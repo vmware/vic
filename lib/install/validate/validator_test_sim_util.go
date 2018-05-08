@@ -151,7 +151,7 @@ var testInputConfigVPX = data.Data{
 	SyslogConfig:        data.SyslogConfig{},
 }
 
-func GetVcsimInputConfig(ctx context.Context, URL *url.URL) *data.Data {
+func getVcsimInputConfig(ctx context.Context, URL *url.URL) *data.Data {
 	localInputConfig := testInputConfigVPX
 	// Fix the URL to point to vcsim
 	if URL != nil {
@@ -169,14 +169,14 @@ func GetVcsimInputConfig(ctx context.Context, URL *url.URL) *data.Data {
 // This method allows to perform validation of a configuration when
 // interacting with GO vmomi simulator, it skips some of the tests
 // that otherwise would fail (e.g. Firewall)
-func (v *Validator) VcsimValidate(ctx context.Context, localInputConfig *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
+func (v *Validator) vcsimValidate(ctx context.Context, localInputConfig *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
 	op := trace.FromContext(ctx, "validateForSim")
 	log.Infof("Validating supplied configuration")
 
 	conf := &config.VirtualContainerHostConfigSpec{}
 
-	if err := v.datacenter(op); err != nil {
+	if err := v.datacenter(op, false); err != nil {
 		return conf, err
 	}
 
@@ -188,7 +188,7 @@ func (v *Validator) VcsimValidate(ctx context.Context, localInputConfig *data.Da
 	v.storage(op, localInputConfig, conf)
 	v.network(op, localInputConfig, conf)
 	v.CheckLicense(op)
-	v.CheckDRS(op, localInputConfig)
+	v.checkDRS(op, localInputConfig)
 
 	// Perform the higher level compatibility and consistency checks
 	v.compatibility(op, conf)
@@ -206,7 +206,7 @@ func (v *Validator) VcsimValidate(ctx context.Context, localInputConfig *data.Da
 	conf.ComputeResources = append(conf.ComputeResources, pool.Reference())
 
 	// Add the VM
-	vm, err := v.Session.Finder.VirtualMachine(op, "/DC0/vm/DC0_C0_RP0_VM0")
+	vm, err := v.session.Finder.VirtualMachine(op, "/DC0/vm/DC0_C0_RP0_VM0")
 	v.NoteIssue(err)
 
 	if vm == nil {

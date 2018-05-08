@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/interaction"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/ip"
@@ -76,6 +77,7 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 
 	// TODO (#6032): clean this up
 	var validator *validate.Validator
+	var allowEmptyDC bool
 	if params.datacenter != nil {
 		v, err := validate.NewValidator(op, data)
 		if err != nil {
@@ -84,7 +86,7 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 
 		datacenterManagedObjectReference := types.ManagedObjectReference{Type: "Datacenter", Value: *params.datacenter}
 
-		datacenterObject, err := v.Session.Finder.ObjectReference(op, datacenterManagedObjectReference)
+		datacenterObject, err := v.Session().Finder.ObjectReference(op, datacenterManagedObjectReference)
 		if err != nil {
 			return nil, nil, util.WrapError(http.StatusNotFound, err)
 		}
@@ -94,19 +96,18 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 			return data, nil, util.NewError(http.StatusBadRequest, "Validation Error: datacenter parameter is not a datacenter moref")
 		}
 
-		// Set validator datacenter path and correspondent validator session config
-		v.DatacenterPath = dc.Name()
-		v.Session.DatacenterPath = v.DatacenterPath
-		v.Session.Datacenter = dc
-		v.Session.Finder.SetDatacenter(dc)
+		// Set datacenter path and corresponding finder config
+		v.Session().DatacenterPath = dc.Name()
+		v.Session().Datacenter = dc
+		v.Session().Finder.SetDatacenter(dc)
 
-		// Do what validator.session.Populate would have done if datacenterPath is set
-		if v.Session.Datacenter != nil {
-			folders, err := v.Session.Datacenter.Folders(op)
+		// Do what validator.Session().Populate would have done if datacenterPath is set
+		if v.Session().Datacenter != nil {
+			folders, err := v.Session().Datacenter.Folders(op)
 			if err != nil {
 				return data, nil, util.NewError(http.StatusBadRequest, "Validation Error: error finding datacenter folders: %s", err)
 			}
-			v.Session.VMFolder = folders.VmFolder
+			v.Session().VMFolder = folders.VmFolder
 		}
 
 		validator = v
@@ -117,12 +118,12 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 		}
 
 		// If dc is not set, and multiple datacenters are available, operate on all datacenters.
-		v.AllowEmptyDC()
+		allowEmptyDC = true
 
 		validator = v
 	}
 
-	if _, err := validator.ValidateTarget(op, data); err != nil {
+	if _, err := validator.ValidateTarget(op, data, allowEmptyDC); err != nil {
 		return data, nil, util.NewError(http.StatusBadRequest, "Target validation failed: %s", err)
 	}
 
@@ -133,48 +134,18 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 	return data, validator, nil
 }
 
-// Copied from list.go, and appears to be present other places. TODO (#6032): deduplicate
 func upgradeStatusMessage(op trace.Operation, vch *vm.VirtualMachine, installerVer *version.Build, vchVer *version.Build) string {
-	if sameVer := installerVer.Equal(vchVer); sameVer {
-		return "Up to date"
-	}
-
-	upgrading, err := vch.VCHUpdateStatus(op)
-	if err != nil {
-		return fmt.Sprintf("Unknown: %s", err)
-	}
-	if upgrading {
-		return "Upgrade in progress"
-	}
-
-	canUpgrade, err := installerVer.IsNewer(vchVer)
-	if err != nil {
-		return fmt.Sprintf("Unknown: %s", err)
-	}
-	if canUpgrade {
-		return fmt.Sprintf("Upgradeable to %s", installerVer.ShortVersion())
-	}
-
-	oldInstaller, err := installerVer.IsOlder(vchVer)
-	if err != nil {
-		return fmt.Sprintf("Unknown: %s", err)
-	}
-	if oldInstaller {
-		return fmt.Sprintf("VCH has newer version")
-	}
-
-	// can't get here
-	return "Invalid upgrade status"
+	return interaction.GetUpgradeStatusShortMessage(op, vch, installerVer, vchVer)
 }
 
 func getVCHConfig(op trace.Operation, d *data.Data, validator *validate.Validator) (*config.VirtualContainerHostConfigSpec, error) {
-	executor := management.NewDispatcher(validator.Context, validator.Session, management.NoAction, false)
+	executor := management.NewDispatcher(op, validator.Session(), management.ActionInspectCertificates, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
 		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))
 	}
 
-	err = validate.SetDataFromVM(validator.Context, validator.Session.Finder, vch, d)
+	err = validate.SetDataFromVM(op, validator.Session().Finder, vch, d)
 	if err != nil {
 		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
 	}

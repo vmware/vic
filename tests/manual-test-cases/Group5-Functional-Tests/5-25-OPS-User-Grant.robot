@@ -17,7 +17,6 @@ Documentation  Test 5-25 - OPS-User-Grant
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  Ops User Create
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
-Test Teardown  Run Keyword If Test Failed  Gather vSphere Logs
 
 *** Keywords ***
 Ops User Create
@@ -52,6 +51,7 @@ Ops User Create
     Log  Output, govc role.usage: ${out}
 
 Run privilege-dependent docker operations
+    [Timeout]  15 minutes
     # Run containers with volumes and container networks to test scenarios requiring containerVMs
     # to have the highest privileges.
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
@@ -139,10 +139,10 @@ vic-machine create grants ops-user perms
 
     Run privilege-dependent docker operations
 
-    Cleanup VIC Appliance On Test Server
+    [Teardown]  Cleanup VIC Appliance On Test Server
 
 granted ops-user perms work after upgrade
-    Install VIC with version to Test Server  v1.3.0  additional-args=--ops-user ${ops_user_name} --ops-password ${ops_user_password} --ops-grant-perms
+    Install VIC with version to Test Server  v1.3.1  additional-args=--ops-user ${ops_user_name} --ops-password ${ops_user_password} --ops-grant-perms
 
     Check Original Version
     Upgrade
@@ -155,7 +155,7 @@ granted ops-user perms work after upgrade
 
     Run privilege-dependent docker operations
 
-    Cleanup VIC Appliance On Test Server
+    [Teardown]  Cleanup VIC Appliance On Test Server
 
 Test with VM-Host Affinity
     Log To Console  \nStarting test...
@@ -168,7 +168,7 @@ Test with VM-Host Affinity
 
     Run privilege-dependent docker operations
 
-    Cleanup VIC Appliance On Test Server
+    [Teardown]  Cleanup VIC Appliance On Test Server
 
 vic-machine configure grants ops-user perms
     Install VIC Appliance To Test Server
@@ -180,4 +180,4 @@ vic-machine configure grants ops-user perms
 
     Run privilege-dependent docker operations
 
-    Cleanup VIC Appliance On Test Server
+    [Teardown]  Cleanup VIC Appliance On Test Server

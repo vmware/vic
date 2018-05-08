@@ -286,7 +286,7 @@ func (v *Validator) network(op trace.Operation, input *data.Data, conf *config.V
 
 	checkBridgeVDS := true
 	if err != nil {
-		if _, ok := err.(*find.NotFoundError); !ok || v.IsVC() {
+		if _, ok := err.(*find.NotFoundError); !ok || v.isVC() {
 			v.NoteIssue(fmt.Errorf("An existing distributed port group must be specified for bridge network on vCenter: %s", err))
 			v.suggestNetwork(op, "--bridge-network", false)
 			checkBridgeVDS = false // prevent duplicate error output
@@ -447,7 +447,7 @@ func (v *Validator) checkBridgeIPRange(bridgeIPRange *net.IPNet) error {
 func (v *Validator) getNetwork(op trace.Operation, name string) (object.NetworkReference, error) {
 	defer trace.End(trace.Begin(name, op))
 
-	nets, err := v.Session.Finder.NetworkList(op, name)
+	nets, err := v.session.Finder.NetworkList(op, name)
 	if err != nil {
 		op.Debugf("no such network %q", name)
 		// TODO: error message about no such match and how to get a network list
@@ -483,7 +483,7 @@ func (v *Validator) dpgMorefHelper(op trace.Operation, ref string) (string, erro
 		return "", errors.New("could not restore serialized managed object reference: " + ref)
 	}
 
-	net, err := v.Session.Finder.ObjectReference(op, *moref)
+	net, err := v.session.Finder.ObjectReference(op, *moref)
 	if err != nil {
 		// TODO: error message about no such match and how to get a network list
 		return "", errors.New("unable to locate network from moref: " + ref)
@@ -491,7 +491,7 @@ func (v *Validator) dpgMorefHelper(op trace.Operation, ref string) (string, erro
 
 	// ensure that the type of the network is a Distributed Port Group if the target is a vCenter
 	// if it's not then any network suffices
-	if v.IsVC() {
+	if v.isVC() {
 		_, dpg := net.(*object.DistributedVirtualPortgroup)
 		if !dpg {
 			return "", fmt.Errorf("%q is not a Distributed Port Group", ref)
@@ -511,7 +511,7 @@ func (v *Validator) dpgHelper(op trace.Operation, path string) (types.ManagedObj
 
 	// ensure that the type of the network is a Distributed Port Group if the target is a vCenter
 	// if it's not then any network suffices
-	if v.IsVC() {
+	if v.isVC() {
 		_, dpg := net.(*object.DistributedVirtualPortgroup)
 		if !dpg {
 			return types.ManagedObjectReference{}, fmt.Errorf("%q is not a Distributed Port Group", path)
@@ -540,20 +540,20 @@ func (v *Validator) checkVDSMembership(op trace.Operation, network types.Managed
 	var dvp mo.DistributedVirtualPortgroup
 	var nonMembers []string
 
-	if !v.IsVC() {
+	if !v.isVC() {
 		return nil
 	}
 
-	if v.Session.Cluster == nil {
+	if v.session.Cluster == nil {
 		return errors.New("Invalid cluster. Check --compute-resource")
 	}
 
-	clusterHosts, err := v.Session.Cluster.Hosts(op)
+	clusterHosts, err := v.session.Cluster.Hosts(op)
 	if err != nil {
 		return err
 	}
 
-	r := object.NewDistributedVirtualPortgroup(v.Session.Client.Client, network)
+	r := object.NewDistributedVirtualPortgroup(v.session.Client.Client, network)
 	if err := r.Properties(op, r.Reference(), []string{"name", "host"}, &dvp); err != nil {
 		return err
 	}
@@ -584,7 +584,7 @@ func (v *Validator) checkVDSMembership(op trace.Operation, network types.Managed
 func (v *Validator) listNetworks(op trace.Operation, incStdNets bool) ([]string, error) {
 	var selectedNets []string
 
-	nets, err := v.Session.Finder.NetworkList(v.Context, "*")
+	nets, err := v.session.Finder.NetworkList(op, "*")
 	if err != nil {
 		return nil, fmt.Errorf("unable to list networks: %s", err)
 	}
@@ -640,8 +640,8 @@ func (v *Validator) isDVSUplink(op trace.Operation, ref types.ManagedObjectRefer
 
 	var dvp mo.DistributedVirtualPortgroup
 
-	r := object.NewDistributedVirtualPortgroup(v.Session.Client.Client, ref)
-	if err := r.Properties(v.Context, r.Reference(), []string{"tag"}, &dvp); err != nil {
+	r := object.NewDistributedVirtualPortgroup(v.session.Client.Client, ref)
+	if err := r.Properties(op, r.Reference(), []string{"tag"}, &dvp); err != nil {
 		op.Errorf("Unable to check tags on %q: %s", ref, err)
 		return false
 	}

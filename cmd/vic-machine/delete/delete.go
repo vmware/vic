@@ -114,14 +114,14 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 		op.Errorf("Delete cannot continue - failed to create validator: %s", err)
 		return errors.New("delete failed")
 	}
-	defer validator.Session.Logout(op)
-	_, err = validator.ValidateTarget(op, d.Data)
+	defer validator.Session().Logout(op)
+	_, err = validator.ValidateTarget(op, d.Data, false)
 	if err != nil {
 		op.Errorf("Delete cannot continue - target validation failed: %s", err)
 		return errors.New("delete failed")
 	}
 
-	executor := management.NewDispatcher(validator.Context, validator.Session, management.DeleteAction, d.Force)
+	executor := management.NewDispatcher(op, validator.Session(), management.ActionDelete, d.Force)
 
 	var vch *vm.VirtualMachine
 	if d.Data.ID != "" {

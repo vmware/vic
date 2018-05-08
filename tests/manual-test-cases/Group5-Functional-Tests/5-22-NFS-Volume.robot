@@ -38,23 +38,14 @@ Setup ESX And NFS Suite
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     Log To Console  \nStarting test...
 
-    ${esx1}  ${esx1_ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Open Connection  %{NIMBUS_GW}
-    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${POD}=  Fetch POD  ${esx1}
-    Log To Console  ${POD}
-    Close Connection
+    ${nfs}  ${nfs_ro}  ${esx1}  ${nfs_ip}  ${nfs_ro_ip}  ${esx1_ip}=  Deploy Simple NFS Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--testbedSpecRubyFile /dbc/w3-dbc302/rashok/vic-nfs.rb --esxBuild ${ESX_VERSION} --esxPxeDir ${ESX_VERSION} --plugin testng
 
-    ${nfs}  ${nfs_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--nimbus ${POD}
-
-    ${nfs_readonly}  ${nfs_readonly_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--disk 5000000 --disk 5000000 --mountOpt ro --nfsOpt ro --mountPoint=storage1 --mountPoint=storage2 --nimbus ${POD}
-
-    Set Suite Variable  @{list}  ${esx1}  ${nfs}  ${nfs_readonly}
+    Set Suite Variable  @{list}  ${esx1}  ${nfs}  ${nfs_ro}
     Set Suite Variable  ${ESX1}  ${esx1}
     Set Suite Variable  ${ESX1_IP}  ${esx1_ip}
     Set Suite Variable  ${NFS_IP}  ${nfs_ip}
     Set Suite Variable  ${NFS}  ${nfs}
-    Set Suite Variable  ${NFS_READONLY_IP}  ${nfs_readonly_ip}
+    Set Suite Variable  ${NFS_READONLY_IP}  ${nfs_ro_ip}
 
     # Add the NFS servers to SSH known host list
     ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} exit
@@ -84,7 +75,7 @@ Setup ENV Variables for VIC Appliance Install
     Set Environment Variable  TEST_URL  ${ESX1_IP}
     Set Environment Variable  TEST_USERNAME  root
     Set Environment Variable  TEST_PASSWORD  ${NIMBUS_ESX_PASSWORD}
-    Set Environment Variable  TEST_DATASTORE  datastore1
+    Set Environment Variable  TEST_DATASTORE  local-0
     Set Environment Variable  TEST_TIMEOUT  30m
     Set Environment Variable  HOST_TYPE  ESXi
     Remove Environment Variable  TEST_DATACENTER
@@ -328,7 +319,6 @@ Docker Inspect Mount Data after Reboot
     Reboot VM and Verify Basic VCH Info
 
     Verify Volume Inspect Info  After VM Reboot  ${mntDataTestContainer}  ${checkList}
-
 
 Kill NFS Server
     Sleep  5 minutes

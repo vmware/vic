@@ -138,15 +138,15 @@ func (d *Debug) Run(clic *cli.Context) (err error) {
 		op.Errorf("Debug cannot continue - failed to create validator: %s", err)
 		return errors.New("debug failed")
 	}
-	defer validator.Session.Logout(op)
+	defer validator.Session().Logout(op)
 
-	_, err = validator.ValidateTarget(op, d.Data)
+	_, err = validator.ValidateTarget(op, d.Data, false)
 	if err != nil {
 		op.Errorf("Debug cannot continue - target validation failed: %s", err)
 		return errors.New("debug failed")
 	}
 
-	executor := management.NewDispatcher(validator.Context, validator.Session, management.DebugAction, d.Force)
+	executor := management.NewDispatcher(op, validator.Session(), management.ActionDebug, d.Force)
 
 	var vch *vm.VirtualMachine
 	if d.Data.ID != "" {

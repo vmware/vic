@@ -15,6 +15,7 @@
 package plugin
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -27,9 +28,8 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
-
-	"context"
 )
 
 type Info struct {
@@ -117,6 +117,7 @@ func (p *Pluginator) connect() error {
 
 	sessionconfig := &session.Config{
 		Thumbprint: p.tThumbprint,
+		UserAgent:  version.UserAgent("vic-ui-installer"),
 	}
 	sessionconfig.Service = p.tURL.String()
 

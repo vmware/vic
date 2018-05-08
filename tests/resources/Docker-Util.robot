@@ -123,6 +123,7 @@ Verify Container Rename
     Should Contain  ${output}  ${vmName}
 
 Run Regression Tests
+    [Timeout]  15 minutes
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
