@@ -15,7 +15,6 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -26,20 +25,19 @@ import (
 	"github.com/go-openapi/strfmt"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/vmware/govmomi/list"
-	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/cmd/vic-machine/create"
 	"github.com/vmware/vic/lib/apiservers/service/models"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/client"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/decode"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/logging"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/target"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
-	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/lib/install/vchlog"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
@@ -50,43 +48,29 @@ const (
 	logFile = "vic-machine.log" // name of local log file
 )
 
-// This interface is declared so that we can enable mocking finder in tests
-// as the govmomi types do not use interfaces themselves.
-type finder interface {
-	Element(context.Context, types.ManagedObjectReference) (*list.Element, error)
-}
-
-// VCHCreate is the handler for creating a VCH
+// VCHCreate is the handler for creating a VCH without specifying a datacenter
 type VCHCreate struct {
+	vchCreate
 }
 
-// VCHDatacenterCreate is the handler for creating a VCH within a Datacenter
+// VCHDatacenterCreate is the handler for creating a VCH within a specified datacenter
 type VCHDatacenterCreate struct {
+	vchCreate
 }
 
-// Handle is the handler implementation for VCH creation without a datacenter
+// vchCreate allows for VCHCreate and VCHDatacenterCreate to share common code without polluting the package
+type vchCreate struct{}
+
+// Handle is the handler implementation for creating a VCH without specifying a datacenter
 func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principal interface{}) middleware.Responder {
 	op := trace.FromContext(params.HTTPRequest.Context(), "VCHCreate")
 
-	datastoreLogger := logging.SetUpLogger(&op)
-	defer datastoreLogger.Close()
-
-	b := buildDataParams{
-		target:     params.Target,
-		thumbprint: params.Thumbprint,
+	b := target.Params{
+		Target:     params.Target,
+		Thumbprint: params.Thumbprint,
 	}
 
-	d, validator, err := buildDataAndValidateTarget(op, b, principal)
-	if err != nil {
-		return operations.NewPostTargetTargetVchDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
-	}
-
-	c, err := buildCreate(op, d, finder(validator.Session().Finder), params.Vch)
-	if err != nil {
-		return operations.NewPostTargetTargetVchDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
-	}
-
-	task, err := handleCreate(op, c, validator, datastoreLogger)
+	task, err := h.handle(op, b, principal, params.Vch)
 	if err != nil {
 		return operations.NewPostTargetTargetVchDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -94,30 +78,17 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 	return operations.NewPostTargetTargetVchCreated().WithPayload(operations.PostTargetTargetVchCreatedBody{Task: task})
 }
 
-// Handle is the handler implementation for VCH creation with a datacenter
+// Handle is the handler implementation for creating a VCH within a specified datacenter
 func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacenterDatacenterVchParams, principal interface{}) middleware.Responder {
 	op := trace.FromContext(params.HTTPRequest.Context(), "VCHDatacenterCreate")
 
-	datastoreLogger := logging.SetUpLogger(&op)
-	defer datastoreLogger.Close()
-
-	b := buildDataParams{
-		target:     params.Target,
-		thumbprint: params.Thumbprint,
-		datacenter: &params.Datacenter,
+	b := target.Params{
+		Target:     params.Target,
+		Thumbprint: params.Thumbprint,
+		Datacenter: &params.Datacenter,
 	}
 
-	d, validator, err := buildDataAndValidateTarget(op, b, principal)
-	if err != nil {
-		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
-	}
-
-	c, err := buildCreate(op, d, validator.Session().Finder, params.Vch)
-	if err != nil {
-		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
-	}
-
-	task, err := handleCreate(op, c, validator, datastoreLogger)
+	task, err := h.handle(op, b, principal, params.Vch)
 	if err != nil {
 		return operations.NewPostTargetTargetDatacenterDatacenterVchDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -125,7 +96,27 @@ func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacente
 	return operations.NewPostTargetTargetDatacenterDatacenterVchCreated().WithPayload(operations.PostTargetTargetDatacenterDatacenterVchCreatedBody{Task: task})
 }
 
-func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VCH) (*create.Create, error) {
+// handle creates a VCH with the settings from vch at the target described by params, using the credentials from
+// principal. If an error occurs validating the requested settings, a 400 is returned. If an error occurs during
+// creation, a 500 is returned. Currently, no task is ever returned.
+func (h *vchCreate) handle(op trace.Operation, params target.Params, principal interface{}, vch *models.VCH) (*strfmt.URI, error) {
+	datastoreLogger := logging.SetUpLogger(&op)
+	defer datastoreLogger.Close()
+
+	d, hc, err := target.Validate(op, management.ActionCreate, params, principal)
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := h.buildCreate(op, d, hc.Finder(), vch)
+	if err != nil {
+		return nil, err
+	}
+
+	return h.handleCreate(op, c, hc, datastoreLogger)
+}
+
+func (h *vchCreate) buildCreate(op trace.Operation, d *data.Data, finder client.Finder, vch *models.VCH) (*create.Create, error) {
 	c := &create.Create{Data: d}
 
 	// TODO (#6032): deduplicate with create.processParams
@@ -435,7 +426,9 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 	return c, nil
 }
 
-func handleCreate(op trace.Operation, c *create.Create, validator *validate.Validator, receiver vchlog.Receiver) (*strfmt.URI, error) {
+func (h *vchCreate) handleCreate(op trace.Operation, c *create.Create, hc *client.HandlerClient, receiver vchlog.Receiver) (*strfmt.URI, error) {
+	validator := hc.Validator() // TODO (#6032): Move some of the logic that uses this into methods on hc
+
 	vchConfig, err := validator.Validate(op, c.Data, false)
 	if err != nil {
 		issues := validator.GetIssues()
@@ -458,8 +451,7 @@ func handleCreate(op trace.Operation, c *create.Create, validator *validate.Vali
 	vConfig.HTTPProxy = c.HTTPProxy
 	vConfig.HTTPSProxy = c.HTTPSProxy
 
-	executor := management.NewDispatcher(op, validator.Session(), management.ActionCreate, false)
-	err = executor.CreateVCH(vchConfig, vConfig, receiver)
+	err = hc.Executor().CreateVCH(vchConfig, vConfig, receiver)
 	if err != nil {
 		return nil, errors.NewError(http.StatusInternalServerError, "failed to create VCH: %s", err)
 	}

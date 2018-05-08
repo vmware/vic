@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,10 +24,11 @@ const (
 	welcomeMessage = "You have successfully accessed the VCH Management API."
 )
 
-// HelloGet is the handler for accessing the version information for the service
+// HelloGet is a handler that returns a static message for interfaces to use during self-signed certificate acceptance workflows
 type HelloGet struct {
 }
 
+// Handle is the handler implementation that returns a static message for interfaces to use during self-signed certificate acceptance workflows
 func (h *HelloGet) Handle(params operations.GetHelloParams) middleware.Responder {
 	return operations.NewGetVersionOK().WithPayload(welcomeMessage)
 }
