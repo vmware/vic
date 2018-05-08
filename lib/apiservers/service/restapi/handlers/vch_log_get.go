@@ -103,7 +103,7 @@ func getDatastoreHelper(op trace.Operation, d *data.Data, validator *validate.Va
 		return nil, errors.NewError(http.StatusNotFound, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))
 	}
 
-	if err := validate.SetDataFromVM(op, validator.Session().Finder, vch, d); err != nil {
+	if err := validator.SetDataFromVM(op, vch, d); err != nil {
 		return nil, errors.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
 	}
 
