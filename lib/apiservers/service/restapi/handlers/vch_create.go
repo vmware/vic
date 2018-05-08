@@ -22,7 +22,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/strfmt"
 	"gopkg.in/urfave/cli.v1"
@@ -34,6 +33,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/service/models"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/decode"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/logging"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/constants"
@@ -42,7 +42,6 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/lib/install/vchlog"
 	"github.com/vmware/vic/pkg/ip"
-	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 )
@@ -69,7 +68,7 @@ type VCHDatacenterCreate struct {
 func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principal interface{}) middleware.Responder {
 	op := trace.FromContext(params.HTTPRequest.Context(), "VCHCreate")
 
-	datastoreLogger := setUpLogger(&op)
+	datastoreLogger := logging.SetUpLogger(&op)
 	defer datastoreLogger.Close()
 
 	b := buildDataParams{
@@ -99,7 +98,7 @@ func (h *VCHCreate) Handle(params operations.PostTargetTargetVchParams, principa
 func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacenterDatacenterVchParams, principal interface{}) middleware.Responder {
 	op := trace.FromContext(params.HTTPRequest.Context(), "VCHDatacenterCreate")
 
-	datastoreLogger := setUpLogger(&op)
+	datastoreLogger := logging.SetUpLogger(&op)
 	defer datastoreLogger.Close()
 
 	b := buildDataParams{
@@ -124,21 +123,6 @@ func (h *VCHDatacenterCreate) Handle(params operations.PostTargetTargetDatacente
 	}
 
 	return operations.NewPostTargetTargetDatacenterDatacenterVchCreated().WithPayload(operations.PostTargetTargetDatacenterDatacenterVchCreatedBody{Task: task})
-}
-
-func setUpLogger(op *trace.Operation) *vchlog.VCHLogger {
-	log := vchlog.New()
-
-	op.Logger = logrus.New()
-	op.Logger.Out = log.GetPipe()
-	op.Logger.Level = logrus.DebugLevel
-	op.Logger.Formatter = viclog.NewTextFormatter()
-
-	op.Logger.Infof("Starting API-based VCH Creation. Version: %q", version.GetBuild().ShortVersion())
-
-	go log.Run()
-
-	return log
 }
 
 func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VCH) (*create.Create, error) {
