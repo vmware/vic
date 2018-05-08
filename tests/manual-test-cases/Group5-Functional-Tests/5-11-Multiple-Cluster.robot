@@ -16,7 +16,8 @@
 Documentation  Test 5-11 - Multiple Clusters
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  Multiple Cluster Setup
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-11-multiple-cluster*'
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-11-multiple-cluster*'  ${false}
+Test Teardown  Cleanup VIC Appliance On Test Server
 
 *** Keywords ***
 Multiple Cluster Setup
@@ -59,4 +60,3 @@ Test
 
     Install VIC Appliance To Test Server  certs=${false}  vol=default
     Run Regression Tests
-    Cleanup VIC Appliance On Test Server
