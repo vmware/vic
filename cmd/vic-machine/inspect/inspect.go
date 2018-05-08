@@ -196,7 +196,7 @@ func (i *Inspect) RunConfig(clic *cli.Context) (err error) {
 	}
 
 	return i.run(clic, op, func(s state) error {
-		err = i.showConfiguration(s.op, s.validator.Session().Finder, s.vchConfig, s.vch)
+		err = i.showConfiguration(s.op, s.validator, s.vchConfig, s.vch)
 		if err != nil {
 			op.Error("Failed to print Virtual Container Host configuration")
 			op.Error(err)
@@ -231,20 +231,20 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 	})
 }
 
-func retrieveMapOptions(op trace.Operation, finder validate.Finder,
+func retrieveMapOptions(op trace.Operation, validator *validate.Validator,
 	conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) (map[string][]string, error) {
-	data, err := validate.NewDataFromConfig(op, finder, conf)
+	data, err := validate.NewDataFromConfig(op, validator.Session().Finder, conf)
 	if err != nil {
 		return nil, err
 	}
-	if err = validate.SetDataFromVM(op, finder, vm, data); err != nil {
+	if err = validator.SetDataFromVM(op, vm, data); err != nil {
 		return nil, err
 	}
 	return converter.DataToOption(data)
 }
 
-func (i Inspect) showConfiguration(op trace.Operation, finder validate.Finder, conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) error {
-	mapOptions, err := retrieveMapOptions(op, finder, conf, vm)
+func (i Inspect) showConfiguration(op trace.Operation, validator *validate.Validator, conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) error {
+	mapOptions, err := retrieveMapOptions(op, validator, conf, vm)
 	if err != nil {
 		return err
 	}
