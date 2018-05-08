@@ -24,7 +24,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
-	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/util"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
@@ -60,7 +60,7 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 	}
 
 	if err := data.HasCredentials(op); err != nil {
-		return data, nil, util.NewError(http.StatusUnauthorized, "Invalid Credentials: %s", err)
+		return data, nil, errors.NewError(http.StatusUnauthorized, "Invalid Credentials: %s", err)
 	}
 
 	if params.thumbprint != nil {
@@ -81,19 +81,19 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 	if params.datacenter != nil {
 		v, err := validate.NewValidator(op, data)
 		if err != nil {
-			return data, nil, util.NewError(http.StatusBadRequest, "Validation Error: %s", err)
+			return data, nil, errors.NewError(http.StatusBadRequest, "Validation Error: %s", err)
 		}
 
 		datacenterManagedObjectReference := types.ManagedObjectReference{Type: "Datacenter", Value: *params.datacenter}
 
 		datacenterObject, err := v.Session().Finder.ObjectReference(op, datacenterManagedObjectReference)
 		if err != nil {
-			return nil, nil, util.WrapError(http.StatusNotFound, err)
+			return nil, nil, errors.WrapError(http.StatusNotFound, err)
 		}
 
 		dc, ok := datacenterObject.(*object.Datacenter)
 		if !ok {
-			return data, nil, util.NewError(http.StatusBadRequest, "Validation Error: datacenter parameter is not a datacenter moref")
+			return data, nil, errors.NewError(http.StatusBadRequest, "Validation Error: datacenter parameter is not a datacenter moref")
 		}
 
 		// Set datacenter path and corresponding finder config
@@ -105,7 +105,7 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 		if v.Session().Datacenter != nil {
 			folders, err := v.Session().Datacenter.Folders(op)
 			if err != nil {
-				return data, nil, util.NewError(http.StatusBadRequest, "Validation Error: error finding datacenter folders: %s", err)
+				return data, nil, errors.NewError(http.StatusBadRequest, "Validation Error: error finding datacenter folders: %s", err)
 			}
 			v.Session().VMFolder = folders.VmFolder
 		}
@@ -114,7 +114,7 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 	} else {
 		v, err := validate.NewValidator(op, data)
 		if err != nil {
-			return data, nil, util.NewError(http.StatusBadRequest, "Validation Error: %s", err)
+			return data, nil, errors.NewError(http.StatusBadRequest, "Validation Error: %s", err)
 		}
 
 		// If dc is not set, and multiple datacenters are available, operate on all datacenters.
@@ -124,11 +124,11 @@ func buildDataAndValidateTarget(op trace.Operation, params buildDataParams, prin
 	}
 
 	if _, err := validator.ValidateTarget(op, data, allowEmptyDC); err != nil {
-		return data, nil, util.NewError(http.StatusBadRequest, "Target validation failed: %s", err)
+		return data, nil, errors.NewError(http.StatusBadRequest, "Target validation failed: %s", err)
 	}
 
 	if _, err := validator.ValidateCompute(op, data, false); err != nil {
-		return data, nil, util.NewError(http.StatusBadRequest, "Compute resource validation failed: %s", err)
+		return data, nil, errors.NewError(http.StatusBadRequest, "Compute resource validation failed: %s", err)
 	}
 
 	return data, validator, nil
@@ -142,12 +142,12 @@ func getVCHConfig(op trace.Operation, d *data.Data, validator *validate.Validato
 	executor := management.NewDispatcher(op, validator.Session(), management.ActionInspectCertificates, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
-		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))
+		return nil, errors.NewError(http.StatusNotFound, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))
 	}
 
 	err = validator.SetDataFromVM(op, vch, d)
 	if err != nil {
-		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
+		return nil, errors.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
 	}
 
 	vchConfig, err := executor.GetNoSecretVCHConfig(vch)

@@ -21,7 +21,7 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 
 	"github.com/vmware/vic/lib/apiservers/service/models"
-	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/util"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
@@ -50,12 +50,12 @@ func (h *VCHListGet) Handle(params operations.GetTargetTargetVchParams, principa
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
-		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetVchDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	vchs, err := listVCHs(op, d, validator)
 	if err != nil {
-		return operations.NewGetTargetTargetVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetVchDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	return operations.NewGetTargetTargetVchOK().WithPayload(operations.GetTargetTargetVchOKBody{Vchs: vchs})
@@ -73,12 +73,12 @@ func (h *VCHDatacenterListGet) Handle(params operations.GetTargetTargetDatacente
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
-		return operations.NewGetTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetDatacenterDatacenterVchDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	vchs, err := listVCHs(op, d, validator)
 	if err != nil {
-		return operations.NewGetTargetTargetDatacenterDatacenterVchDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetDatacenterDatacenterVchDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	return operations.NewGetTargetTargetVchOK().WithPayload(operations.GetTargetTargetVchOKBody{Vchs: vchs})
@@ -89,7 +89,7 @@ func listVCHs(op trace.Operation, d *data.Data, validator *validate.Validator) (
 	executor := management.NewDispatcher(op, validator.Session(), management.ActionList, false)
 	vchs, err := executor.SearchVCHs(validator.Session().ClusterPath)
 	if err != nil {
-		return nil, util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to search VCHs in %s: %s", validator.Session().PoolPath, err))
+		return nil, errors.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to search VCHs in %s: %s", validator.Session().PoolPath, err))
 	}
 
 	return vchsToModels(op, vchs, executor), nil
