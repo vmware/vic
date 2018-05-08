@@ -100,29 +100,29 @@ func getDatastoreHelper(op trace.Operation, d *data.Data, validator *validate.Va
 	executor := management.NewDispatcher(op, validator.Session(), management.ActionInspectLogs, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
-		return nil, errors.NewError(http.StatusNotFound, fmt.Sprintf("Unable to find VCH %s: %s", d.ID, err))
+		return nil, errors.NewError(http.StatusNotFound, "unable to find VCH %s: %s", d.ID, err)
 	}
 
 	if err := validator.SetDataFromVM(op, vch, d); err != nil {
-		return nil, errors.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
+		return nil, errors.NewError(http.StatusInternalServerError, "failed to load VCH data: %s", err)
 	}
 
 	// Relative path of datastore folder
 	vmPath, err := vch.VMPathNameAsURL(op)
 	if err != nil {
-		return nil, errors.NewError(http.StatusNotFound, fmt.Sprintf("Unable to retrieve VCH datastore information: %s", err))
+		return nil, errors.NewError(http.StatusNotFound, "unable to retrieve VCH datastore information: %s", err)
 	}
 
 	// Get VCH datastore object
 	ds, err := validator.Session().Finder.Datastore(op, vmPath.Host)
 	if err != nil {
-		return nil, errors.NewError(http.StatusNotFound, fmt.Sprintf("Datastore folder not found for VCH %s: %s", d.ID, err))
+		return nil, errors.NewError(http.StatusNotFound, "datastore folder not found for VCH %s: %s", d.ID, err)
 	}
 
 	// Create a new datastore helper for file finding
 	helper, err := datastore.NewHelper(op, validator.Session(), ds, vmPath.Path)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get datastore helper: %s", err)
+		return nil, fmt.Errorf("unable to get datastore helper: %s", err)
 	}
 
 	return helper, nil
@@ -132,11 +132,11 @@ func getDatastoreHelper(op trace.Operation, d *data.Data, validator *validate.Va
 func getAllLogs(op trace.Operation, helper *datastore.Helper) (string, error) {
 	res, err := helper.Ls(op, "", vchlog.LogFilePrefix+"*"+vchlog.LogFileSuffix)
 	if err != nil {
-		return "", fmt.Errorf("Unable to list vic-machine log files in datastore: %s", err)
+		return "", errors.NewError(http.StatusInternalServerError, "unable to list vic-machine log files in datastore: %s", err)
 	}
 
 	if len(res.File) == 0 {
-		return "", errors.NewError(http.StatusNotFound, "No log file available in datastore folder")
+		return "", errors.NewError(http.StatusNotFound, "no log file available in datastore folder")
 	}
 
 	var paths []string
@@ -152,11 +152,11 @@ func getAllLogs(op trace.Operation, helper *datastore.Helper) (string, error) {
 	for _, p := range paths {
 		reader, err := helper.Download(op, p)
 		if err != nil {
-			return "", fmt.Errorf("Unable to download log file %s: %s", p, err)
+			return "", errors.NewError(http.StatusInternalServerError, "unable to download log file %s: %s", p, err)
 		}
 
 		if _, err := buffer.ReadFrom(reader); err != nil {
-			return "", fmt.Errorf("Error reading from log file %s: %s", p, err)
+			return "", errors.NewError(http.StatusInternalServerError, "error reading from log file %s: %s", p, err)
 		}
 	}
 

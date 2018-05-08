@@ -15,7 +15,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/go-openapi/runtime"
@@ -93,7 +92,7 @@ func getVCHCert(op trace.Operation, d *data.Data, validator *validate.Validator)
 	}
 
 	if vchConfig.HostCertificate.IsNil() {
-		return nil, errors.NewError(http.StatusNotFound, fmt.Sprintf("No certificate found for VCH %s", d.ID))
+		return nil, errors.NewError(http.StatusNotFound, "no certificate found for VCH %s", d.ID)
 	}
 
 	return vchConfig.HostCertificate, nil

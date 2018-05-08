@@ -132,17 +132,17 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 
 	if vch != nil {
 		if vch.Version != "" && version.String() != string(vch.Version) {
-			return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Invalid version: %s", vch.Version))
+			return nil, errors.NewError(http.StatusBadRequest, "invalid version: %s", vch.Version)
 		}
 
 		c.DisplayName = vch.Name
 
 		// TODO (#6710): move validation to swagger
 		if err := common.CheckUnsupportedChars(c.DisplayName); err != nil {
-			return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Invalid display name: %s", err))
+			return nil, errors.NewError(http.StatusBadRequest, "invalid display name: %s", err)
 		}
 		if len(c.DisplayName) > create.MaxDisplayNameLen {
-			return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Invalid display name: length exceeds %d characters", create.MaxDisplayNameLen))
+			return nil, errors.NewError(http.StatusBadRequest, "invalid display name: length exceeds %d characters", create.MaxDisplayNameLen)
 		}
 
 		debug := int(vch.Debug)
@@ -163,10 +163,10 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 
 			resourcePath, err := decode.FromManagedObject(op, finder, "ResourcePool", vch.Compute.Resource) // TODO (#6711): Do we need to handle clusters differently?
 			if err != nil {
-				return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding resource pool: %s", err))
+				return nil, errors.NewError(http.StatusBadRequest, "error finding resource pool: %s", err)
 			}
 			if resourcePath == "" {
-				return nil, errors.NewError(http.StatusBadRequest, "Resource pool must be specified (by name or id)")
+				return nil, errors.NewError(http.StatusBadRequest, "resource pool must be specified (by name or id)")
 			}
 			c.ComputeResourcePath = resourcePath
 
@@ -179,10 +179,10 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 			if vch.Network.Bridge != nil {
 				path, err := decode.FromManagedObject(op, finder, "Network", vch.Network.Bridge.PortGroup)
 				if err != nil {
-					return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding bridge network: %s", err))
+					return nil, errors.NewError(http.StatusBadRequest, "error finding bridge network: %s", err)
 				}
 				if path == "" {
-					return nil, errors.NewError(http.StatusBadRequest, "Bridge network portgroup must be specified (by name or id)")
+					return nil, errors.NewError(http.StatusBadRequest, "bridge network portgroup must be specified (by name or id)")
 				}
 				c.BridgeNetworkName = path
 				c.BridgeIPRange = decode.FromCIDR(&vch.Network.Bridge.IPRange)
@@ -195,10 +195,10 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 			if vch.Network.Client != nil {
 				path, err := decode.FromManagedObject(op, finder, "Network", vch.Network.Client.PortGroup)
 				if err != nil {
-					return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding client network portgroup: %s", err))
+					return nil, errors.NewError(http.StatusBadRequest, "error finding client network portgroup: %s", err)
 				}
 				if path == "" {
-					return nil, errors.NewError(http.StatusBadRequest, "Client network portgroup must be specified (by name or id)")
+					return nil, errors.NewError(http.StatusBadRequest, "client network portgroup must be specified (by name or id)")
 				}
 				c.ClientNetworkName = path
 				c.ClientNetworkGateway = decode.FromGateway(vch.Network.Client.Gateway)
@@ -212,10 +212,10 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 			if vch.Network.Management != nil {
 				path, err := decode.FromManagedObject(op, finder, "Network", vch.Network.Management.PortGroup)
 				if err != nil {
-					return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding management network portgroup: %s", err))
+					return nil, errors.NewError(http.StatusBadRequest, "error finding management network portgroup: %s", err)
 				}
 				if path == "" {
-					return nil, errors.NewError(http.StatusBadRequest, "Management network portgroup must be specified (by name or id)")
+					return nil, errors.NewError(http.StatusBadRequest, "management network portgroup must be specified (by name or id)")
 				}
 				c.ManagementNetworkName = path
 				c.ManagementNetworkGateway = decode.FromGateway(vch.Network.Management.Gateway)
@@ -229,10 +229,10 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 			if vch.Network.Public != nil {
 				path, err := decode.FromManagedObject(op, finder, "Network", vch.Network.Public.PortGroup)
 				if err != nil {
-					return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding public network portgroup: %s", err))
+					return nil, errors.NewError(http.StatusBadRequest, "error finding public network portgroup: %s", err)
 				}
 				if path == "" {
-					return nil, errors.NewError(http.StatusBadRequest, "Public network portgroup must be specified (by name or id)")
+					return nil, errors.NewError(http.StatusBadRequest, "public network portgroup must be specified (by name or id)")
 				}
 				c.PublicNetworkName = path
 				c.PublicNetworkGateway = decode.FromGateway(vch.Network.Public.Gateway)
@@ -265,24 +265,24 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 
 					path, err := decode.FromManagedObject(op, finder, "Network", cnetwork.PortGroup)
 					if err != nil {
-						return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding portgroup for container network %s: %s", alias, err))
+						return nil, errors.NewError(http.StatusBadRequest, "error finding portgroup for container network %s: %s", alias, err)
 					}
 					if path == "" {
-						return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Container network %s portgroup must be specified (by name or id)", alias))
+						return nil, errors.NewError(http.StatusBadRequest, "container network %s portgroup must be specified (by name or id)", alias)
 					}
 					containerNetworks.MappedNetworks[alias] = path
 
 					if cnetwork.Gateway != nil {
 						address := net.ParseIP(string(cnetwork.Gateway.Address))
 						if address == nil {
-							return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing gateway IP %s for container network %s", cnetwork.Gateway.Address, alias))
+							return nil, errors.NewError(http.StatusBadRequest, "error parsing gateway IP %s for container network %s", cnetwork.Gateway.Address, alias)
 						}
 						if cnetwork.Gateway.RoutingDestinations == nil || len(cnetwork.Gateway.RoutingDestinations) != 1 {
-							return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: exactly one subnet must be specified", alias))
+							return nil, errors.NewError(http.StatusBadRequest, "error parsing network mask for container network %s: exactly one subnet must be specified", alias)
 						}
 						_, mask, err := net.ParseCIDR(string(cnetwork.Gateway.RoutingDestinations[0]))
 						if err != nil {
-							return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing network mask for container network %s: %s", alias, err))
+							return nil, errors.NewError(http.StatusBadRequest, "error parsing network mask for container network %s: %s", alias, err)
 						}
 						containerNetworks.MappedNetworksGateways[alias] = net.IPNet{
 							IP:   address,
@@ -308,7 +308,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 					if cnetwork.Firewall != "" {
 						trustLevel, err := executor.ParseTrustLevel(cnetwork.Firewall)
 						if err != nil {
-							return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error parsing trust level for container network %s: %s", alias, err))
+							return nil, errors.NewError(http.StatusBadRequest, "error parsing trust level for container network %s: %s", alias, err)
 						}
 
 						containerNetworks.MappedNetworksFirewalls[alias] = trustLevel
@@ -337,7 +337,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				vs := common.VolumeStores{VolumeStores: cli.StringSlice(volumes)}
 				volumeLocations, err := vs.ProcessVolumeStores()
 				if err != nil {
-					return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error processing volume stores: %s", err))
+					return nil, errors.NewError(http.StatusBadRequest, "error processing volume stores: %s", err)
 				}
 				c.VolumeLocations = volumeLocations
 			}
@@ -367,7 +367,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 					c.Certs.NoSaveToDisk = true
 					c.Certs.Networks = c.Networks
 					if err := c.Certs.ProcessCertificates(op, c.DisplayName, c.Force, 0); err != nil {
-						return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error generating certificates: %s", err))
+						return nil, errors.NewError(http.StatusBadRequest, "error generating certificates: %s", err)
 					}
 				} else {
 					c.Certs.CertPEM = []byte(vch.Auth.Server.Certificate.Pem)
@@ -413,7 +413,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 
 				hproxy, sproxy, err := c.Proxies.ProcessProxies()
 				if err != nil {
-					return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error processing proxies: %s", err))
+					return nil, errors.NewError(http.StatusBadRequest, "error processing proxies: %s", err)
 				}
 				c.HTTPProxy = hproxy
 				c.HTTPSProxy = sproxy
@@ -423,7 +423,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 		if vch.SyslogAddr != "" {
 			c.SyslogAddr = vch.SyslogAddr.String()
 			if err := c.ProcessSyslog(); err != nil {
-				return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Error processing syslog server address: %s", err))
+				return nil, errors.NewError(http.StatusBadRequest, "error processing syslog server address: %s", err)
 			}
 		}
 
@@ -444,7 +444,7 @@ func handleCreate(op trace.Operation, c *create.Create, validator *validate.Vali
 			messages = append(messages, issue.Error())
 		}
 
-		return nil, errors.NewError(http.StatusBadRequest, fmt.Sprintf("Failed to validate VCH: %s", strings.Join(messages, ", ")))
+		return nil, errors.NewError(http.StatusBadRequest, "failed to validate VCH: %s", strings.Join(messages, ", "))
 	}
 
 	vConfig := validator.AddDeprecatedFields(op, vchConfig, c.Data)
@@ -461,7 +461,7 @@ func handleCreate(op trace.Operation, c *create.Create, validator *validate.Vali
 	executor := management.NewDispatcher(op, validator.Session(), management.ActionCreate, false)
 	err = executor.CreateVCH(vchConfig, vConfig, receiver)
 	if err != nil {
-		return nil, errors.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to create VCH: %s", err))
+		return nil, errors.NewError(http.StatusInternalServerError, "failed to create VCH: %s", err)
 	}
 
 	return nil, nil
