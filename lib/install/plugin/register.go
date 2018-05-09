@@ -117,7 +117,7 @@ func (p *Pluginator) connect() error {
 
 	sessionconfig := &session.Config{
 		Thumbprint: p.tThumbprint,
-		UserAgent:  version.UserAgent("vic-ui-installer"),
+		UserAgent:  version.UserAgent("vic-plugin-installer"),
 	}
 	sessionconfig.Service = p.tURL.String()
 

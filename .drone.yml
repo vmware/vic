@@ -123,50 +123,6 @@ pipeline:
     when:
       status: success
 
-  vic-ui:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
-    pull: true
-    environment:
-     BIN: bin
-    secrets:
-      - gs_client_email
-      - gs_private_key
-      - gs_project_id
-    commands:
-      - 'export BUILD_NUMBER=${DRONE_BUILD_NUMBER}'
-      - 'mkdir -p $BIN/ui'
-      - 'export LATEST_VIC_UI_BUILD="$(gsutil ls -l ''gs://vic-ui-builds'' | grep -v TOTAL | grep vic_ | sort -k2 -r | (trap '' '' PIPE; head -1))"'
-      - 'export VIC_UI_URL=$(echo $LATEST_VIC_UI_BUILD | xargs | cut -d " " -f 3 | sed "s|gs://|https://storage.googleapis.com/|")'
-      - 'wget -nv $VIC_UI_URL -P $BIN'
-      - 'tar -xvzf $BIN/vic_ui_*.tar.gz'
-      - 'ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1'
-      - 'rm $BIN/vic_ui_*.tar.gz'
-    when:
-      event: push
-      status: [success, failure]
-
-  vic-ui-release:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
-    pull: true
-    environment:
-      BIN: bin
-    secrets:
-      - gs_client_email
-      - gs_private_key
-      - gs_project_id
-    commands:
-      - 'export BUILD_NUMBER=${DRONE_BUILD_NUMBER}'
-      - 'mkdir -p $BIN/ui'
-      - 'export LATEST_VIC_UI_RELEASE="$(gsutil ls -l ''gs://vic-ui-releases'' | grep -v TOTAL | grep vic_ | sort -k2 -r | (trap '' '' PIPE; head -1))"'
-      - 'export VIC_UI_URL=$(echo $LATEST_VIC_UI_RELEASE | xargs | cut -d " " -f 3 | sed "s|gs://|https://storage.googleapis.com/|")'
-      - 'wget -nv $VIC_UI_URL -P $BIN'
-      - 'tar -xvzf $BIN/vic_ui_*.tar.gz'
-      - 'ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1'
-      - 'rm $BIN/vic_ui_*.tar.gz'
-    when:
-      branch: ['releases/*']
-      event: tag
-
   bundle:
     image: 'wdc-harbor-ci.eng.vmware.com/default-project/golang:1.8'
     pull: true
@@ -182,7 +138,6 @@ pipeline:
       - 'cp LICENSE $BIN_TEMP_DIR'
       - 'cp doc/bundle/README $BIN_TEMP_DIR'
       - 'cp $BIN/vic-machine* $BIN_TEMP_DIR'
-      - 'cp $BIN/vic-ui* $BIN_TEMP_DIR'
       - 'cp $BIN/appliance.iso $BIN_TEMP_DIR'
       - 'cp $BIN/bootstrap.iso $BIN_TEMP_DIR'
       - 'mkdir -p $BIN_TEMP_DIR/autocomplete/bash'
