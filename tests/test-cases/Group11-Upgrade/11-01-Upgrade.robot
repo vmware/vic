@@ -15,8 +15,8 @@
 *** Settings ***
 Documentation  Test 11-01 - Upgrade
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC with version to Test Server  v1.3.1
-Suite Teardown  Clean up VIC Appliance And Local Binary
+Suite Setup  Disable Ops User And Install VIC To Test Server
+#Suite Teardown  Re-Enable Ops User And Clean Up VIC Appliance
 Default Tags
 
 *** Variables ***
@@ -24,8 +24,18 @@ ${namedVolume}=  named-volume
 ${mntDataTestContainer}=  mount-data-test
 ${mntTest}=  /mnt/test
 ${mntNamed}=  /mnt/named
+${run-as-ops-user}=  ${EMPTY}
 
 *** Keywords ***
+Disable Ops User And Install VIC To Test Server
+    ${run-as-ops-user}=  Get Environment Variable  RUN_AS_OPS_USER  0
+    Set Environment Variable  RUN_AS_OPS_USER  0
+    Install VIC with version to Test Server  1.2.1
+
+Re-Enable Ops User And Clean Up VIC Appliance
+    Set Environment Variable  RUN_AS_OPS_USER  ${run-as-ops-user}
+    Clean up VIC Appliance And Local Binary
+
 Run Docker Checks
     # wait for docker info to succeed
     Log To Console  Verify Containers...
