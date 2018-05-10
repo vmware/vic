@@ -70,7 +70,7 @@ Verify Certificate
 
 
 Verify Certificate Not Found
-    Output Should Contain        No certificate found for VCH
+    Output Should Contain        no certificate found for VCH
     Output Should Not Contain    BEGIN CERTIFICATE
     Output Should Not Contain    END CERTIFICATE
 

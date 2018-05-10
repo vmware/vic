@@ -92,12 +92,12 @@ func getVCH(op trace.Operation, d *data.Data, validator *validate.Validator) (*m
 	executor := management.NewDispatcher(op, validator.Session(), management.ActionInspect, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
-		return nil, errors.NewError(http.StatusNotFound, fmt.Sprintf("Failed to inspect VCH: %s", err))
+		return nil, errors.NewError(http.StatusNotFound, "failed to inspect VCH: %s", err)
 	}
 
 	err = validator.SetDataFromVM(op, vch, d)
 	if err != nil {
-		return nil, errors.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
+		return nil, errors.NewError(http.StatusInternalServerError, "failed to load VCH data: %s", err)
 	}
 
 	model, err := vchToModel(op, vch, d, executor)
@@ -111,7 +111,7 @@ func getVCH(op trace.Operation, d *data.Data, validator *validate.Validator) (*m
 func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, executor *management.Dispatcher) (*models.VCH, error) {
 	vchConfig, err := executor.GetNoSecretVCHConfig(vch)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to retrieve VCH information: %s", err)
+		return nil, fmt.Errorf("unable to retrieve VCH information: %s", err)
 	}
 
 	model := &models.VCH{}

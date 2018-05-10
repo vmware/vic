@@ -15,7 +15,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/go-openapi/runtime/middleware"
@@ -88,17 +87,17 @@ func deleteVCH(op trace.Operation, d *data.Data, validator *validate.Validator, 
 	executor := management.NewDispatcher(op, validator.Session(), management.ActionDelete, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
-		return errors.NewError(http.StatusNotFound, fmt.Sprintf("Failed to find VCH: %s", err))
+		return errors.NewError(http.StatusNotFound, "failed to find VCH: %s", err)
 	}
 
 	err = validator.SetDataFromVM(op, vch, d)
 	if err != nil {
-		return errors.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
+		return errors.NewError(http.StatusInternalServerError, "failed to load VCH data: %s", err)
 	}
 
 	vchConfig, err := executor.GetNoSecretVCHConfig(vch)
 	if err != nil {
-		return errors.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
+		return errors.NewError(http.StatusInternalServerError, "failed to load VCH data: %s", err)
 	}
 
 	// compare vch version and vic-machine version
@@ -110,7 +109,7 @@ func deleteVCH(op trace.Operation, d *data.Data, validator *validate.Validator, 
 	deleteContainers, deleteVolumeStores := decode.FromDeletionSpecification(specification)
 	err = executor.DeleteVCH(vchConfig, deleteContainers, deleteVolumeStores)
 	if err != nil {
-		return errors.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to delete VCH: %s", err))
+		return errors.NewError(http.StatusInternalServerError, "failed to delete VCH: %s", err)
 	}
 
 	return nil

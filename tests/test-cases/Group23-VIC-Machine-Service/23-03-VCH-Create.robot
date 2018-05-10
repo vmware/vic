@@ -395,7 +395,7 @@ Fail to create VCH where http != https (on http key/pair) in image_fetch_proxy -
     Verify Return Code
     Verify Status Bad Request
 
-    Output Should Contain    Error processing proxies: Could not parse HTTP proxy
+    Output Should Contain    error processing proxies: Could not parse HTTP proxy
 
 
 Fail to create VCH where https != http (on https key/pair) in image_fetch_proxy - registry settings
@@ -404,7 +404,7 @@ Fail to create VCH where https != http (on https key/pair) in image_fetch_proxy 
     Verify Return Code
     Verify Status Bad Request
 
-    Output Should Contain    Error processing proxies: Could not parse HTTPS proxy
+    Output Should Contain    error processing proxies: Could not parse HTTPS proxy
 
 
 Fail to create VCH where whitelist contains an int and not string - registry settings
@@ -502,7 +502,7 @@ Fail to create VCH where an invalid target path is specified - resource settings
     Verify Return Code
     Verify Status Bad Request
 
-    Output Should Contain    Failed to validate VCH
+    Output Should Contain    failed to validate VCH
 
 
 Fail to create VCH where an invalid cname field is specified - security settings
