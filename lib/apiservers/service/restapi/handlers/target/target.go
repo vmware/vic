@@ -73,7 +73,6 @@ func Validate(op trace.Operation, action management.Action, params Params, princ
 		data.ID = *params.VCHID
 	}
 
-	// TODO (#6032): clean this up
 	var validator *validate.Validator
 	var allowEmptyDC bool
 	if params.Datacenter != nil {
@@ -94,18 +93,9 @@ func Validate(op trace.Operation, action management.Action, params Params, princ
 			return data, nil, errors.NewError(http.StatusBadRequest, "validation error: datacenter parameter is not a datacenter moref")
 		}
 
-		// Set datacenter path and corresponding finder config
-		s.DatacenterPath = dc.Name()
-		s.Datacenter = dc
-		s.Finder.SetDatacenter(dc)
-
-		// Do what validator.Session().Populate would have done if datacenterPath is set
-		if s.Datacenter != nil {
-			folders, err := s.Datacenter.Folders(op)
-			if err != nil {
-				return data, nil, errors.NewError(http.StatusBadRequest, "validation error: error finding datacenter folders: %s", err)
-			}
-			s.VMFolder = folders.VmFolder
+		err = s.SetDatacenter(op, dc)
+		if err != nil {
+			return data, nil, errors.NewError(http.StatusBadRequest, "validation error: error finding datacenter folders: %s", err)
 		}
 
 		v, err := validate.CreateFromSession(op, s)
