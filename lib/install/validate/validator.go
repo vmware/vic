@@ -71,13 +71,9 @@ func CreateFromSession(ctx context.Context, sess *session.Session) (*Validator, 
 	return v, nil
 }
 
-func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
-	op := trace.FromContext(ctx, "NewValidator")
-	defer trace.End(trace.Begin("", op))
+func NewSessionConfig(ctx context.Context, input *data.Data) (*session.Config, error) {
+	op := trace.FromContext(ctx, "NewSessionConfig")
 
-	var err error
-
-	v := &Validator{}
 	tURL := input.URL
 
 	// normalize the path - strip trailing /
@@ -96,7 +92,7 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 
 	if tURL.Scheme == "https" && input.Thumbprint == "" {
 		var cert object.HostCertificateInfo
-		if err = cert.FromURL(tURL, new(tls.Config)); err != nil {
+		if err := cert.FromURL(tURL, new(tls.Config)); err != nil {
 			return nil, err
 		}
 
@@ -132,23 +128,52 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 
 	sessionconfig.CloneTicket = input.CloneTicket
 
-	v.session = session.NewSession(sessionconfig)
-	v.session.UserAgent = version.UserAgent("vic-machine")
-	v.session, err = v.session.Connect(ctx)
+	sessionconfig.UserAgent = version.UserAgent("vic-machine")
+
+	return sessionconfig, nil
+}
+
+func NewSession(ctx context.Context, input *data.Data) (*session.Session, error) {
+	op := trace.FromContext(ctx, "NewSession")
+
+	sessionconfig, err := NewSessionConfig(op, input)
 	if err != nil {
 		return nil, err
 	}
 
-	finder := find.NewFinder(v.session.Client.Client, false)
-	v.session.Finder = finder
+	s := session.NewSession(sessionconfig)
+	s, err = s.Connect(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	finder := find.NewFinder(s.Client.Client, false)
+	s.Finder = finder
 
 	// Intentionally ignore any error returned by Populate
-	_, err = v.session.Populate(ctx)
+	_, err = s.Populate(ctx)
 	if err != nil {
 		op.Debugf("new validator Session.Populate: %s", err)
 	}
 
-	if strings.Contains(sessionconfig.DatacenterPath, "/") {
+	return s, nil
+}
+
+func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
+	op := trace.FromContext(ctx, "NewValidator")
+	defer trace.End(trace.Begin("", op))
+
+	s, err := NewSession(op, input)
+	if err != nil {
+		return nil, err
+	}
+
+	v, err := CreateFromSession(op, s)
+	if err != nil {
+		return nil, err
+	}
+
+	if strings.Contains(s.Config.DatacenterPath, "/") {
 		detail := "--target should only specify datacenter in the path (e.g. https://addr/datacenter) - specify cluster, resource pool, or folder with --compute-resource"
 		op.Error(detail)
 		v.suggestDatacenter(op)
