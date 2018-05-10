@@ -23,7 +23,7 @@ Default Tags
 
 *** Keywords ***
 Install VIC Machine Without TLS
-    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${additional-args}=${EMPTY}
+    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${opsuser-args}=${EMPTY}  ${additional-args}=${EMPTY}
     Set Test Environment Variables
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
     # Attempt to cleanup old/canceled tests
@@ -33,9 +33,14 @@ Install VIC Machine Without TLS
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Containers On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Resource Pools On Test Server
+
+    ${opsuser-args}=  Set Variable  ${EMPTY}
+    ${run-as-ops-user}=  Get Environment Variable  RUN_AS_OPS_USER
+    ${opsuser-args}=  Run Keyword If  '${run-as-ops-user}' == '1'  Get Ops User Args
+
     Set Suite Variable  ${vicmachinetls}  --no-tls
     Log To Console  \nInstalling VCH to test server with tls disabled...
-    ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${debug}  ${additional-args}
+    ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${debug}  ${opsuser-args}  ${additional-args}
     Log  ${output}
     Should Contain  ${output}  Installer completed successfully
 
