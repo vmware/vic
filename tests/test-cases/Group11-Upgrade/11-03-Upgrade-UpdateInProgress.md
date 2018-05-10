@@ -1,4 +1,4 @@
-Test 11-04 - Upgrade UpdateInProgress
+Test 11-03 - Upgrade UpdateInProgress
 =======
 
 # Purpose:
@@ -8,8 +8,8 @@ To verify that vic-machine inspect could detect the upgrade status of a VCH
 This test requires that a vSphere server is running and available
 
 # Test Steps:
-1. Download vic_1.2.1.tar.gz from gcp
-2. Deploy VIC 1.2.1 to vsphere server
+1. Download vic_1.3.1.tar.gz from gcp
+2. Deploy VIC 1.3.1 to vsphere server
 3. Set UpdateInProgress to true using govc
 4. Upgrade VCH
 5. Run vic-machine upgrade --resetInProgressFlag to reset UpdateInProgress to false

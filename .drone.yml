@@ -108,6 +108,10 @@ pipeline:
       - test_username
       - haas_url_array
       - overflow_url_array
+      - ssh_test_username
+      - ssh_test_password
+      - vch_ops_username
+      - vch_ops_password
     commands:
       - export GOVC_INSECURE=true
       - export GOVC_USERNAME=$TEST_USERNAME
