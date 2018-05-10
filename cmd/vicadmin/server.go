@@ -27,7 +27,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
+	"fmt"
 	"context"
 
 	log "github.com/Sirupsen/logrus"
@@ -158,19 +158,40 @@ func (s *server) AuthenticatedHandle(link string, h http.Handler) {
 	s.Authenticated(link, h.ServeHTTP)
 }
 
+
+func HTTPSRedirectHandle(h http.Handler) http.Handler {
+	redirectToHTTPS := func (w http.ResponseWriter, r *http.Request){
+		//redirect to https if necessary
+		if r.URL.Scheme != "https" {
+			log.Infof("ZZZZ -> Scheme is %s with host: %s and RequestURI: %s", r.URL.Scheme, r.Host, r.RequestURI)
+			http.Redirect(w, r, fmt.Sprintf("https://" + r.Host + r.RequestURI), http.StatusMovedPermanently)
+			return
+		}
+		log.Infof("ZZZZ -> ServeHTTP at the end of redirectToHTTPS func")
+		h.ServeHTTP(w,r)
+		return
+	
+	}
+	log.Infof("ZZZZ -> returning HandlerFunc at end of HTTPSRedirectHandle")
+	return http.HandlerFunc(redirectToHTTPS)
+}
+
+
+
 func (s *server) Handle(link string, h http.Handler) {
 	log.Debugf("%s --- %s", time.Now().String(), link)
-	s.mux.Handle(link, gorillacontext.ClearHandler(h))
+	//s.mux.Handle(link, gorillacontext.ClearHandler(h))
+	s.mux.Handle(link, gorillacontext.ClearHandler(HTTPSRedirectHandle(h)))
 }
 
 // Enforces authentication on route `link` and runs `handler` on successful auth
 func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *http.Request)) {
 	defer trace.End(trace.Begin(""))
-
+	log.Infof("ZZZZ -> start of Authenticated, creating authHandler")
 	authHandler := func(w http.ResponseWriter, r *http.Request) {
 		// #nosec: Errors unhandled because it is okay if the cookie doesn't exist.
 		websession, _ := s.uss.cookies.Get(r, sessionCookieKey)
-
+		log.Infof("ZZZZ -> scheme inside authHandler is %s", r.URL.Scheme)
 		if len(r.TLS.PeerCertificates) > 0 {
 			// the user is authenticated by certificate at connection time
 			log.Infof("Authenticated connection via client certificate with serial %s from %s", r.TLS.PeerCertificates[0].SerialNumber, r.RemoteAddr)
@@ -211,6 +232,7 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 			}
 
 			// user was authenticated via cert
+
 			handler(w, r)
 			return
 		}
@@ -259,11 +281,12 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 			s.logoutHandler(w, r)
 			return
 		}
-
+		log.Infof("ZZZZ -> calling handler(w,r) at the end of authHandler")
 		// if the date & remote IP on the cookie were valid, then the user is authenticated
 		log.Infof("User with a valid auth cookie at %s is authenticated.", connectingAddr[0])
 		handler(w, r)
 	}
+	log.Infof("ZZZZ -> calling HandlerFunc at the end of Authenticated")
 	s.Handle(link, http.HandlerFunc(authHandler))
 }
 
