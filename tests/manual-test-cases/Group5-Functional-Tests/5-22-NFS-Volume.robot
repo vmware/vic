@@ -86,8 +86,8 @@ Setup ENV Variables for VIC Appliance Install
 Verify NFS Volume Basic Setup
     [Arguments]  ${volumeName}  ${containerName}  ${nfsIP}  ${rwORro}
 
-    Ping NFS Server
-    Ping VCH
+    Wait Until Keyword Succeeds  20x  30s  Ping Host Successfully  ${NFS_READONLY_IP}
+    Wait Until Keyword Succeeds  20x  30s  Ping Host Successfully  %{VCH-IP}
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${containerName} -v ${volumeName}:/mydata ${busybox} mount
     Should Be Equal As Integers  ${rc}  0
@@ -103,8 +103,7 @@ Verify NFS Volume Basic Setup
 
 Verify NFS Volume Already Created
     [Arguments]  ${containerVolName}
-    Ping NFS Server
-    Ping VCH
+    Wait For NFS And VCH
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=${containerVolName} --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  1
@@ -145,16 +144,9 @@ NFS Volume Cleanup
     Gather NFS Logs
     Nimbus Cleanup  ${list}
 
-Ping NFS Server
-    ${rc}  ${out}=  Ping Host  ${NFS_READONLY_IP}
-    Log  ${rc}
-    Log  ${out}
-
-Ping VCH
-    ${rc}  ${out}=  Ping Host  %{VCH-IP}
-    Log  ${rc}
-    Log  ${out}
-
+Wait For NFS And VCH
+    Wait Until Keyword Succeeds  20x  30s  Ping Host Successfully  ${NFS_READONLY_IP}
+    Wait Until Keyword Succeeds  20x  30s  Ping Host Successfully  %{VCH-IP}
 
 *** Test Cases ***
 VIC Appliance Install with Read Only NFS Volume
@@ -167,8 +159,7 @@ VIC Appliance Install with Read Only NFS Volume
     Should Contain  ${output}  VolumeStore (${nfsReadOnlyVolumeStore}) cannot be brought online - check network, nfs server, and --volume-store configurations
     Should Contain  ${output}  Not all configured volume stores are online - check port layer log via vicadmin
 
-    Ping NFS Server
-    Ping VCH
+    Wait For NFS And VCH
 
     ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --opt VolumeStore=${nfsReadOnlyVolumeStore}
     Should Be Equal As Integers  ${rc}  1
@@ -194,8 +185,7 @@ VIC Appliance Install With Correct NFS Server
 Simple Docker Volume Create
     #Pull image  ${busybox}
 
-    Ping NFS Server
-    Ping VCH
+    Wait For NFS And VCH
 
     ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  0
@@ -205,8 +195,7 @@ Simple Docker Volume Create
     Verify NFS Volume Basic Setup  ${nfsUnNamedVolume}  ${unnamedNFSVolContainer}  ${NFS_IP}  rw
 
 Docker Volume Create Named Volume
-    Ping NFS Server
-    Ping VCH
+    Wait For NFS And VCH
 
     ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name nfs-volume_%{VCH-NAME} --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  0
@@ -222,8 +211,7 @@ Docker Volume Create Already Named Volume
     Run Keyword And Ignore Error  Verify NFS Volume Already Created  ${nfsNamedVolume}
 
 Docker Volume Create with possibly Invalid Name
-    Ping NFS Server
-    Ping VCH
+    Wait For NFS And VCH
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name="test!@\#$%^&*()" --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  1
@@ -231,8 +219,7 @@ Docker Volume Create with possibly Invalid Name
 
 Docker Single Write and Read to/from File from one Container using NFS Volume
     # Done with the same container for this test.
-    Ping NFS Server
-    Ping VCH
+    Wait For NFS And VCH
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${createFileContainer} -d -v ${nfsNamedVolume}:/mydata ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
@@ -249,8 +236,7 @@ Docker Single Write and Read to/from File from one Container using NFS Volume
     Should Contain  ${output}  The Texas and Chile flag look similar.
 
 Docker Multiple Writes from Multiple Containers (one at a time) and Read from Another
-    Ping NFS Server
-    Ping VCH
+    Wait For NFS And VCH
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "echo 'The Chad and Romania flag look the same.\n' >> /mydata/test_nfs_file.txt"
     Should Be Equal As Integers  ${rc}  0
@@ -269,8 +255,7 @@ Docker Multiple Writes from Multiple Containers (one at a time) and Read from An
     Should Contain  ${output}  Norway and Iceland have flags that are basically inverses of each other.
 
 Docker Read and Remove File
-    Ping NFS Server
-    Ping VCH
+    Wait For NFS And VCH
 
     ${rc}  ${catID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "cat mydata/test_nfs_file.txt"
     Should Be Equal As Integers  ${rc}  0
@@ -314,8 +299,7 @@ Simultaneous Container Write to File
 
 
 Simple Docker Volume Inspect
-    Ping NFS Server
-    Ping VCH
+    Wait For NFS And VCH
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume inspect ${nfsNamedVolume}
     Should Be Equal As Integers  ${rc}  0
@@ -346,8 +330,7 @@ Volume rm Tests
     Should Contain  ${output}  Error response from daemon: volume ${nfsNamedVolume} in use by
 
 Docker Inspect Mount Data after Reboot
-    Ping NFS Server
-    Ping VCH
+    Wait For NFS And VCH
 
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${mntDataTestContainer} -v ${mntTest} -v ${nfsNamedVolume}:${mntNamed} ${busybox}
     Should Be Equal As Integers  ${rc}  0
@@ -365,8 +348,7 @@ Docker Inspect Mount Data after Reboot
     Verify Volume Inspect Info  After VM Reboot  ${mntDataTestContainer}  ${checkList}
 
 Kill NFS Server
-    Ping NFS Server
-    Ping VCH
+    Wait For NFS And VCH
 
     Sleep  5 minutes
     ${rc}  ${runningContainer}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo 'Still here...\n' >> /mydata/test_nfs_kill.txt; sleep 2; done"

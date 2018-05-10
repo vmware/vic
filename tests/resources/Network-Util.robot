@@ -16,7 +16,10 @@
 Documentation  This resource contains any keywords related to networking
 
 *** Keywords ***
-Ping Host
+Ping Host Successfully
     [Arguments]  ${host}
-    ${rc}  ${out}=  Run And Return Rc And Output  ping -c 4 ${host}
-    [Return]  ${rc}  ${output}
+    ${rc}  ${output}=  Run And Return Rc And Output  ping -c 4 ${host}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  4 packets transmitted, 4 received, 0% packet loss
+    [Return]  ${output}
