@@ -296,12 +296,15 @@ Conditional Install VIC Appliance To Test Server
 Install VIC Appliance To Test Server
     [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${additional-args}=${EMPTY}
     Set Test Environment Variables
-    ${output}=  Install VIC Appliance To Test Server With Current Environment Variables  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${cleanup}  ${debug}  ${additional-args}
+    ${run-as-ops-user}=  Get Environment Variable  RUN_AS_OPS_USER
+    ${opsuser-args}=  Run Keyword If  '${run-as-ops-user}' == '1'  Get Ops User Args
+    ...  ELSE  Set Variable  ${EMPTY}
+    ${output}=  Install VIC Appliance To Test Server With Current Environment Variables  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${cleanup}  ${debug}  ${opsuser-args}  ${additional-args}
     Log  ${output}
     [Return]  ${output}
 
 Install VIC Appliance To Test Server With Current Environment Variables
-    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${additional-args}=${EMPTY}
+    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${opsuser-args}=${EMPTY}  ${additional-args}=${EMPTY}
     # disable firewall
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
     # Attempt to cleanup old/canceled tests
@@ -316,7 +319,7 @@ Install VIC Appliance To Test Server With Current Environment Variables
 
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${debug}  ${additional-args}
+    ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${debug}  ${opsuser-args}  ${additional-args}
     Log  ${output}
 
     # Check for failure to obtain IP address
@@ -339,12 +342,12 @@ Install VIC Appliance To Test Server With Current Environment Variables
 
 Run VIC Machine Command
     [Tags]  secret
-    [Arguments]  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${debug}  ${additional-args}
-    ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug ${debug} --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry wdc-harbor-ci.eng.vmware.com --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:${vol} --container-network=%{PUBLIC_NETWORK}:public ${vicmachinetls} ${additional-args}
+    [Arguments]  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${debug}  ${opsuser-args}  ${additional-args}
+    ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug ${debug} --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry wdc-harbor-ci.eng.vmware.com --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:${vol} --container-network=%{PUBLIC_NETWORK}:public ${vicmachinetls} ${opsuser-args} ${additional-args}
     Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
 
-    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug ${debug} --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry wdc-harbor-ci.eng.vmware.com --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:${vol} --container-network=%{PUBLIC_NETWORK}:public --no-tlsverify ${additional-args}
+    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug ${debug} --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry wdc-harbor-ci.eng.vmware.com --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:${vol} --container-network=%{PUBLIC_NETWORK}:public --no-tlsverify ${opsuser-args} ${additional-args}
     Run Keyword Unless  ${certs}  Should Contain  ${output}  Installer completed successfully
     [Return]  ${output}
 
@@ -787,3 +790,25 @@ Manually Cleanup VCH
     ${out}=  Run Keyword And Ignore Error  Run  govc datastore.rm ${vch-name}
     ${out}=  Run Keyword And Ignore Error  Run  govc host.portgroup.remove ${vch-name}-bridge
     ${out}=  Run Keyword And Ignore Error  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc object.destroy vm/${vch-name}
+
+Get Ops User Args
+    Log To Console  Running tests as ops user...
+    Create Ops User Account On Test Server
+    ${opsuser-args}=  Set Variable  --ops-user='%{VCH_OPS_USERNAME}' --ops-password='%{VCH_OPS_PASSWORD}' --ops-grant-perms
+    [Return]  ${opsuser-args}
+
+Create Ops User Account On Test Server
+    Log To Console  \nChecking ops user account...
+    ${tokens}=  Split String  %{VCH_OPS_USERNAME}  @
+    ${ops-username}=  Get From List  ${tokens}  0
+    ${ops-domain}=  Get From List  ${tokens}  1
+    ${rc}  ${output}=  Run And Return Rc And Output  sshpass -p %{SSH_TEST_PASSWORD} ssh -o StrictHostKeyChecking=no %{SSH_TEST_USERNAME}@%{TEST_URL} /usr/lib/vmware-vmafd/bin/dir-cli user find-by-name --account ${ops-username} --login %{TEST_USERNAME} --password %{TEST_PASSWORD}
+
+    ${status}=  Run Keyword And Return Status  Should Not Contain  ${output}  ERROR_NO_SUCH_USER
+    # If output does not contain ERROR_NO_SUCH_USER, the user already exists and we bail
+    Run Keyword If  ${status}  Log To Console  \nOps user already exists...\n
+    Run Keyword If  ${status}  Return From Keyword
+    # Otherwise, create the user
+    Log To Console  \nCreating ops user...\n
+    ${rc}  ${output}=  Run And Return Rc And Output  sshpass -p %{SSH_TEST_PASSWORD} ssh -o StrictHostKeyChecking=no %{SSH_TEST_USERNAME}@%{TEST_URL} /usr/lib/vmware-vmafd/bin/dir-cli user create --account ${ops-username} --user-password %{VCH_OPS_PASSWORD} --first-name %{VCH_OPS_USERNAME} --last-name ${ops-domain} --login %{TEST_USERNAME} --password %{TEST_PASSWORD}
+    Should Contain  ${output}  created successfully

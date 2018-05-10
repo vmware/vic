@@ -13,9 +13,9 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 11-05 - Configure
+Documentation  Test 11-04 - Configure
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC with version to Test Server  1.2.1
+Suite Setup  Install VIC with version to Test Server  v1.3.1
 Suite Teardown  Clean up VIC Appliance And Local Binary
 
 *** Test Cases ***

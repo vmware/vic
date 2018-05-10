@@ -1,4 +1,4 @@
-Test 11-03 - Upgrade InsecureRegistry
+Test 11-02 - Upgrade InsecureRegistry
 =======
 
 # Purpose:

@@ -15,13 +15,13 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/go-openapi/runtime/middleware"
 
 	"github.com/vmware/vic/lib/apiservers/service/models"
-	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/util"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/decode"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
@@ -49,12 +49,12 @@ func (h *VCHDelete) Handle(params operations.DeleteTargetTargetVchVchIDParams, p
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
-		return operations.NewDeleteTargetTargetVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewDeleteTargetTargetVchVchIDDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	err = deleteVCH(op, d, validator, params.DeletionSpecification)
 	if err != nil {
-		return operations.NewDeleteTargetTargetVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewDeleteTargetTargetVchVchIDDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	return operations.NewDeleteTargetTargetVchVchIDAccepted()
@@ -72,12 +72,12 @@ func (h *VCHDatacenterDelete) Handle(params operations.DeleteTargetTargetDatacen
 
 	d, validator, err := buildDataAndValidateTarget(op, b, principal)
 	if err != nil {
-		return operations.NewDeleteTargetTargetDatacenterDatacenterVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewDeleteTargetTargetDatacenterDatacenterVchVchIDDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	err = deleteVCH(op, d, validator, params.DeletionSpecification)
 	if err != nil {
-		return operations.NewDeleteTargetTargetDatacenterDatacenterVchVchIDDefault(util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewDeleteTargetTargetDatacenterDatacenterVchVchIDDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	return operations.NewDeleteTargetTargetDatacenterDatacenterVchVchIDAccepted()
@@ -87,17 +87,17 @@ func deleteVCH(op trace.Operation, d *data.Data, validator *validate.Validator, 
 	executor := management.NewDispatcher(op, validator.Session(), management.ActionDelete, false)
 	vch, err := executor.NewVCHFromID(d.ID)
 	if err != nil {
-		return util.NewError(http.StatusNotFound, fmt.Sprintf("Failed to find VCH: %s", err))
+		return errors.NewError(http.StatusNotFound, "failed to find VCH: %s", err)
 	}
 
 	err = validator.SetDataFromVM(op, vch, d)
 	if err != nil {
-		return util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
+		return errors.NewError(http.StatusInternalServerError, "failed to load VCH data: %s", err)
 	}
 
 	vchConfig, err := executor.GetNoSecretVCHConfig(vch)
 	if err != nil {
-		return util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to load VCH data: %s", err))
+		return errors.NewError(http.StatusInternalServerError, "failed to load VCH data: %s", err)
 	}
 
 	// compare vch version and vic-machine version
@@ -106,47 +106,11 @@ func deleteVCH(op trace.Operation, d *data.Data, validator *validate.Validator, 
 		op.Debugf("VCH version %q is different than API version %s", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
 	}
 
-	deleteContainers, deleteVolumeStores := fromDeletionSpecification(specification)
+	deleteContainers, deleteVolumeStores := decode.FromDeletionSpecification(specification)
 	err = executor.DeleteVCH(vchConfig, deleteContainers, deleteVolumeStores)
 	if err != nil {
-		return util.NewError(http.StatusInternalServerError, fmt.Sprintf("Failed to delete VCH: %s", err))
+		return errors.NewError(http.StatusInternalServerError, "failed to delete VCH: %s", err)
 	}
 
 	return nil
-}
-
-func fromDeletionSpecification(specification *models.DeletionSpecification) (deleteContainers *management.DeleteContainers, deleteVolumeStores *management.DeleteVolumeStores) {
-	if specification != nil {
-		if specification.Containers != nil {
-			var dc management.DeleteContainers
-
-			switch *specification.Containers {
-			case models.DeletionSpecificationContainersAll:
-				dc = management.AllContainers
-			case models.DeletionSpecificationContainersOff:
-				dc = management.PoweredOffContainers
-			default:
-				panic("Deletion API handler received unexpected input")
-			}
-
-			deleteContainers = &dc
-		}
-
-		if specification.VolumeStores != nil {
-			var dv management.DeleteVolumeStores
-
-			switch *specification.VolumeStores {
-			case models.DeletionSpecificationVolumeStoresAll:
-				dv = management.AllVolumeStores
-			case models.DeletionSpecificationVolumeStoresNone:
-				dv = management.NoVolumeStores
-			default:
-				panic("Deletion API handler received unexpected input")
-			}
-
-			deleteVolumeStores = &dv
-		}
-	}
-
-	return
 }

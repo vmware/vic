@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+// Package errors provides constructors and wrappers for http-aware errors.
+package errors
 
 import (
 	"fmt"
 	"net/http"
 )
 
+// StatusCode extracts the HTTP status code associated with an error, falling
+// back to 500 Internal Server Error if none has been specified.
 func StatusCode(err error) int {
 	e, ok := err.(statusCode)
 	if !ok {
@@ -28,6 +31,7 @@ func StatusCode(err error) int {
 	return e.Code()
 }
 
+// NewError constructs a new error with the supplied status code and message.
 func NewError(code int, message string, a ...interface{}) error {
 	if a != nil {
 		return httpError{code: code, message: fmt.Sprintf(message, a...)}
@@ -35,12 +39,15 @@ func NewError(code int, message string, a ...interface{}) error {
 	return httpError{code: code, message: message}
 }
 
+// WrapError wraps a status code around an existing error.
 func WrapError(code int, err error) error {
 	return wrappedError{error: err, code: code}
 }
 
-// Pattern based on https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully
-
+// statusCode is used by the error implementations within the package to
+// expose a status code to StatusCode.
+//
+// This pattern is based on https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully.
 type statusCode interface {
 	Code() int
 }
