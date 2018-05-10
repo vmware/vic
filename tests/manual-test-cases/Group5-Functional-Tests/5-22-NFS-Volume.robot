@@ -86,8 +86,7 @@ Setup ENV Variables for VIC Appliance Install
 Verify NFS Volume Basic Setup
     [Arguments]  ${volumeName}  ${containerName}  ${nfsIP}  ${rwORro}
 
-    Wait Until Keyword Succeeds  20x  30s  Ping Host Successfully  ${NFS_READONLY_IP}
-    Wait Until Keyword Succeeds  20x  30s  Ping Host Successfully  %{VCH-IP}
+    Wait For NFS And VCH
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${containerName} -v ${volumeName}:/mydata ${busybox} mount
     Should Be Equal As Integers  ${rc}  0
