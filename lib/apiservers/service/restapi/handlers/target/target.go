@@ -77,14 +77,14 @@ func Validate(op trace.Operation, action management.Action, params Params, princ
 	var validator *validate.Validator
 	var allowEmptyDC bool
 	if params.Datacenter != nil {
-		v, err := validate.NewValidator(op, data)
+		s, err := validate.NewSession(op, data)
 		if err != nil {
-			return data, nil, errors.NewError(http.StatusBadRequest, "validation error: %s", err)
+			return data, nil, errors.NewError(http.StatusBadRequest, "session error: %s", err)
 		}
 
 		datacenterManagedObjectReference := types.ManagedObjectReference{Type: "Datacenter", Value: *params.Datacenter}
 
-		datacenterObject, err := v.Session().Finder.ObjectReference(op, datacenterManagedObjectReference)
+		datacenterObject, err := s.Finder.ObjectReference(op, datacenterManagedObjectReference)
 		if err != nil {
 			return nil, nil, errors.WrapError(http.StatusNotFound, err)
 		}
@@ -95,17 +95,22 @@ func Validate(op trace.Operation, action management.Action, params Params, princ
 		}
 
 		// Set datacenter path and corresponding finder config
-		v.Session().DatacenterPath = dc.Name()
-		v.Session().Datacenter = dc
-		v.Session().Finder.SetDatacenter(dc)
+		s.DatacenterPath = dc.Name()
+		s.Datacenter = dc
+		s.Finder.SetDatacenter(dc)
 
 		// Do what validator.Session().Populate would have done if datacenterPath is set
-		if v.Session().Datacenter != nil {
-			folders, err := v.Session().Datacenter.Folders(op)
+		if s.Datacenter != nil {
+			folders, err := s.Datacenter.Folders(op)
 			if err != nil {
 				return data, nil, errors.NewError(http.StatusBadRequest, "validation error: error finding datacenter folders: %s", err)
 			}
-			v.Session().VMFolder = folders.VmFolder
+			s.VMFolder = folders.VmFolder
+		}
+
+		v, err := validate.CreateFromSession(op, s)
+		if err != nil {
+			return data, nil, errors.NewError(http.StatusBadRequest, "validation error: %s", err)
 		}
 
 		validator = v
