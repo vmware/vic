@@ -60,7 +60,7 @@ Setup ESX And NFS Suite
     ${out}=  Execute Command   rpcdebug -m rpc -s all
     ${out}=  Execute Command   service rpcbind restart
     Close Connection
-    
+
     Open Connection  ${NFS_READONLY_IP}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  root  ${strippedPW}
     ${out}=  Execute Command   rpcdebug -m nfsd -s all
@@ -86,6 +86,8 @@ Setup ENV Variables for VIC Appliance Install
 Verify NFS Volume Basic Setup
     [Arguments]  ${volumeName}  ${containerName}  ${nfsIP}  ${rwORro}
 
+    Wait For NFS And VCH
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${containerName} -v ${volumeName}:/mydata ${busybox} mount
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${nfsIP}:/store/volumes/${volumeName}
@@ -100,6 +102,8 @@ Verify NFS Volume Basic Setup
 
 Verify NFS Volume Already Created
     [Arguments]  ${containerVolName}
+    Wait For NFS And VCH
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=${containerVolName} --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: A volume named ${containerVolName} already exists. Choose a different volume name.
@@ -139,6 +143,10 @@ NFS Volume Cleanup
     Gather NFS Logs
     Nimbus Cleanup  ${list}
 
+Wait For NFS And VCH
+    Wait Until Keyword Succeeds  20x  30s  Ping Host Successfully  ${NFS_READONLY_IP}
+    Wait Until Keyword Succeeds  20x  30s  Ping Host Successfully  %{VCH-IP}
+
 *** Test Cases ***
 VIC Appliance Install with Read Only NFS Volume
     Setup ENV Variables for VIC Appliance Install
@@ -149,6 +157,8 @@ VIC Appliance Install with Read Only NFS Volume
     Should Contain  ${output}  Installer completed successfully
     Should Contain  ${output}  VolumeStore (${nfsReadOnlyVolumeStore}) cannot be brought online - check network, nfs server, and --volume-store configurations
     Should Contain  ${output}  Not all configured volume stores are online - check port layer log via vicadmin
+
+    Wait For NFS And VCH
 
     ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --opt VolumeStore=${nfsReadOnlyVolumeStore}
     Should Be Equal As Integers  ${rc}  1
@@ -174,6 +184,8 @@ VIC Appliance Install With Correct NFS Server
 Simple Docker Volume Create
     #Pull image  ${busybox}
 
+    Wait For NFS And VCH
+
     ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  0
 
@@ -182,6 +194,8 @@ Simple Docker Volume Create
     Verify NFS Volume Basic Setup  ${nfsUnNamedVolume}  ${unnamedNFSVolContainer}  ${NFS_IP}  rw
 
 Docker Volume Create Named Volume
+    Wait For NFS And VCH
+
     ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name nfs-volume_%{VCH-NAME} --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${volumeOutput}  nfs-volume_%{VCH-NAME}
@@ -196,12 +210,16 @@ Docker Volume Create Already Named Volume
     Run Keyword And Ignore Error  Verify NFS Volume Already Created  ${nfsNamedVolume}
 
 Docker Volume Create with possibly Invalid Name
+    Wait For NFS And VCH
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name="test!@\#$%^&*()" --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  1
     Should Be Equal As Strings  ${output}  Error response from daemon: volume name "test!@\#$%^&*()" includes invalid characters, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed
 
 Docker Single Write and Read to/from File from one Container using NFS Volume
     # Done with the same container for this test.
+    Wait For NFS And VCH
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${createFileContainer} -d -v ${nfsNamedVolume}:/mydata ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
 
@@ -217,6 +235,8 @@ Docker Single Write and Read to/from File from one Container using NFS Volume
     Should Contain  ${output}  The Texas and Chile flag look similar.
 
 Docker Multiple Writes from Multiple Containers (one at a time) and Read from Another
+    Wait For NFS And VCH
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "echo 'The Chad and Romania flag look the same.\n' >> /mydata/test_nfs_file.txt"
     Should Be Equal As Integers  ${rc}  0
 
@@ -234,6 +254,8 @@ Docker Multiple Writes from Multiple Containers (one at a time) and Read from An
     Should Contain  ${output}  Norway and Iceland have flags that are basically inverses of each other.
 
 Docker Read and Remove File
+    Wait For NFS And VCH
+
     ${rc}  ${catID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "cat mydata/test_nfs_file.txt"
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${catID}
@@ -276,6 +298,8 @@ Simultaneous Container Write to File
 
 
 Simple Docker Volume Inspect
+    Wait For NFS And VCH
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume inspect ${nfsNamedVolume}
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Evaluate  json.loads(r'''${output}''')  json
@@ -305,6 +329,8 @@ Volume rm Tests
     Should Contain  ${output}  Error response from daemon: volume ${nfsNamedVolume} in use by
 
 Docker Inspect Mount Data after Reboot
+    Wait For NFS And VCH
+
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${mntDataTestContainer} -v ${mntTest} -v ${nfsNamedVolume}:${mntNamed} ${busybox}
     Should Be Equal As Integers  ${rc}  0
 
@@ -321,6 +347,8 @@ Docker Inspect Mount Data after Reboot
     Verify Volume Inspect Info  After VM Reboot  ${mntDataTestContainer}  ${checkList}
 
 Kill NFS Server
+    Wait For NFS And VCH
+
     Sleep  5 minutes
     ${rc}  ${runningContainer}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo 'Still here...\n' >> /mydata/test_nfs_kill.txt; sleep 2; done"
     Should Be Equal As Integers  ${rc}  0
