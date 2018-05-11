@@ -37,6 +37,7 @@ Install VIC Machine Without TLS
     ${opsuser-args}=  Set Variable  ${EMPTY}
     ${run-as-ops-user}=  Get Environment Variable  RUN_AS_OPS_USER
     ${opsuser-args}=  Run Keyword If  '${run-as-ops-user}' == '1'  Get Ops User Args
+    ...  ELSE  Set Variable  ${EMPTY}
 
     Set Suite Variable  ${vicmachinetls}  --no-tls
     Log To Console  \nInstalling VCH to test server with tls disabled...
