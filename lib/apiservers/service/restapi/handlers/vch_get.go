@@ -15,49 +15,50 @@
 package handlers
 
 import (
-	"fmt"
-	"net/http"
-
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/strfmt"
 
 	"github.com/vmware/govmomi/object"
+
 	"github.com/vmware/vic/lib/apiservers/service/models"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/client"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/encode"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/target"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/interaction"
 	"github.com/vmware/vic/lib/install/management"
-	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-// VCHGet is the handler for inspecting a VCH
+// VCHGet is the handler for inspecting a VCH without specifying a datacenter
 type VCHGet struct {
+	vchGet
 }
 
-// VCHGet is the handler for inspecting a VCH within a Datacenter
+// VCHDatacenterGet is the handler for inspecting a VCH within a specified datacenter
 type VCHDatacenterGet struct {
+	vchGet
 }
 
+// vchGet allows for VCHGet and VCHDatacenterGet to share common code without polluting the package
+type vchGet struct{}
+
+// Handle is the handler implementation for inspecting a VCH without specifying a datacenter
 func (h *VCHGet) Handle(params operations.GetTargetTargetVchVchIDParams, principal interface{}) middleware.Responder {
 	op := trace.FromContext(params.HTTPRequest.Context(), "VCHGet: %s", params.VchID)
 
-	b := buildDataParams{
-		target:     params.Target,
-		thumbprint: params.Thumbprint,
-		vchID:      &params.VchID,
+	b := target.Params{
+		Target:     params.Target,
+		Thumbprint: params.Thumbprint,
+		VCHID:      &params.VchID,
 	}
 
-	d, validator, err := buildDataAndValidateTarget(op, b, principal)
-	if err != nil {
-		return operations.NewGetTargetTargetVchVchIDDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
-	}
-
-	vch, err := getVCH(op, d, validator)
+	vch, err := h.handle(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetVchVchIDDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -65,22 +66,18 @@ func (h *VCHGet) Handle(params operations.GetTargetTargetVchVchIDParams, princip
 	return operations.NewGetTargetTargetVchVchIDOK().WithPayload(vch)
 }
 
+// Handle is the handler implementation for inspecting a VCH within a specified datacenter
 func (h *VCHDatacenterGet) Handle(params operations.GetTargetTargetDatacenterDatacenterVchVchIDParams, principal interface{}) middleware.Responder {
 	op := trace.FromContext(params.HTTPRequest.Context(), "VCHDatacenterGet: %s", params.VchID)
 
-	b := buildDataParams{
-		target:     params.Target,
-		thumbprint: params.Thumbprint,
-		datacenter: &params.Datacenter,
-		vchID:      &params.VchID,
+	b := target.Params{
+		Target:     params.Target,
+		Thumbprint: params.Thumbprint,
+		Datacenter: &params.Datacenter,
+		VCHID:      &params.VchID,
 	}
 
-	d, validator, err := buildDataAndValidateTarget(op, b, principal)
-	if err != nil {
-		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
-	}
-
-	vch, err := getVCH(op, d, validator)
+	vch, err := h.handle(op, b, principal)
 	if err != nil {
 		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -88,32 +85,28 @@ func (h *VCHDatacenterGet) Handle(params operations.GetTargetTargetDatacenterDat
 	return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDOK().WithPayload(vch)
 }
 
-func getVCH(op trace.Operation, d *data.Data, validator *validate.Validator) (*models.VCH, error) {
-	executor := management.NewDispatcher(op, validator.Session(), management.ActionInspect, false)
-	vch, err := executor.NewVCHFromID(d.ID)
+// handle inspects the VCH described by params using the credentials from principal. If the VCH cannot be found, a 404
+// is returned. If another error occurs, a 500 is returned.
+func (h *vchGet) handle(op trace.Operation, params target.Params, principal interface{}) (*models.VCH, error) {
+	d, c, err := target.Validate(op, management.ActionInspect, params, principal)
 	if err != nil {
-		return nil, errors.NewError(http.StatusNotFound, "failed to inspect VCH: %s", err)
+		return nil, err
 	}
 
-	err = validator.SetDataFromVM(op, vch, d)
+	vch, err := c.GetVCH(op, d)
 	if err != nil {
-		return nil, errors.NewError(http.StatusInternalServerError, "failed to load VCH data: %s", err)
+		return nil, err
 	}
 
-	model, err := vchToModel(op, vch, d, executor)
+	vchConfig, err := c.GetConfigForVCH(op, vch)
 	if err != nil {
-		return nil, errors.WrapError(http.StatusInternalServerError, err)
+		return nil, err
 	}
 
-	return model, nil
+	return h.vchToModel(op, d, vch, vchConfig, c), nil
 }
 
-func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, executor *management.Dispatcher) (*models.VCH, error) {
-	vchConfig, err := executor.GetNoSecretVCHConfig(vch)
-	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve VCH information: %s", err)
-	}
-
+func (h *vchGet) vchToModel(op trace.Operation, d *data.Data, vch *vm.VirtualMachine, vchConfig *config.VirtualContainerHostConfigSpec, c *client.HandlerClient) *models.VCH {
 	model := &models.VCH{}
 	model.Version = models.Version(vchConfig.Version.ShortVersion())
 	model.Name = vchConfig.Name
@@ -234,7 +227,7 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 	model.Runtime = &models.VCHRuntime{}
 
 	installerVer := version.GetBuild()
-	upgradeStatus := upgradeStatusMessage(op, vch, installerVer, vchConfig.Version)
+	upgradeStatus := interaction.GetUpgradeStatusShortMessage(op, vch, installerVer, vchConfig.Version)
 	model.Runtime.UpgradeStatus = upgradeStatus
 
 	powerState, err := vch.PowerState(op)
@@ -243,7 +236,7 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 	}
 	model.Runtime.PowerState = string(powerState)
 
-	model.Runtime.DockerHost, model.Runtime.AdminPortal, err = getAddresses(executor, vchConfig)
+	model.Runtime.DockerHost, model.Runtime.AdminPortal, err = c.GetAddresses(vchConfig)
 	if err != nil {
 		op.Warn("Failed to get docker host and admin portal address: %s", err)
 	}
@@ -258,5 +251,5 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 		model.Container.NameConvention = vchConfig.ContainerNameConvention
 	}
 
-	return model, nil
+	return model
 }

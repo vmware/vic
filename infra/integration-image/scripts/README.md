@@ -27,3 +27,7 @@ Removes the generated root CA from the system root store
 ### ubuntu-remove-intermediate-ca.sh
 
 Removes the generated intermediate CA from the system root store
+
+## Debugging with DLV
+
+[VIC Engine DLV Debugging with DLV](../../dlv/README.md) includes instruction on how to use dlv.

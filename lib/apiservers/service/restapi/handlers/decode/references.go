@@ -15,22 +15,14 @@
 package decode
 
 import (
-	"context"
-
-	"github.com/vmware/govmomi/list"
 	"github.com/vmware/govmomi/vim25/types"
 
 	"github.com/vmware/vic/lib/apiservers/service/models"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/client"
 	"github.com/vmware/vic/pkg/trace"
 )
 
-// This interface is declared so that we can enable mocking finder in tests
-// as the govmomi types do not use interfaces themselves.
-type finder interface {
-	Element(context.Context, types.ManagedObjectReference) (*list.Element, error)
-}
-
-func FromManagedObject(op trace.Operation, finder finder, t string, m *models.ManagedObject) (string, error) {
+func FromManagedObject(op trace.Operation, finder client.Finder, t string, m *models.ManagedObject) (string, error) {
 	if m == nil {
 		return "", nil
 	}

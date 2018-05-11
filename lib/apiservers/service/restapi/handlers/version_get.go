@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,10 +21,11 @@ import (
 	"github.com/vmware/vic/pkg/version"
 )
 
-// VersionGet is the handler for accessing the version information for the service
+// VersionGet is the handler for accessing the version of the API server
 type VersionGet struct {
 }
 
+// Handle is the handler implementation for accessing the version of the API server
 func (h *VersionGet) Handle(params operations.GetVersionParams) middleware.Responder {
 	return operations.NewGetVersionOK().WithPayload(version.GetBuild().ShortVersion())
 }
