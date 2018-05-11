@@ -19,6 +19,8 @@ VC_60_VERSION="ob-5112509"
 ESX_67_VERSION="ob-8169922"
 VC_67_VERSION="ob-8217866"
 
+export RUN_AS_OPS_USER=0
+
 if [[ $1 != "6.0" && $1 != "6.5" && $1 != "6.7" ]]; then
     echo "Please specify a target cluster. One of: 6.0, 6.5, 6.7"
     exit 1
