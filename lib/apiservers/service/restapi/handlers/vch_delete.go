@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,37 +22,37 @@ import (
 	"github.com/vmware/vic/lib/apiservers/service/models"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/decode"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/target"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
-	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
-	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 )
 
-// VCHDelete is the handler for deleting a VCH
+// VCHDelete is the handler for deleting a VCH without specifying a datacenter
 type VCHDelete struct {
+	vchDelete
 }
 
-// VCHDatacenterDelete is the handler for deleting a VCH within a Datacenter
+// VCHDatacenterDelete is the handler for deleting a VCH within a specified datacenter
 type VCHDatacenterDelete struct {
+	vchDelete
 }
 
+// vchDelete allows for VCHDelete and VCHDatacenterDelete to share common code without polluting the package
+type vchDelete struct{}
+
+// Handle is the handler implementation for deleting a VCH without specifying a datacenter
 func (h *VCHDelete) Handle(params operations.DeleteTargetTargetVchVchIDParams, principal interface{}) middleware.Responder {
 	op := trace.FromContext(params.HTTPRequest.Context(), "VCHDelete: %s", params.VchID)
 
-	b := buildDataParams{
-		target:     params.Target,
-		thumbprint: params.Thumbprint,
-		vchID:      &params.VchID,
+	b := target.Params{
+		Target:     params.Target,
+		Thumbprint: params.Thumbprint,
+		VCHID:      &params.VchID,
 	}
 
-	d, validator, err := buildDataAndValidateTarget(op, b, principal)
-	if err != nil {
-		return operations.NewDeleteTargetTargetVchVchIDDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
-	}
-
-	err = deleteVCH(op, d, validator, params.DeletionSpecification)
+	err := h.handle(op, b, principal, params.DeletionSpecification)
 	if err != nil {
 		return operations.NewDeleteTargetTargetVchVchIDDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -60,22 +60,18 @@ func (h *VCHDelete) Handle(params operations.DeleteTargetTargetVchVchIDParams, p
 	return operations.NewDeleteTargetTargetVchVchIDAccepted()
 }
 
+// Handle is the handler implementation for deleting a VCH within a specified datacenter
 func (h *VCHDatacenterDelete) Handle(params operations.DeleteTargetTargetDatacenterDatacenterVchVchIDParams, principal interface{}) middleware.Responder {
-	op := trace.FromContext(params.HTTPRequest.Context(), "VCHDelete: %s", params.VchID)
+	op := trace.FromContext(params.HTTPRequest.Context(), "VCHDatacenterDelete: %s", params.VchID)
 
-	b := buildDataParams{
-		target:     params.Target,
-		thumbprint: params.Thumbprint,
-		datacenter: &params.Datacenter,
-		vchID:      &params.VchID,
+	b := target.Params{
+		Target:     params.Target,
+		Thumbprint: params.Thumbprint,
+		Datacenter: &params.Datacenter,
+		VCHID:      &params.VchID,
 	}
 
-	d, validator, err := buildDataAndValidateTarget(op, b, principal)
-	if err != nil {
-		return operations.NewDeleteTargetTargetDatacenterDatacenterVchVchIDDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
-	}
-
-	err = deleteVCH(op, d, validator, params.DeletionSpecification)
+	err := h.handle(op, b, principal, params.DeletionSpecification)
 	if err != nil {
 		return operations.NewDeleteTargetTargetDatacenterDatacenterVchVchIDDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -83,21 +79,17 @@ func (h *VCHDatacenterDelete) Handle(params operations.DeleteTargetTargetDatacen
 	return operations.NewDeleteTargetTargetDatacenterDatacenterVchVchIDAccepted()
 }
 
-func deleteVCH(op trace.Operation, d *data.Data, validator *validate.Validator, specification *models.DeletionSpecification) error {
-	executor := management.NewDispatcher(op, validator.Session(), management.ActionDelete, false)
-	vch, err := executor.NewVCHFromID(d.ID)
+// handle deletes the VCH described by params based on the preferences expressed by specification, using the credentials
+// from principal. If the VCH cannot be found, a 404 is returned. If an error occurs during deletion, a 500 is returned.
+func (h *vchDelete) handle(op trace.Operation, params target.Params, principal interface{}, specification *models.DeletionSpecification) error {
+	d, c, err := target.Validate(op, management.ActionDelete, params, principal)
 	if err != nil {
-		return errors.NewError(http.StatusNotFound, "failed to find VCH: %s", err)
+		return err
 	}
 
-	err = validator.SetDataFromVM(op, vch, d)
+	vchConfig, err := c.GetVCHConfig(op, d)
 	if err != nil {
-		return errors.NewError(http.StatusInternalServerError, "failed to load VCH data: %s", err)
-	}
-
-	vchConfig, err := executor.GetNoSecretVCHConfig(vch)
-	if err != nil {
-		return errors.NewError(http.StatusInternalServerError, "failed to load VCH data: %s", err)
+		return err
 	}
 
 	// compare vch version and vic-machine version
@@ -107,7 +99,7 @@ func deleteVCH(op trace.Operation, d *data.Data, validator *validate.Validator, 
 	}
 
 	deleteContainers, deleteVolumeStores := decode.FromDeletionSpecification(specification)
-	err = executor.DeleteVCH(vchConfig, deleteContainers, deleteVolumeStores)
+	err = c.Executor().DeleteVCH(vchConfig, deleteContainers, deleteVolumeStores)
 	if err != nil {
 		return errors.NewError(http.StatusInternalServerError, "failed to delete VCH: %s", err)
 	}
