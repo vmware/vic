@@ -18,8 +18,8 @@ Documentation  This resource contains any keywords related to networking
 *** Keywords ***
 Ping Host Successfully
     [Arguments]  ${host}
-    ${rc}  ${output}=  Run And Return Rc And Output  ping -c 4 ${host}
+    ${rc}  ${output}=  Run And Return Rc And Output  ping -c 1 ${host}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  4 packets transmitted, 4 received, 0% packet loss
+    Should Contain  ${output}  1 packets transmitted, 1 packets received, 0% packet loss
     [Return]  ${output}
