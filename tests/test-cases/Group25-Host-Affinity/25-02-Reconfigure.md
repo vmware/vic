@@ -102,13 +102,3 @@ Positive Testing
 
 #### Expected Outcome:
 * Reconfiguring a VCH to disable use of a DRS VM Group affects subsequent container VM operations.
-
-
-### 7. With operations user, enabling affinity affects existing container VMs
-
-As 3, but with an operations user.
-
-
-### 8. With operations user, enabling affinity affects subsequent container VMs
-
-As 4, but with an operations user.
