@@ -254,7 +254,7 @@ func (i Inspect) showConfiguration(op trace.Operation, finder validate.Finder, c
 	} else if i.Format == "verbose" {
 		strOptions := strings.Join(options, "\n\t")
 		op.Info("")
-		op.Infof("Target VCH created with the following options: \n\n\t%s\n", strOptions)
+		op.Infof("The target VCH is configured with the following options: \n\n\t%s\n", strOptions)
 	}
 
 	return nil
