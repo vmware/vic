@@ -13,17 +13,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-commits=$(curl -s https://api.github.com/repos/vmware/vic/commits?access_token=$GITHUB_AUTOMATION_API_KEY | jq -r ' map(.sha) | join(",")')
+# Depending on our end-of-year sprint schedule, the value of $(date +%W) may or may not need to be
+# incremented by 1 prior to calculating the modulus in order for this to continue to align to our
+# sprint calendar in each new calendar year.
+sprint_start=$(gdate -d "last wednesday-$(( ($(gdate +%W 2>/dev/null)+0)%2 )) weeks" "+%Y-%m-%dT%H:%M:%S" 2>/dev/null) || sprint_start=$(date -d "last wednesday-$(( ($(date +%W)+0)%2 )) weeks" "+%Y-%m-%dT%H:%M:%S")
+
+commits=$(curl -s https://api.github.com/repos/vmware/vic/commits?access_token=$GITHUB_AUTOMATION_API_KEY\&since=$sprint_start | jq -r ' map(.sha) | join(",")')
 curl -s https://api.github.com/repos/vmware/vic/statuses/{$commits}?access_token=$GITHUB_AUTOMATION_API_KEY | jq '.[] | select((.context == "continuous-integration/vic/push") and (.state != "pending")) | "\(.target_url): \(.state)"' | tee status.out
 
 failures=$(cat status.out | grep -c failure)
 successes=$(cat status.out | grep -c success)
 
 let total=$successes+$failures
-passrate=$(bc -l <<< "scale=2;100 * ($successes / $total)")
+if [ $total -eq 0 ]; then
+    # This should be "undefined", but starting at 100% seems reasonable given how this is used.
+    passrate="100.00"
+else
+    passrate=$(bc -l <<< "scale=2;100 * ($successes / $total)")
+fi
 
-echo "Number of failed merges to master in the last $total merges: $failures"
-echo "Number of successful merges to master in the last $total merges: $successes"
+echo "Number of failed merges to master in the $total merges since $sprint_start: $failures"
+echo "Number of successful merges to master in the $total merges since $sprint_start: $successes"
 
 echo "Current vmware/vic CI passrate: $passrate"
 curl --max-time 10 --retry 3 -s -d "payload={'channel': '#vic-bots', 'text': 'Current vmware/vic CI passrate: $passrate%'}" "$SLACK_URL"
