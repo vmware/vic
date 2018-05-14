@@ -38,31 +38,35 @@ Setup ESX And NFS Suite
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     Log To Console  \nStarting test...
 
-    ${esx1}  ${esx1_ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Open Connection  %{NIMBUS_GW}
-    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${POD}=  Fetch POD  ${esx1}
-    Log To Console  ${POD}
-    Close Connection
+    ${nfs}  ${nfs_ro}  ${esx1}  ${nfs_ip}  ${nfs_ro_ip}  ${esx1_ip}=  Deploy Simple NFS Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--testbedSpecRubyFile /dbc/w3-dbc302/rashok/vic-nfs.rb --esxBuild ${ESX_VERSION} --esxPxeDir ${ESX_VERSION} --plugin testng
 
-    ${nfs}  ${nfs_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--nimbus ${POD}
-
-    ${nfs_readonly}  ${nfs_readonly_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--disk 5000000 --disk 5000000 --mountOpt ro --nfsOpt ro --mountPoint=storage1 --mountPoint=storage2 --nimbus ${POD}
-
-    Set Suite Variable  @{list}  ${esx1}  ${nfs}  ${nfs_readonly}
+    Set Suite Variable  @{list}  ${esx1}  ${nfs}  ${nfs_ro}
     Set Suite Variable  ${ESX1}  ${esx1}
     Set Suite Variable  ${ESX1_IP}  ${esx1_ip}
     Set Suite Variable  ${NFS_IP}  ${nfs_ip}
     Set Suite Variable  ${NFS}  ${nfs}
-    Set Suite Variable  ${NFS_READONLY_IP}  ${nfs_readonly_ip}
+    Set Suite Variable  ${NFS_READONLY_IP}  ${nfs_ro_ip}
+
+    # Add the NFS servers to SSH known host list
+    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} exit
+    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} exit
+    ${strippedPW}=  Remove String  %{DEPLOYED_PASSWORD}  \\
+    ${strippedPW}=  Remove String  ${strippedPW}  '
 
     # Enable logging on the nfs servers
-    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} rpcdebug -m nfsd -s all
-    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} rpcdebug -m rpc -s all
-    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} service rpcbind restart
-    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} rpcdebug -m nfsd -s all
-    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} rpcdebug -m rpc -s all
-    ${out}=  Run Keyword And Ignore Error  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} service rpcbind restart
+    Open Connection  ${NFS_IP}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  root  ${strippedPW}
+    ${out}=  Execute Command   rpcdebug -m nfsd -s all
+    ${out}=  Execute Command   rpcdebug -m rpc -s all
+    ${out}=  Execute Command   service rpcbind restart
+    Close Connection
+
+    Open Connection  ${NFS_READONLY_IP}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  root  ${strippedPW}
+    ${out}=  Execute Command   rpcdebug -m nfsd -s all
+    ${out}=  Execute Command   rpcdebug -m rpc -s all
+    ${out}=  Execute Command   service rpcbind restart
+    Close Connection
 
 Setup ENV Variables for VIC Appliance Install
     Log To Console  \nSetup Environment Variables for VIC Appliance To ESX\n
@@ -71,7 +75,7 @@ Setup ENV Variables for VIC Appliance Install
     Set Environment Variable  TEST_URL  ${ESX1_IP}
     Set Environment Variable  TEST_USERNAME  root
     Set Environment Variable  TEST_PASSWORD  ${NIMBUS_ESX_PASSWORD}
-    Set Environment Variable  TEST_DATASTORE  datastore1
+    Set Environment Variable  TEST_DATASTORE  local-0
     Set Environment Variable  TEST_TIMEOUT  30m
     Set Environment Variable  HOST_TYPE  ESXi
     Remove Environment Variable  TEST_DATACENTER
@@ -82,9 +86,11 @@ Setup ENV Variables for VIC Appliance Install
 Verify NFS Volume Basic Setup
     [Arguments]  ${volumeName}  ${containerName}  ${nfsIP}  ${rwORro}
 
+    Wait For NFS And VCH
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${containerName} -v ${volumeName}:/mydata ${busybox} mount
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  ${nfsIP}://store/volumes/${volumeName}
+    Should Contain  ${output}  ${nfsIP}:/store/volumes/${volumeName}
     Should Contain  ${output}  /mydata type nfs (${rwORro}
 
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} wait ${containerName}
@@ -96,6 +102,8 @@ Verify NFS Volume Basic Setup
 
 Verify NFS Volume Already Created
     [Arguments]  ${containerVolName}
+    Wait For NFS And VCH
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=${containerVolName} --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: A volume named ${containerVolName} already exists. Choose a different volume name.
@@ -110,15 +118,34 @@ Reboot VM and Verify Basic VCH Info
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${busybox}
 
+    # ensure that the volumes we expect to exist are still available
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${nfsNamedVolume}
+
 Gather NFS Logs
-    ${out}=  Run Keyword And Continue On Failure  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_IP} dmesg -T
+    ${strippedPW}=  Remove String  %{DEPLOYED_PASSWORD}  \\
+    ${strippedPW}=  Remove String  ${strippedPW}  '
+
+    Open Connection  ${NFS_IP}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  root  ${strippedPW}
+    ${out}=  Execute Command   dmesg -T
     Log  ${out}
-    ${out}=  Run Keyword And Continue On Failure  Run  sshpass -p %{DEPLOYED_PASSWORD} ssh -o StrictHostKeyChecking\=no root@${NFS_READONLY_IP} dmesg -T
+    Close Connection
+
+    Open Connection  ${NFS_READONLY_IP}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  root  ${strippedPW}
+    ${out}=  Execute Command   dmesg -T
     Log  ${out}
+    Close Connection
 
 NFS Volume Cleanup
     Gather NFS Logs
     Nimbus Cleanup  ${list}
+
+Wait For NFS And VCH
+    Wait Until Keyword Succeeds  20x  30s  Ping Host Successfully  ${NFS_READONLY_IP}
+    Wait Until Keyword Succeeds  20x  30s  Ping Host Successfully  %{VCH-IP}
 
 *** Test Cases ***
 VIC Appliance Install with Read Only NFS Volume
@@ -126,9 +153,12 @@ VIC Appliance Install with Read Only NFS Volume
 
     # Will only produce a warning in VCH creation output
     ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${NFS_READONLY_IP}/exports/storage1?uid=0&gid=0:${nfsReadOnlyVolumeStore}"
+    Log  ${output}
     Should Contain  ${output}  Installer completed successfully
     Should Contain  ${output}  VolumeStore (${nfsReadOnlyVolumeStore}) cannot be brought online - check network, nfs server, and --volume-store configurations
     Should Contain  ${output}  Not all configured volume stores are online - check port layer log via vicadmin
+
+    Wait For NFS And VCH
 
     ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --opt VolumeStore=${nfsReadOnlyVolumeStore}
     Should Be Equal As Integers  ${rc}  1
@@ -139,6 +169,7 @@ VIC Appliance Install With Fake NFS Server
 
     # Will only produce a warning in VCH creation output
     ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${nfs_bogon_ip}/store?uid=0&gid=0:${nfsFakeVolumeStore}"
+    Log  ${output}
     Should Contain  ${output}  VolumeStore (${nfsFakeVolumeStore}) cannot be brought online - check network, nfs server, and --volume-store configurations
 
 VIC Appliance Install With Correct NFS Server
@@ -147,10 +178,13 @@ VIC Appliance Install With Correct NFS Server
 
     # Should succeed
     ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${NFS_IP}/store?uid=0&gid=0:${nfsVolumeStore}"
+    Log  ${output}
     Should Contain  ${output}  Installer completed successfully
 
 Simple Docker Volume Create
     #Pull image  ${busybox}
+
+    Wait For NFS And VCH
 
     ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  0
@@ -160,6 +194,8 @@ Simple Docker Volume Create
     Verify NFS Volume Basic Setup  ${nfsUnNamedVolume}  ${unnamedNFSVolContainer}  ${NFS_IP}  rw
 
 Docker Volume Create Named Volume
+    Wait For NFS And VCH
+
     ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name nfs-volume_%{VCH-NAME} --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${volumeOutput}  nfs-volume_%{VCH-NAME}
@@ -174,12 +210,16 @@ Docker Volume Create Already Named Volume
     Run Keyword And Ignore Error  Verify NFS Volume Already Created  ${nfsNamedVolume}
 
 Docker Volume Create with possibly Invalid Name
+    Wait For NFS And VCH
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name="test!@\#$%^&*()" --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  1
     Should Be Equal As Strings  ${output}  Error response from daemon: volume name "test!@\#$%^&*()" includes invalid characters, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed
 
 Docker Single Write and Read to/from File from one Container using NFS Volume
     # Done with the same container for this test.
+    Wait For NFS And VCH
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${createFileContainer} -d -v ${nfsNamedVolume}:/mydata ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
 
@@ -195,6 +235,8 @@ Docker Single Write and Read to/from File from one Container using NFS Volume
     Should Contain  ${output}  The Texas and Chile flag look similar.
 
 Docker Multiple Writes from Multiple Containers (one at a time) and Read from Another
+    Wait For NFS And VCH
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "echo 'The Chad and Romania flag look the same.\n' >> /mydata/test_nfs_file.txt"
     Should Be Equal As Integers  ${rc}  0
 
@@ -212,6 +254,8 @@ Docker Multiple Writes from Multiple Containers (one at a time) and Read from An
     Should Contain  ${output}  Norway and Iceland have flags that are basically inverses of each other.
 
 Docker Read and Remove File
+    Wait For NFS And VCH
+
     ${rc}  ${catID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "cat mydata/test_nfs_file.txt"
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${catID}
@@ -254,6 +298,8 @@ Simultaneous Container Write to File
 
 
 Simple Docker Volume Inspect
+    Wait For NFS And VCH
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume inspect ${nfsNamedVolume}
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Evaluate  json.loads(r'''${output}''')  json
@@ -283,6 +329,8 @@ Volume rm Tests
     Should Contain  ${output}  Error response from daemon: volume ${nfsNamedVolume} in use by
 
 Docker Inspect Mount Data after Reboot
+    Wait For NFS And VCH
+
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${mntDataTestContainer} -v ${mntTest} -v ${nfsNamedVolume}:${mntNamed} ${busybox}
     Should Be Equal As Integers  ${rc}  0
 
@@ -298,8 +346,9 @@ Docker Inspect Mount Data after Reboot
 
     Verify Volume Inspect Info  After VM Reboot  ${mntDataTestContainer}  ${checkList}
 
-
 Kill NFS Server
+    Wait For NFS And VCH
+
     Sleep  5 minutes
     ${rc}  ${runningContainer}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo 'Still here...\n' >> /mydata/test_nfs_kill.txt; sleep 2; done"
     Should Be Equal As Integers  ${rc}  0
@@ -324,3 +373,6 @@ Kill NFS Server
     ${rc}  ${lsOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "ls mydata"
     Should Be Equal As Integers  ${rc}  125
     #Should Contain  ${lsOutput}  Server error from portlayer: unable to wait for process launch status:
+
+    # Don't try to gather logs for servers that don't exist anymore
+    [Teardown]  NONE

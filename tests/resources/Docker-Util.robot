@@ -123,25 +123,34 @@ Verify Container Rename
     Should Contain  ${output}  ${vmName}
 
 Run Regression Tests
+    [Timeout]  15 minutes
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     # Pull an image that has been pulled already
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  busybox
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} /bin/top
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  /bin/top
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${container}
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Wait Until Container Stops  ${container}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Exited
 
@@ -149,18 +158,23 @@ Run Regression Tests
     Wait Until Keyword Succeeds  5x  10s  Check For The Proper Log Files  ${vmName}
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${container}
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  /bin/top
 
     # Check for regression for #1265
     ${rc}  ${container1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it ${busybox} /bin/top
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${container2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it ${busybox}
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${shortname}=  Get Substring  ${container2}  1  12
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    Log  ${output}
     ${lines}=  Get Lines Containing String  ${output}  ${shortname}
     Should Not Contain  ${lines}  /bin/top
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} rm ${container1}
@@ -169,8 +183,10 @@ Run Regression Tests
     Should Be Equal As Integers  ${rc}  0
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi ${busybox}
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  ${busybox}
 

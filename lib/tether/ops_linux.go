@@ -56,6 +56,8 @@ var (
 		Home: "/",
 	}
 
+	defaultUserSpecification = "0:0"
+
 	filesForMinOSLinux = map[string]os.FileMode{
 		"/etc/hostname":            0644,
 		"/etc/hosts":               0644,
@@ -372,9 +374,11 @@ func getDynamicIP(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) (clie
 
 	params := []byte{byte(dhcp4.OptionSubnetMask)}
 	if ip.IsUnspecifiedIP(endpoint.Network.Gateway.IP) {
+		log.Debugf("No gateway IP. Asking DHCP.")
 		params = append(params, byte(dhcp4.OptionRouter))
 	}
 	if len(endpoint.Network.Nameservers) == 0 {
+		log.Debugf("No name servers configured. Asking DHCP.")
 		params = append(params, byte(dhcp4.OptionDomainNameServer))
 	}
 
@@ -414,6 +418,8 @@ func updateEndpoint(newIP *net.IPNet, endpoint *NetworkEndpoint) {
 		return
 	}
 
+	log.Debugf("DHCP data: %#v", dhcp)
+	log.Debugf("DHCP DNS Servers %s: ", dhcp.Nameservers)
 	endpoint.Assigned = dhcp.Assigned
 	endpoint.Network.Assigned.Gateway = dhcp.Gateway
 	if len(dhcp.Nameservers) > 0 {
@@ -580,11 +586,15 @@ func (t *BaseOperations) updateHosts(endpoint *NetworkEndpoint) error {
 func (t *BaseOperations) updateNameservers(endpoint *NetworkEndpoint) error {
 	gw := endpoint.Network.Assigned.Gateway
 	ns := endpoint.Network.Assigned.Nameservers
-	// if `--dns-server` option is supplied at VCH creation, do not overwrite with
-	// dhcp-provided name servers, and make sure they appear at the top of the list
-	if len(endpoint.Network.Nameservers) > 0 {
-		ns = append(endpoint.Network.Nameservers, ns...)
+
+	if len(ns) > 0 && len(endpoint.Network.Nameservers) > 0 {
+		log.Debugf("DHCP server returned DNS server configuration, it will be ignored")
 	}
+	// Manually set DNS servers should always be DNS servers that are being in use.
+	if len(endpoint.Network.Nameservers) > 0 {
+		ns = endpoint.Network.Nameservers
+	}
+
 	// Add nameservers
 	// This is incredibly trivial for now - should be updated to a less messy approach
 	if len(ns) > 0 {
@@ -613,6 +623,8 @@ func ApplyEndpoint(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) err
 		log.Infof("skipping applying config for network %s as it has been applied already", endpoint.Network.Name)
 		return nil // already applied
 	}
+
+	log.Debugf("Static name servers: %s", endpoint.Network.Nameservers)
 
 	// Locate interface
 	slot, err := strconv.Atoi(endpoint.ID)
@@ -1020,21 +1032,28 @@ func (t *BaseOperations) CopyExistingContent(source string) error {
 }
 
 // ProcessEnv does OS specific checking and munging on the process environment prior to launch
-func (t *BaseOperations) ProcessEnv(env []string) []string {
-	// TODO: figure out how we're going to specify user and pass all the settings along
-	// in the meantime, hardcode HOME to /root
-	homeIndex := -1
-	for i, tuple := range env {
+func (t *BaseOperations) ProcessEnv(session *SessionConfig) []string {
+	env := session.Cmd.Env
+
+	for _, tuple := range env {
 		if strings.HasPrefix(tuple, "HOME=") {
-			homeIndex = i
-			break
+			// no need for further processing as it's explicit
+			return env
 		}
 	}
-	if homeIndex == -1 {
-		return append(env, "HOME=/root")
+
+	usr := session.User
+	if len(session.User) == 0 {
+		usr = defaultUserSpecification
 	}
 
-	return env
+	u, err := getExecUser(usr)
+	if err == nil {
+		// if no home dir is set then we default to /
+		return append(env, "HOME="+path.Join("/", u.Home))
+	}
+
+	return append(env, "HOME=/")
 }
 
 // Fork triggers vmfork and handles the necessary pre/post OS level operations
@@ -1124,6 +1143,20 @@ func (t *BaseOperations) Cleanup() error {
 	return nil
 }
 
+func getExecUser(u string) (*user.ExecUser, error) {
+	passwdPath, err := user.GetPasswdPath()
+	if err != nil {
+		return nil, err
+	}
+
+	groupPath, err := user.GetGroupPath()
+	if err != nil {
+		return nil, err
+	}
+
+	return user.GetExecUserPath(u, defaultExecUser, passwdPath, groupPath)
+}
+
 // Need to put this here because Windows does not support SysProcAttr.Credential
 // getUserSysProcAttr relies on docker user package to verify user specification
 // Examples of valid user specifications are:
@@ -1146,15 +1179,8 @@ func getUserSysProcAttr(uid, gid string) (*syscall.SysProcAttr, error) {
 	if gid != "" {
 		userGroup = fmt.Sprintf("%s:%s", uid, gid)
 	}
-	passwdPath, err := user.GetPasswdPath()
-	if err != nil {
-		return nil, err
-	}
-	groupPath, err := user.GetGroupPath()
-	if err != nil {
-		return nil, err
-	}
-	execUser, err := user.GetExecUserPath(userGroup, defaultExecUser, passwdPath, groupPath)
+
+	execUser, err := getExecUser(userGroup)
 	if err != nil {
 		return nil, err
 	}

@@ -37,7 +37,53 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
+// Action is the current action being performed
+type Action int
+
+// Action definitions
+const (
+	ActionConfigure Action = iota
+	ActionCreate
+	ActionDebug
+	ActionDelete
+	ActionInspect
+	ActionInspectCertificates
+	ActionInspectLogs
+	ActionList
+	ActionRollback
+	ActionUpdate
+	ActionUpgrade
+)
+
+// stringer for action
+func (a Action) String() string {
+	var act string
+	switch a {
+	case ActionConfigure:
+		act = "configure"
+	case ActionCreate:
+		act = "create"
+	case ActionDebug:
+		act = "debug"
+	case ActionDelete:
+		act = "delete"
+	case ActionInspect, ActionInspectCertificates, ActionInspectLogs:
+		act = "inspect"
+	case ActionList:
+		act = "list"
+	case ActionRollback:
+		act = "rollback"
+	case ActionUpdate:
+		act = "update"
+	case ActionUpgrade:
+		act = "upgrade"
+	}
+	return act
+}
+
 type Dispatcher struct {
+	Action
+
 	session *session.Session
 	op      trace.Operation
 	force   bool
@@ -75,17 +121,15 @@ var diagnosticLogs = make(map[string]*diagnosticLog)
 // NewDispatcher creates a dispatcher that can act upon VIC management operations.
 // clientCert is an optional client certificate to allow interaction with the Docker API for verification
 // force will ignore some errors
-func NewDispatcher(ctx context.Context, s *session.Session, conf *config.VirtualContainerHostConfigSpec, force bool) *Dispatcher {
+func NewDispatcher(ctx context.Context, s *session.Session, action Action, force bool) *Dispatcher {
 	defer trace.End(trace.Begin(""))
 	isVC := s.IsVC()
 	e := &Dispatcher{
+		Action:  action,
 		session: s,
 		op:      trace.FromContext(ctx, "Dispatcher"),
 		isVC:    isVC,
 		force:   force,
-	}
-	if conf != nil {
-		e.InitDiagnosticLogsFromConf(conf)
 	}
 	return e
 }

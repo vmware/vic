@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,12 +23,10 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/stretchr/testify/require"
-
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/simulator"
@@ -43,6 +41,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/rbac"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/test"
 )
 
 func init() {
@@ -50,79 +49,7 @@ func init() {
 	simulator.EnableRuleset(&esx.HostFirewallInfo, "vSPC") // TODO: can't use management.RulesetID here due to import cycle
 }
 
-func TestParseURL(t *testing.T) {
-	var hosts = []string{
-		"host.domain.com",
-		"host.domain.com:123",
-		"1.2.3.4",
-		"1.2.3.4:10",
-		"[2001:4860:0:2001::68]",
-		"[2001:db8:1f70::999:de8:7648:6e8]:123",
-	}
-
-	for _, urlString := range hosts {
-		u, err := ParseURL(urlString)
-		assert.Nil(t, err)
-		assert.Equal(t, u.String(), "https://"+urlString)
-		// Null the scheme
-		u.Scheme = ""
-		assert.Equal(t, u.String(), "//"+urlString)
-		assert.Equal(t, u.Host, urlString)
-	}
-
-	// Add path to create a more significant URL
-	var urls = []string{}
-
-	for i, h := range hosts {
-		url := fmt.Sprintf("%s/path%d/test", h, i)
-		urls = append(urls, url)
-	}
-
-	for i, urlString := range urls {
-		u, err := ParseURL(urlString)
-		assert.Nil(t, err)
-		assert.Equal(t, u.String(), "https://"+urlString)
-
-		// Null the scheme
-		u.Scheme = ""
-		assert.Equal(t, u.String(), "//"+urlString)
-
-		// Check host
-		assert.Equal(t, u.Host, hosts[i])
-		// Check path
-		path := fmt.Sprintf("/path%d/test", i)
-		assert.Equal(t, u.Path, path)
-		// Check concatenation
-		assert.Equal(t, u.Host+u.Path, urlString)
-	}
-
-	// Add an HTTP scheme to verify that it is preserved
-	var urlsWithHTTPScheme = []string{}
-
-	for _, u := range urls {
-		uws := fmt.Sprintf("http://%s", u)
-		urlsWithHTTPScheme = append(urlsWithHTTPScheme, uws)
-	}
-
-	for _, urlString := range urlsWithHTTPScheme {
-		u, err := ParseURL(urlString)
-		fmt.Printf("UrlString: %s\n", u.String())
-		assert.Nil(t, err)
-		assert.Equal(t, u.String(), urlString)
-	}
-
-	var invalidUrls = []string{
-		"[2001:db8/path",
-		"1.2.3.4\\path",
-	}
-
-	for _, urlString := range invalidUrls {
-		_, err := ParseURL(urlString)
-		assert.NotNil(t, err)
-	}
-}
-
-func TestMain(t *testing.T) {
+func TestValidator(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	trace.Logger.Level = log.DebugLevel
 	ctx := context.Background()
@@ -162,20 +89,20 @@ func TestMain(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to new validator: %s", err)
 		}
-		ds, _ := validator.Session.Finder.Datastore(validator.Context, "LocalDS_1")
+		ds, _ := validator.session.Finder.Datastore(ctx, "LocalDS_1")
 		simulator.Map.Get(ds.Reference()).(mo.Entity).Entity().Name = "Local DS_0"
 
-		ds, _ = validator.Session.Finder.Datastore(validator.Context, "LocalDS_2")
+		ds, _ = validator.session.Finder.Datastore(ctx, "LocalDS_2")
 		simulator.Map.Get(ds.Reference()).(mo.Entity).Entity().Name = `😗`
 
-		t.Logf("session pool: %s", validator.Session.Pool)
-		if err = createPool(ctx, validator.Session, input.ComputeResourcePath, "validator", t); err != nil {
+		t.Logf("session pool: %s", validator.session.Pool)
+		if err = createPool(ctx, validator.session, input.ComputeResourcePath, "validator", t); err != nil {
 			t.Errorf("Unable to create resource pool: %s", err)
 		}
 
-		conf := testCompute(validator, input, t)
-		testTargets(validator, input, conf, t)
-		testStorage(validator, input, conf, t)
+		conf := testCompute(ctx, validator, input, t)
+		testTargets(ctx, validator, input, conf, t)
+		testStorage(ctx, validator, input, conf, t)
 	}
 }
 
@@ -358,8 +285,8 @@ func createPool(ctx context.Context, sess *session.Session, poolPath string, nam
 	return nil
 }
 
-func testCompute(v *Validator, input *data.Data, t *testing.T) *config.VirtualContainerHostConfigSpec {
-	op := trace.FromContext(v.Context, "testCompute")
+func testCompute(ctx context.Context, v *Validator, input *data.Data, t *testing.T) *config.VirtualContainerHostConfigSpec {
+	op := trace.FromContext(ctx, "testCompute")
 
 	tests := []struct {
 		path   string
@@ -385,10 +312,10 @@ func testCompute(v *Validator, input *data.Data, t *testing.T) *config.VirtualCo
 	conf := &config.VirtualContainerHostConfigSpec{}
 
 	for _, test := range tests {
-		if v.isVC && !test.vc {
+		if v.isVC() && !test.vc {
 			continue
 		}
-		if !v.isVC && test.vc {
+		if !v.isVC() && test.vc {
 			continue
 		}
 		t.Logf("%+v", test)
@@ -405,8 +332,8 @@ func testCompute(v *Validator, input *data.Data, t *testing.T) *config.VirtualCo
 	return conf
 }
 
-func testTargets(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
-	op := trace.FromContext(v.Context, "testTargets")
+func testTargets(ctx context.Context, v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
+	op := trace.FromContext(ctx, "testTargets")
 
 	v.target(op, input, conf)
 	v.credentials(op, input, conf)
@@ -419,8 +346,8 @@ func testTargets(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 
 }
 
-func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
-	op := trace.FromContext(v.Context, "testStorage")
+func testStorage(ctx context.Context, v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
+	op := trace.FromContext(ctx, "testStorage")
 
 	// specifically ignoring err here because we do not care about the parse result.
 	testURL1, _ := url.Parse("LocalDS_0/volumes/volume1")
@@ -429,7 +356,7 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 	testURL3, _ := url.Parse("LocalDS_0/volumes/volume1")
 	testURL3.Scheme = "ds"
 
-	// These two should report errors due to bad characters in the url. These should test how DatastoreHelper handles a nil or malformed url.
+	// These two should report errors due to bad characters in the url. These should test how datastoreHelper handles a nil or malformed url.
 	testURL4, _ := url.Parse("😗/volumes/volume1")
 	testURL5, _ := url.Parse("ds://😗/volumes/volume2")
 
@@ -730,7 +657,7 @@ func TestValidateWithFolders(t *testing.T) {
 			t.Fatalf("%d: expected error", i)
 		}
 
-		_, err = validator.Validate(op, input)
+		_, err = validator.Validate(op, input, true)
 		if i == len(steps)-1 {
 			if err != nil {
 				t.Fatal(err)
@@ -747,8 +674,46 @@ func TestValidateWithFolders(t *testing.T) {
 		}
 	}
 
+	input.URL.Path = ""
+	validator, err = NewValidator(op, input)
+	if err != nil {
+		t.Fatalf("Expected instantiation to succeed")
+	}
+	_, err = validator.Validate(op, input, false)
+	if err == nil {
+		t.Fatalf("Expected multiple datacenter validation to fail")
+	} else if !strings.Contains(err.Error(), "Datacenter must be specified") {
+		t.Fatalf("Multiple datacenter validation failed with wrong message")
+	}
+
+	debug := 1
+	cnc := "prefix-{id}-suffix"
+	syslog, _ := url.Parse("tcp://syslog.example.vmware.com")
+
+	input.URL.Path = dc
+	input.Debug.Debug = &debug
+	input.ContainerNameConvention = cnc
+	input.SyslogConfig.Addr = syslog
+	validator, err = NewValidator(op, input)
+	if err != nil {
+		t.Fatalf("Expected instantiation to succeed")
+	}
+	conf, err := validator.Validate(op, input, false)
+	if err != nil {
+		t.Fatalf("Expected validation to succeed")
+	}
+	if conf.ExecutorConfig.Diagnostics.DebugLevel != debug {
+		t.Fatalf("Expected debug level to be stored")
+	}
+	if conf.ContainerNameConvention != cnc {
+		t.Fatalf("Expected container name convention to be stored")
+	}
+	if conf.Diagnostics.SysLogConfig == nil || conf.Diagnostics.SysLogConfig.Network != syslog.Scheme || !strings.Contains(conf.Diagnostics.SysLogConfig.RAddr, syslog.Host) {
+		t.Fatalf("Expected syslog server to be stored")
+	}
+
 	// we have valid input at this point, test various compute-resource suggestions
-	vs := validator.Session
+	vs := validator.session
 	crs := []struct {
 		flag    string
 		pool    string
@@ -792,14 +757,14 @@ func TestValidateWithFolders(t *testing.T) {
 	}
 
 	// cover some other paths now that we have a valid config
-	spec, err := validator.ValidateTarget(op, input)
+	spec, err := validator.ValidateTarget(op, input, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	validator.AddDeprecatedFields(op, spec, input)
 
-	_, err = CreateFromVCHConfig(op, spec, vs)
+	_, err = CreateFromSession(op, vs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -820,6 +785,17 @@ func TestValidateWithFolders(t *testing.T) {
 	validator.certificateAuthorities(op, input, spec)
 
 	validator.registries(op, input, spec)
+	insecure := "insecure.example.vmware.com"
+	whitelist := "whitelist.example.vmware.com"
+	input.InsecureRegistries = []string{insecure}
+	input.WhitelistRegistries = []string{whitelist}
+	validator.registries(op, input, spec)
+	if len(spec.InsecureRegistries) != 1 || spec.InsecureRegistries[0] != insecure {
+		t.Fatal("Insecure registry not stored")
+	}
+	if len(spec.RegistryWhitelist) != 2 || spec.RegistryWhitelist[0] != whitelist {
+		t.Fatal("Whitelist registry not stored")
+	}
 	input.RegistryCAs = input.ClientCAs
 	validator.registries(op, input, spec)
 }
@@ -883,9 +859,7 @@ func TestValidateWithESX(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		validator.AllowEmptyDC()
-
-		_, err = validator.Validate(op, input)
+		_, err = validator.Validate(op, input, false)
 		if i == len(steps)-1 {
 			if err != nil {
 				t.Fatal(err)
@@ -947,17 +921,18 @@ func TestDCReadOnlyPermsFromConfigSimulatorVPX(t *testing.T) {
 
 	fmt.Println(s.URL.String())
 
-	input := GetVcsimInputConfig(ctx, s.URL)
+	input := getVcsimInputConfig(ctx, s.URL)
 	require.NotNil(t, input)
 	v, err := NewValidator(ctx, input)
 	require.NoError(t, err)
 	require.NotNil(t, v)
-	configSpec, err := v.VcsimValidate(ctx, input)
+	configSpec, err := v.vcsimValidate(ctx, input)
 	require.NoError(t, err)
 	require.NotNil(t, configSpec)
 
 	// Set up the Authz Manager
-	mgr := opsuser.NewRBACManager(ctx, v.Session.Vim25(), v.Session, &opsuser.DCReadOnlyConf, configSpec)
+	mgr, err := opsuser.NewRBACManager(ctx, v.session, &opsuser.DCReadOnlyConf, configSpec)
+	require.NoError(t, err)
 
 	resourcePermission, err := mgr.SetupDCReadOnlyPermissions(ctx)
 	require.NoError(t, err)
@@ -988,25 +963,26 @@ func TestOpsUserPermsFromConfigSimulatorVPX(t *testing.T) {
 
 	fmt.Println(s.URL.String())
 
-	config := &session.Config{
-		Service:   s.URL.String(),
-		Insecure:  true,
-		Keepalive: time.Duration(5) * time.Minute,
-	}
-	sess, err := session.NewSession(config).Connect(ctx)
+	sess, err := test.SessionWithVPX(ctx, s.URL.String())
 	require.NoError(t, err)
 
-	input := GetVcsimInputConfig(ctx, s.URL)
+	input := getVcsimInputConfig(ctx, s.URL)
 	require.NotNil(t, input)
 	v, err := NewValidator(ctx, input)
 	require.NoError(t, err)
 	require.NotNil(t, v)
-	configSpec, err := v.VcsimValidate(ctx, input)
+	configSpec, err := v.vcsimValidate(ctx, input)
 	require.NoError(t, err)
 	require.NotNil(t, configSpec)
 
+	// Create the folder the VCH is supposed to be in, for testing that the endpoint
+	// role is applied to the folder.
+	_, err = sess.VMFolder.CreateFolder(ctx, configSpec.Name)
+	require.NoError(t, err)
+
 	// Set up the Authz Manager
-	mgr := opsuser.NewRBACManager(ctx, sess.Vim25(), nil, &opsuser.OpsuserRBACConf, configSpec)
+	mgr, err := opsuser.NewRBACManager(ctx, sess, &opsuser.DRSConf, configSpec)
+	require.NoError(t, err)
 
 	resourcePermissions, err := mgr.SetupRolesAndPermissions(ctx)
 	require.NoError(t, err)

@@ -72,7 +72,7 @@ func TestParseGatewaySpec(t *testing.T) {
 func TestFlags(t *testing.T) {
 	c := NewCreate()
 	flags := c.Flags()
-	numberOfFlags := 60
+	numberOfFlags := 61
 	assert.Equal(t, numberOfFlags, len(flags), "Missing flags during Create.")
 }
 
@@ -92,4 +92,11 @@ func TestSetFields(t *testing.T) {
 	c := NewCreate()
 	option := c.SetFields()
 	assert.NotNil(t, option)
+}
+
+func TestProcessSysLog(t *testing.T) {
+	c := NewCreate()
+	c.SyslogAddr = ""
+	r := c.ProcessSyslog()
+	assert.Nil(t, r, "Should be nil, SyslogAddr is empty")
 }

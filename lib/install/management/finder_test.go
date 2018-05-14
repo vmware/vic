@@ -75,24 +75,23 @@ func TestFinder(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to create validator: %s", err)
 		}
-		if _, err = validator.ValidateTarget(ctx, input); err != nil {
+		if _, err = validator.ValidateTarget(ctx, input, false); err != nil {
 			t.Logf("Got expected error to validate target: %s", err)
 		}
-		validator.AllowEmptyDC()
-		if _, err = validator.ValidateTarget(ctx, input); err != nil {
+		if _, err = validator.ValidateTarget(ctx, input, true); err != nil {
 			t.Errorf("Failed to valiate target: %s", err)
 		}
 		prefix := fmt.Sprintf("p%d-", i)
-		if err = createTestData(ctx, validator.Session, prefix); err != nil {
+		if err = createTestData(ctx, validator.Session(), prefix); err != nil {
 			t.Errorf("Failed to create test data: %s", err)
 		}
 
-		found := testSearchVCHs(t, validator, false)
+		found := testSearchVCHs(ctx, t, validator, false)
 		if found != 0 {
 			t.Errorf("found %d VCHs, expected %d", found, 0)
 		}
 
-		found = testSearchVCHs(t, validator, true)
+		found = testSearchVCHs(ctx, t, validator, true)
 		expect := 1 // 1 VCH per Resource pool
 		if model.Host != 0 {
 			expect *= (model.Host + model.Cluster) * 2
@@ -103,11 +102,11 @@ func TestFinder(t *testing.T) {
 	}
 }
 
-func testSearchVCHs(t *testing.T, v *validate.Validator, expect bool) int {
+func testSearchVCHs(ctx context.Context, t *testing.T, v *validate.Validator, expect bool) int {
 	d := &Dispatcher{
-		session: v.Session,
-		op:      trace.FromContext(v.Context, "testSearchVCHs"),
-		isVC:    v.Session.IsVC(),
+		session: v.Session(),
+		op:      trace.FromContext(ctx, "testSearchVCHs"),
+		isVC:    v.Session().IsVC(),
 	}
 
 	if expect {

@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -77,29 +77,29 @@ func TestDelete(t *testing.T) {
 			t.Errorf("Failed to validator: %s", err)
 		}
 
-		conf, err := validator.Validate(ctx, input)
+		conf, err := validator.Validate(ctx, input, false)
 		if err != nil {
 			log.Errorf("Failed to validate conf: %s", err)
 			validator.ListIssues(op)
 		}
 
-		testCreateNetwork(op, validator.Session, conf, t)
-		createAppliance(ctx, validator.Session, conf, installSettings, false, t)
+		testCreateNetwork(op, validator.Session(), conf, t)
+		createAppliance(ctx, validator.Session(), conf, installSettings, false, t)
 
-		testNewVCHFromCompute(input.ComputeResourcePath, input.DisplayName, validator, t)
+		testNewVCHFromCompute(op, input.ComputeResourcePath, input.DisplayName, validator, t)
 		//		testUpgrade(input.ComputeResourcePath, input.DisplayName, validator, installSettings, t) TODO: does not implement: CreateSnapshot_Task
-		testDeleteVCH(validator, conf, t)
+		testDeleteVCH(op, validator, conf, t)
 
-		testDeleteDatastoreFiles(validator, t)
+		testDeleteDatastoreFiles(op, validator, t)
 	}
 }
 
-func testUpgrade(computePath string, name string, v *validate.Validator, settings *data.InstallerData, t *testing.T) {
+func testUpgrade(op trace.Operation, computePath string, name string, v *validate.Validator, settings *data.InstallerData, t *testing.T) {
 	// TODO: add tests for rollback after snapshot func is added in vcsim
 	d := &Dispatcher{
-		session: v.Session,
-		op:      trace.FromContext(v.Context, "testUpgrade"),
-		isVC:    v.Session.IsVC(),
+		session: v.Session(),
+		op:      op,
+		isVC:    v.Session().IsVC(),
 		force:   false,
 	}
 	vch, err := d.NewVCHFromComputePath(computePath, name, v)
@@ -113,7 +113,7 @@ func testUpgrade(computePath string, name string, v *validate.Validator, setting
 
 		t.Errorf("Failed to get vch configuration: %s", err)
 	}
-	if err := d.Configure(vch, conf, settings, false); err != nil {
+	if err := d.Configure(conf, settings); err != nil {
 		t.Errorf("Failed to upgrade: %s", err)
 	}
 }
@@ -139,11 +139,11 @@ func createAppliance(ctx context.Context, sess *session.Session, conf *config.Vi
 	}
 }
 
-func testNewVCHFromCompute(computePath string, name string, v *validate.Validator, t *testing.T) {
+func testNewVCHFromCompute(op trace.Operation, computePath string, name string, v *validate.Validator, t *testing.T) {
 	d := &Dispatcher{
-		session: v.Session,
-		op:      trace.FromContext(v.Context, "testNewVCHFromCompute"),
-		isVC:    v.Session.IsVC(),
+		session: v.Session(),
+		op:      op,
+		isVC:    v.Session().IsVC(),
 		force:   false,
 	}
 	vch, err := d.NewVCHFromComputePath(computePath, name, v)
@@ -160,11 +160,11 @@ func testNewVCHFromCompute(computePath string, name string, v *validate.Validato
 	t.Logf("Got VCH %s, path %s", vch, path.Dir(vch.InventoryPath))
 }
 
-func testDeleteVCH(v *validate.Validator, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
+func testDeleteVCH(op trace.Operation, v *validate.Validator, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
 	d := &Dispatcher{
-		session: v.Session,
-		op:      trace.FromContext(v.Context, "testDeleteVCH"),
-		isVC:    v.Session.IsVC(),
+		session: v.Session(),
+		op:      op,
+		isVC:    v.Session().IsVC(),
 		force:   false,
 	}
 	// failed to get vm FolderName, that will eventually cause panic in simulator to delete empty datastore file
@@ -175,7 +175,7 @@ func testDeleteVCH(v *validate.Validator, conf *config.VirtualContainerHostConfi
 	t.Logf("Successfully deleted VCH")
 	// check images directory is removed
 	dsPath := "[LocalDS_0] VIC"
-	_, err := d.lsFolder(v.Session.Datastore, dsPath)
+	_, err := d.lsFolder(v.Session().Datastore, dsPath)
 	if err != nil {
 		if !types.IsFileNotFound(err) {
 			t.Errorf("Failed to browse folder %s: %s", dsPath, errors.ErrorStack(err))
@@ -188,34 +188,41 @@ func testDeleteVCH(v *validate.Validator, conf *config.VirtualContainerHostConfi
 	if vm != nil {
 		t.Errorf("Should not found vm %s", vm.Reference())
 	}
-
 	if err != nil {
 		t.Errorf("Unexpected error to get appliance VM: %s", err)
 	}
+
+	// Verify that the VCH folder (if created on VC) is deleted after VCH delete.
+	folderPath := path.Join(d.session.VMFolder.InventoryPath, conf.Name)
+	vchFolder, err := d.session.Finder.Folder(d.op, folderPath)
+	if vchFolder != nil || err == nil {
+		t.Errorf("Should not have found VCH folder %q after VCH delete", folderPath)
+	}
+
 	// delete VM does not clean up resource pool after VM is removed, so resource pool could not be removed
 }
 
-func testDeleteDatastoreFiles(v *validate.Validator, t *testing.T) {
+func testDeleteDatastoreFiles(op trace.Operation, v *validate.Validator, t *testing.T) {
 	d := &Dispatcher{
-		session: v.Session,
-		op:      trace.FromContext(v.Context, "testDeleteDatastoreFiles"),
-		isVC:    v.Session.IsVC(),
+		session: v.Session(),
+		op:      op,
+		isVC:    v.Session().IsVC(),
 		force:   false,
 	}
 
-	ds := v.Session.Datastore
+	ds := v.Session().Datastore
 	m := object.NewFileManager(ds.Client())
-	err := m.MakeDirectory(v.Context, ds.Path("Test/folder/data"), v.Session.Datacenter, true)
+	err := m.MakeDirectory(op, ds.Path("Test/folder/data"), v.Session().Datacenter, true)
 	if err != nil {
 		t.Errorf("Failed to create datastore dir: %s", err)
 		return
 	}
-	err = m.MakeDirectory(v.Context, ds.Path("Test/folder/metadata"), v.Session.Datacenter, true)
+	err = m.MakeDirectory(op, ds.Path("Test/folder/metadata"), v.Session().Datacenter, true)
 	if err != nil {
 		t.Errorf("Failed to create datastore dir: %s", err)
 		return
 	}
-	err = m.MakeDirectory(v.Context, ds.Path("Test/folder/file"), v.Session.Datacenter, true)
+	err = m.MakeDirectory(op, ds.Path("Test/folder/file"), v.Session().Datacenter, true)
 	if err != nil {
 		t.Errorf("Failed to create datastore dir: %s", err)
 		return
@@ -234,7 +241,7 @@ func testDeleteDatastoreFiles(v *validate.Validator, t *testing.T) {
 		t.Errorf("Failed to delete recursively: %s", err)
 	}
 
-	err = m.MakeDirectory(v.Context, ds.Path("Test/folder/data"), v.Session.Datacenter, true)
+	err = m.MakeDirectory(op, ds.Path("Test/folder/data"), v.Session().Datacenter, true)
 	if err != nil {
 		t.Errorf("Failed to create datastore dir: %s", err)
 		return

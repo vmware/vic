@@ -31,6 +31,7 @@ Create test containers
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  CREATOR  ${output}
 
+
 *** Test Cases ***
 Restart Running Container
     Create test containers

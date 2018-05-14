@@ -435,6 +435,17 @@ func TestSoapFaults(t *testing.T) {
 		t.Error(err)
 	}
 
+	// Test that InvalidArgument fault should be a retryable error but not a transient error
+	fvm.fault = new(types.InvalidArgument)
+	task, err = vm.Destroy(op)
+	res, err = task.WaitForResult(op, nil)
+
+	assert.NotNil(t, err)
+	err = soap.WrapVimFault(res.Error.Fault)
+	require.True(t, IsInvalidArgumentError(err), "expected InvalidArgument")
+	require.True(t, IsRetryError(op, err), "InvalidArgument should be a retryable error")
+	require.False(t, IsTransientError(op, err), "InvalidArgument should not be a transient error")
+
 	// Test MethodDisabled fault
 	fvm.fault = new(types.MethodDisabled)
 	task, err = vm.Destroy(op)

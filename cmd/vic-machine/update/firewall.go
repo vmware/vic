@@ -127,9 +127,9 @@ func (i *UpdateFw) Run(clic *cli.Context) (err error) {
 		op.Errorf("Update cannot continue - failed to create validator: %s", err)
 		return errors.New("update firewall failed")
 	}
-	defer validator.Session.Logout(op)
+	defer validator.Session().Logout(op)
 
-	_, err = validator.ValidateTarget(op, i.Data)
+	_, err = validator.ValidateTarget(op, i.Data, false)
 	if err != nil {
 		op.Errorf("Update cannot continue - target validation failed: %s", err)
 		return errors.New("update firewall failed")
@@ -140,7 +140,7 @@ func (i *UpdateFw) Run(clic *cli.Context) (err error) {
 		return errors.New("update firewall failed")
 	}
 
-	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
+	executor := management.NewDispatcher(op, validator.Session(), management.ActionUpdate, false)
 
 	if i.enableFw {
 		op.Info("")
