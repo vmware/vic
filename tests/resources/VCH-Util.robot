@@ -300,9 +300,7 @@ Conditional Install VIC Appliance To Test Server
 Install VIC Appliance To Test Server
     [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${additional-args}=${EMPTY}
     Set Test Environment Variables
-    ${run-as-ops-user}=  Get Environment Variable  RUN_AS_OPS_USER
-    ${opsuser-args}=  Run Keyword If  '${run-as-ops-user}' == '1'  Get Ops User Args
-    ...  ELSE  Set Variable  ${EMPTY}
+    ${opsuser-args}=  Get Ops User Args
     ${output}=  Install VIC Appliance To Test Server With Current Environment Variables  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${cleanup}  ${debug}  ${opsuser-args}  ${additional-args}
     Log  ${output}
     [Return]  ${output}
@@ -796,6 +794,8 @@ Manually Cleanup VCH
     ${out}=  Run Keyword And Ignore Error  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc object.destroy vm/${vch-name}
 
 Get Ops User Args
+    ${run-as-ops-user}=  Get Environment Variable  RUN_AS_OPS_USER  0
+    Return From Keyword If  '${run-as-ops-user}' == '0'  ${EMPTY}
     Log To Console  Running tests as ops user...
     Create Ops User Account On Test Server
     ${opsuser-args}=  Set Variable  --ops-user='%{VCH_OPS_USERNAME}' --ops-password='%{VCH_OPS_PASSWORD}' --ops-grant-perms

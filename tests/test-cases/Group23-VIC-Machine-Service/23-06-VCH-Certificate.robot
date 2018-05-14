@@ -34,10 +34,7 @@ Install VIC Machine Without TLS
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Containers On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Resource Pools On Test Server
 
-    ${opsuser-args}=  Set Variable  ${EMPTY}
-    ${run-as-ops-user}=  Get Environment Variable  RUN_AS_OPS_USER
-    ${opsuser-args}=  Run Keyword If  '${run-as-ops-user}' == '1'  Get Ops User Args
-    ...  ELSE  Set Variable  ${EMPTY}
+    ${opsuser-args}=  Get Ops User Args
 
     Set Suite Variable  ${vicmachinetls}  --no-tls
     Log To Console  \nInstalling VCH to test server with tls disabled...
