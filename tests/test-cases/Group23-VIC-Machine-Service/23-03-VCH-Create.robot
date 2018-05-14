@@ -24,7 +24,8 @@ Default Tags
 
 *** Keywords ***
 Setup
-    Start VIC Machine Server
+    ${handle}=    Start VIC Machine Server
+    Set Suite Variable    ${server_handle}    ${handle}
     Set Test Environment Variables
 
     ${PUBLIC_NETWORK}=  Remove String  %{PUBLIC_NETWORK}  '
@@ -32,7 +33,7 @@ Setup
 
 
 Teardown
-    Terminate All Processes    kill=True
+    Stop VIC Machine Server    ${server_handle}
     Cleanup Test Server
 
 
@@ -340,7 +341,7 @@ Fail to create VCH with a name that is already in use
     Verify Status Created
 
     Create VCH    '{"name":"${there_can_only_be_one}","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"${PUBLIC_NETWORK}"}}},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
-    
+
     Verify Return Code
 
     ${status}=    Get State Of Github Issue    7749
@@ -355,7 +356,7 @@ Fail to create VCH with a name that is already in use
 
 Fail to create a VCH with an invalid container name name convention
     ${invalid_name_convention}=    Set Variable    192.168.1.1-mycontainer
-    
+
     Create VCH    '{"name":"%{VCH-NAME}-api-test-minimal","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"${PUBLIC_NETWORK}"}}},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}, "container":{"name_convention": "${invalid_name_convention}"}}'
 
     Verify Return Code
