@@ -23,6 +23,7 @@ import (
 	"github.com/go-openapi/loads"
 	"github.com/jessevdk/go-flags"
 
+	"github.com/vmware/govmomi/vim25/debug"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/config"
@@ -96,6 +97,22 @@ func main() {
 	if vchConfig.Diagnostics.DebugLevel > 3 {
 		// extraconfig is very, very verbose
 		extraconfig.SetLogLevel(log.DebugLevel)
+	}
+
+	if vchConfig.Diagnostics.DebugLevel > 4 {
+		// TODO: pull this from an env var or similar
+		debugDir := "/var/log/vic/govmomi"
+
+		err := os.MkdirAll(debugDir, 0700)
+		if err != nil {
+			log.Fatalf("Unable to create govmomi debug directory: %s", err)
+		}
+
+		p := debug.FileProvider{
+			Path: debugDir,
+		}
+
+		debug.SetProvider(&p)
 	}
 
 	if vchConfig.Diagnostics.SysLogConfig != nil {

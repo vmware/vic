@@ -29,6 +29,7 @@ const (
 )
 
 type batchMember struct {
+	op   trace.Operation
 	err  chan error
 	data interface{}
 }
@@ -55,6 +56,7 @@ func lazyDeviceChange(ctx context.Context, batch chan batchMember, operation fun
 			}
 			data = append(data, req.data)
 			errors = append(errors, req.err)
+			req.op.Debugf("Dispatching queued operation")
 		case <-op.Done(): // when parent context is cancelled, quit
 			return
 		}
@@ -67,6 +69,7 @@ func lazyDeviceChange(ctx context.Context, batch chan batchMember, operation fun
 			if req.err != nil {
 				data = append(data, req.data)
 				errors = append(errors, req.err)
+				req.op.Debugf("Dispatching queued operation")
 			}
 		}
 

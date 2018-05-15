@@ -35,9 +35,10 @@ import (
 )
 
 const (
-	// You can assign the device to (1:z ), where 1 is SCSI controller 1 and z is a virtual device node from 0 to 15.
+	// You can assign the device to (1:z ), where 1 is SCSI controller 1 and z is a virtual device node from 0 to 14.
 	// https://pubs.vmware.com/vsphere-65/index.jsp#com.vmware.vsphere.vm_admin.doc/GUID-5872D173-A076-42FE-8D0B-9DB0EB0E7362.html
-	MaxAttachedDisks = 16
+	// From vSphere 6.7 the pvscsi limit is increased to 64 so we should make this number dynamic based on backend version
+	MaxAttachedDisks = 15
 )
 
 // Manager manages disks for the vm it runs on.  The expectation is this is run
@@ -342,12 +343,13 @@ func (m *Manager) DiskParent(op trace.Operation, config *VirtualDiskConfig) (*ob
 // Note that the error handler needs to be careful with locking as this function does not handle it
 func (m *Manager) queueBatch(op trace.Operation, change types.BaseVirtualDeviceConfigSpec, errHandler func(err error)) error {
 	chg := batchMember{
+		op:   op,
 		err:  make(chan error),
 		data: change,
 	}
 
+	op.Debugf("Queuing disk change operation (%s:%+v)", change.GetVirtualDeviceConfigSpec().Operation, *(change.GetVirtualDeviceConfigSpec().Device.GetVirtualDevice().Backing.(types.BaseVirtualDeviceFileBackingInfo)).GetVirtualDeviceFileBackingInfo())
 	m.batchQueue <- chg
-	op.Debug("Queued disk change operation")
 
 	if errHandler == nil {
 		// this will block until the batch is performed
@@ -368,6 +370,12 @@ func (m *Manager) dequeueBatch(op trace.Operation, data []interface{}) error {
 
 	for i := range data {
 		changeSpec := data[i].(types.BaseVirtualDeviceConfigSpec)
+		dev := changeSpec.GetVirtualDeviceConfigSpec().Device.GetVirtualDevice()
+		// VC requires that the keys be unique within a config spec
+		if changeSpec.GetVirtualDeviceConfigSpec().Operation == types.VirtualDeviceConfigSpecOperationAdd && dev.Key == -1 {
+			dev.Key = int32(-1 - i)
+		}
+		op.Debugf("Appending change spec: %s:%+v", changeSpec.GetVirtualDeviceConfigSpec().Operation, *(changeSpec.GetVirtualDeviceConfigSpec().Device.GetVirtualDevice().Backing.(types.BaseVirtualDeviceFileBackingInfo)).GetVirtualDeviceFileBackingInfo())
 		changes = append(changes, changeSpec)
 	}
 
