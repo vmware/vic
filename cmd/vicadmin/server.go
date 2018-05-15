@@ -17,8 +17,10 @@ package main
 import (
 	"archive/zip"
 	"compress/gzip"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"html/template"
 	"net"
 	"net/http"
@@ -27,8 +29,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"fmt"
-	"context"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/go-connections/tlsconfig"
@@ -75,6 +75,81 @@ const (
 	genericErrorMessage    = "Internal Server Error; see /var/log/vic/vicadmin.log for details" // for http errors that shouldn't be displayed in the browser to the user
 )
 
+type Conn struct {
+	net.Conn
+	b byte
+	e error
+	f bool
+}
+
+//Returns number of bytes read
+func (c *Conn) Read(b []byte) (int, error) {
+	//first conn starts off as true so it can enter this case
+	if c.f {
+		c.f = false
+		b[0] = c.b
+		// if there's more bytes to read
+		if len(b) > 1 && c.e == nil {
+			//recurse on next byte
+			n, e := c.Conn.Read(b[1:])
+			//close connection if error during reading
+			if e != nil {
+				c.Conn.Close()
+			}
+			//return total num of bytes read (+ current) and pass error e
+			return n + 1, e
+		} else {
+			//only one byte read
+			return 1, c.e
+		}
+	}
+	//using the default Conn read
+	return c.Conn.Read(b)
+}
+
+type ReqListener struct {
+	net.Listener
+	addr   string
+	config *tls.Config
+}
+
+func (l *ReqListener) Accept() (net.Conn, error) {
+	//returns a Conn and Err
+	c, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	//create slice of size 1
+	b := make([]byte, 1)
+	//regular conn read, b will be updated with byte val
+	_, err = c.Read(b)
+	if err != nil {
+		c.Close()
+		if err != io.EOF {
+			return nil, err
+		}
+	}
+	//wrap Conn in our custom struct (address)
+	con := &Conn{
+		Conn: c,
+		b:    b[0],
+		e:    err,
+		f:    true,
+	}
+	//the first byte is the hex byte 0x16 = 22
+	//which means that this is a  TLS “handshake” record
+	if b[0] == 22 {
+		//log.Println("HTTPS")
+		log.Infof("ZZZZ -> HTTPS")
+		//creates Conn from our custom con/tls config
+		return tls.Server(con, l.config), nil
+	}
+
+	//log.Println("HTTP")
+	log.Infof("ZZZZ -> HTTP")
+	return con, nil
+}
+
 func (s *server) listen() error {
 	defer trace.End(trace.Begin(""))
 
@@ -95,7 +170,7 @@ func (s *server) listen() error {
 	}
 	if err != nil {
 		log.Errorf("Could not load certificate from config - running without TLS: %s", err)
-
+		//replace this with a custom listener (redefine Accept)
 		s.l, err = net.Listen("tcp", s.addr)
 		return err
 	}
@@ -145,7 +220,8 @@ func (s *server) listen() error {
 		return err
 	}
 
-	s.l = tls.NewListener(innerListener, tlsconfig)
+	s.l = &ReqListener{Listener: innerListener, config: tlsconfig}
+	//s.l = tls.NewListener(innerListener, tlsconfig)
 	return nil
 }
 
@@ -158,25 +234,27 @@ func (s *server) AuthenticatedHandle(link string, h http.Handler) {
 	s.Authenticated(link, h.ServeHTTP)
 }
 
-
 func HTTPSRedirectHandle(h http.Handler) http.Handler {
-	redirectToHTTPS := func (w http.ResponseWriter, r *http.Request){
+	redirectToHTTPS := func(w http.ResponseWriter, r *http.Request) {
+		log.Errorf("ZZZZ - (HTTPSRedirectHandle) REQUEST OBJ: %+v\n TYPE: %T", r, r)
+		log.Errorf("ZZZZ - (HTTPSRedirectHandle) URL OBJ: %+v\n TYPE: %T", r.URL, r.URL)
 		//redirect to https if necessary
-		if r.URL.Scheme != "https" {
+		if r.TLS != nil {
+			//r.URL.Scheme = "https"
 			log.Infof("ZZZZ -> Scheme is %s with host: %s and RequestURI: %s", r.URL.Scheme, r.Host, r.RequestURI)
-			http.Redirect(w, r, fmt.Sprintf("https://" + r.Host + r.RequestURI), http.StatusMovedPermanently)
+			log.Errorf("ZZZZ - (HTTPSRedirectHandle) new redirected url will be: https://%s%s", r.Host, r.RequestURI)
+			http.Redirect(w, r, fmt.Sprintf("https://%s%s", r.Host, r.RequestURI), http.StatusMovedPermanently)
 			return
 		}
 		log.Infof("ZZZZ -> ServeHTTP at the end of redirectToHTTPS func")
-		h.ServeHTTP(w,r)
+		log.Infof("ZZZZ -> Outside of if statement, Scheme is %s", r.URL.Scheme)
+		h.ServeHTTP(w, r)
 		return
-	
+
 	}
 	log.Infof("ZZZZ -> returning HandlerFunc at end of HTTPSRedirectHandle")
 	return http.HandlerFunc(redirectToHTTPS)
 }
-
-
 
 func (s *server) Handle(link string, h http.Handler) {
 	log.Debugf("%s --- %s", time.Now().String(), link)
@@ -189,6 +267,8 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 	defer trace.End(trace.Begin(""))
 	log.Infof("ZZZZ -> start of Authenticated, creating authHandler")
 	authHandler := func(w http.ResponseWriter, r *http.Request) {
+		log.Errorf("ZZZZ - (Authenticated) REQUEST OBJ: %+v\n TYPE: %T", r, r)
+		log.Errorf("ZZZZ - (Authenticated) URL OBJ: %+v, \n TYPE: %T", r.URL, r.URL)
 		// #nosec: Errors unhandled because it is okay if the cookie doesn't exist.
 		websession, _ := s.uss.cookies.Get(r, sessionCookieKey)
 		log.Infof("ZZZZ -> scheme inside authHandler is %s", r.URL.Scheme)
