@@ -265,8 +265,12 @@ func (handler *TaskHandlersImpl) InspectHandler(params tasks.InspectParams) midd
 
 // WaitHandler calls wait
 func (handler *TaskHandlersImpl) WaitHandler(params tasks.WaitParams) middleware.Responder {
+	return nil
+}
+
+func (handler *TaskHandlersImpl) WaitStartHandler(params tasks.WaitStartParams) middleware.Responder {
 	defer trace.End(trace.Begin(""))
-	op := trace.NewOperation(context.Background(), "task.Wait(%s, %s)", params.Config.Handle, params.Config.ID)
+	op := trace.NewOperation(context.Background(), "task.Wait(%s, %s)", params.Config.Handle, params.Config.TaskID)
 
 	handle := exec.HandleFromInterface(params.Config.Handle)
 	if handle == nil {
@@ -275,7 +279,7 @@ func (handler *TaskHandlersImpl) WaitHandler(params tasks.WaitParams) middleware
 	}
 
 	// wait task to set started field to something
-	err := task.Wait(&op, handle, params.Config.ID)
+	err := task.Wait(&op, handle, params.Config.TaskID)
 	if err != nil {
 		switch err := err.(type) {
 		case *task.TaskPowerStateError:

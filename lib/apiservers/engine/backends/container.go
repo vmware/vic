@@ -296,6 +296,20 @@ func (c *ContainerBackend) ContainerExecInspect(eid string) (*backend.ExecInspec
 	if err != nil {
 		return nil, err
 	}
+	log.Debugf("exit code was reported as %d", ec.ExitCode)
+	for !ec.Running {
+		handle, err = c.Handle(id, name)
+		if err != nil {
+			op.Error(err)
+			return nil, engerr.InternalServerError(err.Error())
+		}
+		time.Sleep(5 * time.Second)
+		ec, err = c.containerProxy.InspectTask(op, handle, eid, id)
+		if err != nil {
+			return nil, err
+		}
+		log.Debugf("(retry) exit code was reported as %d", ec.ExitCode)
+	}
 
 	exit := int(ec.ExitCode)
 	return &backend.ExecInspect{
@@ -403,7 +417,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 			defer trace.End(trace.Begin(eid))
 
 			// wait property collector
-			if err := c.containerProxy.WaitTask(taskCtx, id, name, eid); err != nil {
+			if err := c.containerProxy.WaitStartTask(taskCtx, id, name, eid); err != nil {
 				op.Errorf("Task wait returned %s, canceling the context", err)
 
 				// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly

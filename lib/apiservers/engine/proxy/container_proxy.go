@@ -90,6 +90,7 @@ type VicContainerProxy interface {
 	InspectTask(op trace.Operation, handle string, eid string, cid string) (*models.TaskInspectResponse, error)
 	BindTask(op trace.Operation, handle string, eid string) (string, error)
 	WaitTask(op trace.Operation, cid string, cname string, eid string) error
+	WaitStartTask(op trace.Operation, cid string, cname string, eid string) error
 
 	Handle(ctx context.Context, id, name string) (string, error)
 
@@ -532,6 +533,11 @@ func (c *ContainerProxy) BindTask(op trace.Operation, handle string, eid string)
 }
 
 func (c *ContainerProxy) WaitTask(op trace.Operation, cid string, cname string, eid string) error {
+
+	return nil
+}
+
+func (c *ContainerProxy) WaitStartTask(op trace.Operation, cid string, cname string, eid string) error {
 	if c.client == nil {
 		return errors.NillPortlayerClientError("ContainerProxy")
 	}
@@ -544,7 +550,7 @@ func (c *ContainerProxy) WaitTask(op trace.Operation, cid string, cname string, 
 	// wait the Task to start
 	config := &models.TaskWaitConfig{
 		Handle: handle,
-		ID:     eid,
+		TaskID: eid,
 	}
 
 	params := tasks.NewWaitParamsWithContext(op).WithConfig(config)
@@ -563,7 +569,6 @@ func (c *ContainerProxy) WaitTask(op trace.Operation, cid string, cname string, 
 	}
 
 	return nil
-
 }
 
 // Stop will stop (shutdown) a VIC container.
