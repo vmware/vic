@@ -26,6 +26,8 @@ Set Test Environment Variables
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_DATACENTER  ${SPACE}
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_MACHINE
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_MACHINE  'local'
+    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  OVERFLOW_TEST_TIMEOUT
+    Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  OVERFLOW_TEST_TIMEOUT  3m
 
     @{URLs}=  Split String  %{TEST_URL_ARRAY}
     ${len}=  Get Length  ${URLs}
