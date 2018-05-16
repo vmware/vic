@@ -107,6 +107,7 @@ pipeline:
       - test_password
       - test_username
       - haas_url_array
+      - overflow_test_timeout
       - overflow_url_array
       - ssh_test_username
       - ssh_test_password
