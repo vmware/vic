@@ -118,7 +118,7 @@ Get VCH List Within Invalid Compute Resource
     Verify Status Bad Request
 
 Get VCH List Within Invalid Datacenter and Compute Resource
-    Get Path Under Target    datacenter/INVALID/vch    co\mpute-resource=INVALID
+    Get Path Under Target    datacenter/INVALID/vch    compute-resource=INVALID
 
     Verify Return Code
     Verify Status Not Found
