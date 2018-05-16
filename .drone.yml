@@ -358,7 +358,7 @@ pipeline:
       status: success
 
   pass-rate:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-pass-rate:1.0'
     pull: true
     environment:
       BIN: bin
@@ -366,8 +366,8 @@ pipeline:
     secrets:
       - github_automation_api_key
       - slack_url
-    commands:
-      - tests/pass-rate.sh
     when:
+      repo: vmware/vic
+      event: [push, tag]
+      branch: [master, 'releases/*']
       status: [success, failure]
-
