@@ -21,7 +21,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
+	"github.com/docker/go-connections/tlsconfig"
+	"github.com/google/uuid"
+	gorillacontext "github.com/gorilla/context"
 	"html/template"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -29,11 +34,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	log "github.com/Sirupsen/logrus"
-	"github.com/docker/go-connections/tlsconfig"
-	"github.com/google/uuid"
-	gorillacontext "github.com/gorilla/context"
 
 	"github.com/vmware/vic/lib/vicadmin"
 	"github.com/vmware/vic/pkg/filelock"
@@ -75,21 +75,23 @@ const (
 	genericErrorMessage    = "Internal Server Error; see /var/log/vic/vicadmin.log for details" // for http errors that shouldn't be displayed in the browser to the user
 )
 
+//wrapper struct around net.Conn for our custom funcs
 type Conn struct {
 	net.Conn
-	b byte
-	e error
-	f bool
+	b   byte
+	err error
+	f   bool
 }
 
+//might not even need this
 //Returns number of bytes read
 func (c *Conn) Read(b []byte) (int, error) {
-	//first conn starts off as true so it can enter this case
+	//first conn starts off as true so we do the TLS check once
 	if c.f {
 		c.f = false
 		b[0] = c.b
 		// if there's more bytes to read
-		if len(b) > 1 && c.e == nil {
+		if len(b) > 1 && c.err == nil {
 			//recurse on next byte
 			n, e := c.Conn.Read(b[1:])
 			//close connection if error during reading
@@ -100,26 +102,28 @@ func (c *Conn) Read(b []byte) (int, error) {
 			return n + 1, e
 		} else {
 			//only one byte read
-			return 1, c.e
+			return 1, c.err
 		}
 	}
 	//using the default Conn read
 	return c.Conn.Read(b)
 }
 
+//wrapper struct for our custom funcs
 type ReqListener struct {
 	net.Listener
 	addr   string
 	config *tls.Config
 }
 
+//override default listener Accept function and add TLS check
 func (l *ReqListener) Accept() (net.Conn, error) {
-	//returns a Conn and Err
+	//call default net.listener.Accept first
 	c, err := l.Listener.Accept()
 	if err != nil {
 		return nil, err
 	}
-	//create slice of size 1
+	//create slice of size 1 for storing the first byte
 	b := make([]byte, 1)
 	//regular conn read, b will be updated with byte val
 	_, err = c.Read(b)
@@ -129,24 +133,21 @@ func (l *ReqListener) Accept() (net.Conn, error) {
 			return nil, err
 		}
 	}
-	//wrap Conn in our custom struct (address)
+	//wrap Conn in our custom struct
 	con := &Conn{
 		Conn: c,
 		b:    b[0],
-		e:    err,
+		err:  err,
 		f:    true,
 	}
 	//the first byte is the hex byte 0x16 = 22
 	//which means that this is a  TLS “handshake” record
 	if b[0] == 22 {
-		//log.Println("HTTPS")
-		log.Infof("ZZZZ -> HTTPS")
-		//creates Conn from our custom con/tls config
+		//HTTPS creates Conn from our custom con/tls config
 		return tls.Server(con, l.config), nil
 	}
 
-	//log.Println("HTTP")
-	log.Infof("ZZZZ -> HTTP")
+	//regular HTTP connection, return con
 	return con, nil
 }
 
@@ -234,44 +235,36 @@ func (s *server) AuthenticatedHandle(link string, h http.Handler) {
 	s.Authenticated(link, h.ServeHTTP)
 }
 
+//Redirects HTTP to HTTPS
 func HTTPSRedirectHandle(h http.Handler) http.Handler {
 	redirectToHTTPS := func(w http.ResponseWriter, r *http.Request) {
-		log.Errorf("ZZZZ - (HTTPSRedirectHandle) REQUEST OBJ: %+v\n TYPE: %T", r, r)
-		log.Errorf("ZZZZ - (HTTPSRedirectHandle) URL OBJ: %+v\n TYPE: %T", r.URL, r.URL)
-		//redirect to https if necessary
-		if r.TLS != nil {
-			//r.URL.Scheme = "https"
-			log.Infof("ZZZZ -> Scheme is %s with host: %s and RequestURI: %s", r.URL.Scheme, r.Host, r.RequestURI)
-			log.Errorf("ZZZZ - (HTTPSRedirectHandle) new redirected url will be: https://%s%s", r.Host, r.RequestURI)
+		//If TLS is nil, request is not HTTPS, so we must redirect
+		if r.TLS == nil {
+
 			http.Redirect(w, r, fmt.Sprintf("https://%s%s", r.Host, r.RequestURI), http.StatusMovedPermanently)
 			return
 		}
-		log.Infof("ZZZZ -> ServeHTTP at the end of redirectToHTTPS func")
-		log.Infof("ZZZZ -> Outside of if statement, Scheme is %s", r.URL.Scheme)
 		h.ServeHTTP(w, r)
 		return
 
 	}
-	log.Infof("ZZZZ -> returning HandlerFunc at end of HTTPSRedirectHandle")
 	return http.HandlerFunc(redirectToHTTPS)
 }
 
 func (s *server) Handle(link string, h http.Handler) {
 	log.Debugf("%s --- %s", time.Now().String(), link)
-	//s.mux.Handle(link, gorillacontext.ClearHandler(h))
 	s.mux.Handle(link, gorillacontext.ClearHandler(HTTPSRedirectHandle(h)))
 }
 
 // Enforces authentication on route `link` and runs `handler` on successful auth
 func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *http.Request)) {
 	defer trace.End(trace.Begin(""))
-	log.Infof("ZZZZ -> start of Authenticated, creating authHandler")
+
 	authHandler := func(w http.ResponseWriter, r *http.Request) {
-		log.Errorf("ZZZZ - (Authenticated) REQUEST OBJ: %+v\n TYPE: %T", r, r)
-		log.Errorf("ZZZZ - (Authenticated) URL OBJ: %+v, \n TYPE: %T", r.URL, r.URL)
+
 		// #nosec: Errors unhandled because it is okay if the cookie doesn't exist.
 		websession, _ := s.uss.cookies.Get(r, sessionCookieKey)
-		log.Infof("ZZZZ -> scheme inside authHandler is %s", r.URL.Scheme)
+
 		if len(r.TLS.PeerCertificates) > 0 {
 			// the user is authenticated by certificate at connection time
 			log.Infof("Authenticated connection via client certificate with serial %s from %s", r.TLS.PeerCertificates[0].SerialNumber, r.RemoteAddr)
@@ -361,12 +354,10 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 			s.logoutHandler(w, r)
 			return
 		}
-		log.Infof("ZZZZ -> calling handler(w,r) at the end of authHandler")
 		// if the date & remote IP on the cookie were valid, then the user is authenticated
 		log.Infof("User with a valid auth cookie at %s is authenticated.", connectingAddr[0])
 		handler(w, r)
 	}
-	log.Infof("ZZZZ -> calling HandlerFunc at the end of Authenticated")
 	s.Handle(link, http.HandlerFunc(authHandler))
 }
 
