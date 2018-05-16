@@ -135,10 +135,10 @@ func (l *ReqListener) Accept() (net.Conn, error) {
 	}
 	//wrap Conn in our custom struct
 	con := &Conn{
-		Conn: c,
-		b:    b[0],
-		err:  err,
-		oneTimeSwitch:    true,
+		Conn:          c,
+		b:             b[0],
+		err:           err,
+		oneTimeSwitch: true,
 	}
 	//the first byte is the hex byte 0x16 = 22
 	//which means that this is a  TLS “handshake” record
