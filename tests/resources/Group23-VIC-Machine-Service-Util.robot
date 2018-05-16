@@ -17,18 +17,12 @@ Documentation    This resource contains keywords which are helpful for using cur
 Library  Process
 
 *** Variables ***
-#${HTTP_PORT}     9999
-#${HTTPS_PORT}    39999
-
 ${RC}            The return code of the last curl invocation
 ${OUTPUT}        The output of the last curl invocation
 ${STATUS}        The HTTP status of the last curl invocation
 
 
 *** Keywords ***
-#Start VIC Machine Server
-#    Start Process    ./bin/vic-machine-server --port ${HTTP_PORT} --scheme http    shell=True    cwd=/go/src/github.com/vmware/vic
-
 Start VIC Machine Server
     ${http_port}=    Get HTTP Port
     Set Suite Variable    ${HTTP_PORT}    ${http_port}
@@ -43,7 +37,7 @@ Stop VIC Machine Server
 
 # Get unused unprivileged TCP port
 Get HTTP Port
-    ${rc}    ${http_port}=    Run And Return Rc And Output    (netstat -atn | awk '{printf "%s\n%s\n", $4, $4}' | grep -oE '[0-9]*$'; seq 32768 61000) | sort -n | uniq -u | head -n 1
+    ${rc}  ${http_port}=    Run And Return Rc And Output    netstat -atn | perl -0777 -ne '@ports = /tcp.*?\:(\d+)\s+/imsg ; for $port (32768..61000) {if(!grep(/^$port$/, @ports)) { print $port; last } }'
     [Return]    ${http_port}
 
 Get Path

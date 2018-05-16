@@ -23,12 +23,13 @@ Default Tags
 
 *** Keywords ***
 Setup
-    Start VIC Machine Server
+    ${handle}=    Start VIC Machine Server
+    Set Suite Variable    ${server_handle}    ${handle}
     Install VIC Appliance To Test Server
 
 Teardown
     Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
-    Terminate All Processes    kill=True
+    Stop VIC Machine Server    ${server_handle}
 
 Get VCH List
     Get Path Under Target    vch
@@ -117,7 +118,7 @@ Get VCH List Within Invalid Compute Resource
     Verify Status Bad Request
 
 Get VCH List Within Invalid Datacenter and Compute Resource
-    Get Path Under Target    datacenter/INVALID/vch    compute-resource=INVALID
+    Get Path Under Target    datacenter/INVALID/vch    co\mpute-resource=INVALID
 
     Verify Return Code
     Verify Status Not Found
