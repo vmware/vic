@@ -17,14 +17,9 @@ package main
 import (
 	"archive/zip"
 	"compress/gzip"
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/docker/go-connections/tlsconfig"
-	"github.com/google/uuid"
-	gorillacontext "github.com/gorilla/context"
 	"html/template"
 	"io"
 	"net"
@@ -34,6 +29,13 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"context"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/docker/go-connections/tlsconfig"
+	"github.com/google/uuid"
+	gorillacontext "github.com/gorilla/context"
 
 	"github.com/vmware/vic/lib/vicadmin"
 	"github.com/vmware/vic/pkg/filelock"
@@ -78,17 +80,16 @@ const (
 //wrapper struct around net.Conn for our custom funcs
 type Conn struct {
 	net.Conn
-	b   byte
-	err error
-	f   bool
+	b             byte
+	err           error
+	oneTimeSwitch bool
 }
 
-//might not even need this
 //Returns number of bytes read
 func (c *Conn) Read(b []byte) (int, error) {
-	//first conn starts off as true so we do the TLS check once
-	if c.f {
-		c.f = false
+	//oneTimeSwitch bool of first conn starts off as true so we do the TLS check once
+	if c.oneTimeSwitch {
+		c.oneTimeSwitch = false
 		b[0] = c.b
 		// if there's more bytes to read
 		if len(b) > 1 && c.err == nil {
@@ -100,10 +101,9 @@ func (c *Conn) Read(b []byte) (int, error) {
 			}
 			//return total num of bytes read (+ current) and pass error e
 			return n + 1, e
-		} else {
-			//only one byte read
-			return 1, c.err
 		}
+		//only one byte read
+		return 1, c.err
 	}
 	//using the default Conn read
 	return c.Conn.Read(b)
@@ -171,7 +171,6 @@ func (s *server) listen() error {
 	}
 	if err != nil {
 		log.Errorf("Could not load certificate from config - running without TLS: %s", err)
-		//replace this with a custom listener (redefine Accept)
 		s.l, err = net.Listen("tcp", s.addr)
 		return err
 	}
@@ -222,7 +221,6 @@ func (s *server) listen() error {
 	}
 
 	s.l = &ReqListener{Listener: innerListener, config: tlsconfig}
-	//s.l = tls.NewListener(innerListener, tlsconfig)
 	return nil
 }
 
