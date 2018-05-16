@@ -138,7 +138,7 @@ func (l *ReqListener) Accept() (net.Conn, error) {
 		Conn: c,
 		b:    b[0],
 		err:  err,
-		f:    true,
+		oneTimeSwitch:    true,
 	}
 	//the first byte is the hex byte 0x16 = 22
 	//which means that this is a  TLS “handshake” record
