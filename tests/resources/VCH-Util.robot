@@ -37,9 +37,10 @@ Set Test Environment Variables
     Set Environment Variable  GOVC_PASSWORD  %{TEST_PASSWORD}
 
     ${IN_HAAS}=  Run Keyword And Return Status  Should Contain  %{HAAS_URL_ARRAY}  %{TEST_URL}
+    ${IN_OVERFLOW}=  Run Keyword And Return Status  Should Contain  %{OVERFLOW_URL_ARRAY}  %{TEST_URL}
     Run Keyword If  ${IN_HAAS}  Log To Console  Test Server is in HaaS
-    Run Keyword Unless  ${IN_HAAS}  Log To Console  Test Server is in Nimbus
-    Run Keyword Unless  ${IN_HAAS}  Set Environment Variable  TEST_TIMEOUT  %{OVERFLOW_TEST_TIMEOUT}
+    Run Keyword If  ${IN_OVERFLOW}  Log To Console  Test Server is in Nimbus
+    Run Keyword If  ${IN_OVERFLOW}  Set Environment Variable  TEST_TIMEOUT  %{OVERFLOW_TEST_TIMEOUT}
 
     ${rc}  ${thumbprint}=  Run And Return Rc And Output  govc about.cert -k -json | jq -r .ThumbprintSHA1
     Should Be Equal As Integers  ${rc}  0
