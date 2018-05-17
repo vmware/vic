@@ -19,7 +19,9 @@ import (
 	"compress/gzip"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"html/template"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -75,6 +77,83 @@ const (
 	genericErrorMessage    = "Internal Server Error; see /var/log/vic/vicadmin.log for details" // for http errors that shouldn't be displayed in the browser to the user
 )
 
+// Conn is a wrapper struct around net.Conn that implements custom functionality (TLS Check)
+type Conn struct {
+	net.Conn
+	b            byte
+	err          error
+	UncertainTLS bool
+}
+
+// Read checks for TLS in the connection and returns number of bytes read
+func (c *Conn) Read(b []byte) (int, error) {
+	// one time check to determine if TLS is in the connection
+	if c.UncertainTLS {
+		if len(b) == 0 {
+			return 0, fmt.Errorf("invalid length of byte array, cannot proceed with TLS check")
+		}
+		c.UncertainTLS = false
+		b[0] = c.b
+		// if there's more bytes to read
+		if len(b) > 1 && c.err == nil {
+			// recurse on next byte
+			n, e := c.Conn.Read(b[1:])
+			// close connection if error during reading
+			if e != nil {
+				c.Conn.Close()
+			}
+			// return total number of bytes read (+ current) and pass error e
+			return n + 1, e
+		}
+		// only one byte read
+		return 1, c.err
+	}
+	// using the default Conn read
+	return c.Conn.Read(b)
+}
+
+// TLSRedirectListener is a wrapper struct around net.Listener that implements custom functionality (TLS Check)
+type TLSRedirectListener struct {
+	net.Listener
+	addr   string
+	config *tls.Config
+}
+
+// Accept overrides the default listener Accept and adds a TLS check
+func (l *TLSRedirectListener) Accept() (net.Conn, error) {
+	// call default net.listener.Accept first
+	c, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	// create slice of size 1 for the first byte
+	b := make([]byte, 1)
+	// regular Conn read, b will be updated with byte val
+	_, err = c.Read(b)
+	if err != nil {
+		c.Close()
+		if err != io.EOF {
+			return nil, err
+		}
+	}
+	// wrap net.Conn in custom Conn struct
+	con := &Conn{
+		Conn:         c,
+		b:            b[0],
+		err:          err,
+		UncertainTLS: true,
+	}
+	// First byte is the hex byte 0x16 = 22
+	// which means that this is a TLS “handshake” record
+	if b[0] == 22 {
+		// HTTPS creates Conn from our custom con/TLS config
+		return tls.Server(con, l.config), nil
+	}
+
+	// regular HTTP connection, return con
+	return con, nil
+}
+
 func (s *server) listen() error {
 	defer trace.End(trace.Begin(""))
 
@@ -95,7 +174,6 @@ func (s *server) listen() error {
 	}
 	if err != nil {
 		log.Errorf("Could not load certificate from config - running without TLS: %s", err)
-
 		s.l, err = net.Listen("tcp", s.addr)
 		return err
 	}
@@ -145,7 +223,7 @@ func (s *server) listen() error {
 		return err
 	}
 
-	s.l = tls.NewListener(innerListener, tlsconfig)
+	s.l = &TLSRedirectListener{Listener: innerListener, config: tlsconfig}
 	return nil
 }
 
@@ -158,9 +236,22 @@ func (s *server) AuthenticatedHandle(link string, h http.Handler) {
 	s.Authenticated(link, h.ServeHTTP)
 }
 
+// HTTPSRedirectHandle Redirects HTTP to HTTPS
+func HTTPSRedirectHandle(h http.Handler) http.Handler {
+	redirectToHTTPS := func(w http.ResponseWriter, r *http.Request) {
+		// If TLS is nil, request is not HTTPS, so we must redirect
+		if r.TLS == nil {
+			http.Redirect(w, r, fmt.Sprintf("https://%s%s", r.Host, r.RequestURI), http.StatusMovedPermanently)
+			return
+		}
+		h.ServeHTTP(w, r)
+	}
+	return http.HandlerFunc(redirectToHTTPS)
+}
+
 func (s *server) Handle(link string, h http.Handler) {
 	log.Debugf("%s --- %s", time.Now().String(), link)
-	s.mux.Handle(link, gorillacontext.ClearHandler(h))
+	s.mux.Handle(link, gorillacontext.ClearHandler(HTTPSRedirectHandle(h)))
 }
 
 // Enforces authentication on route `link` and runs `handler` on successful auth
@@ -259,7 +350,6 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 			s.logoutHandler(w, r)
 			return
 		}
-
 		// if the date & remote IP on the cookie were valid, then the user is authenticated
 		log.Infof("User with a valid auth cookie at %s is authenticated.", connectingAddr[0])
 		handler(w, r)
