@@ -279,7 +279,7 @@ func (handler *TaskHandlersImpl) WaitStartHandler(params tasks.WaitStartParams) 
 	}
 
 	// wait task to set started field to something
-	err := task.Wait(&op, handle, params.Config.TaskID)
+	err := task.WaitStart(&op, handle, params.Config.TaskID)
 	if err != nil {
 		switch err := err.(type) {
 		case *task.TaskPowerStateError:

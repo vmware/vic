@@ -533,6 +533,35 @@ func (c *ContainerProxy) BindTask(op trace.Operation, handle string, eid string)
 }
 
 func (c *ContainerProxy) WaitTask(op trace.Operation, cid string, cname string, eid string) error {
+	if c.client == nil {
+		return errors.NillPortlayerClientError("ContainerProxy")
+	}
+
+	handle, err := c.Handle(op, cid, cname)
+	if err != nil {
+		return err
+	}
+
+	// wait the Task to start
+	config := &models.TaskWaitConfig{
+		Handle: handle,
+		TaskID: eid,
+	}
+
+	params := tasks.NewWaitParamsWithContext(op).WithConfig(config)
+	_, err = c.client.Tasks.Wait(params)
+	if err != nil {
+		switch err := err.(type) {
+		case *tasks.WaitNotFound:
+			return errors.InternalServerError(fmt.Sprintf("the Container(%s) has been shutdown during execution of the exec operation", cid))
+		case *tasks.WaitPreconditionRequired:
+			return errors.InternalServerError(fmt.Sprintf("container(%s) must be powered on in order to perform the desired exec operation", cid))
+		case *tasks.WaitInternalServerError:
+			return errors.InternalServerError(err.Payload.Message)
+		default:
+			return errors.InternalServerError(err.Error())
+		}
+	}
 
 	return nil
 }
@@ -553,8 +582,8 @@ func (c *ContainerProxy) WaitStartTask(op trace.Operation, cid string, cname str
 		TaskID: eid,
 	}
 
-	params := tasks.NewWaitParamsWithContext(op).WithConfig(config)
-	_, err = c.client.Tasks.Wait(params)
+	params := tasks.NewWaitStartParamsWithContext(op).WithConfig(config)
+	_, err = c.client.Tasks.WaitStart(params)
 	if err != nil {
 		switch err := err.(type) {
 		case *tasks.WaitNotFound:

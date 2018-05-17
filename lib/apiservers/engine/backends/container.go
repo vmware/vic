@@ -490,7 +490,8 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		op.Errorf("Failed to start Exec task for container(%s) due to error (%s)", id, err)
 		return err
 	}
-	return nil
+
+	return c.containerProxy.WaitTask(op, id, name, eid)
 }
 
 // ExecExists looks up the exec instance and returns a bool if it exists or not.

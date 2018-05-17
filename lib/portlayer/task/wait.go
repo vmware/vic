@@ -23,7 +23,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-// Wait waits the task to start
+// Wait waits for the task to complete, it will retry reading the appropriate task keys until they meet the criteria for a "finished" Task
 func Wait(op *trace.Operation, h interface{}, id string) error {
 	defer trace.End(trace.Begin(id, op))
 
@@ -58,6 +58,43 @@ func Wait(op *trace.Operation, h interface{}, id string) error {
 		return c.WaitForSession(timeout, id)
 	}
 	return c.WaitForExec(timeout, id)
+}
+
+// WaitStart waits the task to start
+func WaitStart(op *trace.Operation, h interface{}, id string) error {
+	defer trace.End(trace.Begin(id, op))
+
+	handle, ok := h.(*exec.Handle)
+	if !ok {
+		return fmt.Errorf("type assertion failed for %#+v", handle)
+	}
+
+	if handle.Runtime != nil && handle.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOn {
+		err := fmt.Errorf("unable to wait for task when container %s is not running", handle.ExecConfig.ID)
+		op.Errorf("%s", err)
+		return TaskPowerStateError{Err: err}
+	}
+
+	_, okS := handle.ExecConfig.Sessions[id]
+	_, okE := handle.ExecConfig.Execs[id]
+
+	if !okS && !okE {
+		return fmt.Errorf("unknown task ID: %s", id)
+	}
+
+	// wait task to set started field
+	timeout, cancel := trace.WithTimeout(op, constants.PropertyCollectorTimeout, "Wait")
+	defer cancel()
+
+	c := exec.Containers.Container(handle.ExecConfig.ID)
+	if c == nil {
+		return fmt.Errorf("unknown container ID: %s", handle.ExecConfig.ID)
+	}
+
+	if okS {
+		return c.WaitForSession(timeout, id)
+	}
+	return c.WaitForExecStart(timeout, id)
 }
 
 type TaskPowerStateError struct {
