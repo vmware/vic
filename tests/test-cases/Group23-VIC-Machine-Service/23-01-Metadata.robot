@@ -16,18 +16,18 @@
 Documentation     Test 23-01 - Version
 Resource          ../../resources/Util.robot
 Resource          ../../resources/Group23-VIC-Machine-Service-Util.robot
-Suite Setup       Setup
-Suite Teardown    Teardown
+Suite Setup       Start VIC Machine Server
+Suite Teardown    Stop VIC Machine Server
 Default Tags
 
 
 *** Keywords ***
-Setup
-    ${handle}=    Start VIC Machine Server
-    Set Suite Variable    ${server_handle}    ${handle}
+#Setup
+#    ${handle}=    Start VIC Machine Server
+#    Set Suite Variable    ${server_handle}    ${handle}
 
-Teardown
-    Stop VIC Machine Server    ${server_handle}
+#Teardown
+#    Stop VIC Machine Server    ${server_handle}
 
 Get Version
     ${out}=  Run  netstat -l | grep 1337

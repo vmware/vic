@@ -16,8 +16,8 @@
 Documentation     Test 23-08 - VCH Delete
 Resource          ../../resources/Util.robot
 Resource          ../../resources/Group23-VIC-Machine-Service-Util.robot
-Suite Setup       Setup
-Suite Teardown    Teardown
+Suite Setup       Start VIC Machine Server
+Suite Teardown    Stop VIC Machine Server
 Test Setup        Install And Prepare VIC Appliance
 Test Teardown     Run  govc datastore.rm %{VCH-NAME}-VOL
 
@@ -25,13 +25,6 @@ Default Tags
 
 
 *** Keywords ***
-Setup
-    ${handle}=    Start VIC Machine Server
-    Set Suite Variable    ${server_handle}    ${handle}
-
-Teardown
-    Stop VIC Machine Server    ${server_handle}
-
 Pull Busybox
     Run Docker Command    pull ${busybox}
     Verify Return Code

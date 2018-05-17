@@ -16,20 +16,13 @@
 Documentation     Test 23-05 - VCH Logs
 Resource          ../../resources/Util.robot
 Resource          ../../resources/Group23-VIC-Machine-Service-Util.robot
-Suite Setup       Setup
-Suite Teardown    Teardown
+Suite Setup       Start VIC Machine Server
+Suite Teardown    Stop VIC Machine Server
 Test Setup        Install VIC Appliance To Test Server
 Test Teardown     Cleanup VIC Appliance On Test Server
 Default Tags
 
 *** Keywords ***
-Setup
-    ${handle}=    Start VIC Machine Server
-    Set Suite Variable    ${server_handle}    ${handle}
-
-Teardown
-    Stop VIC Machine Server    ${server_handle}
-
 Get VCH Log
     [Arguments]    ${vch-id}
 

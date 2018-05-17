@@ -16,19 +16,12 @@
 Documentation     Test 23-06 - VCH Certificate
 Resource          ../../resources/Util.robot
 Resource          ../../resources/Group23-VIC-Machine-Service-Util.robot
-Suite Setup       Setup
-Suite Teardown    Teardown
+Suite Setup       Start VIC Machine Server
+Suite Teardown    Stop VIC Machine Server
 Test Teardown     Cleanup VIC Appliance On Test Server
 Default Tags
 
 *** Keywords ***
-Setup
-    ${handle}=    Start VIC Machine Server
-    Set Suite Variable    ${server_handle}    ${handle}
-
-Teardown
-    Stop VIC Machine Server    ${server_handle}
-
 Install VIC Machine Without TLS
     [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${opsuser-args}=${EMPTY}  ${additional-args}=${EMPTY}
     Set Test Environment Variables

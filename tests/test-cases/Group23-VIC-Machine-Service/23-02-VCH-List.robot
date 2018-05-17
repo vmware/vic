@@ -23,13 +23,12 @@ Default Tags
 
 *** Keywords ***
 Setup
-    ${handle}=    Start VIC Machine Server
-    Set Suite Variable    ${server_handle}    ${handle}
+    Start VIC Machine Server
     Install VIC Appliance To Test Server
 
 Teardown
     Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
-    Stop VIC Machine Server    ${server_handle}
+    Stop VIC Machine Server
 
 Get VCH List
     Get Path Under Target    vch

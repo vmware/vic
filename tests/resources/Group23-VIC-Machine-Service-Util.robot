@@ -26,14 +26,16 @@ ${STATUS}        The HTTP status of the last curl invocation
 Start VIC Machine Server
     ${http_port}=    Get HTTP Port
     Set Suite Variable    ${HTTP_PORT}    ${http_port}
+
     ${handle}=    Start Process    ./bin/vic-machine-server --port ${HTTP_PORT} --scheme http    shell=True    cwd=/go/src/github.com/vmware/vic
+    Set Suite Variable    ${server_handle}    ${handle}
     Process Should Be Running    ${handle}
-    [Return]    ${handle}
+    #[Return]    ${handle}
 
 Stop VIC Machine Server
-    [Arguments]    ${handle}
-    Terminate Process    ${handle}    kill=true
-    Process Should Be Stopped    ${handle}
+    #[Arguments]    ${handle}
+    Terminate Process    ${server_handle}    kill=true
+    Process Should Be Stopped    ${server_handle}
 
 # Get unused unprivileged TCP port
 Get HTTP Port

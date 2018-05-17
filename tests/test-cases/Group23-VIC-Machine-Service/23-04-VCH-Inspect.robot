@@ -27,8 +27,7 @@ Default Tags
 #    Install VIC Appliance To Test Server  certs=${true}  additional-args=--ops-user=%{VCH_OPS_USERNAME} --ops-password=%{VCH_OPS_PASSWORD} --ops-grant-perms --debug 1
 
 Setup
-    ${handle}=    Start VIC Machine Server
-    Set Suite Variable    ${server_handle}    ${handle}
+    Start VIC Machine Server
 #    Install VIC Appliance With Ops Credentials
     Install VIC Appliance To Test Server
 
@@ -40,7 +39,7 @@ Setup
 
 
 Teardown
-    Stop VIC Machine Server    ${server_handle}
+    Stop VIC Machine Server
     Cleanup VIC Appliance On Test Server
 
 Inspect VCH

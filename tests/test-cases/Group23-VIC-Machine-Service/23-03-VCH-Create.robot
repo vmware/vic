@@ -24,8 +24,7 @@ Default Tags
 
 *** Keywords ***
 Setup
-    ${handle}=    Start VIC Machine Server
-    Set Suite Variable    ${server_handle}    ${handle}
+    Start VIC Machine Server
     Set Test Environment Variables
 
     ${PUBLIC_NETWORK}=  Remove String  %{PUBLIC_NETWORK}  '
@@ -33,7 +32,7 @@ Setup
 
 
 Teardown
-    Stop VIC Machine Server    ${server_handle}
+    Stop VIC Machine Server
     Cleanup Test Server
 
 
