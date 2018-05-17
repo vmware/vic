@@ -141,7 +141,7 @@ func (l *ReqListener) Accept() (net.Conn, error) {
 		oneTimeSwitch: true,
 	}
 	//the first byte is the hex byte 0x16 = 22
-	//which means that this is a  TLS “handshake” record
+	//which means that this is a TLS “handshake” record
 	if b[0] == 22 {
 		//HTTPS creates Conn from our custom con/tls config
 		return tls.Server(con, l.config), nil
