@@ -77,7 +77,7 @@ const (
 	genericErrorMessage    = "Internal Server Error; see /var/log/vic/vicadmin.log for details" // for http errors that shouldn't be displayed in the browser to the user
 )
 
-// wrapper struct around net.Conn for our custom funcs
+// Conn is a wrapper struct around net.Conn that implements custom functionality (TLS Check)
 type Conn struct {
 	net.Conn
 	b            byte
@@ -85,7 +85,7 @@ type Conn struct {
 	UncertainTLS bool
 }
 
-// Returns number of bytes read
+// Read checks for TLS in the connection and returns number of bytes read
 func (c *Conn) Read(b []byte) (int, error) {
 	// one time check to determine if TLS is in the connection
 	if c.UncertainTLS {
@@ -102,7 +102,7 @@ func (c *Conn) Read(b []byte) (int, error) {
 			if e != nil {
 				c.Conn.Close()
 			}
-			// return total num of bytes read (+ current) and pass error e
+			// return total number of bytes read (+ current) and pass error e
 			return n + 1, e
 		}
 		// only one byte read
@@ -112,20 +112,21 @@ func (c *Conn) Read(b []byte) (int, error) {
 	return c.Conn.Read(b)
 }
 
+// TLSRedirectListener is a wrapper struct around net.Listener that implements custom functionality (TLS Check)
 type TLSRedirectListener struct {
 	net.Listener
 	addr   string
 	config *tls.Config
 }
 
-// override default listener Accept function and add TLS check
+// Accept overrides the default listener Accept and adds a TLS check
 func (l *TLSRedirectListener) Accept() (net.Conn, error) {
 	// call default net.listener.Accept first
 	c, err := l.Listener.Accept()
 	if err != nil {
 		return nil, err
 	}
-	// create slice of size 1 for tru the first byte
+	// create slice of size 1 for the first byte
 	b := make([]byte, 1)
 	// regular Conn read, b will be updated with byte val
 	_, err = c.Read(b)
@@ -135,14 +136,14 @@ func (l *TLSRedirectListener) Accept() (net.Conn, error) {
 			return nil, err
 		}
 	}
-	// wrap Conn in our custom struct
+	// wrap net.Conn in custom Conn struct
 	con := &Conn{
 		Conn:         c,
 		b:            b[0],
 		err:          err,
 		UncertainTLS: true,
 	}
-	// the first byte is the hex byte 0x16 = 22
+	// First byte is the hex byte 0x16 = 22
 	// which means that this is a TLS “handshake” record
 	if b[0] == 22 {
 		// HTTPS creates Conn from our custom con/TLS config
@@ -235,7 +236,7 @@ func (s *server) AuthenticatedHandle(link string, h http.Handler) {
 	s.Authenticated(link, h.ServeHTTP)
 }
 
-// Redirects HTTP to HTTPS
+// HTTPSRedirectHandle Redirects HTTP to HTTPS
 func HTTPSRedirectHandle(h http.Handler) http.Handler {
 	redirectToHTTPS := func(w http.ResponseWriter, r *http.Request) {
 		// If TLS is nil, request is not HTTPS, so we must redirect
@@ -258,7 +259,6 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 	defer trace.End(trace.Begin(""))
 
 	authHandler := func(w http.ResponseWriter, r *http.Request) {
-
 		// #nosec: Errors unhandled because it is okay if the cookie doesn't exist.
 		websession, _ := s.uss.cookies.Get(r, sessionCookieKey)
 
@@ -302,7 +302,6 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 			}
 
 			// user was authenticated via cert
-
 			handler(w, r)
 			return
 		}
