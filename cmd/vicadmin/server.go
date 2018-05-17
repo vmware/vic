@@ -77,55 +77,54 @@ const (
 	genericErrorMessage    = "Internal Server Error; see /var/log/vic/vicadmin.log for details" // for http errors that shouldn't be displayed in the browser to the user
 )
 
-//wrapper struct around net.Conn for our custom funcs
+// wrapper struct around net.Conn for our custom funcs
 type Conn struct {
 	net.Conn
-	b             byte
-	err           error
-	oneTimeSwitch bool
+	b            byte
+	err          error
+	UncertainTLS bool
 }
 
-//Returns number of bytes read
+// Returns number of bytes read
 func (c *Conn) Read(b []byte) (int, error) {
-	//oneTimeSwitch bool of first conn starts off as true so we do the TLS check once
-	if c.oneTimeSwitch {
-		c.oneTimeSwitch = false
+	// one time check to determine if TLS is in the connection
+	if c.UncertainTLS {
+		c.UncertainTLS = false
 		b[0] = c.b
 		// if there's more bytes to read
 		if len(b) > 1 && c.err == nil {
-			//recurse on next byte
+			// recurse on next byte
 			n, e := c.Conn.Read(b[1:])
-			//close connection if error during reading
+			// close connection if error during reading
 			if e != nil {
 				c.Conn.Close()
 			}
-			//return total num of bytes read (+ current) and pass error e
+			// return total num of bytes read (+ current) and pass error e
 			return n + 1, e
 		}
-		//only one byte read
+		// only one byte read
 		return 1, c.err
 	}
-	//using the default Conn read
+	// using the default Conn read
 	return c.Conn.Read(b)
 }
 
-//wrapper struct for our custom funcs
-type ReqListener struct {
+type TLSRedirectListener struct {
 	net.Listener
 	addr   string
 	config *tls.Config
 }
 
-//override default listener Accept function and add TLS check
-func (l *ReqListener) Accept() (net.Conn, error) {
-	//call default net.listener.Accept first
+// override default listener Accept function and add TLS check
+func (l *TLSRedirectListener) Accept() (net.Conn, error) {
+	// call default net.listener.Accept first
 	c, err := l.Listener.Accept()
 	if err != nil {
 		return nil, err
 	}
-	//create slice of size 1 for storing the first byte
+	// create slice of size 1 for tru the first byte
 	b := make([]byte, 1)
-	//regular conn read, b will be updated with byte val
+	// regular Conn read, b will be updated with byte val
 	_, err = c.Read(b)
 	if err != nil {
 		c.Close()
@@ -133,21 +132,21 @@ func (l *ReqListener) Accept() (net.Conn, error) {
 			return nil, err
 		}
 	}
-	//wrap Conn in our custom struct
+	// wrap Conn in our custom struct
 	con := &Conn{
-		Conn:          c,
-		b:             b[0],
-		err:           err,
-		oneTimeSwitch: true,
+		Conn:         c,
+		b:            b[0],
+		err:          err,
+		UncertainTLS: true,
 	}
-	//the first byte is the hex byte 0x16 = 22
-	//which means that this is a TLS “handshake” record
+	// the first byte is the hex byte 0x16 = 22
+	// which means that this is a TLS “handshake” record
 	if b[0] == 22 {
-		//HTTPS creates Conn from our custom con/tls config
+		// HTTPS creates Conn from our custom con/TLS config
 		return tls.Server(con, l.config), nil
 	}
 
-	//regular HTTP connection, return con
+	// regular HTTP connection, return con
 	return con, nil
 }
 
@@ -220,7 +219,7 @@ func (s *server) listen() error {
 		return err
 	}
 
-	s.l = &ReqListener{Listener: innerListener, config: tlsconfig}
+	s.l = &TLSRedirectListener{Listener: innerListener, config: tlsconfig}
 	return nil
 }
 
@@ -233,18 +232,15 @@ func (s *server) AuthenticatedHandle(link string, h http.Handler) {
 	s.Authenticated(link, h.ServeHTTP)
 }
 
-//Redirects HTTP to HTTPS
+// Redirects HTTP to HTTPS
 func HTTPSRedirectHandle(h http.Handler) http.Handler {
 	redirectToHTTPS := func(w http.ResponseWriter, r *http.Request) {
-		//If TLS is nil, request is not HTTPS, so we must redirect
+		// If TLS is nil, request is not HTTPS, so we must redirect
 		if r.TLS == nil {
-
 			http.Redirect(w, r, fmt.Sprintf("https://%s%s", r.Host, r.RequestURI), http.StatusMovedPermanently)
 			return
 		}
 		h.ServeHTTP(w, r)
-		return
-
 	}
 	return http.HandlerFunc(redirectToHTTPS)
 }
