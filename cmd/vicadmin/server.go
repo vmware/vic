@@ -89,6 +89,9 @@ type Conn struct {
 func (c *Conn) Read(b []byte) (int, error) {
 	// one time check to determine if TLS is in the connection
 	if c.UncertainTLS {
+		if len(b) == 0 {
+			return 0, fmt.Errorf("invalid length of byte array, cannot proceed with TLS check")
+		}
 		c.UncertainTLS = false
 		b[0] = c.b
 		// if there's more bytes to read
