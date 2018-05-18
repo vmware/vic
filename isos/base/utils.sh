@@ -369,3 +369,13 @@ rootfs_dir() {
 bootfs_dir() {
     echo $1/bootfs
 }
+
+rootfs_prepend() {
+    list=("$@")
+    rootfs=${list[0]}
+    for ((index = 1; index < ${#list[@]}; ++index)); do
+        out_index=$(( ${index} - 1 ))
+        out_list[${out_index}]="$(rootfs_dir ${rootfs})${list[${index}]}"
+    done
+    echo ${out_list[@]}
+}
