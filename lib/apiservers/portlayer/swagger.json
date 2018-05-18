@@ -1737,14 +1737,64 @@
 				}
 			}
 		},
-		"/tasks": {
-			"put": {
-				"description": "Initiates an task wait operation",
-				"summary": "Initiates an task wait operation",
-				"operationId": "Wait",
-				"tags": [
-					"tasks"
+    "/tasks/start": {
+        "put": {
+				  "description": "Initiates a wait for the specified task to start",
+				  "summary": "Initiates a waot for the specified task to start",
+				  "operationId": "WaitStart",
+				  "tags": [
+					  "tasks"
+				  ],
+				"consumes": [
+					"application/json",
+					"application/octet-stream"
 				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "config",
+						"in": "body",
+						"required": true,
+						"schema": {
+							"$ref": "#/definitions/TaskWaitConfig"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK"
+					},
+					"404": {
+						"description": "not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"428": {
+						"description": "target resource is not powered on",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "Wait of task failed",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+       }
+      },
+		"/tasks": {
+			  "put": {
+				  "description": "Initiates a task wait operation",
+				  "summary": "Initiates a task wait operation",
+				  "operationId": "Wait",
+				  "tags": [
+					  "tasks"
+				  ],
 				"consumes": [
 					"application/json",
 					"application/octet-stream"
@@ -1787,8 +1837,8 @@
 				}
 			},
 			"get": {
-				"description": "Initiates an task inspect operation",
-				"summary": "Initiates an task inspect operation",
+				"description": "Initiates a task inspect operation",
+				"summary": "Initiates a task inspect operation",
 				"operationId": "Inspect",
 				"tags": [
 					"tasks"
@@ -1838,8 +1888,8 @@
 				}
 			},
 			"post": {
-				"description": "Initiates an task join operation",
-				"summary": "Initiates an task join operation",
+				"description": "Initiates a task join operation",
+				"summary": "Initiates a task join operation",
 				"operationId": "Join",
 				"tags": [
 					"tasks"
@@ -3789,10 +3839,10 @@
 			"type": "object",
 			"required": [
 				"handle",
-				"id"
+				"taskID"
 			],
 			"properties": {
-				"id": {
+				"taskID": {
 					"type": "string",
 					"x-nullable": false
 				},

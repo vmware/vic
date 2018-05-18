@@ -20,6 +20,7 @@ import (
 
 	"github.com/go-openapi/runtime/middleware"
 
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/tasks"
@@ -41,6 +42,7 @@ func (handler *TaskHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Hand
 	api.TasksRemoveHandler = tasks.RemoveHandlerFunc(handler.RemoveHandler)
 	api.TasksInspectHandler = tasks.InspectHandlerFunc(handler.InspectHandler)
 	api.TasksWaitHandler = tasks.WaitHandlerFunc(handler.WaitHandler)
+	api.TasksWaitStartHandler = tasks.WaitStartHandlerFunc(handler.WaitStartHandler)
 }
 
 // JoinHandler calls the Join
@@ -241,7 +243,7 @@ func (handler *TaskHandlersImpl) InspectHandler(params tasks.InspectParams) midd
 
 	res := &models.TaskInspectResponse{
 		ID:       t.ID,
-		Running:  t.Started == "true",
+		Running:  t.Started == "true" && t.Detail.StartTime > t.Detail.StopTime && handle.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn,
 		ExitCode: int64(t.ExitStatus),
 		ProcessConfig: &models.ProcessConfig{
 			ExecPath: t.Cmd.Path,
@@ -266,7 +268,7 @@ func (handler *TaskHandlersImpl) InspectHandler(params tasks.InspectParams) midd
 // WaitHandler calls wait
 func (handler *TaskHandlersImpl) WaitHandler(params tasks.WaitParams) middleware.Responder {
 	defer trace.End(trace.Begin(""))
-	op := trace.NewOperation(context.Background(), "task.Wait(%s, %s)", params.Config.Handle, params.Config.ID)
+	op := trace.NewOperation(context.Background(), "task.Wait(%s, %s)", params.Config.Handle, params.Config.TaskID)
 
 	handle := exec.HandleFromInterface(params.Config.Handle)
 	if handle == nil {
@@ -275,7 +277,7 @@ func (handler *TaskHandlersImpl) WaitHandler(params tasks.WaitParams) middleware
 	}
 
 	// wait task to set started field to something
-	err := task.Wait(&op, handle, params.Config.ID)
+	err := task.Wait(&op, handle, params.Config.TaskID)
 	if err != nil {
 		switch err := err.(type) {
 		case *task.TaskPowerStateError:
@@ -294,4 +296,36 @@ func (handler *TaskHandlersImpl) WaitHandler(params tasks.WaitParams) middleware
 	}
 
 	return tasks.NewWaitOK()
+}
+
+func (handler *TaskHandlersImpl) WaitStartHandler(params tasks.WaitStartParams) middleware.Responder {
+	defer trace.End(trace.Begin(""))
+	op := trace.NewOperation(context.Background(), "task.Wait(%s, %s)", params.Config.Handle, params.Config.TaskID)
+
+	handle := exec.HandleFromInterface(params.Config.Handle)
+	if handle == nil {
+		err := &models.Error{Message: "Failed to get the Handle"}
+		return tasks.NewInspectInternalServerError().WithPayload(err)
+	}
+
+	// wait task to set started field to something
+	err := task.WaitStart(&op, handle, params.Config.TaskID)
+	if err != nil {
+		switch err := err.(type) {
+		case *task.TaskPowerStateError:
+			op.Errorf("The container was in an invalid power state for the wait operation: %s", err.Error())
+			return tasks.NewWaitStartPreconditionRequired().WithPayload(
+				&models.Error{Message: err.Error()})
+		case *task.TaskNotFoundError:
+			op.Errorf("The task was unable to be found: %s", err.Error())
+			return tasks.NewWaitStartNotFound().WithPayload(
+				&models.Error{Message: err.Error()})
+		default:
+			op.Errorf("%s", err.Error())
+			return tasks.NewWaitStartInternalServerError().WithPayload(
+				&models.Error{Message: err.Error()})
+		}
+	}
+
+	return tasks.NewWaitStartOK()
 }

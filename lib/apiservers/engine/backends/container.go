@@ -297,6 +297,7 @@ func (c *ContainerBackend) ContainerExecInspect(eid string) (*backend.ExecInspec
 		return nil, err
 	}
 
+	log.Debugf("exit code was reported as %d", ec.ExitCode)
 	exit := int(ec.ExitCode)
 	return &backend.ExecInspect{
 		ID:       ec.ID,
@@ -403,7 +404,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 			defer trace.End(trace.Begin(eid))
 
 			// wait property collector
-			if err := c.containerProxy.WaitTask(taskCtx, id, name, eid); err != nil {
+			if err := c.containerProxy.WaitStartTask(taskCtx, id, name, eid); err != nil {
 				op.Errorf("Task wait returned %s, canceling the context", err)
 
 				// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly
@@ -476,7 +477,8 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		op.Errorf("Failed to start Exec task for container(%s) due to error (%s)", id, err)
 		return err
 	}
-	return nil
+
+	return c.containerProxy.WaitTask(op, id, name, eid)
 }
 
 // ExecExists looks up the exec instance and returns a bool if it exists or not.

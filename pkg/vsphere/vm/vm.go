@@ -237,6 +237,22 @@ func (vm *VirtualMachine) FetchExtraConfig(ctx context.Context) (map[string]stri
 	return info, nil
 }
 
+func (vm *VirtualMachine) GetKeyFromExtraConfig(op trace.Operation, key string) (string, error) {
+	op.Debugf("Collecting key(%s) from vm(%s)", key, vm.Name())
+
+	// get the key from the extraConfig
+	keys, err := vm.FetchExtraConfig(op)
+	if err != nil {
+		return "", err
+	}
+
+	if ecValue, ok := keys[key]; ok {
+		return ecValue, nil
+	}
+
+	return "", fmt.Errorf("Key(%s) not found", key)
+}
+
 // WaitForExtraConfig waits until key shows up with the expected value inside the ExtraConfig
 func (vm *VirtualMachine) WaitForExtraConfig(ctx context.Context, waitFunc func(pc []types.PropertyChange) bool) error {
 	op := trace.FromContext(ctx, "WaitForExtraConfig")

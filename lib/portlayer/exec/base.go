@@ -220,13 +220,6 @@ func (c *containerBase) ReloadConfig(op trace.Operation) error {
 	return c.startGuestProgram(op, "reload", "")
 }
 
-// WaitForExec waits exec'ed task to set started field or timeout
-func (c *containerBase) WaitForExec(op trace.Operation, id string) error {
-	defer trace.End(trace.Begin(id, op))
-
-	return c.waitForExec(op, id)
-}
-
 // WaitForSession waits non-exec'ed task to set started field or timeout
 func (c *containerBase) WaitForSession(ctx context.Context, id string) error {
 	defer trace.End(trace.Begin(id, ctx))
@@ -461,12 +454,75 @@ func (c *containerBase) waitForSession(ctx context.Context, id string) error {
 	return c.waitFor(ctx, key)
 }
 
-func (c *containerBase) waitForExec(op trace.Operation, id string) error {
+func (c *containerBase) WaitForExecStart(op trace.Operation, id string) error {
 	defer trace.End(trace.Begin(id, op))
 
 	// guestinfo key that we want to wait for
 	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Execs.%s.Started", id), "")[0]
 	return c.waitFor(op, key)
+}
+
+// Waits for the exec'd task to complete.
+//TODO: we really need structured Task style errors so that we can be more explicit in our handling upstream.
+func (c *containerBase) WaitForExec(op trace.Operation, id string) error {
+	op.Debugf("waiting for exec(%s) to complete", id)
+
+	// NOTE: Do we need to go to the property collector for all of these? The container base is from the exec cache... will it contain the new changes liked started?
+	startedKey := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Execs.%s.Started", id), "")[0]
+	stopTimeKey := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Execs.%s.detail.stoptime", id), "")[0]
+	startTimeKey := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Execs.%s.detail.starttime", id), "")[0]
+	poweredOff := false
+
+	startedValue, err := c.vm.GetKeyFromExtraConfig(op, startedKey)
+	// NOTE: right now waitForStart is always called before this. So exec.%s.Starterd == true should always be the case.
+	if err != nil || startedValue != "true`" {
+		return fmt.Errorf("Task(%s) has not been started", id)
+	}
+
+	// We must compare the StopTime to the StartTime since the exec has started.
+	startTime, err := c.vm.GetKeyFromExtraConfig(op, startTimeKey)
+	if err != nil {
+		return err
+	}
+
+	// wait until StopTime > StartTime
+	waitFunc := func(pc []types.PropertyChange) bool {
+		for _, c := range pc {
+			if c.Op != types.PropertyChangeOpAssign {
+				continue
+			}
+
+			switch v := c.Val.(type) {
+			case types.ArrayOfOptionValue:
+				for _, value := range v.OptionValue {
+					if value.GetOptionValue().Key == stopTimeKey {
+						currentStopTime := value.GetOptionValue().Value.(string)
+						if startTime < currentStopTime {
+							// retrying again since stop time is still less than start time.
+							return true
+						}
+						break // continue the outer loop as we may have a powerState change too
+					}
+				}
+			case types.VirtualMachinePowerState:
+				// Give up if the vm has powered off
+				poweredOff = v != types.VirtualMachinePowerStatePoweredOn
+			}
+		}
+
+		return poweredOff
+	}
+
+	err = c.vm.WaitForExtraConfig(op, waitFunc)
+	if err != nil {
+		return err
+	}
+
+	if poweredOff {
+		return fmt.Errorf("container(%s) has unexpectedly unexpectedly powered off", c.ExecConfig.ID)
+	}
+
+	return nil
 }
 
 func (c *containerBase) waitFor(ctx context.Context, key string) error {
