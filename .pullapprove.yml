@@ -224,15 +224,6 @@ groups:
         include:
           - "vendor/*"
 
-  ui-cmd:
-    users:
-      - morris-jason
-      - zjs
-    conditions:
-      files:
-        include:
-          - "cmd/vic-ui/*"
-
   pullapprove:
     users:
       - gigawhitlocks
