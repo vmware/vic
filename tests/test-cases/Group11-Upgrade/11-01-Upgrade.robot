@@ -16,7 +16,7 @@
 Documentation  Test 11-01 - Upgrade
 Resource  ../../resources/Util.robot
 Suite Setup  Disable Ops User And Install VIC To Test Server
-#Suite Teardown  Re-Enable Ops User And Clean Up VIC Appliance
+Suite Teardown  Re-Enable Ops User And Clean Up VIC Appliance
 Default Tags
 
 *** Variables ***
