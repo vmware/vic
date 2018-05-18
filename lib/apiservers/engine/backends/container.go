@@ -296,21 +296,8 @@ func (c *ContainerBackend) ContainerExecInspect(eid string) (*backend.ExecInspec
 	if err != nil {
 		return nil, err
 	}
-	log.Debugf("exit code was reported as %d", ec.ExitCode)
-	for !ec.Running {
-		handle, err = c.Handle(id, name)
-		if err != nil {
-			op.Error(err)
-			return nil, engerr.InternalServerError(err.Error())
-		}
-		time.Sleep(5 * time.Second)
-		ec, err = c.containerProxy.InspectTask(op, handle, eid, id)
-		if err != nil {
-			return nil, err
-		}
-		log.Debugf("(retry) exit code was reported as %d", ec.ExitCode)
-	}
 
+	log.Debugf("exit code was reported as %d", ec.ExitCode)
 	exit := int(ec.ExitCode)
 	return &backend.ExecInspect{
 		ID:       ec.ID,
