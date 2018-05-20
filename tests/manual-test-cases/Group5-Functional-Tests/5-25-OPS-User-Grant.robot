@@ -142,7 +142,7 @@ vic-machine create grants ops-user perms
     [Teardown]  Cleanup VIC Appliance On Test Server
 
 granted ops-user perms work after upgrade
-    Install VIC with version to Test Server  v1.3.1  additional-args=--ops-user ${ops_user_name} --ops-password ${ops_user_password} --ops-grant-perms
+    Install VIC with version to Test Server  v1.4.0  additional-args=--ops-user ${ops_user_name} --ops-password ${ops_user_password} --ops-grant-perms
 
     Check Original Version
     Upgrade
