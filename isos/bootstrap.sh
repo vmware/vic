@@ -88,7 +88,12 @@ PKGDIR=$(mktemp -d)
 unpack $package $PKGDIR
 
 # load the repo to use from the package if not explicit in env
-REPODIR="$DIR/base/repos/${REPO:-$(cat $PKGDIR/repo.cfg)}/"
+REPO=${REPO:-$(cat $PKGDIR/repo.cfg)}
+REPODIR="$DIR/base/repos/${REPO}/"
+PACKAGE_MANAGER=${PACKAGE_MANAGER:-$(cat $REPODIR/repo-spec.json | jq -r '.packagemanager')}
+PACKAGE_MANAGER=${PACKAGE_MANAGER:-tdnf}
+setup_pm $REPODIR $PKGDIR $PACKAGE_MANAGER $REPO
+
 
 #selecting the init script as our entry point.
 if [ -v debug ]; then
@@ -107,7 +112,7 @@ cp ${BIN}/unpack $(rootfs_dir $PKGDIR)/bin/unpack
 if [ -d $(rootfs_dir $PKGDIR)/etc/systemd ]; then
     echo "Preparing systemd for bootstrap"
 
-    # copy in sysv-init entry script
+    # copy in systemd entry script
     cp ${DIR}/bootstrap/systemd-init $(rootfs_dir $PKGDIR)/bin/init
 
     # kick off our components at boot time
@@ -123,12 +128,23 @@ if [ -d $(rootfs_dir $PKGDIR)/etc/systemd ]; then
 
     # do not use the systemd dhcp client
     rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
-    cp ${DIR}/base/no-dhcp.network $(rootfs_dir $PKGDIR)/etc/systemd/network/
+
+    # some systemd distros (centos-7) do not use systemd-networkd
+    [ -e $(rootfs_dir $PKGDIR)/etc/systemd/network/ ] && cp ${DIR}/base/no-dhcp.network $(rootfs_dir $PKGDIR)/etc/systemd/network/
 else
     echo "Preparing systemV init for bootstrap"
     
     # copy in sysv-init entry script
     cp ${DIR}/bootstrap/sysv-init $(rootfs_dir $PKGDIR)/bin/init
+
+    # kick off our components at boot time
+    cp ${DIR}/bootstrap/tether $(rootfs_dir $PKGDIR)/etc/rc.d/init.d/
+    chmod +x $(rootfs_dir $PKGDIR)/etc/rc.d/init.d/tether
+    ln -sf /etc/rc.d/init.d/tether $(rootfs_dir $PKGDIR)/etc/rc.d/rc1.d/S90tether
+
+    # set the default run level for sysvinit
+    # networking disabled on rc1
+    cp ${DIR}/bootstrap/inittab $(rootfs_dir $PKGDIR)/etc/inittab
 fi
 cp ${REPODIR}/init.sh $(rootfs_dir $PKGDIR)/bin/repoinit
 

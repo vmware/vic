@@ -1,19 +1,29 @@
 #!/bin/bash
-
-mount -t proc none /proc
-mount -t sysfs none /sys
-mount -t tmpfs none /dev
-
+# Copyright 2018 VMware, Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+set -x
 
 # Usage: copies entropy source to target system. Creates the following
 # executable in the target filesystem to launch the actual entropy source:
-# /bin/entropy - should exec the target binary with any arguements required
+# /bin/entropy - should exec the target binary with any arguments required
 #                inline and pass through any additional provided
 # 
 # arg1: root of destination filesystem
 install-entropy () {
     # copy rngd and libraries to target from current root
-    mkdir -p $1/{bin,lib64}
+    mkdir -p $1/{opt/config,bin/lib64}
     cp -Ln /lib64/ld-linux-x86-64.so.2 $1/lib64/ 
     cp -Ln /lib64/libc.so.6 $1/lib64/ 
     cp /sbin/rngd $1/bin/rngd
@@ -21,17 +31,14 @@ install-entropy () {
     # TODO: stop assuming sh - can we replace with:
     # a. json config with rtld, rtld args, binary, binary args, chroot?
     # b. Go plugins for tether extensions
-    cat - > $1/bin/entropy <<ENTROPY
-#!/bin/sh
-exec /.tether/lib64/ld-linux-x86-64.so.2 --library-path /.tether/lib64/ /.tether/bin/rngd "\$@"
+    cat - > $1/opt/config/entropy.txt <<ENTROPY
+/.tether/lib64/ld-linux-x86-64.so.2 --library-path /.tether/lib64/ /.tether/bin/rngd "\$@"
 ENTROPY
-
-    chmod a+x $1/bin/entropy
 }
 
 # Usage: copies iptables tools to target system. Creates the following
 # executable in the target filesystem to launch iptables:
-# /bin/iptables - should exec the target binary with any arguements required
+# /bin/iptables - should exec the target binary with any arguments required
 #                 inline and pass through any additional provided
 # 
 # arg1: root of destination filesystem

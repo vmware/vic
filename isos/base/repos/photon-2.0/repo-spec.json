@@ -2,7 +2,7 @@
     "name": "photon-2.0",
     "packagemanager": "tdnf",
     "kernel": "linux-esx",
-    "init": "/lib/systemd/systemd",
+    "init": "/bin/init",
     "packages_script_staging": {
         "bootstrap": "",
         "appliance": "erase toybox"
