@@ -45,7 +45,6 @@ func Wait(op *trace.Operation, h interface{}, id string) error {
 		return fmt.Errorf("unknown task ID: %s", id)
 	}
 
-	// wait task to set started field
 	timeout, cancel := trace.WithTimeout(op, constants.PropertyCollectorTimeout, "Wait")
 	defer cancel()
 
@@ -57,6 +56,7 @@ func Wait(op *trace.Operation, h interface{}, id string) error {
 	if okS {
 		return c.WaitForSession(timeout, id)
 	}
+
 	return c.WaitForExec(timeout, id)
 }
 

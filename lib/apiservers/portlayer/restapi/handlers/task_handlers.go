@@ -233,15 +233,20 @@ func (handler *TaskHandlersImpl) InspectHandler(params tasks.InspectParams) midd
 		}
 	}
 
+	tState, err := task.State(t)
+	if err != nil {
+		return tasks.NewInspectInternalServerError().WithPayload(&models.Error{Message: err.Error()})
+	}
+
 	op.Debugf("ID: %#v", t.ID)
 	op.Debugf("Path: %#v", t.Cmd.Path)
 	op.Debugf("Args: %#v", t.Cmd.Args)
-	op.Debugf("Running: %#v", t.StartTime)
+	op.Debugf("State: %s", tState)
 	op.Debugf("ExitCode: %#v", t.ExitStatus)
 
 	res := &models.TaskInspectResponse{
 		ID:       t.ID,
-		Running:  t.Started == "true",
+		State:    tState,
 		ExitCode: int64(t.ExitStatus),
 		ProcessConfig: &models.ProcessConfig{
 			ExecPath: t.Cmd.Path,

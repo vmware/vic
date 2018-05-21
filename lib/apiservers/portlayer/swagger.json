@@ -1737,10 +1737,10 @@
 				}
 			}
 		},
-		"/tasks": {
-			"put": {
-				"description": "Initiates an task wait operation",
-				"summary": "Initiates an task wait operation",
+    "/tasks/wait": {
+			"get": {
+				"description": "Initiates a task wait operation",
+				"summary": "Initiates a task wait operation",
 				"operationId": "Wait",
 				"tags": [
 					"tasks"
@@ -1779,16 +1779,18 @@
 						}
 					},
 					"500": {
-						"description": "Wait of task failed",
+						"description": "wait of task failed",
 						"schema": {
 							"$ref": "#/definitions/Error"
 						}
 					}
 				}
-			},
+			}
+    },
+		"/tasks": {
 			"get": {
-				"description": "Initiates an task inspect operation",
-				"summary": "Initiates an task inspect operation",
+				"description": "Initiates a task inspect operation",
+				"summary": "Initiates a task inspect operation",
 				"operationId": "Inspect",
 				"tags": [
 					"tasks"
@@ -1838,8 +1840,8 @@
 				}
 			},
 			"post": {
-				"description": "Initiates an task join operation",
-				"summary": "Initiates an task join operation",
+				"description": "Initiates a task join operation",
+				"summary": "Initiates a task join operation",
 				"operationId": "Join",
 				"tags": [
 					"tasks"
@@ -1883,8 +1885,8 @@
 				}
 			},
 			"delete": {
-				"description": "Initiates an task remove operation",
-				"summary": "Initiates an task remove operation",
+				"description": "Initiates a task remove operation",
+				"summary": "Initiates a task remove operation",
 				"operationId": "Remove",
 				"tags": [
 					"tasks"
@@ -1931,7 +1933,7 @@
 		"/tasks/binding": {
 			"post": {
 				"description": "Activate a task that exists within the context of the provided handle",
-				"summary": "Activate an existing task",
+				"summary": "Activate a existing task",
 				"operationId": "Bind",
 				"tags": [
 					"tasks"
@@ -1976,7 +1978,7 @@
 			},
 			"delete": {
 				"description": "Deactivate a task that exists within the context of the provided handle",
-				"summary": "Deactivate an existing task",
+				"summary": "Deactivate a existing task",
 				"operationId": "Unbind",
 				"tags": [
 					"tasks"
@@ -3860,8 +3862,8 @@
 					"type": "string",
 					"x-nullable": false
 				},
-				"running": {
-					"type": "boolean",
+				"state": {
+					"type": "string",
 					"x-nullable": false
 				},
 				"exitCode": {

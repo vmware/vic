@@ -300,7 +300,7 @@ func (c *ContainerBackend) ContainerExecInspect(eid string) (*backend.ExecInspec
 	exit := int(ec.ExitCode)
 	return &backend.ExecInspect{
 		ID:       ec.ID,
-		Running:  ec.Running,
+		Running:  ec.State == "Running", // TODO this is not quite right, update this once the state var is filled correctly...
 		ExitCode: &exit,
 		ProcessConfig: &backend.ExecProcessConfig{
 			Tty:        ec.Tty,
@@ -402,7 +402,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		go func() {
 			defer trace.End(trace.Begin(eid))
 
-			// wait property collector
+			// wait for the start. The first change should atleast be the start of the exec
 			if err := c.containerProxy.WaitTask(taskCtx, id, name, eid); err != nil {
 				op.Errorf("Task wait returned %s, canceling the context", err)
 
@@ -421,49 +421,46 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 		EventService().Log(event, eventtypes.ContainerEventType, actor)
 
-		// no need to attach for detached case
-		if !attach {
-			op.Debugf("Detached mode. Returning early.")
-			return nil
-		}
-
-		EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
-		ca := &backend.ContainerAttachConfig{
-			UseStdin:  ec.OpenStdin,
-			UseStdout: ec.OpenStdout,
-			UseStderr: ec.OpenStderr,
-		}
-
-		// set UseStderr to false for Tty case as we merge stdout and stderr
-		if ec.Tty {
-			ca.UseStderr = false
-		}
-
-		ac := &proxy.AttachConfig{
-			ID: eid,
-			ContainerAttachConfig: ca,
-			UseTty:                ec.Tty,
-			CloseStdin:            true,
-		}
-
-		err = c.streamProxy.AttachStreams(ctx, ac, stdin, stdout, stderr)
-		if err != nil {
-			if _, ok := err.(engerr.DetachError); ok {
-				op.Infof("Detach detected, tearing down connection")
-
-				// QUESTION: why are we returning DetachError? It doesn't seem like an error
-				// fire detach event
-				EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
-
-				// DON'T UNBIND FOR NOW, UNTIL/UNLESS REFERENCE COUNTING IS IN PLACE
-				// This avoids cutting the communication channel for other sessions connected to this
-				// container
-
-				// FIXME: call UnbindInteraction/Commit
+		if attach {
+			EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
+			ca := &backend.ContainerAttachConfig{
+				UseStdin:  ec.OpenStdin,
+				UseStdout: ec.OpenStdout,
+				UseStderr: ec.OpenStderr,
 			}
 
-			return err
+			// set UseStderr to false for Tty case as we merge stdout and stderr
+			if ec.Tty {
+				ca.UseStderr = false
+			}
+
+			ac := &proxy.AttachConfig{
+				ID: eid,
+				ContainerAttachConfig: ca,
+				UseTty:                ec.Tty,
+				CloseStdin:            true,
+			}
+
+			err = c.streamProxy.AttachStreams(ctx, ac, stdin, stdout, stderr)
+			if err != nil {
+				if _, ok := err.(engerr.DetachError); ok {
+					op.Infof("Detach detected, tearing down connection")
+
+					// QUESTION: why are we returning DetachError? It doesn't seem like an error
+					// fire detach event
+					EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
+
+					// DON'T UNBIND FOR NOW, UNTIL/UNLESS REFERENCE COUNTING IS IN PLACE
+					// This avoids cutting the communication channel for other sessions connected to this
+					// container
+
+					// FIXME: call UnbindInteraction/Commit
+				}
+
+				return err
+			}
 		}
+
 		return nil
 	}
 
@@ -476,6 +473,36 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		op.Errorf("Failed to start Exec task for container(%s) due to error (%s)", id, err)
 		return err
 	}
+
+	// now that the exec has begun and the streams are attached we need to inspect and then wait.
+	op.Debugf("Waiting for completion: task(%s), container(%s)", eid, name)
+	handle, err := c.Handle(id, name)
+	if err != nil {
+		op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
+		return engerr.InternalServerError(err.Error())
+	}
+
+	ec, err := c.containerProxy.InspectTask(op, handle, eid, id)
+	if err != nil {
+		return err
+	}
+
+	if ec.State == "stopped" {
+		return nil
+	}
+
+	for ec.State == "running" {
+		err = c.containerProxy.WaitTask(op, id, name, eid)
+		if err != nil {
+			return err
+		}
+
+		ec, err = c.containerProxy.InspectTask(op, handle, eid, id)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
