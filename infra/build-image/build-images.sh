@@ -1,5 +1,5 @@
-#!/bin/bash -e
-# Copyright 2016 VMware, Inc. All Rights Reserved.
+#!/bin/sh
+# Copyright 2017 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,17 +12,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
+set -ex;
 
-# runs the given command in a container with iso build dependencies
-function main {
-    docker run \
-        -it \
-        -v $GOPATH/bin:/go/bin \
-        -v $GOPATH/src/github.com/vmware/vic:/go/src/github.com/vmware/vic \
-        -e TERM=linux \
-        -e DEBUG=${DEBUG} \
-        vic-build-image /bin/bash -c "$*"
-}
+REV=$(git rev-parse --verify --short=8 HEAD)
+REPO="gcr.io/eminent-nation-87317"
+IMAGE="vic-build-image"
 
-main "$@"
+for DEP in yum tdnf; do
+    docker build -t "$IMAGE-$DEP:$REV" -f ./infra/build-image/Dockerfile.$DEP .
+    docker tag "$IMAGE-$DEP:$REV" "$REPO/$IMAGE:$DEP"
+    docker tag "$IMAGE-$DEP:$REV" "$REPO/$IMAGE:$DEP-$REV"
+    # gcloud docker -- push "$REPO/$IMAGE:$DEP"
+    # gcloud docker -- push "$REPO/$IMAGE:$DEP-$REV"
+done

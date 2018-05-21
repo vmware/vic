@@ -1,7 +1,7 @@
-# docker build -t vic-build-image -f infra/build-image/Dockerfile .
-# docker tag vic-build-image gcr.io/eminent-nation-87317/vic-build-image:1.x
+# docker build -t vic-build-image-tdnf -f infra/build-image/Dockerfile.tdnf .
+# docker tag vic-build-image-tdnf gcr.io/eminent-nation-87317/vic-build-image:tdnf
 # gcloud auth login
-# gcloud docker -- push gcr.io/eminent-nation-87317/vic-build-image:1.x
+# gcloud docker -- push gcr.io/eminent-nation-87317/vic-build-image:tdnf
 
 FROM vmware/photon:2.0
 

@@ -10,8 +10,31 @@
 export PATH=$PATH:/sbin
 
 # load the customizations
-echo Loading repo customizations
+echo "######## Loading repo customizations ########"
 . /bin/repoinit
+echo "######## Done repo customizations ######## -- exit $?"
+
+mount -t proc none /proc
+mount -t sysfs none /sys
+mount -t devtmpfs none /dev
+
+# make some of the basics and start udev
+mknod -m 622 /dev/console c 5 1
+mknod -m 666 /dev/null c 1 3
+mknod -m 666 /dev/zero c 1 5
+mknod -m 666 /dev/ptmx c 5 2
+mknod -m 666 /dev/tty c 5 0
+mknod -m 444 /dev/random c 1 8
+mknod -m 444 /dev/urandom c 1 9
+chown root:tty /dev/{console,ptmx,tty}
+
+mkdir -p /dev/{pts,shm}
+mount -t devpts -o gid=4,mode=620 none /dev/pts
+mount -t tmpfs none /dev/shm
+
+/usr/lib/systemd/systemd-udevd --daemon
+udevadm trigger
 
 # launch the main entry point
+echo "######## Launching bootstrap entrypoint ########"
 . /bin/bootstrap

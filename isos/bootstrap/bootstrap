@@ -30,13 +30,13 @@ for i in ${drivers[@]}; do
     modprobe $i
 done
 
-# allow udev (whether systemd-udevd or raw udevd) to handle newly available devices
-udevadm trigger
-udevadm settle
-
+# create devices with proper permissions
+udevadm control --reload-rules
+udevadm trigger --type=subsystems --action=add
+udevadm trigger --type=devices --action=add
 
 MOUNTPOINT="/mnt/containerfs"
-mkdir -p /mnt/containerfs
+mkdir -p $MOUNTPOINT
 
 echo "Waiting for rootfs"
 while [ ! -e /dev/disk/by-label/containerfs ]; do sleep 0.1;done
@@ -44,7 +44,8 @@ while [ ! -e /dev/disk/by-label/containerfs ]; do sleep 0.1;done
 # grab dmesg output and dump to debug log if mount doesn't occur in a useful timeframe (2min)
 if timeout -s KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # ensure mountpoint exists
-    mkdir -p ${MOUNTPOINT}/.tether
+    # setup udev directories for switch_root
+    mkdir -p ${MOUNTPOINT}/{.tether,dev,proc,sys}
 
     # the size of the temp FS filesystem has been estimated during iso build and stored
     # in the file /.tempfs_size, if the file is not present assume 80m, the list of
@@ -92,9 +93,9 @@ if timeout -s KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}
     # Create VIC chain
     iptables -N VIC
     # Set the default policy on all chains to drop traffic
-#    iptables -P INPUT DROP
-#    iptables -P OUTPUT DROP
-#    iptables -P FORWARD DROP
+    iptables -P INPUT DROP
+    iptables -P OUTPUT DROP
+    iptables -P FORWARD DROP
     iptables -P INPUT ACCEPT
     iptables -P OUTPUT ACCEPT
     iptables -P FORWARD ACCEPT
@@ -111,8 +112,13 @@ if timeout -s KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}
     until [[ $(ls -1 /dev/disk/by-label | wc -l) -eq $(ls -1 /sys/block | grep -v ram | grep -v loop | wc -l) ]]; do sleep 0.1;done
 
     echo "switching to the new mount"
-    if which systemctl > /dev/null; then
+    if systemctl; then
         systemctl switch-root ${MOUNTPOINT} /.tether/tether 2>&1
+    elif [[ "$(readlink /usr/sbin/switch_root)" == *"toybox"* ]]; then # see https://github.com/landley/toybox/issues/91
+        mount --move /sys ${MOUNTPOINT}/sys
+        mount --move /proc ${MOUNTPOINT}/proc
+        mount --move /dev ${MOUNTPOINT}/dev
+        exec switch_root ${MOUNTPOINT} /.tether/tether 2>&1 
     else
         exec switch_root ${MOUNTPOINT} /.tether/tether 2>&1 
         # if successful then nothing after this point executes

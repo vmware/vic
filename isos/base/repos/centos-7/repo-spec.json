@@ -1,13 +1,13 @@
 {
-    "name": "centos-6.9",
+    "name": "centos-7",
     "packagemanager": "yum",
-    "kernel": "kernel-2.6.32-696.23.1.el6",
-    "init": "/bin/init",
+    "kernel": "kernel",
+    "init": "/sbin/init",
     "packages_script_staging": {
         "bootstrap": ""
     },
     "packages": {
-        "base": "filesystem coreutils bash module-init-tools",
+        "base": "filesystem coreutils bash module-init-tools systemd",
         "bootstrap": "iptables udev rng-tools iptables util-linux-ng"
     }
 }

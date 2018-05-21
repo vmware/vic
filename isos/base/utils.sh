@@ -50,19 +50,22 @@ setup_pm() {
     local REPO=$4
     local VER=$(echo $REPO | cut -d '-' -f2)
 
-    mkdir -p $(rootfs_dir $PKGDIR)/var/lib/rpm
-    rpm --root=$(rootfs_dir $PKGDIR) --initdb
+    [ -e $(rootfs_dir $PKGDIR)/var/lib/rpm ] || {
+        mkdir -p $(rootfs_dir $PKGDIR)/var/lib/rpm
+        rpm --root=$(rootfs_dir $PKGDIR) --initdb
+    }
+
 
     # select the repo directory and populate the basic yum config
     mkdir -p $(rootfs_dir $PKGDIR)/{etc/$PACKAGE_MANAGER,etc/yum.repos.d}
     cp -a $REPODIR/*.repo $(rootfs_dir $PKGDIR)/etc/yum.repos.d/
 
-    # Copy tdnf config to iso for later use
+    # Copy tdnf config to iso for later use with a relative rootfs
     cp $BASE_DIR/$PACKAGE_MANAGER.conf          $(rootfs_dir $PKGDIR)/etc/$PACKAGE_MANAGER/$PACKAGE_MANAGER.conf
     sed -i "s|\$ROOTFS||g"                      $(rootfs_dir $PKGDIR)/etc/$PACKAGE_MANAGER/$PACKAGE_MANAGER.conf
     sed -i "s|\$VER|$VER|g"                     $(rootfs_dir $PKGDIR)/etc/$PACKAGE_MANAGER/$PACKAGE_MANAGER.conf
 
-    # Copy and parse tdnf config for use by package_cached
+    # Copy and parse rpo config for use by package_cached, with a absolute rootfs
     cp $BASE_DIR/$PACKAGE_MANAGER.conf          /etc/$PACKAGE_MANAGER/$PACKAGE_MANAGER-$REPO.conf
     sed -i "s|\$ROOTFS|$(rootfs_dir $PKGDIR)|g" /etc/$PACKAGE_MANAGER/$PACKAGE_MANAGER-$REPO.conf
     sed -i "s|\$VER|$VER|g"                     /etc/$PACKAGE_MANAGER/$PACKAGE_MANAGER-$REPO.conf
@@ -70,13 +73,6 @@ setup_pm() {
     # allow future stages to know which repo this is using
     echo "$REPO" > $PKGDIR/repo.cfg
     echo "$PACKAGE_MANAGER" > $PKGDIR/package.cfg
-    
-    # tdnf -c $(rootfs_dir $PKGDIR)/etc/tdnf/tdnf.conf \
-    #     --releasever 2.0 \
-    #     --installroot $(rootfs_dir $PKGDIR) \
-    #     --nogpgcheck \
-    #     install -y $PACKAGE_MANAGER
-
 }
 
 # unpackage working ISO filesystem bundle
@@ -324,16 +320,14 @@ package_cached () {
         echo "Specified package manager '/usr/bin/$MANAGER' must exist" 1>&2
         return 1
     }
-    MANAGER_OPTS=""
-    if [ "$MANAGER" == "tdnf" ]; then
-        CACHE_DIR=var/cache/tdnf
-        MANAGER_OPTS="-c /etc/tdnf/tdnf-$(cat $PKGDIR/repo.cfg).conf --installroot $INSTALLROOT"
-    elif [ "$MANAGER" == "yum" ]; then
-        CACHE_DIR=var/cache/yum
-    else 
+    if [[ "$MANAGER" != "tdnf" && "$MANAGER" != "yum" ]]; then
         echo "Specified package manager '$MANAGER' must be one of [yum|tdnf]" 1>&2
         return 1
     fi
+
+    # Use a custom package manager configuration that uses the '-c' option for an absolute rootfs path
+    CACHE_DIR="var/cache/$MANAGER"
+    MANAGER_OPTS="-c /etc/$MANAGER/$MANAGER-$(cat $PKGDIR/repo.cfg).conf --installroot $INSTALLROOT"
     
     # bundle specific - if we're cleaning the cache and we want it all gone
     # $1 because of the shift after getopts

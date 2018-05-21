@@ -72,7 +72,7 @@ fi
 
 REPODIR="$DIR/base/repos/${REPO}/"
 PACKAGE_MANAGER=$(cat $REPODIR/repo-spec.json | jq -r '.packagemanager')
-PACKAGE_MANAGER=${PACKAGE_MANAGER:-yum}
+PACKAGE_MANAGER=${PACKAGE_MANAGER:-tdnf}
 
 # prep the build system
 # ensure_apt_packages cpio rpm tar ca-certificates xz-utils

@@ -40,7 +40,7 @@ GOVC ?= $(GOPATH)/bin/govc$(BIN_ARCH)
 GAS ?= $(GOPATH)/bin/gas$(BIN_ARCH)
 MISSPELL ?= $(GOPATH)/bin/misspell$(BIN_ARCH)
 CUSTOM ?= photon-2.0
-DOCKER_BUILD := $(BASE_DIR)/infra/scripts/docker-iso-build.sh
+DOCKER_BUILD := $(BASE_DIR)/infra/build-image/docker-iso-build.sh
 
 .PHONY: all tools clean test check distro \
 	goversion goimports gopath govet gofmt misspell gas golint \
@@ -121,10 +121,10 @@ bootstrap-staging := $(BIN)/.bootstrap-staging.tgz
 bootstrap-staging-custom := $(BIN)/.bootstrap-staging-$(CUSTOM).tgz
 bootstrap-staging-debug := $(BIN)/.bootstrap-staging-debug.tgz
 bootstrap-debug := $(BIN)/bootstrap-debug.iso
-iso-base := $(BIN)/.iso-base-photon1.tgz
-iso-base-photon1 := $(BIN)/.iso-base-photon1.tgz
-iso-base-photon2 := $(BIN)/.iso-base-photon2.tgz
+iso-base-photon1 := $(BIN)/.iso-base-photon-1.0.tgz
+iso-base-photon2 := $(BIN)/.iso-base-photon-2.0.tgz
 iso-base-custom := $(BIN)/.iso-base-$(CUSTOM).tgz
+iso-base := $(iso-base-photon2)
 
 # target aliases - target mapping
 docker-engine-api: $(docker-engine-api)
@@ -426,7 +426,7 @@ $(serviceapi): $$(call godeps,cmd/vic-machine-server/*.go) $(serviceapi-server)
 # ISO Targets
 $(iso-base-photon1): isos/base.sh isos/base/repos/photon-1.0/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo "building iso-base image (photon-1.0)"
-	@$(TIME) $(DOCKER_BUILD) $< -r photon-1.0 -c $(BIN)/.yum-cache-photon-1.0.tgz -p $@
+	@$(TIME) $(DOCKER_BUILD) -d $< -r photon-1.0 -c $(BIN)/.yum-cache-photon-1.0.tgz -p $@
 
 $(iso-base-photon2): isos/base.sh isos/base/repos/photon-2.0/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo "building iso-base image (photon-2.0)"
@@ -434,7 +434,7 @@ $(iso-base-photon2): isos/base.sh isos/base/repos/photon-2.0/*.repo isos/base/is
 
 $(iso-base-custom): isos/base.sh isos/base/repos/$(CUSTOM)/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo "building custom iso-base image ($(CUSTOM) packages)"
-	@$(TIME) $(DOCKER_BUILD) $< -r $(CUSTOM) -c $(BIN)/.yum-cache-$(CUSTOM).tgz -p $@
+	@$(TIME) $(DOCKER_BUILD) -d $(CUSTOM) $< -r $(CUSTOM) -c $(BIN)/.yum-cache-$(CUSTOM).tgz -p $@
 	#Add support for the custom_rpm env variable
 	#@$(TIME) $< -r $(CUSTOM) -c $(BIN)/.yum-cache.tgz -k $(CUSTOM_RPM) -p $@
 
@@ -456,7 +456,7 @@ $(bootstrap): isos/bootstrap.sh $(tether-linux) $(archive) $(bootstrap-staging) 
 # uses iso-base-custom to allow for custom kernels
 $(bootstrap-custom): isos/bootstrap.sh $(tether-linux) $(archive) $(bootstrap-staging-custom) isos/bootstrap/*
 	@echo "Making custom bootstrap iso"
-	@$(TIME) $(DOCKER_BUILD) $< -p $(bootstrap-staging-custom) -b $(BIN) -o $(notdir $@)
+	@$(TIME) $(DOCKER_BUILD) -d $(CUSTOM) $< -p $(bootstrap-staging-custom) -b $(BIN) -o $(notdir $@)
 
 $(bootstrap-debug): isos/bootstrap.sh $(tether-linux) $(archive) $(rpctool) $(bootstrap-staging-debug) isos/bootstrap/*
 	@echo "Making bootstrap-debug iso"
@@ -468,7 +468,7 @@ $(bootstrap-staging): isos/bootstrap-staging.sh $(iso-base-photon2)
 
 $(bootstrap-staging-custom): isos/bootstrap-staging.sh $(iso-base-custom)
 	@echo custom staging for bootstrap
-	@$(TIME) $(DOCKER_BUILD) $< -c $(BIN)/.yum-cache-$(CUSTOM).tgz -p $(iso-base-custom) -o $@
+	@$(TIME) $(DOCKER_BUILD) -d $(CUSTOM) $< -c $(BIN)/.yum-cache-$(CUSTOM).tgz -p $(iso-base-custom) -o $@
 
 $(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base-photon2)
 	@echo staging debug for bootstrap
