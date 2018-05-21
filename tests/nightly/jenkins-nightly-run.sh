@@ -85,7 +85,7 @@ elif [[ $target == "6.5" ]]; then
     cat 65/pabot_results/*/stdout.txt | grep '::' | grep -E 'PASS|FAIL' > console.log
 elif [[ $target == "6.7" ]]; then
     echo "Executing nightly tests on vSphere 6.7"
-    pabot --processes 4 --removekeywords TAG:secret --exclude nsx --exclude hetero --exclude vsan-complex --variable ESX_VERSION:$ESX_67_VERSION --variable VC_VERSION:$VC_67_VERSION -d 67/$i tests/manual-test-cases/Group5-Functional-Tests tests/manual-test-cases/Group13-vMotion tests/manual-test-cases/Group21-Registries tests/manual-test-cases/Group23-Future-Tests
+    pabot --processes 4 --removekeywords TAG:secret --exclude nsx --exclude hetero --variable ESX_VERSION:$ESX_67_VERSION --variable VC_VERSION:$VC_67_VERSION -d 67/$i tests/manual-test-cases/Group5-Functional-Tests tests/manual-test-cases/Group13-vMotion tests/manual-test-cases/Group21-Registries tests/manual-test-cases/Group23-Future-Tests
     cat 67/pabot_results/*/stdout.txt | grep '::' | grep -E 'PASS|FAIL' > console.log
 fi
 # Pretty up the email results
