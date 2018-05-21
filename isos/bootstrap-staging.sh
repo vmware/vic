@@ -72,7 +72,11 @@ PKGDIR=$(mktemp -d)
 unpack $package $PKGDIR
 
 # load the repo to use from the package if not explicit in env
-REPODIR="$DIR/base/repos/${REPO:-$(cat $PKGDIR/repo.cfg)}/"
+REPO=${REPO:-$(cat $PKGDIR/repo.cfg)}
+REPODIR="$DIR/base/repos/${REPO}/"
+PACKAGE_MANAGER=${PACKAGE_MANAGER:-$(cat $REPODIR/repo-spec.json | jq -r '.packagemanager')}
+PACKAGE_MANAGER=${PACKAGE_MANAGER:-tdnf}
+setup_pm $REPODIR $PKGDIR $PACKAGE_MANAGER $REPO
 
 # Run a staging script if needed
 script=$(cat $REPODIR/repo-spec.json | jq -r '.packages_script_staging.bootstrap')
@@ -105,7 +109,7 @@ fi
 #   util-linux  # photon2 for /bin/mount
 #
 STAGING_PKGS=$(cat $REPODIR/repo-spec.json | jq -r '.packages.bootstrap')
-package_cached -c $cache -u -p $PKGDIR install $STAGING_PKGS --nogpgcheck -y
+[ -n "$STAGING_PKGS" ] && package_cached -c $cache -u -p $PKGDIR install $STAGING_PKGS --nogpgcheck -y
 
 # ensure we're not including a cache in the staging bundle
 # but don't update the cache bundle we're using to install

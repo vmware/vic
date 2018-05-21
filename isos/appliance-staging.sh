@@ -67,7 +67,12 @@ unpack $PACKAGE $PKGDIR
 #################################################################
 
 # Install VCH packages
-REPODIR="$DIR/base/repos/${REPO:-$(cat $PKGDIR/repo.cfg)}/"
+# load the repo to use from the package if not explicit in env
+REPO=${REPO:-$(cat $PKGDIR/repo.cfg)}
+REPODIR="$DIR/base/repos/${REPO}/"
+PACKAGE_MANAGER=${PACKAGE_MANAGER:-$(cat $REPODIR/repo-spec.json | jq -r '.packagemanager')}
+PACKAGE_MANAGER=${PACKAGE_MANAGER:-tdnf}
+setup_pm $REPODIR $PKGDIR $PACKAGE_MANAGER $REPO
 
 script=$(cat $REPODIR/repo-spec.json | jq -r '.packages_script_staging.appliance')
 [ -n "$script" ] && package_cached -c $cache -u -p $PKGDIR $script --nogpgcheck -y
