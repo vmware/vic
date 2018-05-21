@@ -17,6 +17,7 @@ package exec
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -475,7 +476,12 @@ func (c *containerBase) waitForExec(op trace.Operation, id string) error {
 	execConf := c.ExecConfig.Execs[id]
 
 	// construct key filter for exec state changes
-	filter := make(map[string]string)
+	filter := map[string]string{
+		startedKey: execConf.Started,
+		startKey:   strconv.FormatInt(execConf.Detail.StartTime, 10),
+		stopKey:    strconv.FormatInt(execConf.Detail.StopTime, 10),
+	}
+
 	filter[startedKey] = execConf.Started
 	filter[startKey] = fmt.Sprintf("%d", execConf.Detail.StartTime)
 	filter[stopKey] = fmt.Sprintf("%d", execConf.Detail.StopTime)
