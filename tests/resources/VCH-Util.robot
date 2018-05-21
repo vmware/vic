@@ -712,13 +712,15 @@ Get VCH ID
 Install VIC with version to Test Server
     [Arguments]  ${version}  ${insecureregistry}=  ${cleanup}=${true}  ${additional-args}=
     Log To Console  \nDownloading vic ${version} from gcp...
-    ${rc}  ${output}=  Run And Return Rc And Output  wget https://storage.googleapis.com/vic-engine-releases/vic_${version}.tar.gz -O vic.tar.gz
-    ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
-    Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}  cleanup=${cleanup}  additional-args=${additional-args}  vol=default ${insecureregistry}
+    ${time}=  Evaluate  time.clock()  modules=time
+    ${rc}  ${output}=  Run And Return Rc And Output  wget https://storage.googleapis.com/vic-engine-releases/vic_${version}.tar.gz -O vic-${time}.tar.gz
+    Create Directory  vic-${time}
+    ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic-${time}.tar.gz -C vic-${time}
+    Install VIC Appliance To Test Server  vic-machine=./vic-${time}/vic/vic-machine-linux  appliance-iso=./vic-${time}/vic/appliance.iso  bootstrap-iso=./vic-${time}/vic/bootstrap.iso  certs=${false}  cleanup=${cleanup}  additional-args=${additional-args}  vol=default ${insecureregistry}
 
     Set Environment Variable  VIC-ADMIN  %{VCH-IP}:2378
     Set Environment Variable  INITIAL-VERSION  ${version}
-    Run  rm -rf vic.tar.gz vic
+    Run  rm -rf vic-${time}.tar.gz vic-${time}
 
 Clean up VIC Appliance And Local Binary
     Cleanup VIC Appliance On Test Server
