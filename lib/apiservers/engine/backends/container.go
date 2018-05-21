@@ -402,8 +402,16 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		go func() {
 			defer trace.End(trace.Begin(eid))
 
-			// wait for the start. The first change should atleast be the start of the exec
-			if err := c.containerProxy.WaitTask(taskCtx, id, name, eid); err != nil {
+			handle, err := c.Handle(id, name)
+			if err != nil {
+				op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
+				// TODO: this func really returns no errors... but without a valid handle we cannot succeed... what to do...
+				cancel()
+				return
+			}
+
+			// wait for the start. The first change should at least be the start of the exec
+			if err := c.containerProxy.WaitTask(taskCtx, handle, id, eid); err != nil {
 				op.Errorf("Task wait returned %s, canceling the context", err)
 
 				// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly
@@ -492,9 +500,16 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 	}
 
 	for ec.State == "running" {
-		err = c.containerProxy.WaitTask(op, id, name, eid)
+		err = c.containerProxy.WaitTask(op, handle, id, eid)
 		if err != nil {
 			return err
+		}
+
+		// TODO: we should probably make WaitTask return a new handle... since it already knows that something has changed.
+		handle, err := c.Handle(id, name)
+		if err != nil {
+			op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
+			return engerr.InternalServerError(err.Error())
 		}
 
 		ec, err = c.containerProxy.InspectTask(op, handle, eid, id)

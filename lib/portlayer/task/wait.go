@@ -57,7 +57,23 @@ func Wait(op *trace.Operation, h interface{}, id string) error {
 		return c.WaitForSession(timeout, id)
 	}
 
-	return c.WaitForExec(timeout, id)
+	// This should get a handle from the callers and wait on the handle since they only have a snap shot of the world. We need to determine a change from what the caller knows... This should really only be during an Exec, we do not want to affect the current WaitForSession functionality. At least for now.
+
+	// we should not wait for an exec that is failed or stopped. it will not change again.
+	currentState, err := State(handle.ExecConfig.Execs[id])
+	if err != nil {
+		op.Errorf("Unable to find state of exec: exec(%s), container(%s)", id, handle.ExecConfig.ID)
+		return err
+	}
+
+	if currentState == failedState || currentState == stoppedState {
+		op.Debugf("Exec already halted: exec(%s), container(%s)", id, handle.ExecConfig.ID)
+		return nil
+	}
+
+	// TODO: perhaps add another check here for the "unknown" state and report an error when attempting to wait on said task.
+
+	return handle.WaitForExec(timeout, id)
 }
 
 type TaskPowerStateError struct {
