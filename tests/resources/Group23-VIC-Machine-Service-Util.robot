@@ -21,7 +21,6 @@ ${RC}            The return code of the last curl invocation
 ${OUTPUT}        The output of the last curl invocation
 ${STATUS}        The HTTP status of the last curl invocation
 
-#${SERVER_OUTPUT_DIR}         server_log_directory
 ${VIC_MACHINE_SERVER_LOG}    vic-machine-server.log
 ${SERVING_AT_TEXT}           Serving vic machine at
 
@@ -29,19 +28,12 @@ ${SERVING_AT_TEXT}           Serving vic machine at
 *** Keywords ***
 Start VIC Machine Server
     ${dir_name}=  Evaluate  'group23_log_dir' + str(random.randint(1000,9999))  modules=random
-    #${http_port}=    Get HTTP Port
-    #Set Suite Variable    ${HTTP_PORT}    ${http_port}
-
-    #${handle}=    Start Process    ./bin/vic-machine-server --port ${HTTP_PORT} --scheme http    shell=True    cwd=/go/src/github.com/vmware/vic
-    #Set Suite Variable    ${server_handle}    ${handle}
-    #Process Should Be Running    ${handle}
-    #[Return]    ${handle}
 
     ${handle}=    Start Process    ./bin/vic-machine-server --scheme http --log-directory ${dir_name}/    shell=True    cwd=/go/src/github.com/vmware/vic
     Set Suite Variable    ${server_handle}    ${handle}
     Process Should Be Running    ${handle}
     Sleep  5sec
-    #${output}=    Run    /usr/bin/locate ${dir_name}
+
     ${output}=    Run    cat ${dir_name}/${VIC_MACHINE_SERVER_LOG}
     @{output}=    Split To Lines    ${output}
     :FOR    ${line}    IN    @{output}
@@ -49,16 +41,9 @@ Start VIC Machine Server
     \   ${server_url}=    Run Keyword If      ${status}    Fetch From Right    ${line}    ${SPACE}
     \   Run Keyword If    ${status}    Set Suite Variable    ${VIC_MACHINE_SERVER_URL}    ${server_url}
 
-
 Stop VIC Machine Server
-    #[Arguments]    ${handle}
     Terminate Process    ${server_handle}    kill=true
     Process Should Be Stopped    ${server_handle}
-
-# Get unused unprivileged TCP port
-#Get HTTP Port
-#    ${rc}  ${http_port}=    Run And Return Rc And Output    netstat -atn | perl -0777 -ne '@ports = /tcp.*?\:(\d+)\s+/imsg ; for $port (32768..61000) {if(!grep(/^$port$/, @ports)) { print $port; last } }'
-#    [Return]    ${http_port}
 
 Get Path
     [Arguments]    ${path}
@@ -108,10 +93,8 @@ Delete Path Under Target
     Set Test Variable    ${OUTPUT}
     Set Test Variable    ${STATUS}
 
-
 Verify Return Code
     Should Be Equal As Integers    ${RC}    0
-
 
 Verify Status
     [Arguments]    ${expected}
@@ -138,7 +121,6 @@ Verify Status Unprocessable Entity
 Verify Status Internal Server Error
     Verify Status    500
 
-
 Output Should Contain
     [Arguments]    ${expected}
     Should Contain    ${OUTPUT}    ${expected}
@@ -150,7 +132,6 @@ Output Should Not Contain
 Output Should Match Regexp
     [Arguments]    ${expected}
     Should Match Regexp    ${OUTPUT}    ${expected}
-
 
 Property Should Be Equal
     [Arguments]    ${jq}    ${expected}
