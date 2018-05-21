@@ -21,16 +21,34 @@ ${RC}            The return code of the last curl invocation
 ${OUTPUT}        The output of the last curl invocation
 ${STATUS}        The HTTP status of the last curl invocation
 
+#${SERVER_OUTPUT_DIR}         server_log_directory
+${VIC_MACHINE_SERVER_LOG}    vic-machine-server.log
+${SERVING_AT_TEXT}           Serving vic machine at
+
 
 *** Keywords ***
 Start VIC Machine Server
-    ${http_port}=    Get HTTP Port
-    Set Suite Variable    ${HTTP_PORT}    ${http_port}
+    ${dir_name}=  Evaluate  'group23_log_dir' + str(random.randint(1000,9999))  modules=random
+    #${http_port}=    Get HTTP Port
+    #Set Suite Variable    ${HTTP_PORT}    ${http_port}
 
-    ${handle}=    Start Process    ./bin/vic-machine-server --port ${HTTP_PORT} --scheme http    shell=True    cwd=/go/src/github.com/vmware/vic
+    #${handle}=    Start Process    ./bin/vic-machine-server --port ${HTTP_PORT} --scheme http    shell=True    cwd=/go/src/github.com/vmware/vic
+    #Set Suite Variable    ${server_handle}    ${handle}
+    #Process Should Be Running    ${handle}
+    #[Return]    ${handle}
+
+    ${handle}=    Start Process    ./bin/vic-machine-server --scheme http --log-directory ${dir_name}/    shell=True    cwd=/go/src/github.com/vmware/vic
     Set Suite Variable    ${server_handle}    ${handle}
     Process Should Be Running    ${handle}
-    #[Return]    ${handle}
+    Sleep  5sec
+    #${output}=    Run    /usr/bin/locate ${dir_name}
+    ${output}=    Run    cat ${dir_name}/${VIC_MACHINE_SERVER_LOG}
+    @{output}=    Split To Lines    ${output}
+    :FOR    ${line}    IN    @{output}
+    \   ${status}=    Run Keyword And Return Status    Should Contain    ${line}    ${SERVING_AT_TEXT}
+    \   ${server_url}=    Run Keyword If      ${status}    Fetch From Right    ${line}    ${SPACE}
+    \   Run Keyword If    ${status}    Set Suite Variable    ${VIC_MACHINE_SERVER_URL}    ${server_url}
+
 
 Stop VIC Machine Server
     #[Arguments]    ${handle}
@@ -38,13 +56,13 @@ Stop VIC Machine Server
     Process Should Be Stopped    ${server_handle}
 
 # Get unused unprivileged TCP port
-Get HTTP Port
-    ${rc}  ${http_port}=    Run And Return Rc And Output    netstat -atn | perl -0777 -ne '@ports = /tcp.*?\:(\d+)\s+/imsg ; for $port (32768..61000) {if(!grep(/^$port$/, @ports)) { print $port; last } }'
-    [Return]    ${http_port}
+#Get HTTP Port
+#    ${rc}  ${http_port}=    Run And Return Rc And Output    netstat -atn | perl -0777 -ne '@ports = /tcp.*?\:(\d+)\s+/imsg ; for $port (32768..61000) {if(!grep(/^$port$/, @ports)) { print $port; last } }'
+#    [Return]    ${http_port}
 
 Get Path
     [Arguments]    ${path}
-    ${RC}  ${OUTPUT}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X GET "http://127.0.0.1:${HTTP_PORT}/container/${PATH}"
+    ${RC}  ${OUTPUT}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X GET "${VIC_MACHINE_SERVER_URL}/container/${PATH}"
     ${OUTPUT}    ${STATUS}=    Split String From Right    ${OUTPUT}    \n    1
     Set Test Variable    ${RC}
     Set Test Variable    ${OUTPUT}
@@ -54,7 +72,7 @@ Get Path Under Target
     [Arguments]    ${path}    @{query}
     ${fullQuery}=    Catenate    SEPARATOR=&    thumbprint=%{TEST_THUMBPRINT}    @{query}
     ${auth}=    Evaluate    base64.b64encode("%{TEST_USERNAME}:%{TEST_PASSWORD}")    modules=base64
-    ${RC}  ${OUTPUT}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X GET "http://127.0.0.1:${HTTP_PORT}/container/target/%{TEST_URL}/${PATH}?${fullQuery}" -H "Accept: application/json" -H "Authorization: Basic ${auth}"
+    ${RC}  ${OUTPUT}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X GET "${VIC_MACHINE_SERVER_URL}/container/target/%{TEST_URL}/${PATH}?${fullQuery}" -H "Accept: application/json" -H "Authorization: Basic ${auth}"
     ${OUTPUT}    ${STATUS}=    Split String From Right    ${OUTPUT}    \n    1
     Set Test Variable    ${RC}
     Set Test Variable    ${OUTPUT}
@@ -64,7 +82,7 @@ Get Path Under Target Using Session
     [Arguments]    ${path}    @{query}
     ${fullQuery}=    Catenate    SEPARATOR=&    thumbprint=%{TEST_THUMBPRINT}    @{query}
     ${ticket}=    Run    govc vm.console %{VCH-NAME} | awk -F'[:@]' '{print $3}'
-    ${RC}  ${OUTPUT}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X GET "http://127.0.0.1:${HTTP_PORT}/container/target/%{TEST_URL}/${path}?${fullQuery}" -H "Accept: application/json" -H "X-VMWARE-TICKET: ${ticket}"
+    ${RC}  ${OUTPUT}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X GET "${VIC_MACHINE_SERVER_URL}/container/target/%{TEST_URL}/${path}?${fullQuery}" -H "Accept: application/json" -H "X-VMWARE-TICKET: ${ticket}"
     ${OUTPUT}    ${STATUS}=    Split String From Right    ${OUTPUT}    \n    1
     Set Test Variable    ${RC}
     Set Test Variable    ${OUTPUT}
@@ -74,7 +92,7 @@ Post Path Under Target
     [Arguments]    ${path}    ${data}    @{query}
     ${fullQuery}=    Catenate    SEPARATOR=&    thumbprint=%{TEST_THUMBPRINT}    @{query}
     ${auth}=    Evaluate    base64.b64encode("%{TEST_USERNAME}:%{TEST_PASSWORD}")    modules=base64
-    ${RC}  ${OUTPUT}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X POST "http://127.0.0.1:${HTTP_PORT}/container/target/%{TEST_URL}/${PATH}?${fullQuery}" -H "Accept: application/json" -H "Authorization: Basic ${auth}" -H "Content-Type: application/json" --data ${data}
+    ${RC}  ${OUTPUT}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X POST "${VIC_MACHINE_SERVER_URL}/container/target/%{TEST_URL}/${PATH}?${fullQuery}" -H "Accept: application/json" -H "Authorization: Basic ${auth}" -H "Content-Type: application/json" --data ${data}
     ${OUTPUT}    ${STATUS}=    Split String From Right    ${OUTPUT}    \n    1
     Set Test Variable    ${RC}
     Set Test Variable    ${OUTPUT}
@@ -84,7 +102,7 @@ Delete Path Under Target
     [Arguments]    ${path}    ${data}=''    @{query}
     ${fullQuery}=    Catenate    SEPARATOR=&    thumbprint=%{TEST_THUMBPRINT}    @{query}
     ${auth}=    Evaluate    base64.b64encode("%{TEST_USERNAME}:%{TEST_PASSWORD}")    modules=base64
-    ${RC}  ${OUTPUT}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X DELETE "http://127.0.0.1:${HTTP_PORT}/container/target/%{TEST_URL}/${PATH}?${fullQuery}" -H "Accept: application/json" -H "Authorization: Basic ${auth}" -H "Content-Type: application/json" --data ${data}
+    ${RC}  ${OUTPUT}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X DELETE "${VIC_MACHINE_SERVER_URL}/container/target/%{TEST_URL}/${PATH}?${fullQuery}" -H "Accept: application/json" -H "Authorization: Basic ${auth}" -H "Content-Type: application/json" --data ${data}
     ${OUTPUT}    ${STATUS}=    Split String From Right    ${OUTPUT}    \n    1
     Set Test Variable    ${RC}
     Set Test Variable    ${OUTPUT}
@@ -166,7 +184,7 @@ Property Length Should Be
 
 
 Get Service Version String
-    ${rc}  ${output}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X GET "http://127.0.0.1:${HTTP_PORT}/container/version"
+    ${rc}  ${output}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X GET "${VIC_MACHINE_SERVER_URL}/container/version"
     ${output}    ${status}=    Split String From Right    ${output}    \n    1
     Should Be Equal As Integers    ${rc}    0
     Should Be Equal As Integers    ${status}    200
