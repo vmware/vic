@@ -1,2 +1,0 @@
-/usr/bin/setterm -blank 0 -powersave off -powerdown 0 > /dev/tty1 2>&1 < /dev/tty1
-/usr/bin/setterm -blank 0 -powersave off -powerdown 0 > /dev/tty2 2>&1 < /dev/tty2
