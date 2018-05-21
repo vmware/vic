@@ -22,13 +22,6 @@ Default Tags
 
 
 *** Keywords ***
-#Setup
-#    ${handle}=    Start VIC Machine Server
-#    Set Suite Variable    ${server_handle}    ${handle}
-
-#Teardown
-#    Stop VIC Machine Server    ${server_handle}
-
 Get Version
     ${out}=  Run  netstat -l | grep 1337
     Log  ${out}
