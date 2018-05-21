@@ -714,13 +714,13 @@ Install VIC with version to Test Server
     Log To Console  \nDownloading vic ${version} from gcp...
     ${time}=  Evaluate  time.clock()  modules=time
     ${rc}  ${output}=  Run And Return Rc And Output  wget https://storage.googleapis.com/vic-engine-releases/vic_${version}.tar.gz -O vic-${time}.tar.gz
-    Create Directory  ${time}
-    ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic-${time}.tar.gz -C ${time}
-    Install VIC Appliance To Test Server  vic-machine=./${time}/vic/vic-machine-linux  appliance-iso=./${time}/vic/appliance.iso  bootstrap-iso=./${time}/vic/bootstrap.iso  certs=${false}  cleanup=${cleanup}  additional-args=${additional-args}  vol=default ${insecureregistry}
+    Create Directory  vic-${time}
+    ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic-${time}.tar.gz -C vic-${time}
+    Install VIC Appliance To Test Server  vic-machine=./vic-${time}/vic/vic-machine-linux  appliance-iso=./vic-${time}/vic/appliance.iso  bootstrap-iso=./vic-${time}/vic/bootstrap.iso  certs=${false}  cleanup=${cleanup}  additional-args=${additional-args}  vol=default ${insecureregistry}
 
     Set Environment Variable  VIC-ADMIN  %{VCH-IP}:2378
     Set Environment Variable  INITIAL-VERSION  ${version}
-    Run  rm -rf vic-${time}.tar.gz ${time}
+    Run  rm -rf vic-${time}.tar.gz vic-${time}
 
 Clean up VIC Appliance And Local Binary
     Cleanup VIC Appliance On Test Server
