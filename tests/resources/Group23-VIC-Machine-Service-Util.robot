@@ -28,6 +28,7 @@ ${SERVING_AT_TEXT}           Serving vic machine at
 *** Keywords ***
 Start VIC Machine Server
     ${dir_name}=  Evaluate  'group23_log_dir' + str(random.randint(1000,9999))  modules=random
+    Set Suite Variable  ${DIR_NAME}  ${dir_name}
 
     ${handle}=    Start Process    ./bin/vic-machine-server --scheme http --log-directory ${dir_name}/    shell=True    cwd=/go/src/github.com/vmware/vic
     Set Suite Variable    ${server_handle}    ${handle}
@@ -44,6 +45,7 @@ Start VIC Machine Server
 Stop VIC Machine Server
     Terminate Process    ${server_handle}    kill=true
     Process Should Be Stopped    ${server_handle}
+
 
 Get Path
     [Arguments]    ${path}
@@ -93,6 +95,17 @@ Delete Path Under Target
     Set Test Variable    ${OUTPUT}
     Set Test Variable    ${STATUS}
 
+Put Path Under Target
+    [Arguments]    ${path}    ${data}    @{query}
+    ${fullQuery}=    Catenate    SEPARATOR=&    thumbprint=%{TEST_THUMBPRINT}    @{query}
+    ${auth}=    Evaluate    base64.b64encode("%{TEST_USERNAME}:%{TEST_PASSWORD}")    modules=base64
+    ${RC}  ${OUTPUT}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X PUT "${VIC_MACHINE_SERVER_URL}/container/target/%{TEST_URL}/${PATH}?${fullQuery}" -H "Accept: application/json" -H "Authorization: Basic ${auth}" -H "Content-Type: application/json" --data ${data}
+    ${OUTPUT}    ${STATUS}=    Split String From Right    ${OUTPUT}    \n    1
+    Set Test Variable    ${RC}
+    Set Test Variable    ${OUTPUT}
+    Set Test Variable    ${STATUS}
+
+
 Verify Return Code
     Should Be Equal As Integers    ${RC}    0
 
@@ -117,6 +130,9 @@ Verify Status Not Found
 
 Verify Status Unprocessable Entity
     Verify Status    422
+
+Verify Status Conflict
+    Verify Status    409
 
 Verify Status Internal Server Error
     Verify Status    500
@@ -150,6 +166,12 @@ Property Should Contain
 
     ${actual}=  Run    echo '${OUTPUT}' | jq -r '${jq}'
     Should Contain    ${actual}    ${expected}
+
+Property Should Be Empty
+    [Arguments]  ${jq}
+
+    ${actual}=  Run    echo '${OUTPUT}' | jq -r '${jq}'
+    Should Be Empty    ${actual}
 
 Property Should Not Be Empty
     [Arguments]    ${jq}

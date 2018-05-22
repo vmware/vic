@@ -46,6 +46,7 @@ import (
 type Executor interface {
 	CreateVCH(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData, receiver vchlog.Receiver) error
 	DeleteVCH(conf *config.VirtualContainerHostConfigSpec, containers *management.DeleteContainers, volumeStores *management.DeleteVolumeStores) error
+	Configure(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error
 }
 
 type executor interface {
@@ -54,6 +55,7 @@ type executor interface {
 	NewVCHFromID(id string) (*vm.VirtualMachine, error)
 	SearchVCHs(computePath string) ([]*vm.VirtualMachine, error)
 	GetNoSecretVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContainerHostConfigSpec, error)
+	GetVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContainerHostConfigSpec, error)
 	GetTLSFriendlyHostIP(clientIP net.IP, cert *x509.Certificate, certificateAuthorities []byte) string
 }
 
@@ -114,14 +116,23 @@ func (c *HandlerClient) Validator() Validator {
 }
 
 func (c *HandlerClient) GetVCH(op trace.Operation, d *data.Data) (*vm.VirtualMachine, error) {
-	vch, err := c.executor.NewVCHFromID(d.ID)
+	vch, err := c.GetVCHVM(op, d)
 	if err != nil {
-		return nil, errors.NewError(http.StatusNotFound, "unable to find VCH %s: %s", d.ID, err)
+		return nil, err
 	}
 
 	err = c.validator.SetDataFromVM(op, vch, d)
 	if err != nil {
 		return nil, errors.NewError(http.StatusInternalServerError, "failed to load VCH data: %s", err)
+	}
+
+	return vch, err
+}
+
+func (c *HandlerClient) GetVCHVM(op trace.Operation, d *data.Data) (*vm.VirtualMachine, error) {
+	vch, err := c.executor.NewVCHFromID(d.ID)
+	if err != nil {
+		return nil, errors.NewError(http.StatusNotFound, "unable to find VCH %s: %s", d.ID, err)
 	}
 
 	return vch, err
@@ -145,6 +156,15 @@ func (c *HandlerClient) GetConfigForVCH(op trace.Operation, vch *vm.VirtualMachi
 	return vchConfig, nil
 }
 
+func (c *HandlerClient) GetSecretConfigForVCH(op trace.Operation, vch *vm.VirtualMachine) (*config.VirtualContainerHostConfigSpec, error) {
+	vchConfig, err := c.executor.GetVCHConfig(vch)
+	if err != nil {
+		return nil, errors.NewError(http.StatusInternalServerError, "unable to retrieve VCH information: %s", err)
+	}
+
+	return vchConfig, nil
+}
+
 func (c *HandlerClient) GetVCHConfig(op trace.Operation, d *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
 	vch, err := c.GetVCH(op, d)
 	if err != nil {
@@ -152,6 +172,20 @@ func (c *HandlerClient) GetVCHConfig(op trace.Operation, d *data.Data) (*config.
 	}
 
 	return c.GetConfigForVCH(op, vch)
+}
+
+func (c *HandlerClient) GetDataFromVCHConfig(op trace.Operation, vch *vm.VirtualMachine, config *config.VirtualContainerHostConfigSpec) (*data.Data, error) {
+	data, err := validate.NewDataFromConfig(op, c.finder, config)
+	if err != nil {
+		return nil, errors.NewError(http.StatusInternalServerError, "unable to get data from VCH Config: %s", err)
+	}
+
+	err = c.validator.SetDataFromVM(op, vch, data)
+	if err != nil {
+		return nil, errors.NewError(http.StatusInternalServerError, "unable to get data from VCH VM: %s", err)
+	}
+
+	return data, nil
 }
 
 // GetDatastoreHelper validates the VCH and returns the datastore helper for the VCH. It errors when validation fails or when datastore is not ready
