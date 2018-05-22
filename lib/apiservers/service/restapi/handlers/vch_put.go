@@ -98,7 +98,7 @@ func (h *vchPut) handle(op trace.Operation, params target.Params, principal inte
 	}
 
 	// get old vch config and data
-	vchConfig, oldData, err := h.getOldVCHConfigAndData(op, c.Data, hc)
+	vchConfig, oldData, err := hc.GetDataAndVCHSecretConfig(op, c.Data)
 	if err != nil {
 		return nil, err
 	}
@@ -137,28 +137,11 @@ func (h *vchPut) buildConfigure(op trace.Operation, d *data.Data, finder client.
 		// TODO [AngieCris]: timeout is not configurable from API. Make it less hacky
 		// Set default timeout to 3 minutes
 		c.Timeout = DefaultTimeout
+
+		// TODO [AngieCris]: what to do with vch.Runtime (that includes docker host, admin portal and power status)? Error out?
 	}
 
 	return c, nil
-}
-
-func (h *vchPut) getOldVCHConfigAndData(op trace.Operation, d *data.Data, hc *client.HandlerClient) (*config.VirtualContainerHostConfigSpec, *data.Data, error) {
-	vch, err := hc.GetVCHVM(op, d)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	vchConfig, err := hc.GetSecretConfigForVCH(op, vch)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	oldData, err := hc.GetDataFromVCHConfig(op, vch, vchConfig)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return vchConfig, oldData, nil
 }
 
 func (h *vchPut) mergeData(op trace.Operation, oldData *data.Data, newData *data.Data) (*data.Data, error) {

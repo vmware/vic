@@ -188,6 +188,25 @@ func (c *HandlerClient) GetDataFromVCHConfig(op trace.Operation, vch *vm.Virtual
 	return data, nil
 }
 
+func (c *HandlerClient) GetDataAndVCHSecretConfig(op trace.Operation, d *data.Data) (*config.VirtualContainerHostConfigSpec, *data.Data, error) {
+	vch, err := c.GetVCHVM(op, d)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	vchConfig, err := c.GetSecretConfigForVCH(op, vch)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	oldData, err := c.GetDataFromVCHConfig(op, vch, vchConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return vchConfig, oldData, nil
+}
+
 // GetDatastoreHelper validates the VCH and returns the datastore helper for the VCH. It errors when validation fails or when datastore is not ready
 func (c *HandlerClient) GetDatastoreHelper(op trace.Operation, d *data.Data) (*datastore.Helper, error) {
 	vch, err := c.GetVCH(op, d)

@@ -110,6 +110,16 @@ Put Path Under Target
     Set Test Variable    ${OUTPUT}
     Set Test Variable    ${STATUS}
 
+Patch Path Under Target
+    [Arguments]    ${path}    ${data}    @{query}
+    ${fullQuery}=    Catenate    SEPARATOR=&    thumbprint=%{TEST_THUMBPRINT}    @{query}
+    ${auth}=    Evaluate    base64.b64encode("%{TEST_USERNAME}:%{TEST_PASSWORD}")    modules=base64
+    ${RC}  ${OUTPUT}=    Run And Return Rc And Output    curl -s -w "\n\%{http_code}\n" -X PATCH "${VIC_MACHINE_SERVER_URL}/container/target/%{TEST_URL}/${PATH}?${fullQuery}" -H "Accept: application/merge-patch+json" -H "Authorization: Basic ${auth}" -H "Content-Type: application/merge-patch+json" --data ${data}
+    ${OUTPUT}    ${STATUS}=    Split String From Right    ${OUTPUT}    \n    1
+    Set Test Variable    ${RC}
+    Set Test Variable    ${OUTPUT}
+    Set Test Variable    ${STATUS}
+
 Verify Return Code
     Should Be Equal As Integers    ${RC}    0
 

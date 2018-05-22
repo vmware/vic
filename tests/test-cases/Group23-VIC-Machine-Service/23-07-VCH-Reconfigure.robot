@@ -41,40 +41,75 @@ Inspect VCH
     Verify Return Code
     Verify Status Ok
 
-Reconfigure VCH
+Put VCH
     [Arguments]    ${data}
     Put Path Under Target    vch/${VCH-ID}    ${data}
 
-Reconfigure VCH Within Datacenter
+Put VCH Within Datacenter
     [Arguments]    ${data}
     Put Path Under Target  datacenter/${DC-ID}/vch/${VCH-ID}   ${data}
 
+Patch VCH
+    [Arguments]    ${data}
+    Patch Path Under Target  vch/${VCH-ID}    ${data}
+
+Patch VCH Within Datacenter
+    [Arguments]    ${data}
+    Patch Path Under Target  datacenter/${DC-ID}/vch/${VCH-ID}   ${data}
+
 
 *** Test Cases ***
-Reconfigure VCH Debug Level
+Put VCH Debug Level
     Inspect VCH
     Property Should Be Equal  .debug  null
 
-    Reconfigure VCH  '{"name":"%{VCH-NAME}", "debug": 3}'
+    Put VCH  '{"name":"%{VCH-NAME}", "debug": 3}'
     Verify Return Code
     Verify Status Accepted
 
     Inspect VCH
     Property Should Be Equal  .debug   3
 
-Reconfigure Fail For Immutable Fields
-    Reconfigure VCH  '{"name": "IMMUTABLE"}'
+Put Fails For Nonconsistent Immutable Fields
+    Put VCH  '{"name": "IMMUTABLE"}'
     Verify Return Code
     Verify Status Conflict
 
     Inspect VCH
     Property Should Be Equal  .name   %{VCH-NAME}
 
-Reconfigure VCH Debug Level Within Datacenter
+Put VCH Debug Level Within Datacenter
     Inspect VCH
     Property Should Be Equal  .debug  3
 
-    Reconfigure VCH Within Datacenter  '{"name": "%{VCH-NAME}", "debug": 0}'
+    Put VCH Within Datacenter  '{"name": "%{VCH-NAME}", "debug": 0}'
+    Verify Return Code
+    Verify Status Accepted
+
+    Inspect VCH
+    Property Should Be Equal  .debug  null
+
+Patch VCH Debug Level
+    Inspect VCH
+    Property Should Be Equal  .debug  null
+
+    Patch VCH  '{"debug": 3}'
+    Verify Return Code
+    Verify Status Accepted
+
+    Inspect VCH
+    Property Should Be Equal  .debug  3
+
+Patch Fails If Immutable Fields Present
+    Patch VCH  '{"name": "%{VCH-NAME}", "debug": 0}'
+    Verify Return Code
+    Verify Status Bad Request
+
+Patch VCH Debug Level Within Datacenter
+    Inspect VCH
+    Property Should Be Equal  .debug  3
+
+    Patch VCH Within Datacenter  '{"debug": 0}'
     Verify Return Code
     Verify Status Accepted
 
