@@ -28,7 +28,7 @@ Setup
 
 Teardown
     Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
-    Terminate All Processes    kill=True
+    Stop VIC Machine Server
 
 Get VCH List
     Get Path Under Target    vch

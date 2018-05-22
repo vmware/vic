@@ -17,7 +17,7 @@ Documentation     Test 23-08 - VCH Delete
 Resource          ../../resources/Util.robot
 Resource          ../../resources/Group23-VIC-Machine-Service-Util.robot
 Suite Setup       Start VIC Machine Server
-Suite Teardown    Terminate All Processes    kill=True
+Suite Teardown    Stop VIC Machine Server
 Test Setup        Install And Prepare VIC Appliance
 Test Teardown     Run  govc datastore.rm %{VCH-NAME}-VOL
 
@@ -257,7 +257,7 @@ Verify Volume Store Not Exists
 Cleanup VIC Appliance and Specified Volume
     [Arguments]  ${volume-cleanup}
     Run Keyword And Continue On Failure  Run  govc datastore.rm ${volume-cleanup}-VOL
-    Cleanup VIC Appliance On Test Server 
+    Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Delete VCH
