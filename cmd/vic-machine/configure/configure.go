@@ -338,14 +338,14 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		op.Errorf("Configure cannot continue - failed to create validator: %s", err)
 		return errors.New("configure failed")
 	}
-	defer validator.Session.Logout(parentOp) // parentOp is used here to ensure the logout occurs, even in the event of timeout
+	defer validator.Session().Logout(parentOp) // parentOp is used here to ensure the logout occurs, even in the event of timeout
 
-	_, err = validator.ValidateTarget(op, c.Data)
+	_, err = validator.ValidateTarget(op, c.Data, false)
 	if err != nil {
 		op.Errorf("Configuring cannot continue - target validation failed: %s", err)
 		return errors.New("configure failed")
 	}
-	executor := management.NewDispatcher(validator.Context, validator.Session, management.ConfigureAction, c.Force)
+	executor := management.NewDispatcher(op, validator.Session(), management.ActionConfigure, c.Force)
 
 	var vch *vm.VirtualMachine
 	if c.Data.ID != "" {
@@ -390,14 +390,14 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	}
 
 	// Convert guestinfo *VirtualContainerHost back to *Data, decrypt secret data
-	oldData, err := validate.NewDataFromConfig(op, validator.Session.Finder, vchConfig)
+	oldData, err := validate.NewDataFromConfig(op, validator.Session().Finder, vchConfig)
 	if err != nil {
 		op.Error("Configuring cannot continue: configuration conversion failed")
 		op.Error(err)
 		return err
 	}
 
-	if err = validate.SetDataFromVM(op, validator.Session.Finder, vch, oldData); err != nil {
+	if err = validator.SetDataFromVM(op, vch, oldData); err != nil {
 		op.Error("Configuring cannot continue: querying configuration from VM failed")
 		op.Error(err)
 		return err
@@ -444,7 +444,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	}
 
 	// evaluate merged configuration
-	newConfig, err := validator.Validate(op, c.Data)
+	newConfig, err := validator.Validate(op, c.Data, false)
 	if err != nil {
 		op.Error("Configuring cannot continue: configuration validation failed")
 		return err
@@ -490,7 +490,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	if !c.Data.Rollback {
 		err = executor.Configure(vchConfig, vConfig)
 	} else {
-		executor.Action = management.RollbackAction
+		executor.Action = management.ActionRollback
 		err = executor.Rollback(vchConfig, vConfig)
 	}
 

@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/service/models"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/target"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
@@ -77,9 +78,9 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 	api.TxtProducer = runtime.TextProducer()
 
 	// Applies when the Authorization header is set with the Basic scheme
-	api.BasicAuth = handlers.BasicAuth
+	api.BasicAuth = target.BasicAuth
 
-	api.SessionAuth = handlers.SessionAuth
+	api.SessionAuth = target.SessionAuth
 
 	// GET /container
 	api.GetHandler = operations.GetHandlerFunc(func(params operations.GetParams) middleware.Responder {

@@ -32,7 +32,7 @@ Setup
 
 
 Teardown
-    Terminate All Processes    kill=True
+    Stop VIC Machine Server
     Cleanup Test Server
 
 
@@ -340,7 +340,7 @@ Fail to create VCH with a name that is already in use
     Verify Status Created
 
     Create VCH    '{"name":"${there_can_only_be_one}","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"${PUBLIC_NETWORK}"}}},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
-    
+
     Verify Return Code
 
     ${status}=    Get State Of Github Issue    7749
@@ -355,7 +355,7 @@ Fail to create VCH with a name that is already in use
 
 Fail to create a VCH with an invalid container name name convention
     ${invalid_name_convention}=    Set Variable    192.168.1.1-mycontainer
-    
+
     Create VCH    '{"name":"%{VCH-NAME}-api-test-minimal","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"${PUBLIC_NETWORK}"}}},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}, "container":{"name_convention": "${invalid_name_convention}"}}'
 
     Verify Return Code
@@ -395,7 +395,7 @@ Fail to create VCH where http != https (on http key/pair) in image_fetch_proxy -
     Verify Return Code
     Verify Status Bad Request
 
-    Output Should Contain    Error processing proxies: Could not parse HTTP proxy
+    Output Should Contain    error processing proxies: Could not parse HTTP proxy
 
 
 Fail to create VCH where https != http (on https key/pair) in image_fetch_proxy - registry settings
@@ -404,7 +404,7 @@ Fail to create VCH where https != http (on https key/pair) in image_fetch_proxy 
     Verify Return Code
     Verify Status Bad Request
 
-    Output Should Contain    Error processing proxies: Could not parse HTTPS proxy
+    Output Should Contain    error processing proxies: Could not parse HTTPS proxy
 
 
 Fail to create VCH where whitelist contains an int and not string - registry settings
@@ -502,7 +502,7 @@ Fail to create VCH where an invalid target path is specified - resource settings
     Verify Return Code
     Verify Status Bad Request
 
-    Output Should Contain    Failed to validate VCH
+    Output Should Contain    failed to validate VCH
 
 
 Fail to create VCH where an invalid cname field is specified - security settings

@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/create"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/interaction"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
@@ -150,15 +151,15 @@ func (i *Inspect) run(clic *cli.Context, op trace.Operation, cmd command) (err e
 		op.Errorf("Inspect cannot continue - failed to create validator: %s", err)
 		return errors.New("inspect failed")
 	}
-	defer validator.Session.Logout(op)
+	defer validator.Session().Logout(op)
 
-	_, err = validator.ValidateTarget(op, i.Data)
+	_, err = validator.ValidateTarget(op, i.Data, false)
 	if err != nil {
 		op.Errorf("Inspect cannot continue - target validation failed: %s", err)
 		return errors.New("inspect failed")
 	}
 
-	executor := management.NewDispatcher(validator.Context, validator.Session, management.InspectAction, i.Force)
+	executor := management.NewDispatcher(op, validator.Session(), management.ActionInspect, i.Force)
 
 	var vch *vm.VirtualMachine
 	if i.Data.ID != "" {
@@ -195,7 +196,7 @@ func (i *Inspect) RunConfig(clic *cli.Context) (err error) {
 	}
 
 	return i.run(clic, op, func(s state) error {
-		err = i.showConfiguration(s.op, s.validator.Session.Finder, s.vchConfig, s.vch)
+		err = i.showConfiguration(s.op, s.validator, s.vchConfig, s.vch)
 		if err != nil {
 			op.Error("Failed to print Virtual Container Host configuration")
 			op.Error(err)
@@ -230,20 +231,20 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 	})
 }
 
-func retrieveMapOptions(op trace.Operation, finder validate.Finder,
+func retrieveMapOptions(op trace.Operation, validator *validate.Validator,
 	conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) (map[string][]string, error) {
-	data, err := validate.NewDataFromConfig(op, finder, conf)
+	data, err := validate.NewDataFromConfig(op, validator.Session().Finder, conf)
 	if err != nil {
 		return nil, err
 	}
-	if err = validate.SetDataFromVM(op, finder, vm, data); err != nil {
+	if err = validator.SetDataFromVM(op, vm, data); err != nil {
 		return nil, err
 	}
 	return converter.DataToOption(data)
 }
 
-func (i Inspect) showConfiguration(op trace.Operation, finder validate.Finder, conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) error {
-	mapOptions, err := retrieveMapOptions(op, finder, conf, vm)
+func (i Inspect) showConfiguration(op trace.Operation, validator *validate.Validator, conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) error {
+	mapOptions, err := retrieveMapOptions(op, validator, conf, vm)
 	if err != nil {
 		return err
 	}
@@ -254,7 +255,7 @@ func (i Inspect) showConfiguration(op trace.Operation, finder validate.Finder, c
 	} else if i.Format == "verbose" {
 		strOptions := strings.Join(options, "\n\t")
 		op.Info("")
-		op.Infof("Target VCH created with the following options: \n\n\t%s\n", strOptions)
+		op.Infof("The target VCH is configured with the following options: \n\n\t%s\n", strOptions)
 	}
 
 	return nil
@@ -296,44 +297,6 @@ func (i *Inspect) sortedOutput(mapOptions map[string][]string) (output []string)
 
 // upgradeStatusMessage generates a user facing status string about upgrade progress and status
 func (i *Inspect) upgradeStatusMessage(op trace.Operation, vch *vm.VirtualMachine, installerVer *version.Build, vchVer *version.Build) {
-	if sameVer := installerVer.Equal(vchVer); sameVer {
-		op.Info("Installer has same version as VCH")
-		op.Info("No upgrade available with this installer version")
-		return
-	}
-
-	upgrading, err := vch.VCHUpdateStatus(op)
-	if err != nil {
-		op.Errorf("Unable to determine if upgrade/configure is in progress: %s", err)
-		return
-	}
-	if upgrading {
-		op.Info("Upgrade/configure in progress")
-		return
-	}
-
-	canUpgrade, err := installerVer.IsNewer(vchVer)
-	if err != nil {
-		op.Errorf("Unable to determine if upgrade is available: %s", err)
-		return
-	}
-	if canUpgrade {
-		op.Info("Upgrade available")
-		return
-	}
-
-	oldInstaller, err := installerVer.IsOlder(vchVer)
-	if err != nil {
-		op.Errorf("Unable to determine if upgrade is available: %s", err)
-		return
-	}
-	if oldInstaller {
-		op.Info("Installer has older version than VCH")
-		op.Info("No upgrade available with this installer version")
-		return
-	}
-
-	// can't get here
-	op.Warn("Invalid upgrade status")
+	interaction.LogUpgradeStatusLongMessage(op, vch, installerVer, vchVer)
 	return
 }

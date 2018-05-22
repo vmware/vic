@@ -42,40 +42,41 @@ type Action int
 
 // Action definitions
 const (
-	NoAction        Action = iota // 0
-	CreateAction                  // 1
-	ConfigureAction               // 2
-	UpgradeAction                 // 3
-	RollbackAction                // 4
-	DeleteAction                  // 5
-	InspectAction                 // 6
-	ListAction                    // 7
-	UpdateAction                  // 8
-	DebugAction                   // 9
+	ActionConfigure Action = iota
+	ActionCreate
+	ActionDebug
+	ActionDelete
+	ActionInspect
+	ActionInspectCertificates
+	ActionInspectLogs
+	ActionList
+	ActionRollback
+	ActionUpdate
+	ActionUpgrade
 )
 
 // stringer for action
 func (a Action) String() string {
 	var act string
 	switch a {
-	case CreateAction:
-		act = "create"
-	case ConfigureAction:
+	case ActionConfigure:
 		act = "configure"
-	case UpgradeAction:
-		act = "upgrade"
-	case DeleteAction:
-		act = "delete"
-	case InspectAction:
-		act = "inspect"
-	case ListAction:
-		act = "list"
-	case DebugAction:
+	case ActionCreate:
+		act = "create"
+	case ActionDebug:
 		act = "debug"
-	case UpdateAction:
-		act = "update"
-	case RollbackAction:
+	case ActionDelete:
+		act = "delete"
+	case ActionInspect, ActionInspectCertificates, ActionInspectLogs:
+		act = "inspect"
+	case ActionList:
+		act = "list"
+	case ActionRollback:
 		act = "rollback"
+	case ActionUpdate:
+		act = "update"
+	case ActionUpgrade:
+		act = "upgrade"
 	}
 	return act
 }

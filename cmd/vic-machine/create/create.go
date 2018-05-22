@@ -684,9 +684,9 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 		op.Error("Create cannot continue: failed to create validator")
 		return err
 	}
-	defer validator.Session.Logout(op)
+	defer validator.Session().Logout(op)
 
-	vchConfig, err := validator.Validate(op, c.Data)
+	vchConfig, err := validator.Validate(op, c.Data, false)
 	if err != nil {
 		op.Error("Create cannot continue: configuration validation failed")
 		return err
@@ -708,7 +708,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	// separate initial validation from dispatch of creation task
 	op.Info("")
 
-	executor := management.NewDispatcher(op, validator.Session, management.CreateAction, c.Force)
+	executor := management.NewDispatcher(op, validator.Session(), management.ActionCreate, c.Force)
 	executor.InitDiagnosticLogsFromConf(vchConfig)
 	if err = executor.CreateVCH(vchConfig, vConfig, datastoreLog); err != nil {
 		executor.CollectDiagnosticLogs()

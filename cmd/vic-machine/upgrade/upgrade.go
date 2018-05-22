@@ -123,10 +123,10 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 	var action management.Action
 	if !u.Data.Rollback {
 		op.Infof("### Upgrading VCH ####")
-		action = management.UpgradeAction
+		action = management.ActionUpgrade
 	} else {
 		op.Infof("### Rolling back VCH ####")
-		action = management.RollbackAction
+		action = management.ActionRollback
 	}
 
 	validator, err := validate.NewValidator(op, u.Data)
@@ -134,15 +134,15 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 		op.Errorf("Upgrade cannot continue - failed to create validator: %s", err)
 		return errors.New("upgrade failed")
 	}
-	defer validator.Session.Logout(op)
+	defer validator.Session().Logout(op)
 
-	_, err = validator.ValidateTarget(op, u.Data)
+	_, err = validator.ValidateTarget(op, u.Data, false)
 	if err != nil {
 		op.Errorf("Upgrade cannot continue - target validation failed: %s", err)
 		return errors.New("upgrade failed")
 	}
 
-	executor := management.NewDispatcher(validator.Context, validator.Session, action, u.Force)
+	executor := management.NewDispatcher(op, validator.Session(), action, u.Force)
 
 	var vch *vm.VirtualMachine
 	if u.Data.ID != "" {

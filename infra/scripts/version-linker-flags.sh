@@ -14,7 +14,13 @@
 # limitations under the License.
 #
 
-echo "-s -w \
+if [ -n "${VIC_DEBUG_BUILD}" ]; then
+    flags=""
+else
+    flags="-s -w"
+fi
+
+echo "${flags} \
     -X github.com/vmware/vic/pkg/version.Version=`git describe --abbrev=0 --tags` \
     -X github.com/vmware/vic/pkg/version.BuildNumber=\"${BUILD_NUMBER}\" \
     -X github.com/vmware/vic/pkg/version.BuildDate=`date -u +%Y/%m/%d@%H:%M:%S` \
@@ -24,4 +30,3 @@ echo "-s -w \
             ! $(git diff-files --no-ext-diff --quiet) || \
             ! $(git diff-index --no-ext-diff --quiet --cached HEAD) \
      ]]; then echo 'dirty'; fi`"
-

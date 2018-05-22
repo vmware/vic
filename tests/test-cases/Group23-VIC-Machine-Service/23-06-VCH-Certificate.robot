@@ -17,13 +17,13 @@ Documentation     Test 23-06 - VCH Certificate
 Resource          ../../resources/Util.robot
 Resource          ../../resources/Group23-VIC-Machine-Service-Util.robot
 Suite Setup       Start VIC Machine Server
-Suite Teardown    Terminate All Processes  kill=True
+Suite Teardown    Stop VIC Machine Server
 Test Teardown     Cleanup VIC Appliance On Test Server
 Default Tags
 
 *** Keywords ***
 Install VIC Machine Without TLS
-    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${additional-args}=${EMPTY}
+    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${opsuser-args}=${EMPTY}  ${additional-args}=${EMPTY}
     Set Test Environment Variables
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
     # Attempt to cleanup old/canceled tests
@@ -33,9 +33,12 @@ Install VIC Machine Without TLS
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Containers On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Resource Pools On Test Server
+
+    ${opsuser-args}=  Get Ops User Args
+
     Set Suite Variable  ${vicmachinetls}  --no-tls
     Log To Console  \nInstalling VCH to test server with tls disabled...
-    ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${debug}  ${additional-args}
+    ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${debug}  ${opsuser-args}  ${additional-args}
     Log  ${output}
     Should Contain  ${output}  Installer completed successfully
 
@@ -65,7 +68,7 @@ Verify Certificate
 
 
 Verify Certificate Not Found
-    Output Should Contain        No certificate found for VCH
+    Output Should Contain        no certificate found for VCH
     Output Should Not Contain    BEGIN CERTIFICATE
     Output Should Not Contain    END CERTIFICATE
 

@@ -32,6 +32,12 @@ else
     export FAST_FAILURE=0
 fi
 
+if (echo $prBody | grep -q "\[ops user\]"); then
+    export RUN_AS_OPS_USER=1
+else
+    export RUN_AS_OPS_USER=0
+fi
+
 if (echo $prBody | grep -q "\[shared datastore="); then
     command=$(echo $prBody | grep "\[shared datastore=")
     datastore=$(echo $command | awk -F"\[shared datastore=" '{sub(/\].*/,"",$2);print $2}')

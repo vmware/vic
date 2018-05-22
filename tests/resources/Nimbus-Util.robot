@@ -230,6 +230,12 @@ Nimbus Cleanup
     ${list}=  Catenate  @{vm_list}
     Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${list}
 
+Nimbus Cleanup Single VM
+    [Arguments]  ${vm}  ${collect_log}=True  ${dontDelete}=${false}
+    Run Keyword If  ${collect_log}  Run Keyword And Continue On Failure  Gather Logs From Test Server
+    Return From Keyword If  ${dontDelete}
+    Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${vm}
+
 Gather Host IPs
     ${out}=  Run  govc ls host/cls
     ${out}=  Split To Lines  ${out}
@@ -427,6 +433,29 @@ Deploy Simple NFS Testbed
 
     [Return]  ${user}-${name}.nfs.0  ${user}-${name}.nfs.1  ${user}-${name}.esx.0  ${nfs-ip}  ${nfs-ro-ip}  ${esx-ip}
 
+Deploy Nimbus NFS Datastore
+    [Arguments]  ${user}  ${password}  ${additional-args}=
+    ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
+    Log To Console  \nDeploying Nimbus NFS server: ${name}
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
+
+    ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-nfsdeploy ${name} ${additional-args}
+    Log  ${out}
+    # Make sure the deploy actually worked
+    Should Contain  ${out}  To manage this VM use
+    # Now grab the IP address and return the name and ip for later use
+    @{out}=  Split To Lines  ${out}
+    :FOR  ${item}  IN  @{out}
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  IP is
+    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
+    @{gotIP}=  Split String  ${line}  ${SPACE}
+    ${ip}=  Remove String  @{gotIP}[5]  ,
+
+    Log To Console  Successfully deployed new NFS server - ${user}-${name}
+    Close connection
+    [Return]  ${user}-${name}  ${ip}
+
 Change ESXi Server Password
     [Arguments]  ${password}
     ${out}=  Run  govc host.account.update -id root -password ${password}
@@ -458,23 +487,22 @@ Create Simple VC Cluster With Static IP
     [Timeout]    110 minutes
     Set Suite Variable  ${NIMBUS_LOCATION}  NIMBUS_LOCATION=wdc
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
-    Log To Console  Create a new simple vc cluser with static ip support...
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-simple-cluster --testbedSpecRubyFile /dbc/pa-dbc1111/mhagen/nimbus-testbeds/testbeds/vic-simple-cluster.rb --runName ${name}
+    Log To Console  Create a new simple vc cluster with static ip support...
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-simple-cluster-with-static --testbedSpecRubyFile /dbc/pa-dbc1111/mhagen/nimbus-testbeds/testbeds/vic-simple-cluster-with-static.rb --runName ${name}
     Log  ${out}
 
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     ${vc-ip}=  Get IP  ${name}.vc.0
-    ${pod}=  Fetch POD  ${name}.vc.0
-    Set Suite Variable  ${NIMBUS_POD}  ${pod}
+    ${worker-ip}=  Get IP  ${name}.worker.0
     Close Connection
 
-    Set Suite Variable  @{list}  %{NIMBUS_USER}-${name}.esx.0  %{NIMBUS_USER}-${name}.esx.1  %{NIMBUS_USER}-${name}.esx.2  %{NIMBUS_USER}-${name}.nfs.0  %{NIMBUS_USER}-${name}.vc.0
-    Log To Console  Finished Creating Cluster ${name}
+    Set Suite Variable  @{list}  %{NIMBUS_USER}-${name}.esx.0  %{NIMBUS_USER}-${name}.esx.1  %{NIMBUS_USER}-${name}.esx.2  %{NIMBUS_USER}-${name}.nfs.0  %{NIMBUS_USER}-${name}.vc.0  %{NIMBUS_USER}-${name}.worker.0
+    Log To Console  Finished creating cluster ${name}
 
+    Set Environment Variable  STATIC_WORKER_IP  ${worker-ip}
     ${out}=  Get Static IP Address
     Set Suite Variable  ${static}  ${out}
-    Append To List  ${list}  %{STATIC_WORKER_NAME}
 
     Log To Console  Set environment variables up for GOVC
     Set Environment Variable  GOVC_URL  ${vc-ip}
@@ -533,3 +561,9 @@ Is Nimbus Location WDC
     ${status}=  Run Keyword And Return Status  Should Not Be Empty  ${out}
     Close Connection
     [Return]  ${status}
+
+Get Name of First Local Storage For Host
+    [Arguments]  ${host}
+    ${datastores}=  Run  govc host.info -host ${host} -json | jq -r '.HostSystems[].Config.FileSystemVolume.MountInfo[].Volume | select (.Type\=\="VMFS") | select (.Local\=\=true) | .Name'
+    @{datastores}=  Split To Lines  ${datastores}
+    [Return]  @{datastores}[0]

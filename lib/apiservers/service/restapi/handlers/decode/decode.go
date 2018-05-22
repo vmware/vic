@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package handlers
-
-type Credentials struct {
-	user string
-	pass string
-}
-
-type Session struct {
-	ticket string
-}
-
-func BasicAuth(user string, pass string) (interface{}, error) {
-	return Credentials{user: user, pass: pass}, nil
-}
-
-func SessionAuth(ticket string) (interface{}, error) {
-	return Session{ticket: ticket}, nil
-}
+// Package decode converts model objects used by the API into objects used by
+// the management package. Functions are grouped by area.
+package decode

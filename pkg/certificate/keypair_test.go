@@ -32,9 +32,12 @@ const (
 	certFile = "./cert.pem"
 )
 
-func TestMain(t *testing.T) {
+func TestMain(m *testing.M) {
 	log.SetLevel(log.DebugLevel)
 	trace.Logger.Level = log.DebugLevel
+
+	code := m.Run()
+	os.Exit(code)
 }
 
 func TestCreateSelfSigned(t *testing.T) {

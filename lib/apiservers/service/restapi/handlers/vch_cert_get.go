@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,87 +15,89 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 
 	"github.com/vmware/vic/lib/apiservers/service/models"
-	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/util"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/encode"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/target"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
-	"github.com/vmware/vic/lib/config"
-	"github.com/vmware/vic/lib/install/data"
-	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/pkg/trace"
 )
 
-type VCHCertGet struct{}
+// VCHCertGet is the Handler for getting the certificate for a VCH without specifying a datacenter
+type VCHCertGet struct {
+	vchCertGet
+}
 
-type VCHDatacenterCertGet struct{}
+// VCHDatacenterCertGet is the Handler for getting the certificate for a VCH within a specified datacenter
+type VCHDatacenterCertGet struct {
+	vchCertGet
+}
 
+// vchCertGet allows for VCHCertGet and VCHDatacenterCertGet to share common code without polluting the package
+type vchCertGet struct{}
+
+// Handle is the handler implementation for getting the certificate for a VCH without specifying a datacenter
 func (h *VCHCertGet) Handle(params operations.GetTargetTargetVchVchIDCertificateParams, principal interface{}) middleware.Responder {
 	op := trace.FromContext(params.HTTPRequest.Context(), "VCHCertGet: %s", params.VchID)
 
-	b := buildDataParams{
-		target:     params.Target,
-		thumbprint: params.Thumbprint,
-		vchID:      &params.VchID,
+	b := target.Params{
+		Target:     params.Target,
+		Thumbprint: params.Thumbprint,
+		VCHID:      &params.VchID,
 	}
 
-	d, validator, err := buildDataAndValidateTarget(op, b, principal)
+	cert, err := h.handle(op, b, principal)
 	if err != nil {
-		return operations.NewGetTargetTargetVchVchIDCertificateDefault(
-			util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetVchVchIDCertificateDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	c, err := getVCHCert(op, d, validator)
-	if err != nil {
-		return operations.NewGetTargetTargetVchVchIDCertificateDefault(
-			util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
-	}
-
-	cert := asPemCertificate(c.Cert)
 	return NewGetTargetTargetVchVchIDCertificateOK(cert.Pem)
 }
 
+// Handle is the handler implementation for getting the certificate for a VCH within a specified datacenter
 func (h *VCHDatacenterCertGet) Handle(params operations.GetTargetTargetDatacenterDatacenterVchVchIDCertificateParams, principal interface{}) middleware.Responder {
 	op := trace.FromContext(params.HTTPRequest.Context(), "VCHDatacenterCertGet: %s", params.VchID)
 
-	b := buildDataParams{
-		target:     params.Target,
-		thumbprint: params.Thumbprint,
-		datacenter: &params.Datacenter,
-		vchID:      &params.VchID,
+	b := target.Params{
+		Target:     params.Target,
+		Thumbprint: params.Thumbprint,
+		Datacenter: &params.Datacenter,
+		VCHID:      &params.VchID,
 	}
 
-	d, validator, err := buildDataAndValidateTarget(op, b, principal)
+	cert, err := h.handle(op, b, principal)
 	if err != nil {
-		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDCertificateDefault(
-			util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
+		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDCertificateDefault(errors.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	c, err := getVCHCert(op, d, validator)
-	if err != nil {
-		return operations.NewGetTargetTargetDatacenterDatacenterVchVchIDCertificateDefault(
-			util.StatusCode(err)).WithPayload(&models.Error{Message: err.Error()})
-	}
-
-	cert := asPemCertificate(c.Cert)
 	return NewGetTargetTargetDatacenterDatacenterVchVchIDCertificateOK(cert.Pem)
 }
 
-func getVCHCert(op trace.Operation, d *data.Data, validator *validate.Validator) (*config.RawCertificate, error) {
-	vchConfig, err := getVCHConfig(op, d, validator)
+// handle retrieves the server certificate for the VCH described by params, using the credentials from principal. If no
+// certificate is configured on the VCH or the VCH itself cannot be found, a 404 is returned. If another error occurs,
+// a 500 is returned.
+func (h *vchCertGet) handle(op trace.Operation, params target.Params, principal interface{}) (*models.X509Data, error) {
+	d, c, err := target.Validate(op, management.ActionInspectCertificates, params, principal)
+	if err != nil {
+		return nil, err
+	}
+
+	vchConfig, err := c.GetVCHConfig(op, d)
 	if err != nil {
 		return nil, err
 	}
 
 	if vchConfig.HostCertificate.IsNil() {
-		return nil, util.NewError(http.StatusNotFound, fmt.Sprintf("No certificate found for VCH %s", d.ID))
+		return nil, errors.NewError(http.StatusNotFound, "no certificate found for VCH %s", d.ID)
 	}
 
-	return vchConfig.HostCertificate, nil
+	return encode.AsPemCertificate(vchConfig.HostCertificate.Cert), nil
 }
 
 // GetTargetTargetVchVchIDCertificateOK and the methods below are actually borrowed directly from generated swagger code.

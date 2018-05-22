@@ -33,7 +33,7 @@ func (v *Validator) storage(op trace.Operation, input *data.Data, conf *config.V
 	defer trace.End(trace.Begin("", op))
 
 	// Image Store
-	imageDSpath, ds, err := v.DatastoreHelper(op, input.ImageDatastorePath, "", "--image-store")
+	imageDSpath, ds, err := v.datastoreHelper(op, input.ImageDatastorePath, "", "--image-store")
 
 	if err != nil {
 		v.NoteIssue(err)
@@ -46,7 +46,7 @@ func (v *Validator) storage(op trace.Operation, input *data.Data, conf *config.V
 	}
 
 	if ds != nil {
-		v.SetDatastore(ds, imageDSpath)
+		v.setDatastore(ds, imageDSpath)
 		conf.AddImageStore(imageDSpath)
 	}
 
@@ -61,12 +61,12 @@ func (v *Validator) storage(op trace.Operation, input *data.Data, conf *config.V
 			vsErr := validateNFSTarget(targetURL)
 			v.NoteIssue(vsErr)
 		case common.DsScheme:
-			// TODO: change v.DatastoreHelper to take url struct instead of string and modify tests.
-			targetURL, _, vsErr = v.DatastoreHelper(op, targetURL.Path, label, "--volume-store")
+			// TODO: change v.datastoreHelper to take url struct instead of string and modify tests.
+			targetURL, _, vsErr = v.datastoreHelper(op, targetURL.Path, label, "--volume-store")
 			v.NoteIssue(vsErr)
 		default:
 			// We should not reach here, if we do we will attempt to treat this as a vsphere datastore
-			targetURL, _, vsErr = v.DatastoreHelper(op, targetURL.String(), label, "--volume-store")
+			targetURL, _, vsErr = v.datastoreHelper(op, targetURL.String(), label, "--volume-store")
 			v.NoteIssue(vsErr)
 		}
 
@@ -91,8 +91,8 @@ func validateNFSTarget(nfsURL *url.URL) error {
 	return nil
 }
 
-func (v *Validator) DatastoreHelper(ctx context.Context, path string, label string, flag string) (*url.URL, *object.Datastore, error) {
-	op := trace.FromContext(ctx, "DatastoreHelper")
+func (v *Validator) datastoreHelper(ctx context.Context, path string, label string, flag string) (*url.URL, *object.Datastore, error) {
+	op := trace.FromContext(ctx, "datastoreHelper")
 	defer trace.End(trace.Begin(path, op))
 
 	stripRawTarget := path
@@ -131,7 +131,7 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string, label stri
 
 	if dsURL.Host == "" {
 		// see if we can find a default datastore
-		store, err := v.Session.Finder.DatastoreOrDefault(op, "*")
+		store, err := v.session.Finder.DatastoreOrDefault(op, "*")
 		if err != nil {
 			v.suggestDatastore(op, "*", label, flag)
 			return nil, nil, errors.New("datastore empty")
@@ -141,7 +141,7 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string, label stri
 		op.Infof("Using default datastore: %s", dsURL.Host)
 	}
 
-	stores, err := v.Session.Finder.DatastoreList(op, dsURL.Host)
+	stores, err := v.session.Finder.DatastoreList(op, dsURL.Host)
 	if err != nil {
 		op.Debugf("no such datastore %#v", dsURL)
 		v.suggestDatastore(op, path, label, flag)
@@ -167,13 +167,13 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string, label stri
 	return dsURL, stores[0], nil
 }
 
-func (v *Validator) SetDatastore(ds *object.Datastore, path *url.URL) {
-	v.Session.Datastore = ds
-	v.Session.DatastorePath = path.Host
+func (v *Validator) setDatastore(ds *object.Datastore, path *url.URL) {
+	v.session.Datastore = ds
+	v.session.DatastorePath = path.Host
 }
 
-func (v *Validator) ListDatastores() ([]string, error) {
-	dss, err := v.Session.Finder.DatastoreList(v.Context, "*")
+func (v *Validator) listDatastores(op trace.Operation) ([]string, error) {
+	dss, err := v.session.Finder.DatastoreList(op, "*")
 	if err != nil {
 		return nil, fmt.Errorf("Unable to list datastores: %s", err)
 	}
@@ -201,7 +201,7 @@ func (v *Validator) suggestDatastore(op trace.Operation, path string, label stri
 	}
 	op.Infof("Suggesting valid values for %s based on %q", flag, val)
 
-	dss, err := v.ListDatastores()
+	dss, err := v.listDatastores(op)
 	if err != nil {
 		op.Error(err)
 		return

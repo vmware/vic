@@ -78,7 +78,7 @@ func (d *Dispatcher) Configure(conf *config.VirtualContainerHostConfigSpec, sett
 
 	// Resource Pools not available in a DRS Disabled environment, so only attempt an update
 	// if DRS is Enabled and this is a configure action.
-	if d.session.DRSEnabled != nil && *d.session.DRSEnabled && d.Action == ConfigureAction {
+	if d.session.DRSEnabled != nil && *d.session.DRSEnabled && d.Action == ActionConfigure {
 		if err = d.updateResourceSettings(conf.Name, settings); err != nil {
 			err = errors.Errorf("Failed to reconfigure resources: %s", err)
 			return err
@@ -305,7 +305,7 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 	}
 
 	// Create volume stores only for a configure operation, where conf has its storage fields validated.
-	if d.Action == ConfigureAction {
+	if d.Action == ActionConfigure {
 		if err := d.createVolumeStores(conf); err != nil {
 			return err
 		}
@@ -317,7 +317,7 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 
 	// if we are upgrading evaluate need for inventory upgrade
 	// vApp support planned: https://github.com/vmware/vic/issues/7670
-	if d.Action == UpgradeAction && d.session.IsVC() && d.vchPool.Reference().Type != "VirtualApp" {
+	if d.Action == ActionUpgrade && d.session.IsVC() && d.vchPool.Reference().Type != "VirtualApp" {
 		err = d.inventoryUpdate(conf.Name)
 		if err != nil {
 			return errors.Errorf("Failed to perform inventory update: %s", err)

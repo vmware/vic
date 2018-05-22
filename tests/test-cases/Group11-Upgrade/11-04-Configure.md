@@ -1,24 +1,19 @@
-Test 11-02 - Upgrade Exec
+Test 11-04 - Configure
 =======
 
 # Purpose:
-To verify that exec does not work in VIC version 0.9.0 and lower
+To verify vic-machine configure can upgrade with --upgrade specified
 
 # Environment:
 This test requires that a vSphere server is running and available
 
 # Test Steps:
-1. Download vic_0.9.0.tar.gz from gcp
-2. Deploy VIC 0.9.0 to vsphere server
-3. Create a busybox container running the background
-4. Upgrade VCH to latest version
-5. Run docker exec on container created in step (3.)
-6. Create new container
-7. Run docker exec on new container in (6.)
+1. Download vic_1.3.1.tar.gz from gcp
+2. Deploy VIC 1.3.1 to vsphere server
+3. Using latest version vic-machine to configure this VCH
 
 # Expected Outcome:
-* Step 5 should fail
-* All other steps should result in success
+* Step 3 should get expected error
 
 # Possible Problems:
 * This suite may fail when run locally due to a `vic-machine upgrade` issue. Since `vic-machine` checks the build number of its binary to determine upgrade status and a locally-built `vic-machine` binary may not have the `BUILD_NUMBER` set correctly, `vic-machine upgrade` may fail with the message `foo-VCH has same or newer version x than installer version y. No upgrade is available.` To resolve this, follow these steps:

@@ -13,7 +13,7 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 11-03 - Upgrade-InsecureRegistry
+Documentation  Test 11-02 - Upgrade-InsecureRegistry
 Resource  ../../resources/Util.robot
 #Test Teardown  Cleanup Test Environment
 

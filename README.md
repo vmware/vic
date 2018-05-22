@@ -101,6 +101,12 @@ make cleandeps
 
 After that next "make" run will regenerate dependencies from scratch.
 
+To enable generation of non-stripped binaries, the following environment variable can be set:
+
+```shell
+export VIC_DEBUG_BUILD=true
+```
+
 ## Updating the appliance with newly built binaries
 After building any of the binaries for the appliance VM (vicadmin, vic-init, port-layer-server, or the docker personality), run `make push` to replace the binaries on your VCH with the newly built ones.
 
@@ -191,6 +197,10 @@ From the root directory of the `vic` repository run `drone exec`
 ## Integration Tests
 
 [VIC Engine Integration Test Suite](tests/README.md) includes instructions to run locally.
+
+## Debugging with DLV
+
+[VIC Engine DLV Debugging with DLV](infra/dlv/README.md) includes instruction on how to use dlv.
 
 ## License
 

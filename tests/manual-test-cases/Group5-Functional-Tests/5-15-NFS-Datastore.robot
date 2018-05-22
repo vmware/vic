@@ -16,22 +16,36 @@
 Documentation  Test 5-15 - NFS Datastore
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10m  NFS Datastore Setup
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-15-nfs-datastore*'
 
 *** Keywords ***
 NFS Datastore Setup
     [Timeout]    110 minutes
-    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
-    ${esx1}  ${esx2}  ${esx3}  ${vc}  ${esx1-ip}  ${esx2-ip}  ${esx3-ip}  ${vc-ip}=  Create a Simple VC Cluster  datacenter1  cls1
-    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  %{NIMBUS_USER}-${vc}
+    Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-15-nfs-datastore*'  ${false}
+    Log To Console  \nStarting testbed deploy...    
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-simple-cluster --testbedSpecRubyFile /dbc/pa-dbc1111/mhagen/nimbus-testbeds/testbeds/vic-simple-cluster.rb --runName 5-15-nfs-datastore
+    Log  ${out}
 
-    ${name}  ${ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Append To List  ${list}  ${name}
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc-ip}=  Get IP  5-15-nfs-datastore.vc.0
+    Close Connection
 
-    ${out}=  Run  govc datastore.create -mode readWrite -type nfs -name nfsDatastore -remote-host ${ip} -remote-path /store /datacenter1/host/cls1
-    Should Be Empty  ${out}
+    Log To Console  Set environment variables up for GOVC
+    Set Environment Variable  GOVC_URL  ${vc-ip}
+    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  GOVC_PASSWORD  Admin\!23
 
-    Set Environment Variable  TEST_DATASTORE  nfsDatastore
+    Log To Console  Deploy VIC to the VC cluster
+    Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
+    Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  TEST_PASSWORD  Admin\!23
+    Set Environment Variable  BRIDGE_NETWORK  bridge
+    Set Environment Variable  PUBLIC_NETWORK  vm-network
+    Remove Environment Variable  TEST_DATACENTER
+    Set Environment Variable  TEST_DATASTORE  nfs0-1
+    Set Environment Variable  TEST_RESOURCE  cls
+    Set Environment Variable  TEST_TIMEOUT  15m
 
 *** Test Cases ***
 Test
