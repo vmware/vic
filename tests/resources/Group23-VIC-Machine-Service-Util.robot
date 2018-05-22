@@ -28,13 +28,14 @@ ${SERVING_AT_TEXT}           Serving vic machine at
 *** Keywords ***
 Start VIC Machine Server
     ${dir_name}=  Evaluate  'group23_log_dir' + str(random.randint(1000,9999))  modules=random
+    Set Suite Variable    ${SERVER_LOG_FILE}    ${dir_name}/${VIC_MACHINE_SERVER_LOG}
 
     ${handle}=    Start Process    ./bin/vic-machine-server --scheme http --log-directory ${dir_name}/    shell=True    cwd=/go/src/github.com/vmware/vic
-    Set Suite Variable    ${server_handle}    ${handle}
+    Set Suite Variable    ${SERVER_HANDLE}    ${handle}
     Process Should Be Running    ${handle}
     Sleep  5sec
 
-    ${output}=    Run    cat ${dir_name}/${VIC_MACHINE_SERVER_LOG}
+    ${output}=    Run    cat ${SERVER_LOG_FILE}
     @{output}=    Split To Lines    ${output}
     :FOR    ${line}    IN    @{output}
     \   ${status}=    Run Keyword And Return Status    Should Contain    ${line}    ${SERVING_AT_TEXT}
@@ -42,8 +43,10 @@ Start VIC Machine Server
     \   Run Keyword If    ${status}    Set Suite Variable    ${VIC_MACHINE_SERVER_URL}    ${server_url}
 
 Stop VIC Machine Server
-    Terminate Process    ${server_handle}    kill=true
-    Process Should Be Stopped    ${server_handle}
+    Run Keyword And Ignore Error    Copy File    ${SERVER_LOG_FILE}    ${SUITE NAME}-${VIC_MACHINE_SERVER_LOG}
+
+    Terminate Process    ${SERVER_HANDLE}    kill=true
+    Process Should Be Stopped    ${SERVER_HANDLE}
 
 Cleanup Test Server
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
