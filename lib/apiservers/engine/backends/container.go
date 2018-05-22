@@ -484,21 +484,20 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 	handle, err := c.Handle(id, name)
 	if err != nil {
 		op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
-		cancel()
+		return err
 	}
 
 	ec, err := c.containerProxy.InspectTask(op, handle, eid, id)
 	if err != nil {
-		cancel()
+		return err
 	}
 
 	if ec.State == "stopped" || ec.State == "failed" || ec.State == "unknown" {
 		op.Debugf("stopped before loop")
-		cancel()
+		return err
 	}
 
 	for ec.State == "running" || ec.State == "created" {
-		op = trace.FromContext(taskCtx, "wait retry loop")
 		op.Debugf("retry loop")
 		err = c.containerProxy.WaitTask(op, handle, id, eid)
 		if err != nil {
@@ -509,7 +508,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 			if stdout != nil {
 				stdout.Write([]byte(err.Error() + "\r\n"))
 			}
-			cancel()
+			return err
 
 		}
 
@@ -517,12 +516,12 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		handle, err := c.Handle(id, name)
 		if err != nil {
 			op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
-			cancel()
+			return err
 		}
 
 		ec, err = c.containerProxy.InspectTask(op, handle, eid, id)
 		if err != nil {
-			cancel()
+			return err
 		}
 		op.Debugf("Checking for the wait: %#v", *ec)
 	}
