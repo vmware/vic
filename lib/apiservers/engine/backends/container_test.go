@@ -59,6 +59,15 @@ type CreateHandleMockData struct {
 	createErrSubstr string
 }
 
+type AddImageMockData struct {
+	retHandle       string
+	retErr          error
+	deltaID         string
+	layerID         string
+	imageID         string
+	createErrSubstr string
+}
+
 type AddToScopeMockData struct {
 	createInputID   string
 	retHandle       string
@@ -99,6 +108,7 @@ type LogMockData struct {
 type MockContainerProxy struct {
 	mockRespIndices        []int
 	mockCreateHandleData   []CreateHandleMockData
+	mockAddImageData       []AddImageMockData
 	mockAddToScopeData     []AddToScopeMockData
 	mockAddVolumesData     []AddVolumesMockData
 	mockAddInteractionData []AddInteractionMockData
@@ -135,8 +145,9 @@ var dummyContainers = []string{dummyContainerID, dummyContainerIDTTY}
 
 func NewMockContainerProxy() *MockContainerProxy {
 	return &MockContainerProxy{
-		mockRespIndices:        make([]int, 6),
+		mockRespIndices:        make([]int, 7),
 		mockCreateHandleData:   MockCreateHandleData(),
+		mockAddImageData:       MockAddImageData(),
 		mockAddToScopeData:     MockAddToScopeData(),
 		mockAddVolumesData:     MockAddVolumesData(),
 		mockAddInteractionData: MockAddInteractionData(),
@@ -164,6 +175,10 @@ func MockCreateHandleData() []CreateHandleMockData {
 	}
 
 	return mockCreateHandleData
+}
+
+func MockAddImageData() []AddImageMockData {
+	return nil
 }
 
 func MockAddToScopeData() []AddToScopeMockData {
@@ -459,6 +474,10 @@ func (s *MockStorageProxy) VolumeInfo(ctx context.Context, name string) (*plmode
 
 func (s *MockStorageProxy) Remove(ctx context.Context, name string) error {
 	return nil
+}
+
+func (m *MockStorageProxy) AddImageToContainer(ctx context.Context, handle, id, layerID, imageID string, config types.ContainerCreateConfig) (string, error) {
+	return "", nil
 }
 
 func (s *MockStorageProxy) AddVolumesToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {

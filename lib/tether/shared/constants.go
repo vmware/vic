@@ -22,4 +22,9 @@ const (
 	FilterSpecQueryName  = "filter-spec"
 	SkipRecurseQueryName = "skip-recurse"
 	SkipDataQueryName    = "skip-data"
+
+	// This string is referenced in isos/bootstrap/bootstrap and should be kept in sync.
+	// Using a 0011 prefix caused the disk not to present, so have taken the 6000 prefix
+	// that was being generated consistency when uuid left undefined.
+	ScratchUUID = "60002233445566778899aabbccddeeff"
 )

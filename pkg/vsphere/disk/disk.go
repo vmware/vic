@@ -27,19 +27,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-// FilesystemType represents the filesystem in use by a virtual disk
-type FilesystemType uint8
-
 const (
-	// Ext4 represents the ext4 file system
-	Ext4 FilesystemType = iota + 1
-
-	// Xfs represents the XFS file system
-	Xfs
-
-	// Ntfs represents the NTFS file system
-	Ntfs
-
 	// directory in which to perform the direct mount of disk for bind mount
 	// to actual target
 	diskBindBase = "/.filesystem-by-label/"
@@ -47,14 +35,6 @@ const (
 	// used to isolate applications from the lost+found in the root of ext4
 	VolumeDataDir = "/.vic.vol.data"
 )
-
-// Filesystem defines the interface for handling an attached virtual disk
-type Filesystem interface {
-	Mkfs(op trace.Operation, devPath, label string) error
-	SetLabel(op trace.Operation, devPath, labelName string) error
-	Mount(op trace.Operation, devPath, targetPath string, options []string) error
-	Unmount(op trace.Operation, path string) error
-}
 
 // Semaphore represents the number of references to a disk
 type Semaphore struct {

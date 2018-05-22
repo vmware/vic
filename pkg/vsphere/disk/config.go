@@ -34,24 +34,32 @@ type VirtualDiskConfig struct {
 	CapacityInKB int64
 
 	// Underlying filesystem
-	Filesystem Filesystem
+	Filesystem fs.Filesystem
+
+	// Storage provisioning mode
+	ProvisionType types.VirtualDiskType
+
+	// Base disk UUID
+	UUID string
 
 	DiskMode types.VirtualDiskMode
 }
 
 func NewPersistentDisk(URI *object.DatastorePath) *VirtualDiskConfig {
 	return &VirtualDiskConfig{
-		DatastoreURI: URI,
-		DiskMode:     types.VirtualDiskModeIndependent_persistent,
-		Filesystem:   fs.NewExt4(),
+		DatastoreURI:  URI,
+		DiskMode:      types.VirtualDiskModeIndependent_persistent,
+		Filesystem:    fs.NewExt4(),
+		ProvisionType: types.VirtualDiskTypeThin,
 	}
 }
 
 func NewNonPersistentDisk(URI *object.DatastorePath) *VirtualDiskConfig {
 	return &VirtualDiskConfig{
-		DatastoreURI: URI,
-		DiskMode:     types.VirtualDiskModeIndependent_nonpersistent,
-		Filesystem:   fs.NewExt4(),
+		DatastoreURI:  URI,
+		DiskMode:      types.VirtualDiskModeIndependent_nonpersistent,
+		Filesystem:    fs.NewExt4(),
+		ProvisionType: types.VirtualDiskTypeThin,
 	}
 }
 
@@ -61,18 +69,27 @@ func (d *VirtualDiskConfig) WithParent(parent *object.DatastorePath) *VirtualDis
 	return d
 }
 
-func (d *VirtualDiskConfig) WithFilesystem(ftype FilesystemType) *VirtualDiskConfig {
-	switch ftype {
-	case Xfs:
-		d.Filesystem = fs.NewXFS()
-	default:
-		d.Filesystem = fs.NewExt4()
-	}
+func (d *VirtualDiskConfig) WithFilesystem(ftype fs.FilesystemType) *VirtualDiskConfig {
+	d.Filesystem = fs.GetFilesystem(ftype)
 	return d
 }
 
 func (d *VirtualDiskConfig) WithCapacity(capacity int64) *VirtualDiskConfig {
 	d.CapacityInKB = capacity
+
+	return d
+}
+
+func (d *VirtualDiskConfig) WithProvisionType(ptype types.VirtualDiskType) *VirtualDiskConfig {
+	d.ProvisionType = ptype
+
+	return d
+}
+
+// WithUUID can only be set on the base disk layer due to disklib bug
+// TODO: add an error mechanism for validating conditional settings like this
+func (d *VirtualDiskConfig) WithUUID(uuid string) *VirtualDiskConfig {
+	d.UUID = uuid
 
 	return d
 }
@@ -88,4 +105,8 @@ func (d *VirtualDiskConfig) Hash() uint64 {
 
 func (d *VirtualDiskConfig) IsPersistent() bool {
 	return d.DiskMode == types.VirtualDiskModeIndependent_persistent || d.DiskMode == types.VirtualDiskModePersistent
+}
+
+func (d *VirtualDiskConfig) IsThinProvisioned() *bool {
+	return types.NewBool(d.ProvisionType == types.VirtualDiskTypeThin)
 }

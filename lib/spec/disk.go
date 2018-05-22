@@ -15,15 +15,8 @@
 package spec
 
 import (
-	"fmt"
-
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
-)
-
-const (
-	//from portlayer/vsphere/storage/store.go
-	defaultCapacityInKB = 8 * 1024 * 1024
 )
 
 // NewVirtualDisk returns a new disk attached to the controller
@@ -58,37 +51,6 @@ func (s *VirtualMachineConfigSpec) AddVirtualDisk(device *types.VirtualDisk) *Vi
 	defer trace.End(trace.Begin(s.ID()))
 
 	device.GetVirtualDevice().Key = s.generateNextKey()
-
-	device.CapacityInKB = defaultCapacityInKB
-
-	moref := s.Datastore.Reference()
-
-	device.GetVirtualDevice().Backing = &types.VirtualDiskFlatVer2BackingInfo{
-		DiskMode:        string(types.VirtualDiskModePersistent),
-		ThinProvisioned: types.NewBool(true),
-
-		VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-			FileName:  s.Datastore.Path(fmt.Sprintf("%s/%s.vmdk", s.ID(), s.ID())),
-			Datastore: &moref,
-		},
-	}
-
-	// Add the parent if we set ParentImageID
-	backing := device.GetVirtualDevice().Backing.(*types.VirtualDiskFlatVer2BackingInfo)
-	if s.ParentImageID() != "" {
-		backing.Parent = &types.VirtualDiskFlatVer2BackingInfo{
-			VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-				// XXX This needs to come from a storage helper in the future
-				// and should not be computed here like this.
-
-				FileName: s.Datastore.Path(fmt.Sprintf("%s/VIC/%s/images/%s/%[3]s.vmdk",
-					s.ImageStorePath().Path,
-					s.ImageStoreName(),
-					s.ParentImageID())),
-			},
-		}
-	}
-
 	return s.AddAndCreateVirtualDevice(device)
 }
 

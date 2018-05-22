@@ -37,6 +37,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
 type VicStorageProxy interface {
@@ -45,6 +46,7 @@ type VicStorageProxy interface {
 	VolumeInfo(ctx context.Context, name string) (*models.VolumeResponse, error)
 	Remove(ctx context.Context, name string) error
 
+	AddImageToContainer(ctx context.Context, handle, deltaID, layerID, imageID string, config types.ContainerCreateConfig) (string, error)
 	AddVolumesToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error)
 }
 
@@ -79,11 +81,13 @@ const (
 
 // define a set (whitelist) of valid driver opts keys for command line argument validation
 var validDriverOptsKeys = map[string]struct{}{
-	OptsVolumeStoreKey:    {},
-	OptsCapacityKey:       {},
-	DriverArgFlagKey:      {},
-	DriverArgContainerKey: {},
-	DriverArgImageKey:     {},
+	OptsVolumeStoreKey:          {},
+	OptsCapacityKey:             {},
+	constants.OptsFilesystemKey: {},
+	constants.OptsProvisionKey:  {},
+	DriverArgFlagKey:            {},
+	DriverArgContainerKey:       {},
+	DriverArgImageKey:           {},
 }
 
 // Volume drivers currently supported. "local" is the default driver supplied by the client
@@ -91,6 +95,19 @@ var validDriverOptsKeys = map[string]struct{}{
 var SupportedVolDrivers = map[string]struct{}{
 	"vsphere": {},
 	"local":   {},
+}
+
+// Filesystems currently supported for vSphere volume driver. "ext4" is the default.
+var SupportedFilesystems = map[string]struct{}{
+	"ext4": {},
+	"xfs":  {},
+	"raw":  {},
+}
+
+// Provisioning types currently supported for vsphere volume driver. "thin" is the default
+var SupportedProvisionTypes = map[string]struct{}{
+	"thin":  {},
+	"thick": {},
 }
 
 //Validation pattern for Volume Names
@@ -229,6 +246,41 @@ func (s *StorageProxy) Remove(ctx context.Context, name string) error {
 	}
 
 	return nil
+}
+
+// AddImageToContainer adds the specified image to a container, referenced by handle.
+// If an error is return, the returned handle should not be used.
+//
+// returns:
+//	modified handle
+func (s *StorageProxy) AddImageToContainer(ctx context.Context, handle, deltaID, layerID, imageID string, config types.ContainerCreateConfig) (string, error) {
+	defer trace.End(trace.Begin(handle))
+
+	if s.client == nil {
+		return "", errors.InternalServerError("ContainerProxy.AddImageToContainer failed to get the portlayer client")
+	}
+
+	host, err := sys.UUID()
+	if err != nil {
+		return "", errors.InternalServerError("ContainerProxy.AddImageToContainer got unexpected error getting VCH UUID")
+	}
+
+	response, err := s.client.Storage.ImageJoin(storage.NewImageJoinParamsWithContext(ctx).WithStoreName(host).WithID(layerID).
+		WithConfig(&models.ImageJoinConfig{
+			Handle:   handle,
+			DeltaID:  deltaID,
+			ImageID:  imageID,
+			RepoName: config.Config.Image,
+		}))
+	if err != nil {
+		return "", errors.InternalServerError(err.Error())
+	}
+	handle, ok := response.Payload.Handle.(string)
+	if !ok {
+		return "", errors.InternalServerError(fmt.Sprintf("Type assertion failed for %#+v", handle))
+	}
+
+	return handle, nil
 }
 
 // AddVolumesToContainer adds volumes to a container, referenced by handle.
@@ -608,6 +660,13 @@ func validateDriverArgs(args map[string]string, req *models.VolumeRequest) error
 	return nil
 }
 
+// hickeng note: this seems a little crazy - this isn't even per driver and there's
+// no requirement that drivers all support the same set. This means that the backend
+// will have to do revalidation anyway, which is expected. Having this check here only
+// means that the personality needs to know about the superset of all permissible driver
+// options.
+// At most this should be normalizing option formatting. If validation is required at this
+// point in the stack then the backends need to expose a mechnaism of listing permitted options.
 func normalizeDriverArgs(args map[string]string) error {
 	// normalize keys to lowercase & validate them
 	for k, val := range args {
