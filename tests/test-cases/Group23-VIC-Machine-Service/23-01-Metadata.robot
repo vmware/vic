@@ -17,7 +17,7 @@ Documentation     Test 23-01 - Version
 Resource          ../../resources/Util.robot
 Resource          ../../resources/Group23-VIC-Machine-Service-Util.robot
 Suite Setup       Start VIC Machine Server
-Suite Teardown    Terminate All Processes    kill=True
+Suite Teardown    Stop VIC Machine Server
 Default Tags
 
 
@@ -44,7 +44,7 @@ Verify Hello
 
 *** Test Cases ***
 Get Version
-    Wait Until Keyword Succeeds  5x  1s  Get Version 
+    Wait Until Keyword Succeeds  5x  1s  Get Version
 
     Verify Status Ok
     Verify Version

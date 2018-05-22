@@ -39,8 +39,8 @@ Setup
 
 
 Teardown
+    Stop VIC Machine Server
     Cleanup VIC Appliance On Test Server
-    Terminate All Processes    kill=True
 
 Inspect VCH
     Get Path Under Target  vch/${VCH-ID}
