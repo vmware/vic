@@ -17,22 +17,22 @@ package handlers
 import (
 	"net/http"
 	"sort"
+	"time"
 
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/strfmt"
 
-	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
-	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/target"
-	"github.com/vmware/vic/lib/apiservers/service/models"
-	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
-	"github.com/vmware/vic/lib/install/management"
-	"github.com/vmware/vic/lib/install/data"
-	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/client"
 	"github.com/vmware/vic/cmd/vic-machine/configure"
-	"github.com/vmware/vic/pkg/version"
+	"github.com/vmware/vic/lib/apiservers/service/models"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/client"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/target"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
 	"github.com/vmware/vic/lib/config"
-	"time"
+	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/management"
+	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 )
 
 // TODO [AngieCris]: move it to some util package

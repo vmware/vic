@@ -121,9 +121,6 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 
 	// PUT /container/target/{target}/vch/{vch-id}
 	api.PutTargetTargetVchVchIDHandler = &handlers.VCHPut{}
-	//api.PutTargetTargetVchVchIDHandler = operations.PutTargetTargetVchVchIDHandlerFunc(func(params operations.PutTargetTargetVchVchIDParams, principal interface{}) middleware.Responder {
-	//	return middleware.NotImplemented("operation .PutTargetTargetVchVchID has not yet been implemented")
-	//})
 
 	// PATCH /container/target/{target}/vch/{vch-id}
 	api.PatchTargetTargetVchVchIDHandler = operations.PatchTargetTargetVchVchIDHandlerFunc(func(params operations.PatchTargetTargetVchVchIDParams, principal interface{}) middleware.Responder {
@@ -154,9 +151,6 @@ func configureAPI(api *operations.VicMachineAPI) http.Handler {
 
 	// PUT /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}
 	api.PutTargetTargetDatacenterDatacenterVchVchIDHandler = &handlers.VCHDatacenterPut{}
-	//api.PutTargetTargetDatacenterDatacenterVchVchIDHandler = operations.PutTargetTargetDatacenterDatacenterVchVchIDHandlerFunc(func(params operations.PutTargetTargetDatacenterDatacenterVchVchIDParams, principal interface{}) middleware.Responder {
-	//	return middleware.NotImplemented("operation .PutTargetTargetDatacenterDatacenterVchVchID has not yet been implemented")
-	//})
 
 	// PATCH /container/target/{target}/datacenter/{datacenter}/vch/{vch-id}
 	api.PatchTargetTargetDatacenterDatacenterVchVchIDHandler = operations.PatchTargetTargetDatacenterDatacenterVchVchIDHandlerFunc(func(params operations.PatchTargetTargetDatacenterDatacenterVchVchIDParams, principal interface{}) middleware.Responder {

@@ -28,7 +28,6 @@ ${SERVING_AT_TEXT}           Serving vic machine at
 *** Keywords ***
 Start VIC Machine Server
     ${dir_name}=  Evaluate  'group23_log_dir' + str(random.randint(1000,9999))  modules=random
-    Set Suite Variable  ${DIR_NAME}  ${dir_name}
 
     ${handle}=    Start Process    ./bin/vic-machine-server --scheme http --log-directory ${dir_name}/    shell=True    cwd=/go/src/github.com/vmware/vic
     Set Suite Variable    ${server_handle}    ${handle}
@@ -46,6 +45,9 @@ Stop VIC Machine Server
     Terminate Process    ${server_handle}    kill=true
     Process Should Be Stopped    ${server_handle}
 
+Cleanup Test Server
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
 Get Path
     [Arguments]    ${path}
@@ -104,7 +106,6 @@ Put Path Under Target
     Set Test Variable    ${RC}
     Set Test Variable    ${OUTPUT}
     Set Test Variable    ${STATUS}
-
 
 Verify Return Code
     Should Be Equal As Integers    ${RC}    0
@@ -166,12 +167,6 @@ Property Should Contain
 
     ${actual}=  Run    echo '${OUTPUT}' | jq -r '${jq}'
     Should Contain    ${actual}    ${expected}
-
-Property Should Be Empty
-    [Arguments]  ${jq}
-
-    ${actual}=  Run    echo '${OUTPUT}' | jq -r '${jq}'
-    Should Be Empty    ${actual}
 
 Property Should Not Be Empty
     [Arguments]    ${jq}

@@ -31,16 +31,10 @@ Setup
     Set Suite Variable  ${VCH-ID}  ${id}
     Set Suite Variable  ${DC-ID}  ${dc-id}
 
-
 Teardown
     Cleanup VIC Appliance On Test Server
     Cleanup Test Server
     Terminate All Processes    kill=True
-
-Cleanup Test Server
-    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-
 
 Inspect VCH
     Get Path Under Target  vch/${VCH-ID}
