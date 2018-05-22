@@ -72,6 +72,7 @@ func (h *VCHDatacenterPut) Handle(params operations.PutTargetTargetDatacenterDat
 	b := target.Params{
 		Target:     params.Target,
 		Thumbprint: params.Thumbprint,
+		Datacenter: &params.Datacenter,
 		VCHID:      &params.VchID,
 	}
 

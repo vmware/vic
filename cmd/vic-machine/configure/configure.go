@@ -161,7 +161,7 @@ func (c *Configure) processParams(op trace.Operation) error {
 // copyChangedConf takes the mostly-empty new config and copies it to the old one. NOTE: o gets installed on the VCH, not n
 // Currently we cannot automatically override old configuration with any difference in the new configuration, because some options are set during the VCH
 // Creation process, for example, image store path, volume store path, network slot id, etc. So we'll copy changes based on user input
-func (c *Configure) CopyChangedConf(o *config.VirtualContainerHostConfigSpec, n *config.VirtualContainerHostConfigSpec, grantPerms bool) {
+func (c *Configure) CopyChangedConf(o *config.VirtualContainerHostConfigSpec, n *config.VirtualContainerHostConfigSpec, grantPermsIsSet bool) {
 	//TODO: copy changed data
 	personaSession := o.ExecutorConfig.Sessions[config.PersonaService]
 	vicAdminSession := o.ExecutorConfig.Sessions[config.VicAdminService]
@@ -202,7 +202,7 @@ func (c *Configure) CopyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 		o.Token = n.Token
 
 		// if the user explicitly set the `ops-grant-user` option, update the permissions level
-		if grantPerms {
+		if grantPermsIsSet {
 			o.GrantPermsLevel = n.GrantPermsLevel
 		}
 	}
