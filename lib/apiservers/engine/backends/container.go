@@ -300,7 +300,7 @@ func (c *ContainerBackend) ContainerExecInspect(eid string) (*backend.ExecInspec
 	exit := int(ec.ExitCode)
 	return &backend.ExecInspect{
 		ID:       ec.ID,
-		Running:  ec.State == "Running", // TODO this is not quite right, update this once the state var is filled correctly...
+		Running:  ec.State == "running",
 		ExitCode: &exit,
 		ProcessConfig: &backend.ExecProcessConfig{
 			Tty:        ec.Tty,
@@ -402,16 +402,8 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		go func() {
 			defer trace.End(trace.Begin(eid))
 
-			handle, err := c.Handle(id, name)
-			if err != nil {
-				op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
-				// TODO: this func really returns no errors... but without a valid handle we cannot succeed... what to do...
-				cancel()
-				return
-			}
-
-			// wait for the start. The first change should at least be the start of the exec
-			if err := c.containerProxy.WaitTask(taskCtx, handle, id, eid); err != nil {
+			// wait property collector
+			if err := c.containerProxy.WaitTask(taskCtx, id, name, eid); err != nil {
 				op.Errorf("Task wait returned %s, canceling the context", err)
 
 				// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly
@@ -429,44 +421,50 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 		EventService().Log(event, eventtypes.ContainerEventType, actor)
 
-		if attach {
-			EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
-			ca := &backend.ContainerAttachConfig{
-				UseStdin:  ec.OpenStdin,
-				UseStdout: ec.OpenStdout,
-				UseStderr: ec.OpenStderr,
+		// no need to attach for detached case
+		if !attach {
+			op.Debugf("Detached mode. Returning early.")
+			return nil
+		}
+
+		EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
+		ca := &backend.ContainerAttachConfig{
+			UseStdin:  ec.OpenStdin,
+			UseStdout: ec.OpenStdout,
+			UseStderr: ec.OpenStderr,
+		}
+
+		// set UseStderr to false for Tty case as we merge stdout and stderr
+		if ec.Tty {
+			ca.UseStderr = false
+		}
+
+		ac := &proxy.AttachConfig{
+			ID: eid,
+			ContainerAttachConfig: ca,
+			UseTty:                ec.Tty,
+			CloseStdin:            true,
+		}
+
+		err = c.streamProxy.AttachStreams(ctx, ac, stdin, stdout, stderr)
+		if err != nil {
+			if _, ok := err.(engerr.DetachError); ok {
+				op.Infof("Detach detected, tearing down connection")
+
+				// QUESTION: why are we returning DetachError? It doesn't seem like an error
+				// fire detach event
+				EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
+
+				// DON'T UNBIND FOR NOW, UNTIL/UNLESS REFERENCE COUNTING IS IN PLACE
+				// This avoids cutting the communication channel for other sessions connected to this
+				// container
+
+				// FIXME: call UnbindInteraction/Commit
+
+				return nil
 			}
 
-			// set UseStderr to false for Tty case as we merge stdout and stderr
-			if ec.Tty {
-				ca.UseStderr = false
-			}
-
-			ac := &proxy.AttachConfig{
-				ID: eid,
-				ContainerAttachConfig: ca,
-				UseTty:                ec.Tty,
-				CloseStdin:            true,
-			}
-
-			err = c.streamProxy.AttachStreams(ctx, ac, stdin, stdout, stderr)
-			if err != nil {
-				if _, ok := err.(engerr.DetachError); ok {
-					op.Infof("Detach detected, tearing down connection")
-
-					// QUESTION: why are we returning DetachError? It doesn't seem like an error
-					// fire detach event
-					EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
-
-					// DON'T UNBIND FOR NOW, UNTIL/UNLESS REFERENCE COUNTING IS IN PLACE
-					// This avoids cutting the communication channel for other sessions connected to this
-					// container
-
-					// FIXME: call UnbindInteraction/Commit
-				}
-
-				return err
-			}
+			return err
 		}
 
 		return nil
@@ -482,40 +480,51 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		return err
 	}
 
-	// now that the exec has begun and the streams are attached we need to inspect and then wait.
 	op.Debugf("Waiting for completion: task(%s), container(%s)", eid, name)
 	handle, err := c.Handle(id, name)
 	if err != nil {
 		op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
-		return engerr.InternalServerError(err.Error())
+		cancel()
 	}
 
 	ec, err := c.containerProxy.InspectTask(op, handle, eid, id)
 	if err != nil {
-		return err
+		cancel()
 	}
 
-	if ec.State == "stopped" {
-		return nil
+	if ec.State == "stopped" || ec.State == "failed" || ec.State == "unknown" {
+		op.Debugf("stopped before loop")
+		cancel()
 	}
 
-	for ec.State == "running" {
+	for ec.State == "running" || ec.State == "created" {
+		op = trace.FromContext(taskCtx, "wait retry loop")
+		op.Debugf("retry loop")
 		err = c.containerProxy.WaitTask(op, handle, id, eid)
 		if err != nil {
-			return err
+			op.Errorf("Task wait returned %s, canceling the context", err)
+
+			// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly
+			// https://github.com/docker/docker/blob/a039ca9affe5fa40c4e029d7aae399b26d433fe9/api/server/router/container/exec.go#L114
+			if stdout != nil {
+				stdout.Write([]byte(err.Error() + "\r\n"))
+			}
+			cancel()
+
 		}
 
 		// TODO: we should probably make WaitTask return a new handle... since it already knows that something has changed.
 		handle, err := c.Handle(id, name)
 		if err != nil {
 			op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
-			return engerr.InternalServerError(err.Error())
+			cancel()
 		}
 
 		ec, err = c.containerProxy.InspectTask(op, handle, eid, id)
 		if err != nil {
-			return err
+			cancel()
 		}
+		op.Debugf("Checking for the wait: %#v", *ec)
 	}
 
 	return nil

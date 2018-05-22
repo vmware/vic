@@ -320,9 +320,12 @@ func (vm *VirtualMachine) WaitForKeyChange(op trace.Operation, keys map[string]s
 			case types.ArrayOfOptionValue:
 				for _, value := range v.OptionValue {
 					// check if it is a key that we care about
-					if v, ok := keys[value.GetOptionValue().Key]; ok {
+					key := value.GetOptionValue().Key
+					if v, ok := keys[key]; ok {
 						// has the key actually change in value?
-						if v != value.GetOptionValue().Value.(string) {
+						changeValue := value.GetOptionValue().Value.(string)
+						if v != changeValue {
+							op.Debugf("Found a change: key(%s), Value(%s), change(%s)", key, v, changeValue)
 							poweredOff = nil
 							return true
 						}
