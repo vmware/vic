@@ -28,6 +28,11 @@ Default Tags
 
 Setup
     Start VIC Machine Server
+    Set Test Environment Variables
+
+    ${PUBLIC_NETWORK}=  Remove String  %{PUBLIC_NETWORK}  '
+    Set Suite Variable    ${PUBLIC_NETWORK}
+    
 #    Install VIC Appliance With Ops Credentials
     Install VIC Appliance To Test Server
 
@@ -41,6 +46,15 @@ Setup
 Teardown
     Stop VIC Machine Server
     Cleanup VIC Appliance On Test Server
+
+Create VCH
+    [Arguments]    ${data}
+    Post Path Under Target    vch    ${data}
+    
+Cleanup Dummy VM
+    [Arguments]  ${vm-name}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy ${vm-name}
+    Should Be Equal As Integers  ${rc}  0
 
 Inspect VCH
     Get Path Under Target  vch/${VCH-ID}
@@ -151,3 +165,97 @@ Get Invalid VCH
 
 Get Invalid VCH Within Datacenter
     Get Path Under Target  /datacenter/${DC-ID}/vch/INVALID
+    
+Get Deleted VCH
+    Create VCH    '{"name":"%{VCH-NAME}-api-test-simple","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"${PUBLIC_NETWORK}"}}},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
+    Verify Return Code
+    Verify Status Created
+          
+    ${expectedId}=  Get VCH ID  %{VCH-NAME}-api-test-simple
+    Get Path Under Target  vch/${expectedId}
+    Run Secret VIC Machine Delete Command    %{VCH-NAME}-api-test-simple
+            
+    Get Path Under Target  vch/${expectedId}
+    Verify Return Code
+    Verify Status Not Found
+    
+    Output Should Contain   unable to find VCH
+    
+Get Inspect for non-VCH VM
+    ${rc}  ${compute-path}=  Run And Return Rc And Output  govc ls host | grep %{TEST_RESOURCE}
+    Should Be Equal As Integers  ${rc}  0
+    # Create dummy VM
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool=${compute-path} -net=%{PUBLIC_NETWORK} Dummy_VM
+    Should Be Equal As Integers  ${rc}  0
+    
+    Get Path Under Target  vch/Dummy_VM
+    Verify Return Code
+    Verify Status Not Found
+    
+    Cleanup Dummy VM  Dummy_VM
+    
+Get complex VCH
+    Create VCH    '{"name":"%{VCH-NAME}-api-test-complex","debug":3,"compute":{"cpu":{"limit":{"units":"MHz","value":2345},"reservation":{"units":"GHz","value":2},"shares":{"level":"high"}},"memory":{"limit":{"units":"MiB","value":1200},"reservation":{"units":"MiB","value":501},"shares":{"number":81910}},"resource":{"name":"%{TEST_RESOURCE}"},"affinity":{"use_vm_group":true}},"endpoint":{"cpu":{"sockets":2},"memory":{"units":"MiB","value":3072}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"],"volume_stores":[{"datastore":"ds://%{TEST_DATASTORE}/test-volumes/foo","label":"foo"}],"base_image_size":{"units":"B","value":16000000}},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"container":[{"alias":"vic-containers","firewall":"outbound","nameservers":["8.8.8.8","8.8.4.4"],"port_group":{"name":"${PUBLIC_NETWORK}"},"gateway":{"address":"203.0.113.1","routing_destinations":["203.0.113.1/24"]},"ip_ranges":["203.0.113.8/31"]}],"public":{"port_group":{"name":"${PUBLIC_NETWORK}"},"static":"192.168.100.22/24","gateway":{"address":"192.168.100.1"},"nameservers":["192.168.110.10","192.168.1.1"]}},"registry":{"image_fetch_proxy":{"http":"http://example.com","https":"https://example.com"},"insecure":["https://insecure.example.com"],"whitelist":["10.0.0.0/8"]},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}},"syslog_addr":"tcp://syslog.example.com:4444", "container": {"name_convention": "container-{id}"}}'
+    
+    Verify Return Code
+    Verify Status Created
+    
+    ${complexId}=  Get VCH ID  %{VCH-NAME}-api-test-complex
+    Get Path Under Target  vch/${complexId}
+    
+    Property Should Be Equal        .name                                %{VCH-NAME}-api-test-complex
+    Property Should Be Equal        .debug                               3
+    Property Should Be Equal        .syslog_addr                         tcp://syslog.example.com:4444
+
+    Property Should Not Be Equal    .compute.resource.id                 null
+    Property Should Be Equal        .compute.cpu.limit.value             2345
+    Property Should Be Equal        .compute.cpu.limit.units             MHz
+    Property Should Be Equal        .compute.cpu.reservation.value       2000
+    Property Should Be Equal        .compute.cpu.reservation.units       MHz
+    Property Should Be Equal        .compute.cpu.shares.level            high
+    Property Should Be Equal        .compute.memory.limit.value          1200
+    Property Should Be Equal        .compute.memory.limit.units          MiB
+    Property Should Be Equal        .compute.memory.reservation.value    501
+    Property Should Be Equal        .compute.memory.reservation.units    MiB
+    Property Should Be Equal        .compute.memory.shares.number        81910
+    Property Should Be Equal        .compute.affinity.use_vm_group       true
+    Property Should Be Equal        .endpoint.cpu.sockets                2
+    Property Should Be Equal        .endpoint.memory.value               3072
+    Property Should Be Equal        .endpoint.memory.units               MiB
+
+    Property Should Contain         .storage.image_stores[0]             %{TEST_DATASTORE}
+    Property Should Contain         .storage.volume_stores[0].datastore  %{TEST_DATASTORE}/test-volumes/foo
+    Property Should Contain         .storage.volume_stores[0].label      foo
+    Property Should Be Equal        .storage.base_image_size.value       16000
+    Property Should Be Equal        .storage.base_image_size.units       KB
+
+    Property Should Be Equal        .registry.image_fetch_proxy.http     http://example.com
+    Property Should Be Equal        .registry.image_fetch_proxy.https    https://example.com
+    Property Should Contain         .registry.insecure | join(" ")       https://insecure.example.com
+    Property Should Contain         .registry.whitelist | join(" ")      https://insecure.example.com
+    Property Should Contain         .registry.whitelist | join(" ")      10.0.0.0/8
+
+    Property Should Contain         .auth.server.certificate.pem         -----BEGIN CERTIFICATE-----
+    Property Should Be Equal        .auth.server.private_key.pem         null
+
+    Property Should Be Equal        .network.bridge.ip_range             172.16.0.0/12
+    Property Should Be Equal        .network.container[0].alias          vic-containers
+    Property Should Be Equal        .network.container[0].firewall       outbound
+    Property Should Be Equal        .network.container[0].ip_ranges[0]   203.0.113.8/31
+
+    Property Should Be Equal        .network.container[0].nameservers[0]                   8.8.8.8
+    Property Should Be Equal        .network.container[0].nameservers[1]                   8.8.4.4
+    Property Should Be Equal        .network.container[0].gateway.address                  203.0.113.1
+    Property Should Be Equal        .network.container[0].gateway.routing_destinations[0]  203.0.113.1/24
+
+    Property Should Be Equal        .network.public.gateway.address      192.168.100.1
+    Property Should Be Equal        .network.public.nameservers[0]       192.168.110.10
+    Property Should Be Equal        .network.public.nameservers[1]       192.168.1.1
+
+    Property Should Be Equal        .runtime.power_state                 poweredOn
+    Property Should Be Equal        .runtime.upgrade_status              Up to date
+
+    Property Should Be Equal        .container.name_convention           container-{id}
+
+
+    [Teardown]    Run Secret VIC Machine Delete Command    %{VCH-NAME}-api-test-complex
