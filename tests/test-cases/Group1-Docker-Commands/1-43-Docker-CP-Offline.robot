@@ -32,7 +32,7 @@ Set up test files and install VIC appliance to test server
     Create File  ${CURDIR}/mnt/root.txt   rw layer file
     Create File  ${CURDIR}/mnt/vol1/v1.txt   vol1 file
     Create File  ${CURDIR}/mnt/vol2/v2.txt   vol2 file
-    ${rc}  ${output}=  Run And Return Rc And Output  dd if=/dev/urandom of=${CURDIR}/largefile.txt count=4096 bs=4096
+    ${rc}  ${output}=  Run And Return Rc And Output  dd if=/dev/urandom of=${CURDIR}/largefile-offline.txt count=4096 bs=4096
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create vol1
@@ -51,7 +51,7 @@ Set up test files and install VIC appliance to test server
 Clean up test files and VIC appliance to test server
     Run Keyword and Continue on Failure  Remove File  ${CURDIR}/foo.txt
     Run Keyword and Continue on Failure  Remove File  ${CURDIR}/content
-    Run Keyword and Continue on Failure  Remove File  ${CURDIR}/largefile.txt
+    Run Keyword and Continue on Failure  Remove File  ${CURDIR}/largefile-offline.txt
     Run Keyword and Continue on Failure  Remove Directory  ${CURDIR}/bar  recursive=True
     Run Keyword and Continue on Failure  Remove Directory  ${CURDIR}/mnt  recursive=True
     Cleanup VIC Appliance On Test Server
@@ -137,7 +137,7 @@ Copy a large file that exceeds the container volume into an offline container
     ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v smallVol:/small ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${cid}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt ${cid}:/small
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/largefile-offline.txt ${cid}:/small
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${cid}
@@ -210,7 +210,7 @@ Concurrent copy: repeat copy a large file from host to offline container several
     ${pids}=  Create List
     Log To Console  \nIssue 10 docker cp commands for large file
     :FOR  ${idx}  IN RANGE  0  10
-    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt concurrent:/vol1/lg-${idx}  shell=True
+    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/largefile-offline.txt concurrent:/vol1/lg-${idx}  shell=True
     \   Append To List  ${pids}  ${pid}
     Log To Console  \nWait for them to finish and check their RC
     :FOR  ${pid}  IN  @{pids}
