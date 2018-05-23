@@ -310,6 +310,13 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 func (vm *VirtualMachine) WaitForKeyChange(op trace.Operation, keys map[string]string) error {
 	var poweredOff error
 
+	// fix up the filter map. value of "" ---> "<nil>"
+	for k, v := range keys {
+		if v == "" {
+			keys[k] = "<nil>"
+		}
+	}
+
 	waitFunc := func(pc []types.PropertyChange) bool {
 		for _, c := range pc {
 			if c.Op != types.PropertyChangeOpAssign {
