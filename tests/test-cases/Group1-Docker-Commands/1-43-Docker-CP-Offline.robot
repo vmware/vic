@@ -196,6 +196,7 @@ Concurrent copy: create processes to copy a small file from host to offline cont
     :FOR  ${pid}  IN  @{pids}
     \   Log To Console  \nWaiting for ${pid}
     \   ${res}=  Wait For Process  ${pid}
+    \   Log  ${res.stderr}
     \   Log  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
     ${output}=  Start Container and Exec Command  concurrent  ls /
@@ -216,6 +217,7 @@ Concurrent copy: repeat copy a large file from host to offline container several
     :FOR  ${pid}  IN  @{pids}
     \   Log To Console  \nWaiting for ${pid}
     \   ${res}=  Wait For Process  ${pid}
+    \   Log  ${res.stderr}
     \   Log  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
     ${output}=  Start Container and Exec Command  concurrent  ls /vol1
@@ -237,6 +239,7 @@ Concurrent copy: repeat copy a large file from offline container to host several
     :FOR  ${pid}  IN  @{pids}
     \   Log To Console  \nWaiting for ${pid}
     \   ${res}=  Wait For Process  ${pid}
+    \   Log  ${res.stderr}
     \   Log  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
     Log To Console  \nCheck if the copy operations succeeded
