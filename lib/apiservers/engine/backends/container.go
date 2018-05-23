@@ -377,7 +377,6 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		if err != nil {
 			return err
 		}
-
 		// exec doesn't have separate attach path so we will decide whether we need interaction/runblocking or not
 		attach := ec.OpenStdin || ec.OpenStdout || ec.OpenStderr
 		if attach {
@@ -402,8 +401,14 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		go func() {
 			defer trace.End(trace.Begin(eid))
 
-			// wait property collector
-			if err := c.containerProxy.WaitTask(taskCtx, id, name, eid); err != nil {
+			handle, err := c.Handle(id, name)
+			if err != nil {
+				op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
+				cancel()
+			}
+
+			// wait property collector, the first change should atleast be the starting of the task.
+			if err := c.containerProxy.WaitTask(taskCtx, handle, name, eid); err != nil {
 				op.Errorf("Task wait returned %s, canceling the context", err)
 
 				// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly
@@ -446,7 +451,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 			CloseStdin:            true,
 		}
 
-		err = c.streamProxy.AttachStreams(ctx, ac, stdin, stdout, stderr)
+		err = c.streamProxy.AttachStreams(taskCtx, ac, stdin, stdout, stderr)
 		if err != nil {
 			if _, ok := err.(engerr.DetachError); ok {
 				op.Infof("Detach detected, tearing down connection")
@@ -467,6 +472,46 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 			return err
 		}
 
+		op.Debugf("Waiting for completion: task(%s), container(%s)", eid, name)
+		handle, err = c.Handle(id, name)
+		if err != nil {
+			op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
+			return err
+		}
+
+		ec, err = c.containerProxy.InspectTask(op, handle, eid, id)
+		if err != nil {
+			return err
+		}
+
+		if ec.State == "stopped" || ec.State == "failed" || ec.State == "unknown" {
+			op.Debugf("stopped before loop")
+			return err
+		}
+
+		for ec.State == "running" || ec.State == "created" {
+			op.Debugf("retry loop")
+			err = c.containerProxy.WaitTask(op, handle, id, eid)
+			if err != nil {
+				op.Errorf("Task wait returned %s, canceling the context", err)
+				return err
+
+			}
+
+			// TODO: we should probably make WaitTask return a new handle... since it already knows that something has changed.
+			handle, err := c.Handle(id, name)
+			if err != nil {
+				op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
+				return err
+			}
+
+			ec, err = c.containerProxy.InspectTask(op, handle, eid, id)
+			if err != nil {
+				return err
+			}
+			op.Debugf("Checking for the wait: %#v", *ec)
+		}
+
 		return nil
 	}
 
@@ -478,52 +523,6 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 	if err := retry.DoWithConfig(operation, engerr.IsConflictError, backoffConf); err != nil {
 		op.Errorf("Failed to start Exec task for container(%s) due to error (%s)", id, err)
 		return err
-	}
-
-	op.Debugf("Waiting for completion: task(%s), container(%s)", eid, name)
-	handle, err := c.Handle(id, name)
-	if err != nil {
-		op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
-		return err
-	}
-
-	ec, err := c.containerProxy.InspectTask(op, handle, eid, id)
-	if err != nil {
-		return err
-	}
-
-	if ec.State == "stopped" || ec.State == "failed" || ec.State == "unknown" {
-		op.Debugf("stopped before loop")
-		return err
-	}
-
-	for ec.State == "running" || ec.State == "created" {
-		op.Debugf("retry loop")
-		err = c.containerProxy.WaitTask(op, handle, id, eid)
-		if err != nil {
-			op.Errorf("Task wait returned %s, canceling the context", err)
-
-			// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly
-			// https://github.com/docker/docker/blob/a039ca9affe5fa40c4e029d7aae399b26d433fe9/api/server/router/container/exec.go#L114
-			if stdout != nil {
-				stdout.Write([]byte(err.Error() + "\r\n"))
-			}
-			return err
-
-		}
-
-		// TODO: we should probably make WaitTask return a new handle... since it already knows that something has changed.
-		handle, err := c.Handle(id, name)
-		if err != nil {
-			op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
-			return err
-		}
-
-		ec, err = c.containerProxy.InspectTask(op, handle, eid, id)
-		if err != nil {
-			return err
-		}
-		op.Debugf("Checking for the wait: %#v", *ec)
 	}
 
 	return nil
