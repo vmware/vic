@@ -453,10 +453,10 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 
 		err = c.streamProxy.AttachStreams(taskCtx, ac, stdin, stdout, stderr)
 		if err != nil {
+
 			if _, ok := err.(engerr.DetachError); ok {
 				op.Infof("Detach detected, tearing down connection")
 
-				// QUESTION: why are we returning DetachError? It doesn't seem like an error
 				// fire detach event
 				EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
 
@@ -466,10 +466,12 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 
 				// FIXME: call UnbindInteraction/Commit
 
+				// we should not return an error on detach as it is not an error.
 				return nil
-			}
 
+			}
 			return err
+
 		}
 
 		op.Debugf("Waiting for completion: task(%s), container(%s)", eid, name)
