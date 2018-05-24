@@ -21,40 +21,6 @@ drivers=("vmxnet3" \
 	"nf_reject_ipv4"\
 	"nfsv3")
 
-files=('/lib/modules/*' \
-    '/bin/tether' \
-    '/bin/unpack' \
-    '/sbin/*tables*' \
-    '/lib/libm.*'\
-    '/lib/libm-*' \
-    '/lib/libgcc_s*' \
-    '/lib/libip*tc*' \
-    '/lib/libxtables*' \
-    '/lib/libdl*' \
-    '/lib/libc.so*'\
-    '/lib/libc-*' \
-    '/lib64/ld-*' \
-    '/usr/lib/iptables' \
-    '/lib/libhavege.so.1' \
-    '/usr/sbin/haveged')
-
-function tmpfs_size () {
-    list=("$@")
-    tsize=0
-    for item in ${list[@]}; do
-        if [ -f ${item} ]; then
-            echo Item: ${item}
-            size=$(ls --size -H ${item} | cut -d" " -f 1)
-            tsize=$(( tsize + size ))
-        fi
-    done
-    # 20% overhead should give a little more than 80M for stripped binaries
-    overhead=$(( tsize / 5 ))
-    tsize=$(( tsize + overhead ))
-    tsize=$(( tsize / 1024 ))
-    echo "Tmpfs size: ${tsize}M"
-    return ${tsize}
-}
 
 for i in ${drivers[@]}; do
     /usr/sbin/modprobe $i
@@ -72,8 +38,16 @@ if timeout --signal=KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNT
     # ensure mountpoint exists
     mkdir -p ${MOUNTPOINT}/.tether
 
-    tmpfs_size ${files[@]}
-    tsize=$?
+    # the size of the temp FS filesystem has been estimated during iso build and stored
+    # in the file /.tempfs_size, if the file is not present assume 80m, the list of
+    # directories/files in isos/bootstrap.sh (tempfs_target_list) should match the list of
+    # directories/files copied into tempfs by this script. The list of directories/files used
+    # to compute the size of tempfs is also stored and copied here into the file /.tempfs_list
+    if [ -f /.tempfs_size ]; then
+        tsize=$(cat /.tempfs_size)
+    else
+        tsize=80
+    fi
 
     # ensure that no matter what we have access to required devices
     # WARNING WARNING WARNING WARNING WARNING

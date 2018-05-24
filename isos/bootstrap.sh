@@ -13,6 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# File list to estimate the size of the target tempfs in bootstrap
+tempfs_target_list=('/lib/modules/*' \
+    '/bin/tether' \
+    '/bin/unpack' \
+    '/sbin/*tables*' \
+    '/lib/libm.*'\
+    '/lib/libm-*' \
+    '/lib/libgcc_s*' \
+    '/lib/libip*tc*' \
+    '/lib/libxtables*' \
+    '/lib/libdl*' \
+    '/lib/libc.so*'\
+    '/lib/libc-*' \
+    '/lib64/ld-*' \
+    '/usr/lib/iptables' \
+    '/lib/libhavege.so.1' \
+    '/usr/sbin/haveged')
+
 # Build the bootstrap filesystem ontop of the base
 
 # exit on failure
@@ -98,5 +116,19 @@ rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/sockets.target.wants/systemd-netw
 # do not use the systemd dhcp client
 rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
 cp ${DIR}/base/no-dhcp.network $(rootfs_dir $PKGDIR)/etc/systemd/network/
+
+# compute the size of the target tempfs,
+# the list of directories/files in ${tempfs_target_list} should
+# match the directories/files that are actually copied into tempfs
+# by the script isos/bootstrap/bootstrap
+target_list=$(rootfs_prepend $PKGDIR "${tempfs_target_list[@]}")
+size=$(du -m --total ${target_list} | tail -1 | cut -f 1)
+# 20% overhead should give a little more than 80M for stripped binaries
+overhead=$(( size / 5 ))
+size=$(( size + overhead ))
+echo Total tempfs size: ${size}
+# save the list of directories/files, for future usage
+echo "${tempfs_target_list[@]}" > $(rootfs_dir $PKGDIR)/.tempfs_list
+echo ${size} > $(rootfs_dir $PKGDIR)/.tempfs_size
 
 generate_iso $PKGDIR $BIN/$ISONAME /lib/systemd/systemd
