@@ -245,7 +245,7 @@ Sub volumes: copy from host to an online container, destination includes several
 
 Sub volumes: copy from online container to host, source includes several volumes
     Remove Directory  ${CURDIR}/result1  recursive=True
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp subVol:/mnt ${CURDIR}/result1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp subVol:/mnt-online ${CURDIR}/result1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     OperatingSystem.Directory Should Exist  ${CURDIR}/result1/vol1-online
