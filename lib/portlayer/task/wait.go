@@ -39,7 +39,7 @@ func Wait(op *trace.Operation, h interface{}, id string) error {
 	}
 
 	_, okS := handle.ExecConfig.Sessions[id]
-	_, okE := handle.ExecConfig.Execs[id]
+	eTask, okE := handle.ExecConfig.Execs[id]
 
 	if !okS && !okE {
 		return fmt.Errorf("unknown task ID: %s", id)
@@ -57,16 +57,19 @@ func Wait(op *trace.Operation, h interface{}, id string) error {
 		return c.WaitForSession(timeout, id)
 	}
 
-	// This should get a handle from the callers and wait on the handle since they only have a snap shot of the world. We need to determine a change from what the caller knows... This should really only be during an Exec, we do not want to affect the current WaitForSession functionality. At least for now.
+	// This should get a handle from the callers and wait on the handle since they only have a snap shot of the world.
+	// We need to determine a change from what the caller knows... This should really only be during an Exec,
+	// we do not want to affect the current WaitForSession functionality. At least for now.
 
 	// we should not wait for an exec that is failed or stopped. it will not change again.
-	currentState, err := handle.ExecState(*op, id)
+	currentState, err := State(*op, eTask)
 	if err != nil {
 		op.Errorf("Unable to find state of exec: exec(%s), container(%s)", id, handle.ExecConfig.ID)
 		return err
 	}
 
-	if currentState == exec.ExecFailedState || currentState == exec.ExecStoppedState || currentState == exec.ExecUnknownState {
+	// do not wait for a change after reaching the halting state.
+	if currentState == FailedState || currentState == StoppedState || currentState == UnknownState {
 		op.Debugf("Exec already halted: exec(%s), container(%s)", id, handle.ExecConfig.ID)
 		return nil
 	}
