@@ -41,7 +41,6 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
-	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
@@ -620,9 +619,8 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	)
 
 	// Kubelet
-	if conf.KubernetesServerAddress != "" && conf.KubeletConfigFile != "" {
-		vmName := vm2.Name()
-		kubeletName := fmt.Sprintf("kubelet-%s", vmName)
+	if conf.KubeletConfigFile != "" {
+		kubeletName := vm2.Name()
 		kubeletStarter := executor.Cmd{
 			Path: "/sbin/kubelet-starter",
 			Args: []string{
@@ -642,15 +640,6 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		if settings.HTTPSProxy != nil {
 			kubeletStarter.Env = append(kubeletStarter.Env, fmt.Sprintf("%s=%s", config.GeneralHTTPSProxy, settings.HTTPSProxy.String()))
 		}
-
-		// Parse URL
-		url, err := validate.ParseURL(conf.KubernetesServerAddress)
-		if err != nil {
-			d.op.Errorf("Failed to parse Kubernetes URL: %s, error: %s", conf.KubernetesServerAddress, err)
-			return err
-		}
-		kubeletStarter.Env = append(kubeletStarter.Env, fmt.Sprintf("%s=%s", "KUBERNETES_SERVICE_HOST", url.Host))
-		kubeletStarter.Env = append(kubeletStarter.Env, fmt.Sprintf("%s=%s", "KUBERNETES_SERVICE_PORT", url.Port()))
 
 		conf.AddComponent(config.KubeletStarterService, &executor.SessionConfig{
 			Cmd:     kubeletStarter,

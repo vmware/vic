@@ -946,11 +946,10 @@ func (v *Validator) syslog(op trace.Operation, conf *config.VirtualContainerHost
 func (v *Validator) kubelet(op trace.Operation, conf *config.VirtualContainerHostConfigSpec, input *data.Data) {
 	defer trace.End(trace.Begin("", op))
 
-	if input.Kubelet.ServerAddress == nil || input.Kubelet.ConfigFile == nil {
+	if input.Kubelet.ConfigFile == nil {
 		return
 	}
 
-	conf.KubernetesServerAddress = *input.Kubelet.ServerAddress
 	conf.KubeletConfigFile = *input.Kubelet.ConfigFile
 
 	err := kubelet.ReadKubeletConfigFile(op, conf)

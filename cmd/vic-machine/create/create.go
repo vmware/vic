@@ -322,10 +322,6 @@ func (c *Create) ProcessParams(op trace.Operation) error {
 		return err
 	}
 
-	if err := c.Kubelet.ProcessKubelet(op, true); err != nil {
-		return err
-	}
-
 	var err error
 	c.ContainerNetworks, err = c.containerNetworks.ProcessContainerNetworks(op)
 	if err != nil {
