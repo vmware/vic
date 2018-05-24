@@ -36,15 +36,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-// TODO: move this to a constants package...
-const (
-	ExecRunningState = "running"
-	ExecStoppedState = "stopped"
-	ExecCreatedState = "created"
-	ExecFailedState  = "failed"
-	ExecUnknownState = "unknown"
-)
-
 // NotYetExistError is returned when a call that requires a VM exist is made
 type NotYetExistError struct {
 	ID string
@@ -496,36 +487,6 @@ func (c *containerBase) waitForExec(op trace.Operation, id string) error {
 	filter[stopKey] = fmt.Sprintf("%d", execConf.Detail.StopTime)
 
 	return c.vm.WaitForKeyChange(op, filter)
-}
-
-// ExecState returns the state of the provided exec
-func (c *containerBase) ExecState(op trace.Operation, id string) (string, error) {
-
-	e, ok := c.ExecConfig.Execs[id]
-	if !ok {
-		return "", fmt.Errorf("Exec not found: %s", id)
-	}
-
-	if c.State(op) == StateStopped {
-		// NOTE: Perhaps we should have a powered off state? examine FSM for session further...
-		return "", fmt.Errorf("Container has powered off: container(%s)", c.ExecConfig.ID)
-	}
-
-	switch {
-	case e.Started == "" && e.Detail.StartTime == 0 && e.Detail.StopTime == 0:
-		return ExecCreatedState, nil
-	case e.Started == "true" && e.Detail.StartTime > e.StopTime:
-		return ExecRunningState, nil
-	case e.Started == "true" && e.Detail.StartTime <= e.Detail.StopTime:
-		// even if we make it here, if the vcm is stopped and the powerstate is off... we no longer have the correct information.
-		return ExecStoppedState, nil
-	case e.Started != "" && e.Started != "true" && e.StartTime > e.Detail.StopTime:
-		// NOTE: this assumes that StopTime does not get set. We really need to investigate this further as it does not look like it will be the case based on the way the child reaper attempts to write things.
-		return ExecFailedState, nil
-	default:
-		return ExecUnknownState, nil
-	}
-
 }
 
 func (c *containerBase) waitFor(ctx context.Context, key string) error {
