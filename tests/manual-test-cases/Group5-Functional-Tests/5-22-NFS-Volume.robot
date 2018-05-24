@@ -147,6 +147,13 @@ Wait For NFS And VCH
     Wait Until Keyword Succeeds  20x  30s  Ping Host Successfully  ${NFS_READONLY_IP}
     Wait Until Keyword Succeeds  20x  30s  Ping Host Successfully  %{VCH-IP}
 
+Write To Named Volume
+    [Arguments]  ${item}  ${volumeFile}
+    Log To Console  \nAttempt to Write to Named Volume
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo ${item} >> ${volumeFile}; sleep 5; done"
+    Should Be Equal As Integers  ${rc}  0
+    [Return]  ${id}
+
 *** Test Cases ***
 VIC Appliance Install with Read Only NFS Volume
     Setup ENV Variables for VIC Appliance Install
@@ -278,10 +285,11 @@ Simultaneous Container Write to File
     @{inputList}=  Create List  These flags also look similar to each other.  Senegal and Mali.  Indonesia and Monaco.  New Zealand and Australia.  Venezuela, Ecuador, and Colombia.  Slovenia, Russia, and Slovakia.
     ${containers}=  Create List
 
+    ${volumeFile}=  /mydata/test_nfs_mult_write.txt
+
     Log To Console  \nSpin up Write Containers
     :FOR  ${item}  IN  @{inputList}
-    \   ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo ${item} >> /mydata/test_nfs_mult_write.txt; sleep 5; done"
-    \   Should Be Equal As Integers  ${rc}  0
+    \   ${id}=  Wait Until Keyword Succeeds  30x  10s  Write To Named Volume  ${item}  ${volumeFile}
     \   Append To List  ${containers}  ${id}
 
     ${rc}  ${catOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "tail -40 /mydata/test_nfs_mult_write.txt"
