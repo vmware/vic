@@ -233,7 +233,7 @@ func (handler *TaskHandlersImpl) InspectHandler(params tasks.InspectParams) midd
 		}
 	}
 
-	tState, err := handle.ExecState(op, params.Config.ID)
+	tState, err := task.State(op, handle.ExecConfig.Execs[params.Config.ID])
 	if err != nil {
 		return tasks.NewInspectInternalServerError().WithPayload(&models.Error{Message: err.Error()})
 	}
