@@ -1933,7 +1933,7 @@
 		"/tasks/binding": {
 			"post": {
 				"description": "Activate a task that exists within the context of the provided handle",
-				"summary": "Activate a existing task",
+				"summary": "Activate an existing task",
 				"operationId": "Bind",
 				"tags": [
 					"tasks"
@@ -1978,7 +1978,7 @@
 			},
 			"delete": {
 				"description": "Deactivate a task that exists within the context of the provided handle",
-				"summary": "Deactivate a existing task",
+				"summary": "Deactivate an existing task",
 				"operationId": "Unbind",
 				"tags": [
 					"tasks"
