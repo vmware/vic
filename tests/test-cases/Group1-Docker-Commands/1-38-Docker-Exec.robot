@@ -57,6 +57,21 @@ Verify LS Output For Busybox
        Should Contain  ${output}  var
 
 *** Test Cases ***
+
+Standard Exec Exit Codes
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
+    # rigorously test exit codes for a standard docker exec.
+    :For  ${idx}  IN RANGE  1  25
+    \    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${id} /bin/sh -c \"exit ${idx}\"
+    \    Should Be Equal As Integers  ${rc}  ${idx}
+
 Exec -d
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
@@ -66,6 +81,12 @@ Exec -d
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${id} /bin/touch tmp/force
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${id} /bin/ls -al /tmp/force
+
+    # Confirm that we return an error when a non existent binary is invoked.
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${id} /does/not/exist
+    Should NOT Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${output}  does not exist
+
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  force
 
