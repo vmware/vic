@@ -19,7 +19,7 @@ Test Teardown  Run Keyword If Test Failed  Longevity cleanup
 
 *** Keywords ***
 Longevity cleanup
-    Run Keyword And Continue On Failure  Post Message To Slack Channel  mwilliamson-staff  Longevity has failed on %{GOVC_URL}
+    Run Keyword And Continue On Failure  Post Message To Slack Channel  general  Longevity has failed on %{GOVC_URL}
     Run Keyword And Continue On Failure  Gather Logs From Test Server
     Run Keyword And Continue On Failure  Run  govc logs.download
 
@@ -34,4 +34,4 @@ Longevity
     \   Repeat Keyword  ${rand} times  Run Regression Tests
     \   Cleanup VIC Appliance On Test Server
 
-    Post Message To Slack Channel  mwilliamson-staff  Longevity has passed on %{GOVC_URL}
+    Post Message To Slack Channel  general  Longevity has passed on %{GOVC_URL}
