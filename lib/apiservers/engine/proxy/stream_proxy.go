@@ -37,7 +37,7 @@ import (
 )
 
 type VicStreamProxy interface {
-	AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer) error
+	AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer, autoclose bool) error
 	StreamContainerLogs(ctx context.Context, name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 	StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error
 }
@@ -77,7 +77,8 @@ func NewStreamProxy(client *client.PortLayer) VicStreamProxy {
 // AttachStreams takes the the hijacked connections from the calling client and attaches
 // them to the 3 streams from the portlayer's rest server.
 // stdin, stdout, stderr are the hijacked connection
-func (s *StreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer) error {
+// autoclose controls whether the underlying client transport will be closed when stdout/stderr
+func (s *StreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer, autoclose bool) error {
 	// Cancel will close the child connections.
 	var wg, outWg sync.WaitGroup
 
@@ -99,7 +100,8 @@ func (s *StreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, stdin
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	if ac.UseStdin {
+	if ac.UseStdin && autoclose {
+		// if we're not autoclosing then we don't want to block waiting for copyStdin to exit
 		wg.Add(1)
 	}
 
@@ -125,21 +127,25 @@ func (s *StreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, stdin
 
 	if ac.UseStdin {
 		go func() {
-			defer wg.Done()
-			err := copyStdIn(ctx, s.client, ac, stdin, keys)
+			if autoclose {
+				defer wg.Done()
+			}
+			err := copyStdIn(ctx, s.client, ac, stdin, keys, autoclose)
 			if err != nil {
 				log.Errorf("container attach: stdin (%s): %s", ac.ID, err)
 			} else {
 				log.Infof("container attach: stdin (%s) done", ac.ID)
 			}
 
-			if !ac.CloseStdin || ac.UseTty {
-				cancel()
-			}
-
 			// Check for EOF or canceled context. We can only detect EOF by checking the error string returned by swagger :/
+			// We check this before calling cancel so that we will be sure to return detach errors before stdout/err exits,
+			// even in the !autoclose case.
 			if EOForCanceled(err) {
 				errChan <- err
+			}
+
+			if !ac.CloseStdin || ac.UseTty {
+				cancel()
 			}
 		}()
 	}
@@ -307,7 +313,7 @@ func (s *StreamProxy) StreamContainerStats(ctx context.Context, config *convert.
 // ContainerAttach() Utility Functions
 //------------------------------------
 
-func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdin io.ReadCloser, keys []byte) error {
+func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdin io.ReadCloser, keys []byte, autoclose bool) error {
 	// Pipe for stdin so we can interject and watch the input streams for detach keys.
 	stdinReader, stdinWriter := io.Pipe()
 	defer stdinReader.Close()
@@ -315,26 +321,28 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdi
 	var detach bool
 
 	done := make(chan struct{})
-	go func() {
-		// make sure we get out of io.Copy if context is canceled
-		select {
-		case <-ctx.Done():
-			// This will cause the transport to the API client to be shut down, so all output
-			// streams will get closed as well.
-			// See the closer in container_routes.go:postContainersAttach
+	if autoclose {
+		go func() {
+			// make sure we get out of io.Copy if context is canceled
+			select {
+			case <-ctx.Done():
+				// This will cause the transport to the API client to be shut down, so all output
+				// streams will get closed as well.
+				// See the closer in container_routes.go:postContainersAttach
 
-			// We're closing this here to disrupt the io.Copy below
-			// TODO: seems like we should be providing an io.Copy impl with ctx argument that honors
-			// cancelation with the amount of code dedicated to working around it
+				// We're closing this here to disrupt the io.Copy below
+				// TODO: seems like we should be providing an io.Copy impl with ctx argument that honors
+				// cancelation with the amount of code dedicated to working around it
 
-			// TODO: I think this still leaves a race between closing of the API client transport and
-			// copying of the output streams, it's just likely the error will be dropped as the transport is
-			// closed when it occurs.
-			// We should move away from needing to close transports to interrupt reads.
-			stdin.Close()
-		case <-done:
-		}
-	}()
+				// TODO: I think this still leaves a race between closing of the API client transport and
+				// copying of the output streams, it's just likely the error will be dropped as the transport is
+				// closed when it occurs.
+				// We should move away from needing to close transports to interrupt reads.
+				stdin.Close()
+			case <-done:
+			}
+		}()
+	}
 
 	go func() {
 		defer close(done)

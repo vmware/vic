@@ -335,7 +335,8 @@ func (c *ContainerBackend) ContainerExecResize(eid string, height, width int) er
 }
 
 // attachHelper performas some basic type transformation and makes blocking call to AttachStreams
-func (c *ContainerBackend) attachHelper(op trace.Operation, ec *models.TaskInspectResponse, stdin io.ReadCloser, stdout, stderr io.Writer) error {
+// autoclose determines if stdin will be closed when both stdout and stderr have closed
+func (c *ContainerBackend) attachHelper(op trace.Operation, ec *models.TaskInspectResponse, stdin io.ReadCloser, stdout, stderr io.Writer, autoclose bool) error {
 	defer trace.End(trace.Begin(ec.ID))
 
 	ca := &backend.ContainerAttachConfig{
@@ -352,22 +353,24 @@ func (c *ContainerBackend) attachHelper(op trace.Operation, ec *models.TaskInspe
 		CloseStdin:            true,
 	}
 
-	return c.streamProxy.AttachStreams(op, ac, stdin, stdout, stderr)
+	return c.streamProxy.AttachStreams(op, ac, stdin, stdout, stderr, autoclose)
 }
 
 // processAttachError performs some common inspection and translation of errors returned by attachHelper.
 // It logs the outcome, fires an event if necessary and finally returns an error if it should be propagated.
 // Returns true if the error was a clean detach, false otherwise.
-func processAttachError(op trace.Operation, actor eventtypes.Actor, err error) (bool, error) {
+func processAttachError(op trace.Operation, actor *eventtypes.Actor, err error) (bool, error) {
 	if err == nil {
 		return false, nil
 	}
 
 	if _, ok := err.(engerr.DetachError); ok {
-		op.Infof("Detach detected, tearing down connection")
+		op.Infof("Detach detected")
 
-		// fire detach event
-		EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
+		if actor != nil {
+			// fire detach event
+			EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, *actor)
+		}
 		// DON'T UNBIND FOR NOW, UNTIL/UNLESS REFERENCE COUNTING IS IN PLACE
 		// This avoids cutting the communication channel for other sessions connected to this
 		// container
@@ -474,8 +477,8 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 	taskOp, cancel := trace.WithCancel(&op, "exec task wait on %s", eid)
 	defer cancel()
 
-	attachResult := make(chan error)
-	startResult := make(chan error)
+	attachResult := make(chan error, 1)
+	startResult := make(chan error, 1)
 
 	go func() {
 		// wait for the task to start
@@ -485,20 +488,27 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 
 	if attach {
 		go func() {
-			attachResult <- c.attachHelper(taskOp, ec, stdin, stdout, stderr)
+			attachResult <- c.attachHelper(taskOp, ec, stdin, stdout, stderr, false)
 			close(attachResult)
 		}()
 	}
 
-	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-
 	// wait for either wait to succeed, fail, or for stream connection to error out
 	select {
 	case err := <-attachResult:
-		_, aerr := processAttachError(op, actor, err)
+		// we pass a nil actor as we don't want detach events dispatched at this point
+		detach, aerr := processAttachError(op, nil, err)
 		if aerr != nil {
+			stdin.Close()
 			cancel()
-			return err
+			return aerr
+		}
+
+		if detach {
+			// put it back on the queue to process after attach event is reported
+			op.Debugf("Requeuing early detach")
+			attachResult = make(chan error, 1)
+			attachResult <- engerr.DetachError{}
 		}
 
 	case err := <-startResult:
@@ -518,6 +528,8 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 
 	op.Infof("Exec %s in %s launched successfully", id, eid)
 
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+
 	// exec_start event
 	event := "exec_start: " + ec.ProcessConfig.ExecPath + " " + strings.Join(ec.ProcessConfig.ExecArgs[1:], " ")
 	EventService().Log(event, eventtypes.ContainerEventType, actor)
@@ -529,10 +541,13 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 	}
 
 	EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
+	// we don't use autoclose so ensure the transport is shut down on exit
+	defer stdin.Close()
 
 	// wait for attach streams to complete if attaching
-	detach, aerr := processAttachError(op, actor, <-attachResult)
+	detach, aerr := processAttachError(op, &actor, <-attachResult)
 	if aerr != nil || detach {
+		op.Debugf("Skipping task wait, err: %s, detach: %t", aerr, detach)
 		// if detached then no expectation the process will exit, so don't wait on it
 		return aerr
 	}
@@ -1620,7 +1635,7 @@ func (c *ContainerBackend) containerAttach(name string, ca *backend.ContainerAtt
 		CloseStdin:            vc.Config.StdinOnce,
 	}
 
-	err = c.streamProxy.AttachStreams(context.Background(), ac, stdin, stdout, stderr)
+	err = c.streamProxy.AttachStreams(context.Background(), ac, stdin, stdout, stderr, true)
 	if err != nil {
 		if _, ok := err.(engerr.DetachError); ok {
 			log.Infof("Detach detected, tearing down connection")
