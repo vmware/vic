@@ -23,16 +23,17 @@ Test Timeout  20 minutes
 Set up test files and install VIC appliance to test server
     Conditional Install VIC Appliance To Test Server
     Remove All Volumes
-    Create File  ${CURDIR}/foo.txt   hello world
-    Create File  ${CURDIR}/content   fake file content for testing only
-    Create Directory  ${CURDIR}/bar
-    Create Directory  ${CURDIR}/mnt
-    Create Directory  ${CURDIR}/mnt/vol1
-    Create Directory  ${CURDIR}/mnt/vol2
-    Create File  ${CURDIR}/mnt/root.txt   rw layer file
-    Create File  ${CURDIR}/mnt/vol1/v1.txt   vol1 file
-    Create File  ${CURDIR}/mnt/vol2/v2.txt   vol2 file
-    ${rc}  ${output}=  Run And Return Rc And Output  dd if=/dev/urandom of=${CURDIR}/largefile.txt count=1024 bs=1024
+    Create Directory  ${CURDIR}/online
+    Create File  ${CURDIR}/online/foo.txt   hello world
+    Create File  ${CURDIR}/online/content   fake file content for testing only
+    Create Directory  ${CURDIR}/online/bar
+    Create Directory  ${CURDIR}/online/mnt
+    Create Directory  ${CURDIR}/online/mnt/vol1
+    Create Directory  ${CURDIR}/online/mnt/vol2
+    Create File  ${CURDIR}/online/mnt/root.txt   rw layer file
+    Create File  ${CURDIR}/online/mnt/vol1/v1.txt   vol1 file
+    Create File  ${CURDIR}/online/mnt/vol2/v2.txt   vol2 file
+    ${rc}  ${output}=  Run And Return Rc And Output  dd if=/dev/urandom of=${CURDIR}/online/largefile.txt count=1024 bs=1024
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create vol1
@@ -46,11 +47,7 @@ Set up test files and install VIC appliance to test server
     Should Not Contain  ${output}  Error
 
 Clean up test files and VIC appliance to test server
-    Run Keyword and Continue on Failure  Remove File  ${CURDIR}/foo.txt
-    Run Keyword and Continue on Failure  Remove File  ${CURDIR}/content
-    Run Keyword and Continue on Failure  Remove File  ${CURDIR}/largefile.txt
-    Run Keyword and Continue on Failure  Remove Directory  ${CURDIR}/bar  recursive=True
-    Run Keyword and Continue on Failure  Remove Directory  ${CURDIR}/mnt  recursive=True
+    Run Keyword and Continue on Failure  Remove Directory  ${CURDIR}/online  recursive=True
     Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
@@ -64,37 +61,37 @@ Copy a directory from online container to host, destination path doesn't exist
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online sh -c 'mkdir newdir && echo "testing" > /newdir/test.txt'
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/newdir ${CURDIR}/newdir
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/newdir ${CURDIR}/online/newdir
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    OperatingSystem.Directory Should Exist  ${CURDIR}/newdir
-    OperatingSystem.File Should Exist  ${CURDIR}/newdir/test.txt
-    Remove Directory  ${CURDIR}/newdir  recursive=True
+    OperatingSystem.Directory Should Exist  ${CURDIR}/online/newdir
+    OperatingSystem.File Should Exist  ${CURDIR}/online/newdir/test.txt
+    Remove Directory  ${CURDIR}/online/newdir  recursive=True
 
 Copy the content of a directory from online container to host
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/newdir/. ${CURDIR}/bar
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/newdir/. ${CURDIR}/online/bar
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    OperatingSystem.File Should Exist  ${CURDIR}/bar/test.txt
-    Remove File  ${CURDIR}/bar/test.txt
+    OperatingSystem.File Should Exist  ${CURDIR}/online/bar/test.txt
+    Remove File  ${CURDIR}/online/bar/test.txt
 
 Copy a file from online container to host, overwrite destination file
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/newdir/test.txt ${CURDIR}/foo.txt
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/newdir/test.txt ${CURDIR}/online/foo.txt
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${content}=  OperatingSystem.Get File  ${CURDIR}/foo.txt
+    ${content}=  OperatingSystem.Get File  ${CURDIR}/online/foo.txt
     Should Contain  ${content}   testing
 
 Copy a file from host to online container, destination directory doesn't exist
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt online:/doesnotexist/
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/online/foo.txt online:/doesnotexist/
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  no such directory
 
 Copy a file and directory from host to online container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt online:/
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/online/foo.txt online:/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/bar online:/
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/online/bar online:/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online ls /
@@ -110,7 +107,7 @@ Copy a directory from host to online container, destination is a volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -it --name online_vol -v vol1:/vol1 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/bar online_vol:/vol1/
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/online/bar online_vol:/vol1/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online_vol ls /vol1
@@ -122,7 +119,7 @@ Copy a file from host to offline container, destination is a volume shared with 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline -v vol1:/vol1 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/content offline:/vol1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/online/content offline:/vol1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online_vol ls /vol1
@@ -131,19 +128,19 @@ Copy a file from host to offline container, destination is a volume shared with 
     Should Contain  ${output}  content
 
 Copy a directory from offline container to host, destination is a volume shared with an online container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp offline:/vol1 ${CURDIR}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp offline:/vol1 ${CURDIR}/online
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    OperatingSystem.Directory Should Exist  ${CURDIR}/vol1
-    OperatingSystem.Directory Should Exist  ${CURDIR}/vol1/bar
-    OperatingSystem.File Should Exist  ${CURDIR}/vol1/content
-    Remove Directory  ${CURDIR}/vol1  recursive=True
+    OperatingSystem.Directory Should Exist  ${CURDIR}/online/vol1
+    OperatingSystem.Directory Should Exist  ${CURDIR}/online/vol1/bar
+    OperatingSystem.File Should Exist  ${CURDIR}/online/vol1/content
+    Remove Directory  ${CURDIR}/online/vol1  recursive=True
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
 Copy a large file to an online container, destination is a volume
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt online_vol:/vol1/
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/online/largefile.txt online_vol:/vol1/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online_vol ls -l /vol1/
@@ -153,12 +150,12 @@ Copy a large file to an online container, destination is a volume
     Should Contain  ${output}  largefile.txt
 
 Copy a non-existent file out of an online container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online_vol:/dne/dne ${CURDIR}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online_vol:/dne/dne ${CURDIR}/online
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Error
 
 Copy a non-existent directory out of an online container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online_vol:/dne/. ${CURDIR}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online_vol:/dne/. ${CURDIR}/online
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f online_vol
@@ -172,12 +169,13 @@ Concurrent copy: create processes to copy a small file from host to online conta
     ${pids}=  Create List
     Log To Console  \nIssue 10 docker cp commands for small file
     :FOR  ${idx}  IN RANGE  0  10
-    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt concurrent:/foo-${idx}  shell=True
+    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/online/foo.txt concurrent:/foo-${idx}  shell=True
     \   Append To List  ${pids}  ${pid}
     Log To Console  \nWait for them to finish and check their RC
     :FOR  ${pid}  IN  @{pids}
     \   Log To Console  \nWaiting for ${pid}
     \   ${res}=  Wait For Process  ${pid}
+    \   Log  ${res.stderr}
     \   Log  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec concurrent ls /
@@ -191,12 +189,13 @@ Concurrent copy: repeat copy a large file from host to online container several 
     ${pids}=  Create List
     Log To Console  \nIssue 10 docker cp commands for large file
     :FOR  ${idx}  IN RANGE  0  10
-    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt concurrent:/vol1/lg-${idx}  shell=True
+    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/online/largefile.txt concurrent:/vol1/lg-${idx}  shell=True
     \   Append To List  ${pids}  ${pid}
     Log To Console  \nWait for them to finish and check their RC
     :FOR  ${pid}  IN  @{pids}
     \   Log To Console  \nWaiting for ${pid}
     \   ${res}=  Wait For Process  ${pid}
+    \   Log  ${res.stderr}
     \   Log  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec concurrent ls /vol1
@@ -210,18 +209,19 @@ Concurrent copy: repeat copy a large file from online container to host several 
     ${pids}=  Create List
     Log To Console  \nIssue 10 docker cp commands for large file
     :FOR  ${idx}  IN RANGE  0  10
-    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp concurrent:/vol1/lg-${idx} ${CURDIR}  shell=True
+    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp concurrent:/vol1/lg-${idx} ${CURDIR}/online  shell=True
     \   Append To List  ${pids}  ${pid}
     Log To Console  \nWait for them to finish and check their RC
     :FOR  ${pid}  IN  @{pids}
     \   Log To Console  \nWaiting for ${pid}
     \   ${res}=  Wait For Process  ${pid}
+    \   Log  ${res.stderr}
     \   Log  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
     Log To Console  \nCheck if the copy operations succeeded
     :FOR  ${idx}  IN RANGE  0  10
-    \   OperatingSystem.File Should Exist  ${CURDIR}/lg-${idx}
-    \   Remove File  ${CURDIR}/lg-${idx}
+    \   OperatingSystem.File Should Exist  ${CURDIR}/online/lg-${idx}
+    \   Remove File  ${CURDIR}/online/lg-${idx}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f concurrent
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
@@ -230,7 +230,7 @@ Sub volumes: copy from host to an online container, destination includes several
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -it -v A:/mnt/vol1 -v B:/mnt/vol2 --name subVol ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/mnt subVol:/
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/online/mnt subVol:/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec subVol find /mnt
@@ -242,15 +242,15 @@ Sub volumes: copy from host to an online container, destination includes several
 
 Sub volumes: copy from online container to host, source includes several volumes
     Remove Directory  ${CURDIR}/result1  recursive=True
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp subVol:/mnt ${CURDIR}/result1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp subVol:/mnt ${CURDIR}/online/result1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    OperatingSystem.Directory Should Exist  ${CURDIR}/result1/vol1
-    OperatingSystem.Directory Should Exist  ${CURDIR}/result1/vol2
-    OperatingSystem.File Should Exist  ${CURDIR}/result1/root.txt
-    OperatingSystem.File Should Exist  ${CURDIR}/result1/vol1/v1.txt
-    OperatingSystem.File Should Exist  ${CURDIR}/result1/vol2/v2.txt
-    Remove Directory  ${CURDIR}/result1  recursive=True
+    OperatingSystem.Directory Should Exist  ${CURDIR}/online/result1/vol1
+    OperatingSystem.Directory Should Exist  ${CURDIR}/online/result1/vol2
+    OperatingSystem.File Should Exist  ${CURDIR}/online/result1/root.txt
+    OperatingSystem.File Should Exist  ${CURDIR}/online/result1/vol1/v1.txt
+    OperatingSystem.File Should Exist  ${CURDIR}/online/result1/vol2/v2.txt
+    Remove Directory  ${CURDIR}/online/result1  recursive=True
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f subVol
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
@@ -262,7 +262,7 @@ Sub volumes: copy from host to an offline container, destination includes a shar
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/mnt/vol1 --name subVol_off ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/mnt subVol_off:/
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/online/mnt subVol_off:/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop subVol_on
@@ -280,16 +280,16 @@ Sub volumes: copy from host to an offline container, destination includes a shar
     Should Not Contain  ${output}  Error
 
 Sub volumes: copy from an offline container to host, source includes a shared vol with an online container
-    Remove Directory  ${CURDIR}/result2  recursive=True
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp subVol_off:/mnt ${CURDIR}/result2
+    Remove Directory  ${CURDIR}/online/result2  recursive=True
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp subVol_off:/mnt ${CURDIR}/online/result2
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    OperatingSystem.Directory Should Exist  ${CURDIR}/result2/vol1
-    OperatingSystem.Directory Should Exist  ${CURDIR}/result2/vol2
-    OperatingSystem.File Should Exist  ${CURDIR}/result2/root.txt
-    OperatingSystem.File Should Exist  ${CURDIR}/result2/vol1/v1.txt
-    OperatingSystem.File Should Exist  ${CURDIR}/result2/vol2/v2.txt
-    Remove Directory  ${CURDIR}/result2  recursive=True
+    OperatingSystem.Directory Should Exist  ${CURDIR}/online/result2/vol1
+    OperatingSystem.Directory Should Exist  ${CURDIR}/online/result2/vol2
+    OperatingSystem.File Should Exist  ${CURDIR}/online/result2/root.txt
+    OperatingSystem.File Should Exist  ${CURDIR}/online/result2/vol1/v1.txt
+    OperatingSystem.File Should Exist  ${CURDIR}/online/result2/vol2/v2.txt
+    Remove Directory  ${CURDIR}/online/result2  recursive=True
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f subVol_off
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
