@@ -17,15 +17,15 @@ package decode
 import (
 	"fmt"
 	"net/http"
-	"strings"
 	"net/url"
+	"strings"
 
-	"github.com/vmware/vic/lib/install/data"
-	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/apiservers/service/models"
-	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/client"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
+	"github.com/vmware/vic/lib/constants"
+	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // TODO [AngieCris]: duplicate of common/utils.go
@@ -39,7 +39,7 @@ const (
 	// scheme string for volume store targets without a scheme
 	EmptyScheme = ""
 
-	dsInputFormat  = "<datastore url w/ path>"
+	dsInputFormat = "<datastore url w/ path>"
 
 	nfsInputFormat = "nfs://<host>/<url-path>?<mount option as query parameters>"
 )

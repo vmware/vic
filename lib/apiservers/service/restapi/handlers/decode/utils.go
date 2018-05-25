@@ -15,22 +15,26 @@
 package decode
 
 import (
-	"regexp"
 	"fmt"
+	"regexp"
 )
 
 // TODO [AngieCris]: complete duplicate of common/utils.go
 // TODO [AngieCris]: move the regex validation to swagger (if possible)
 
-// https://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=2046088
-const unsuppCharsRegex = `%|&|\*|\$|#|@|!|\\|/|:|\?|"|<|>|;|'|\|`
+const (
+	// https://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=2046088
+	unsuppCharsRegex = `%|&|\*|\$|#|@|!|\\|/|:|\?|"|<|>|;|'|\|`
 
-// Same as unsuppCharsRegex but allows / and : for datastore paths
-const unsuppCharsDatastoreRegex = `%|&|\*|\$|#|@|!|\\|\?|"|<|>|;|'|\|`
+	// Same as unsuppCharsRegex but allows / and : for datastore paths
+	unsuppCharsDatastoreRegex = `%|&|\*|\$|#|@|!|\\|\?|"|<|>|;|'|\|`
+
+	// Max permitted length of Virtual Switch name
+	MaxDisplayNameLen = 31
+)
 
 var reUnsupp = regexp.MustCompile(unsuppCharsRegex)
 var reUnsuppDatastore = regexp.MustCompile(unsuppCharsDatastoreRegex)
-
 
 // CheckUnsupportedChars returns an error if string contains special characters
 func CheckUnsupportedChars(s string) error {

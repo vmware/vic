@@ -15,16 +15,16 @@
 package decode
 
 import (
-	"net/http"
 	"fmt"
+	"net/http"
 
-	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/apiservers/service/models"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/client"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
-	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/lib/constants"
-	"github.com/vmware/vic/cmd/vic-machine/common"
+	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 func ProcessCompute(op trace.Operation, d *data.Data, vch *models.VCH, finder client.Finder) error {

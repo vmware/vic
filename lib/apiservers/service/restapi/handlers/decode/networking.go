@@ -17,19 +17,18 @@ package decode
 import (
 	"fmt"
 	"net"
-	"strings"
 	"net/http"
+	"strings"
 
-	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/client"
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/apiservers/service/models"
-	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/client"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/ip"
+	"github.com/vmware/vic/pkg/trace"
 )
-
 
 func ProcessNetworks(op trace.Operation, d *data.Data, vch *models.VCH, finder client.Finder) error {
 	if vch.Network != nil {
@@ -145,10 +144,10 @@ func processContainerNetwork(op trace.Operation, finder client.Finder, cNetwork 
 	if cNetwork.Gateway != nil {
 		ip, mask, err := processGateway(op, cNetwork.Gateway)
 		if err != nil {
-			return fmt.Errorf( "error parsing container network %s: %s", alias, err)
+			return fmt.Errorf("error parsing container network %s: %s", alias, err)
 		}
 		cNetworkConfig.MappedNetworksGateways[alias] = net.IPNet{
-			IP: ip,
+			IP:   ip,
 			Mask: mask.Mask,
 		}
 	}
@@ -159,7 +158,7 @@ func processContainerNetwork(op trace.Operation, finder client.Finder, cNetwork 
 	// nameservers
 	dns, err := processNameServers(op, cNetwork.Nameservers)
 	if err != nil {
-		return fmt.Errorf( "error parsing container network %s: %s", alias, err)
+		return fmt.Errorf("error parsing container network %s: %s", alias, err)
 	}
 	cNetworkConfig.MappedNetworksDNS[alias] = dns
 
@@ -255,7 +254,6 @@ func processIPRanges(op trace.Operation, ipRanges []models.IPRange) []ip.Range {
 
 	return ranges
 }
-
 
 // parse gateway string to gateway IP and routing destinations
 // TODO [AngieCris]: complete duplicate of an util function in cmd/create (maybe no need to de-duplicate?)
