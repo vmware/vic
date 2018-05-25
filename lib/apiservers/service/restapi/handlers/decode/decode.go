@@ -15,3 +15,39 @@
 // Package decode converts model objects used by the API into objects used by
 // the management package. Functions are grouped by area.
 package decode
+
+import (
+	"net/url"
+	"net/http"
+
+	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/apiservers/service/models"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
+)
+
+func ProcessSyslogs(op trace.Operation, d *data.Data, vch *models.VCH) error {
+	if vch.SyslogAddr != "" {
+		addr := vch.SyslogAddr.String()
+		if len(addr) == 0 {
+			return nil
+		}
+
+		u, err := url.Parse(addr)
+		if err != nil {
+			return errors.WrapError(http.StatusBadRequest, err)
+		}
+
+		d.SyslogConfig.Addr = u
+	}
+
+	return nil
+}
+
+func ProcessContainer(op trace.Operation, d *data.Data, vch *models.VCH) error {
+	if vch.Container != nil && vch.Container.NameConvention != "" {
+		d.ContainerNameConvention = vch.Container.NameConvention
+	}
+
+	return nil
+}
