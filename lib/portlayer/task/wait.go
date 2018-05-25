@@ -16,11 +16,14 @@ package task
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
 // Wait waits the task to start
@@ -54,6 +57,7 @@ func Wait(op *trace.Operation, h interface{}, id string) error {
 	}
 
 	if okS {
+		// TODO: We should protect against transient style errors from vsphere here. using tasks.IsTransientError
 		return c.WaitForSession(timeout, id)
 	}
 
@@ -74,7 +78,27 @@ func Wait(op *trace.Operation, h interface{}, id string) error {
 		return nil
 	}
 
-	return handle.WaitForExec(timeout, id)
+	// Protect our self from transient errors that may occur.
+	backoffConf := retry.NewBackoffConfig()
+
+	// this might be rather lengthy of a start and max, however there might be many things retrying and a wait taking a bit longer is likely not as big a deal.
+	backoffConf.MaxInterval = 5 * time.Second
+	backoffConf.InitialInterval = 2 * time.Second
+
+	operation := func() error {
+		return handle.WaitForExec(timeout, id)
+	}
+
+	retryDecider := func(err error) bool {
+		return tasks.IsTransientError(*op, err)
+	}
+
+	if err := retry.DoWithConfig(operation, retryDecider, backoffConf); err != nil {
+		op.Errorf("Unable to wait for task exec task completion", id, err)
+		return err
+	}
+
+	return nil
 }
 
 type TaskPowerStateError struct {
