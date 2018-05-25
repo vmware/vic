@@ -7,12 +7,11 @@ STATES(PROCESS OF CVM):
 2. Process Ready -> config is validated successfully and the process can be started at any moment.
 3. Process Started/running -> should we have a separate started and running? Running should be sufficient... the process was ready and now it is being allowed to proceed.
 4. Process Exited w/o error -> process has run and has an exit code, this exit code came from the process naturally exiting and not getting a signal;(perhaps the two different Process Exited states are not needed. but could help us to determine if restart/increase audit logging/additional intervention/etc are needed)
-5. Process Exited w/ Error -> the task was cancelled/failed/signaled prematurely before finishing and was thus terminated by the tether/OS rather than by the processes own means. (perhaps we do not need this distinction. as the FSM is drawn and constructed it should inform further)
+5. Process Exited w/ Error -> the task was cancelled/timed out/failed/signaled prematurely before finishing and was thus terminated by the tether/OS rather than by the process' own means. (perhaps we do not need this distinction. as the FSM is drawn and constructed it should inform further)
 
 Thoughts:
 
 * Do we need s_1? **more input below in the transitions for s_1**
-
 
 ============================================================
 
@@ -59,7 +58,7 @@ S_3 TRANSITIONS:
 
 - s_3 -> s_4 : Process Ran and successfully exited properly. 
 
-- s_3 -> s_5 : Process cancelled due to outside signal or intervention(container shutdown could occur here but the state transition won't occur. we have separate logic) 
+- s_3 -> s_5 : Process signalledby outside actor or intervention(container shutdown could occur here but the state transition won't occur. we have separate logic) 
 
 - s_3 -> s_5 : Process dispatching took too long. Timeout. (unlikely to happen? unless there are a lot being launched...). Could be a self loop(generally what happens in the OS...)
 
