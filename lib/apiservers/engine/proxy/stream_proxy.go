@@ -188,7 +188,7 @@ func (s *StreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, stdin
 	// close the channel so that we don't leak (if there is an error)/or get blocked (if there are no errors)
 	close(errChan)
 
-	log.Infof("cleaned up connections to %s. Checking errors", ac.ID)
+	log.Infof("cleaned up connections to %s", ac.ID)
 	for err := range errChan {
 		if err != nil {
 			// check if we got DetachError
@@ -208,7 +208,7 @@ func (s *StreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, stdin
 		}
 	}
 
-	log.Infof("No error found. Returning nil...")
+	log.Debugf("No error found. Returning nil...")
 	return nil
 }
 
