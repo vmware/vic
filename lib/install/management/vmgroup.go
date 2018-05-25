@@ -34,35 +34,50 @@ func (d *Dispatcher) createVMGroup(conf *config.VirtualContainerHostConfigSpec) 
 
 	d.op.Debugf("Creating DRS VM Group %q on %q", conf.VMGroupName, d.appliance.Cluster)
 
-	spec := &types.ClusterConfigSpecEx{
-		GroupSpec: []types.ClusterGroupSpec{
-			{
-				ArrayUpdateSpec: types.ArrayUpdateSpec{
-					Operation: types.ArrayUpdateOperationAdd,
-				},
-				Info: &types.ClusterVmGroup{
-					ClusterGroupInfo: types.ClusterGroupInfo{
-						Name: conf.VMGroupName,
+	_, err := tasks.WaitForResultAndRetryIf(d.op, func(op context.Context) (tasks.Task, error) {
+		containers, err := d.containerRefs(d.vchPool)
+		if err != nil {
+			return nil, err
+		}
+
+		vms := append(containers, d.appliance.Reference())
+
+		d.op.Debugf("Populating DRS VM Group %q with %q", conf.VMGroupName, vms)
+
+		spec := &types.ClusterConfigSpecEx{
+			GroupSpec: []types.ClusterGroupSpec{
+				{
+					ArrayUpdateSpec: types.ArrayUpdateSpec{
+						Operation: types.ArrayUpdateOperationAdd,
 					},
-					Vm: []types.ManagedObjectReference{d.appliance.Reference()},
+					Info: &types.ClusterVmGroup{
+						ClusterGroupInfo: types.ClusterGroupInfo{
+							Name: conf.VMGroupName,
+						},
+						Vm: vms,
+					},
 				},
 			},
-		},
-	}
+		}
 
-	_, err := tasks.WaitForResultAndRetryIf(d.op, func(op context.Context) (tasks.Task, error) {
 		return d.appliance.Cluster.Reconfigure(op, spec, true)
 	}, tasks.IsTransientError)
 
 	return err
 }
 
-func (d *Dispatcher) destroyVMGroup(conf *config.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) deleteVMGroupIfUsed(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin("", d.op))
 
 	if !conf.UseVMGroup {
 		return nil
 	}
+
+	return d.deleteVMGroupIfExists(conf)
+}
+
+func (d *Dispatcher) deleteVMGroupIfExists(conf *config.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin("", d.op))
 
 	exists, err := validate.VMGroupExists(d.op, d.session.Cluster, conf.VMGroupName)
 	if err != nil {

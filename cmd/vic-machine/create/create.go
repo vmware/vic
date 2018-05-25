@@ -312,6 +312,7 @@ func (c *Create) Flags() []cli.Flag {
 	target := c.TargetFlags()
 	ops := c.OpsCredentials.Flags(true)
 	compute := c.ComputeFlags()
+	affinity := c.AffinityFlags(true)
 	container := c.ContainerFlags()
 	volume := c.volumeStores.Flags()
 	iso := c.ImageFlags(true)
