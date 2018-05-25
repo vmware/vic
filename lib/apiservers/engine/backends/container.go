@@ -253,19 +253,8 @@ func (c *ContainerBackend) ContainerExecCreate(name string, config *types.ExecCo
 	// associate newly created exec task with container
 	cache.ContainerCache().AddExecToContainer(vc, eid)
 
-	handle, err := c.Handle(id, name)
-	if err != nil {
-		op.Error(err)
-		return "", engerr.InternalServerError(err.Error())
-	}
-
-	ec, err := c.containerProxy.InspectTask(op, handle, eid, id)
-	if err != nil {
-		return "", err
-	}
-
 	// exec_create event
-	event := "exec_create: " + ec.ProcessConfig.ExecPath + " " + strings.Join(ec.ProcessConfig.ExecArgs[1:], " ")
+	event := "exec_create: " + config.Cmd[0] + " " + strings.Join(config.Cmd[1:], " ")
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 	EventService().Log(event, eventtypes.ContainerEventType, actor)
 
