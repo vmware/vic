@@ -334,7 +334,7 @@ func (c *ContainerBackend) ContainerExecResize(eid string, height, width int) er
 	return err
 }
 
-// attachHelper performas some basic type transformation and makes blocking call to AttachStreams
+// attachHelper performs some basic type transformation and makes blocking call to AttachStreams
 // autoclose determines if stdin will be closed when both stdout and stderr have closed
 func (c *ContainerBackend) attachHelper(op trace.Operation, ec *models.TaskInspectResponse, stdin io.ReadCloser, stdout, stderr io.Writer, autoclose bool) error {
 	defer trace.End(trace.Begin(ec.ID))
