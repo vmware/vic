@@ -79,7 +79,7 @@ func ProcessEndpoint(op trace.Operation, d *data.Data, vch *models.VCH) error {
 			}
 		}
 	}
-	
+
 	err := processOpsCredentials(op, &d.OpsCredentials, d.Target.User, d.Target.Password)
 	if err != nil {
 		return errors.WrapError(http.StatusBadRequest, err)
