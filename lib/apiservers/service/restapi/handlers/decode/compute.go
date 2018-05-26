@@ -79,8 +79,8 @@ func ProcessEndpoint(op trace.Operation, d *data.Data, vch *models.VCH) error {
 			}
 		}
 	}
-
-	err := processOpsCredentials(op, d.OpsCredentials, d.Target.User, d.Target.Password)
+	
+	err := processOpsCredentials(op, &d.OpsCredentials, d.Target.User, d.Target.Password)
 	if err != nil {
 		return errors.WrapError(http.StatusBadRequest, err)
 	}
@@ -89,7 +89,7 @@ func ProcessEndpoint(op trace.Operation, d *data.Data, vch *models.VCH) error {
 }
 
 // processOpsCredentials check if the ops credentials given is valid. If not, use administrative user as ops user
-func processOpsCredentials(op trace.Operation, opsCreds common.OpsCredentials, adminUser string, adminPassword *string) error {
+func processOpsCredentials(op trace.Operation, opsCreds *common.OpsCredentials, adminUser string, adminPassword *string) error {
 	if opsCreds.OpsUser == nil {
 		if opsCreds.GrantPerms != nil {
 			if *opsCreds.GrantPerms { // grant perms set but no ops user
@@ -97,7 +97,6 @@ func processOpsCredentials(op trace.Operation, opsCreds common.OpsCredentials, a
 			}
 			opsCreds.GrantPerms = nil
 		}
-		op.Warn("Ops credentials not specified. Using administrative user for VCH operation")
 		opsCreds.OpsUser = &adminUser
 		// TODO [AngieCris]: is there the need to check if adminPassword is nil? (passed from target, shouldn't be nil
 		opsCreds.OpsPassword = adminPassword

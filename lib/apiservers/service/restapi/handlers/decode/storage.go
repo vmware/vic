@@ -101,7 +101,7 @@ func processVolumeStores(op trace.Operation, volumeStores []*models.VCHStorageVo
 }
 
 func processVolumeStore(op trace.Operation, volumeStore *models.VCHStorageVolumeStoresItems0) (string, *url.URL, error) {
-	var url *url.URL
+	var urlTarget *url.URL
 
 	label := volumeStore.Label
 	rawTarget := volumeStore.Datastore
@@ -114,25 +114,25 @@ func processVolumeStore(op trace.Operation, volumeStore *models.VCHStorageVolume
 	// we strip the scheme off before parsing to url
 	// this is to avoid url.Parse break when there is empty space in input path. Ex: ds://datastore [1]/foo/bar
 	stripTarget := strings.Replace(rawTarget, DsScheme+"://", "", -1)
-	url, err = url.Parse(stripTarget)
+	urlTarget, err = url.Parse(stripTarget)
 	if err != nil {
 		return "", nil, fmt.Errorf("volume store path %s cannot be parsed into url: %s", rawTarget, err)
 	}
 
-	switch url.Scheme {
+	switch urlTarget.Scheme {
 	case NfsScheme:
 		// no further parsing needed for nfs target
 	case EmptyScheme, DsScheme:
 		if err := CheckUnsupportedCharsDatastore(rawTarget); err != nil {
 			return "", nil, err
 		}
-		url.Scheme = DsScheme // add the scheme back on
-		if len(url.RawQuery) > 0 {
+		urlTarget.Scheme = DsScheme // add the scheme back on
+		if len(urlTarget.RawQuery) > 0 {
 			return "", nil, fmt.Errorf("volume store input must be in format %s or %s", dsInputFormat, nfsInputFormat)
 		}
 	default:
 		return "", nil, fmt.Errorf("please specify a datastore or nfs target")
 	}
 
-	return label, url, nil
+	return label, urlTarget, nil
 }

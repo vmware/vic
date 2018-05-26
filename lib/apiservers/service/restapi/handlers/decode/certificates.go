@@ -97,7 +97,7 @@ func ProcessRegistry(op trace.Operation, d *data.Data, vch *models.VCH) error {
 func processProxy(proxy *string, scheme string) (*url.URL, error) {
 	p, err := url.Parse(*proxy)
 	if err != nil || p.Host == "" || p.Scheme != scheme {
-		return nil, fmt.Errorf("could not parse %s proxy - expected format: %s://fqdn_or_ip:port: %s", scheme, scheme, err)
+		return nil, fmt.Errorf("failed to parse %s proxy - expected format: %s://fqdn_or_ip:port", scheme, scheme)
 	}
 
 	return p, nil

@@ -71,10 +71,7 @@ func ProcessNetworks(op trace.Operation, d *data.Data, vch *models.VCH, finder c
 			}
 
 			// Process DNS server to be applied to all public, management and client network
-			d.DNS, err = processNameServers(op, vch.Network.Public.Nameservers)
-			if err != nil {
-				return errors.WrapError(http.StatusBadRequest, err)
-			}
+			d.DNS = fromIPAddresses(vch.Network.Public.Nameservers)
 
 			if len(d.DNS) > 3 {
 				op.Warn("Maximum of 3 DNS servers allowed. Additional servers specified will be ignored.")
@@ -91,7 +88,7 @@ func ProcessNetworks(op trace.Operation, d *data.Data, vch *models.VCH, finder c
 			}
 
 			for _, cNetwork := range vch.Network.Container {
-				err := processContainerNetwork(op, finder, cNetwork, d.ContainerNetworks)
+				err := processContainerNetwork(op, finder, cNetwork, &d.ContainerNetworks)
 				if err != nil {
 					return errors.WrapError(http.StatusBadRequest, err)
 				}
@@ -107,7 +104,7 @@ func processNetwork(op trace.Operation, finder client.Finder, network *models.Ne
 		return fmt.Errorf("error finding %s network portgroup: %s", netType, err)
 	}
 
-	gateway := FromGateway(network.Gateway)
+	gateway := fromGateway(network.Gateway)
 	ip := FromCIDR(&network.Static)
 
 	err = processNetworkConfig(op, networkConfig, netType, name, ip, gateway)
@@ -118,7 +115,7 @@ func processNetwork(op trace.Operation, finder client.Finder, network *models.Ne
 	return nil
 }
 
-func processContainerNetwork(op trace.Operation, finder client.Finder, cNetwork *models.ContainerNetwork, cNetworkConfig common.ContainerNetworks) error {
+func processContainerNetwork(op trace.Operation, finder client.Finder, cNetwork *models.ContainerNetwork, cNetworkConfig *common.ContainerNetworks) error {
 	alias := cNetwork.Alias
 
 	// TODO [AngieCris]; figure out what fields are required and what are not
@@ -153,19 +150,15 @@ func processContainerNetwork(op trace.Operation, finder client.Finder, cNetwork 
 	}
 
 	// ip ranges
-	cNetworkConfig.MappedNetworksIPRanges[alias] = processIPRanges(op, cNetwork.IPRanges)
+	cNetworkConfig.MappedNetworksIPRanges[alias] = fromIPRanges(cNetwork.IPRanges)
 
 	// nameservers
-	dns, err := processNameServers(op, cNetwork.Nameservers)
-	if err != nil {
-		return fmt.Errorf("error parsing container network %s: %s", alias, err)
-	}
-	cNetworkConfig.MappedNetworksDNS[alias] = dns
+	cNetworkConfig.MappedNetworksDNS[alias] = fromIPAddresses(cNetwork.Nameservers)
 
 	return nil
 }
 
-// TODO [AngieCris]: duplicate of processnetwork logic in cmd/create
+// TODO [AngieCris]: duplicate of process network logic in cmd/create
 func processNetworkConfig(op trace.Operation, network *data.NetworkConfig, netType string, name string, staticIP string, gateway string) error {
 	network.Name = name
 
@@ -228,33 +221,6 @@ func processGateway(op trace.Operation, gateway *models.Gateway) (net.IP, *net.I
 	return addr, mask, nil
 }
 
-func processNameServers(op trace.Operation, nameServers []models.IPAddress) ([]net.IP, error) {
-	ips := make([]net.IP, 0, len(nameServers))
-	dns := FromIPAddresses(nameServers)
-
-	for i, n := range dns {
-		if n != "" {
-			s := net.ParseIP(n)
-			if s == nil {
-				return nil, fmt.Errorf("Invalid name server provided: %s", n)
-			}
-			ips[i] = s
-		}
-	}
-
-	return ips, nil
-}
-
-func processIPRanges(op trace.Operation, ipRanges []models.IPRange) []ip.Range {
-	ranges := make([]ip.Range, 0, len(ipRanges))
-	for i, r := range ipRanges {
-		parsedR := ip.ParseRange(string(r))
-		ranges[i] = *parsedR
-	}
-
-	return ranges
-}
-
 // parse gateway string to gateway IP and routing destinations
 // TODO [AngieCris]: complete duplicate of an util function in cmd/create (maybe no need to de-duplicate?)
 func parseGateway(gw string) (cidrs []net.IPNet, gwIP net.IPNet, err error) {
@@ -302,7 +268,7 @@ func FromCIDR(m *models.CIDR) string {
 	return string(*m)
 }
 
-func FromCIDRs(m *[]models.CIDR) *[]string {
+func fromCIDRs(m *[]models.CIDR) *[]string {
 	s := make([]string, 0, len(*m))
 	for _, d := range *m {
 		s = append(s, FromCIDR(&d))
@@ -311,24 +277,35 @@ func FromCIDRs(m *[]models.CIDR) *[]string {
 	return &s
 }
 
-func FromIPAddress(m *models.IPAddress) string {
+func fromIPAddress(m *models.IPAddress) net.IP {
 	if m == nil {
-		return ""
+		return nil
 	}
 
-	return string(*m)
+	return net.ParseIP(string(*m))
 }
 
-func FromIPAddresses(m []models.IPAddress) []string {
-	s := make([]string, 0, len(m))
-	for _, ip := range m {
-		s = append(s, FromIPAddress(&ip))
+func fromIPAddresses(ipAddresses []models.IPAddress) []net.IP {
+	ips := make([]net.IP, len(ipAddresses))
+
+	for i, n := range ipAddresses {
+		ips[i] = fromIPAddress(&n)
 	}
 
-	return s
+	return ips
 }
 
-func FromGateway(m *models.Gateway) string {
+func fromIPRanges(ipRanges []models.IPRange) []ip.Range {
+	ranges := make([]ip.Range, len(ipRanges))
+	for i, r := range ipRanges {
+		parsedR := ip.ParseRange(string(r))
+		ranges[i] = *parsedR
+	}
+
+	return ranges
+}
+
+func fromGateway(m *models.Gateway) string {
 	if m == nil {
 		return ""
 	}
@@ -340,17 +317,7 @@ func FromGateway(m *models.Gateway) string {
 	}
 
 	return fmt.Sprintf("%s:%s",
-		strings.Join(*FromCIDRs(&m.RoutingDestinations), ","),
+		strings.Join(*fromCIDRs(&m.RoutingDestinations), ","),
 		m.Address,
 	)
-}
-
-func FromImageFetchProxy(p *models.VCHRegistryImageFetchProxy) common.Proxies {
-	http := string(p.HTTP)
-	https := string(p.HTTPS)
-
-	return common.Proxies{
-		HTTPProxy:  &http,
-		HTTPSProxy: &https,
-	}
 }

@@ -17,7 +17,6 @@
 package decode
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
 
@@ -33,7 +32,7 @@ func ProcessVCH(op trace.Operation, d *data.Data, vch *models.VCH, finder client
 	var err error
 
 	if vch != nil {
-		err = processVersion(vch.Version)
+		err = checkVersion(vch.Version)
 		if err != nil {
 			return err
 		}
@@ -90,11 +89,11 @@ func ProcessVCH(op trace.Operation, d *data.Data, vch *models.VCH, finder client
 	return nil
 }
 
-// TODO [AngieCris]: processing of all other fields (ones don't belong to other categories) should be put in another file
+// TODO [AngieCris]: processing of all other fields (ones don't belong to other categories) should be moved to some other file
 
-func processVersion(ver models.Version) error {
+func checkVersion(ver models.Version) error {
 	if ver != "" && version.String() != string(ver) {
-		return fmt.Errorf("invalid version: %s", string(ver))
+		return errors.NewError(http.StatusBadRequest, "invalid version: %s", string(ver))
 	}
 
 	return nil
@@ -104,6 +103,7 @@ func processVersion(ver models.Version) error {
 func processVCHName(op trace.Operation, d *data.Data, vch *models.VCH) error {
 	d.DisplayName = vch.Name
 	err := CheckUnsupportedChars(d.DisplayName)
+
 	if err != nil {
 		return errors.NewError(http.StatusBadRequest, "invalid display name: %s", err)
 	}
