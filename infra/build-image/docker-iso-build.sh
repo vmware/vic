@@ -27,12 +27,13 @@ function main {
   docker run \
   -it \
   --rm \
-  -v $GOPATH/bin:/go/bin \
-  -v $GOPATH/src/github.com/vmware/vic:/go/src/github.com/vmware/vic \
+  -v $GOPATH/bin:/go/bin:ro \
+  -v $GOPATH/src/github.com/vmware/vic:/go/src/github.com/vmware/vic:ro \
+  -v $GOPATH/src/github.com/vmware/vic/bin:/go/src/github.com/vmware/vic/bin \
   -w /go/src/github.com/vmware/vic \
   -e TERM=linux \
   -e DEBUG=${DEBUG} \
-  vic-build-image:${REPO:-tdnf} /bin/bash -c "$*"
+  gcr.io/eminent-nation-87317/vic-build-image:${REPO:-tdnf} /bin/bash -c "$*"
 }
 
 REPO=""
@@ -44,10 +45,9 @@ while getopts ':d:' flag; do
 done
 shift $((OPTIND-1))
 
-echo "building $1"
+echo "building $REPO"
 if [[ -f "/proc/1/cgroup" && -n "$(grep docker /proc/1/cgroup)" ]]; then
   /bin/bash -c "$*" # prevent docker in docker
 else
   main "${REPO:-photon-2.0}" "$@"
 fi
-

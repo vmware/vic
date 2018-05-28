@@ -95,37 +95,17 @@ chroot $(rootfs_dir $PKGDIR) systemctl disable \
 rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
 cp ${DIR}/base/no-dhcp.network $(rootfs_dir $PKGDIR)/etc/systemd/network/
 
-# do not use the default iptables rules - nat-setup supplants this
-rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
-
 #
 # Set up component users
 #
 
-# HACK: work around missing user utils with toybox
-echo "#!/bin/true" > $(rootfs_dir $PKGDIR)/bin/no-op
-chmod a+x $(rootfs_dir $PKGDIR)/bin/no-op
-ln -s /bin/no-op $(rootfs_dir $PKGDIR)/bin/groupadd
-ln -s /bin/no-op $(rootfs_dir $PKGDIR)/bin/useradd
-ln -s /bin/no-op $(rootfs_dir $PKGDIR)/bin/usermod
-mkdir -p $(rootfs_dir $PKGDIR)/home/vicadmin
-echo "vicadmin:x:1000:" >> $(rootfs_dir $PKGDIR)/etc/group 
-echo "vic:x:1001:vicadmin" >> $(rootfs_dir $PKGDIR)/etc/group
-echo "vicadmin::1000:1000::/home/vicadmin:/bin/false" >> $(rootfs_dir $PKGDIR)/etc/passwd
-# END HACK
-
-# HACK: address missing resolv.con
-# unclear why this isn't created by createBindSrcTarget
+chroot $(rootfs_dir $PKGDIR) groupadd -g 1000 vicadmin
+chroot $(rootfs_dir $PKGDIR) useradd -u 1000 -g 1000 -G systemd-journal -m -d /home/vicadmin -s /bin/false vicadmin
 chroot $(rootfs_dir $PKGDIR) touch /etc/resolv.conf
-# END HACK
-
-# toolbox errors with usermod and groupadd
-chroot $(rootfs_dir $PKGDIR) groupadd -g 1000 vicadmin || true
-chroot $(rootfs_dir $PKGDIR) useradd -u 1000 -g 1000 -G systemd-journal -m -d /home/vicadmin -s /bin/false vicadmin || true
 
 # Group vic should be used to run all VIC related services.
-chroot $(rootfs_dir $PKGDIR) groupadd -g 1001 vic || true
-chroot $(rootfs_dir $PKGDIR) usermod -a -G vic vicadmin || true
+chroot $(rootfs_dir $PKGDIR) groupadd -g 1001 vic
+chroot $(rootfs_dir $PKGDIR) usermod -a -G vic vicadmin
 
 cp -R ${DIR}/vicadmin/* $(rootfs_dir $PKGDIR)/home/vicadmin
 chown -R 1000:1000 $(rootfs_dir $PKGDIR)/home/vicadmin
