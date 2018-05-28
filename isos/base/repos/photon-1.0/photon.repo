@@ -1,6 +1,11 @@
-[photon-1.0]
+[photon]
 name=VMware Photon Linux 1.0(x86_64)
-baseurl=https://vmware.bintray.com/photon_release_1.0_x86_64/
-gpgkey=file:///etc/pki/rpm-gpg/VMWARE-RPM-GPG-KEY
+baseurl=http://wdc-yum-builder-ci.eng.vmware.com/photon
+gpgcheck=0
+enabled=1
+
+[photon-updates]
+name=VMware Photon Linux 1.0(x86_64)
+baseurl=http://wdc-yum-builder-ci.eng.vmware.com/photon-updates
 gpgcheck=0
 enabled=1
