@@ -1,3 +1,0 @@
-# haveged for entropy
-# iptables firewall config (injected into /.tether)
-haveged iptables

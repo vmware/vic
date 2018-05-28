@@ -66,9 +66,9 @@ setup_pm() {
     sed -i "s|\$VER|$VER|g"                     $(rootfs_dir $PKGDIR)/etc/$PACKAGE_MANAGER/$PACKAGE_MANAGER.conf
 
     # Copy and parse rpo config for use by package_cached, with a absolute rootfs
-    cp $BASE_DIR/$PACKAGE_MANAGER.conf          /etc/$PACKAGE_MANAGER/$PACKAGE_MANAGER-$REPO.conf
-    sed -i "s|\$ROOTFS|$(rootfs_dir $PKGDIR)|g" /etc/$PACKAGE_MANAGER/$PACKAGE_MANAGER-$REPO.conf
-    sed -i "s|\$VER|$VER|g"                     /etc/$PACKAGE_MANAGER/$PACKAGE_MANAGER-$REPO.conf
+    cp $BASE_DIR/$PACKAGE_MANAGER.conf          $PKGDIR/$PACKAGE_MANAGER-$REPO.conf
+    sed -i "s|\$ROOTFS|$(rootfs_dir $PKGDIR)|g" $PKGDIR/$PACKAGE_MANAGER-$REPO.conf
+    sed -i "s|\$VER|$VER|g"                     $PKGDIR/$PACKAGE_MANAGER-$REPO.conf
 
     # allow future stages to know which repo this is using
     echo "$REPO" > $PKGDIR/repo.cfg
@@ -327,7 +327,7 @@ package_cached () {
 
     # Use a custom package manager configuration that uses the '-c' option for an absolute rootfs path
     CACHE_DIR="var/cache/$MANAGER"
-    MANAGER_OPTS="-c /etc/$MANAGER/$MANAGER-$(cat $PKGDIR/repo.cfg).conf --installroot $INSTALLROOT"
+    MANAGER_OPTS="-c $PKGDIR/$MANAGER-$(cat $PKGDIR/repo.cfg).conf --installroot $INSTALLROOT"
     
     # bundle specific - if we're cleaning the cache and we want it all gone
     # $1 because of the shift after getopts

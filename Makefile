@@ -39,7 +39,6 @@ GVT ?= $(GOPATH)/bin/gvt$(BIN_ARCH)
 GOVC ?= $(GOPATH)/bin/govc$(BIN_ARCH)
 GAS ?= $(GOPATH)/bin/gas$(BIN_ARCH)
 MISSPELL ?= $(GOPATH)/bin/misspell$(BIN_ARCH)
-CUSTOM ?= photon-2.0
 DOCKER_BUILD := $(BASE_DIR)/infra/build-image/docker-iso-build.sh
 
 .PHONY: all tools clean test check distro \
@@ -116,15 +115,13 @@ tether-linux := $(BIN)/tether-linux
 appliance := $(BIN)/appliance.iso
 appliance-staging := $(BIN)/.appliance-staging.tgz
 bootstrap := $(BIN)/bootstrap.iso
-bootstrap-custom := $(BIN)/bootstrap-$(CUSTOM).iso
+bootstrap-custom := $(BIN)/bootstrap-$(REPO).iso
 bootstrap-staging := $(BIN)/.bootstrap-staging.tgz
-bootstrap-staging-custom := $(BIN)/.bootstrap-staging-$(CUSTOM).tgz
+bootstrap-staging-custom := $(BIN)/.bootstrap-staging-$(REPO).tgz
 bootstrap-staging-debug := $(BIN)/.bootstrap-staging-debug.tgz
 bootstrap-debug := $(BIN)/bootstrap-debug.iso
-iso-base-photon1 := $(BIN)/.iso-base-photon-1.0.tgz
-iso-base-photon2 := $(BIN)/.iso-base-photon-2.0.tgz
-iso-base-custom := $(BIN)/.iso-base-$(CUSTOM).tgz
-iso-base := $(iso-base-photon2)
+iso-base := $(BIN)/.iso-base-photon-2.0.tgz
+iso-base-custom := $(BIN)/.iso-base-$(REPO).tgz
 
 # target aliases - target mapping
 docker-engine-api: $(docker-engine-api)
@@ -153,8 +150,7 @@ bootstrap-staging: $(bootstrap-staging)
 bootstrap-staging-custom: $(bootstrap-staging-custom)
 bootstrap-debug: $(bootstrap-debug)
 bootstrap-staging-debug: $(bootstrap-staging-debug)
-iso-base: $(iso-base-photon1)
-iso-base-photon2: $(iso-base-photon2)
+iso-base: $(iso-base)
 iso-base-custom: $(iso-base-custom)
 
 vic-machine: $(vic-machine-linux) $(vic-machine-windows) $(vic-machine-darwin)
@@ -424,29 +420,23 @@ $(serviceapi): $$(call godeps,cmd/vic-machine-server/*.go) $(serviceapi-server)
 
 
 # ISO Targets
-$(iso-base-photon1): isos/base.sh isos/base/repos/photon-1.0/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
-	@echo "building iso-base image (photon-1.0)"
-	@$(TIME) $(DOCKER_BUILD) -d $< -r photon-1.0 -c $(BIN)/.yum-cache-photon-1.0.tgz -p $@
-
-$(iso-base-photon2): isos/base.sh isos/base/repos/photon-2.0/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
+$(iso-base): isos/base.sh isos/base/repos/photon-2.0/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo "building iso-base image (photon-2.0)"
 	@$(TIME) $(DOCKER_BUILD) $< -r photon-2.0 -c $(BIN)/.yum-cache-photon-2.0.tgz -p $@
 
-$(iso-base-custom): isos/base.sh isos/base/repos/$(CUSTOM)/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
-	@echo "building custom iso-base image ($(CUSTOM) packages)"
-	@$(TIME) $(DOCKER_BUILD) -d $(CUSTOM) $< -r $(CUSTOM) -c $(BIN)/.yum-cache-$(CUSTOM).tgz -p $@
-	#Add support for the custom_rpm env variable
-	#@$(TIME) $< -r $(CUSTOM) -c $(BIN)/.yum-cache.tgz -k $(CUSTOM_RPM) -p $@
-
-# appliance staging - allows for caching of package install
-$(appliance-staging): isos/appliance-staging.sh $(iso-base-photon2)
-	@echo staging for VCH appliance
-	$(TIME) $(DOCKER_BUILD) $< -c $(BIN)/.yum-cache-photon-2.0.tgz -p $(iso-base-photon2) -o $@
+$(iso-base-custom): isos/base.sh isos/base/repos/$(REPO)/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
+	@echo "building custom iso-base image ($(REPO))"
+	@$(TIME) $(DOCKER_BUILD) -d $(REPO) $< -r $(REPO) -c $(BIN)/.yum-cache-$(REPO).tgz -p $@
 
 # main appliance target - depends on all top level component targets
 $(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(appliance-staging) $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(archive)
 	@echo building VCH appliance ISO
 	@$(TIME) $(DOCKER_BUILD) $< -p $(appliance-staging) -b $(BIN)
+
+# appliance staging - allows for caching of package install
+$(appliance-staging): isos/appliance-staging.sh $(iso-base)
+	@echo staging for VCH appliance
+	@$(TIME) $(DOCKER_BUILD) $< -c $(BIN)/.yum-cache-photon-2.0.tgz -p $(iso-base) -o $@
 
 # main bootstrap target
 $(bootstrap): isos/bootstrap.sh $(tether-linux) $(archive) $(bootstrap-staging) isos/bootstrap/*
@@ -456,23 +446,23 @@ $(bootstrap): isos/bootstrap.sh $(tether-linux) $(archive) $(bootstrap-staging) 
 # uses iso-base-custom to allow for custom kernels
 $(bootstrap-custom): isos/bootstrap.sh $(tether-linux) $(archive) $(bootstrap-staging-custom) isos/bootstrap/*
 	@echo "Making custom bootstrap iso"
-	@$(TIME) $(DOCKER_BUILD) -d $(CUSTOM) $< -p $(bootstrap-staging-custom) -b $(BIN) -o $(notdir $@)
+	@$(TIME) $(DOCKER_BUILD) -d $(REPO) $< -p $(bootstrap-staging-custom) -b $(BIN) -o $(notdir $@)
 
 $(bootstrap-debug): isos/bootstrap.sh $(tether-linux) $(archive) $(rpctool) $(bootstrap-staging-debug) isos/bootstrap/*
 	@echo "Making bootstrap-debug iso"
 	@$(TIME) $(DOCKER_BUILD) $< -p $(bootstrap-staging-debug) -b $(BIN) -d true
 
-$(bootstrap-staging): isos/bootstrap-staging.sh $(iso-base-photon2)
+$(bootstrap-staging): isos/bootstrap-staging.sh $(iso-base)
 	@echo staging for bootstrap
-	@$(TIME) $(DOCKER_BUILD) $< -c $(BIN)/.yum-cache-photon-2.0.tgz -p $(iso-base-photon2) -o $@
+	@$(TIME) $(DOCKER_BUILD) $< -c $(BIN)/.yum-cache-photon-2.0.tgz -p $(iso-base) -o $@
 
 $(bootstrap-staging-custom): isos/bootstrap-staging.sh $(iso-base-custom)
 	@echo custom staging for bootstrap
-	@$(TIME) $(DOCKER_BUILD) -d $(CUSTOM) $< -c $(BIN)/.yum-cache-$(CUSTOM).tgz -p $(iso-base-custom) -o $@
+	@$(TIME) $(DOCKER_BUILD) -d $(REPO) $< -c $(BIN)/.yum-cache-$(REPO).tgz -p $(iso-base-custom) -o $@
 
-$(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base-photon2)
+$(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base)
 	@echo staging debug for bootstrap
-	@$(TIME) $(DOCKER_BUILD) $< -c $(BIN)/.yum-cache-photon-2.0.tgz -p $(iso-base-photon2) -o $@ -d true
+	@$(TIME) $(DOCKER_BUILD) $< -c $(BIN)/.yum-cache-photon-2.0.tgz -p $(iso-base) -o $@ -d true
 
 
 # vic-machine targets

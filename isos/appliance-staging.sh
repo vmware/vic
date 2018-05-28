@@ -80,10 +80,6 @@ script=$(cat $REPODIR/repo-spec.json | jq -r '.packages_script_staging.appliance
 STAGING_PKGS=$(cat $REPODIR/repo-spec.json | jq -r '.packages.appliance')
 package_cached -c $cache -u -p $PKGDIR install $STAGING_PKGS --nogpgcheck -y
 
-# hack around toybox issues
-# rm $(rootfs_dir $PKGDIR)/bin/{passwd,login,su}
-# chroot $(rootfs_dir $PKGDIR) rpm -i --replacefiles /var/cache/tdnf/photon-2.0/packages/shadow-4.2.1-13.ph2.x86_64.rpm || true
-
 # Give a permission to vicadmin to run iptables.
 echo "vicadmin ALL=NOPASSWD: /sbin/iptables --list" >> $(rootfs_dir $PKGDIR)/etc/sudoers
 
@@ -95,8 +91,8 @@ package_cached  -p $PKGDIR clean all
 getty_dir=$(rootfs_dir $PKGDIR)/usr/lib/systemd/system/getty@tty1.service.d/
 mkdir -p $getty_dir
 cp ${DIR}/appliance/override.conf $getty_dir
-# Use mingetty as our getty provider
-ln -sf $(rootfs_dir $PKGDIR)/sbin/mingetty $(rootfs_dir $PKGDIR)/usr/bin/agetty 
+# Use mingetty as our getty provider if available
+[ -f $(rootfs_dir $PKGDIR)/sbin/mingetty ] && ln -sf /sbin/mingetty $(rootfs_dir $PKGDIR)/usr/bin/agetty 
 
 # Disable SSH by default - this can be enabled via guest operations
 rm $(rootfs_dir $PKGDIR)/usr/lib/systemd/system/sshd@.service
@@ -105,14 +101,13 @@ rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/sshd.serv
 sed -i -e "s/\#*PermitRootLogin\s.*/PermitRootLogin yes/" $(rootfs_dir $PKGDIR)/etc/ssh/sshd_config
 
 # Disable root login
-# sed -i -e 's@:/bin/bash$@:/bin/false@' $(rootfs_dir $PKGDIR)/etc/passwd
+sed -i -e 's@:/bin/bash$@:/bin/false@' $(rootfs_dir $PKGDIR)/etc/passwd
+pwhash=$(openssl passwd -1 -salt vic password)
+sed -i -e "s/^root:[^:]*:/root:${pwhash}:/" $(rootfs_dir $PKGDIR)/etc/shadow
 
 # Allow chpasswd to change expired password when launched from vic-init
 cp -f ${DIR}/appliance/chpasswd.pam $(rootfs_dir $PKGDIR)/etc/pam.d/chpasswd
 # Allow chage to be used with expired password when launched from vic-init
 cp -f ${DIR}/appliance/chage.pam $(rootfs_dir $PKGDIR)/etc/pam.d/chage
-# # Set shadow defaults
-# cp -f ${DIR}/appliance/login.defs $(rootfs_dir $PKGDIR)/etc/
-# cp -f ${DIR}/appliance/boot.local $(rootfs_dir $PKGDIR)/etc/rc.d/init.d/boot.local
 # package up the result
 pack $PKGDIR $OUT

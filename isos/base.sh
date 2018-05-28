@@ -25,7 +25,7 @@ echo "Usage: $0 -p package-name(tgz) [-c package-cache]" 1>&2
 exit 1
 }
 
-while getopts "c:p:r:k:" flag
+while getopts "c:p:r:" flag
 do
     case $flag in
 
@@ -37,12 +37,6 @@ do
         r)
             # Optional. Name of repo set in base/repos to use
             REPO="$OPTARG"
-            ;;
-
-        k)
-            # Optional. Allows provision of custom kernel rpm
-            # assumes it contains suitable /boot/vmlinuz-* and /lib/modules/... files
-            CUSTOM_KERNEL_RPM="${OPTARG}"
             ;;
 
         c)
@@ -84,50 +78,29 @@ initialize_bundle $PKGDIR
 
 ln -s /lib $(rootfs_dir $PKGDIR)/lib64
 
-# TODO: look at moving these prep pieces into the repo as functions
-# sourced and run at appropriate stages
-# work arounds for incorrect filesystem-1.0-13.ph2 package
-if [ "$REPO" == "photon-2.0" ]; then
-    mkdir -p $(rootfs_dir $PKGDIR)/{run,var}
-    ln -s /run $(rootfs_dir $PKGDIR)/var/run
-fi
-
-# work arounds for libgcc.x86_64 0:4.4.7-18.el6 needing /dev/null
-# it looks like udev package will create this but has it's own issues
-if [ "$REPO" == "centos-6.9" ]; then
-    # cpio will return an error on open syscall if lib64 is a symlink
-    rm -f $(rootfs_dir $PKGDIR)/lib64
-    mkdir -p $(rootfs_dir $PKGDIR)/{dev,lib64}
-    mknod $(rootfs_dir $PKGDIR)/dev/null c 1 3
-    chmod 666 $(rootfs_dir $PKGDIR)/dev/null
-fi
+# preform a repo customization if needed
+[ -f $REPODIR/base.sh ] && . $REPODIR/base.sh
 
 setup_pm $REPODIR $PKGDIR $PACKAGE_MANAGER $REPO
+
+# install the core packages
+CORE_PKGS=$(cat $REPODIR/repo-spec.json | jq -r '.packages.base')
+echo "Install core packages"
+package_cached -c $cache -u -p $PKGDIR install $CORE_PKGS --nogpgcheck -y
 
 # determine the kernel package
 KERNEL=$(cat $REPODIR/repo-spec.json | jq -r '.kernel')
 # if the kernel isn't a file then install it with the other packages
-if [ -n "$CUSTOM_KERNEL_RPM" ]; then
-    echo "Using kernel package from environment: $CUSTOM_KERNEL_RPM"
-    KERNEL=$CUSTOM_KERNEL_RPM
-elif [ ! -f $KERNEL ]; then
-    echo "Using kernel repo package: $KERNEL"
-    KERNEL_PKG=$KERNEL
-else
-    echo "Using kernel file package: $KERNEL"
-    KERNEL="$(pwd)/$KERNEL"
-fi
-
-# install the core packages
-CORE_PKGS=$(cat $REPODIR/repo-spec.json | jq -r '.packages.base')
-package_cached -c $cache -u -p $PKGDIR install $CORE_PKGS $KERNEL_PKG --nogpgcheck -y
-
-# check for raw kernel override
-if [ -z "$KERNEL_PKG" ]; then
+if [ -f "$(pwd)/$KERNEL" ]; then
+    echo "Using kernel package from directory: $(pwd)/$KERNEL"
+    KERNEL=$(pwd)/$KERNEL
     (
         cd $(rootfs_dir $PKGDIR)
-        rpm2cpio $KERNEL | cpio -idm --extract-over-symlinks
+        rpm2cpio $KERNEL | cpio -idm
     )
+else
+    echo "Using kernel file RPM package: $KERNEL"
+    package_cached -c $cache -u -p $PKGDIR install $KERNEL --nogpgcheck -y
 fi
 
 # Issue 3858: find all kernel modules and unpack them and run depmod against that directory
@@ -140,7 +113,7 @@ package_cached -c $cache -p $PKGDIR clean all
 
 # move kernel into bootfs /boot directory so that syslinux could load it
 mv $(rootfs_dir $PKGDIR)/boot/vmlinuz-* $(bootfs_dir $PKGDIR)/boot/vmlinuz64
-# try copying over the other boot files - rhel kernel seems to need a side car configuration file
+# try copying over the other boot files - rhel kernel seems to need a side car configuration file and System map
 find $(rootfs_dir $PKGDIR)/boot -type f  -exec cp {} $(bootfs_dir $PKGDIR)/boot/ \;
 
 # https://www.freedesktop.org/wiki/Software/systemd/InitrdInterface/

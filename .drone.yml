@@ -57,6 +57,24 @@ pipeline:
     when:
       status: success
 
+  vic-engine-isos:
+    image: 'gcr.io/eminent-nation-87317/vic-build-image:tdnf'
+    pull: true
+    environment:
+      BIN: bin
+      GOPATH: /go
+      SHELL: /bin/bash
+    secrets:
+      - drone_server
+      - drone_token
+      - github_automation_api_key
+      - codecov_token
+    commands:
+      - export BUILD_NUMBER=${DRONE_BUILD_NUMBER}
+      - make isos
+    when:
+      status: success
+
   vic-engine:
     image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
     pull: true

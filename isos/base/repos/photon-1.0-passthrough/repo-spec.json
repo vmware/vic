@@ -1,0 +1,11 @@
+{
+    "name": "photon-1.0-passthrough",
+    "packagemanager": "tdnf",
+    "kernel": "linux",
+    "init": "/lib/systemd/systemd",
+    "packages": {
+        "base": "filesystem coreutils kmod haveged iptables",
+        "bootstrap": "util-linux-ng grep which linux-tools",
+        "appliance": "procps-ng util-linux-ng e2fsprogs shadow systemd iputils iproute2 tdnf gzip lsof logrotate photon-release mingetty rpm dbus net-tools openssh ca-certificates sudo vim lsof"
+    }
+}
