@@ -270,15 +270,6 @@ func (c *Create) Flags() []cli.Flag {
 		},
 	}
 
-	affinity := []cli.Flag{
-		cli.BoolFlag{
-			Name:        "affinity-vm-group",
-			Usage:       "Use a DRS VM Group to allow VM-Host affinity rules to be defined for the VCH",
-			Destination: &c.UseVMGroup,
-			Hidden:      true,
-		},
-	}
-
 	util := []cli.Flag{
 		// miscellaneous
 		cli.BoolFlag{
