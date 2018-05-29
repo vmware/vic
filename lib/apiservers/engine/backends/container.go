@@ -386,8 +386,7 @@ func processAttachError(op trace.Operation, actor *eventtypes.Actor, err error) 
 // taskStartHelper performs a series of calls to enable and launch a task but does not wait for confirmation of launch
 // Returns:
 //  task data
-//  whether atach should be performed
-//
+//  error if any
 func (c *ContainerBackend) taskStartHelper(op trace.Operation, id, eid, name string) (*models.TaskInspectResponse, error) {
 	handle, err := c.Handle(id, name)
 	if err != nil {
@@ -482,7 +481,27 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 
 	go func() {
 		// wait for the task to start
-		startResult <- c.containerProxy.WaitTask(op, handle, name, eid)
+		err := c.containerProxy.WaitTask(op, handle, name, eid)
+		if err != nil {
+			startResult <- err
+		}
+
+		// TODO: if wait task can return an up-to-date handle we will not need this additional call
+		handle, err := c.Handle(id, name)
+		if err != nil {
+			startResult <- err
+		}
+
+		ec, err = c.containerProxy.InspectTask(op, handle, eid, id)
+		if err != nil {
+			startResult <- err
+		}
+
+		log.Debugf("task start: %#v, %#v", ec, ec.ProcessConfig)
+		if ec != nil && ec.ProcessConfig != nil && ec.ProcessConfig.ErrorMsg != "" {
+			startResult <- errors.New(ec.ProcessConfig.ErrorMsg)
+		}
+
 		close(startResult)
 	}()
 
@@ -570,6 +589,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		return nil
 	}
 
+	// let the sub-calls check for context cancellation and return appropriate error
 	for ec.State == "running" || ec.State == "created" {
 		op.Debugf("Loop: checking if task has exited: %#v", *ec)
 		err = c.containerProxy.WaitTask(op, handle, id, eid)

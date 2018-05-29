@@ -312,9 +312,7 @@ func (vm *VirtualMachine) WaitForKeyChange(op trace.Operation, keys map[string]s
 
 	// fix up the filter map. value of "" ---> "<nil>"
 	for k, v := range keys {
-		if v == "" {
-			keys[k] = "<nil>"
-		}
+		keys[k] = vmomi.EscapeNil(v)
 	}
 
 	waitFunc := func(pc []types.PropertyChange) bool {
