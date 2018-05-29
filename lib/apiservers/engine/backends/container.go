@@ -535,8 +535,8 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 	}
 
 	go func() {
-		targetState := map[string]bool{constants.TaskRunningState: true}
-		waitState := map[string]bool{constants.TaskRunningState: true, constants.TaskUnknownState: true}
+		targetState := map[string]bool{constants.TaskRunningState: true, constants.TaskStoppedState: true}
+		waitState := map[string]bool{constants.TaskCreatedState: true, constants.TaskUnknownState: true}
 		_, err := c.taskStateWaitHelper(taskOp, id, eid, name, targetState, waitState)
 		if err != nil {
 			op.Errorf("Wait for exec start on %s.%s: %s", eid, id, err)
@@ -607,7 +607,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 
 	op.Debugf("Waiting for completion: task(%s), container(%s)", eid, name)
 
-	targetState := map[string]bool{constants.TaskRunningState: true}
+	targetState := map[string]bool{constants.TaskStoppedState: true}
 	waitState := map[string]bool{constants.TaskRunningState: true, constants.TaskUnknownState: true}
 	_, err := c.taskStateWaitHelper(taskOp, id, eid, name, targetState, waitState)
 	op.Infof("task %s.%s has stopped: %s", err)
