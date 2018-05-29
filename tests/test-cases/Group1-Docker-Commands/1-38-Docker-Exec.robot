@@ -56,10 +56,19 @@ Verify LS Output For Busybox
        Should Contain  ${output}  usr
        Should Contain  ${output}  var
 
+Wait Until Detached Exec Occurs
+     :FOR  ${idx}  IN RANGE  1  5
+     \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${name} /bin/ls -al /tmp/force
+     \   ${Status}=  Run Keyword And Return Status  Should Be Equal As Integers  ${rc}  0
+     \   ${Status2}=  Run Keyword And Return Status  Should Contain  ${output}  force
+     \   Return From Keyword If  ${status1} & ${status2}
+     \   Sleep  300ms
+     Fail  Detached exec did not succeed. It either took too long, or failed.
+
 *** Test Cases ***
 
 Standard Exec Exit Codes
-    ${name}=  Evaluate  'exit-codes'
+    ${name}=  Set Variable  'exit-codes'
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
@@ -78,22 +87,17 @@ Standard Exec Exit Codes
 
 Exec -d
     # Confirm that a proper exec -d does indeed do as it should.
-    ${name}=  Evaluate  'detach-test'
+    ${name}=  Set Variable  'detach-test'
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
+
+    Wait Until Detached Exec Occurs
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${name} /bin/touch tmp/force
     Should Be Equal As Integers  ${rc}  0
 
-    # potential race for a slow exec. We will go ahead and sleep for a second or so here.
-    Sleep  2s
-
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${name} /bin/ls -al /tmp/force
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  force
-
 Exec Echo
-    ${name}=  Evaluate  'echo-test'
+    ${name}=  Set Variable  'echo-test'
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
@@ -102,7 +106,7 @@ Exec Echo
     \   Should Be Equal As Strings  ${output}  Help me, Obi-Wan Kenobi. You're my only hope.
 
 Exec Echo -i
-    ${name}=  Evaluate  'interactive-echo-test'
+    ${name}=  Set Variable  'interactive-echo-test'
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
@@ -111,7 +115,7 @@ Exec Echo -i
     \   Should Be Equal As Strings  ${output}  Your eyes can deceive you. Don't trust them.
 
 Exec Echo -t
-    ${name}=  Evaluate  'tty-echo-test'
+    ${name}=  Set Variable  'tty-echo-test'
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
@@ -127,7 +131,7 @@ Exec Sort
     ${rc}  ${output}=  Run And Return Rc And Output  mkfifo ${fifo}
     Should Be Equal As Integers  ${rc}  0
 
-    ${name}=  Evaluate  'sort-test'
+    ${name}=  Set Variable  'sort-test'
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
@@ -148,7 +152,7 @@ Exec Sort -i
     ${rc}  ${output}=  Run And Return Rc And Output  mkfifo ${fifo}
     Should Be Equal As Integers  ${rc}  0
 
-    ${name}=  Evaluate  'interactive-sort-test'
+    ${name}=  Set Variable  'interactive-sort-test'
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
@@ -162,7 +166,7 @@ Exec Sort -i
     Run  rm -rf ${tmp}
 
 Exec NonExisting
-    ${name}=  Evaluate  'does-not-exist'
+    ${name}=  Set Variable  'does-not-exist'
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
 
