@@ -1595,10 +1595,11 @@ func (c *ContainerBackend) ContainersPrune(pruneFilters filters.Args) (*types.Co
 
 // ContainerAttach attaches to logs according to the config passed in. See ContainerAttachConfig.
 func (c *ContainerBackend) ContainerAttach(name string, ca *backend.ContainerAttachConfig) error {
-	defer trace.End(trace.Begin(name))
+	op := trace.FromContext(context.Background(), "container Attach")
+	defer trace.End(trace.Begin(name, op))
 
 	operation := func() error {
-		return c.containerAttach(name, ca)
+		return c.containerAttach(&op, name, ca)
 	}
 	if err := retry.Do(operation, engerr.IsConflictError); err != nil {
 		return err
@@ -1606,7 +1607,7 @@ func (c *ContainerBackend) ContainerAttach(name string, ca *backend.ContainerAtt
 	return nil
 }
 
-func (c *ContainerBackend) containerAttach(name string, ca *backend.ContainerAttachConfig) error {
+func (c *ContainerBackend) containerAttach(op *trace.Operation, name string, ca *backend.ContainerAttachConfig) error {
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
@@ -1659,7 +1660,11 @@ func (c *ContainerBackend) containerAttach(name string, ca *backend.ContainerAtt
 		CloseStdin:            vc.Config.StdinOnce,
 	}
 
-	err = c.streamProxy.AttachStreams(context.Background(), ac, stdin, stdout, stderr, true)
+	// we need to be able to cancel it
+	attachOp, cancel := trace.WithCancel(op, "container attach for %s", name)
+	defer cancel()
+
+	err = c.streamProxy.AttachStreams(attachOp, ac, stdin, stdout, stderr, true)
 	if err != nil {
 		if _, ok := err.(engerr.DetachError); ok {
 			log.Infof("Detach detected, tearing down connection")
@@ -1673,6 +1678,7 @@ func (c *ContainerBackend) containerAttach(name string, ca *backend.ContainerAtt
 
 			// FIXME: call UnbindInteraction/Commit
 		}
+		cancel()
 		return err
 	}
 
