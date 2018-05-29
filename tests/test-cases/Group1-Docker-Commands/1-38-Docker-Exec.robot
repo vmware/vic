@@ -59,85 +59,79 @@ Verify LS Output For Busybox
 *** Test Cases ***
 
 Standard Exec Exit Codes
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
+    ${name}=  Evaluate  'exit-codes'
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
     # rigorously test exit codes for a standard docker exec.
-    :For  ${idx}  IN RANGE  1  25
-    \    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${id} /bin/sh -c \"exit ${idx}\"
+    :For  ${idx}  IN RANGE  1  10
+    \    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${name} /bin/sh -c \"exit ${idx}\"
     \    Should Be Equal As Integers  ${rc}  ${idx}
 
+    # some other tests using true and false
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${name} /bin/false
+    Should Be Equal As Integers  ${rc}  1
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${name} /bin/true
+    Should Be Equal As Integers  ${rc}  0
+
 Exec -d
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top -d 600
+    # Confirm that a proper exec -d does indeed do as it should.
+    ${name}=  Evaluate  'detach-test'
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${id} /bin/touch tmp/force
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${name} /bin/touch tmp/force
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${id} /bin/ls -al /tmp/force
+    # potential race for a slow exec. We will go ahead and sleep for a second or so here.
+    Sleep  2s
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${name} /bin/ls -al /tmp/force
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  force
 
-    # Confirm that we return an error when a non existent binary is invoked.
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${id} /does/not/exist
-    Should Not Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  ${output}  does not exist
-
 Exec Echo
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top -d 600
+    ${name}=  Evaluate  'echo-test'
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${id} /bin/echo "Help me, Obi-Wan Kenobi. You're my only hope."
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${name} /bin/echo "Help me, Obi-Wan Kenobi. You're my only hope."
     \   Should Be Equal As Integers  ${rc}  0
     \   Should Be Equal As Strings  ${output}  Help me, Obi-Wan Kenobi. You're my only hope.
 
 Exec Echo -i
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top -d 600
+    ${name}=  Evaluate  'interactive-echo-test'
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -i ${id} /bin/echo "Your eyes can deceive you. Don't trust them."
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -i ${name} /bin/echo "Your eyes can deceive you. Don't trust them."
     \   Should Be Equal As Integers  ${rc}  0
     \   Should Be Equal As Strings  ${output}  Your eyes can deceive you. Don't trust them.
 
 Exec Echo -t
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top -d 600
+    ${name}=  Evaluate  'tty-echo-test'
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -t ${id} /bin/echo "Do. Or do not. There is no try."
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -t ${name} /bin/echo "Do. Or do not. There is no try."
     \   Should Be Equal As Integers  ${rc}  0
     \   Should Be Equal As Strings  ${output}  Do. Or do not. There is no try.
 
 Exec Sort
+    # setup filesystem for the test
     ${rc}  ${tmp}=  Run And Return Rc And Output  mktemp -d -p /tmp
     Should Be Equal As Integers  ${rc}  0
     ${fifo}=  Catenate  SEPARATOR=/  ${tmp}  fifo
     ${rc}  ${output}=  Run And Return Rc And Output  mkfifo ${fifo}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
+
+    ${name}=  Evaluate  'sort-test'
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
-    \     Start Process  docker %{VCH-PARAMS} exec ${output} /bin/sort < ${fifo}  shell=True  alias=custom
+    \     Start Process  docker %{VCH-PARAMS} exec ${name} /bin/sort < ${fifo}  shell=True  alias=custom
     \     Run  echo one > ${fifo}
     \     ${ret}=  Wait For Process  custom
     \     Log  ${ret.stderr}
@@ -147,18 +141,18 @@ Exec Sort
     Run  rm -rf ${tmp}
 
 Exec Sort -i
+    # Setup filesystem for the test
     ${rc}  ${tmp}=  Run And Return Rc And Output  mktemp -d -p /tmp
     Should Be Equal As Integers  ${rc}  0
     ${fifo}=  Catenate  SEPARATOR=/  ${tmp}  fifo
     ${rc}  ${output}=  Run And Return Rc And Output  mkfifo ${fifo}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
+
+    ${name}=  Evaluate  'interactive-sort-test'
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
-    \     Start Process  docker %{VCH-PARAMS} exec -i ${output} /bin/sort < ${fifo}  shell=True  alias=custom
+    \     Start Process  docker %{VCH-PARAMS} exec -i ${name} /bin/sort < ${fifo}  shell=True  alias=custom
     \     Run  echo one > ${fifo}
     \     ${ret}=  Wait For Process  custom
     \     Log  ${ret.stderr}
@@ -168,15 +162,20 @@ Exec Sort -i
     Run  rm -rf ${tmp}
 
 Exec NonExisting
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${name}=  Evaluate  'does-not-exist'
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
-    Should Be Equal As Integers  ${rc}  0
-    :FOR  ${idx}  IN RANGE  0  5
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${id} /NonExisting
-    \   Should Be Equal As Integers  ${rc}  0
-    \   Should Contain  ${output}  no such file or directory
+
+    # standard case
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${name} /NonExisting
+    Should Not Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  no such file or directory
+
+    # detach error case
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${name} /does/not/exist
+    Should Not Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${output}  does not exist
+
 
 Concurrent Simple Exec
      ${status}=  Get State Of Github Issue  7410
