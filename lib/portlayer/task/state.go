@@ -16,16 +16,8 @@ package task
 
 import (
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/pkg/trace"
-)
-
-// TODO: move this to a constants package...
-const (
-	RunningState = "running"
-	StoppedState = "stopped"
-	CreatedState = "created"
-	FailedState  = "failed"
-	UnknownState = "unknown"
 )
 
 // State takes the given snapshot of a Task and determines the state of the Task.
@@ -36,16 +28,16 @@ func State(op trace.Operation, e *executor.SessionConfig) (string, error) {
 	// DO NOT ASSUME THAT WE CANNOT GET STATE TEARING - THE ORDERING OF SERIALIZATION IS GO REFLECT PACKAGE DEPENDENT
 	switch {
 	case e.Started == "" && e.Detail.StartTime == 0 && e.Detail.StopTime == 0:
-		return CreatedState, nil
+		return constants.TaskCreatedState, nil
 	case e.Started == "true" && e.Detail.StartTime > e.StopTime:
-		return RunningState, nil
+		return constants.TaskRunningState, nil
 	case e.Started == "true" && e.Detail.StartTime <= e.Detail.StopTime:
-		return StoppedState, nil
+		return constants.TaskStoppedState, nil
 	case e.Started != "" && e.Started != "true" && e.StartTime > e.Detail.StopTime:
 		// NOTE: this assumes that StopTime does not get set. We really need to investigate this further as it does not look like it will be the case based on the way the child reaper attempts to write things.
-		return FailedState, nil
+		return constants.TaskFailedState, nil
 	default:
 		op.Debugf("task state cannot be determined (start=%s, starttime: %s, stoptime: %s)", e.Started, e.StartTime, e.StopTime)
-		return UnknownState, nil
+		return constants.TaskUnknownState, nil
 	}
 }

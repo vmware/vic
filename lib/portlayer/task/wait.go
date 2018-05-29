@@ -73,7 +73,7 @@ func Wait(op *trace.Operation, h interface{}, id string) error {
 	}
 
 	// do not wait for a change after reaching the halting state.
-	if currentState == FailedState || currentState == StoppedState || currentState == UnknownState {
+	if currentState == constants.TaskFailedState || currentState == constants.TaskStoppedState || currentState == constants.TaskUnknownState {
 		op.Debugf("Exec already halted: exec(%s), container(%s)", id, handle.ExecConfig.ID)
 		return nil
 	}
