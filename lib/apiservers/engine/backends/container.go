@@ -421,6 +421,48 @@ func (c *ContainerBackend) taskStartHelper(op trace.Operation, id, eid, name str
 	return ec, nil
 }
 
+func (c *ContainerBackend) taskStateWaitHelper(op trace.Operation, id, eid, name string, waitStates, targetStates map[string]bool) (*models.TaskInspectResponse, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("%s.%s", eid, id), op))
+
+	for op.Err() == nil {
+		handle, err := c.Handle(id, name)
+		if err != nil {
+			return nil, err
+		}
+
+		ec, err := c.containerProxy.InspectTask(op, handle, eid, id)
+		if err != nil {
+			return nil, err
+		}
+
+		// success condition
+		if _, success := targetStates[ec.State]; success {
+			op.Debug("Target state reached")
+			return ec, nil
+		}
+
+		// if we have an explicit error message, return that in preference to the generic
+		// wait state
+		if ec != nil && ec.ProcessConfig != nil && ec.ProcessConfig.ErrorMsg != "" {
+			return ec, errors.New(ec.ProcessConfig.ErrorMsg)
+		}
+
+		// if it's not a wait state then bail with error
+		if _, wait := waitStates[ec.State]; !wait {
+			return ec, fmt.Errorf("state: %s", ec.State)
+		}
+
+		// wait for the task to start
+		op.Debug("Waiting for state change")
+		err = c.containerProxy.WaitTask(op, handle, name, eid)
+		if err != nil {
+			return ec, err
+		}
+	}
+
+	return nil, op.Err()
+}
+
 // ContainerExecStart starts a previously set up exec instance. The
 // std streams are set up.
 func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, stdin io.ReadCloser, stdout, stderr io.Writer) error {
@@ -451,7 +493,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 	id := vc.ContainerID
 	name := vc.Name
 
-	op.Debugf("Exec start of %s in container %s", eid, id)
+	op.Debugf("Exec start of %s.%s", eid, id)
 
 	var ec *models.TaskInspectResponse
 	operation := func() error {
@@ -467,11 +509,6 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 
 	attach := ec.OpenStdin || ec.OpenStdout || ec.OpenStderr
 
-	handle, err := c.Handle(id, name)
-	if err != nil {
-		op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
-	}
-
 	// we need to be able to cancel it
 	taskOp, cancel := trace.WithCancel(&op, "exec task wait on %s", eid)
 	defer cancel()
@@ -479,38 +516,24 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 	attachResult := make(chan error, 1)
 	startResult := make(chan error, 1)
 
-	go func() {
-		// wait for the task to start
-		err := c.containerProxy.WaitTask(taskOp, handle, name, eid)
-		if err != nil {
-			startResult <- err
-		}
-
-		// TODO: if wait task can return an up-to-date handle we will not need this additional call
-		handle, err := c.Handle(id, name)
-		if err != nil {
-			startResult <- err
-		}
-
-		ec, err = c.containerProxy.InspectTask(op, handle, eid, id)
-		if err != nil {
-			startResult <- err
-		}
-
-		log.Debugf("task start: %#v, %#v", ec, ec.ProcessConfig)
-		if ec != nil && ec.ProcessConfig != nil && ec.ProcessConfig.ErrorMsg != "" {
-			startResult <- errors.New(ec.ProcessConfig.ErrorMsg)
-		}
-
-		close(startResult)
-	}()
-
 	if attach {
 		go func() {
 			attachResult <- c.attachHelper(taskOp, ec, stdin, stdout, stderr, false)
 			close(attachResult)
 		}()
 	}
+
+	go func() {
+		targetState := map[string]bool{"running": true}
+		waitState := map[string]bool{"created": true}
+		_, err := c.taskStateWaitHelper(taskOp, id, eid, name, targetState, waitState)
+		if err != nil {
+			op.Errorf("Wait for exec start on %s.%s: %s", eid, id, err)
+			startResult <- err
+		}
+
+		close(startResult)
+	}()
 
 	// wait for either wait to succeed, fail, or for stream connection to error out
 	select {
@@ -572,43 +595,14 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 	}
 
 	op.Debugf("Waiting for completion: task(%s), container(%s)", eid, name)
-	handle, err = c.Handle(id, name)
+
+	targetState := map[string]bool{"stopped": true}
+	waitState := map[string]bool{"created": true, "running": true}
+
+	_, err := c.taskStateWaitHelper(taskOp, id, eid, name, targetState, waitState)
+	op.Infof("task %s.%s has stopped: %s", err)
 	if err != nil {
-		op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
 		return err
-	}
-
-	ec, err = c.containerProxy.InspectTask(op, handle, eid, id)
-	if err != nil {
-		return err
-	}
-
-	if ec.State == "stopped" || ec.State == "failed" || ec.State == "unknown" {
-		op.Debugf("Task %s has stopped with state: %s", eid, ec.State)
-		// TODO: should this return an error in the failed or unknown case? Certainly shouldn't for stopped.
-		return nil
-	}
-
-	// let the sub-calls check for context cancellation and return appropriate error
-	for ec.State == "running" || ec.State == "created" {
-		op.Debugf("Loop: checking if task has exited: %#v", *ec)
-		err = c.containerProxy.WaitTask(op, handle, id, eid)
-		if err != nil {
-			op.Errorf("Task wait returned an error: %s", err)
-			return err
-		}
-
-		// TODO: we should probably make WaitTask return a new handle... since it already knows that something has changed.
-		handle, err := c.Handle(id, name)
-		if err != nil {
-			op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
-			return err
-		}
-
-		ec, err = c.containerProxy.InspectTask(op, handle, eid, id)
-		if err != nil {
-			return err
-		}
 	}
 
 	// deferred cancel for taskOp will cause stdin stream to be closed, shutting down the client connection
