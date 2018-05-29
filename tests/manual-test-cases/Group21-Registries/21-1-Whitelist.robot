@@ -46,7 +46,6 @@ Setup Harbor
     Install Harbor To Test Server  protocol=https  name=harbor-https
     Set Environment Variable  HTTPS_HARBOR_IP  %{HARBOR-IP}
 
-    Run Keyword and Ignore Error  Remove File  ${HARBOR_VERSION}.ova
     Install Harbor To Test Server  protocol=http  name=harbor-http
     Set Environment Variable  HTTP_HARBOR_IP  %{HARBOR-IP}
 
