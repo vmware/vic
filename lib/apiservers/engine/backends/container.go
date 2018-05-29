@@ -342,8 +342,12 @@ func (c *ContainerBackend) attachHelper(op trace.Operation, ec *models.TaskInspe
 	ca := &backend.ContainerAttachConfig{
 		UseStdin:  ec.OpenStdin,
 		UseStdout: ec.OpenStdout,
-		// set UseStderr to false for Tty case as we merge stdout and stderr
-		UseStderr: !ec.Tty,
+		UseStderr: ec.OpenStderr,
+	}
+
+	if ec.Tty {
+		// There is no stderr with a TTY - it's merged with stdout
+		ca.UseStderr = false
 	}
 
 	ac := &proxy.AttachConfig{
@@ -399,6 +403,12 @@ func (c *ContainerBackend) taskStartHelper(op trace.Operation, id, eid, name str
 		return nil, err
 	}
 
+	// if this is a retry it's possible the task is already running so check
+	if ec.State == "running" {
+		// There's nothing needed here
+		return ec, nil
+	}
+
 	handle, err = c.containerProxy.BindTask(op, handle, eid)
 	if err != nil {
 		return nil, err
@@ -421,7 +431,9 @@ func (c *ContainerBackend) taskStartHelper(op trace.Operation, id, eid, name str
 	return ec, nil
 }
 
-func (c *ContainerBackend) taskStateWaitHelper(op trace.Operation, id, eid, name string, waitStates, targetStates map[string]bool) (*models.TaskInspectResponse, error) {
+// taskStateWaitHelper is used to wait until the specified task reaches a target state or falls out of the set of permitted wait states.
+// The state sets are specified as maps, but only the keys are used, the value portion is ignored
+func (c *ContainerBackend) taskStateWaitHelper(op trace.Operation, id, eid, name string, targetStates, waitStates map[string]bool) (*models.TaskInspectResponse, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("%s.%s", eid, id), op))
 
 	for op.Err() == nil {
@@ -452,7 +464,6 @@ func (c *ContainerBackend) taskStateWaitHelper(op trace.Operation, id, eid, name
 			return ec, fmt.Errorf("state: %s", ec.State)
 		}
 
-		// wait for the task to start
 		op.Debug("Waiting for state change")
 		err = c.containerProxy.WaitTask(op, handle, name, eid)
 		if err != nil {
@@ -525,7 +536,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 
 	go func() {
 		targetState := map[string]bool{"running": true}
-		waitState := map[string]bool{"created": true}
+		waitState := map[string]bool{"created": true, "unknown": true}
 		_, err := c.taskStateWaitHelper(taskOp, id, eid, name, targetState, waitState)
 		if err != nil {
 			op.Errorf("Wait for exec start on %s.%s: %s", eid, id, err)
@@ -597,7 +608,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 	op.Debugf("Waiting for completion: task(%s), container(%s)", eid, name)
 
 	targetState := map[string]bool{"stopped": true}
-	waitState := map[string]bool{"created": true, "running": true}
+	waitState := map[string]bool{"created": true, "running": true, "unknown": true}
 
 	_, err := c.taskStateWaitHelper(taskOp, id, eid, name, targetState, waitState)
 	op.Infof("task %s.%s has stopped: %s", err)

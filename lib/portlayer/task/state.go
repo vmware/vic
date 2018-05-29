@@ -33,6 +33,7 @@ const (
 //       callers should act on power state information before calling this.
 func State(op trace.Operation, e *executor.SessionConfig) (string, error) {
 
+	// DO NOT ASSUME THAT WE CANNOT GET STATE TEARING - THE ORDERING OF SERIALIZATION IS GO REFLECT PACKAGE DEPENDENT
 	switch {
 	case e.Started == "" && e.Detail.StartTime == 0 && e.Detail.StopTime == 0:
 		return CreatedState, nil
@@ -44,6 +45,7 @@ func State(op trace.Operation, e *executor.SessionConfig) (string, error) {
 		// NOTE: this assumes that StopTime does not get set. We really need to investigate this further as it does not look like it will be the case based on the way the child reaper attempts to write things.
 		return FailedState, nil
 	default:
+		op.Debugf("task state cannot be determined (start=%s, starttime: %s, stoptime: %s)", e.Started, e.StartTime, e.StopTime)
 		return UnknownState, nil
 	}
 }
