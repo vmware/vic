@@ -21,6 +21,7 @@ Test Teardown  Run Keyword If Test Failed  Clean up VIC Appliance And Local Bina
 *** Keywords ***
 Install VIC 1.1.1 to Test Server
     Log To Console  \nDownloading VIC 1.1.1 from gcp...
+    ${time}=  Evaluate  time.clock()  modules=time
     ${rc}  ${output}=  Run And Return Rc And Output  wget https://storage.googleapis.com/vic-engine-releases/vic_1.1.1.tar.gz -O vic-${time}.tar.gz
     Create Directory  vic-${time}
     ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic-${time}.tar.gz -C vic-${time}
