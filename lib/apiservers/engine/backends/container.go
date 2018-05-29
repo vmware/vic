@@ -423,7 +423,7 @@ func (c *ContainerBackend) taskStartHelper(op trace.Operation, id, eid, name str
 
 // ContainerExecStart starts a previously set up exec instance. The
 // std streams are set up.
-func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error {
+func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, stdin io.ReadCloser, stdout, stderr io.Writer) error {
 	op := trace.FromContext(ctx, "exec start")
 	defer trace.End(trace.Begin("", op))
 
@@ -481,7 +481,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 
 	go func() {
 		// wait for the task to start
-		err := c.containerProxy.WaitTask(op, handle, name, eid)
+		err := c.containerProxy.WaitTask(taskOp, handle, name, eid)
 		if err != nil {
 			startResult <- err
 		}
@@ -514,6 +514,20 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 
 	// wait for either wait to succeed, fail, or for stream connection to error out
 	select {
+	case err := <-startResult:
+		if err != nil {
+			op.Errorf("Task wait returned error: %s", err)
+			// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly
+			// https://github.com/docker/docker/blob/a039ca9affe5fa40c4e029d7aae399b26d433fe9/api/server/router/container/exec.go#L114
+			if stdout != nil {
+				stdout.Write([]byte(err.Error() + "\r\n"))
+			}
+
+			// This will cause attachHelper to exit
+			cancel()
+			return err
+		}
+
 	case err := <-attachResult:
 		// we pass a nil actor as we don't want detach events dispatched at this point
 		detach, aerr := processAttachError(op, nil, err)
@@ -528,20 +542,6 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 			op.Debugf("Requeuing early detach")
 			attachResult = make(chan error, 1)
 			attachResult <- engerr.DetachError{}
-		}
-
-	case err := <-startResult:
-		if err != nil {
-			op.Errorf("Task wait returned error: %s", err)
-			// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly
-			// https://github.com/docker/docker/blob/a039ca9affe5fa40c4e029d7aae399b26d433fe9/api/server/router/container/exec.go#L114
-			if stdout != nil {
-				stdout.Write([]byte(err.Error() + "\r\n"))
-			}
-
-			// This will cause attachHelper to exit
-			cancel()
-			return err
 		}
 	}
 

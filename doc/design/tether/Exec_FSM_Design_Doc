@@ -2,7 +2,7 @@ EXEC PROCESS FINITE STATE MACHINE(does not include cvm process/vic-init thought 
 
 STATES(PROCESS OF CVM):
 
-0. Config Initialized -> The task has been establish into exsistance. The config is communicated to the tether and the tether can attempt binary resolution against it. 
+0. Config Initialized -> The task has been establish into exsistence. The config is communicated to the tether and the tether can attempt binary resolution against it. 
 1. Config Validated -> Is the process a legitimate process with legitimate configuration to run AKA `Config Validation` 
 2. Process Ready -> config is validated successfully and the process can be started at any moment.
 3. Process Started/running -> should we have a separate started and running? Running should be sufficient... the process was ready and now it is being allowed to proceed.
