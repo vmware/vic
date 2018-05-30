@@ -42,6 +42,7 @@ Setup Harbor
     Simple ESXi Setup
 
     # Install a Harbor server with HTTPS a Harbor server with HTTP
+    Run Keyword and Ignore Error  Remove File  ${HARBOR_VERSION}.ova
     Install Harbor To Test Server  protocol=https  name=harbor-https
     Set Environment Variable  HTTPS_HARBOR_IP  %{HARBOR-IP}
 
