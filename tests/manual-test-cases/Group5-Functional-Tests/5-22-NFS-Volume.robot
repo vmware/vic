@@ -285,7 +285,7 @@ Simultaneous Container Write to File
     @{inputList}=  Create List  These flags also look similar to each other.  Senegal and Mali.  Indonesia and Monaco.  New Zealand and Australia.  Venezuela, Ecuador, and Colombia.  Slovenia, Russia, and Slovakia.
     ${containers}=  Create List
 
-    ${volumeFile}=  /mydata/test_nfs_mult_write.txt
+    Set Test Variable  ${volumeFile}  /mydata/test_nfs_mult_write.txt
 
     Log To Console  \nSpin up Write Containers
     :FOR  ${item}  IN  @{inputList}
