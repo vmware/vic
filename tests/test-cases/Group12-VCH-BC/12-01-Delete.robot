@@ -19,18 +19,17 @@ Suite Setup  Install VIC 1.1.1 to Test Server
 Test Teardown  Run Keyword If Test Failed  Clean up VIC Appliance And Local Binary
 
 *** Keywords ***
-Clean up VIC Appliance And Local Binary
-    Cleanup VIC Appliance On Test Server
-    Run  rm -rf vic.tar.gz vic
-
 Install VIC 1.1.1 to Test Server
     Log To Console  \nDownloading VIC 1.1.1 from gcp...
-    ${rc}  ${output}=  Run And Return Rc And Output  wget https://storage.googleapis.com/vic-engine-releases/vic_1.1.1.tar.gz -O vic.tar.gz
-    ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
+    ${val}=  Evaluate  time.clock()  modules=time
+    Set Suite Variable  ${time}  ${val}
+    ${rc}  ${output}=  Run And Return Rc And Output  wget https://storage.googleapis.com/vic-engine-releases/vic_1.1.1.tar.gz -O vic-${time}.tar.gz
+    Create Directory  vic-${time}
+    ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic-${time}.tar.gz -C vic-${time}
     Set Test Environment Variables
 
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run  ./vic/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=./vic/appliance.iso --bootstrap-iso=./vic/bootstrap.iso --password=%{TEST_PASSWORD} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --force=true --no-tlsverify
+    ${output}=  Run  ./vic-${time}/vic/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=./vic-${time}/vic/appliance.iso --bootstrap-iso=./vic-${time}/vic/bootstrap.iso --password=%{TEST_PASSWORD} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --force=true --no-tlsverify
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  false
     Log To Console  Installer completed successfully: %{VCH-NAME}
@@ -66,4 +65,4 @@ Delete VCH with new vic-machine
     # Check resource pool is removed
     ${ret}=  Run  govc pool.info -json=true host/*/Resources/%{VCH-NAME}
     Should Contain  ${ret}  {"ResourcePools":null}
-    Run  rm -rf vic.tar.gz vic
+    Run  rm -rf vic-${time}.tar.gz vic-${time}
