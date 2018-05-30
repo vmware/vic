@@ -560,7 +560,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 			// https://github.com/docker/docker/blob/a039ca9affe5fa40c4e029d7aae399b26d433fe9/api/server/router/container/exec.go#L114
 			if stdout != nil {
 				stdout.Write([]byte(err.Error() + "\r\n"))
-				return nil
+				err = nil
 			}
 
 			// This will cause attachHelper to exit
