@@ -68,27 +68,23 @@ While Logged Out Fail To Get VICAdmin Log
     Should Contain  ${output}  <a href="/authentication">See Other</a>.
 
 Display HTML
-    Login To VCH Admin And Save Cookies
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b vic-admin-cookies
-    Remove File  vic-admin-cookies
+    ${cookies}=  Login To VCH Admin And Save Cookies
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b ${cookies}
     Should contain  ${output}  <title>VIC: %{VCH-NAME}</title>
 
 Get Portlayer Log
-    Login To VCH Admin And Save Cookies
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b vic-admin-cookies
-    Remove File  vic-admin-cookies
+    ${cookies}=  Login To VCH Admin And Save Cookies
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b ${cookies}
     Should contain  ${output}  Launching portlayer server
 
 Get VCH-Init Log
-    Login To VCH Admin And Save Cookies
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/init.log -b vic-admin-cookies
-    Remove File  vic-admin-cookies
+    ${cookies}=  Login To VCH Admin And Save Cookies
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/init.log -b ${cookies}
     Should contain  ${output}  reaping child processes
 
 Get Docker Personality Log
-    Login To VCH Admin And Save Cookies
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/docker-personality.log -b vic-admin-cookies
-    Remove File  vic-admin-cookies
+    ${cookies}=  Login To VCH Admin And Save Cookies
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/docker-personality.log -b ${cookies}
     Should contain  ${output}  docker personality
 
 Get Container Logs
@@ -104,10 +100,9 @@ Get Container Logs
     Should Not Contain  ${output}  Error
     ${vmName}=  Get VM Display Name  ${container}
 
-    Login To VCH Admin And Save Cookies
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b vic-admin-cookies | (cd /tmp; tar xvzf - ${vmName}/tether.debug ${vmName}/vmware.log)
+    ${cookies}=  Login To VCH Admin And Save Cookies
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b ${cookies} | (cd /tmp; tar xvzf - ${vmName}/tether.debug ${vmName}/vmware.log)
     Log  ${output}
-    Remove File  vic-admin-cookies
     ${rc}  ${output}=  Run And Return Rc and Output  ls -l /tmp/${vmName}/vmware.log
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc and Output  ls -l /tmp/${vmName}/tether.debug
@@ -117,10 +112,9 @@ Get Container Logs
     Run  rm -f /tmp/${vmName}/tether.debug /tmp/${vmName}/vmware.log
 
 Get VICAdmin Log
-    Login To VCH Admin And Save Cookies
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/vicadmin.log -b vic-admin-cookies
+    ${cookies}=  Login To VCH Admin And Save Cookies
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/vicadmin.log -b ${cookies}
     Log  ${output}
-    Remove File  vic-admin-cookies
     Should contain  ${output}  Launching vicadmin pprof server
 
 Check that VIC logs do not contain sensitive data
@@ -130,7 +124,6 @@ Wan Routes Through Proxy
     Cleanup VIC Appliance On Test Server
     Install VIC Appliance To Test Server  certs=${false}  additional-args=--http-proxy=http://0.0.0.0:12345
 
-    Login To VCH Admin And Save Cookies
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b vic-admin-cookies
-    Remove File  vic-admin-cookies
+    ${cookies}=  Login To VCH Admin And Save Cookies
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b ${cookies}
     Should contain  ${output}  <div class="sixty">Registry and Internet Connectivity<span class="error-message">
