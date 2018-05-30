@@ -310,7 +310,6 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 func (vm *VirtualMachine) WaitForKeyChange(op trace.Operation, keys map[string]string) error {
 	var poweredOff error
 
-	// fix up the filter map. value of "" ---> "<nil>"
 	for k, v := range keys {
 		keys[k] = vmomi.EscapeNil(v)
 	}

@@ -289,7 +289,7 @@ func (c *ContainerBackend) ContainerExecInspect(eid string) (*backend.ExecInspec
 	exit := int(ec.ExitCode)
 	return &backend.ExecInspect{
 		ID:       ec.ID,
-		Running:  ec.State == "running",
+		Running:  ec.State == constants.TaskRunningState,
 		ExitCode: &exit,
 		ProcessConfig: &backend.ExecProcessConfig{
 			Tty:        ec.Tty,
@@ -404,7 +404,7 @@ func (c *ContainerBackend) taskStartHelper(op trace.Operation, id, eid, name str
 	}
 
 	// if this is a retry it's possible the task is already running so check
-	if ec.State == "running" {
+	if ec.State == constants.TaskRunningState {
 		// There's nothing needed here
 		return ec, nil
 	}
@@ -539,7 +539,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		waitState := map[string]bool{constants.TaskCreatedState: true, constants.TaskUnknownState: true}
 		_, err := c.taskStateWaitHelper(taskOp, id, eid, name, targetState, waitState)
 		if err != nil {
-			op.Errorf("Wait for exec start on %s.%s: %s", eid, id, err)
+			op.Errorf("Wait for exec start on %s.%s: %s", id, eid, err)
 			startResult <- err
 		}
 
@@ -608,9 +608,9 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 	op.Debugf("Waiting for completion: task(%s), container(%s)", eid, name)
 
 	targetState := map[string]bool{constants.TaskStoppedState: true}
-	waitState := map[string]bool{constants.TaskRunningState: true, constants.TaskUnknownState: true}
+	waitState := map[string]bool{constants.TaskRunningState: true, constants.TaskUnknownState: true, constants.TaskCreatedState: true}
 	_, err := c.taskStateWaitHelper(taskOp, id, eid, name, targetState, waitState)
-	op.Infof("task %s.%s has stopped: %s", err)
+	op.Infof("task %s.%s has stopped: %s", id, eid, err)
 	if err != nil {
 		return err
 	}

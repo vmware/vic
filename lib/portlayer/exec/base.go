@@ -482,10 +482,6 @@ func (c *containerBase) waitForExec(op trace.Operation, id string) error {
 		stopKey:    strconv.FormatInt(execConf.Detail.StopTime, 10),
 	}
 
-	filter[startedKey] = execConf.Started
-	filter[startKey] = fmt.Sprintf("%d", execConf.Detail.StartTime)
-	filter[stopKey] = fmt.Sprintf("%d", execConf.Detail.StopTime)
-
 	return c.vm.WaitForKeyChange(op, filter)
 }
 
