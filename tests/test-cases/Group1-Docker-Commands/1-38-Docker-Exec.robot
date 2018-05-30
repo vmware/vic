@@ -57,6 +57,7 @@ Verify LS Output For Busybox
        Should Contain  ${output}  var
 
 Wait Until Detached Exec Occurs
+     [Arguments]  ${name}
      :FOR  ${idx}  IN RANGE  1  5
      \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${name} /bin/ls -al /tmp/force
      \   ${Status}=  Run Keyword And Return Status  Should Be Equal As Integers  ${rc}  0
@@ -69,9 +70,8 @@ Wait Until Detached Exec Occurs
 
 Standard Exec Exit Codes
     ${name}=  Set Variable  'exit-codes'
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top
+    ${rc} =  Run And Return Rc  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
 
     # rigorously test exit codes for a standard docker exec.
     :For  ${idx}  IN RANGE  1  10
@@ -91,7 +91,7 @@ Exec -d
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
 
-    Wait Until Detached Exec Occurs
+    Wait Until Detached Exec Occurs  ${name}
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${name} /bin/touch tmp/force
     Should Be Equal As Integers  ${rc}  0
