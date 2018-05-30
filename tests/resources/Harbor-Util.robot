@@ -36,9 +36,7 @@ Install Harbor To Test Server
     [Arguments]  ${name}=harbor  ${protocol}=http  ${verify}=off  ${host}=%{TEST_URL_ARRAY}  ${datastore}=%{TEST_DATASTORE}  ${network}=VM Network
     Log To Console  \nFetching harbor ova...
     ${status}  ${message}=  Run Keyword And Ignore Error  OperatingSystem.File Should Exist  ${HARBOR_VERSION}.ova
-    ${rc}  ${output}=  Run Keyword If  '${status}' == 'FAIL'  Run And Return Rc And Output  wget https://github.com/vmware/harbor/releases/download/${HARBOR_SHORT_VERSION}/${HARBOR_VERSION}.ova
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '${status}' == 'FAIL'  Download Harbor ova
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_BUILD_NUMBER
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_BUILD_NUMBER  0
     @{URLs}=  Split String  %{TEST_URL_ARRAY}
@@ -88,6 +86,12 @@ Install Harbor Self Signed Cert
     Move File  getcert  /etc/docker/certs.d/%{HARBOR_IP}/ca.crt
     ${out}=  Run  systemctl daemon-reload
     ${out}=  Run  systemctl restart docker
+
+Download Harbor ova
+    ${rc}  ${output}=   Run And Return Rc And Output  wget https://github.com/vmware/harbor/releases/download/${HARBOR_SHORT_VERSION}/${HARBOR_VERSION}.ova
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Log To Console    Harbor OVA download successful
 
 Log Into Harbor
     [Arguments]  ${user}=%{TEST_USERNAME}  ${pw}=%{TEST_PASSWORD}
