@@ -287,6 +287,11 @@ func (c *ContainerBackend) ContainerExecInspect(eid string) (*backend.ExecInspec
 	}
 
 	exit := int(ec.ExitCode)
+	if ec.State == constants.TaskFailedState {
+		// this is a docker specific case, specifically when the binary does not exist and we are not detached docker client returns 126
+		exit = int(126)
+	}
+
 	return &backend.ExecInspect{
 		ID:       ec.ID,
 		Running:  ec.State == constants.TaskRunningState,
