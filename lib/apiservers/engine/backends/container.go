@@ -520,6 +520,11 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 
 	attach := ec.OpenStdin || ec.OpenStdout || ec.OpenStderr
 
+	// exec_start event
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+	event := "exec_start: " + ec.ProcessConfig.ExecPath + " " + strings.Join(ec.ProcessConfig.ExecArgs[1:], " ")
+	EventService().Log(event, eventtypes.ContainerEventType, actor)
+
 	// we need to be able to cancel it
 	taskOp, cancel := trace.WithCancel(&op, "exec task wait on %s", eid)
 	defer cancel()
@@ -555,6 +560,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 			// https://github.com/docker/docker/blob/a039ca9affe5fa40c4e029d7aae399b26d433fe9/api/server/router/container/exec.go#L114
 			if stdout != nil {
 				stdout.Write([]byte(err.Error() + "\r\n"))
+				return nil
 			}
 
 			// This will cause attachHelper to exit
@@ -580,12 +586,6 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 	}
 
 	op.Infof("Exec %s in %s launched successfully", id, eid)
-
-	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-
-	// exec_start event
-	event := "exec_start: " + ec.ProcessConfig.ExecPath + " " + strings.Join(ec.ProcessConfig.ExecArgs[1:], " ")
-	EventService().Log(event, eventtypes.ContainerEventType, actor)
 
 	// no need to attach for detached case
 	if !attach {
