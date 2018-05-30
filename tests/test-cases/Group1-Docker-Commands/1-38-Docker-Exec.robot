@@ -63,8 +63,8 @@ Wait Until Detached Exec Occurs
      \   ${Status1}=  Run Keyword And Return Status  Should Be Equal As Integers  ${rc}  0
      \   ${Status2}=  Run Keyword And Return Status  Should Contain  ${output}  force
      \   Return From Keyword If  ${status1} & ${status2}
-     \   Sleep  300ms
-     Fail  Detached exec did not succeed. It either took too long, or failed.
+     \   Sleep  1s
+     Fail  Detached exec did not succeed. It either took to long, or failed.
 
 *** Test Cases ***
 
