@@ -178,7 +178,7 @@ Exec NonExisting
     # detach error case
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${name} /does/not/exist
     Should Not Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  ${output}  does not exist
+    Should Contain  ${output}  ${output}  no such file or directory
 
 
 Concurrent Simple Exec
