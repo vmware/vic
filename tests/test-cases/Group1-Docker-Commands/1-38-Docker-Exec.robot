@@ -60,7 +60,7 @@ Wait Until Detached Exec Occurs
      [Arguments]  ${name}
      :FOR  ${idx}  IN RANGE  1  5
      \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${name} /bin/ls -al /tmp/force
-     \   ${Status}=  Run Keyword And Return Status  Should Be Equal As Integers  ${rc}  0
+     \   ${Status1}=  Run Keyword And Return Status  Should Be Equal As Integers  ${rc}  0
      \   ${Status2}=  Run Keyword And Return Status  Should Contain  ${output}  force
      \   Return From Keyword If  ${status1} & ${status2}
      \   Sleep  300ms
