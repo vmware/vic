@@ -33,7 +33,7 @@ func State(op trace.Operation, e *executor.SessionConfig) (string, error) {
 		return constants.TaskRunningState, nil
 	case e.Started == "true" && e.Detail.StartTime <= e.Detail.StopTime:
 		return constants.TaskStoppedState, nil
-	case e.Started != "" && e.Started != "true" && e.StartTime > e.Detail.StopTime:
+	case e.Started != "" && e.Started != "true" && e.StartTime >= e.Detail.StopTime:
 		// NOTE: this assumes that StopTime does not get set. We really need to investigate this further as it does not look like it will be the case based on the way the child reaper attempts to write things.
 		return constants.TaskFailedState, nil
 	default:
