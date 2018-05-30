@@ -179,7 +179,7 @@ Connectivity Bridge to Public
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p1
 
     Log To Console  Connecting to container on external network from container bridged network
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net bridge ${busybox} nc ${ip} 8000
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net bridge ${busybox} nc -v ${ip} 8000
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
 
@@ -193,7 +193,7 @@ Connectivity Bridge to Public
 
     # we expect this to fail since the port wasn't exposed
     Log To Console  Connecting to container on external network from container bridged network
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net bridge ${busybox} nc ${ip} 8000
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net bridge ${busybox} nc -v ${ip} 8000
     Should Not Be Equal As Integers  ${rc}  0
 
     Log To Console  Port connection test from bridge to public networks succeeded.
@@ -495,7 +495,7 @@ Container Firewalls
 
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p1
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net bridge ${busybox} nc ${ip} 1234
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net bridge ${busybox} nc -v ${ip} 1234
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
 
@@ -512,7 +512,7 @@ Container Firewalls
 
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p2
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=bridge ${busybox} nc ${ip} 1234
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=bridge ${busybox} nc -v ${ip} 1234
     Should Not Be Equal As Integers  ${rc}  0
 
     # Create a container on a bridge and closed network listening on port 1234.
@@ -527,7 +527,7 @@ Container Firewalls
 
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{.NetworkSettings.Networks.bridge.IPAddress}}' closedbridge
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=bridge ${busybox} nc ${ip} 1234
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=bridge ${busybox} nc -v ${ip} 1234
     Should Be Equal As Integers  ${rc}  0
 
     ### OUTBOUND FIREWALL ###
@@ -538,7 +538,7 @@ Container Firewalls
 
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p3
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=outbound ${busybox} nc ${ip} 1234
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=outbound ${busybox} nc -v ${ip} 1234
     Should Not Be Equal As Integers  ${rc}  0
     # The connection should not be established. However, an outbound network should be able to connect to an open network.
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=open-net --name p4 ${busybox} nc -l -p 1234
@@ -546,7 +546,7 @@ Container Firewalls
 
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p4
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=outbound-net ${busybox} nc ${ip} 1234
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=outbound-net ${busybox} nc -v ${ip} 1234
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
 
@@ -557,7 +557,7 @@ Container Firewalls
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start out1
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net=bridge --name out2 ${busybox} nc out1 1234
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net=bridge --name out2 ${busybox} nc -v out1 1234
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect outbound-net out2
     Should Be Equal As Integers  ${rc}  0
@@ -570,7 +570,7 @@ Container Firewalls
 
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p5
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=outbound-net ${busybox} nc ${ip} 1337
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=outbound-net ${busybox} nc -v ${ip} 1337
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
     # Connection should be established on the open port. Let's try a closed one now...
@@ -579,7 +579,7 @@ Container Firewalls
 
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p6
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=outbound-net ${busybox} nc ${ip} 404
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=outbound-net ${busybox} nc -v ${ip} 404
     Should Not Be Equal As Integers  ${rc}  0
 
     ### PEERS FIREWALL ###
@@ -593,7 +593,7 @@ Container Firewalls
 
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p7
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=peers-net-1 ${busybox} nc ${ip} 1234
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=peers-net-1 ${busybox} nc -v ${ip} 1234
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
     # Connection should be established on the peer network. Let's try a non-peer now...
@@ -602,7 +602,7 @@ Container Firewalls
 
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p8
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=peers-net-2 ${busybox} nc ${ip} 1234
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=peers-net-2 ${busybox} nc -v ${ip} 1234
     Should Not Be Equal As Integers  ${rc}  0
 
     ### Ping localhost ###
