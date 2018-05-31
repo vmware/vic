@@ -523,12 +523,12 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		return err
 	}
 
-	attach := ec.OpenStdin || ec.OpenStdout || ec.OpenStderr
-
 	// exec_start event
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 	event := "exec_start: " + ec.ProcessConfig.ExecPath + " " + strings.Join(ec.ProcessConfig.ExecArgs[1:], " ")
 	EventService().Log(event, eventtypes.ContainerEventType, actor)
+
+	attach := ec.OpenStdin || ec.OpenStdout || ec.OpenStderr
 
 	// we need to be able to cancel it
 	taskOp, cancel := trace.WithCancel(&op, "exec task wait on %s", eid)
@@ -549,7 +549,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		waitState := map[string]bool{constants.TaskCreatedState: true, constants.TaskUnknownState: true}
 		_, err := c.taskStateWaitHelper(taskOp, id, eid, name, targetState, waitState)
 		if err != nil {
-			op.Errorf("Wait for exec start on %s.%s: %s", id, eid, err)
+			op.Errorf("Wait for exec start on %s.%s: %s", eid, id, err)
 			startResult <- err
 		}
 
@@ -1665,11 +1665,7 @@ func (c *ContainerBackend) containerAttach(op *trace.Operation, name string, ca 
 		CloseStdin:            vc.Config.StdinOnce,
 	}
 
-	// we need to be able to cancel it
-	attachOp, cancel := trace.WithCancel(op, "container attach for %s", name)
-	defer cancel()
-
-	err = c.streamProxy.AttachStreams(attachOp, ac, stdin, stdout, stderr, true)
+	err = c.streamProxy.AttachStreams(op, ac, stdin, stdout, stderr, true)
 	if err != nil {
 		if _, ok := err.(engerr.DetachError); ok {
 			log.Infof("Detach detected, tearing down connection")
@@ -1683,7 +1679,6 @@ func (c *ContainerBackend) containerAttach(op *trace.Operation, name string, ca 
 
 			// FIXME: call UnbindInteraction/Commit
 		}
-		cancel()
 		return err
 	}
 
