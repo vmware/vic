@@ -55,6 +55,7 @@ Delete VCH with new vic-machine
 
     # Delete with force
     Run VIC Machine Delete Command
+    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Run Keyword And Ignore Error  Cleanup VCH Bridge Network
 
     # Check VM is removed
     ${ret}=  Run  govc vm.info -json=true ${containerName}-*
