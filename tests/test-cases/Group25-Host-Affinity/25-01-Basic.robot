@@ -89,6 +89,8 @@ Attempt to create a VCH when a VM group with the same name already exists
 
     Run Keyword and Expect Error    *    Install VIC Appliance To Test Server With Current Environment Variables    additional-args=--affinity-vm-group    cleanup=${false}
 
+    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Run Keyword And Ignore Error  Cleanup VCH Bridge Network
+
     Verify Group Empty           %{VCH-NAME}
 
 
@@ -106,3 +108,5 @@ Deleting a VCH gracefully handles missing VM group
     Verify Group Not Found       %{VCH-NAME}
 
     Run VIC Machine Delete Command
+
+    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Run Keyword And Ignore Error  Cleanup VCH Bridge Network
