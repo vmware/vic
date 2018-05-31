@@ -216,6 +216,9 @@ func (vm *VirtualMachine) FetchExtraConfigBaseOptions(ctx context.Context) ([]ty
 		return nil, err
 	}
 
+	if mvm.Config.ExtraConfig == nil {
+		return nil, errors.New("ExtraConfig came back nil, the vm was likely deleted")
+	}
 	return mvm.Config.ExtraConfig, nil
 }
 
