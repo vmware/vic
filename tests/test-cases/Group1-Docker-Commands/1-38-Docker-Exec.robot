@@ -178,7 +178,7 @@ Exec NonExisting
     # detach error case
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${name} /does/not/exist
     Should Not Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  ${output}  no such file or directory
+    Should Contain  ${output}  ${output}  no such executable
 
 Exec Permission Denied
      ${name}=  Set Variable  'exec-permission-denied'
@@ -195,7 +195,7 @@ Exec Permission Denied
 
      # detach error case
      ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${name} /bin/fake
-     Should Not Be Equal As Integers  ${rc}  1
+     Should Be Equal As Integers  ${rc}  1
 
 Exec Non Binary
      ${name}=  Set Variable  'exec-non-binary'
@@ -211,11 +211,10 @@ Exec Non Binary
 
      ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${name} /bin/fake
      Should Be Equal As Integers  ${rc}  126
-     Should Contain  ${output}  Permission Denied
 
      # detach error case
      ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${name} /bin/fake
-     Should Not Be Equal As Integers  ${rc}  1
+     Should Be Equal As Integers  ${rc}  1
 
 Concurrent Simple Exec
      ${status}=  Get State Of Github Issue  7410
