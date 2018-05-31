@@ -288,7 +288,7 @@ func (c *ContainerBackend) ContainerExecInspect(eid string) (*backend.ExecInspec
 
 	exit := int(ec.ExitCode)
 	if ec.State == constants.TaskFailedState {
-		// this is a docker specific case, specifically when the binary does not exist and we are not detached docker client returns 126
+		// docker expects 126 for no such executable, permission denied, and "exec format errors"(displayed when attempting to exec a target that is not actually an executable binary)
 		exit = int(126)
 	}
 

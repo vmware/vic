@@ -180,6 +180,42 @@ Exec NonExisting
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${output}  no such file or directory
 
+Exec Permission Denied
+     ${name}=  Set Variable  'exec-permission-denied'
+     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
+     Should Be Equal As Integers  ${rc}  0
+
+     # standard case
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${name} touch /bin/fake
+     Should Be Equal As Integers  ${rc}  0
+
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${name} /bin/fake
+     Should Be Equal As Integers  ${rc}  126
+     Should Contain  ${output}  Permission Denied
+
+     # detach error case
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${name} /bin/fake
+     Should Not Be Equal As Integers  ${rc}  1
+
+Exec Non Binary
+     ${name}=  Set Variable  'exec-permission-denied'
+     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
+     Should Be Equal As Integers  ${rc}  0
+
+     # standard case
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${name} touch /bin/fake
+     Should Be Equal As Integers  ${rc}  0
+
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${name} chmod 777 /bin/fake
+     Should Be Equal As Integers  ${rc}  0
+
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${name} /bin/fake
+     Should Be Equal As Integers  ${rc}  126
+     Should Contain  ${output}  Permission Denied
+
+     # detach error case
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${name} /bin/fake
+     Should Not Be Equal As Integers  ${rc}  1
 
 Concurrent Simple Exec
      ${status}=  Get State Of Github Issue  7410
