@@ -191,14 +191,14 @@ Exec Permission Denied
 
      ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${name} /bin/fake
      Should Be Equal As Integers  ${rc}  126
-     Should Contain  ${output}  Permission Denied
+     Should Contain  ${output}  permission denied
 
      # detach error case
      ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${name} /bin/fake
      Should Not Be Equal As Integers  ${rc}  1
 
 Exec Non Binary
-     ${name}=  Set Variable  'exec-permission-denied'
+     ${name}=  Set Variable  'exec-non-binary'
      ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
      Should Be Equal As Integers  ${rc}  0
 
