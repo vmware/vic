@@ -63,7 +63,7 @@ Wait Until Detached Exec Occurs
      \   ${Status1}=  Run Keyword And Return Status  Should Be Equal As Integers  ${rc}  0
      \   ${Status2}=  Run Keyword And Return Status  Should Contain  ${output}  force
      \   Return From Keyword If  ${status1} & ${status2}
-     \   Sleep  1s
+     \   Sleep  2s
      Fail  Detached exec did not succeed. It either took to long, or failed.
 
 *** Test Cases ***
@@ -91,10 +91,10 @@ Exec -d
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name ${name} ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
 
-    Wait Until Detached Exec Occurs  ${name}
-
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${name} /bin/touch tmp/force
     Should Be Equal As Integers  ${rc}  0
+
+    Wait Until Detached Exec Occurs  ${name}
 
 Exec Echo
     ${name}=  Set Variable  'echo-test'
