@@ -58,6 +58,12 @@ Create Dummy VM
     # Create dummy VM
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool=${compute-path} -net=%{PUBLIC_NETWORK} ${vm-name}
     Should Be Equal As Integers  ${rc}  0
+    # Get dummy VM info
+    ${rc}  ${out}=  Run And Return Rc And Output  govc vm.info ${vm-name}
+    @{lines}=  Split To Lines  ${out}
+    @{line}=  Split String  @{lines}[2]
+    ${vm_id}=  Fetch From Right  @{line}[-1]  ${SPACE}
+    Set Suite Variable  ${VM-ID}  ${vm_id}
 
 Cleanup Dummy VM
     [Arguments]  ${vm-name}
@@ -182,23 +188,19 @@ Get Deleted VCH
     ${expectedId}=  Get VCH ID  %{VCH-NAME}-api-test-simple
     Get Path Under Target  vch/${expectedId}
     Verify Return Code
+    Verify Status Ok
+    
     Run Secret VIC Machine Delete Command    %{VCH-NAME}-api-test-simple
             
     Get Path Under Target  vch/${expectedId}
     Verify Return Code
     Verify Status Not Found
-    
     Output Should Contain   unable to find VCH
     
 Get Inspect for non-VCH VM
     Create Dummy VM  Dummy_VM
-    ${rc}  ${out}=  Run And Return Rc And Output  govc vm.info Dummy_VM
-    #${output}=  Convert to String  ${out}
-    @{lines}=  Split To Lines  ${out}
-    @{line}=  Split String  @{lines}[2]
-    ${vm_id}=  Fetch From Right  @{line}[-1]  ${SPACE}
-
-    Get Path Under Target  vch/${vm_id}
+    
+    Get Path Under Target  vch/${VM-ID}
     Verify Return Code
     Verify Status Not Found
     
