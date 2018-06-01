@@ -230,7 +230,7 @@ Docker run --rm concurrent
 
     ${pids}=  Create List
     :FOR  ${idx}  IN RANGE  0  16
-    \   ${pid}=  Start Process  docker %{VCH-PARAMS} run -d --rm --name rm-concurrent-${idx} --cpuset-cpus 1 --memory 1GB ubuntu /bin/sh -c'a\=0; while [ $a -lt 75 ]; do echo "line $a"; a\=expr $a + 1; sleep 2; done;'  shell=True
+    \   ${pid}=  Start Process  docker %{VCH-PARAMS} run -d --rm --name rm-concurrent-${idx} --cpuset-cpus 1 --memory 1GB ubuntu /bin/sh -c 'for i in `seq 0 75`; do echo $i; sleep 2; done'  shell=True
     \   Append To List  ${pids}  ${pid}
 
     :FOR  ${pid}  IN  @{pids}
@@ -238,6 +238,8 @@ Docker run --rm concurrent
     \   ${res}=  Wait For Process  ${pid}
     \   Log  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
+
+    Sleep  3 minutes
 
     :FOR  ${idx}  IN RANGE  0  16
     \   Wait Until Keyword Succeeds  10x  3s  Verify container is removed  rm-concurrent-${idx}
