@@ -239,5 +239,7 @@ Docker run --rm concurrent
     \   Log  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
 
+    Sleep  3 minutes
+
     :FOR  ${idx}  IN RANGE  0  16
     \   Wait Until Keyword Succeeds  10x  3s  Verify container is removed  rm-concurrent-${idx}
