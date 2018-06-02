@@ -549,7 +549,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		waitState := map[string]bool{constants.TaskCreatedState: true, constants.TaskUnknownState: true}
 		_, err := c.taskStateWaitHelper(taskOp, id, eid, name, targetState, waitState)
 		if err != nil {
-			op.Errorf("Wait for exec start on %s.%s: %s", eid, id, err)
+			op.Errorf("Wait for exec start on %s.%s: %s", id, eid, err)
 			startResult <- err
 		}
 
