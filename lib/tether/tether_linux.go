@@ -132,6 +132,7 @@ func (t *tether) childReaper() error {
 					exitCode := status.ExitStatus()
 					log.Debugf("Reaped process %d, return code: %d", pid, exitCode)
 
+					// TODO: we will likely need additional handling here to distinguish in the Session state machine whether the session was signaled or we exited. See some of the exec/session documentation added by @matthewavery
 					session, ok := t.removeChildPid(pid)
 					if ok {
 						log.Debugf("Removed child pid: %d", pid)
