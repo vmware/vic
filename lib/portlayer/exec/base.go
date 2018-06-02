@@ -17,6 +17,7 @@ package exec
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -461,12 +462,27 @@ func (c *containerBase) waitForSession(ctx context.Context, id string) error {
 	return c.waitFor(ctx, key)
 }
 
+// WaitForExec will wait for any kind of change in the state of a task. Then it will return signifying that the a refreshed handle must be returned.
+// users can then inspect that handle to examine and act against the changes in the task.
 func (c *containerBase) waitForExec(op trace.Operation, id string) error {
 	defer trace.End(trace.Begin(id, op))
 
-	// guestinfo key that we want to wait for
-	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Execs.%s.Started", id), "")[0]
-	return c.waitFor(op, key)
+	// guestinfo keys that we want to wait for
+	startedKey := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Execs.%s.Started", id), "")[0]
+	startKey := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Execs.%s.Detail.StartTime", id), "")[0]
+	stopKey := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Execs.%s.Detail.StopTime", id), "")[0]
+
+	// targeted exec
+	execConf := c.ExecConfig.Execs[id]
+
+	// construct key filter for exec state changes
+	filter := map[string]string{
+		startedKey: execConf.Started,
+		startKey:   strconv.FormatInt(execConf.Detail.StartTime, 10),
+		stopKey:    strconv.FormatInt(execConf.Detail.StopTime, 10),
+	}
+
+	return c.vm.WaitForKeyChange(op, filter)
 }
 
 func (c *containerBase) waitFor(ctx context.Context, key string) error {
