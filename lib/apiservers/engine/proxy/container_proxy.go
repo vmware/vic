@@ -89,7 +89,7 @@ type VicContainerProxy interface {
 	// TODO: we should not be returning a swagger model here, however we do not have a solid architected return for this yet.
 	InspectTask(op trace.Operation, handle string, eid string, cid string) (*models.TaskInspectResponse, error)
 	BindTask(op trace.Operation, handle string, eid string) (string, error)
-	WaitTask(op trace.Operation, cid string, cname string, eid string) error
+	WaitTask(op trace.Operation, handle string, cid string, eid string) error
 
 	Handle(ctx context.Context, id, name string) (string, error)
 
@@ -531,28 +531,23 @@ func (c *ContainerProxy) BindTask(op trace.Operation, handle string, eid string)
 	return respHandle, nil
 }
 
-func (c *ContainerProxy) WaitTask(op trace.Operation, cid string, cname string, eid string) error {
+func (c *ContainerProxy) WaitTask(op trace.Operation, handle string, cid string, eid string) error {
 	if c.client == nil {
 		return errors.NillPortlayerClientError("ContainerProxy")
 	}
 
-	handle, err := c.Handle(op, cid, cname)
-	if err != nil {
-		return err
-	}
-
-	// wait the Task to start
+	// wait for the Task to change in state
 	config := &models.TaskWaitConfig{
 		Handle: handle,
 		ID:     eid,
 	}
 
 	params := tasks.NewWaitParamsWithContext(op).WithConfig(config)
-	_, err = c.client.Tasks.Wait(params)
+	_, err := c.client.Tasks.Wait(params)
 	if err != nil {
 		switch err := err.(type) {
 		case *tasks.WaitNotFound:
-			return errors.InternalServerError(fmt.Sprintf("the Container(%s) has been shutdown during execution of the exec operation", cid))
+			return errors.InternalServerError(fmt.Sprintf("the container(%s) has been shutdown during execution of the exec operation", cid))
 		case *tasks.WaitPreconditionRequired:
 			return errors.InternalServerError(fmt.Sprintf("container(%s) must be powered on in order to perform the desired exec operation", cid))
 		case *tasks.WaitInternalServerError:

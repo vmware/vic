@@ -294,13 +294,71 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 
 	err := vm.WaitForExtraConfig(op, waitFunc)
 	if err == nil && poweredOff != nil {
-		err = poweredOff
+		return "", poweredOff
 	}
 
 	if err != nil {
 		return "", err
 	}
 	return detail, nil
+}
+
+// WaitForKeyChange will block until it detects a change in value for ANY of the provided key value combinations. Additionally it will unblock if the container has powered off, returning an error in such a case.
+func (vm *VirtualMachine) WaitForKeyChange(op trace.Operation, keys map[string]string) error {
+	var poweredOff error
+
+	for k, v := range keys {
+		keys[k] = vmomi.EscapeNil(v)
+	}
+
+	waitFunc := func(pc []types.PropertyChange) bool {
+		for _, c := range pc {
+			if c.Op != types.PropertyChangeOpAssign {
+				continue
+			}
+
+			switch v := c.Val.(type) {
+			case types.ArrayOfOptionValue:
+				for _, value := range v.OptionValue {
+					// check if it is a key that we care about
+					key := value.GetOptionValue().Key
+					if v, ok := keys[key]; ok {
+						// has the key actually change in value?
+						changeValue := value.GetOptionValue().Value.(string)
+						if v != changeValue {
+							op.Debugf("Found a change: key(%s), Value(%s), change(%s)", key, v, changeValue)
+							poweredOff = nil
+							return true
+						}
+					}
+				}
+			case types.VirtualMachinePowerState:
+				// Give up if the vm has powered off
+				if v != types.VirtualMachinePowerStatePoweredOn {
+					msg := "powered off"
+					if v == types.VirtualMachinePowerStateSuspended {
+						// Unlikely, but possible if the VM was suspended out-of-band
+						msg = string(v)
+					}
+					poweredOff = fmt.Errorf("container VM has unexpectedly %s", msg)
+				}
+			}
+		}
+
+		return poweredOff != nil
+	}
+
+	err := vm.WaitForExtraConfig(op, waitFunc)
+	if err == nil && poweredOff != nil {
+		return poweredOff
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+
 }
 
 func (vm *VirtualMachine) UUID(ctx context.Context) (string, error) {
