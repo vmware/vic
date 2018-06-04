@@ -98,7 +98,7 @@ func WriteImage(host string, image *ImageWithMeta, data io.ReadCloser) error {
 	r, err := client.Storage.WriteImage(
 		storage.NewWriteImageParamsWithContext(ctx).
 			WithImageID(image.ID).
-			WithParentID(image.Parent).
+			WithParentID(image.DiskParent).
 			WithStoreName(image.Store).
 			WithMetadatakey(key).
 			WithMetadataval(blob).
@@ -112,5 +112,4 @@ func WriteImage(host string, image *ImageWithMeta, data io.ReadCloser) error {
 	log.Printf("Created an image %#v", r.Payload)
 
 	return nil
-
 }

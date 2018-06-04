@@ -45,8 +45,14 @@ import (
 
 const (
 	// DigestSHA256EmptyTar is the canonical sha256 digest of empty tar file -
-	// (1024 NULL bytes)
+	// (1024 NULL bytes) - aka, the "empty" layer diffID.
 	DigestSHA256EmptyTar = string(dlayer.DigestSHA256EmptyTar)
+
+	// DigestSHA256EmptyBlobSum is the canonical sha256 digest of a gzipped empty tar file -
+	// (1024 NULL bytes, gzipped) - aka, the "empty" blobsum. This is used to identify empty
+	// layers using the schema v1 manifest without having to download, unzip and sha256 the
+	// 1024-byte empty layer tar.
+	DigestSHA256EmptyBlobSum = "sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4"
 )
 
 // FSLayer is a container struct for BlobSums defined in an image manifest

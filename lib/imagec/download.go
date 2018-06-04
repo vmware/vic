@@ -33,6 +33,11 @@ const (
 	maxConcurrentDownloads = 3
 )
 
+var (
+	vmdkMap   map[string]string
+	leafLayer *ImageWithMeta
+)
+
 type downloadTransfer struct {
 	xfer.Transfer
 
@@ -127,12 +132,19 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 	// Grab the imageLayers
 	layers := ic.ImageLayers
 
+	vmdkMap = getVMDKMap(layers)
+
 	// iterate backwards through layers to download
 	for i := len(layers) - 1; i >= 0; i-- {
 
 		layer := layers[i]
-		id := layer.ID
 
+		if layer.EmptyLayer {
+			// skip attempting to download empty layers
+			continue
+		}
+
+		id := layer.ID
 		layerConfig, err := LayerCache().Get(id)
 		if err != nil {
 
@@ -153,6 +165,10 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 				ldm.registerDownload(topDownload)
 				layer.Downloading = true
 				LayerCache().Add(layer)
+
+				// the child-most non-empty layer should be used as the leaf layer, and will
+				// be the parent of the container R/W layer VMDK
+				leafLayer = layer
 
 				continue
 			default:
@@ -282,20 +298,27 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 				}
 			}
 
+			// set this layer's parent to the appropriate (non-empty) VMDK
+			layer.DiskParent = vmdkMap[layer.ID]
+
 			// is this the leaf layer?
-			imageLayer := layer.ID == layers[0].ID
+			isLeaf := layer.ID == leafLayer.ID
 
 			if !ic.Standalone {
 				// if this is the leaf layer, we are done and can now create the image config
-				if imageLayer {
+				if isLeaf {
 					imageConfig, err := ic.CreateImageConfig(layers)
 					if err != nil {
 						d.err = err
 						return
 					}
+
+					// set the image VMDK so container creation uses the correct disk as the R/W's parent
+					imageConfig.VMDK = layer.ID
+
 					// cache and persist the image
 					cache.ImageCache().Add(&imageConfig)
-					if err := cache.ImageCache().Save(); err != nil {
+					if err = cache.ImageCache().Save(); err != nil {
 						d.err = fmt.Errorf("error saving image cache: %s", err)
 						return
 					}
@@ -315,7 +338,7 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 			defer ldm.m.Unlock()
 
 			// Write blob to the storage layer
-			if err := ic.WriteImageBlob(layer, progressOutput, imageLayer); err != nil {
+			if err := ic.WriteImageBlob(layer, progressOutput, isLeaf); err != nil {
 				d.err = err
 				return
 			}
@@ -385,4 +408,23 @@ func (ldm *LayerDownloader) makeDownloadFuncFromDownload(layer *ImageWithMeta, s
 		return d
 	}
 
+}
+
+func getVMDKMap(layers []*ImageWithMeta) map[string]string {
+	result := make(map[string]string)
+	diskParent := "scratch"
+
+	for i := len(layers) - 1; i > 0; i-- {
+		layer := layers[i]
+		if layer.EmptyLayer {
+			// skip empty layers
+			continue
+		}
+		// set layer's parent to last known non-empty layer in the chain
+		result[layer.ID] = diskParent
+		// this layer isn't empty, so it will be the next parent layer in the chain
+		diskParent = layer.ID
+	}
+
+	return result
 }

@@ -18,7 +18,8 @@ import (
 	docker "github.com/docker/docker/image"
 )
 
-// ImageConfig contains configuration data describing images and their layers
+// ImageConfig defines the docker format for representing an image. When marshaled to JSON, the sha256 sum
+// of the resulting bytes is the image ID.
 type ImageConfig struct {
 	docker.V1Image
 
@@ -30,4 +31,11 @@ type ImageConfig struct {
 	DiffIDs   map[string]string `json:"diff_ids,omitempty"`
 	History   []docker.History  `json:"history,omitempty"`
 	Reference string            `json:"registry"`
+
+	// VMDK is the ID of the VMDK to be used as the R/W layer's parent disk when
+	// creating a container from the image. This is the type that is stored in our
+	// image cache.
+	//
+	// This field is ignored when marshalling into JSON to preserve the image ID.
+	VMDK string `json:"vmdk,omitempty"`
 }

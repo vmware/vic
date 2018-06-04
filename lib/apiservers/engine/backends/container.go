@@ -663,7 +663,7 @@ func (c *ContainerBackend) ContainerCreate(config types.ContainerCreateConfig) (
 
 	// Reserve the container name to prevent duplicates during a parallel operation.
 	if config.Name != "" {
-		err := cache.ContainerCache().ReserveName(container, config.Name)
+		err = cache.ContainerCache().ReserveName(container, config.Name)
 		if err != nil {
 			return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestConflictError(err)
 		}
@@ -1757,7 +1757,7 @@ func clientFriendlyContainerName(name string) string {
 func createInternalVicContainer(image *metadata.ImageConfig, config *types.ContainerCreateConfig) (*viccontainer.VicContainer, error) {
 	// provide basic container config via the image
 	container := viccontainer.NewVicContainer()
-	container.LayerID = image.V1Image.ID // store childmost layer ID to map to the proper vmdk
+	container.LayerID = image.VMDK // store childmost layer ID to map to the proper vmdk
 	container.ImageID = image.ImageID
 	container.Config = image.Config //Set defaults.  Overrides will get copied below.
 
