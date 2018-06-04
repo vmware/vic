@@ -126,6 +126,13 @@ type ImageWithMeta struct {
 	Meta   string
 	Size   int64
 
+	// DiskParent is the ID of the most recent non-empty parent layer that will serve
+	// as this layer's parent in the disk chain
+	DiskParent string
+
+	// EmptyLayer is true if this layer contains no filesystem data, false otherwise
+	EmptyLayer bool
+
 	Downloading bool
 }
 
@@ -246,6 +253,12 @@ func (ic *ImageC) LayersToDownload(ctx context.Context) ([]*ImageWithMeta, error
 			return nil, fmt.Errorf("Failed to unmarshall image history: %s", err)
 		}
 
+		log.Infof(">>>>> Layer %s empty? %t - blobsum: %s", v1.ID, layer.BlobSum == DigestSHA256EmptyBlobSum, layer.BlobSum)
+		emptyLayer := false
+		if layer.BlobSum == DigestSHA256EmptyBlobSum {
+			emptyLayer = true
+		}
+
 		// if parent is empty set it to scratch
 		parent := constants.ScratchLayerID
 		if v1.Parent != "" {
@@ -259,8 +272,9 @@ func (ic *ImageC) LayersToDownload(ctx context.Context) ([]*ImageWithMeta, error
 				Parent: parent,
 				Store:  ic.Storename,
 			},
-			Meta:  history.V1Compatibility,
-			Layer: layer,
+			Meta:       history.V1Compatibility,
+			Layer:      layer,
+			EmptyLayer: emptyLayer,
 		}
 
 		// populate manifest layer with existing cached data
@@ -409,7 +423,7 @@ func (ic *ImageC) CreateImageConfig(ctx context.Context, images []*ImageWithMeta
 		}
 
 		// is this an empty layer?
-		if layer.DiffID == dockerLayer.DigestSHA256EmptyTar.String() {
+		if layer.Layer.BlobSum == DigestSHA256EmptyBlobSum {
 			h.EmptyLayer = true
 		} else {
 			// if not empty, add diffID to rootFS

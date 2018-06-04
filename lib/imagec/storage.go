@@ -97,7 +97,7 @@ func WriteImage(op trace.Operation, host string, image *ImageWithMeta, data io.R
 		storage.NewWriteImageParamsWithContext(op).
 			WithOpID(&opID).
 			WithImageID(image.ID).
-			WithParentID(image.Parent).
+			WithParentID(image.DiskParent).
 			WithStoreName(image.Store).
 			WithMetadatakey(key).
 			WithMetadataval(blob).
@@ -111,5 +111,4 @@ func WriteImage(op trace.Operation, host string, image *ImageWithMeta, data io.R
 	log.Printf("Created an image %#v", r.Payload)
 
 	return nil
-
 }
