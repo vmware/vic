@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-22 - NFS Volume
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Setup ESX And NFS Suite
+Suite Setup  Wait Until Keyword Succeeds  10x  10m  Setup VC And NFS Suite
 Suite Teardown  Run Keyword And Ignore Error  NFS Volume Cleanup
 Test Teardown  Gather NFS Logs
 
@@ -33,16 +33,16 @@ ${mntNamed}=  /mnt/named
 
 
 *** Keywords ***
-Setup ESX And NFS Suite
+Setup VC And NFS Suite
     [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     Log To Console  \nStarting test...
 
-    ${nfs}  ${nfs_ro}  ${esx1}  ${nfs_ip}  ${nfs_ro_ip}  ${esx1_ip}=  Deploy Simple NFS Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--testbedSpecRubyFile /dbc/w3-dbc302/rashok/vic-nfs.rb --esxBuild ${ESX_VERSION} --esxPxeDir ${ESX_VERSION} --plugin testng
+    ${nfs}  ${nfs_ro}  ${vc}  ${nfs_ip}  ${nfs_ro_ip}  ${vc_ip}=  Deploy Simple VC Cluster With NFS Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--testbedSpecRubyFile /dbc/sc-dbc1215/rogelios/vic-simple-cluster-with-multiple-nfs.rb --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --esxPxeDir ${ESX_VERSION} --plugin testng
 
-    Set Suite Variable  @{list}  ${esx1}  ${nfs}  ${nfs_ro}
-    Set Suite Variable  ${ESX1}  ${esx1}
-    Set Suite Variable  ${ESX1_IP}  ${esx1_ip}
+    Set Suite Variable  @{list}  ${vc}  ${nfs}  ${nfs_ro}
+    Set Suite Variable  ${VC}  ${vc}
+    Set Suite Variable  ${VC_IP}  ${vc_ip}
     Set Suite Variable  ${NFS_IP}  ${nfs_ip}
     Set Suite Variable  ${NFS}  ${nfs}
     Set Suite Variable  ${NFS_READONLY_IP}  ${nfs_ro_ip}
@@ -69,19 +69,18 @@ Setup ESX And NFS Suite
     Close Connection
 
 Setup ENV Variables for VIC Appliance Install
-    Log To Console  \nSetup Environment Variables for VIC Appliance To ESX\n
+    Log To Console  \nSetup Environment Variables for VIC Appliance To VC\n
 
-    Set Environment Variable  TEST_URL_ARRAY  ${ESX1_IP}
-    Set Environment Variable  TEST_URL  ${ESX1_IP}
-    Set Environment Variable  TEST_USERNAME  root
-    Set Environment Variable  TEST_PASSWORD  ${NIMBUS_ESX_PASSWORD}
+    Set Environment Variable  TEST_URL_ARRAY  ${VC_IP}
+    Set Environment Variable  TEST_URL  ${VC_IP}
+    Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  TEST_DATASTORE  local-0
+    Set Environment Variable  TEST_DATACENTER  /dc1
+    Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
-    Set Environment Variable  HOST_TYPE  ESXi
-    Remove Environment Variable  TEST_DATACENTER
-    Remove Environment Variable  TEST_RESOURCE
-    Remove Environment Variable  BRIDGE_NETWORK
-    Remove Environment Variable  PUBLIC_NETWORK
+    Set Environment Variable  BRIDGE_NETWORK  bridge
+    Set Environment Variable  PUBLIC_NETWORK  vm-network
 
 Verify NFS Volume Basic Setup
     [Arguments]  ${volumeName}  ${containerName}  ${nfsIP}  ${rwORro}
@@ -174,7 +173,7 @@ VIC Appliance Install With Fake NFS Server
 
 VIC Appliance Install With Correct NFS Server
     Setup ENV Variables for VIC Appliance Install
-    Log To Console  \nDeploy VIC Appliance To ESX
+    Log To Console  \nDeploy VIC Appliance To VC
 
     # Should succeed
     ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${NFS_IP}/store?uid=0&gid=0:${nfsVolumeStore}"
