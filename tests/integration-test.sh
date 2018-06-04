@@ -44,7 +44,7 @@ if (echo $prBody | grep -q "\[shared datastore="); then
     export TEST_DATASTORE=$datastore
 fi
 
-jobs="2"
+jobs="3"
 if (echo $prBody | grep -q "\[parallel jobs="); then
     parallel=$(echo $prBody | grep "\[parallel jobs=")
     jobs=$(echo $parallel | awk -F"\[parallel jobs=" '{sub(/\].*/,"",$2);print $2}')
