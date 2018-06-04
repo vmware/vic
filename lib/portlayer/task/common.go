@@ -58,6 +58,8 @@ func toggleActive(op *trace.Operation, h interface{}, id string, active bool) (i
 		return nil, TaskNotFoundError{msg: fmt.Sprintf("Cannot find task %s", id)}
 	}
 
+	// TODO: determine if a reload is required based on current state
+
 	op.Debugf("Toggling active state of task %s (%s): %t", id, task.Cmd.Path, active)
 	task.Active = active
 	handle.Reload()
