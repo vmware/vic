@@ -28,6 +28,11 @@ Default Tags
 
 Setup
     Start VIC Machine Server
+    Set Test Environment Variables
+
+    ${PUBLIC_NETWORK}=  Remove String  %{PUBLIC_NETWORK}  '
+    Set Suite Variable    ${PUBLIC_NETWORK}
+    
 #    Install VIC Appliance With Ops Credentials
     Install VIC Appliance To Test Server
 
@@ -41,6 +46,29 @@ Setup
 Teardown
     Stop VIC Machine Server
     Cleanup VIC Appliance On Test Server
+
+Create VCH
+    [Arguments]    ${data}
+    Post Path Under Target    vch    ${data}
+    
+Create Dummy VM
+    [Arguments]  ${vm-name}
+    ${rc}  ${compute-path}=  Run And Return Rc And Output  govc ls host | grep %{TEST_RESOURCE}
+    Should Be Equal As Integers  ${rc}  0
+    # Create dummy VM
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -pool=${compute-path} -net=%{PUBLIC_NETWORK} ${vm-name}
+    Should Be Equal As Integers  ${rc}  0
+    # Get dummy VM info
+    ${rc}  ${out}=  Run And Return Rc And Output  govc vm.info ${vm-name}
+    @{lines}=  Split To Lines  ${out}
+    @{line}=  Split String  @{lines}[2]
+    ${vm_id}=  Fetch From Right  @{line}[-1]  ${SPACE}
+    Set Suite Variable  ${VM-ID}  ${vm_id}
+
+Cleanup Dummy VM
+    [Arguments]  ${vm-name}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy ${vm-name}
+    Should Be Equal As Integers  ${rc}  0
 
 Inspect VCH
     Get Path Under Target  vch/${VCH-ID}
@@ -151,3 +179,30 @@ Get Invalid VCH
 
 Get Invalid VCH Within Datacenter
     Get Path Under Target  /datacenter/${DC-ID}/vch/INVALID
+    
+Get Deleted VCH
+    Create VCH    '{"name":"%{VCH-NAME}-api-test-simple","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"${PUBLIC_NETWORK}"}}},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
+    Verify Return Code
+    Verify Status Created
+          
+    ${expectedId}=  Get VCH ID  %{VCH-NAME}-api-test-simple
+    Get Path Under Target  vch/${expectedId}
+    Verify Return Code
+    Verify Status Ok
+    
+    Run Secret VIC Machine Delete Command    %{VCH-NAME}-api-test-simple
+            
+    Get Path Under Target  vch/${expectedId}
+    Verify Return Code
+    Verify Status Not Found
+    Output Should Contain   unable to find VCH
+    
+Get Inspect for non-VCH VM
+    Create Dummy VM  Dummy_VM
+    
+    Get Path Under Target  vch/${VM-ID}
+    Verify Return Code
+    Verify Status Not Found
+    
+    [Teardown]  Cleanup Dummy VM  Dummy_VM
+    
