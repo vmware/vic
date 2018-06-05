@@ -433,6 +433,34 @@ Deploy Simple NFS Testbed
 
     [Return]  ${user}-${name}.nfs.0  ${user}-${name}.nfs.1  ${user}-${name}.esx.0  ${nfs-ip}  ${nfs-ro-ip}  ${esx-ip}
 
+Deploy Simple VC Cluster With NFS Testbed
+    [Arguments]  ${user}  ${password}  ${additional-args}=
+    ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
+    Log To Console  \nDeploying Nimbus NFS testbed: ${name}
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
+
+    ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-testbeddeploy --testbedName nfs --runName ${name} ${additional-args}
+    Log  ${out}
+    # Make sure the NFS deploy worked
+    Should Contain  ${out}  ${name}.nfs.0' is up. IP:
+    # Make sure the VC deploy worked
+    Should Contain  ${out}  .vc.0' is up. IP:
+
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${nfs-ip}=  Get IP  ${name}.nfs.0
+    ${nfs-ro-ip}=  Get IP  ${name}.nfs.1
+    ${vc-ip}=  Get IP  ${name}.vc.0
+    Close Connection
+
+    Log To Console  \nNFS IP: ${nfs-ip}
+    Log To Console  \nNFS READ-Only IP: ${nfs-ro-ip}
+    Log To Console  \nVC IP: ${vc-ip}
+
+    [Return]  ${user}-${name}.nfs.0  ${user}-${name}.nfs.1  ${user}-${name}.vcva-${VC_VERSION}  ${nfs-ip}  ${nfs-ro-ip}  ${vc-ip}
+
+
 Deploy Nimbus NFS Datastore
     [Arguments]  ${user}  ${password}  ${additional-args}=
     ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
