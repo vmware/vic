@@ -219,27 +219,30 @@ Docker run --hostname to set hostname and domainname
     Should Contain  ${output}  vic.test
 
 Docker run --rm concurrent
-    ${IN_HAAS}=  Run Keyword And Return Status  Should Contain  %{HAAS_URL_ARRAY}  %{TEST_URL}
-    Run Keyword Unless  ${IN_HAAS}  Pass Execution  This test is too resource intensive for Nimbus currently
-
-    # Make sure all old containers are cleaned up first, to maximize likelihood of not hitting insufficient resources issue
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -aq | xargs docker %{VCH-PARAMS} rm -f
+    ${status}=  Get State Of Github Issue  6342
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-06-Docker-Run.robot needs to be updated now that Issue #6342 has been resolved
     
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${ubuntu}
-    Should Be Equal As Integers  ${rc}  0
+    #${IN_HAAS}=  Run Keyword And Return Status  Should Contain  %{HAAS_URL_ARRAY}  %{TEST_URL}
+    #Run Keyword Unless  ${IN_HAAS}  Pass Execution  This test is too resource intensive for Nimbus currently
 
-    ${pids}=  Create List
-    :FOR  ${idx}  IN RANGE  0  16
-    \   ${pid}=  Start Process  docker %{VCH-PARAMS} run -d --rm --name rm-concurrent-${idx} --cpuset-cpus 1 --memory 1GB ubuntu /bin/sh -c 'for i in `seq 0 75`; do echo $i; sleep 2; done'  shell=True
-    \   Append To List  ${pids}  ${pid}
+    ## Make sure all old containers are cleaned up first, to maximize likelihood of not hitting insufficient resources issue
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -aq | xargs docker %{VCH-PARAMS} rm -f
+    
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${ubuntu}
+    #Should Be Equal As Integers  ${rc}  0
 
-    :FOR  ${pid}  IN  @{pids}
-    \   Log To Console  \nWaiting for ${pid}
-    \   ${res}=  Wait For Process  ${pid}
-    \   Log  ${res.stdout}
-    \   Should Be Equal As Integers  ${res.rc}  0
+    #${pids}=  Create List
+    #:FOR  ${idx}  IN RANGE  0  16
+    #\   ${pid}=  Start Process  docker %{VCH-PARAMS} run -d --rm --name rm-concurrent-${idx} --cpuset-cpus 1 --memory 1GB ubuntu /bin/sh -c 'for i in `seq 0 75`; do echo $i; sleep 2; done'  shell=True
+    #\   Append To List  ${pids}  ${pid}
 
-    Sleep  3 minutes
+    #:FOR  ${pid}  IN  @{pids}
+    #\   Log To Console  \nWaiting for ${pid}
+    #\   ${res}=  Wait For Process  ${pid}
+    #\   Log  ${res.stdout}
+    #\   Should Be Equal As Integers  ${res.rc}  0
 
-    :FOR  ${idx}  IN RANGE  0  16
-    \   Wait Until Keyword Succeeds  10x  3s  Verify container is removed  rm-concurrent-${idx}
+    #Sleep  3 minutes
+
+    #:FOR  ${idx}  IN RANGE  0  16
+    #\   Wait Until Keyword Succeeds  10x  3s  Verify container is removed  rm-concurrent-${idx}
