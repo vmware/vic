@@ -63,6 +63,10 @@ var unSupportedImageFilters = map[string]bool{
 type ImageBackend struct {
 }
 
+// All the API entry points create an Operation and log a message at INFO
+// Level, this is done so that the Operation can be tracked as it moves
+// through the server and propagates to the portlayer
+
 func NewImageBackend() *ImageBackend {
 	return &ImageBackend{}
 }
@@ -73,7 +77,9 @@ func (i *ImageBackend) Exists(containerName string) bool {
 
 // TODO fix the errors so the client doesnt print the generic POST or DELETE message
 func (i *ImageBackend) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDelete, error) {
-	defer trace.End(trace.Begin(imageRef))
+	op := trace.NewOperation(context.Background(), "ImageDelete: %s", imageRef)
+	defer trace.End(trace.Begin(imageRef, op))
+	op.Auditf("ImageDelete: %s", imageRef)
 
 	var (
 		deletedRes  []types.ImageDelete
@@ -210,11 +216,17 @@ func (i *ImageBackend) ImageDelete(imageRef string, force, prune bool) ([]types.
 }
 
 func (i *ImageBackend) ImageHistory(imageName string) ([]*types.ImageHistory, error) {
+	op := trace.NewOperation(context.Background(), "ImageHistory: %s", imageName)
+	defer trace.End(trace.Begin(imageName, op))
+	op.Auditf("ImageHistory: %s", imageName)
+
 	return nil, errors.APINotSupportedMsg(ProductName(), "ImageHistory")
 }
 
 func (i *ImageBackend) Images(imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("imageFilters: %#v", imageFilters)))
+	op := trace.NewOperation(context.Background(), "Images: %#v", imageFilters)
+	defer trace.End(trace.Begin("", op))
+	op.Auditf("ImageHistory: %#v", imageFilters)
 
 	// validate filters for accuracy and support
 	filterContext, err := vicfilter.ValidateImageFilters(imageFilters, acceptedImageFilterTags, unSupportedImageFilters)
@@ -265,7 +277,9 @@ imageLoop:
 // Docker Inspect.  LookupImage looks up an image by name and returns it as an
 // ImageInspect structure.
 func (i *ImageBackend) LookupImage(name string) (*types.ImageInspect, error) {
-	defer trace.End(trace.Begin("LookupImage (docker inspect)"))
+	op := trace.NewOperation(context.Background(), "LookupImage: %s", name)
+	defer trace.End(trace.Begin(name, op))
+	op.Auditf("LookupImage: %s", name)
 
 	imageConfig, err := cache.ImageCache().Get(name)
 	if err != nil {
@@ -276,6 +290,10 @@ func (i *ImageBackend) LookupImage(name string) (*types.ImageInspect, error) {
 }
 
 func (i *ImageBackend) TagImage(imageName, repository, tag string) error {
+	op := trace.NewOperation(context.Background(), "TagImage: %s", imageName)
+	defer trace.End(trace.Begin(imageName, op))
+	op.Auditf("TagImage: %s", imageName)
+
 	img, err := cache.ImageCache().Get(imageName)
 	if err != nil {
 		return err
@@ -304,23 +322,41 @@ func (i *ImageBackend) TagImage(imageName, repository, tag string) error {
 }
 
 func (i *ImageBackend) ImagesPrune(pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
+	op := trace.NewOperation(context.Background(), "ImagesPrune")
+	defer trace.End(trace.Begin("", op))
+	op.Auditf("ImagesPrune")
+
 	return nil, errors.APINotSupportedMsg(ProductName(), "ImagesPrune")
 }
 
 func (i *ImageBackend) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
+	op := trace.NewOperation(context.Background(), "LoadImage")
+	defer trace.End(trace.Begin("", op))
+	op.Auditf("LoadImage")
+
 	return errors.APINotSupportedMsg(ProductName(), "LoadImage")
 }
 
 func (i *ImageBackend) ImportImage(src string, repository, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
+	op := trace.NewOperation(context.Background(), "ImportImage")
+	defer trace.End(trace.Begin("", op))
+	op.Auditf("ImportImage")
+
 	return errors.APINotSupportedMsg(ProductName(), "ImportImage")
 }
 
 func (i *ImageBackend) ExportImage(names []string, outStream io.Writer) error {
+	op := trace.NewOperation(context.Background(), "ExportImage")
+	defer trace.End(trace.Begin("", op))
+	op.Auditf("ExportImage")
+
 	return errors.APINotSupportedMsg(ProductName(), "ExportImage")
 }
 
 func (i *ImageBackend) PullImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
-	defer trace.End(trace.Begin(""))
+	op := trace.NewOperation(context.Background(), "PullImage: %s", image)
+	defer trace.End(trace.Begin(image, op))
+	op.Auditf("PullImage: %s", image)
 
 	log.Debugf("PullImage: image = %s, tag = %s, metaheaders = %+v\n", image, tag, metaHeaders)
 
@@ -411,10 +447,18 @@ func (i *ImageBackend) PullImage(ctx context.Context, image, tag string, metaHea
 }
 
 func (i *ImageBackend) PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+	op := trace.NewOperation(context.Background(), "PushImage: %s", image)
+	defer trace.End(trace.Begin(image, op))
+	op.Auditf("PushImage: %s", image)
+
 	return errors.APINotSupportedMsg(ProductName(), "PushImage")
 }
 
 func (i *ImageBackend) SearchRegistryForImages(ctx context.Context, filtersArgs string, term string, limit int, authConfig *types.AuthConfig, metaHeaders map[string][]string) (*registry.SearchResults, error) {
+	op := trace.NewOperation(context.Background(), "SearchRegistryForImages")
+	defer trace.End(trace.Begin("", op))
+	op.Auditf("SearchRegistryForImages")
+
 	return nil, errors.APINotSupportedMsg(ProductName(), "SearchRegistryForImages")
 }
 
