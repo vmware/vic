@@ -37,19 +37,14 @@ if [ -d "$pkg" ]; then
         echo "Generating deps for $pkg" >&2
     fi
 
-    if [ -n "$VIC_CACHE_DEPS" ]; then
-        mkdir -p $cache_dir
-        if [ ! -f $cache_dir/$cachedname ]; then
+    mkdir -p $cache_dir
+    # generate the cache if not present or if not using the cached result
+    if [ -z "$VIC_CACHE_DEPS" -o ! -f $cache_dir/$cachedname ]; then
             go list -f '{{join .Deps "\n"}}' github.com/vmware/vic/"$pkg" 2>/dev/null | \
                 xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' 2>/dev/null | \
                 sed -e 's:github.com/vmware/vic/\(.*\)$:\1/*:' > "$cache_dir/$cachedname"
-        fi
-        cat "$cache_dir/$cachedname"
-    else
-        go list -f '{{join .Deps "\n"}}' github.com/vmware/vic/"$pkg" 2>/dev/null | \
-            xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' 2>/dev/null | \
-            sed -e 's:github.com/vmware/vic/\(.*\)$:\1/*:'
     fi
+    cat "$cache_dir/$cachedname"
 else
     if [[ "$flags" == *d* ]]
     then
