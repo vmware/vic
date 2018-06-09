@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/govmomi/simulator"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/trace"
@@ -120,8 +121,10 @@ func testSearchVCHs(ctx context.Context, t *testing.T, v *validate.Validator, ex
 			ref := vm.Reference()
 			svm := simulator.Map.Get(ref).(*simulator.VirtualMachine)
 
+			template := config.VirtualContainerHostConfigSpec{}
+			keys := extraconfig.CalculateKeys(template, "ExecutorConfig.ExecutorConfigCommon.ID", "")
 			svm.Config.ExtraConfig = []types.BaseOptionValue{&types.OptionValue{
-				Key:   extraconfig.DefaultGuestInfoPrefix + "/init/common/id",
+				Key:   keys[0],
 				Value: ref.String(),
 			}}
 		}
