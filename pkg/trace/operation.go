@@ -130,7 +130,7 @@ func (o *Operation) ID() string {
 }
 
 func (o *Operation) Auditf(format string, args ...interface{}) {
-	o.Info(fmt.Sprintf(format, args...))
+	o.Infof(format, args...)
 }
 
 func (o *Operation) Infof(format string, args ...interface{}) {
