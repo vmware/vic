@@ -57,8 +57,7 @@ func (n *NetworkBackend) NetworkControllerEnabled() bool {
 
 func (n *NetworkBackend) FindNetwork(idName string) (libnetwork.Network, error) {
 	op := trace.NewOperation(context.Background(), "FindNetwork: %s", idName)
-	defer trace.End(trace.Begin(idName, op))
-	op.Auditf("FindNetwork: %s", idName)
+	defer trace.End(trace.Audit(idName, op))
 
 	ok, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName(idName))
 	if err != nil {
@@ -79,8 +78,7 @@ func (n *NetworkBackend) FindNetwork(idName string) (libnetwork.Network, error) 
 
 func (n *NetworkBackend) GetNetworkByName(idName string) (libnetwork.Network, error) {
 	op := trace.NewOperation(context.Background(), "GetNetworkByName: %s", idName)
-	defer trace.End(trace.Begin(idName, op))
-	op.Auditf("GetNetworkByName: %s", idName)
+	defer trace.End(trace.Audit(idName, op))
 
 	ok, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName(idName))
 	if err != nil {
@@ -101,8 +99,8 @@ func (n *NetworkBackend) GetNetworkByName(idName string) (libnetwork.Network, er
 
 func (n *NetworkBackend) GetNetworksByID(partialID string) []libnetwork.Network {
 	op := trace.NewOperation(context.Background(), "GetNetworksByID: %s", partialID)
-	defer trace.End(trace.Begin(partialID, op))
-	op.Auditf("GetNetworksByID: %s", partialID)
+	defer trace.End(trace.Audit(partialID, op))
+
 	ok, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName(partialID))
 	if err != nil {
 		return nil
@@ -118,8 +116,8 @@ func (n *NetworkBackend) GetNetworksByID(partialID string) []libnetwork.Network 
 
 func (n *NetworkBackend) GetNetworks() []libnetwork.Network {
 	op := trace.NewOperation(context.Background(), "GetNetworks")
-	defer trace.End(trace.Begin("", op))
-	op.Auditf("GetNetworks")
+	defer trace.End(trace.Audit("", op))
+
 	ok, err := PortLayerClient().Scopes.ListAll(scopes.NewListAllParamsWithContext(ctx))
 	if err != nil {
 		return nil
@@ -136,8 +134,7 @@ func (n *NetworkBackend) GetNetworks() []libnetwork.Network {
 
 func (n *NetworkBackend) CreateNetwork(nc types.NetworkCreateRequest) (*types.NetworkCreateResponse, error) {
 	op := trace.NewOperation(context.Background(), "CreateNetwork: %s", nc.Name)
-	defer trace.End(trace.Begin(nc.Name, op))
-	op.Auditf("CreateNetwork: %s", nc.Name)
+	defer trace.End(trace.Audit(nc.Name, op))
 
 	if nc.IPAM != nil && len(nc.IPAM.Config) > 1 {
 		return nil, fmt.Errorf("at most one ipam config supported")
@@ -314,8 +311,7 @@ func connectContainerToNetwork(containerName, networkName string, endpointConfig
 // in a retry for when there's a conflict error received, such as one during a similar concurrent operation.
 func (n *NetworkBackend) ConnectContainerToNetwork(containerName, networkName string, endpointConfig *apinet.EndpointSettings) error {
 	op := trace.NewOperation(context.Background(), "ConnectContainerToNetwork: %s to %s", containerName, networkName)
-	defer trace.End(trace.Begin(containerName, op))
-	op.Auditf("ConnectContainerToNetwork: %s to %s", containerName, networkName)
+	defer trace.End(trace.Audit(containerName, op))
 
 	vc := cache.ContainerCache().GetContainer(containerName)
 	if vc != nil {
@@ -347,8 +343,7 @@ func (n *NetworkBackend) ConnectContainerToNetwork(containerName, networkName st
 
 func (n *NetworkBackend) DisconnectContainerFromNetwork(containerName, networkName string, force bool) error {
 	op := trace.NewOperation(context.Background(), "DisconnectContainerFromNetwork: %s to %s", containerName, networkName)
-	defer trace.End(trace.Begin(containerName, op))
-	op.Auditf("DisconnectContainerFromNetwork: %s to %s", containerName, networkName)
+	defer trace.End(trace.Audit(containerName, op))
 
 	vc := cache.ContainerCache().GetContainer(containerName)
 	if vc != nil {
@@ -359,8 +354,7 @@ func (n *NetworkBackend) DisconnectContainerFromNetwork(containerName, networkNa
 
 func (n *NetworkBackend) DeleteNetwork(name string) error {
 	op := trace.NewOperation(context.Background(), "DeleteNetwork: %s", name)
-	defer trace.End(trace.Begin(name, op))
-	op.Auditf("DeleteNetwork: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
 	client := PortLayerClient()
 

@@ -92,8 +92,7 @@ func NewSystemBackend() *SystemBackend {
 
 func (s *SystemBackend) SystemInfo() (*types.Info, error) {
 	op := trace.NewOperation(context.Background(), "SystemInfo")
-	defer trace.End(trace.Begin("", op))
-	op.Auditf("SystemInfo")
+	defer trace.End(trace.Audit("", op))
 
 	client := PortLayerClient()
 
@@ -264,8 +263,7 @@ const buildTimeLayout = "2006/01/02@15:04:05"
 
 func (s *SystemBackend) SystemVersion() types.Version {
 	op := trace.NewOperation(context.Background(), "SystemVersion")
-	defer trace.End(trace.Begin("", op))
-	op.Auditf("SystemVersion")
+	defer trace.End(trace.Audit("", op))
 
 	Arch := runtime.GOARCH
 
@@ -320,8 +318,7 @@ func (s *SystemBackend) SystemCPUMhzLimit() (int64, error) {
 
 func (s *SystemBackend) SystemDiskUsage() (*types.DiskUsage, error) {
 	op := trace.NewOperation(context.Background(), "SystemDiskUsage")
-	defer trace.End(trace.Begin("", op))
-	op.Auditf("SystemDiskUsage")
+	defer trace.End(trace.Audit("", op))
 
 	return nil, errors.APINotSupportedMsg(ProductName(), "SystemDiskUsage")
 }
@@ -341,8 +338,7 @@ func (s *SystemBackend) UnsubscribeFromEvents(listener chan interface{}) {
 // AuthenticateToRegistry handles docker logins
 func (s *SystemBackend) AuthenticateToRegistry(ctx context.Context, authConfig *types.AuthConfig) (string, string, error) {
 	op := trace.NewOperation(context.Background(), "AuthenticateToRegistry")
-	defer trace.End(trace.Begin("", op))
-	op.Auditf("AuthenticateToRegistry: %s", authConfig.ServerAddress)
+	defer trace.End(trace.Audit("", op))
 
 	// Only look at V2 registries
 	registryAddress := authConfig.ServerAddress

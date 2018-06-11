@@ -58,8 +58,7 @@ import (
 // The image can optionally be tagged into a repository.
 func (i *ImageBackend) Commit(name string, config *backend.ContainerCommitConfig) (imageID string, err error) {
 	op := trace.NewOperation(context.Background(), "Commit: %s", name)
-	defer trace.End(trace.Begin(name, op))
-	op.Auditf("Commit: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)

@@ -130,6 +130,15 @@ func Begin(msg string, ctx ...context.Context) *Message {
 	return nil
 }
 
+// Audit is a wrapper around Begin which logs an Audit message after
+func Audit(msg string, op Operation) *Message {
+	m := Begin(msg, op)
+	if len(op.t) > 0 { // We expect an operation to always have at least one frame, but check for safety
+		op.Auditf(op.t[0].msg)
+	}
+	return m
+}
+
 // End ends the trace.
 func End(t *Message) {
 	if t == nil {

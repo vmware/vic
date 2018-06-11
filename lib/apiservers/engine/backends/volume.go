@@ -67,8 +67,7 @@ func NewVolumeBackend() *VolumeBackend {
 // Volumes docker personality implementation for VIC
 func (v *VolumeBackend) Volumes(filter string) ([]*types.Volume, []string, error) {
 	op := trace.NewOperation(context.Background(), "Volumes")
-	defer trace.End(trace.Begin("", op))
-	op.Auditf("Volumes")
+	defer trace.End(trace.Audit("", op))
 
 	var volumes []*types.Volume
 
@@ -129,8 +128,7 @@ func (v *VolumeBackend) Volumes(filter string) ([]*types.Volume, []string, error
 // VolumeInspect : docker personality implementation for VIC
 func (v *VolumeBackend) VolumeInspect(name string) (*types.Volume, error) {
 	op := trace.NewOperation(context.Background(), "VolumeInspect: %s", name)
-	defer trace.End(trace.Begin(name, op))
-	op.Auditf("VolumeInspect: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
 	volInfo, err := v.storageProxy.VolumeInfo(context.Background(), name)
 	if err != nil {
@@ -149,8 +147,7 @@ func (v *VolumeBackend) VolumeInspect(name string) (*types.Volume, error) {
 // VolumeCreate : docker personality implementation for VIC
 func (v *VolumeBackend) VolumeCreate(name, driverName string, volumeData, labels map[string]string) (*types.Volume, error) {
 	op := trace.NewOperation(context.Background(), "VolumeCreate: %s", name)
-	defer trace.End(trace.Begin(name, op))
-	op.Auditf("VolumeCreate: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
 	result, err := v.storageProxy.Create(context.Background(), name, driverName, volumeData, labels)
 	if err != nil {
@@ -163,8 +160,7 @@ func (v *VolumeBackend) VolumeCreate(name, driverName string, volumeData, labels
 // VolumeRm : docker personality for VIC
 func (v *VolumeBackend) VolumeRm(name string, force bool) error {
 	op := trace.NewOperation(context.Background(), "VolumeRm: %s", name)
-	defer trace.End(trace.Begin(name, op))
-	op.Auditf("VolumeRm: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
 	err := v.storageProxy.Remove(context.Background(), name)
 	if err != nil {
@@ -176,8 +172,7 @@ func (v *VolumeBackend) VolumeRm(name string, force bool) error {
 
 func (v *VolumeBackend) VolumesPrune(pruneFilters filters.Args) (*types.VolumesPruneReport, error) {
 	op := trace.NewOperation(context.Background(), "VolumesPrune")
-	defer trace.End(trace.Begin("", op))
-	op.Auditf("VolumesPrune")
+	defer trace.End(trace.Audit("", op))
 
 	return nil, errors.APINotSupportedMsg(ProductName(), "VolumesPrune")
 }
