@@ -170,7 +170,14 @@ const (
 	defaultEnvPath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 )
 
+// All the API entry points create an Operation and log a message at INFO
+// Level, this is done so that the Operation can be tracked as it moves
+// through the server and propagates to the portlayer
+
 func (c *ContainerBackend) Handle(id, name string) (string, error) {
+	op := trace.NewOperation(context.Background(), "Handle: %s", name)
+	defer trace.End(trace.Begin(name, op))
+
 	handle, err := c.containerProxy.Handle(context.Background(), id, name)
 	if err != nil {
 		if engerr.IsNotFoundError(err) {
@@ -185,8 +192,8 @@ func (c *ContainerBackend) Handle(id, name string) (string, error) {
 
 // ContainerExecCreate sets up an exec in a running container.
 func (c *ContainerBackend) ContainerExecCreate(name string, config *types.ExecConfig) (string, error) {
-	op := trace.NewOperation(context.TODO(), "")
-	defer trace.End(trace.Begin(fmt.Sprintf("%s: name=(%s)", op, name)))
+	op := trace.NewOperation(context.Background(), "ContainerExecCreate: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -264,8 +271,8 @@ func (c *ContainerBackend) ContainerExecCreate(name string, config *types.ExecCo
 // ContainerExecInspect returns low-level information about the exec
 // command. An error is returned if the exec cannot be found.
 func (c *ContainerBackend) ContainerExecInspect(eid string) (*backend.ExecInspect, error) {
-	op := trace.NewOperation(context.TODO(), "")
-	defer trace.End(trace.Begin(fmt.Sprintf("opID=(%s) eid=(%s)", op, eid)))
+	op := trace.NewOperation(context.Background(), "ContainerExecInspect: %s", eid)
+	defer trace.End(trace.Audit(eid, op))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainerFromExec(eid)
@@ -314,7 +321,8 @@ func (c *ContainerBackend) ContainerExecInspect(eid string) (*backend.ExecInspec
 // running in the exec with the given name to the given height and
 // width.
 func (c *ContainerBackend) ContainerExecResize(eid string, height, width int) error {
-	defer trace.End(trace.Begin(eid))
+	op := trace.NewOperation(context.Background(), "ContainerExecResize: %s", eid)
+	defer trace.End(trace.Audit(eid, op))
 
 	// Look up the container eid in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainerFromExec(eid)
@@ -482,8 +490,8 @@ func (c *ContainerBackend) taskStateWaitHelper(op trace.Operation, id, eid, name
 // ContainerExecStart starts a previously set up exec instance. The
 // std streams are set up.
 func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, stdin io.ReadCloser, stdout, stderr io.Writer) error {
-	op := trace.FromContext(ctx, "exec start")
-	defer trace.End(trace.Begin("", op))
+	op := trace.FromContext(ctx, "ContainerExecStart: %s", eid)
+	defer trace.End(trace.Audit(eid, op))
 
 	// 0. start task (with retry)
 	// 1. If attaching, start attach logic (background)
@@ -620,7 +628,8 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 // ExecExists looks up the exec instance and returns a bool if it exists or not.
 // It will also return the error produced by `getConfig`
 func (c *ContainerBackend) ExecExists(eid string) (bool, error) {
-	defer trace.End(trace.Begin(eid))
+	op := trace.NewOperation(context.Background(), "ExecExists: %s", eid)
+	defer trace.End(trace.Audit(eid, op))
 
 	vc := cache.ContainerCache().GetContainerFromExec(eid)
 	if vc == nil {
@@ -631,7 +640,8 @@ func (c *ContainerBackend) ExecExists(eid string) (bool, error) {
 
 // ContainerCreate creates a container.
 func (c *ContainerBackend) ContainerCreate(config types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
-	defer trace.End(trace.Begin(""))
+	op := trace.NewOperation(context.Background(), "ContainerCreate: %s", config.Name)
+	defer trace.End(trace.Audit(config.Name, op))
 
 	var err error
 
@@ -759,7 +769,8 @@ func (c *ContainerBackend) containerCreate(vc *viccontainer.VicContainer, config
 // for the container to exit.
 // If a signal is given, then just send it to the container and return.
 func (c *ContainerBackend) ContainerKill(name string, sig uint64) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("%s, %d", name, sig)))
+	op := trace.NewOperation(context.Background(), "ContainerKill: %s, sig: %d", name, sig)
+	defer trace.End(trace.Audit(name, op))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -780,13 +791,17 @@ func (c *ContainerBackend) ContainerKill(name string, sig uint64) error {
 
 // ContainerPause pauses a container
 func (c *ContainerBackend) ContainerPause(name string) error {
+	op := trace.NewOperation(context.Background(), "ContainerPause: %s", name)
+	defer trace.End(trace.Audit(name, op))
+
 	return engerr.APINotSupportedMsg(ProductName(), "ContainerPause")
 }
 
 // ContainerResize changes the size of the TTY of the process running
 // in the container with the given name to the given height and width.
 func (c *ContainerBackend) ContainerResize(name string, height, width int) error {
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "ContainerResize: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -818,8 +833,8 @@ func (c *ContainerBackend) ContainerResize(name string, height, width int) error
 // stop. Returns an error if the container cannot be found, or if
 // there is an underlying error at any stage of the restart.
 func (c *ContainerBackend) ContainerRestart(name string, seconds *int) error {
-	op := trace.NewOperation(context.Background(), "ContainerRestart - %s", name)
-	defer trace.End(trace.Begin(name, op))
+	op := trace.NewOperation(context.Background(), "ContainerRestart: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
 	// Look up the container name in the metadata cache ot get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -852,7 +867,8 @@ func (c *ContainerBackend) ContainerRestart(name string, seconds *int) error {
 // fails. If the remove succeeds, the container name is released, and
 // vicnetwork links are removed.
 func (c *ContainerBackend) ContainerRm(name string, config *types.ContainerRmConfig) error {
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "ContainerRm: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -967,8 +983,8 @@ func (c *ContainerBackend) cleanupPortBindings(vc *viccontainer.VicContainer) er
 
 // ContainerStart starts a container.
 func (c *ContainerBackend) ContainerStart(name string, hostConfig *containertypes.HostConfig, checkpoint string, checkpointDir string) error {
-	op := trace.NewOperation(context.Background(), "ContainerStart - %s", name)
-	defer trace.End(trace.Begin(name, op))
+	op := trace.NewOperation(context.Background(), "ContainerStart: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
 	operation := func() error {
 		return c.containerStart(op, name, hostConfig, true)
@@ -1175,7 +1191,8 @@ func (c *ContainerBackend) findPortBoundNetworkEndpoint(hostconfig *containertyp
 // container is not found, is already stopped, or if there is a
 // problem stopping the container.
 func (c *ContainerBackend) ContainerStop(name string, seconds *int) error {
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "ContainerStop: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -1209,11 +1226,17 @@ func (c *ContainerBackend) ContainerStop(name string, seconds *int) error {
 
 // ContainerUnpause unpauses a container
 func (c *ContainerBackend) ContainerUnpause(name string) error {
+	op := trace.NewOperation(context.Background(), "ContainerUnpause: %s", name)
+	defer trace.End(trace.Audit(name, op))
+
 	return engerr.APINotSupportedMsg(ProductName(), "ContainerUnpause")
 }
 
 // ContainerUpdate updates configuration of the container
 func (c *ContainerBackend) ContainerUpdate(name string, hostConfig *containertypes.HostConfig) (containertypes.ContainerUpdateOKBody, error) {
+	op := trace.NewOperation(context.Background(), "ContainerUpdate: %s", name)
+	defer trace.End(trace.Audit(name, op))
+
 	return containertypes.ContainerUpdateOKBody{}, engerr.APINotSupportedMsg(ProductName(), "ContainerUpdate")
 }
 
@@ -1223,7 +1246,8 @@ func (c *ContainerBackend) ContainerUpdate(name string, hostConfig *containertyp
 // timeout, an error is returned. If you want to wait forever, supply
 // a negative duration for the timeout.
 func (c *ContainerBackend) ContainerWait(name string, timeout time.Duration) (int, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("name(%s):timeout(%s)", name, timeout)))
+	op := trace.NewOperation(context.Background(), "ContainerWait: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -1243,8 +1267,8 @@ func (c *ContainerBackend) ContainerWait(name string, timeout time.Duration) (in
 
 // ContainerChanges returns a list of container fs changes
 func (c *ContainerBackend) ContainerChanges(name string) ([]docker.Change, error) {
-	defer trace.End(trace.Begin(name))
 	op := trace.NewOperation(context.Background(), "ContainerChanges: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
@@ -1296,6 +1320,8 @@ func (c *ContainerBackend) ContainerChanges(name string) ([]docker.Change, error
 // GetContainerChanges returns container changes from portlayer.
 // Set data to true will return file data, otherwise, only return file headers with change type.
 func (c *ContainerBackend) GetContainerChanges(op trace.Operation, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error) {
+	defer trace.End(trace.Begin("", op))
+
 	host, err := sys.UUID()
 	if err != nil {
 		return nil, engerr.InternalServerError("Failed to determine host UUID")
@@ -1319,8 +1345,8 @@ func (c *ContainerBackend) GetContainerChanges(op trace.Operation, vc *viccontai
 // container. Returns an error if the container cannot be found, or if
 // there is an error getting the data.
 func (c *ContainerBackend) ContainerInspect(name string, size bool, version string) (interface{}, error) {
-	// Ignore version.  We're supporting post-1.20 version.
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "ContainerInspect: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -1359,7 +1385,8 @@ func (c *ContainerBackend) ContainerInspect(name string, size bool, version stri
 // ContainerLogs hooks up a container's stdout and stderr streams
 // configured with the given struct.
 func (c *ContainerBackend) ContainerLogs(ctx context.Context, name string, config *backend.ContainerLogsConfig, started chan struct{}) error {
-	defer trace.End(trace.Begin(""))
+	op := trace.FromContext(ctx, "ContainerLogs: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -1400,7 +1427,8 @@ func (c *ContainerBackend) ContainerLogs(ctx context.Context, name string, confi
 // ContainerStats writes information about the container to the stream
 // given in the config object.
 func (c *ContainerBackend) ContainerStats(ctx context.Context, name string, config *backend.ContainerStatsConfig) error {
-	defer trace.End(trace.Begin(name))
+	op := trace.FromContext(ctx, "ContainerStats: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -1458,12 +1486,16 @@ func (c *ContainerBackend) ContainerStats(ctx context.Context, name string, conf
 // is not found, or is not running, or if there are any problems
 // running ps, or parsing the output.
 func (c *ContainerBackend) ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error) {
+	op := trace.NewOperation(context.Background(), "ContainerTop: %s", name)
+	defer trace.End(trace.Audit(name, op))
+
 	return nil, engerr.APINotSupportedMsg(ProductName(), "ContainerTop")
 }
 
 // Containers returns the list of containers to show given the user's filtering.
 func (c *ContainerBackend) Containers(config *types.ContainerListOptions) ([]*types.Container, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("ListOptions %#v", config)))
+	op := trace.NewOperation(context.Background(), "Containers")
+	defer trace.End(trace.Audit("", op))
 
 	// validate filters for support and validity
 	listContext, err := filter.ValidateContainerFilters(config, acceptedPsFilterTags, unSupportedPsFilters)
@@ -1586,6 +1618,9 @@ payloadLoop:
 }
 
 func (c *ContainerBackend) ContainersPrune(pruneFilters filters.Args) (*types.ContainersPruneReport, error) {
+	op := trace.NewOperation(context.Background(), "ContainersPrune")
+	defer trace.End(trace.Audit("", op))
+
 	return nil, engerr.APINotSupportedMsg(ProductName(), "ContainersPrune")
 }
 
@@ -1593,8 +1628,8 @@ func (c *ContainerBackend) ContainersPrune(pruneFilters filters.Args) (*types.Co
 
 // ContainerAttach attaches to logs according to the config passed in. See ContainerAttachConfig.
 func (c *ContainerBackend) ContainerAttach(name string, ca *backend.ContainerAttachConfig) error {
-	op := trace.FromContext(context.Background(), "container Attach")
-	defer trace.End(trace.Begin(name, op))
+	op := trace.NewOperation(context.Background(), "ContainerAttach: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
 	operation := func() error {
 		return c.containerAttach(&op, name, ca)
@@ -1682,7 +1717,8 @@ func (c *ContainerBackend) containerAttach(op *trace.Operation, name string, ca 
 // to find the container. An error is returned if newName is already
 // reserved.
 func (c *ContainerBackend) ContainerRename(oldName, newName string) error {
-	defer trace.End(trace.Begin(newName))
+	op := trace.NewOperation(context.Background(), "Container Rename: %s -> %s", oldName, newName)
+	defer trace.End(trace.Audit("", op))
 
 	if oldName == "" || newName == "" {
 		err := fmt.Errorf("neither old nor new names may be empty")

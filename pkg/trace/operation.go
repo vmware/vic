@@ -129,6 +129,10 @@ func (o *Operation) ID() string {
 	return o.id
 }
 
+func (o *Operation) Auditf(format string, args ...interface{}) {
+	o.Infof(format, args...)
+}
+
 func (o *Operation) Infof(format string, args ...interface{}) {
 	o.Info(fmt.Sprintf(format, args...))
 }

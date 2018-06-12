@@ -15,6 +15,7 @@
 package backends
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -40,6 +41,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/pkg/retry"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 type NetworkBackend struct {
@@ -54,6 +56,9 @@ func (n *NetworkBackend) NetworkControllerEnabled() bool {
 }
 
 func (n *NetworkBackend) FindNetwork(idName string) (libnetwork.Network, error) {
+	op := trace.NewOperation(context.Background(), "FindNetwork: %s", idName)
+	defer trace.End(trace.Audit(idName, op))
+
 	ok, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName(idName))
 	if err != nil {
 		switch err := err.(type) {
@@ -72,6 +77,9 @@ func (n *NetworkBackend) FindNetwork(idName string) (libnetwork.Network, error) 
 }
 
 func (n *NetworkBackend) GetNetworkByName(idName string) (libnetwork.Network, error) {
+	op := trace.NewOperation(context.Background(), "GetNetworkByName: %s", idName)
+	defer trace.End(trace.Audit(idName, op))
+
 	ok, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName(idName))
 	if err != nil {
 		switch err := err.(type) {
@@ -90,6 +98,9 @@ func (n *NetworkBackend) GetNetworkByName(idName string) (libnetwork.Network, er
 }
 
 func (n *NetworkBackend) GetNetworksByID(partialID string) []libnetwork.Network {
+	op := trace.NewOperation(context.Background(), "GetNetworksByID: %s", partialID)
+	defer trace.End(trace.Audit(partialID, op))
+
 	ok, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName(partialID))
 	if err != nil {
 		return nil
@@ -104,6 +115,9 @@ func (n *NetworkBackend) GetNetworksByID(partialID string) []libnetwork.Network 
 }
 
 func (n *NetworkBackend) GetNetworks() []libnetwork.Network {
+	op := trace.NewOperation(context.Background(), "GetNetworks")
+	defer trace.End(trace.Audit("", op))
+
 	ok, err := PortLayerClient().Scopes.ListAll(scopes.NewListAllParamsWithContext(ctx))
 	if err != nil {
 		return nil
@@ -119,6 +133,9 @@ func (n *NetworkBackend) GetNetworks() []libnetwork.Network {
 }
 
 func (n *NetworkBackend) CreateNetwork(nc types.NetworkCreateRequest) (*types.NetworkCreateResponse, error) {
+	op := trace.NewOperation(context.Background(), "CreateNetwork: %s", nc.Name)
+	defer trace.End(trace.Audit(nc.Name, op))
+
 	if nc.IPAM != nil && len(nc.IPAM.Config) > 1 {
 		return nil, fmt.Errorf("at most one ipam config supported")
 	}
@@ -293,6 +310,9 @@ func connectContainerToNetwork(containerName, networkName string, endpointConfig
 // ConnectContainerToNetwork connects a container to a container vicnetwork. It wraps the portlayer operations
 // in a retry for when there's a conflict error received, such as one during a similar concurrent operation.
 func (n *NetworkBackend) ConnectContainerToNetwork(containerName, networkName string, endpointConfig *apinet.EndpointSettings) error {
+	op := trace.NewOperation(context.Background(), "ConnectContainerToNetwork: %s to %s", containerName, networkName)
+	defer trace.End(trace.Audit(containerName, op))
+
 	vc := cache.ContainerCache().GetContainer(containerName)
 	if vc != nil {
 		containerName = vc.ContainerID
@@ -321,7 +341,10 @@ func (n *NetworkBackend) ConnectContainerToNetwork(containerName, networkName st
 	return nil
 }
 
-func (n *NetworkBackend) DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error {
+func (n *NetworkBackend) DisconnectContainerFromNetwork(containerName, networkName string, force bool) error {
+	op := trace.NewOperation(context.Background(), "DisconnectContainerFromNetwork: %s to %s", containerName, networkName)
+	defer trace.End(trace.Audit(containerName, op))
+
 	vc := cache.ContainerCache().GetContainer(containerName)
 	if vc != nil {
 		containerName = vc.ContainerID
@@ -330,6 +353,9 @@ func (n *NetworkBackend) DisconnectContainerFromNetwork(containerName string, ne
 }
 
 func (n *NetworkBackend) DeleteNetwork(name string) error {
+	op := trace.NewOperation(context.Background(), "DeleteNetwork: %s", name)
+	defer trace.End(trace.Audit(name, op))
+
 	client := PortLayerClient()
 
 	if _, err := client.Scopes.DeleteScope(scopes.NewDeleteScopeParamsWithContext(ctx).WithIDName(name)); err != nil {

@@ -57,8 +57,9 @@ import (
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository.
 func (i *ImageBackend) Commit(name string, config *backend.ContainerCommitConfig) (imageID string, err error) {
-	defer trace.End(trace.Begin(name))
-	op := trace.NewOperation(context.Background(), "Commit")
+	op := trace.NewOperation(context.Background(), "Commit: %s", name)
+	defer trace.End(trace.Audit(name, op))
+
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
