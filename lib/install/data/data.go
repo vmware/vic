@@ -90,6 +90,10 @@ type SyslogConfig struct {
 	Tag  string
 }
 
+func (s *SyslogConfig) IsSet() bool {
+	return s.Addr != nil
+}
+
 // NetworkConfig is used to set IP addr for each network
 type NetworkConfig struct {
 	Name         string `cmd:"parent"`
