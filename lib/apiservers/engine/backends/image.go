@@ -128,7 +128,7 @@ func (i *ImageBackend) ImageDelete(imageRef string, force, prune bool) ([]types.
 			keepNodes[idx] = imgURL.String()
 		}
 
-		params := storage.NewDeleteImageParamsWithContext(ctx).WithStoreName(storeName).WithID(img.ID).WithKeepNodes(keepNodes)
+		params := storage.NewDeleteImageParamsWithContext(op).WithStoreName(storeName).WithID(img.ID).WithKeepNodes(keepNodes)
 		// TODO: This will fail if any containerVMs are referencing the vmdk - vanilla docker
 		// allows the removal of an image (via force flag) even if a container is referencing it
 		// should vic?

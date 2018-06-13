@@ -93,7 +93,7 @@ func (v *VolumeBackend) Volumes(filter string) ([]*types.Volume, []string, error
 	joinedVolumes := make(map[string]struct{})
 	if volumeFilters.Include("dangling") {
 		// If the dangling filter is specified, gather required items beforehand
-		joinedVolumes, err = fetchJoinedVolumes()
+		joinedVolumes, err = fetchJoinedVolumes(op)
 		if err != nil {
 			return nil, nil, errors.VolumeInternalServerError(err)
 		}
@@ -192,8 +192,8 @@ func NewVolumeModel(volume *models.VolumeResponse, labels map[string]string) *ty
 
 // fetchJoinedVolumes obtains all containers from the portlayer and returns a map with all
 // volumes that are joined to at least one container.
-func fetchJoinedVolumes() (map[string]struct{}, error) {
-	conts, err := allContainers()
+func fetchJoinedVolumes(op trace.Operation) (map[string]struct{}, error) {
+	conts, err := allContainers(op)
 	if err != nil {
 		return nil, errors.VolumeInternalServerError(err)
 	}
@@ -210,14 +210,14 @@ func fetchJoinedVolumes() (map[string]struct{}, error) {
 }
 
 // allContainers obtains all containers from the portlayer, akin to `docker ps -a`.
-func allContainers() ([]*models.ContainerInfo, error) {
+func allContainers(op trace.Operation) ([]*models.ContainerInfo, error) {
 	client := PortLayerClient()
 	if client == nil {
 		return nil, errors.NillPortlayerClientError("Volume Backend")
 	}
 
 	all := true
-	cons, err := client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(ctx).WithAll(&all))
+	cons, err := client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(op).WithAll(&all))
 	if err != nil {
 		return nil, err
 	}

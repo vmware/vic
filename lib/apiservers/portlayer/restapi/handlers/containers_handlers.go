@@ -77,13 +77,13 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 
 // CreateHandler creates a new container
 func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreateParams) middleware.Responder {
-	id := uid.New().String()
-	defer trace.End(trace.Begin(id))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "containers.CreateHandler(%s)", params.CreateConfig.Name)
+	defer trace.End(trace.Begin("CreateHandler", op))
 
 	var err error
 
 	session := handler.handlerCtx.Session
-	ctx := context.Background()
+	id := uid.New().String()
 
 	// Init key for tether
 	// #nosec: RSA keys should be at least 2048 bits
@@ -131,7 +131,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		},
 	}
 
-	h, err := exec.Create(ctx, session, c)
+	h, err := exec.Create(op, session, c)
 	if err != nil {
 		log.Errorf("ContainerCreate error: %s", err.Error())
 		return containers.NewCreateNotFound().WithPayload(&models.Error{Message: err.Error()})
@@ -143,7 +143,8 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 
 // StateChangeHandler changes the state of a container
 func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.StateChangeParams) middleware.Responder {
-	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", params.Handle)))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "containers.StateChangeHandler(%s, %s)", params.Handle, params.State)
+	defer trace.End(trace.Begin("CreateHandler", op))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
@@ -171,7 +172,8 @@ func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.Stat
 // state data can be used for making decisions. The handle used contains a changeVersion that will protect against
 // underlying state changes if attempting to apply modifications.
 func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStateParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), "get state from handle: %s", params.Handle)
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "containers.GetStateHandler(%s)", params.Handle)
+	defer trace.End(trace.Begin("GetStateHandler", op))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil || h.ExecConfig == nil {
@@ -197,7 +199,8 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 }
 
 func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) middleware.Responder {
-	defer trace.End(trace.Begin(params.ID))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "containers.GetHandler(%s)", params.ID)
+	defer trace.End(trace.Begin("GetHandler", op))
 
 	h := exec.GetContainer(context.Background(), uid.Parse(params.ID))
 	if h == nil {
@@ -208,8 +211,8 @@ func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) m
 }
 
 func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), fmt.Sprintf("commit handle(%s)", params.Handle))
-	defer trace.End(trace.Begin(fmt.Sprintf("commit handle(%s)", params.Handle), op))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "containers.CommitHandler(%s)", params.Handle)
+	defer trace.End(trace.Begin("CommitHandler", op))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
@@ -232,8 +235,8 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 }
 
 func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.ContainerRemoveParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), params.ID)
-	defer trace.End(trace.Begin(params.ID, op))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "containers.RemoveContainerHandler(%s)", params.ID)
+	defer trace.End(trace.Begin("RemoveContainerHandler", op))
 
 	// get the indicated container for removal
 	container := exec.Containers.Container(params.ID)
@@ -265,8 +268,8 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 }
 
 func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers.GetContainerInfoParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), params.ID)
-	defer trace.End(trace.Begin(params.ID, op))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "containers.GetContainerInfoHandler(%s)", params.ID)
+	defer trace.End(trace.Begin("GetContainerInfoHandler", op))
 
 	container := exec.Containers.Container(params.ID)
 	if container == nil {
@@ -291,7 +294,8 @@ func (r containerByCreated) Less(i, j int) bool {
 }
 
 func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers.GetContainerListParams) middleware.Responder {
-	defer trace.End(trace.Begin(""))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "containers.GetContainerListHandler()")
+	defer trace.End(trace.Begin("GetContainerListHandler", op))
 
 	var states []exec.State
 	var include func(*models.ContainerInfo) bool
@@ -323,8 +327,8 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 }
 
 func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), params.ID)
-	defer trace.End(trace.Begin(params.ID, op))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "containers.ContainerSignalHandler(%s)", params.ID)
+	defer trace.End(trace.Begin("ContainerSignalHandler", op))
 
 	// NOTE: I feel that this should be in a Commit path for consistency
 	// it would allow phrasings such as:
@@ -345,7 +349,8 @@ func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.
 }
 
 func (handler *ContainersHandlersImpl) GetContainerStatsHandler(params containers.GetContainerStatsParams) middleware.Responder {
-	defer trace.End(trace.Begin(params.ID))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "containers.GetContainerStatsHandler(%s)", params.ID)
+	defer trace.End(trace.Begin("GetContainerStatsHandler", op))
 
 	c := exec.Containers.Container(params.ID)
 	if c == nil {
@@ -399,8 +404,8 @@ func (handler *ContainersHandlersImpl) GetContainerStatsHandler(params container
 }
 
 func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers.GetContainerLogsParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), "Getting logs for %s", params.ID)
-	defer trace.End(trace.Begin(params.ID, op))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "containers.GetContainerLogsHandler(%s)", params.ID)
+	defer trace.End(trace.Begin("GetContainerLogsHandler", op))
 
 	container := exec.Containers.Container(params.ID)
 	if container == nil {
@@ -446,7 +451,8 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 }
 
 func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.ContainerWaitParams) middleware.Responder {
-	defer trace.End(trace.Begin(fmt.Sprintf("%s:%d", params.ID, params.Timeout)))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "containers.ContainerWaitHandler(%s, %d)", params.ID, params.Timeout)
+	defer trace.End(trace.Begin("ContainerWaitHandler", op))
 
 	// default context timeout in seconds
 	defaultTimeout := int64(containerWaitTimeout.Seconds())
@@ -458,7 +464,7 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 
 	timeout := time.Duration(defaultTimeout) * time.Second
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(op, timeout)
 	defer cancel()
 
 	c := exec.Containers.Container(uid.Parse(params.ID).String())
@@ -481,7 +487,8 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 }
 
 func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.ContainerRenameParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), "Rename container to %s", params.Name)
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "containers.RenameContainerHandler(%s, %s)", params.Handle, params.Name)
+	defer trace.End(trace.Begin("RenameContainerHandler", op))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil || h.ExecConfig == nil {

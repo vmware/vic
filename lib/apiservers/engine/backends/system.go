@@ -168,7 +168,7 @@ func (s *SystemBackend) SystemInfo() (*types.Info, error) {
 	info.SystemStatus = make([][2]string, 0)
 
 	// Add in volume label from the VCH via guestinfo
-	volumeStoreString, err := FetchVolumeStores(client)
+	volumeStoreString, err := FetchVolumeStores(op, client)
 	if err != nil {
 		log.Infof("Unable to get the volume store list from the portlayer : %s", err.Error())
 	} else {
@@ -443,9 +443,9 @@ func getImageCount() int {
 	return len(images)
 }
 
-func FetchVolumeStores(client *client.PortLayer) (string, error) {
+func FetchVolumeStores(op trace.Operation, client *client.PortLayer) (string, error) {
 
-	res, err := client.Storage.VolumeStoresList(storage.NewVolumeStoresListParamsWithContext(ctx))
+	res, err := client.Storage.VolumeStoresList(storage.NewVolumeStoresListParamsWithContext(op))
 	if err != nil {
 		return "", err
 	}
