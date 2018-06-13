@@ -17,8 +17,12 @@ package handlers
 import (
 	"github.com/go-openapi/runtime/middleware"
 
+	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/mo"
+
 	"github.com/vmware/vic/lib/apiservers/service/models"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/client"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/encode"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/errors"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/target"
 	"github.com/vmware/vic/lib/apiservers/service/restapi/operations"
@@ -128,6 +132,8 @@ func (h *vchListGet) vchsToModels(op trace.Operation, c *client.HandlerClient, v
 			PowerState:  string(powerState),
 		}
 
+		model.Parent = h.parent(op, vch)
+
 		version := vchConfig.Version
 		if version != nil {
 			model.Version = version.ShortVersion()
@@ -138,4 +144,27 @@ func (h *vchListGet) vchsToModels(op trace.Operation, c *client.HandlerClient, v
 	}
 
 	return payload
+}
+
+func (h *vchListGet) parent(op trace.Operation, vch *vm.VirtualMachine) *models.ManagedObject {
+	id := vch.Reference().Value
+
+	var mvm mo.VirtualMachine
+	if err := vch.Properties(op, vch.Reference(), []string{"parentVApp", "resourcePool"}, &mvm); err != nil {
+		op.Debugf("Failed to get parent of VCH %s: %s", id, err)
+		return nil
+	}
+	if mvm.ParentVApp != nil {
+		op.Debugf("VCH %s has vApp parent, omitting", id)
+		return nil
+	}
+
+	if mvm.ResourcePool == nil {
+		op.Debugf("VCH %s does not have a resource pool, omitting", id)
+		return nil
+	}
+
+	rp := object.NewResourcePool(vch.Common.Client(), *mvm.ResourcePool)
+	mo := encode.AsManagedObject(rp)
+	return &mo
 }

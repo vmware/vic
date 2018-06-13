@@ -864,6 +864,9 @@
         "name": {
           "type": "string"
         },
+        "parent": {
+          "$ref": "#/definitions/Managed_Object"
+        },
         "version": {
           "type": "string"
         },
