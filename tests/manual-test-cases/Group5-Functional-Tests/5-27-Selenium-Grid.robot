@@ -24,7 +24,7 @@ Selenium Grid Test Setup
     Log To Console  Starting testbed deployment...
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${name}=  Evaluate  'vic-5-27-' + str(random.randint(1000,9999))  modules=random
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-iscsi-cluster --testbedSpecRubyFile /dbc/pa-dbc1111/mhagen/nimbus-testbeds/testbeds/vic-iscsi-cluster.rb --runName ${name}
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  spec=vic-iscsi-cluster.rb  args=--noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-iscsi-cluster --runName ${name}
     Log  ${out}
 
     Open Connection  %{NIMBUS_GW}
@@ -71,7 +71,6 @@ Wait Until Selenium Node Is Ready
 *** Test Cases ***    
 Test
     Log To Console  Starting Selenium Grid test...
-    Custom Testbed Keepalive  /dbc/pa-dbc1111/mhagen
 
     Install VIC Appliance To Test Server
 
