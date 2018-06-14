@@ -39,7 +39,7 @@ echo "Number of runs since $sprint_start which are still pending: $pending"
 
 echo "Current vmware/vic CI passrate: $passrate (of completed)"
 if [ $complete -eq 0 ]; then
-    curl --max-time 10 --retry 3 -s --data-urlencode "payload={'channel': '#vic-bots', 'text': 'Current <https://github.com/vmware/vic|vmware/vic> CI passrate: $passrate% (of $complete completed this sprint)'}" "$SLACK_URL"
+    curl --max-time 10 --retry 3 -s --data-urlencode "payload={'channel': '#notifications', 'text': 'Current <https://github.com/vmware/vic|vmware/vic> CI passrate: $passrate% (of $complete completed this sprint)'}" "$SLACK_URL"
 else
-    curl --max-time 10 --retry 3 -s --data-urlencode "payload={'channel': '#vic-bots', 'attachments':[{'text': 'Current <https://github.com/vmware/vic|vmware/vic> CI passrate: $passrate% (of $complete completed this sprint)', 'image_url': 'http://chart.googleapis.com/chart?cht=p&chs=250x150&chco=dc3912|109618|3366cc&chl=failure|success|pending&chd=t:$failures,$successes,$pending', 'footer':'pass-rate.sh'}]}" "$SLACK_URL"
+    curl --max-time 10 --retry 3 -s --data-urlencode "payload={'channel': '#notifications', 'attachments':[{'text': 'Current <https://github.com/vmware/vic|vmware/vic> CI passrate: $passrate% (of $complete completed this sprint)', 'image_url': 'http://chart.googleapis.com/chart?cht=p&chs=250x150&chco=dc3912|109618|3366cc&chl=failure|success|pending&chd=t:$failures,$successes,$pending', 'footer':'pass-rate.sh'}]}" "$SLACK_URL"
 fi
