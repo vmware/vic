@@ -126,8 +126,6 @@ var (
 		scope string
 	}
 
-	ctx = context.TODO()
-
 	// allow mocking
 	randomName = namesgenerator.GetRandomName
 )
@@ -335,7 +333,7 @@ func (c *ContainerBackend) ContainerExecResize(eid string, height, width int) er
 	plWidth := int32(width)
 
 	var err error
-	if err = c.containerProxy.Resize(ctx, eid, plHeight, plWidth); err == nil {
+	if err = c.containerProxy.Resize(op, eid, plHeight, plWidth); err == nil {
 		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{
 			"height": fmt.Sprintf("%d", height),
 			"width":  fmt.Sprintf("%d", width),
@@ -429,14 +427,14 @@ func (c *ContainerBackend) taskStartHelper(op trace.Operation, id, eid, name str
 	// exec doesn't have separate attach path so we will decide whether we need interaction/runblocking or not
 	attach := ec.OpenStdin || ec.OpenStdout || ec.OpenStderr
 	if attach {
-		handle, err = c.containerProxy.BindInteraction(ctx, handle, name, eid)
+		handle, err = c.containerProxy.BindInteraction(op, handle, name, eid)
 		if err != nil {
 			op.Errorf("Failed to initiate interactivity during exec start for container(%s) due to error: %s", id, err)
 			return nil, err
 		}
 	}
 
-	if err := c.containerProxy.CommitContainerHandle(ctx, handle, name, 0); err != nil {
+	if err := c.containerProxy.CommitContainerHandle(op, handle, name, 0); err != nil {
 		op.Errorf("Failed to commit handle for container(%s) due to error: %s", id, err)
 		return nil, err
 	}
@@ -692,7 +690,7 @@ func (c *ContainerBackend) ContainerCreate(config types.ContainerCreateConfig) (
 	}
 
 	// Create an actualized container in the VIC port layer
-	id, err := c.containerCreate(container, config)
+	id, err := c.containerCreate(op, container, config)
 	if err != nil {
 		cache.ContainerCache().ReleaseName(config.Name)
 		return containertypes.ContainerCreateCreatedBody{}, err
@@ -719,44 +717,44 @@ func (c *ContainerBackend) ContainerCreate(config types.ContainerCreateConfig) (
 //
 // returns:
 //	(container id, error)
-func (c *ContainerBackend) containerCreate(vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, error) {
+func (c *ContainerBackend) containerCreate(op trace.Operation, vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, error) {
 	defer trace.End(trace.Begin("Container.containerCreate"))
 
 	if vc == nil {
 		return "", engerr.InternalServerError("Failed to create container")
 	}
 
-	id, h, err := c.containerProxy.CreateContainerHandle(ctx, vc, config)
+	id, h, err := c.containerProxy.CreateContainerHandle(op, vc, config)
 	if err != nil {
 		return "", err
 	}
 
-	h, err = c.containerProxy.CreateContainerTask(ctx, h, id, config)
+	h, err = c.containerProxy.CreateContainerTask(op, h, id, config)
 	if err != nil {
 		return "", err
 	}
 
-	h, err = c.containerProxy.AddContainerToScope(ctx, h, config)
+	h, err = c.containerProxy.AddContainerToScope(op, h, config)
 	if err != nil {
 		return id, err
 	}
 
-	h, err = c.containerProxy.AddInteractionToContainer(ctx, h, config)
+	h, err = c.containerProxy.AddInteractionToContainer(op, h, config)
 	if err != nil {
 		return id, err
 	}
 
-	h, err = c.containerProxy.AddLoggingToContainer(ctx, h, config)
+	h, err = c.containerProxy.AddLoggingToContainer(op, h, config)
 	if err != nil {
 		return id, err
 	}
 
-	h, err = c.storageProxy.AddVolumesToContainer(ctx, h, config)
+	h, err = c.storageProxy.AddVolumesToContainer(op, h, config)
 	if err != nil {
 		return id, err
 	}
 
-	err = c.containerProxy.CommitContainerHandle(ctx, h, id, -1)
+	err = c.containerProxy.CommitContainerHandle(op, h, id, -1)
 	if err != nil {
 		return id, err
 	}
@@ -778,7 +776,7 @@ func (c *ContainerBackend) ContainerKill(name string, sig uint64) error {
 		return engerr.NotFoundError(name)
 	}
 
-	err := c.containerProxy.Signal(ctx, vc, sig)
+	err := c.containerProxy.Signal(op, vc, sig)
 	if err == nil {
 		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{"signal": fmt.Sprintf("%d", sig)})
 
@@ -814,7 +812,7 @@ func (c *ContainerBackend) ContainerResize(name string, height, width int) error
 	plWidth := int32(width)
 
 	var err error
-	if err = c.containerProxy.Resize(ctx, vc.ContainerID, plHeight, plWidth); err == nil {
+	if err = c.containerProxy.Resize(op, vc.ContainerID, plHeight, plWidth); err == nil {
 		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{
 			"height": fmt.Sprintf("%d", height),
 			"width":  fmt.Sprintf("%d", width),
@@ -843,7 +841,7 @@ func (c *ContainerBackend) ContainerRestart(name string, seconds *int) error {
 	}
 
 	operation := func() error {
-		return c.containerProxy.Stop(ctx, vc, name, seconds, false)
+		return c.containerProxy.Stop(op, vc, name, seconds, false)
 	}
 	if err := retry.Do(operation, engerr.IsConflictError); err != nil {
 		return engerr.InternalServerError(fmt.Sprintf("Stop failed with: %s", err))
@@ -885,7 +883,7 @@ func (c *ContainerBackend) ContainerRm(name string, config *types.ContainerRmCon
 			return err
 		}
 	} else {
-		state, err := c.containerProxy.State(ctx, vc)
+		state, err := c.containerProxy.State(op, vc)
 		if err != nil {
 			if engerr.IsNotFoundError(err) {
 				// remove container from persona cache, but don't return error to the user
@@ -898,7 +896,7 @@ func (c *ContainerBackend) ContainerRm(name string, config *types.ContainerRmCon
 		switch state.Status {
 		case proxy.ContainerError:
 			// force stop if container state is error to make sure container is deletable later
-			c.containerProxy.Stop(ctx, vc, name, &secs, true)
+			c.containerProxy.Stop(op, vc, name, &secs, true)
 		case "Starting":
 			// if we are starting let the user know they must use the force
 			return derr.NewRequestConflictError(fmt.Errorf("The container is starting.  To remove use -f"))
@@ -906,12 +904,12 @@ func (c *ContainerBackend) ContainerRm(name string, config *types.ContainerRmCon
 			running = true
 		}
 
-		handle, err := c.containerProxy.Handle(ctx, id, name)
+		handle, err := c.containerProxy.Handle(op, id, name)
 		if err != nil {
 			return err
 		}
 
-		_, err = c.containerProxy.UnbindContainerFromNetwork(ctx, vc, handle)
+		_, err = c.containerProxy.UnbindContainerFromNetwork(op, vc, handle)
 		if err != nil {
 			return err
 		}
@@ -921,18 +919,18 @@ func (c *ContainerBackend) ContainerRm(name string, config *types.ContainerRmCon
 	// once to prevent retries from degrading performance.
 	if !running {
 		operation := func() error {
-			return c.containerProxy.Remove(ctx, vc, config)
+			return c.containerProxy.Remove(op, vc, config)
 		}
 
 		return retry.Do(operation, engerr.IsConflictError)
 	}
 
-	return c.containerProxy.Remove(ctx, vc, config)
+	return c.containerProxy.Remove(op, vc, config)
 }
 
 // cleanupPortBindings gets port bindings for the container and
 // unmaps ports if the cVM that previously bound them isn't powered on
-func (c *ContainerBackend) cleanupPortBindings(vc *viccontainer.VicContainer) error {
+func (c *ContainerBackend) cleanupPortBindings(op trace.Operation, vc *viccontainer.VicContainer) error {
 	defer trace.End(trace.Begin(vc.ContainerID))
 	for ctrPort, hostPorts := range vc.HostConfig.PortBindings {
 		for _, hostPort := range hostPorts {
@@ -951,7 +949,7 @@ func (c *ContainerBackend) cleanupPortBindings(vc *viccontainer.VicContainer) er
 				// port bindings were cleaned up by another operation.
 				continue
 			}
-			state, err := c.containerProxy.State(ctx, cc)
+			state, err := c.containerProxy.State(op, cc)
 			if err != nil {
 				if engerr.IsNotFoundError(err) {
 					log.Debugf("container(%s) not found in portLayer, removing from persona cache", cc.ContainerID)
@@ -1028,7 +1026,7 @@ func (c *ContainerBackend) containerStart(op trace.Operation, name string, hostC
 	}
 
 	// get a handle to the container
-	handle, err := c.containerProxy.Handle(ctx, id, name)
+	handle, err := c.containerProxy.Handle(op, id, name)
 	if err != nil {
 		return err
 	}
@@ -1039,7 +1037,7 @@ func (c *ContainerBackend) containerStart(op trace.Operation, name string, hostC
 		op.Debugf("Binding vicnetwork to container %s", id)
 
 		var bindRes *scopes.BindContainerOK
-		bindRes, err = client.Scopes.BindContainer(scopes.NewBindContainerParamsWithContext(ctx).WithHandle(handle))
+		bindRes, err = client.Scopes.BindContainer(scopes.NewBindContainerParamsWithContext(op).WithHandle(handle))
 		if err != nil {
 			switch err := err.(type) {
 			case *scopes.BindContainerNotFound:
@@ -1059,12 +1057,12 @@ func (c *ContainerBackend) containerStart(op trace.Operation, name string, hostC
 		defer func() {
 			if err != nil {
 				op.Debugf("Unbinding %s due to error - %s", id, err.Error())
-				client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle))
+				client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(op).WithHandle(handle))
 			}
 		}()
 
 		// unmap ports that vc needs if they're not being used by previously mapped container
-		err = c.cleanupPortBindings(vc)
+		err = c.cleanupPortBindings(op, vc)
 		if err != nil {
 			return err
 		}
@@ -1074,7 +1072,7 @@ func (c *ContainerBackend) containerStart(op trace.Operation, name string, hostC
 	// TODO: We need a resolved ID from the name
 	op.Debugf("Setting container %s state to running", id)
 	var stateChangeRes *containers.StateChangeOK
-	stateChangeRes, err = client.Containers.StateChange(containers.NewStateChangeParamsWithContext(ctx).WithHandle(handle).WithState("RUNNING"))
+	stateChangeRes, err = client.Containers.StateChange(containers.NewStateChangeParamsWithContext(op).WithHandle(handle).WithState("RUNNING"))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.StateChangeNotFound:
@@ -1091,7 +1089,7 @@ func (c *ContainerBackend) containerStart(op trace.Operation, name string, hostC
 
 	// map ports
 	if bind {
-		scope, e := c.findPortBoundNetworkEndpoint(hostConfig, endpoints)
+		scope, e := c.findPortBoundNetworkEndpoint(op, hostConfig, endpoints)
 		if scope != nil && scope.ScopeType == constants.BridgeScopeType {
 			if err = network.MapPorts(vc, e, id); err != nil {
 				return engerr.InternalServerError(fmt.Sprintf("error mapping ports: %s", err))
@@ -1108,7 +1106,7 @@ func (c *ContainerBackend) containerStart(op trace.Operation, name string, hostC
 
 	// commit the handle; this will reconfigure and start the vm
 	op.Debugf("Commit container %s", id)
-	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
+	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(op).WithHandle(handle))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.CommitNotFound:
@@ -1128,7 +1126,7 @@ func (c *ContainerBackend) containerStart(op trace.Operation, name string, hostC
 	return nil
 }
 
-func (c *ContainerBackend) defaultScope() string {
+func (c *ContainerBackend) defaultScope(op trace.Operation) string {
 	defaultScope.Lock()
 	defer defaultScope.Unlock()
 
@@ -1137,7 +1135,7 @@ func (c *ContainerBackend) defaultScope() string {
 	}
 
 	client := PortLayerClient()
-	listRes, err := client.Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName("default"))
+	listRes, err := client.Scopes.List(scopes.NewListParamsWithContext(op).WithIDName("default"))
 	if err != nil {
 		log.Error(err)
 		return ""
@@ -1152,13 +1150,14 @@ func (c *ContainerBackend) defaultScope() string {
 	return defaultScope.scope
 }
 
-func (c *ContainerBackend) findPortBoundNetworkEndpoint(hostconfig *containertypes.HostConfig, endpoints []*models.EndpointConfig) (*models.ScopeConfig, *models.EndpointConfig) {
+func (c *ContainerBackend) findPortBoundNetworkEndpoint(op trace.Operation, hostconfig *containertypes.HostConfig,
+	endpoints []*models.EndpointConfig) (*models.ScopeConfig, *models.EndpointConfig) {
 	if len(hostconfig.PortBindings) == 0 {
 		return nil, nil
 	}
 
 	// check if the port binding vicnetwork is a bridge type
-	listRes, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName(hostconfig.NetworkMode.NetworkName()))
+	listRes, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(op).WithIDName(hostconfig.NetworkMode.NetworkName()))
 	if err != nil {
 		log.Error(err)
 		return nil, nil
@@ -1176,7 +1175,7 @@ func (c *ContainerBackend) findPortBoundNetworkEndpoint(hostconfig *containertyp
 
 	// look through endpoints to find the container's IP on the vicnetwork that has the port binding
 	for _, e := range endpoints {
-		if hostconfig.NetworkMode.NetworkName() == e.Scope || (hostconfig.NetworkMode.IsDefault() && e.Scope == c.defaultScope()) {
+		if hostconfig.NetworkMode.NetworkName() == e.Scope || (hostconfig.NetworkMode.IsDefault() && e.Scope == c.defaultScope(op)) {
 			return listRes.Payload[0], e
 		}
 	}
@@ -1209,7 +1208,7 @@ func (c *ContainerBackend) ContainerStop(name string, seconds *int) error {
 	}
 
 	operation := func() error {
-		return c.containerProxy.Stop(ctx, vc, name, seconds, true)
+		return c.containerProxy.Stop(op, vc, name, seconds, true)
 	}
 
 	config := retry.NewBackoffConfig()
@@ -1255,7 +1254,7 @@ func (c *ContainerBackend) ContainerWait(name string, timeout time.Duration) (in
 		return -1, engerr.NotFoundError(name)
 	}
 
-	dockerState, err := c.containerProxy.Wait(ctx, vc, timeout)
+	dockerState, err := c.containerProxy.Wait(op, vc, timeout)
 	if err != nil {
 		return -1, err
 	}
@@ -1358,7 +1357,7 @@ func (c *ContainerBackend) ContainerInspect(name string, size bool, version stri
 
 	client := PortLayerClient()
 
-	results, err := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(id))
+	results, err := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(op).WithID(id))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerInfoNotFound:
@@ -1506,7 +1505,7 @@ func (c *ContainerBackend) Containers(config *types.ContainerListOptions) ([]*ty
 	// Get an API client to the portlayer
 	client := PortLayerClient()
 
-	containme, err := client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(ctx).WithAll(&listContext.All))
+	containme, err := client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(op).WithAll(&listContext.All))
 	if err != nil {
 		switch err := err.(type) {
 
@@ -1632,7 +1631,7 @@ func (c *ContainerBackend) ContainerAttach(name string, ca *backend.ContainerAtt
 	defer trace.End(trace.Audit(name, op))
 
 	operation := func() error {
-		return c.containerAttach(&op, name, ca)
+		return c.containerAttach(op, name, ca)
 	}
 	if err := retry.Do(operation, engerr.IsConflictError); err != nil {
 		return err
@@ -1640,7 +1639,7 @@ func (c *ContainerBackend) ContainerAttach(name string, ca *backend.ContainerAtt
 	return nil
 }
 
-func (c *ContainerBackend) containerAttach(op *trace.Operation, name string, ca *backend.ContainerAttachConfig) error {
+func (c *ContainerBackend) containerAttach(op trace.Operation, name string, ca *backend.ContainerAttachConfig) error {
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
@@ -1649,17 +1648,17 @@ func (c *ContainerBackend) containerAttach(op *trace.Operation, name string, ca 
 	}
 	id := vc.ContainerID
 
-	handle, err := c.containerProxy.Handle(ctx, id, name)
+	handle, err := c.containerProxy.Handle(op, id, name)
 	if err != nil {
 		return err
 	}
 
-	handleprime, err := c.containerProxy.BindInteraction(ctx, handle, name, id)
+	handleprime, err := c.containerProxy.BindInteraction(op, handle, name, id)
 	if err != nil {
 		return err
 	}
 
-	if err := c.containerProxy.CommitContainerHandle(ctx, handleprime, name, 0); err != nil {
+	if err := c.containerProxy.CommitContainerHandle(op, handleprime, name, 0); err != nil {
 		return err
 	}
 
@@ -1753,7 +1752,7 @@ func (c *ContainerBackend) ContainerRename(oldName, newName string) error {
 	}
 
 	renameOp := func() error {
-		return c.containerProxy.Rename(ctx, vc, newName)
+		return c.containerProxy.Rename(op, vc, newName)
 	}
 
 	if err := retry.Do(renameOp, engerr.IsConflictError); err != nil {

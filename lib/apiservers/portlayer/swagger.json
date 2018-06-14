@@ -15,8 +15,22 @@
 	"schemes": [
 		"http"
 	],
+	"parameters": {
+		"operationID": {
+			"name": "Op-ID",
+			"type": "string",
+			"pattern": "[0-9]+\\.[0-9]+",
+			"in": "header",
+			"required": false
+		}
+	},
 	"paths": {
 		"/_ping": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Pings the server to see if it's running",
 				"summary": "ping the portlayer server",
@@ -38,6 +52,11 @@
 			}
 		},
 		"/vch/info": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Gets vital information about the vch",
 				"tags": [
@@ -61,6 +80,11 @@
 			}
 		},
 		"/kv/{key}": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Gets value from k/v store",
 				"tags": [
@@ -176,6 +200,11 @@
 			}
 		},
 		"/archive": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Exports a tar archive from the target device.",
 				"summary": "Export tar archive from supplied target",
@@ -391,6 +420,11 @@
 			}
 		},
 		"/storage": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"post": {
 				"description": "Creates a location to store images",
 				"summary": "creates an image store",
@@ -430,6 +464,11 @@
 			}
 		},
 		"/storage/{store_name}": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Retrieves a list of images given a list of image IDs, or all images in the image store if no param is passed.",
 				"summary": "Retrieve a list of images in an image store",
@@ -551,6 +590,11 @@
 			}
 		},
 		"/storage/{store_name}/info/{id}": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Inspect an image by id in an image store",
 				"summary": "Inspect an image",
@@ -656,6 +700,11 @@
 			}
 		},
 		"/storage/{store_name}/tar/{id}": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Get an image by id in an image store as a tar file",
 				"summary": "Get an image as a tar file",
@@ -698,6 +747,11 @@
 			}
 		},
 		"/storage/volumestores": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Get a list of available volume store locations",
 				"operationId": "VolumeStoresList",
@@ -734,6 +788,11 @@
 			}
 		},
 		"/storage/volumes": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Get a list of available volumes",
 				"operationId": "ListVolumes",
@@ -838,6 +897,11 @@
 			}
 		},
 		"/storage/volumes/{name}": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Get info about a volume",
 				"operationId": "GetVolume",
@@ -973,6 +1037,11 @@
 			}
 		},
 		"/scopes": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"post": {
 				"summary": "Create a new scope",
 				"tags": [
@@ -1034,6 +1103,11 @@
 			}
 		},
 		"/scopes/{idName}": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"tags": [
 					"scopes"
@@ -1104,6 +1178,11 @@
 			}
 		},
 		"/scopes/{scope}/containers": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"post": {
 				"description": "Add a container to scopes modifying the container VM's config as necessary",
 				"tags": [
@@ -1149,6 +1228,11 @@
 			}
 		},
 		"/scopes/{scope}/containers/{handle}": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"delete": {
 				"description": "Remove a container from a scope",
 				"tags": [
@@ -1192,6 +1276,11 @@
 			}
 		},
 		"/scopes/containers/{handleOrId}": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"tags": [
 					"scopes"
@@ -1239,6 +1328,11 @@
 			}
 		},
 		"/scopes/containers/{handle}/binding": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"post": {
 				"tags": [
 					"scopes"
@@ -1324,6 +1418,11 @@
 			}
 		},
 		"/events": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Gets portlayer events",
 				"summary": "Gets portlayer events",
@@ -1352,6 +1451,11 @@
 			}
 		},
 		"/containers": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"post": {
 				"description": "Initiates a container create operation",
 				"summary": "Initiates a container create operation",
@@ -1399,6 +1503,11 @@
 			}
 		},
 		"/containers/info/{id}": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Gets information about a container by id",
 				"operationId": "GetContainerInfo",
@@ -1442,6 +1551,11 @@
 			}
 		},
 		"/containers/list": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Gets a list of all containers",
 				"operationId": "GetContainerList",
@@ -1482,6 +1596,11 @@
 			}
 		},
 		"/containers/{id}": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Get a container handle",
 				"operationId": "Get",
@@ -1585,6 +1704,11 @@
 			}
 		},
 		"/containers/{handle}": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"put": {
 				"description": "Commit and close a container handle",
 				"operationId": "Commit",
@@ -1638,6 +1762,11 @@
 			}
 		},
 		"/containers/{handle}/state": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"put": {
 				"description": "Changes the state of a container",
 				"operationId": "StateChange",
@@ -1737,7 +1866,12 @@
 				}
 			}
 		},
-    "/tasks/wait": {
+		"/tasks/wait": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Initiates a task wait operation",
 				"summary": "Initiates a task wait operation",
@@ -1786,8 +1920,13 @@
 					}
 				}
 			}
-    },
+		},
 		"/tasks": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Initiates a task inspect operation",
 				"summary": "Initiates a task inspect operation",
@@ -1931,6 +2070,11 @@
 			}
 		},
 		"/tasks/binding": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"post": {
 				"description": "Activate a task that exists within the context of the provided handle",
 				"summary": "Activate an existing task",
@@ -2023,6 +2167,11 @@
 			}
 		},
 		"/containers/{handle}/name": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"patch": {
 				"description": "Rename a container to the new name",
 				"operationId": "ContainerRename",
@@ -2080,6 +2229,11 @@
 			}
 		},
 		"/containers/{id}/signal": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"post": {
 				"description": "Sends a signal to a container by id",
 				"summary": "Signal a running container",
@@ -2125,6 +2279,11 @@
 			}
 		},
 		"/containers/{id}/stats": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Gets the container stats by id",
 				"summary": "Gets the container stats",
@@ -2169,6 +2328,11 @@
 			}
 		},
 		"/containers/{id}/logs": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Gets the container logs by id",
 				"summary": "Gets the container logs",
@@ -2242,6 +2406,11 @@
 			}
 		},
 		"/logging": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"post": {
 				"description": "Adds logging capabilities to given handle",
 				"summary": "Add logging capability",
@@ -2289,6 +2458,11 @@
 			}
 		},
 		"/logging/binding": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"post": {
 				"description": "Enable/bind/activate the VirtualDevice",
 				"summary": "Enable/bind/activate the VirtualDevice",
@@ -2381,6 +2555,11 @@
 			}
 		},
 		"/interaction": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"post": {
 				"description": "Adds interaction capabilities to given handle",
 				"summary": "Add interaction capability",
@@ -2428,6 +2607,11 @@
 			}
 		},
 		"/interaction/binding": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"post": {
 				"description": "Enable/bind/activate the VirtualDevice",
 				"summary": "Enable/bind/activate the VirtualDevice",
@@ -2520,6 +2704,11 @@
 			}
 		},
 		"/containers/{id}/wait": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Wait for the container to stop",
 				"operationId": "ContainerWait",
@@ -2571,6 +2760,11 @@
 			}
 		},
 		"/interaction/{id}/resize": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"post": {
 				"description": "Resize the container's tty session",
 				"summary": "Resize tty session",
@@ -2627,6 +2821,11 @@
 			}
 		},
 		"/interaction/{id}/stdin": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"post": {
 				"description": "Set a stdin for the container",
 				"summary": "Set stdin",
@@ -2715,6 +2914,11 @@
 			}
 		},
 		"/interaction/{id}/stdout": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Get a stdout for the container",
 				"summary": "Get stdout",
@@ -2759,6 +2963,11 @@
 			}
 		},
 		"/interaction/{id}/stderr": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
 			"get": {
 				"description": "Get a stderr for the container",
 				"summary": "Get stderr",

@@ -29,6 +29,7 @@ import (
 	"github.com/go-openapi/runtime"
 	rc "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/swag"
+
 	"golang.org/x/sync/singleflight"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
@@ -48,6 +49,7 @@ import (
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/registry"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/sys"
@@ -94,6 +96,7 @@ type dynConfig struct {
 }
 
 func Init(portLayerAddr, product string, port uint, config *config.VirtualContainerHostConfigSpec) error {
+	op := trace.NewOperation(context.Background(), "backends.Init")
 	servicePort = port
 	_, _, err := net.SplitHostPort(portLayerAddr)
 	if err != nil {
@@ -115,7 +118,7 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 		portLayerName = product + " " + productVersion + " Backend Engine"
 	}
 
-	if vchConfig, err = newDynConfig(ctx, config); err != nil {
+	if vchConfig, err = newDynConfig(op, config); err != nil {
 		return err
 	}
 
@@ -134,12 +137,12 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 	// the vic-machine installer timeout will intervene if this blocks for too long
 	pingPortLayer()
 
-	if err := hydrateCaches(); err != nil {
+	if err := hydrateCaches(op); err != nil {
 		return err
 	}
 
 	log.Info("Creating image store")
-	if err := createImageStore(); err != nil {
+	if err := createImageStore(op); err != nil {
 		log.Errorf("Failed to create image store")
 		return err
 	}
@@ -151,7 +154,7 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 	return nil
 }
 
-func hydrateCaches() error {
+func hydrateCaches(op trace.Operation) error {
 	const waiters = 3
 
 	wg := sync.WaitGroup{}
@@ -178,7 +181,7 @@ func hydrateCaches() error {
 
 		// container cache relies on image cache so we share a goroutine to update
 		// them serially
-		if err := syncContainerCache(); err != nil {
+		if err := syncContainerCache(op); err != nil {
 			errChan <- fmt.Errorf("Failed to update container cache: %s", err)
 			return
 		}
@@ -255,7 +258,7 @@ func pingPortLayer() {
 	}
 }
 
-func createImageStore() error {
+func createImageStore(op trace.Operation) error {
 	// TODO(jzt): we should move this to a utility package or something
 	host, err := sys.UUID()
 	if err != nil {
@@ -266,7 +269,7 @@ func createImageStore() error {
 	// attempt to create the image store if it doesn't exist
 	store := &models.ImageStore{Name: host}
 	_, err = portLayerClient.Storage.CreateImageStore(
-		storage.NewCreateImageStoreParamsWithContext(ctx).WithBody(store),
+		storage.NewCreateImageStoreParamsWithContext(op).WithBody(store),
 	)
 
 	if err != nil {
@@ -281,13 +284,13 @@ func createImageStore() error {
 }
 
 // syncContainerCache runs once at startup to populate the container cache
-func syncContainerCache() error {
+func syncContainerCache(op trace.Operation) error {
 	log.Debugf("Updating container cache")
 
 	backend := NewContainerBackend()
 	client := PortLayerClient()
 
-	reqParams := containers.NewGetContainerListParamsWithContext(ctx).WithAll(swag.Bool(true))
+	reqParams := containers.NewGetContainerListParamsWithContext(op).WithAll(swag.Bool(true))
 	containme, err := client.Containers.GetContainerList(reqParams)
 	if err != nil {
 		return errors.Errorf("Failed to retrieve container list from portlayer: %s", err)
@@ -299,7 +302,7 @@ func syncContainerCache() error {
 	for _, info := range containme.Payload {
 		container := proxy.ContainerInfoToVicContainer(*info, portLayerName)
 		cc.AddContainer(container)
-		if err = setPortMapping(info, backend, container); err != nil {
+		if err = setPortMapping(op, info, backend, container); err != nil {
 			errs = append(errs, err.Error())
 		}
 	}
@@ -310,7 +313,7 @@ func syncContainerCache() error {
 	return nil
 }
 
-func setPortMapping(info *models.ContainerInfo, backend *ContainerBackend, container *container.VicContainer) error {
+func setPortMapping(op trace.Operation, info *models.ContainerInfo, backend *ContainerBackend, container *container.VicContainer) error {
 	if info.ContainerConfig.State == "" {
 		log.Infof("container state is nil")
 		return nil
@@ -324,7 +327,7 @@ func setPortMapping(info *models.ContainerInfo, backend *ContainerBackend, conta
 	log.Debugf("Set port mapping for container %q, portmapping %+v", container.Name, container.HostConfig.PortBindings)
 	client := PortLayerClient()
 	endpointsOK, err := client.Scopes.GetContainerEndpoints(
-		scopes.NewGetContainerEndpointsParamsWithContext(ctx).WithHandleOrID(container.ContainerID))
+		scopes.NewGetContainerEndpointsParamsWithContext(op).WithHandleOrID(container.ContainerID))
 	if err != nil {
 		return err
 	}

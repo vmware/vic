@@ -133,11 +133,15 @@ func NewContainerProxy(plClient *client.PortLayer, portlayerAddr string, portlay
 // returns:
 //	(handle string, error)
 func (c *ContainerProxy) Handle(ctx context.Context, id, name string) (string, error) {
+	op := trace.FromContext(ctx, "Handle: %s", id)
+	defer trace.End(trace.Begin(name, op))
+	opID := op.ID()
+
 	if c.client == nil {
 		return "", errors.NillPortlayerClientError("ContainerProxy")
 	}
 
-	resp, err := c.client.Containers.Get(containers.NewGetParamsWithContext(ctx).WithID(id))
+	resp, err := c.client.Containers.Get(containers.NewGetParamsWithContext(ctx).WithOpID(&opID).WithID(id))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetNotFound:
@@ -157,7 +161,9 @@ func (c *ContainerProxy) Handle(ctx context.Context, id, name string) (string, e
 // returns:
 //	(containerID, containerHandle, error)
 func (c *ContainerProxy) CreateContainerHandle(ctx context.Context, vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error) {
-	defer trace.End(trace.Begin(vc.ImageID))
+	op := trace.FromContext(ctx, "CreateContainerHandle: %s", vc.Name)
+	defer trace.End(trace.Begin(vc.Name, op))
+	opID := op.ID()
 
 	if c.client == nil {
 		return "", "", errors.NillPortlayerClientError("ContainerProxy")
@@ -177,7 +183,7 @@ func (c *ContainerProxy) CreateContainerHandle(ctx context.Context, vc *vicconta
 		return "", "", errors.InternalServerError("ContainerProxy.CreateContainerHandle got unexpected error getting VCH UUID")
 	}
 
-	plCreateParams := dockerContainerCreateParamsToPortlayer(ctx, config, vc, host)
+	plCreateParams := dockerContainerCreateParamsToPortlayer(ctx, config, vc, host).WithOpID(&opID)
 	createResults, err := c.client.Containers.Create(plCreateParams)
 	if err != nil {
 		if _, ok := err.(*containers.CreateNotFound); ok {
@@ -201,7 +207,9 @@ func (c *ContainerProxy) CreateContainerHandle(ctx context.Context, vc *vicconta
 // returns:
 //	(containerHandle, error)
 func (c *ContainerProxy) CreateContainerTask(ctx context.Context, handle, id string, config types.ContainerCreateConfig) (string, error) {
-	defer trace.End(trace.Begin(""))
+	op := trace.FromContext(ctx, "CreateContainerTask: %s", id)
+	defer trace.End(trace.Begin(id, op))
+	opID := op.ID()
 
 	if c.client == nil {
 		return "", errors.NillPortlayerClientError("ContainerProxy")
@@ -209,6 +217,7 @@ func (c *ContainerProxy) CreateContainerTask(ctx context.Context, handle, id str
 
 	plTaskParams := dockerContainerCreateParamsToTask(ctx, id, config)
 	plTaskParams.Config.Handle = handle
+	plTaskParams.WithOpID(&opID)
 
 	responseJoin, err := c.client.Tasks.Join(plTaskParams)
 	if err != nil {
@@ -221,7 +230,10 @@ func (c *ContainerProxy) CreateContainerTask(ctx context.Context, handle, id str
 		return "", errors.InternalServerError(fmt.Sprintf("Type assertion failed on handle from task join: %#+v", handle))
 	}
 
-	plBindParams := tasks.NewBindParamsWithContext(ctx).WithConfig(&models.TaskBindConfig{Handle: handle, ID: id})
+	plBindParams := tasks.NewBindParamsWithContext(ctx).
+		WithOpID(&opID).
+		WithConfig(&models.TaskBindConfig{Handle: handle, ID: id})
+
 	responseBind, err := c.client.Tasks.Bind(plBindParams)
 	if err != nil {
 		log.Errorf("Unable to bind primary task to container: %+v", err)
@@ -237,7 +249,9 @@ func (c *ContainerProxy) CreateContainerTask(ctx context.Context, handle, id str
 }
 
 func (c *ContainerProxy) CreateExecTask(ctx context.Context, handle string, config *types.ExecConfig) (string, string, error) {
-	defer trace.End(trace.Begin(""))
+	op := trace.FromContext(ctx, "CreateExecTask: %s", handle)
+	defer trace.End(trace.Begin(handle, op))
+	opID := op.ID()
 
 	if c.client == nil {
 		return "", "", errors.NillPortlayerClientError("ContainerProxy")
@@ -255,7 +269,7 @@ func (c *ContainerProxy) CreateExecTask(ctx context.Context, handle string, conf
 	}
 
 	// call Join with JoinParams
-	joinparams := tasks.NewJoinParamsWithContext(ctx).WithConfig(joinconfig)
+	joinparams := tasks.NewJoinParamsWithContext(ctx).WithOpID(&opID).WithConfig(joinconfig)
 	resp, err := c.client.Tasks.Join(joinparams)
 	if err != nil {
 		return "", "", errors.InternalServerError(err.Error())
@@ -276,7 +290,9 @@ func (c *ContainerProxy) CreateExecTask(ctx context.Context, handle string, conf
 // returns:
 //	modified handle
 func (c *ContainerProxy) AddContainerToScope(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
-	defer trace.End(trace.Begin(handle))
+	op := trace.FromContext(ctx, "AddContainerToScope: %s", handle)
+	defer trace.End(trace.Begin(handle, op))
+	opID := op.ID()
 
 	if c.client == nil {
 		return "", errors.NillPortlayerClientError("ContainerProxy")
@@ -287,6 +303,7 @@ func (c *ContainerProxy) AddContainerToScope(ctx context.Context, handle string,
 	netConf := toModelsNetworkConfig(config)
 	if netConf != nil {
 		addContRes, err := c.client.Scopes.AddContainer(scopes.NewAddContainerParamsWithContext(ctx).
+			WithOpID(&opID).
 			WithScope(netConf.NetworkName).
 			WithConfig(&models.ScopesAddContainerConfig{
 				Handle:        handle,
@@ -303,7 +320,10 @@ func (c *ContainerProxy) AddContainerToScope(ctx context.Context, handle string,
 				return
 			}
 			// roll back the AddContainer call
-			if _, err2 := c.client.Scopes.RemoveContainer(scopes.NewRemoveContainerParamsWithContext(ctx).WithHandle(handle).WithScope(netConf.NetworkName)); err2 != nil {
+			if _, err2 := c.client.Scopes.RemoveContainer(scopes.NewRemoveContainerParamsWithContext(ctx).
+				WithHandle(handle).
+				WithScope(netConf.NetworkName).
+				WithOpID(&opID)); err2 != nil {
 				log.Warnf("could not roll back container add: %s", err2)
 			}
 		}()
@@ -320,13 +340,16 @@ func (c *ContainerProxy) AddContainerToScope(ctx context.Context, handle string,
 // returns:
 //	modified handle
 func (c *ContainerProxy) AddLoggingToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
-	defer trace.End(trace.Begin(handle))
+	op := trace.FromContext(ctx, "AddLoggingToContainer: %s", handle)
+	defer trace.End(trace.Begin(handle, op))
+	opID := op.ID()
 
 	if c.client == nil {
 		return "", errors.NillPortlayerClientError("ContainerProxy")
 	}
 
 	response, err := c.client.Logging.LoggingJoin(logging.NewLoggingJoinParamsWithContext(ctx).
+		WithOpID(&opID).
 		WithConfig(&models.LoggingJoinConfig{
 			Handle: handle,
 		}))
@@ -347,13 +370,16 @@ func (c *ContainerProxy) AddLoggingToContainer(ctx context.Context, handle strin
 // returns:
 //	modified handle
 func (c *ContainerProxy) AddInteractionToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
-	defer trace.End(trace.Begin(handle))
+	op := trace.FromContext(ctx, "AddLoggingToContainer: %s", handle)
+	defer trace.End(trace.Begin(handle, op))
+	opID := op.ID()
 
 	if c.client == nil {
 		return "", errors.NillPortlayerClientError("ContainerProxy")
 	}
 
 	response, err := c.client.Interaction.InteractionJoin(interaction.NewInteractionJoinParamsWithContext(ctx).
+		WithOpID(&opID).
 		WithConfig(&models.InteractionJoinConfig{
 			Handle: handle,
 		}))
@@ -370,7 +396,9 @@ func (c *ContainerProxy) AddInteractionToContainer(ctx context.Context, handle s
 
 // BindInteraction enables interaction capabilities
 func (c *ContainerProxy) BindInteraction(ctx context.Context, handle string, name string, id string) (string, error) {
-	defer trace.End(trace.Begin(handle))
+	op := trace.FromContext(ctx, "BindInteraction: %s", handle)
+	defer trace.End(trace.Begin(handle, op))
+	opID := op.ID()
 
 	if c.client == nil {
 		return "", errors.NillPortlayerClientError("ContainerProxy")
@@ -378,6 +406,7 @@ func (c *ContainerProxy) BindInteraction(ctx context.Context, handle string, nam
 
 	bind, err := c.client.Interaction.InteractionBind(
 		interaction.NewInteractionBindParamsWithContext(ctx).
+			WithOpID(&opID).
 			WithConfig(&models.InteractionBindConfig{
 				Handle: handle,
 				ID:     id,
@@ -399,7 +428,9 @@ func (c *ContainerProxy) BindInteraction(ctx context.Context, handle string, nam
 
 // UnbindInteraction disables interaction capabilities
 func (c *ContainerProxy) UnbindInteraction(ctx context.Context, handle string, name string, id string) (string, error) {
-	defer trace.End(trace.Begin(handle))
+	op := trace.FromContext(ctx, "UnbindInteraction: %s", handle)
+	defer trace.End(trace.Begin(handle, op))
+	opID := op.ID()
 
 	if c.client == nil {
 		return "", errors.NillPortlayerClientError("ContainerProxy")
@@ -407,6 +438,7 @@ func (c *ContainerProxy) UnbindInteraction(ctx context.Context, handle string, n
 
 	unbind, err := c.client.Interaction.InteractionUnbind(
 		interaction.NewInteractionUnbindParamsWithContext(ctx).
+			WithOpID(&opID).
 			WithConfig(&models.InteractionUnbindConfig{
 				Handle: handle,
 				ID:     id,
@@ -427,17 +459,20 @@ func (c *ContainerProxy) UnbindInteraction(ctx context.Context, handle string, n
 // Args:
 //	waitTime <= 0 means no wait time
 func (c *ContainerProxy) CommitContainerHandle(ctx context.Context, handle, containerID string, waitTime int32) error {
-	defer trace.End(trace.Begin(handle))
+	op := trace.FromContext(ctx, "CommitContainerHandle: %s", handle)
+	defer trace.End(trace.Begin(handle, op))
+	opID := op.ID()
 
 	if c.client == nil {
 		return errors.NillPortlayerClientError("ContainerProxy")
 	}
 
-	var commitParams *containers.CommitParams
+	commitParams := containers.NewCommitParamsWithContext(ctx).
+		WithOpID(&opID).
+		WithHandle(handle)
+
 	if waitTime > 0 {
-		commitParams = containers.NewCommitParamsWithContext(ctx).WithHandle(handle).WithWaitTime(&waitTime)
-	} else {
-		commitParams = containers.NewCommitParamsWithContext(ctx).WithHandle(handle)
+		commitParams.WithWaitTime(&waitTime)
 	}
 
 	_, err := c.client.Containers.Commit(commitParams)
@@ -458,7 +493,8 @@ func (c *ContainerProxy) CommitContainerHandle(ctx context.Context, handle, cont
 }
 
 func (c *ContainerProxy) InspectTask(op trace.Operation, handle string, eid string, cid string) (*models.TaskInspectResponse, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s), eid(%s), cid(%s)", handle, eid, cid)))
+	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s), eid(%s), cid(%s)", handle, eid, cid), op))
+	opID := op.ID()
 
 	if c.client == nil {
 		return nil, errors.NillPortlayerClientError("ContainerProxy")
@@ -472,7 +508,7 @@ func (c *ContainerProxy) InspectTask(op trace.Operation, handle string, eid stri
 
 	// FIXME: right now we are only using this path for exec targets. But later the error messages may need to be changed
 	// to be more accurate.
-	params := tasks.NewInspectParamsWithContext(op).WithConfig(config)
+	params := tasks.NewInspectParamsWithContext(op).WithOpID(&opID).WithConfig(config)
 	resp, err := c.client.Tasks.Inspect(params)
 	if err != nil {
 		switch err := err.(type) {
@@ -492,7 +528,8 @@ func (c *ContainerProxy) InspectTask(op trace.Operation, handle string, eid stri
 }
 
 func (c *ContainerProxy) BindTask(op trace.Operation, handle string, eid string) (string, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s), eid(%s)", handle, eid)))
+	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s), eid(%s)", handle, eid), op))
+	opID := op.ID()
 
 	if c.client == nil {
 		return "", errors.NillPortlayerClientError("ContainerProxy")
@@ -502,7 +539,7 @@ func (c *ContainerProxy) BindTask(op trace.Operation, handle string, eid string)
 		Handle: handle,
 		ID:     eid,
 	}
-	bindparams := tasks.NewBindParamsWithContext(op).WithConfig(bindconfig)
+	bindparams := tasks.NewBindParamsWithContext(op).WithOpID(&opID).WithConfig(bindconfig)
 
 	// call Bind with bindparams
 	resp, err := c.client.Tasks.Bind(bindparams)
@@ -532,6 +569,9 @@ func (c *ContainerProxy) BindTask(op trace.Operation, handle string, eid string)
 }
 
 func (c *ContainerProxy) WaitTask(op trace.Operation, handle string, cid string, eid string) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s), cid(%s)", handle, cid), op))
+	opID := op.ID()
+
 	if c.client == nil {
 		return errors.NillPortlayerClientError("ContainerProxy")
 	}
@@ -542,7 +582,7 @@ func (c *ContainerProxy) WaitTask(op trace.Operation, handle string, cid string,
 		ID:     eid,
 	}
 
-	params := tasks.NewWaitParamsWithContext(op).WithConfig(config)
+	params := tasks.NewWaitParamsWithContext(op).WithOpID(&opID).WithConfig(config)
 	_, err := c.client.Tasks.Wait(params)
 	if err != nil {
 		switch err := err.(type) {
@@ -566,7 +606,9 @@ func (c *ContainerProxy) WaitTask(op trace.Operation, handle string, cid string,
 // returns
 //	error
 func (c *ContainerProxy) Stop(ctx context.Context, vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error {
-	defer trace.End(trace.Begin(vc.ContainerID))
+	op := trace.FromContext(ctx, "Stop: %s", name)
+	defer trace.End(trace.Begin(fmt.Sprintf("Name: %s, container id: %s", name, vc.ContainerID), op))
+	opID := op.ID()
 
 	if c.client == nil {
 		return errors.NillPortlayerClientError("ContainerProxy")
@@ -605,7 +647,11 @@ func (c *ContainerProxy) Stop(ctx context.Context, vc *viccontainer.VicContainer
 	}
 
 	// change the state of the container
-	changeParams := containers.NewStateChangeParamsWithContext(ctx).WithHandle(handle).WithState("STOPPED")
+	changeParams := containers.NewStateChangeParamsWithContext(ctx).
+		WithOpID(&opID).
+		WithHandle(handle).
+		WithState("STOPPED")
+
 	stateChangeResponse, err := c.client.Containers.StateChange(changeParams)
 	if err != nil {
 		switch err := err.(type) {
@@ -640,13 +686,15 @@ func (c *ContainerProxy) Stop(ctx context.Context, vc *viccontainer.VicContainer
 
 // UnbindContainerFromNetwork unbinds a container from the networks that it connects to
 func (c *ContainerProxy) UnbindContainerFromNetwork(ctx context.Context, vc *viccontainer.VicContainer, handle string) (string, error) {
-	defer trace.End(trace.Begin(vc.ContainerID))
+	op := trace.FromContext(ctx, "UnbindContainerFromNetwork: %s", vc.ContainerID)
+	defer trace.End(trace.Begin(vc.ContainerID, op))
+	opID := op.ID()
 
 	if c.client == nil {
 		return "", errors.NillPortlayerClientError("ContainerProxy")
 	}
 
-	unbindParams := scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle)
+	unbindParams := scopes.NewUnbindContainerParamsWithContext(ctx).WithOpID(&opID).WithHandle(handle)
 	ub, err := c.client.Scopes.UnbindContainer(unbindParams)
 	if err != nil {
 		switch err := err.(type) {
@@ -665,13 +713,17 @@ func (c *ContainerProxy) UnbindContainerFromNetwork(ctx context.Context, vc *vic
 
 // State returns container state
 func (c *ContainerProxy) State(ctx context.Context, vc *viccontainer.VicContainer) (*types.ContainerState, error) {
-	defer trace.End(trace.Begin(""))
+	op := trace.FromContext(ctx, "State: %s", vc.ContainerID)
+	defer trace.End(trace.Begin(vc.ContainerID, op))
+	opID := op.ID()
 
 	if c.client == nil {
 		return nil, errors.NillPortlayerClientError("ContainerProxy")
 	}
 
-	results, err := c.client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(vc.ContainerID))
+	results, err := c.client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).
+		WithOpID(&opID).
+		WithID(vc.ContainerID))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerInfoNotFound:
@@ -693,12 +745,13 @@ func (c *ContainerProxy) State(ctx context.Context, vc *viccontainer.VicContaine
 // GetStateFromHandle takes a handle and returns the state of the container based on that handle. Also returns handle that comes back with the response.
 func (c *ContainerProxy) GetStateFromHandle(op trace.Operation, handle string) (string, string, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", handle), op))
+	opID := op.ID()
 
 	if c.client == nil {
 		return "", "", errors.NillPortlayerClientError("ContainerProxy")
 	}
 
-	params := containers.NewGetStateParams().WithHandle(handle)
+	params := containers.NewGetStateParams().WithOpID(&opID).WithHandle(handle)
 	resp, err := c.client.Containers.GetState(params)
 	if err != nil {
 		switch err := err.(type) {
@@ -714,13 +767,18 @@ func (c *ContainerProxy) GetStateFromHandle(op trace.Operation, handle string) (
 
 // ExitCode returns container exitCode
 func (c *ContainerProxy) ExitCode(ctx context.Context, vc *viccontainer.VicContainer) (string, error) {
-	defer trace.End(trace.Begin(""))
+	op := trace.FromContext(ctx, "ExitCode: %s", vc.ContainerID)
+	defer trace.End(trace.Begin(vc.ContainerID, op))
+	opID := op.ID()
 
 	if c.client == nil {
 		return "", errors.NillPortlayerClientError("ContainerProxy")
 	}
 
-	results, err := c.client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(vc.ContainerID))
+	results, err := c.client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).
+		WithOpID(&opID).
+		WithID(vc.ContainerID))
+
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerInfoNotFound:
@@ -742,6 +800,9 @@ func (c *ContainerProxy) ExitCode(ctx context.Context, vc *viccontainer.VicConta
 
 func (c *ContainerProxy) Wait(ctx context.Context, vc *viccontainer.VicContainer, timeout time.Duration) (
 	*types.ContainerState, error) {
+	op := trace.FromContext(ctx, "Wait: %s", vc.ContainerID)
+	defer trace.End(trace.Begin(vc.ContainerID, op))
+	opID := op.ID()
 
 	defer trace.End(trace.Begin(vc.ContainerID))
 
@@ -755,8 +816,10 @@ func (c *ContainerProxy) Wait(ctx context.Context, vc *viccontainer.VicContainer
 	}
 
 	params := containers.NewContainerWaitParamsWithContext(ctx).
+		WithOpID(&opID).
 		WithTimeout(int64(timeout.Seconds())).
 		WithID(vc.ContainerID)
+
 	results, err := c.client.Containers.ContainerWait(params)
 	if err != nil {
 		switch err := err.(type) {
@@ -784,7 +847,9 @@ func (c *ContainerProxy) Wait(ctx context.Context, vc *viccontainer.VicContainer
 }
 
 func (c *ContainerProxy) Signal(ctx context.Context, vc *viccontainer.VicContainer, sig uint64) error {
-	defer trace.End(trace.Begin(vc.ContainerID))
+	op := trace.FromContext(ctx, "Signal: %s", vc.ContainerID)
+	defer trace.End(trace.Begin(vc.ContainerID, op))
+	opID := op.ID()
 
 	if vc == nil {
 		return errors.InternalServerError("Signal bad arguments")
@@ -802,7 +867,11 @@ func (c *ContainerProxy) Signal(ctx context.Context, vc *viccontainer.VicContain
 	if sig == 0 {
 		sig = uint64(syscall.SIGKILL)
 	}
-	params := containers.NewContainerSignalParamsWithContext(ctx).WithID(vc.ContainerID).WithSignal(int64(sig))
+	params := containers.NewContainerSignalParamsWithContext(ctx).
+		WithOpID(&opID).
+		WithID(vc.ContainerID).
+		WithSignal(int64(sig))
+
 	if _, err := c.client.Containers.ContainerSignal(params); err != nil {
 		switch err := err.(type) {
 		case *containers.ContainerSignalNotFound:
@@ -825,6 +894,10 @@ func (c *ContainerProxy) Signal(ctx context.Context, vc *viccontainer.VicContain
 }
 
 func (c *ContainerProxy) Resize(ctx context.Context, id string, height, width int32) error {
+	op := trace.FromContext(ctx, "Resize: %s", id)
+	defer trace.End(trace.Begin(id, op))
+	opID := op.ID()
+
 	defer trace.End(trace.Begin(id))
 
 	if c.client == nil {
@@ -832,6 +905,7 @@ func (c *ContainerProxy) Resize(ctx context.Context, id string, height, width in
 	}
 
 	plResizeParam := interaction.NewContainerResizeParamsWithContext(ctx).
+		WithOpID(&opID).
 		WithID(id).
 		WithHeight(height).
 		WithWidth(width)
@@ -852,7 +926,9 @@ func (c *ContainerProxy) Resize(ctx context.Context, id string, height, width in
 // Rename calls the portlayer's RenameContainerHandler to update the container name in the handle,
 // and then commit the new name to vSphere
 func (c *ContainerProxy) Rename(ctx context.Context, vc *viccontainer.VicContainer, newName string) error {
-	defer trace.End(trace.Begin(vc.ContainerID))
+	op := trace.FromContext(ctx, "Rename: %s", vc.ContainerID)
+	defer trace.End(trace.Begin(vc.ContainerID, op))
+	opID := op.ID()
 
 	//retrieve client to portlayer
 	handle, err := c.Handle(context.TODO(), vc.ContainerID, vc.Name)
@@ -865,7 +941,11 @@ func (c *ContainerProxy) Rename(ctx context.Context, vc *viccontainer.VicContain
 	}
 
 	// Call the rename functionality in the portlayer.
-	renameParams := containers.NewContainerRenameParamsWithContext(ctx).WithName(newName).WithHandle(handle)
+	renameParams := containers.NewContainerRenameParamsWithContext(ctx).
+		WithOpID(&opID).
+		WithName(newName).
+		WithHandle(handle)
+
 	result, err := c.client.Containers.ContainerRename(renameParams)
 	if err != nil {
 		switch err := err.(type) {
@@ -900,14 +980,18 @@ func (c *ContainerProxy) Rename(ctx context.Context, vc *viccontainer.VicContain
 // Remove calls the portlayer's ContainerRemove handler to remove the container and its
 // anonymous volumes if the remove flag is set.
 func (c *ContainerProxy) Remove(ctx context.Context, vc *viccontainer.VicContainer, config *types.ContainerRmConfig) error {
-	defer trace.End(trace.Begin(vc.ContainerID))
+	op := trace.FromContext(ctx, "Remove: %s", vc.ContainerID)
+	defer trace.End(trace.Begin(vc.ContainerID, op))
+	opID := op.ID()
 
 	if c.client == nil {
 		return errors.NillPortlayerClientError("ContainerProxy")
 	}
 
 	id := vc.ContainerID
-	_, err := c.client.Containers.ContainerRemove(containers.NewContainerRemoveParamsWithContext(ctx).WithID(id))
+	_, err := c.client.Containers.ContainerRemove(containers.NewContainerRemoveParamsWithContext(ctx).
+		WithOpID(&opID).
+		WithID(id))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.ContainerRemoveNotFound:
