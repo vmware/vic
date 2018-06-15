@@ -16,82 +16,100 @@
 ESX_60_VERSION="ob-5251623"
 VC_60_VERSION="ob-5112509"
 
+ESX_65_VERSION="ob-7867845"
+VC_65_VERSION="ob-7867539"
+
 ESX_67_VERSION="ob-8169922"
 VC_67_VERSION="ob-8217866"
 
+DEFAULT_LOG_UPLOAD_DEST="vic-ci-logs"
+DEFAULT_VCH_BUILD="*"
+DEFAULT_TESTCASES="tests/manual-test-cases/Group5-Functional-Tests tests/manual-test-cases/Group13-vMotion tests/manual-test-cases/Group21-Registries tests/manual-test-cases/Group23-Future-Tests"
+
+
 if [[ $1 != "6.0" && $1 != "6.5" && $1 != "6.7" ]]; then
-    echo "Please specify a target cluster. One of: 6.0, 6.5, 6.7"
+    echo "Please specify a target version. One of: 6.0, 6.5, 6.7"
     exit 1
 fi
+
+# process the CLI arguments
 target="$1"
-echo "Target cluster: "$target
+echo "Target version: ${target}"
+shift
+# Take the remaining CLI arguments as a test case list
+testcases="${*:-$DEFAULT_TESTCASES}"
 
-input=$(gsutil ls -l gs://vic-engine-builds/vic_* | grep -v TOTAL | sort -k2 -r | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
-buildNumber=${input:4}
+# TODO: the version downloaded by this logic is not coupled with the tests that will be run against it. This should be altered to pull a version that matches the commit SHA of the tests
+# we will be running or similar mechanism.
+VCH_BUILD=${VCH_BUILD:-${DEFAULT_VCH_BUILD}}
+input=$(gsutil ls -l gs://vic-engine-builds/vic_${VCH_BUILD} | grep -v TOTAL | sort -k2 -r | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
+VCH_BUILD=${input:4}
 
-n=0
-   until [ $n -ge 5 ]
-   do
-      echo "Retry.. $n"
-      echo "Downloading gcp file $input"
-      wget https://storage.googleapis.com/vic-engine-builds/$input
-      if [ -f "$input" ]
-      then
-      echo "File found.."
-      break
-      else
-      echo "File NOT found"
-      fi
-      n=$[$n+1]
-      sleep 15
-   done
+# Enforce short SHA
+GIT_COMMIT=${GIT_COMMIT:0:7}
 
-n=0
-   until [ $n -ge 5 ]
-   do
-      mkdir bin
-      echo "Extracting .tar.gz"
-      tar xvzf $input -C bin/ --strip 1
-      if [ -f "bin/vic-machine-linux" ]
-      then
-      echo "tar extraction complete.."
-      canContinue="Yes"
-      break
-      else
-      echo "tar extraction failed"
-      canContinue="No"
-      rm -rf bin
-      fi
-      n=$[$n+1]
-      sleep 15
-   done
+case "$target" in
+    "6.0")
+        excludes="--exclude nsx"
+        ESX_BUILD=${ESX_BUILD:-$ESX_60_VERSION}
+        VC_BUILD=${VC_BUILD:-$VC_60_VERSION}
+        ;;
+    "6.5")
+        ESX_BUILD=${ESX_BUILD:-$ESX_65_VERSION}
+        VC_BUILD=${VC_BUILD:-$VC_65_VERSION}
+        ;;
+    "6.7")
+        excludes="--exclude nsx --exclude hetero"
+        ESX_BUILD=${ESX_BUILD:-$ESX_67_VERSION}
+        VC_BUILD=${VC_BUILD:-$VC_67_VERSION}
+        ;;
+esac
 
-if [[ $canContinue = "No" ]]; then
+LOG_UPLOAD_DEST="${LOG_UPLOAD_DEST:-${DEFAULT_LOG_UPLOAD_DEST}}"
+
+n=0 && rm -f "${input}"
+until [ $n -ge 5 -o -f "${input}" ]; do
+    echo "Retry.. $n"
+    echo "Downloading gcp file ${input}"
+    wget -nv https://storage.googleapis.com/vic-engine-builds/${input}
+
+    ((n++))
+    sleep 15
+done
+
+echo "Extracting .tar.gz"
+mkdir bin && tar xvzf ${input} -C bin/ --strip 1
+
+if [ ! -f  "bin/vic-machine-linux" ]; then
     echo "Tarball extraction failed..quitting the run"
-    break
+    rm -rf bin
+    exit
 else
+    VCH_COMMIT=$(bin/vic-machine-linux version | awk -F '-' '{print $NF}')
     echo "Tarball extraction passed, Running nightlies test.."
 fi
 
-if [[ $target == "6.0" ]]; then
-    echo "Executing nightly tests on vSphere 6.0"
-    pabot --processes 4 --removekeywords TAG:secret --exclude nsx --variable ESX_VERSION:$ESX_60_VERSION --variable VC_VERSION:$VC_60_VERSION -d 60/$i tests/manual-test-cases/Group5-Functional-Tests tests/manual-test-cases/Group13-vMotion tests/manual-test-cases/Group21-Registries tests/manual-test-cases/Group23-Future-Tests
-    cat 60/pabot_results/*/stdout.txt | grep '::' | grep -E 'PASS|FAIL' > console.log
-elif [[ $target == "6.5" ]]; then
-    echo "Executing nightly tests on vSphere 6.5"
-    pabot --processes 4 --removekeywords TAG:secret -d 65/$i tests/manual-test-cases/Group5-Functional-Tests tests/manual-test-cases/Group13-vMotion tests/manual-test-cases/Group21-Registries tests/manual-test-cases/Group23-Future-Tests
-    cat 65/pabot_results/*/stdout.txt | grep '::' | grep -E 'PASS|FAIL' > console.log
-elif [[ $target == "6.7" ]]; then
-    echo "Executing nightly tests on vSphere 6.7"
-    pabot --processes 4 --removekeywords TAG:secret --exclude nsx --exclude hetero --variable ESX_VERSION:$ESX_67_VERSION --variable VC_VERSION:$VC_67_VERSION -d 67/$i tests/manual-test-cases/Group5-Functional-Tests tests/manual-test-cases/Group13-vMotion tests/manual-test-cases/Group21-Registries tests/manual-test-cases/Group23-Future-Tests
-    cat 67/pabot_results/*/stdout.txt | grep '::' | grep -E 'PASS|FAIL' > console.log
+
+pabot --processes 4 --removekeywords TAG:secret ${excludes} --variable ESX_VERSION:${ESX_BUILD} --variable VC_VERSION:${VC_BUILD} -d ${target} "${testcases}"
+cat ${target}/pabot_results/*/stdout.txt | grep '::' | grep -E 'PASS|FAIL' > console.log
+
+# See if any VMs leaked
+# TODO: should be a warning until clean, then changed to a failure if any leak
+echo "There should not be any VMs listed here"
+echo "======================================="
+timeout 60s sshpass -p ${NIMBUS_PASSWORD} ssh -o StrictHostKeyChecking\=no ${NIMBUS_USER}@${NIMBUS_GW} nimbus-ctl list
+echo "======================================="
+echo "If VMs are listed we should investigate why they are leaking"
+
+# archive the logs
+logarchive="logs_vch-${VCH_BUILD}-${VCH_COMMIT}_test-${BUILD_ID}-${GIT_COMMIT}_${BUILD_TIMESTAMP}.zip"
+/usr/bin/zip -9 -r "${logarchive}" "${target}" *.zip *.log *.debug *.tgz
+if [ $? -eq 0 ]; then
+    tests/nightly/upload-logs.sh ${logarchive} ${LOG_UPLOAD_DEST}
 fi
+
 # Pretty up the email results
 sed -i -e 's/^/<br>/g' console.log
 sed -i -e 's|PASS|<font color="green">PASS</font>|g' console.log
 sed -i -e 's|FAIL|<font color="red">FAIL</font>|g' console.log
 
-# See if any VMs leaked
-timeout 60s sshpass -p $NIMBUS_PASSWORD ssh -o StrictHostKeyChecking\=no $NIMBUS_USER@$NIMBUS_GW nimbus-ctl list
-
-tests/nightly/upload-logs.sh $target_$BUILD_TIMESTAMP

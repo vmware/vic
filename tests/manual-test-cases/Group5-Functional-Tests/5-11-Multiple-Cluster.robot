@@ -24,7 +24,7 @@ Multiple Cluster Setup
     [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-11-multiple-cluster*'  ${false}
     Log To Console  \nStarting testbed deploy...
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-multiple-cluster --testbedSpecRubyFile /dbc/pa-dbc1111/mhagen/nimbus-testbeds/testbeds/vic-multiple-cluster.rb --runName 5-11-multiple-cluster
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  spec=vic-multiple-cluster.rb  args=--noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-multiple-cluster --runName 5-11-multiple-cluster
     Log  ${out}
 
     Open Connection  %{NIMBUS_GW}
@@ -56,7 +56,6 @@ Multiple Cluster Setup
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
-    Custom Testbed Keepalive  /dbc/pa-dbc1111/mhagen
 
     Install VIC Appliance To Test Server  certs=${false}  vol=default
     Run Regression Tests

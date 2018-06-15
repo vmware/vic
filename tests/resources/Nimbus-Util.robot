@@ -45,12 +45,6 @@ Fetch POD
       ${pod}=  Fetch From Left  ${out}  :
       [return]  ${pod}
 
-Custom Testbed Keepalive
-    [Tags]  secret
-    [Arguments]  ${folder}
-    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  touch ${folder}
-    [Return]  ${out}
-
 Deploy Nimbus ESXi Server
     [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}  ${tls_disabled}=True
     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
@@ -192,13 +186,22 @@ Deploy Nimbus vCenter Server Async
     ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  '${NIMBUS_LOCATION} nimbus-vcvadeploy --lease=0.25 --vcvaBuild ${version} ${name}'
     [Return]  ${out}
 
+# Deploys a nimbus testbed based on the specified testbed spec and options
+# user [required] - nimbus user
+# password [required] - password for nimbus user
+# spec [optional] - name of spec file in tests/resources/nimbus-testbeds
+# args [optiona;] - args to pass into testbeddeploy
 Deploy Nimbus Testbed
-    [Arguments]  ${user}  ${password}  ${testbed}
+    [Arguments]  ${user}  ${password}  ${spec}=  ${args}=
+
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
+    Run Keyword Unless  ${spec} == ${EMPTY}  Set Test Variable  ${specarg}  --testbedSpecRubyFile ./%{BUILD_TAG}/testbeds/${spec}
+    Run Keyword Unless  ${spec} == ${EMPTY}  Put File  tests/resources/nimbus-testbeds/${spec}  destination=./%{BUILD_TAG}/testbeds/
+
     :FOR  ${IDX}  IN RANGE  1  5
-    \   ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-testbeddeploy --lease 0.25 ${testbed}
+    \   ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-testbeddeploy --lease 0.25 ${specarg} ${args}
     \   Log  ${out}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  "deployment_result"=>"PASS"
@@ -215,26 +218,27 @@ Kill Nimbus Server
     Log  ${out}
     Close connection
 
-Cleanup Nimbus PXE folder
-    [Arguments]  ${user}  ${password}
+Cleanup Nimbus Folders
+    [Arguments]  ${deletePXE}=${false}
     Open Connection  %{NIMBUS_GW}
-    Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
-    ${out}=  Execute Command  ${NIMBUS_LOCATION} rm -rf public_html/pxe/*
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Run Keyword If  ${deletePXE}  Execute Command  ${NIMBUS_LOCATION} rm -rf public_html/pxe/*
+    Execute Command  ${NIMBUS_LOCATION} rm -rf %{BUILD_TAG}
     Close connection
 
+# Cleans up a list of VMs and deletes the pxe folder on nimbus gateway
 Nimbus Cleanup
     [Arguments]  ${vm_list}  ${collect_log}=True  ${dontDelete}=${false}
-    Run Keyword If  ${collect_log}  Run Keyword And Continue On Failure  Gather Logs From Test Server
-    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Return From Keyword If  ${dontDelete}
     ${list}=  Catenate  @{vm_list}
-    Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${list}
+    Run Keyword   Nimbus Cleanup Single VM  ${list}  ${collect_log}  ${dontDelete}  ${true}
 
+# Cleans up a vm (or space separated string list of vms) but does not delete pxe folder on nimbus gateway
 Nimbus Cleanup Single VM
-    [Arguments]  ${vm}  ${collect_log}=True  ${dontDelete}=${false}
+    [Arguments]  ${vms}  ${collect_log}=True  ${dontDelete}=${false}  ${deletePXE}=${false}
     Run Keyword If  ${collect_log}  Run Keyword And Continue On Failure  Gather Logs From Test Server
+    Run Keyword And Ignore Error  Cleanup Nimbus Folders  ${deletePXE}
     Return From Keyword If  ${dontDelete}
-    Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${vm}
+    Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${vms}
 
 Gather Host IPs
     ${out}=  Run  govc ls host/cls
@@ -409,13 +413,13 @@ Get Vsphere Version
     \   Run Keyword And Return If  ${status}  Fetch From Right  ${line}  ${SPACE}
 
 Deploy Simple NFS Testbed
-    [Arguments]  ${user}  ${password}  ${additional-args}=
+    [Arguments]  ${user}  ${password}  ${spec}=  ${args}=
     ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     Log To Console  \nDeploying Nimbus NFS testbed: ${name}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
-    ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-testbeddeploy --testbedName nfs --runName ${name} ${additional-args}
+    ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-testbeddeploy  spec=${spec}  args=--testbedName nfs --runName ${name} ${args}
     Log  ${out}
     # Make sure the deploy actually worked
     Should Contain  ${out}  ${name}.nfs.0' is up. IP:
@@ -488,7 +492,7 @@ Create Simple VC Cluster With Static IP
     Set Suite Variable  ${NIMBUS_LOCATION}  NIMBUS_LOCATION=wdc
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     Log To Console  Create a new simple vc cluster with static ip support...
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-simple-cluster-with-static --testbedSpecRubyFile /dbc/pa-dbc1111/mhagen/nimbus-testbeds/testbeds/vic-simple-cluster-with-static.rb --runName ${name}
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  spec=vic-simple-cluster-with-static.rb  args=--noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-simple-cluster-with-static --runName ${name}
     Log  ${out}
 
     Open Connection  %{NIMBUS_GW}
