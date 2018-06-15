@@ -306,7 +306,7 @@ pipeline:
       status: success
 
   trigger-downstream:
-    image: 'gcr.io/eminent-nation-87317/vic-downstream-trigger:1.1'
+    image: 'gcr.io/eminent-nation-87317/vic-downstream-trigger:1.2'
     environment:
       SHELL: /bin/bash
       DOWNSTREAM_REPO: vmware/vic-product
