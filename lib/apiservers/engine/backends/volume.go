@@ -72,7 +72,7 @@ func (v *VolumeBackend) Volumes(filter string) ([]*types.Volume, []string, error
 	var volumes []*types.Volume
 
 	// Get volume list from the portlayer
-	volumeResponses, err := v.storageProxy.VolumeList(context.Background(), filter)
+	volumeResponses, err := v.storageProxy.VolumeList(op, filter)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -130,7 +130,7 @@ func (v *VolumeBackend) VolumeInspect(name string) (*types.Volume, error) {
 	op := trace.NewOperation(context.Background(), "VolumeInspect: %s", name)
 	defer trace.End(trace.Audit(name, op))
 
-	volInfo, err := v.storageProxy.VolumeInfo(context.Background(), name)
+	volInfo, err := v.storageProxy.VolumeInfo(op, name)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func (v *VolumeBackend) VolumeCreate(name, driverName string, volumeData, labels
 	op := trace.NewOperation(context.Background(), "VolumeCreate: %s", name)
 	defer trace.End(trace.Audit(name, op))
 
-	result, err := v.storageProxy.Create(context.Background(), name, driverName, volumeData, labels)
+	result, err := v.storageProxy.Create(op, name, driverName, volumeData, labels)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func (v *VolumeBackend) VolumeRm(name string, force bool) error {
 	op := trace.NewOperation(context.Background(), "VolumeRm: %s", name)
 	defer trace.End(trace.Audit(name, op))
 
-	err := v.storageProxy.Remove(context.Background(), name)
+	err := v.storageProxy.Remove(op, name)
 	if err != nil {
 		return err
 	}
