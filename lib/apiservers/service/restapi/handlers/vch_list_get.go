@@ -149,6 +149,8 @@ func (h *vchListGet) vchsToModels(op trace.Operation, c *client.HandlerClient, v
 func (h *vchListGet) parent(op trace.Operation, vch *vm.VirtualMachine) *models.ManagedObject {
 	id := vch.Reference().Value
 
+	// Once we know we will never encounter vApp-based VCHs, we can probably
+	// replace much of the following with a call to `vch.ResourcePool(op)`.
 	var mvm mo.VirtualMachine
 	if err := vch.Properties(op, vch.Reference(), []string{"parentVApp", "resourcePool"}, &mvm); err != nil {
 		op.Debugf("Failed to get parent of VCH %s: %s", id, err)
