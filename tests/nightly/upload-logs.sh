@@ -14,28 +14,23 @@
 # limitations under the License.
 #
 
-echo "Upload logs"
+source=${1:?A source file must be specified}
+# The target destination in cloud storage. If the destination ends with a / it will be treated as a directory.
+# If not it _may_ be treated as a directory or a file depending on current remote objects. see gsutil cp doc.
+dest=${2:?A bucket must be specified, eg vic-ci-logs, or vic-ci-logs/user/branch/}
 
-set -x
-gsutil version -l
-set +x
+if [ ! -r "${source}" ]; then
+  echo "Specified source file does not exist or cannot be read: ${source}"
+  exit 1
+fi
 
-outfile="vic_nightly_logs_"$1".zip"
-echo $outfile
-
-if [ -d "60" ]; then
-    /usr/bin/zip -9 -r $outfile 60 *.zip *.log *.debug *.tgz
-elif [ -d "65" ]; then
-    /usr/bin/zip -9 -r $outfile 65 *.zip *.log *.debug *.tgz
-elif [ -d "67" ]; then
-    /usr/bin/zip -9 -r $outfile 67 *.zip *.log *.debug *.tgz
-else
-    echo "No output directories to upload!"
-    exit 1
+if [ ${dest:0:1} == "/" ]; then
+  echo "Destination must start with a bucket name and no leading /"
+  exit 1
 fi
 
 # GC credentials
-keyfile=~/vic-ci-logs.key
+keyfile=~/${dest%%/*}.key
 botofile=~/.boto
 if [ ! -f $keyfile ]; then
     echo -en $GS_PRIVATE_KEY > $keyfile
@@ -50,16 +45,22 @@ if [ ! -f $botofile ]; then
     echo "default_project_id = $GS_PROJECT_ID" >> $botofile
 fi
 
-if [ -f "$outfile" ]; then
-  gsutil cp $outfile gs://vic-ci-logs
-  echo "----------------------------------------------"
+echo "----------------------------------------------"
+echo "Uploading logs to ${dest}"
+echo "----------------------------------------------"
+if gsutil cp "${source}" "gs://${dest}"; then
+  url="https://console.cloud.google.com/m/cloudstorage/b/${dest}/o/${source}?authuser=1"
+  echo "$url" > log-download.url
   echo "Download test logs here:"
-  echo "https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/$outfile?authuser=1"
-  echo "----------------------------------------------"
+  echo "$url"
 else
-  echo "No log output file to upload"
+  echo "Log upload faled. Dumping gsutil version logic"
+  set -x
+  gsutil version -l
+  set +x
 fi
+echo "----------------------------------------------"
 
-if [ -f "$keyfile" ]; then
-  rm -f $keyfile
-fi
+rm -f $keyfile
+
+

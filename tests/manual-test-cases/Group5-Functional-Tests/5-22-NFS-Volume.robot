@@ -38,7 +38,7 @@ Setup ESX And NFS Suite
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     Log To Console  \nStarting test...
 
-    ${nfs}  ${nfs_ro}  ${esx1}  ${nfs_ip}  ${nfs_ro_ip}  ${esx1_ip}=  Deploy Simple NFS Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--testbedSpecRubyFile /dbc/w3-dbc302/rashok/vic-nfs.rb --esxBuild ${ESX_VERSION} --esxPxeDir ${ESX_VERSION} --plugin testng
+    ${nfs}  ${nfs_ro}  ${esx1}  ${nfs_ip}  ${nfs_ro_ip}  ${esx1_ip}=  Deploy Simple NFS Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  spec=vic-nfs.rb  args=--esxBuild ${ESX_VERSION} --esxPxeDir ${ESX_VERSION} --plugin testng
 
     Set Suite Variable  @{list}  ${esx1}  ${nfs}  ${nfs_ro}
     Set Suite Variable  ${ESX1}  ${esx1}

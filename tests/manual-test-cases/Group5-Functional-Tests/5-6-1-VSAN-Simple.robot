@@ -68,8 +68,6 @@ Check VSAN DOMs In Datastore
 Simple VSAN
     Wait Until Keyword Succeeds  10x  30s  Check VSAN DOMs In Datastore  %{TEST_DATASTORE}
 
-    Custom Testbed Keepalive  /dbc/pa-dbc1111/mhagen
-
     Install VIC Appliance To Test Server
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
