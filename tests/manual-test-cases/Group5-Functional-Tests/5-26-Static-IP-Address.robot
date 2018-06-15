@@ -27,7 +27,6 @@ Setup VC With Static IP
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
-    Custom Testbed Keepalive  /dbc/pa-dbc1111/mhagen
 
     Install VIC Appliance To Test Server  additional-args=--public-network-ip &{static}[ip]/&{static}[netmask] --public-network-gateway &{static}[gateway] --dns-server 10.170.16.48
     Run Regression Tests
