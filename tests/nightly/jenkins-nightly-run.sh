@@ -24,7 +24,7 @@ VC_67_VERSION="ob-8217866"
 
 DEFAULT_LOG_UPLOAD_DEST="vic-ci-logs"
 DEFAULT_VCH_BUILD="*"
-DEFAULT_TESTCASES="tests/manual-test-cases/Group5-Functional-Tests tests/manual-test-cases/Group13-vMotion tests/manual-test-cases/Group21-Registries tests/manual-test-cases/Group23-Future-Tests"
+DEFAULT_TESTCASES=("tests/manual-test-cases/Group5-Functional-Tests" "tests/manual-test-cases/Group13-vMotion" "tests/manual-test-cases/Group21-Registries" "tests/manual-test-cases/Group23-Future-Tests")
 
 
 if [[ $1 != "6.0" && $1 != "6.5" && $1 != "6.7" ]]; then
@@ -36,8 +36,8 @@ fi
 target="$1"
 echo "Target version: ${target}"
 shift
-# Take the remaining CLI arguments as a test case list
-testcases="${*:-$DEFAULT_TESTCASES}"
+# Take the remaining CLI arguments as a test case list - this is treated as an array to preserve quoting when passing to pabot
+testcases=("${@:-${DEFAULT_TESTCASES[@]}}")
 
 # TODO: the version downloaded by this logic is not coupled with the tests that will be run against it. This should be altered to pull a version that matches the commit SHA of the tests
 # we will be running or similar mechanism.
@@ -90,7 +90,7 @@ else
 fi
 
 
-pabot --processes 4 --removekeywords TAG:secret ${excludes} --variable ESX_VERSION:${ESX_BUILD} --variable VC_VERSION:${VC_BUILD} -d ${target} "${testcases}"
+pabot --processes 4 --removekeywords TAG:secret ${excludes} --variable ESX_VERSION:${ESX_BUILD} --variable VC_VERSION:${VC_BUILD} -d ${target} "${testcases[@]}"
 cat ${target}/pabot_results/*/stdout.txt | grep '::' | grep -E 'PASS|FAIL' > console.log
 
 # See if any VMs leaked
