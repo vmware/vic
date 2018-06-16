@@ -46,6 +46,7 @@ Verify VCH List
     Property Should Not Be Empty    .vchs[] | select(.name=="%{VCH-NAME}").docker_host
     Property Should Not Be Empty    .vchs[] | select(.name=="%{VCH-NAME}").upgrade_status
     Property Should Not Be Empty    .vchs[] | select(.name=="%{VCH-NAME}").version
+    Property Should Not Be Empty    .vchs[] | select(.name=="%{VCH-NAME}").parent
 
 Get VCH List Using Session
     Get Path Under Target Using Session    vch
