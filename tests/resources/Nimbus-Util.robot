@@ -189,16 +189,16 @@ Deploy Nimbus vCenter Server Async
 # Deploys a nimbus testbed based on the specified testbed spec and options
 # user [required] - nimbus user
 # password [required] - password for nimbus user
+# args [optional] - args to pass into testbeddeploy
 # spec [optional] - name of spec file in tests/resources/nimbus-testbeds
-# args [optiona;] - args to pass into testbeddeploy
 Deploy Nimbus Testbed
-    [Arguments]  ${user}  ${password}  ${spec}=  ${args}=
+    [Arguments]  ${user}  ${password}  ${args}=  ${spec}=${EMPTY}
 
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
-    Run Keyword Unless  ${spec} == ${EMPTY}  Set Test Variable  ${specarg}  --testbedSpecRubyFile ./%{BUILD_TAG}/testbeds/${spec}
-    Run Keyword Unless  ${spec} == ${EMPTY}  Put File  tests/resources/nimbus-testbeds/${spec}  destination=./%{BUILD_TAG}/testbeds/
+    ${specarg}=  Set Variable If  '${spec}' == '${EMPTY}'  ${EMPTY}  --testbedSpecRubyFile ./%{BUILD_TAG}/testbeds/${spec}    
+    Run Keyword Unless  '${spec}' == '${EMPTY}'  Put File  tests/resources/nimbus-testbeds/${spec}  destination=./%{BUILD_TAG}/testbeds/
 
     :FOR  ${IDX}  IN RANGE  1  5
     \   ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-testbeddeploy --lease 0.25 ${specarg} ${args}
