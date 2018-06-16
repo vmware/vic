@@ -26,7 +26,10 @@ import (
 )
 
 // State will create and return a docker ContainerState object
-// from the passed vic ContainerInfo object
+// from the passed vic ContainerInfo object.  This state is mostly
+// used for docker ps and may not be the same value as the state
+// from docker inspect.  The value for ps may require capitalization
+// or additional text.
 func State(info *models.ContainerInfo) *types.ContainerState {
 	// ensure we have the data we need
 	if info == nil || info.ProcessConfig == nil || info.ContainerConfig == nil {

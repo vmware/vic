@@ -897,7 +897,7 @@ func (c *ContainerBackend) ContainerRm(name string, config *types.ContainerRmCon
 		case proxy.ContainerError:
 			// force stop if container state is error to make sure container is deletable later
 			c.containerProxy.Stop(op, vc, name, &secs, true)
-		case "Starting":
+		case proxy.ContainerStarting:
 			// if we are starting let the user know they must use the force
 			return derr.NewRequestConflictError(fmt.Errorf("The container is starting.  To remove use -f"))
 		case proxy.ContainerRunning:
