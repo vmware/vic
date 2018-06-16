@@ -29,8 +29,15 @@ if [ ${dest:0:1} == "/" ]; then
   exit 1
 fi
 
+# extract first path element as bucket name
+bucket=${dest%%/*}
+# drop bucket portion from path
+path=${dest#*/}
+# drop trailing / if any
+path=${path%/}
+
 # GC credentials
-keyfile=~/${dest%%/*}.key
+keyfile=~/${bucket}.key
 botofile=~/.boto
 if [ ! -f $keyfile ]; then
     echo -en $GS_PRIVATE_KEY > $keyfile
@@ -49,7 +56,7 @@ echo "----------------------------------------------"
 echo "Uploading logs to ${dest}"
 echo "----------------------------------------------"
 if gsutil cp "${source}" "gs://${dest}"; then
-  url="https://console.cloud.google.com/m/cloudstorage/b/${dest}/o/${source}?authuser=1"
+  url="https://console.cloud.google.com/m/cloudstorage/b/${bucket}/o/${path}/${source}?authuser=1"
   echo "$url" > log-download.url
   echo "Download test logs here:"
   echo "$url"

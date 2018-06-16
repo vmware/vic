@@ -26,6 +26,7 @@ DEFAULT_LOG_UPLOAD_DEST="vic-ci-logs"
 DEFAULT_VCH_BUILD="*"
 DEFAULT_TESTCASES=("tests/manual-test-cases/Group5-Functional-Tests" "tests/manual-test-cases/Group13-vMotion" "tests/manual-test-cases/Group21-Registries" "tests/manual-test-cases/Group23-Future-Tests")
 
+VIC_BINARY_PREFIX="vic_"
 
 if [[ $1 != "6.0" && $1 != "6.5" && $1 != "6.7" ]]; then
     echo "Please specify a target version. One of: 6.0, 6.5, 6.7"
@@ -42,8 +43,11 @@ testcases=("${@:-${DEFAULT_TESTCASES[@]}}")
 # TODO: the version downloaded by this logic is not coupled with the tests that will be run against it. This should be altered to pull a version that matches the commit SHA of the tests
 # we will be running or similar mechanism.
 VCH_BUILD=${VCH_BUILD:-${DEFAULT_VCH_BUILD}}
-input=$(gsutil ls -l gs://vic-engine-builds/vic_${VCH_BUILD} | grep -v TOTAL | sort -k2 -r | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
-VCH_BUILD=${input:4}
+input=$(gsutil ls -l gs://vic-engine-builds/${VIC_BINARY_PREFIX}${VCH_BUILD} | grep -v TOTAL | sort -k2 -r | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
+
+# strip prefix and suffix from archive filename
+VCH_BUILD=${input#${VIC_BINARY_PREFIX}}
+VCH_BUILD=${VCH_BUILD%%.*}
 
 # Enforce short SHA
 GIT_COMMIT=${GIT_COMMIT:0:7}
