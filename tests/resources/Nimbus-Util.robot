@@ -189,7 +189,7 @@ Deploy Nimbus vCenter Server Async
 # Deploys a nimbus testbed based on the specified testbed spec and options
 # user [required] - nimbus user
 # password [required] - password for nimbus user
-# args [optiona;] - args to pass into testbeddeploy
+# args [optional] - args to pass into testbeddeploy
 # spec [optional] - name of spec file in tests/resources/nimbus-testbeds
 Deploy Nimbus Testbed
     [Arguments]  ${user}  ${password}  ${args}=  ${spec}=${EMPTY}
