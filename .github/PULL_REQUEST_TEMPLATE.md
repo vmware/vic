@@ -16,8 +16,11 @@ Refer to CONTRIBUTING.MD for more details.
 -->
 
 
+<details><summary>#### CI Options</summary><p>
+
+
 <!--  DO NOT EDIT BELOW. The markdown below is used to provide some coarse options for how CI runs against this PR -->
-#### CI Options
+
 ------
 - [ ] <!-- directive:fast-fail --> fail fast on error 
 - [ ] <!-- directive:ops-user --> use ops-user instead of admin
@@ -40,9 +43,13 @@ Group0-Bugs/Group0-Bugs.4817
 ------
 <!-- Default: do not run integration -->
 - [ ] <!-- directive:all-integration --> all integration tests (slow!)
+- [ ] <!-- directive:dirty-integration --> integration tests use existing testbed if present
 - [ ] <!-- directive:specific-integration-begin --> specific integration tests:
 ```
 Group5-Functional-Tests/5-11-Multiple-Cluster
 ```
 <!-- directive:specific-integration-end -->
 ------
+
+</p></details>
+<p/>
