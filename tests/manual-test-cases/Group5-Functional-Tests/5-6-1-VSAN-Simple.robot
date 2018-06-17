@@ -24,8 +24,11 @@ Simple VSAN Setup
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${name}=  Evaluate  'vic-vsan-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${user}  %{NIMBUS_USER}
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --vcfvtBuildPath /dbc/pa-dbc1111/mhagen/ --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-vsan-simple-pxeBoot-vcva --runName ${name}
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  args=--plugin testng --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-vsan-simple-pxeBoot-vcva --runName ${name}  spec=vic-vsan.rb
+
+    Log  ${out}
     Should Contain  ${out}  "deployment_result"=>"PASS"
+
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  .vcva-${VC_VERSION}' is up. IP:

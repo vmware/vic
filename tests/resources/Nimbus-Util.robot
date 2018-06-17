@@ -416,13 +416,14 @@ Deploy Simple NFS Testbed
     [Arguments]  ${user}  ${password}  ${spec}=  ${args}=
     ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     Log To Console  \nDeploying Nimbus NFS testbed: ${name}
-    Open Connection  %{NIMBUS_GW}
-    Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
-    ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-testbeddeploy  spec=${spec}  args=--testbedName nfs --runName ${name} ${args}
+    ${out}=  Deploy Nimbus Testbed  user=${user}  password=${password}  spec=${spec}  args=--testbedName nfs --runName ${name} ${args}
     Log  ${out}
-    # Make sure the deploy actually worked
+
+    # Make sure the deploy actually worked and all components are up
     Should Contain  ${out}  ${name}.nfs.0' is up. IP:
+    Should Contain  ${out}  ${name}.nfs.1' is up. IP:
+    Should Contain  ${out}  ${name}.esx.0' is up. IP:
 
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
