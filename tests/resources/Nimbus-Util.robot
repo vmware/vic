@@ -572,3 +572,17 @@ Get Name of First Local Storage For Host
     ${datastores}=  Run  govc host.info -host ${host} -json | jq -r '.HostSystems[].Config.FileSystemVolume.MountInfo[].Volume | select (.Type\=\="VMFS") | select (.Local\=\=true) | .Name'
     @{datastores}=  Split To Lines  ${datastores}
     [Return]  @{datastores}[0]
+
+# Simple wrapper to Wait Until Keyword Succeeds that allows callers to:
+# * use default retry count and delay
+# * specify specific retry counts and delays
+# * robot framework executor to override both the above via the following environment variables:
+#   NIMBUS_RETRY_ATTEMPTS
+#   NIMBUS_RETRY_DELAY
+Nimbus Suite Setup
+    [Arguments]  ${keyword}  ${attempts}=1x  ${delay}=1m  @{varargs}
+
+    ${useAttempts}=  Get Environment Variable  NIMBUS_RETRY_ATTEMPTS  ${attempts}
+    ${useDelay}=     Get Environment Variable  NIMBUS_RETRY_DELAY     ${delay}
+
+    Wait Until Keyword Succeeds  ${useAttempts}  ${useDelay}  ${keyword}  @{varargs}

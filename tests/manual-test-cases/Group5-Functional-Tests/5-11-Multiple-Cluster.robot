@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-11 - Multiple Clusters
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Multiple Cluster Setup
+Suite Setup  Nimbus Suite Setup  Multiple Cluster Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-11-multiple-cluster*'  ${false}
 Test Teardown  Cleanup VIC Appliance On Test Server
 

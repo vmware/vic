@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-6-1 - VSAN-Simple
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Simple VSAN Setup
+Suite Setup  Nimbus Suite Setup  Simple VSAN Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***

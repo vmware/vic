@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-24 - Non vSphere Local Cluster
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Non vSphere Local Cluster Install Setup
+Suite Setup  Nimbus Suite Setup  Non vSphere Local Cluster Install Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 Test Teardown  Cleanup VIC Appliance On Test Server
 

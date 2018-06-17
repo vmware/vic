@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-25 - OPS-User-Grant
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Ops User Create
+Suite Setup  Nimbus Suite Setup  Ops User Create
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***

@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-3 - Enhanced Linked Mode
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Enhanced Link Mode Setup
+Suite Setup  Nimbus Suite Setup  Enhanced Link Mode Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***

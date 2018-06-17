@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-5 - Heterogeneous ESXi
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Heterogenous ESXi Setup
+Suite Setup  Nimbus Suite Setup  Heterogenous ESXi Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 Force Tags  hetero
 

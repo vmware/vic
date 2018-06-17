@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-6-2 - VSAN-Complex
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  VSAN Complex Setup
+Suite Setup  Nimbus Suite Setup  VSAN Complex Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 Force Tags  vsan-complex
 
