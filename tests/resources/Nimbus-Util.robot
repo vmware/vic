@@ -198,17 +198,17 @@ Deploy Nimbus Testbed
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     ${specarg}=  Set Variable If  '${spec}' == '${EMPTY}'  ${EMPTY}  --testbedSpecRubyFile ./%{BUILD_TAG}/testbeds/${spec}    
-    Run Keyword Unless  '${spec}' == '${EMPTY}'  Put File  tests/resources/nimbus-testbeds/${spec}  destination=./%{BUILD_TAG}/testbeds/
 
     :FOR  ${IDX}  IN RANGE  1  5
+    \   Run Keyword Unless  '${spec}' == '${EMPTY}'  Put File  tests/resources/nimbus-testbeds/${spec}  destination=./%{BUILD_TAG}/testbeds/
     \   ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-testbeddeploy --lease 0.25 ${specarg} ${args}
     \   Log  ${out}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  "deployment_result"=>"PASS"
     \   Return From Keyword If  ${status}  ${out}
-    \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 5 minutes
-    \   Sleep  5 minutes
-    Fail  Deploy Nimbus Testbed Failed 5 times over the course of more than 25 minutes
+    \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 1 minute
+    \   Sleep  1 minutes
+    Fail  Deploy Nimbus Testbed Failed 5 times over the course of more than 5 minutes
 
 Kill Nimbus Server
     [Arguments]  ${user}  ${password}  ${name}
@@ -576,13 +576,13 @@ Get Name of First Local Storage For Host
 # Simple wrapper to Wait Until Keyword Succeeds that allows callers to:
 # * use default retry count and delay
 # * specify specific retry counts and delays
-# * robot framework executor to override both the above via the following environment variables:
+# * executor can globally override the above via the environment variables:
 #   NIMBUS_RETRY_ATTEMPTS
 #   NIMBUS_RETRY_DELAY
 Nimbus Suite Setup
     [Arguments]  ${keyword}  ${attempts}=1x  ${delay}=1m  @{varargs}
 
-    ${useAttempts}=  Get Environment Variable  NIMBUS_RETRY_ATTEMPTS  ${attempts}
+    ${useAttempts}=  Get Environment Variable  NIMBUS_RETRY_ATTEMPTS  ${attempts}x
     ${useDelay}=     Get Environment Variable  NIMBUS_RETRY_DELAY     ${delay}
 
     Wait Until Keyword Succeeds  ${useAttempts}  ${useDelay}  ${keyword}  @{varargs}
