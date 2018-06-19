@@ -23,6 +23,11 @@ HEADERS=${HEADERS:-${DEFAULT_HEADERS}}
 CURL_ARGS=${CURL_ARGS:-${DEFAULT_CURL_ARGS}}
 REPO=${REPO:-${DEFAULT_REPO}}
 
+HEADERS=("${HEADERS[@]}" "Authorization: token ${GITHUB_TOKEN?"GitHub API token must be supplied"}")
+
+HEADER_ARGS=("${HEADERS[@]/#/"-H '"}")
+HEADER_ARGS=("${HEADER_ARGS/%/"'"}")
+
 # Determines whether a label already exists
 #
 # Arguments:
@@ -35,10 +40,38 @@ REPO=${REPO:-${DEFAULT_REPO}}
 # 0: the label exists
 # 1: the label does not exist
 label-exists () {
-    header_args=("${HEADERS[@]/#/"-H '"}")
-    header_args=("${header_args/%/"'"}")
-    args=("-w %{http_code}\n" "${header_args[@]}" "${CURL_ARGS[@]}")
-    code=$(curl "${args[@]}" ${API_ENDPOINT%/}/${REPO}/labels/$1 | tail -n1)
+    : ${1?"Usage: ${FUNCNAME[0]} LABEL"}
+
+    args=("-w %{http_code}\n" "${HEADER_ARGS[@]}" "${CURL_ARGS[@]}")
+    code=$(curl "${args[@]}" "${API_ENDPOINT%/}/${REPO}/labels/$1" | tail -n1)
+
+    [ $code -eq 200 ]
+}
+
+# Updates the description and color associated with an existing label
+#
+# Arguments:
+# 1: the label name
+# 2: the label description
+# 3: the label color
+#
+# Returns:
+# N/A
+#
+# Exits:
+# 0: the operation succeeded
+# 1: the operation failed
+label-update () {
+    : ${2?"Usage: $0 LABEL DESCRIPTION [COLOR]"}
+
+    if [ -z $3 ]
+    then
+        data="{\"description\": \"$2\"}"
+    else
+        data="{\"description\": \"$2\", \"color\": \"$3\"}"
+    fi
+    args=("--data" "${data}" "-X PATCH" "-w %{http_code}\n" "${HEADER_ARGS[@]}" "${CURL_ARGS[@]}")
+    code=$(curl "${args[@]}" "${API_ENDPOINT%/}/${REPO}/labels/$1" | tail -n1)
     
     [ $code -eq 200 ]
 }
