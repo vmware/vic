@@ -222,7 +222,7 @@ Cleanup Nimbus Folders
     [Arguments]  ${deletePXE}=${false}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Run Keyword If  ${deletePXE}  Execute Command  ${NIMBUS_LOCATION} rm -rf public_html/pxe/*
+    Run Keyword If  ${deletePXE}  Execute Command  ${NIMBUS_LOCATION} rm -rf public_html/pxe/* public_html/pxeinstall/*
     Execute Command  ${NIMBUS_LOCATION} rm -rf %{BUILD_TAG}
     Close connection
 
@@ -580,9 +580,9 @@ Get Name of First Local Storage For Host
 #   NIMBUS_RETRY_ATTEMPTS
 #   NIMBUS_RETRY_DELAY
 Nimbus Suite Setup
-    [Arguments]  ${keyword}  ${attempts}=1x  ${delay}=1m  @{varargs}
+    [Arguments]  ${keyword}  ${attempts}=1  ${delay}=1m  @{varargs}
 
-    ${useAttempts}=  Get Environment Variable  NIMBUS_RETRY_ATTEMPTS  ${attempts}x
+    ${useAttempts}=  Get Environment Variable  NIMBUS_RETRY_ATTEMPTS  ${attempts}
     ${useDelay}=     Get Environment Variable  NIMBUS_RETRY_DELAY     ${delay}
 
-    Wait Until Keyword Succeeds  ${useAttempts}  ${useDelay}  ${keyword}  @{varargs}
+    Wait Until Keyword Succeeds  ${useAttempts}x  ${useDelay}  ${keyword}  @{varargs}
