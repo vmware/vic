@@ -17,11 +17,13 @@ DEFAULT_API_ENDPOINT="https://api.github.com/repos/"
 DEFAULT_HEADERS=("Accept: application/vnd.github.symmetra-preview+json")
 DEFAULT_CURL_ARGS=("-s")
 DEFAULT_REPO="vmware/vic-tasks"
+DEFAULT_MAX_LABELS=1000
 
 API_ENDPOINT=${API_ENDPOINT:-${DEFAULT_API_ENDPOINT}}
 HEADERS=("${HEADERS:-${DEFAULT_HEADERS}}")
 CURL_ARGS=${CURL_ARGS:-${DEFAULT_CURL_ARGS}}
 REPO=${REPO:-${DEFAULT_REPO}}
+MAX_LABELS=${MAX_LABELS:-${DEFAULT_MAX_LABELS}}
 
 HEADERS=("${HEADERS[@]}" "Authorization: token ${GITHUB_TOKEN?"GitHub API token must be supplied"}")
 HEADER_ARGS=("${HEADERS[@]/#/"-H"}")
@@ -126,27 +128,23 @@ label-merge () {
     fi
 }
 
+# Creates a set of labels with a common prefix, updating the description and color of existing labels as necessary
+#
 # Arguments:
 # 1: the label prefix
-# 2: the expected labels with that prefix
-warn () {
-    args=("${HEADER_ARGS[@]}" "${CURL_ARGS[@]}")
-    existing=$(curl "${args[@]}" "${API_ENDPOINT%/}/${REPO}/labels?per_page=1000" | jq ".[] | .name | select(select(startswith(\"$1/\")) | in($2) != true)")
-    echo ${existing[@]/#/WARNING: unexpected $1 label }
-}
+# 2: (pass-by-name) an associative array of label to description, with hyphens instead of slashes
+# 3: the color for labels with the supplied prefix
+#
+# Returns:
+# Warning strings about any unexpected labels which already exist with a given prefix
+merge () {
+    : ${3?"Usage: ${FUNCNAME[0]} PREFIX {LABEL:DESCRIPTION} COLOR"}
 
-merge-impacts () {
-    prefix="impact"
-    typeset -A labels
-    labels=(
-        [doc_community]="Requires changes to documentation about contributing to the product and interacting with the team"
-        [doc_design]="Requires changes to documentation about the design of the product"
-        [doc_note]="Requires changes to official release notes"
-        [doc_user]="Requires changes to official user documentation"
-    )
-    color="fef2c0"
+    prefix=$1
+    l="$( declare -p $2 )"
+    eval "declare -A labels=${l#*=}"
+    color=$3
 
-    # Keep the following section consistent across merge-*.
     expected=()
     for label in "${!labels[@]}"; do
         name="${prefix}/${label/_/\/}"
@@ -156,13 +154,28 @@ merge-impacts () {
 
         expected+=(${name})
     done
-    warn "${prefix}" '{'$(printf '"%s":0,' ${expected[@]})'}'
+
+    args=("${HEADER_ARGS[@]}" "${CURL_ARGS[@]}")
+    existing=($(curl "${args[@]}" "${API_ENDPOINT%/}/${REPO}/labels?per_page=${MAX_LABELS}" | \
+               jq ".[] | .name | select(select(startswith(\"${prefix}/\")) | in({$(printf '"%s":0,' ${expected[@]})}) != true)"))
+    printf "WARNING: unexpected ${prefix} label %s\n" "${existing[@]}"
+}
+
+merge-impacts () {
+    typeset -A impacts
+    impacts=(
+        [doc_community]="Requires changes to documentation about contributing to the product and interacting with the team"
+        [doc_design]="Requires changes to documentation about the design of the product"
+        [doc_note]="Requires changes to official release notes"
+        [doc_user]="Requires changes to official user documentation"
+    )
+
+    merge "impact" impacts "fef2c0"
 }
 
 merge-kinds () {
-    prefix="kind"
-    typeset -A labels
-    labels=(
+    typeset -A kinds
+    kinds=(
         [debt]="Problems that increase the cost of other work"
         [defect]="Behavior that is inconsistent with what's intended"
         [defect_performance]="Behavior that is functionally correct, but performs worse than intended"
@@ -174,25 +187,13 @@ merge-kinds () {
         [question]="A request for information"
         [investigation]="A scoped effort to learn the answers to a set of questions which may include prototyping"
     )
-    color="bfd4f2"
 
-    # Keep the following section consistent across merge-*.
-    expected=()
-    for label in "${!labels[@]}"; do
-        name="${prefix}/${label/_/\/}"
-        description="${labels[$label]}"
-
-        label-merge "${name}" "${description}" "${color}"
-
-        expected+=(${name})
-    done
-    warn "${prefix}" '{'$(printf '"%s":0,' ${expected[@]})'}'
+    merge "kind" kinds "bfd4f2"
 }
 
 merge-source () {
-    prefix="source"
-    typeset -A labels
-    labels=(
+    typeset -A sources
+    sources=(
         [ci]="Found via a continuous integration failure"
         [customer]="Reported by a customer, directly or via an intermediary"
         [dogfooding]="Found via a dogfooding activity"
@@ -201,17 +202,6 @@ merge-source () {
         [system-test]="Reported by the system testing team"
         [performance]="Reported by the performance testing team"
     )
-    color="f9d0c4"
 
-    # Keep the following section consistent across merge-*.
-    expected=()
-    for label in "${!labels[@]}"; do
-        name="${prefix}/${label/_/\/}"
-        description="${labels[$label]}"
-
-        label-merge "${name}" "${description}" "${color}"
-
-        expected+=(${name})
-    done
-    warn "${prefix}" '{'$(printf '"%s":0,' ${expected[@]})'}'
+    merge "source" sources "f9d0c4"
 }
