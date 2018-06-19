@@ -126,26 +126,43 @@ label-merge () {
     fi
 }
 
+# Arguments:
+# 1: the label prefix
+# 2: the expected labels with that prefix
+warn () {
+    args=("${HEADER_ARGS[@]}" "${CURL_ARGS[@]}")
+    existing=$(curl "${args[@]}" "${API_ENDPOINT%/}/${REPO}/labels?per_page=1000" | jq ".[] | .name | select(select(startswith(\"$1/\")) | in($2) != true)")
+    echo ${existing[@]/#/WARNING: unexpected $1 label }
+}
+
 merge-impacts () {
-    typeset -A impacts
-    impacts=(
+    prefix="impact"
+    typeset -A labels
+    labels=(
         [doc_community]="Requires changes to documentation about contributing to the product and interacting with the team"
         [doc_design]="Requires changes to documentation about the design of the product"
         [doc_note]="Requires changes to official release notes"
         [doc_user]="Requires changes to official user documentation"
     )
+    color="fef2c0"
 
-    for label in "${!impacts[@]}"; do
-        name="impact/${label/_/\/}"
-        description="${impacts[$label]}"
+    # Keep the following section consistent across merge-*.
+    expected=()
+    for label in "${!labels[@]}"; do
+        name="${prefix}/${label/_/\/}"
+        description="${labels[$label]}"
 
-        label-merge "$name" "$description" "fef2c0"
+        label-merge "${name}" "${description}" "${color}"
+
+        expected+=(${name})
     done
+    warn "${prefix}" '{'$(printf '"%s":0,' ${expected[@]})'}'
 }
 
 merge-kinds () {
-    typeset -A kinds
-    kinds=(
+    prefix="kind"
+    typeset -A labels
+    labels=(
         [debt]="Problems that increase the cost of other work"
         [defect]="Behavior that is inconsistent with what's intended"
         [defect_performance]="Behavior that is functionally correct, but performs worse than intended"
@@ -157,18 +174,25 @@ merge-kinds () {
         [question]="A request for information"
         [investigation]="A scoped effort to learn the answers to a set of questions which may include prototyping"
     )
+    color="bfd4f2"
 
-    for label in "${!kinds[@]}"; do
-        name="kind/${label/_/\/}"
-        description="${kinds[$label]}"
+    # Keep the following section consistent across merge-*.
+    expected=()
+    for label in "${!labels[@]}"; do
+        name="${prefix}/${label/_/\/}"
+        description="${labels[$label]}"
 
-        label-merge "$name" "$description" "bfd4f2"
+        label-merge "${name}" "${description}" "${color}"
+
+        expected+=(${name})
     done
+    warn "${prefix}" '{'$(printf '"%s":0,' ${expected[@]})'}'
 }
 
 merge-source () {
-    typeset -A sources
-    sources=(
+    prefix="source"
+    typeset -A labels
+    labels=(
         [ci]="Found via a continuous integration failure"
         [customer]="Reported by a customer, directly or via an intermediary"
         [dogfooding]="Found via a dogfooding activity"
@@ -177,11 +201,17 @@ merge-source () {
         [system-test]="Reported by the system testing team"
         [performance]="Reported by the performance testing team"
     )
+    color="f9d0c4"
 
-    for label in "${!sources[@]}"; do
-        name="source/${label/_/\/}"
-        description="${sources[$label]}"
+    # Keep the following section consistent across merge-*.
+    expected=()
+    for label in "${!labels[@]}"; do
+        name="${prefix}/${label/_/\/}"
+        description="${labels[$label]}"
 
-        label-merge "$name" "$description" "f9d0c4"
+        label-merge "${name}" "${description}" "${color}"
+
+        expected+=(${name})
     done
+    warn "${prefix}" '{'$(printf '"%s":0,' ${expected[@]})'}'
 }
