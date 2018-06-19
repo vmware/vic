@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 21-2 - Artifactory
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Artifactory Setup
+Suite Setup  Nimbus Suite Setup  Artifactory Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***

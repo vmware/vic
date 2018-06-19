@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-14 - Remove Container OOB
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Remove Container OOB Setup
+Suite Setup  Nimbus Suite Setup  Remove Container OOB Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***

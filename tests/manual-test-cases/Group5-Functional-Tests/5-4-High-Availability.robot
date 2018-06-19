@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-4 - High Availability
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  High Availability Setup
+Suite Setup  Nimbus Suite Setup  High Availability Setup
 Suite Teardown  Nimbus Cleanup  ${list}
 Test Teardown  Run Keyword If Test Failed  Gather vSphere Logs
 

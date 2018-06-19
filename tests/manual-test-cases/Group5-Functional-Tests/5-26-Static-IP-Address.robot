@@ -22,7 +22,7 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 *** Keywords ***
 Setup VC With Static IP
     ${name}=  Evaluate  'vic-5-26-' + str(random.randint(1000,9999))  modules=random
-    Wait Until Keyword Succeeds  10x  10m  Create Simple VC Cluster With Static IP  ${name}
+    Nimbus Suite Setup  Create Simple VC Cluster With Static IP  ${name}
     
 *** Test Cases ***
 Test

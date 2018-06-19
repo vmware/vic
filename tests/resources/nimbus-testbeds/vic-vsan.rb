@@ -1,4 +1,6 @@
+
 oneGB = 1 * 1000 * 1000 # in KB
+
 $testbed = Proc.new do |type, esxStyle, vcStyle, dbType, location|
   esxStyle ||= 'pxeBoot'
   vcStyle ||= 'vpxInstall'
@@ -13,62 +15,58 @@ $testbed = Proc.new do |type, esxStyle, vcStyle, dbType, location|
     nameParts << dbType
   end
 
-  if type == 'complex'
-    numEsx = 8
-    numCPUs = 4
-    vmsPerHost = 1
-    addHosts = 'vsan-complex-vcqafvt'
-  elsif type == 'simple'
-    numEsx = 4
-    numCPUs = 4
-    vmsPerHost = 0
-    addHosts = 'vsan-simple-vcqafvt'
-  elsif type == 'complexCPU'
-    numEsx = 8
-    numCPUs = 2
-    vmsPerHost = 1
-    addHosts = 'vsan-complex-vcqafvt'
-  else
-    numEsx = 4
-    numCPUs = 2
-    vmsPerHost = 0
-    addHosts = 'vsan-simple-vcqafvt'
-  end
   testbed = {
-    'name' => nameParts.join('-'),
-    'esx' => (0...numEsx).map do |i|
+    "name" => nameParts.join('-'),
+    "version" => 3,
+    "esx" => (0..3).map do | idx |
       {
-        'name' => "esx.#{i}",
-        'style' => esxStyle,
-        'disks' => [ 30 * oneGB, 30 * oneGB, 30 * oneGB],
+        "name" => "esx.#{idx}",
+        "vc" => "vc.0",
+        "style" => "pxeInstall",
+        "desiredPassword" => "e2eFunctionalTest",
+        'numMem' => 13 * 1024,
+        'numCPUs' => 4,
+        "disks" => [ 30 * oneGB, 30 * oneGB, 30 * oneGB],
         'freeLocalLuns' => 1,
         'freeSharedLuns' => 2,
-        'numMem' => 13 * 1024,
-        'numCPUs' => numCPUs,
         'ssds' => [ 5*oneGB ],
         'nics' => 2,
-        'staf' => false,
-        'desiredPassword' => 'e2eFunctionalTest',
         'vmotionNics' => ['vmk0'],
-        'mountNfs' => ['nfs.0'],
+        'staf' => false,
+        "mountNfs" => ["nfs.0"],
+        "clusterName" => "cls",
       }
     end,
-    'vc' => {
-      'type' => vcStyle,
-      'additionalScript' => [], # XXX: Create users
-      'addHosts' => addHosts,
-      'linuxCertFile' => TestngLauncher.vcvaCertFile,
-      'dbType' => dbType,
-    },
-    'vsan' => true,
-    'postBoot' => Proc.new do |runId, testbedSpec, vc, esxList, iscsiList|
-      ovf = NimbusUtils.get_absolute_ovf("CentOS/VM_OVF10.ovf")
-      if location && $nimbusEnv && $nimbusEnv['NIMBUS'] =~ /gamma/
-        ovf = 'http://10.116.111.50/testwareTestCentOS/VM_OVF10.ovf'
-      end
 
-      cloudVc = vc
-      vim = VIM.connect cloudVc.rbvmomiConnectSpec
+    "nfs" => [
+      {
+        "name" => "nfs.0",
+        "type" => "NFS41"
+      }
+    ],
+
+    "vcs" => [
+      {
+        "name" => "vc.0",
+        "type" => "vcva",
+        "dcName" => "dc1",
+        "clusters" => [{"name" => "cls", "vsan" => true, "enableDrs" => true, "enableHA" => true}],
+        "addHosts" => "allInSameCluster",
+      }
+    ],
+
+    'vsan' => true,
+    'vsanEnable' => true, # pulled from test-vpx/testbeds/vc-on-vsan.rb
+
+    "postBoot" => Proc.new do |runId, testbedSpec, vmList, catApi, logDir|
+      esxList = vmList['esx']
+        esxList.each do |host|
+          host.ssh do |ssh|
+            ssh.exec!("esxcli network firewall set -e false")
+          end
+      end
+      vc = vmList['vc'][0]
+      vim = VIM.connect vc.rbvmomiConnectSpec
       datacenters = vim.serviceInstance.content.rootFolder.childEntity.grep(RbVmomi::VIM::Datacenter)
       raise "Couldn't find a Datacenter precreated"  if datacenters.length == 0
       datacenter = datacenters.first
@@ -83,7 +81,7 @@ $testbed = Proc.new do |type, esxStyle, vcStyle, dbType, location|
           :configSpec => {
             :name => "test-ds"
           },
-	    }
+            }
       ).wait_for_completion
       Log.info "Vds DSwitch created"
 
@@ -120,39 +118,25 @@ $testbed = Proc.new do |type, esxStyle, vcStyle, dbType, location|
       ).wait_for_completion
       Log.info "bridge DPG created"
 
-      VcQaTestbedCommon.postBoot(
-        vmsPerHost,
-        NimbusUtils.get_absolute_ovf("CentOS/VM_OVF10.ovf"),
-        runId, testbedSpec, vc, esxList, iscsiList)
-    end,
-    'nfs' => [
-      {
-        'name' => "nfs.0"
-      },
-    ],
+      Log.info "Add hosts to the DVS"
+      onecluster_pnic_spec = [ VIM::DistributedVirtualSwitchHostMemberPnicSpec({:pnicDevice => 'vmnic1'}) ]
+      dvs_config = VIM::DVSConfigSpec({
+        :configVersion => dvs.config.configVersion,
+        :host => cluster.host.map do |host|
+        {
+          :operation => :add,
+          :host => host,
+          :backing => VIM::DistributedVirtualSwitchHostMemberPnicBacking({
+            :pnicSpec => onecluster_pnic_spec
+          })
+        }
+        end
+      })
+      dvs.ReconfigureDvs_Task(:spec => dvs_config).wait_for_completion
+      Log.info "Hosts added to DVS successfully"
+    end
   }
-
-  if dbType == 'mssql'
-    testbed['genericVM'] ||= []
-    testbed['genericVM'] << {
-      'name' => 'vc-mssql',
-      'type' => 'mssql2k8',
-    }
-    testbed['vc']['dbHost'] = 'vc-mssql'
-  end
-
-  testbed = VcQaTestbedCommon.addSharedDisks testbed, [10, 10, 20, 20], sharedStorageStyle   # 2 x 20gb shared vmfs, 2 x 10gb free luns as defined by 'freeSharedLuns', DON'T CHANGE THE ORDERING UNLESS YOU KNOW WHAT YOU'RE DOING!
 
   testbed
 end
 
-[:pxeBoot, :fullInstall].each do |esxStyle|
-  [:vpxInstall, :vcva].each do |vcStyle|
-    [:embedded, :mssql, :oracle].each do |dbType|
-      ['complex', 'simple', 'complexCPU', 'simpleCPU'].each do |type|
-        testbedSpec = $testbed.call(type, esxStyle, vcStyle, dbType)
-        Nimbus::TestbedRegistry.registerTestbed testbedSpec
-      end
-    end
-  end
-end
