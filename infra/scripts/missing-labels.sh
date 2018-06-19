@@ -16,7 +16,7 @@
 DEFAULT_API_ENDPOINT="https://api.github.com/repos/"
 DEFAULT_HEADERS=("Accept: application/vnd.github.symmetra-preview+json")
 DEFAULT_CURL_ARGS=("-s")
-DEFAULT_REPO="vmware/vic"
+DEFAULT_REPO="vmware/vic-tasks"
 
 API_ENDPOINT=${API_ENDPOINT:-${DEFAULT_API_ENDPOINT}}
 HEADERS=("${HEADERS:-${DEFAULT_HEADERS}}")
@@ -116,10 +116,35 @@ label-create () {
 # 0: the operation succeeded
 # 1: the operation failed
 label-merge () {
-    if label-exists $1
+    if label-exists "$1"
     then
-        label-update $1 $2 $3
+        label-update "$1" "$2" "$3"
     else
-        label-create $1 $2 $3
+        label-create "$1" "$2" "$3"
     fi
+}
+
+merge-kinds () {
+    typeset -A kinds
+    kinds=(
+        [debt]="Problems that increase the cost of other work"
+        [defect]="Behavior that is inconsistent with what's intended"
+        [defect_performance]="Behavior that is functionally correct, but performs worse than intended"
+        [defect_regression]="Changed behavior that is inconsistent with what's intended"
+        [defect_security]="A flaw or weakness that could lead to a violation of security policy"
+        [enhancement]="Behavior that was intended, but we want to make better"
+        [feature]="New functionality you could include in marketing material"
+        [task]="Work not related to changing the functionality of the product"
+        [question]="A request for information"
+        [investigation]="A scoped effort to learn the answers to a set of questions which may include prototyping"
+    )
+
+    color="bfd4f2"
+
+    for kind in "${!kinds[@]}"; do
+        name="kind/${kind/_/\/}"
+        description="${kinds[$kind]}"
+
+        label-merge "$name" "$description" "$color"
+    done
 }
