@@ -60,7 +60,7 @@ label-exists () {
 # 0: the operation succeeded
 # 1: the operation failed
 label-update () {
-    : ${2?"Usage: $0 LABEL DESCRIPTION [COLOR]"}
+    : ${2?"Usage: ${FUNCNAME[0]} LABEL DESCRIPTION [COLOR]"}
 
     if [ -z $3 ]
     then
@@ -88,7 +88,7 @@ label-update () {
 # 0: the operation succeeded
 # 1: the operation failed
 label-create () {
-    : ${2?"Usage: $0 LABEL DESCRIPTION [COLOR]"}
+    : ${2?"Usage: ${FUNCNAME[0]} LABEL DESCRIPTION [COLOR]"}
 
     if [ -z $3 ]
     then
@@ -116,6 +116,8 @@ label-create () {
 # 0: the operation succeeded
 # 1: the operation failed
 label-merge () {
+    : ${2?"Usage: ${FUNCNAME[0]} LABEL DESCRIPTION [COLOR]"}
+
     if label-exists "$1"
     then
         label-update "$1" "$2" "$3"
@@ -139,12 +141,30 @@ merge-kinds () {
         [investigation]="A scoped effort to learn the answers to a set of questions which may include prototyping"
     )
 
-    color="bfd4f2"
+    for label in "${!kinds[@]}"; do
+        name="kind/${label/_/\/}"
+        description="${kinds[$label]}"
 
-    for kind in "${!kinds[@]}"; do
-        name="kind/${kind/_/\/}"
-        description="${kinds[$kind]}"
+        label-merge "$name" "$description" "bfd4f2"
+    done
+}
 
-        label-merge "$name" "$description" "$color"
+merge-source () {
+    typeset -A sources
+    sources=(
+        [ci]="Found via a continuous integration failure"
+        [customer]="Reported by a customer, directly or via an intermediary"
+        [dogfooding]="Found via a dogfooding activity"
+        [longevity]="Found via a longevity failure"
+        [nightly]="Found via a nightly failure"
+        [system-test]="Reported by the system testing team"
+        [performance]="Reported by the performance testing team"
+    )
+
+    for label in "${!sources[@]}"; do
+        name="source/${label/_/\/}"
+        description="${sources[$label]}"
+
+        label-merge "$name" "$description" "f9d0c4"
     done
 }
