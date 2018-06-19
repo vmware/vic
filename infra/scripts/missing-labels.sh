@@ -19,14 +19,12 @@ DEFAULT_CURL_ARGS=("-s")
 DEFAULT_REPO="vmware/vic"
 
 API_ENDPOINT=${API_ENDPOINT:-${DEFAULT_API_ENDPOINT}}
-HEADERS=${HEADERS:-${DEFAULT_HEADERS}}
+HEADERS=("${HEADERS:-${DEFAULT_HEADERS}}")
 CURL_ARGS=${CURL_ARGS:-${DEFAULT_CURL_ARGS}}
 REPO=${REPO:-${DEFAULT_REPO}}
 
 HEADERS=("${HEADERS[@]}" "Authorization: token ${GITHUB_TOKEN?"GitHub API token must be supplied"}")
-
-HEADER_ARGS=("${HEADERS[@]/#/"-H '"}")
-HEADER_ARGS=("${HEADER_ARGS/%/"'"}")
+HEADER_ARGS=("${HEADERS[@]/#/"-H"}")
 
 # Determines whether a label already exists
 #
@@ -70,7 +68,7 @@ label-update () {
     else
         data="{\"description\": \"$2\", \"color\": \"$3\"}"
     fi
-    args=("--data" "${data}" "-X PATCH" "-w %{http_code}\n" "${HEADER_ARGS[@]}" "${CURL_ARGS[@]}")
+    args=("--data" "${data}" "-XPATCH" "-w %{http_code}\n" "${HEADER_ARGS[@]}" "${CURL_ARGS[@]}")
     code=$(curl "${args[@]}" "${API_ENDPOINT%/}/${REPO}/labels/$1" | tail -n1)
     
     [ $code -eq 200 ]
