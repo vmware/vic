@@ -16,7 +16,7 @@
 Documentation  Test 21-01 - Whitelist
 Resource  ../../resources/Util.robot
 Resource  ../../resources/Harbor-Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Setup Harbor
+Suite Setup  Nimbus Suite Setup  Setup Harbor
 Suite Teardown  Nimbus Cleanup  ${list}  ${false}
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 

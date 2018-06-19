@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-1 - Distributed Switch
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Distributed Switch Setup
+Suite Setup  Nimbus Suite Setup  Distributed Switch Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Variables ***

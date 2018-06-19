@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-13 - Invalid ESXi Install
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Invalid ESXi Install Setup
+Suite Setup  Nimbus Suite Setup  Invalid ESXi Install Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***

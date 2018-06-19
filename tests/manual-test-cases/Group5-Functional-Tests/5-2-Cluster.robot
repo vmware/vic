@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-2 - Cluster
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Cluster Setup
+Suite Setup  Nimbus Suite Setup  Cluster Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***

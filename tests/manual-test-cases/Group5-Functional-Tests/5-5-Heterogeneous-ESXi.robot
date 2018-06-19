@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-5 - Heterogeneous ESXi
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Heterogenous ESXi Setup
+Suite Setup  Nimbus Suite Setup  Heterogenous ESXi Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 Force Tags  hetero
 
@@ -27,15 +27,15 @@ Heterogenous ESXi Setup
     ${pid-vc}=  Deploy Nimbus vCenter Server Async  ${vc}
     Set Suite Variable  @{list}  %{NIMBUS_USER}-${vc}
 
-    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Run Keyword And Ignore Error  Cleanup Nimbus Folders  ${deletePXE}=%{true}
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  3029944
     Append To List  ${list}  ${esx1}
 
-    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Run Keyword And Ignore Error  Cleanup Nimbus Folders  ${deletePXE}=%{true}
     ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  5572656
     Append To List  ${list}  ${esx2}
 
-    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Run Keyword And Ignore Error  Cleanup Nimbus Folders  ${deletePXE}=%{true}
     ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Append To List  ${list}  ${esx3}
 

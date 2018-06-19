@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-27 - Selenium Grid
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Selenium Grid Test Setup
+Suite Setup  Nimbus Suite Setup  Selenium Grid Test Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***
