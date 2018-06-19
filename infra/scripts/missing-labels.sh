@@ -74,4 +74,52 @@ label-update () {
     [ $code -eq 200 ]
 }
 
+# Creates a label with the given description and color
+#
+# Arguments:
+# 1: the label name
+# 2: the label description
+# 3: the label color
+#
+# Returns:
+# N/A
+#
+# Exits:
+# 0: the operation succeeded
+# 1: the operation failed
+label-create () {
+    : ${2?"Usage: $0 LABEL DESCRIPTION [COLOR]"}
 
+    if [ -z $3 ]
+    then
+        data="{\"name\":\"$1\", \"description\": \"$2\"}"
+    else
+        data="{\"name\":\"$1\", \"description\": \"$2\", \"color\": \"$3\"}"
+    fi
+    args=("--data" "${data}" "-w %{http_code}\n" "${HEADER_ARGS[@]}" "${CURL_ARGS[@]}")
+    code=$(curl "${args[@]}" "${API_ENDPOINT%/}/${REPO}/labels" | tail -n1)
+
+    [ $code -eq 201 ]
+}
+
+# Creates a label with the given description and color, or updates one that exists
+#
+# Arguments:
+# 1: the label name
+# 2: the label description
+# 3: the label color
+#
+# Returns:
+# N/A
+#
+# Exits:
+# 0: the operation succeeded
+# 1: the operation failed
+label-merge () {
+    if label-exists $1
+    then
+        label-update $1 $2 $3
+    else
+        label-create $1 $2 $3
+    fi
+}
