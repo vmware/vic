@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-17 - FC Datastore
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  FC Datastore Setup
+Suite Setup  Nimbus Suite Setup  FC Datastore Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***

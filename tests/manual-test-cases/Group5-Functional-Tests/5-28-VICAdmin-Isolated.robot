@@ -25,7 +25,7 @@ Deploy Testbed With Static IP
 
 Setup VC With No WAN
     ${name}=  Evaluate  'vic-5-28-' + str(random.randint(1000,9999))  modules=random
-    Wait Until Keyword Succeeds  10x  10m  Create Simple VC Cluster With Static IP  ${name}
+    Nimbus Suite Setup  Create Simple VC Cluster With Static IP  ${name}
     Set Test Environment Variables
     
     Log To Console  Create a vch with a public network on a no-wan portgroup.
