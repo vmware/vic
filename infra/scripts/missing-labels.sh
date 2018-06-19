@@ -126,6 +126,23 @@ label-merge () {
     fi
 }
 
+merge-impacts () {
+    typeset -A impacts
+    impacts=(
+        [doc_community]="Requires changes to documentation about contributing to the product and interacting with the team"
+        [doc_design]="Requires changes to documentation about the design of the product"
+        [doc_note]="Requires changes to official release notes"
+        [doc_user]="Requires changes to official user documentation"
+    )
+
+    for label in "${!impacts[@]}"; do
+        name="impact/${label/_/\/}"
+        description="${impacts[$label]}"
+
+        label-merge "$name" "$description" "fef2c0"
+    done
+}
+
 merge-kinds () {
     typeset -A kinds
     kinds=(
