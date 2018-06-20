@@ -581,9 +581,9 @@ Get Name of First Local Storage For Host
 #   NIMBUS_RETRY_ATTEMPTS
 #   NIMBUS_RETRY_DELAY
 Nimbus Suite Setup
-    [Arguments]  ${keyword}  ${attempts}=1  ${delay}=1m  @{varargs}
+    [Arguments]  ${keyword}  @{varargs}
 
-    ${useAttempts}=  Get Environment Variable  NIMBUS_RETRY_ATTEMPTS  ${attempts}
-    ${useDelay}=     Get Environment Variable  NIMBUS_RETRY_DELAY     ${delay}
+    ${useAttempts}=  Get Environment Variable  NIMBUS_RETRY_ATTEMPTS  1
+    ${useDelay}=     Get Environment Variable  NIMBUS_RETRY_DELAY     1m
 
     Wait Until Keyword Succeeds  ${useAttempts}x  ${useDelay}  ${keyword}  @{varargs}
