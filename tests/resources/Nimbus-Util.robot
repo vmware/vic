@@ -188,12 +188,16 @@ Deploy Nimbus vCenter Server Async
     [Return]  ${out}
 
 # Deploys a nimbus testbed based on the specified testbed spec and options
+# Calls Nimbus Cleanup first as a precaution. Impact on concurrent builds
+# is unknown.
 # user [required] - nimbus user
 # password [required] - password for nimbus user
 # args [optional] - args to pass into testbeddeploy
 # spec [optional] - name of spec file in tests/resources/nimbus-testbeds
 Deploy Nimbus Testbed
     [Arguments]  ${user}  ${password}  ${args}=  ${spec}=${EMPTY}
+
+    Run Keyword And Ignore Error  Cleanup Nimbus Folders  deletePxe=${true}
 
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
@@ -223,6 +227,8 @@ Cleanup Nimbus Folders
     [Arguments]  ${deletePXE}=${false}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    # TODO: this may need pabot shared resource locking around it for multiple jobs. We're likely making use of the
+    # retry paths currently but it's not good practice.
     Run Keyword If  ${deletePXE}  Execute Command  ${NIMBUS_LOCATION} rm -rf public_html/pxe/* public_html/pxeinstall/*
     Execute Command  ${NIMBUS_LOCATION} rm -rf %{BUILD_TAG}
     Close connection
@@ -369,7 +375,7 @@ Setup Network For Simple VC Cluster
     ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=${datacenter} -dvs=test-ds bridge
     Should Contain  ${out}  OK
 
-    Wait Until Keyword Succeeds  10x  3 minutes  Add Host To Distributed Switch  /${datacenter}/host/${cluster}  test-ds
+    Add Host To Distributed Switch  /${datacenter}/host/${cluster}  test-ds
 
     Log To Console  Enable DRS on the cluster
     ${out}=  Run  govc cluster.change -drs-enabled /${datacenter}/host/${cluster}
@@ -397,7 +403,7 @@ Create Three Distributed Port Groups
 Add Host To Distributed Switch
     [Arguments]  ${host}  ${dvs}=test-ds
     Log To Console  \nAdd host(s) to the distributed switch
-    ${out}=  Run  govc dvs.add -dvs=${dvs} -pnic=vmnic1 ${host}
+    ${out}=  Wait Until Keyword Succeeds  10x  30s  Run  govc dvs.add -dvs=${dvs} -pnic=vmnic1 ${host}
     Should Contain  ${out}  OK
 
 Disable TLS On ESX Host

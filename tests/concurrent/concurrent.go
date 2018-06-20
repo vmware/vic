@@ -33,7 +33,6 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/spec"
-	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -299,8 +298,10 @@ func main() {
 
 	if config.Start {
 		startFunc := func(i int) error {
-			op := trace.FromContext(ctx, "power on")
-			return vms[i].PowerOn(op)
+			_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+				return vms[i].PowerOn(ctx)
+			})
+			return err
 		}
 		wrap(startFunc, start)
 
