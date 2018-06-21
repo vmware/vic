@@ -22,7 +22,7 @@ $testbed = Proc.new do |type, esxStyle, vcStyle, dbType, location|
       {
         "name" => "esx.#{idx}",
         "vc" => "vc.0",
-        "style" => "pxeInstall",
+        "style" => esxStyle,
         "desiredPassword" => "e2eFunctionalTest",
         'numMem' => 13 * 1024,
         'numCPUs' => 4,

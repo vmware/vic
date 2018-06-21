@@ -62,7 +62,7 @@ Distributed Switch Setup
     :FOR  ${IDX}  IN RANGE  ${esx_number}
     \   ${out}=  Run  govc host.add -hostname=@{esx_ips}[${IDX}] -username=root -dc=${datacenter} -password=${NIMBUS_ESX_PASSWORD} -noverify=true
     \   Should Contain  ${out}  OK
-    \   Wait Until Keyword Succeeds  5x  15 seconds  Add Host To Distributed Switch  @{esx_ips}[${IDX}]
+    \   Add Host To Distributed Switch  @{esx_ips}[${IDX}]
 
     Log To Console  Deploy VIC to the VC cluster
     Set Environment Variable  TEST_URL_ARRAY  ${vc_ip}

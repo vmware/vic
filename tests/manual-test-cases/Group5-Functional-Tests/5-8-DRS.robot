@@ -63,7 +63,7 @@ DRS Setup
     Should Contain  ${out}  OK
 
     Log To Console  Add all the hosts to the distributed switch
-    Wait Until Keyword Succeeds  5x  5min  Add Host To Distributed Switch  /ha-datacenter/host/cls
+    Add Host To Distributed Switch  /ha-datacenter/host/cls
 
     Log To Console  Deploy VIC to the VC cluster
     Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
