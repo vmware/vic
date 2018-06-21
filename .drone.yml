@@ -206,7 +206,7 @@ pipeline:
       - 'mkdir bundle'
       - 'mkdir bundle-release'
       - 'cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle'
-      - 'cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle-release/vic_`git describe --tags --abbrev=0)`.tar.gz'
+      - 'cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle-release/vic_$(git describe --tags --abbrev=0).tar.gz'
     when:
       repo: vmware/vic
       status: [success, failure]
