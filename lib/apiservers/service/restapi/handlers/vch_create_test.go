@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/cmd/vic-machine/create"
 	"github.com/vmware/vic/lib/apiservers/service/models"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/decode"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -50,7 +51,7 @@ func TestFromManagedObject(t *testing.T) {
 	var m *models.ManagedObject
 
 	expected := ""
-	actual, err := fromManagedObject(op, nil, "t", m)
+	actual, err := decode.FromManagedObject(op, nil, "t", m)
 	assert.NoError(t, err, "Expected nil error, got %#v", err)
 	assert.Equal(t, expected, actual)
 
@@ -61,21 +62,21 @@ func TestFromManagedObject(t *testing.T) {
 	mf := mockFinder{}
 
 	expected = m.Name
-	actual, err = fromManagedObject(op, mf, "t", m)
+	actual, err = decode.FromManagedObject(op, mf, "t", m)
 	assert.NoError(t, err, "Expected nil error, got %#v", err)
 	assert.Equal(t, expected, actual)
 
 	m.ID = "testID"
 
 	expected = m.ID
-	actual, err = fromManagedObject(op, mf, "t", m)
+	actual, err = decode.FromManagedObject(op, mf, "t", m)
 	assert.NoError(t, err, "Expected nil error, got %#v", err)
 	assert.Equal(t, expected, actual)
 
 	m.Name = ""
 
 	expected = m.ID
-	actual, err = fromManagedObject(op, mf, "t", m)
+	actual, err = decode.FromManagedObject(op, mf, "t", m)
 	assert.NoError(t, err, "Expected nil error, got %#v", err)
 	assert.Equal(t, expected, actual)
 }
@@ -84,13 +85,13 @@ func TestFromCIDR(t *testing.T) {
 	var m models.CIDR
 
 	expected := ""
-	actual := fromCIDR(&m)
+	actual := decode.FromCIDR(&m)
 	assert.Equal(t, expected, actual)
 
 	m = "10.10.1.0/32"
 
 	expected = string(m)
-	actual = fromCIDR(&m)
+	actual = decode.FromCIDR(&m)
 	assert.Equal(t, expected, actual)
 }
 
@@ -98,7 +99,7 @@ func TestFromGateway(t *testing.T) {
 	var m *models.Gateway
 
 	expected := ""
-	actual := fromGateway(m)
+	actual := decode.FromGateway(m)
 	assert.Equal(t, expected, actual)
 
 	m = &models.Gateway{
@@ -110,7 +111,7 @@ func TestFromGateway(t *testing.T) {
 	}
 
 	expected = "192.168.1.1/24,172.17.0.1/24:192.168.31.37"
-	actual = fromGateway(m)
+	actual = decode.FromGateway(m)
 	assert.Equal(t, expected, actual)
 }
 
@@ -199,7 +200,7 @@ func TestCreateVCH(t *testing.T) {
 
 	mf := mockFinder{}
 
-	cb, err := buildCreate(op, data, mf, vch)
+	cb, err := new(vchCreate).buildCreate(op, data, mf, vch)
 	assert.NoError(t, err, "Error while processing params: %s", err)
 
 	a := reflect.ValueOf(ca).Elem()
