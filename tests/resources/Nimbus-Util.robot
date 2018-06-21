@@ -59,8 +59,8 @@ Deploy Nimbus ESXi Server
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  To manage this VM use
     \   Exit For Loop If  ${status}
     \   Log To Console  ${out}
-    \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 5 minutes
-    \   Sleep  5 minutes
+    \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 1 minutes
+    \   Sleep  1 minutes
 
     # Now grab the IP address and return the name and ip for later use
     @{out}=  Split To Lines  ${out}
@@ -117,6 +117,7 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     \    ${result}=  Wait For Process  ${pid}
     \    Log  ${result.stdout}
     \    Log  ${result.stderr}
+    \    Should Be Equal As Integers  ${result.rc}  0
 
     &{ips}=  Create Dictionary
     :FOR  ${name}  IN  @{names}
@@ -146,8 +147,8 @@ Deploy Nimbus vCenter Server
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  Overall Status: Succeeded
     \   Exit For Loop If  ${status}
-    \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 5 minutes
-    \   Sleep  5 minutes
+    \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 1 minute
+    \   Sleep  1 minutes
 
     # Now grab the IP address and return the name and ip for later use
     @{out}=  Split To Lines  ${out}
@@ -187,12 +188,16 @@ Deploy Nimbus vCenter Server Async
     [Return]  ${out}
 
 # Deploys a nimbus testbed based on the specified testbed spec and options
+# Calls Nimbus Cleanup first as a precaution. Impact on concurrent builds
+# is unknown.
 # user [required] - nimbus user
 # password [required] - password for nimbus user
 # args [optional] - args to pass into testbeddeploy
 # spec [optional] - name of spec file in tests/resources/nimbus-testbeds
 Deploy Nimbus Testbed
     [Arguments]  ${user}  ${password}  ${args}=  ${spec}=${EMPTY}
+
+    Run Keyword And Ignore Error  Cleanup Nimbus Folders  deletePxe=${true}
 
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
@@ -222,7 +227,9 @@ Cleanup Nimbus Folders
     [Arguments]  ${deletePXE}=${false}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Run Keyword If  ${deletePXE}  Execute Command  ${NIMBUS_LOCATION} rm -rf public_html/pxe/*
+    # TODO: this may need pabot shared resource locking around it for multiple jobs. We're likely making use of the
+    # retry paths currently but it's not good practice.
+    Run Keyword If  ${deletePXE}  Execute Command  ${NIMBUS_LOCATION} rm -rf public_html/pxe/* public_html/pxeinstall/*
     Execute Command  ${NIMBUS_LOCATION} rm -rf %{BUILD_TAG}
     Close connection
 
@@ -368,7 +375,7 @@ Setup Network For Simple VC Cluster
     ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=${datacenter} -dvs=test-ds bridge
     Should Contain  ${out}  OK
 
-    Wait Until Keyword Succeeds  10x  3 minutes  Add Host To Distributed Switch  /${datacenter}/host/${cluster}  test-ds
+    Add Host To Distributed Switch  /${datacenter}/host/${cluster}  test-ds
 
     Log To Console  Enable DRS on the cluster
     ${out}=  Run  govc cluster.change -drs-enabled /${datacenter}/host/${cluster}
@@ -396,7 +403,7 @@ Create Three Distributed Port Groups
 Add Host To Distributed Switch
     [Arguments]  ${host}  ${dvs}=test-ds
     Log To Console  \nAdd host(s) to the distributed switch
-    ${out}=  Run  govc dvs.add -dvs=${dvs} -pnic=vmnic1 ${host}
+    ${out}=  Wait Until Keyword Succeeds  10x  30s  Run  govc dvs.add -dvs=${dvs} -pnic=vmnic1 ${host}
     Should Contain  ${out}  OK
 
 Disable TLS On ESX Host
@@ -580,9 +587,9 @@ Get Name of First Local Storage For Host
 #   NIMBUS_RETRY_ATTEMPTS
 #   NIMBUS_RETRY_DELAY
 Nimbus Suite Setup
-    [Arguments]  ${keyword}  ${attempts}=1x  ${delay}=1m  @{varargs}
+    [Arguments]  ${keyword}  @{varargs}
 
-    ${useAttempts}=  Get Environment Variable  NIMBUS_RETRY_ATTEMPTS  ${attempts}x
-    ${useDelay}=     Get Environment Variable  NIMBUS_RETRY_DELAY     ${delay}
+    ${useAttempts}=  Get Environment Variable  NIMBUS_RETRY_ATTEMPTS  1
+    ${useDelay}=     Get Environment Variable  NIMBUS_RETRY_DELAY     1m
 
-    Wait Until Keyword Succeeds  ${useAttempts}  ${useDelay}  ${keyword}  @{varargs}
+    Wait Until Keyword Succeeds  ${useAttempts}x  ${useDelay}  ${keyword}  @{varargs}
