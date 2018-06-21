@@ -26,7 +26,12 @@ DEFAULT_LOG_UPLOAD_DEST="vic-ci-logs"
 DEFAULT_VCH_BUILD="*"
 DEFAULT_TESTCASES=("tests/manual-test-cases/Group5-Functional-Tests" "tests/manual-test-cases/Group13-vMotion" "tests/manual-test-cases/Group21-Registries" "tests/manual-test-cases/Group23-Future-Tests")
 
+DEFAULT_PARALLEL_JOBS=4
+
 VIC_BINARY_PREFIX="vic_"
+
+PARALLEL_JOBS=${PARLLEL_JOBS:-${DEFAULT_PARALLEL_JOBS}}
+
 
 if [[ $1 != "6.0" && $1 != "6.5" && $1 != "6.7" ]]; then
     echo "Please specify a target version. One of: 6.0, 6.5, 6.7"
@@ -93,8 +98,7 @@ else
     echo "Tarball extraction passed, Running nightlies test.."
 fi
 
-
-pabot --processes 4 --removekeywords TAG:secret ${excludes} --variable ESX_VERSION:${ESX_BUILD} --variable VC_VERSION:${VC_BUILD} -d ${target} "${testcases[@]}"
+pabot --processes ${PARALLEL_JOBS} --removekeywords TAG:secret ${excludes} --variable ESX_VERSION:${ESX_BUILD} --variable VC_VERSION:${VC_BUILD} -d ${target} "${testcases[@]}"
 cat ${target}/pabot_results/*/stdout.txt | grep '::' | grep -E 'PASS|FAIL' > console.log
 
 # See if any VMs leaked
