@@ -200,6 +200,10 @@ func checkMocks(t *testing.T, me *MockExecutor, mf *MockFinder, mv *MockValidato
 	mv.AssertExpectations(t)
 }
 
+type statusCode interface {
+	Code() int
+}
+
 func assert404(t *testing.T, err error) {
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), errFake.Error())
