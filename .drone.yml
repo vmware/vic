@@ -147,7 +147,7 @@ pipeline:
       - 'ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1'
       - 'rm $BIN/vic_ui_*.tar.gz'
     when:
-      event: push
+      event: [push, pull_request]
       status: [success, failure]
 
   vic-ui-release:
@@ -209,24 +209,53 @@ pipeline:
       - 'cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle-release/vic_`git describe --tags --abbrev=0)`.tar.gz'
     when:
       repo: vmware/vic
-      branch: [master, 'releases/*']
-      event: [push, tag]
       status: [success, failure]
 
-  publish-gcs-builds-on-pass:
+  publish-gcs-builds-for-pr:
     image: 'victest/drone-gcs:1'
     pull: true
     secrets:
       - google_key
     source: bundle
-    target: vic-engine-builds
+    target: vic-engine-pr-builds/pull/${DRONE_PULL_REQUEST}/
+    acl:
+      - 'allUsers:READER'
+    cache_control: 'public,max-age=3600'
+    when:
+      repo: vmware/vic
+      event: pull_request
+      status: success
+
+  publish-gcs-builds-on-master-push-pass:
+    image: 'victest/drone-gcs:1'
+    pull: true
+    secrets:
+      - google_key
+    source: bundle
+    target: vic-engine-builds/
     acl:
       - 'allUsers:READER'
     cache_control: 'public,max-age=3600'
     when:
       repo: vmware/vic
       event: push
-      branch: [master, 'releases/*']
+      branch: [master]
+      status: success
+
+  publish-gcs-builds-on-release-push-pass:
+    image: 'victest/drone-gcs:1'
+    pull: true
+    secrets:
+      - google_key
+    source: bundle
+    target: vic-engine-builds/${DRONE_BRANCH}/
+    acl:
+      - 'allUsers:READER'
+    cache_control: 'public,max-age=3600'
+    when:
+      repo: vmware/vic
+      event: push
+      branch: ['releases/*']
       status: success
 
   publish-gcs-builds-on-fail:
@@ -235,7 +264,7 @@ pipeline:
     secrets:
       - google_key
     source: bundle
-    target: vic-engine-failed-builds
+    target: vic-engine-failed-builds/
     acl:
       - 'allUsers:READER'
     cache_control: 'public,max-age=3600'
@@ -251,7 +280,7 @@ pipeline:
     secrets:
       - google_key
     source: bundle-release
-    target: vic-engine-releases
+    target: vic-engine-releases/
     acl:
       - 'allUsers:READER'
     cache_control: 'public,max-age=3600'
