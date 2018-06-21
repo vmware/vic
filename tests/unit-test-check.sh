@@ -13,10 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-prNumber=$(drone build info --format "{{ .Ref }}" vmware/vic $DRONE_BUILD_NUMBER | cut -f 3 -d'/')
-prBody=$(curl https://api.github.com/repos/vmware/vic/pulls/$prNumber?access_token=$GITHUB_AUTOMATION_API_KEY | jq -r ".body")
+set -e -o pipefail +h && [ -n "$DEBUG" ] && set -x
 
-if ! (echo $prBody | grep -q "\[skip unit\]"); then
+prNumber=$(drone build info --format "{{ .Ref }}" vmware/vic "${DRONE_BUILD_NUMBER}" | cut -f 3 -d'/')
+prBody=$(curl "https://api.github.com/repos/vmware/vic/pulls/${prNumber}?access_token=${GITHUB_AUTOMATION_API_KEY}" | jq -r ".body")
+
+if ! (echo "${prBody}" | grep -q "\[skip unit\]"); then
   make test
-  codecov --token $CODECOV_TOKEN --file .cover/cover.out
+  codecov --token "${CODECOV_TOKEN}" --file .cover/cover.out
 fi
