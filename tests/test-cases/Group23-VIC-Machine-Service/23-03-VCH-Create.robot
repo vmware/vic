@@ -70,12 +70,14 @@ Get VCH ${name}
 Pull Busy Box
     [Arguments]    ${docker_params}    ${expected_rc}    ${expected_output}
 
+    # Because this is used to verify the whitelist registry functionality, we can't use ${busybox}!
     ${rc}  ${output}=  Run And Return Rc And Output  docker -H ${docker_params} pull busybox
 
     Should Be Equal As Integers    ${rc}    ${expected_rc}
     Should Contain    ${output}    ${expected_output}
 
 
+# This keyword tries to get the docker host parameters in two different ways to help identify the cause of failure, should it occur.
 Get Docker Host Params
     [Arguments]    ${vch_name}
     Run Keyword And Continue On Failure    Wait Until Keyword Succeeds    30x    10s    Get Docker Params API    ${vch_name}
