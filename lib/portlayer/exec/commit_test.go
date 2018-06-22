@@ -50,7 +50,7 @@ func TestBatchBlockOnFuncSerialize(t *testing.T) {
 	// batch size 1 means no batching
 	// total # of batches = total # of requests
 	batchCount = 0
-	totalRequest = 5
+	totalRequest = 1000
 	testMultipleBatch(ctx, t, 1, totalRequest, 0, func(op trace.Operation) error {
 		return countBatch(op, 0)
 	}, nil)
@@ -69,6 +69,10 @@ func TestBatchBlockOnFuncSerialize(t *testing.T) {
 	assert.Equal(t, totalRequest, batchCount)
 }
 
+func assertBetween(t *testing.T, expectedLower, expectedUpper, actual int) {
+	assert.True(t, actual >= expectedLower && actual <= expectedUpper, "Between %d and %d were expected, but actual was %d.", expectedLower, expectedUpper, actual)
+}
+
 func TestBatchBlockOnFuncConcurrent(t *testing.T) {
 	ctx := context.Background()
 
@@ -81,37 +85,30 @@ func TestBatchBlockOnFuncConcurrent(t *testing.T) {
 		return nil
 	}
 
-	// batch size 10, 5 requests
-	// requests come in tight loop. All 5 should be processed in one single batch
-	// total time spent should be within: 1 * (operation wait time)
+	// Note: The expected lower bounds for the following test cases are always 1 because enforcement of the batchSize is
+	//       "soft"; additional requests can be added to the channel by the producer as preceding requests are handled.
+	//       Additionally, the minimum value for the upper bound is 2 as the producer is not guaranteed to queue all
+	//       requests faster than the consumer receives them; if the consumer "catches up", it will run a partial batch.
+
 	batchCount = 0
 	totalRequest = 5
 	testMultipleBatch(ctx, t, 10, totalRequest, 0, operation, nil)
-	assert.True(t, batchCount > 1 && batchCount < totalRequest)
+	assertBetween(t, 1, 2, batchCount)
 
-	// batch size 100, 50 requests
-	// the 50 requests should be processed in one batch
-	// total time spent should be within: 1 * (operation wait time)
 	batchCount = 0
 	totalRequest = 50
 	testMultipleBatch(ctx, t, 100, totalRequest, 0, operation, nil)
-	assert.True(t, batchCount > 1 && batchCount < totalRequest)
+	assertBetween(t, 1, 2, batchCount)
 
-	// stress test: batch size 100, 200 requests
-	// the 200 requests should be processed within 2 batches
-	// total time spent <= 2 * (operation wait time)
 	batchCount = 0
 	totalRequest = 200
 	testMultipleBatch(ctx, t, 100, totalRequest, 0, operation, nil)
-	assert.True(t, batchCount > 1 && batchCount < totalRequest)
+	assertBetween(t, 1, 2, batchCount)
 
-	// stress test: batch size 100, 500 requests
-	// the 500 requests should be processed within 5 batches
-	// total time spent <= 5 * (operation wait time)
 	batchCount = 0
 	totalRequest = 500
 	testMultipleBatch(ctx, t, 100, totalRequest, 0, operation, nil)
-	assert.True(t, batchCount > 1 && batchCount < totalRequest)
+	assertBetween(t, 1, 5, batchCount)
 }
 
 func TestBatchBlockOnFuncResultPropagate(t *testing.T) {
@@ -138,7 +135,10 @@ func testFetchOne(ctx context.Context, t *testing.T, operation func(op trace.Ope
 }
 
 func testMultipleBatch(ctx context.Context, t *testing.T, batchSize int, totalRequest int, interval time.Duration, operation func(op trace.Operation) error, expected error) {
-	batch := make(chan chan error, batchSize)
+	// because we have 1 "producer" that will block, we'll be able to queue 1 more than the size of the buffer
+	bufferSize := batchSize - 1
+
+	batch := make(chan chan error, bufferSize)
 
 	// fire background request reader
 	go batchBlockOnFunc(ctx, batch, operation)
