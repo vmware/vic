@@ -266,7 +266,7 @@ install-govmomi:
 # manually install govmomi so the huge types package doesn't break cover
 	$(GO) install ./vendor/github.com/vmware/govmomi
 
-test: install-govmomi portlayerapi $(TEST_JOBS)
+test: install-govmomi $(portlayerapi-client) $(portlayerapi-server) $(serviceapi-server) $(admiralapi-client) $(TEST_JOBS)
 
 push:
 	$(BASE_DIR)/infra/scripts/replace-running-components.sh
