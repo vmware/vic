@@ -90,7 +90,7 @@ echo "default_project_id = $GS_PROJECT_ID" >> $botofile
 
 
 if [ -f "$outfile" ]; then
-  echo `ls -al $outfile`
+  ls -al $outfile
   n=0
   until [ $n -ge 5 ]
   do
