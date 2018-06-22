@@ -27,7 +27,7 @@ Setup
     Install VIC Appliance To Test Server
 
 Teardown
-    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
+    Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
     Terminate All Processes    kill=True
 
 Get VCH List
