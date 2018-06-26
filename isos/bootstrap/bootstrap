@@ -111,6 +111,9 @@ if timeout --signal=KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNT
     echo 'tether tmpfs size after copying libraries: '
     df -k ${MOUNTPOINT}/.tether
 
+    # TEMP: https://github.com/vmware/vic/issues/6279
+    echo 262144 > /proc/sys/vm/max_map_count
+
     until [[ $(ls -1 /dev/disk/by-label | wc -l) -eq $(ls -1 /sys/block | wc -l) ]]; do sleep 0.1;done
 
     echo "switching to the new mount"
