@@ -23,23 +23,23 @@ import (
 )
 
 func visibleRO(key string) string {
-	return calculateKey(calculateScope([]string{"read-only"}), "", key)
+	return calculateKey(calculateScope([]string{ReadOnlyScope}), "", key)
 }
 
 func visibleRONonpersistent(key string) string {
-	return calculateKey(calculateScope([]string{"read-only", "non-persistent"}), "", key)
+	return calculateKey(calculateScope([]string{ReadOnlyScope, NonPersistentSuffix}), "", key)
 }
 
 func visibleRW(key string) string {
-	return calculateKey(calculateScope([]string{"read-write"}), "", key)
+	return calculateKey(calculateScope([]string{ReadWriteScope}), "", key)
 }
 
 func hidden(key string) string {
-	return calculateKey(calculateScope([]string{"hidden"}), "", key)
+	return calculateKey(calculateScope([]string{HiddenScope}), "", key)
 }
 
 func TestHidden(t *testing.T) {
-	scopes := []string{"hidden"}
+	scopes := []string{HiddenScope}
 
 	key := calculateKey(calculateScope(scopes), "a/b", "c")
 
@@ -47,7 +47,7 @@ func TestHidden(t *testing.T) {
 }
 
 func TestHide(t *testing.T) {
-	scopes := []string{"hidden"}
+	scopes := []string{HiddenScope}
 
 	key := calculateKey(calculateScope(scopes), defaultGuestInfoPrefix()+"/a/b", "c")
 
@@ -55,7 +55,7 @@ func TestHide(t *testing.T) {
 }
 
 func TestReveal(t *testing.T) {
-	scopes := []string{"read-only"}
+	scopes := []string{ReadOnlyScope}
 
 	key := calculateKey(calculateScope(scopes), "a/b", "c")
 
@@ -63,7 +63,7 @@ func TestReveal(t *testing.T) {
 }
 
 func TestVisibleReadOnly(t *testing.T) {
-	scopes := []string{"read-only"}
+	scopes := []string{ReadOnlyScope}
 
 	key := calculateKey(calculateScope(scopes), defaultGuestInfoPrefix()+"/a/b", "c")
 
@@ -71,7 +71,7 @@ func TestVisibleReadOnly(t *testing.T) {
 }
 
 func TestVisibleReadWrite(t *testing.T) {
-	scopes := []string{"read-write"}
+	scopes := []string{ReadWriteScope}
 
 	key := calculateKey(calculateScope(scopes), defaultGuestInfoPrefix()+".a.b", "c")
 
@@ -79,7 +79,7 @@ func TestVisibleReadWrite(t *testing.T) {
 }
 
 func TestTopLevelReadOnly(t *testing.T) {
-	scopes := []string{"read-only"}
+	scopes := []string{ReadOnlyScope}
 
 	key := calculateKey(calculateScope(scopes), "", "a")
 
@@ -87,7 +87,7 @@ func TestTopLevelReadOnly(t *testing.T) {
 }
 
 func TestReadOnlyToReadWrite(t *testing.T) {
-	scopes := []string{"read-write"}
+	scopes := []string{ReadWriteScope}
 
 	key := calculateKey(calculateScope(scopes), defaultGuestInfoPrefix()+"/a/b", "c")
 
@@ -95,7 +95,7 @@ func TestReadOnlyToReadWrite(t *testing.T) {
 }
 
 func TestReadWriteToReadOnly(t *testing.T) {
-	scopes := []string{"read-only"}
+	scopes := []string{ReadOnlyScope}
 
 	key := calculateKey(calculateScope(scopes), defaultGuestInfoPrefix()+".a.b", "c")
 
@@ -103,7 +103,7 @@ func TestReadWriteToReadOnly(t *testing.T) {
 }
 
 func TestCompoundKey(t *testing.T) {
-	scopes := []string{"read-write"}
+	scopes := []string{ReadWriteScope}
 
 	key := calculateKey(calculateScope(scopes), defaultGuestInfoPrefix()+".a", "b/c")
 
@@ -124,7 +124,7 @@ func TestNoScopes(t *testing.T) {
 }
 
 func TestSecret(t *testing.T) {
-	scopes := []string{"secret", "read-write"}
+	scopes := []string{SecretSuffix, ReadWriteScope}
 
 	key := calculateKey(calculateScope(scopes), defaultGuestInfoPrefix()+".a.b", "c")
 
@@ -132,7 +132,7 @@ func TestSecret(t *testing.T) {
 }
 
 func TestNonpersistent(t *testing.T) {
-	scopes := []string{"non-persistent", "read-write"}
+	scopes := []string{NonPersistentSuffix, ReadWriteScope}
 
 	key := calculateKey(calculateScope(scopes), defaultGuestInfoPrefix()+".a.b", "c")
 
@@ -140,7 +140,7 @@ func TestNonpersistent(t *testing.T) {
 }
 
 func TestMultipleSuffixes(t *testing.T) {
-	scopes := []string{"non-persistent", "secret", "read-write"}
+	scopes := []string{NonPersistentSuffix, SecretSuffix, ReadWriteScope}
 
 	key := calculateKey(calculateScope(scopes), defaultGuestInfoPrefix()+".a.b", "c")
 

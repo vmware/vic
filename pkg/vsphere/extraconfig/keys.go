@@ -559,3 +559,14 @@ func calculateKeys(v reflect.Value, field string, prefix string) []string {
 func CalculateKeys(obj interface{}, field string, prefix string) []string {
 	return calculateKeys(reflect.ValueOf(obj), field, prefix)
 }
+
+// CalculateKey is a specific case of CalculateKeys that will panic if more than one key
+// matches the field pattern passed in.
+func CalculateKey(obj interface{}, field string, prefix string) string {
+	keys := calculateKeys(reflect.ValueOf(obj), field, prefix)
+	if len(keys) != 1 {
+		panic("CalculateKey should only ever return one key")
+	}
+
+	return keys[0]
+}

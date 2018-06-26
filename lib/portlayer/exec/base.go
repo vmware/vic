@@ -36,6 +36,8 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
+var extraconfigIDKey = extraconfig.CalculateKey(executor.ExecutorConfig{}, "ExecutorConfigCommon.ID", "")
+
 // NotYetExistError is returned when a call that requires a VM exist is made
 type NotYetExistError struct {
 	ID string
@@ -144,11 +146,11 @@ func (c *containerBase) updates(op trace.Operation) (*containerBase, error) {
 	// Get the ExtraConfig
 	var migratedConf map[string]string
 	containerExecKeyValues := vmomi.OptionValueMap(o.Config.ExtraConfig)
-	if containerExecKeyValues["guestinfo.vice./common/id"] == "" {
+	if containerExecKeyValues[extraconfigIDKey] == "" {
 		return nil, fmt.Errorf("Update: change version %s failed assertion extraconfig id != nil", o.Config.ChangeVersion)
 	}
 
-	op.Debugf("Update: for %s, change version %s, extraconfig id: %+v", c, o.Config.ChangeVersion, containerExecKeyValues["guestinfo.vice./common/id"])
+	op.Debugf("Update: for %s, change version %s, extraconfig id: %+v", c, o.Config.ChangeVersion, containerExecKeyValues[extraconfigIDKey])
 	// #nosec: Errors unhandled.
 	base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
 	migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
@@ -458,7 +460,7 @@ func (c *containerBase) waitForSession(ctx context.Context, id string) error {
 	defer trace.End(trace.Begin(id, ctx))
 
 	// guestinfo key that we want to wait for
-	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", id), "")[0]
+	key := extraconfig.CalculateKey(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", id), "")
 	return c.waitFor(ctx, key)
 }
 
@@ -468,9 +470,9 @@ func (c *containerBase) waitForExec(op trace.Operation, id string) error {
 	defer trace.End(trace.Begin(id, op))
 
 	// guestinfo keys that we want to wait for
-	startedKey := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Execs.%s.Started", id), "")[0]
-	startKey := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Execs.%s.Detail.StartTime", id), "")[0]
-	stopKey := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Execs.%s.Detail.StopTime", id), "")[0]
+	startedKey := extraconfig.CalculateKey(c.ExecConfig, fmt.Sprintf("Execs.%s.Started", id), "")
+	startKey := extraconfig.CalculateKey(c.ExecConfig, fmt.Sprintf("Execs.%s.Detail.StartTime", id), "")
+	stopKey := extraconfig.CalculateKey(c.ExecConfig, fmt.Sprintf("Execs.%s.Detail.StopTime", id), "")
 
 	// targeted exec
 	execConf := c.ExecConfig.Execs[id]

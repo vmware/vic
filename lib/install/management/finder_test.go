@@ -122,9 +122,9 @@ func testSearchVCHs(ctx context.Context, t *testing.T, v *validate.Validator, ex
 			svm := simulator.Map.Get(ref).(*simulator.VirtualMachine)
 
 			template := config.VirtualContainerHostConfigSpec{}
-			keys := extraconfig.CalculateKeys(template, "ExecutorConfig.ExecutorConfigCommon.ID", "")
+			key := extraconfig.CalculateKey(template, "ExecutorConfig.ExecutorConfigCommon.ID", "")
 			svm.Config.ExtraConfig = []types.BaseOptionValue{&types.OptionValue{
-				Key:   keys[0],
+				Key:   key,
 				Value: ref.String(),
 			}}
 		}

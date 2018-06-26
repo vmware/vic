@@ -45,7 +45,7 @@ func TestSecretFields(t *testing.T) {
 	encoded := map[string]string{}
 	Encode(out.Sink(MapSink(encoded)), config)
 
-	password := encoded["guestinfo.vice./password"+suffixSeparator+SecretSuffix]
+	password := encoded[defaultGuestInfoPrefix()+"/password"+suffixSeparator+SecretSuffix]
 	assert.NotEmpty(t, password, "encrypted password")
 	assert.NotEqual(t, password, config.Password, "encrypted password")
 
