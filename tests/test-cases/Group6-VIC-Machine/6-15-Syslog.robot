@@ -64,9 +64,9 @@ Verify VCH remote syslog
 
     Wait Until Container Stops  ${id}  5
 
-    ${syslog-conn}=  Open Connection  %{SYSLOG_SERVER}  encoding=unicode_escape
+    ${syslog-conn}=  Open Connection  %{SYSLOG_SERVER}
     Login  %{SYSLOG_USER}  %{SYSLOG_PASSWD}
-    ${out}=  Wait Until Keyword Succeeds  10x  3s  Execute Command  cat ${SYSLOG_FILE}
+    ${out}=  Execute Command  cat ${SYSLOG_FILE}
     Close Connection
     Log  ${out}
 
