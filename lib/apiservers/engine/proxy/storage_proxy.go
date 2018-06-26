@@ -41,6 +41,7 @@ import (
 
 type VicStorageProxy interface {
 	Create(ctx context.Context, name, driverName string, volumeData, labels map[string]string) (*types.Volume, error)
+	VolumeExist(ctx context.Context, name string) (bool, error)
 	VolumeList(ctx context.Context, filter string) ([]*models.VolumeResponse, error)
 	VolumeInfo(ctx context.Context, name string) (*models.VolumeResponse, error)
 	Remove(ctx context.Context, name string) error
@@ -160,6 +161,21 @@ func (s *StorageProxy) volumeCreate(op trace.Operation, name, driverName string,
 	}
 
 	return NewVolumeModel(res.Payload, labels), nil
+}
+
+func (s *StorageProxy) VolumeExist(ctx context.Context, name string) (bool, error) {
+	defer trace.End(trace.Begin(name))
+
+	vols, err := s.VolumeList(ctx, "")
+	if err != nil {
+		for _, v := range vols {
+			if name == v.Name {
+				return true, nil
+			}
+		}
+	}
+
+	return false, err
 }
 
 func (s *StorageProxy) VolumeList(ctx context.Context, filter string) ([]*models.VolumeResponse, error) {
