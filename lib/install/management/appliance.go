@@ -1083,7 +1083,7 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	}
 
 	d.op.Info("Waiting for IP information")
-	d.waitForKey(extraconfig.CalculateKeys(conf, "ExecutorConfig.Networks.client.Assigned.IP", "")[0])
+	d.waitForKey(extraconfig.CalculateKey(conf, "ExecutorConfig.Networks.client.Assigned.IP", ""))
 	ctxerr := d.op.Err()
 
 	if ctxerr == nil {
