@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -215,14 +215,14 @@ func (c *ContainerBackend) ContainerExecCreate(name string, config *types.ExecCo
 
 		switch state {
 		case StoppedState, CreatedState, SuspendedState:
-			return engerr.InternalServerError(fmt.Sprintf("Container (%s) is not running", name))
+			return engerr.InternalServerError(fmt.Sprintf("container (%s) is not running", name))
 		case StartingState:
 			// This is a transient state, returning conflict error to trigger a retry in the operation.
 			return engerr.ConflictError(fmt.Sprintf("container (%s) is still starting", id))
 		case RunningState:
 			// NO-OP - this is the state that allows an exec to occur.
 		default:
-			return engerr.InternalServerError(fmt.Sprintf("Container (%s) is in an unknown state: %s", id, state))
+			return engerr.InternalServerError(fmt.Sprintf("container (%s) is in an unknown state: %s", id, state))
 		}
 
 		handle, eid, err = c.containerProxy.CreateExecTask(op, handle, config)
@@ -439,7 +439,7 @@ func (c *ContainerBackend) taskStartHelper(op trace.Operation, id, eid, name str
 // taskStateWaitHelper is used to wait until the specified task reaches a target state or falls out of the set of permitted wait states.
 // The state sets are specified as maps, but only the keys are used, the value portion is ignored
 func (c *ContainerBackend) taskStateWaitHelper(op trace.Operation, id, eid, name string, targetStates, waitStates map[string]bool) (*models.TaskInspectResponse, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("%s.%s", eid, id), op))
+	defer trace.End(trace.Begin(fmt.Sprintf("%s.%s", id, eid), op))
 
 	for op.Err() == nil {
 		handle, err := c.Handle(id, name)
@@ -454,7 +454,7 @@ func (c *ContainerBackend) taskStateWaitHelper(op trace.Operation, id, eid, name
 
 		// success condition
 		if _, success := targetStates[ec.State]; success {
-			op.Debug("Target state reached")
+			op.Debugf("Target state %s reached", ec.State)
 			return ec, nil
 		}
 
@@ -469,7 +469,7 @@ func (c *ContainerBackend) taskStateWaitHelper(op trace.Operation, id, eid, name
 			return ec, fmt.Errorf("state: %s", ec.State)
 		}
 
-		op.Debug("Waiting for state change")
+		op.Debugf("Waiting for state change from %s", ec.State)
 		err = c.containerProxy.WaitTask(op, handle, name, eid)
 		if err != nil {
 			return ec, err
@@ -504,12 +504,12 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainerFromExec(eid)
 	if vc == nil {
-		return engerr.InternalServerError(fmt.Sprintf("No container was found with exec id: %s", eid))
+		return engerr.InternalServerError(fmt.Sprintf("no container was found with exec id: %s", eid))
 	}
 	id := vc.ContainerID
 	name := vc.Name
 
-	op.Debugf("Exec start of %s.%s", eid, id)
+	op.Debugf("Exec start of %s.%s", id, eid)
 
 	var ec *models.TaskInspectResponse
 	operation := func() error {
@@ -583,7 +583,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		}
 	}
 
-	op.Infof("Exec %s in %s launched successfully", id, eid)
+	op.Infof("Exec %s.%s launched successfully", id, eid)
 
 	// no need to attach for detached case
 	if !attach {
