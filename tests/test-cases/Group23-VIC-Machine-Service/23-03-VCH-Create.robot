@@ -92,6 +92,18 @@ Extract Docker IP And Port
     Set Test Variable    ${docker_host}
 
 
+Get Cluster ID
+    [Arguments]    ${name}=%{TEST_RESOURCE}
+    ${rc}    ${output}=    Run And Return Rc And Output    govc ls --json=true "${name}" | jq -r '.elements[] | select(.Path | endswith("/Resources")).Object.Parent.Value'
+    Should Be Equal As Integers    ${rc}    0
+
+    ${rc2}    ${output2}=    Run Keyword If     '${output}' == '${EMPTY}'    Run And Return Rc And Output    govc ls --json=true "*/${name}" | jq -r '.elements[] | select(.Path | endswith("/Resources")).Object.Parent.Value'
+                             Run Keyword If     '${output}' == '${EMPTY}'    Should Be Equal As Integers    ${rc2}    0
+    ${return}=               Set Variable If    '${output}' == '${EMPTY}'    ${output2}    ${output}
+
+    [Return]    ${return}
+
+
 *** Test Cases ***
 Create minimal VCH
     Create VCH    '{"name":"%{VCH-NAME}-api-test-minimal","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"${PUBLIC_NETWORK}"}}},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
@@ -127,6 +139,22 @@ Create minimal VCH
     Get Docker Host Params    %{VCH-NAME}-api-test-minimal
 
     [Teardown]    Run Secret VIC Machine Delete Command    %{VCH-NAME}-api-test-minimal
+
+
+Create minimal VCH using compute resource ID
+    ${cluster}=    Get Cluster ID
+
+    Create VCH    '{"name":"%{VCH-NAME}-api-test-cr-id","compute":{"resource":{"id":"${cluster}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"${PUBLIC_NETWORK}"}}},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
+
+    Verify Return Code
+    Verify Status Created
+
+
+    Get VCH %{VCH-NAME}-api-test-cr-id
+
+    Property Should Be Equal        .name                                %{VCH-NAME}-api-test-cr-id
+
+    [Teardown]    Run Secret VIC Machine Delete Command    %{VCH-NAME}-api-test-cr-id
 
 
 Create minimal VCH within datacenter

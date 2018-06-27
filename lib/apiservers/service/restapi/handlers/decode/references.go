@@ -15,6 +15,8 @@
 package decode
 
 import (
+	"fmt"
+
 	"github.com/vmware/govmomi/vim25/types"
 
 	"github.com/vmware/vic/lib/apiservers/service/models"
@@ -22,20 +24,25 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-func FromManagedObject(op trace.Operation, finder client.Finder, t string, m *models.ManagedObject) (string, error) {
+func FromManagedObject(op trace.Operation, finder client.Finder, m *models.ManagedObject, ts ...string) (string, error) {
 	if m == nil {
 		return "", nil
 	}
 
 	if m.ID != "" {
-		managedObjectReference := types.ManagedObjectReference{Type: t, Value: m.ID}
-		element, err := finder.Element(op, managedObjectReference)
+		for _, t := range ts {
+			managedObjectReference := types.ManagedObjectReference{Type: t, Value: m.ID}
+			element, err := finder.Element(op, managedObjectReference)
 
-		if err != nil {
-			return "", err
+			if err == nil && element != nil {
+				return element.Path, nil
+			} else if err != nil {
+				// Ideally, we would continue only on *find.NotFoundError, but it is not reliably returned.
+				continue
+			}
 		}
 
-		return element.Path, nil
+		return "", fmt.Errorf("Unable to locate %q as any of %s", m.ID, ts)
 	}
 
 	return m.Name, nil
