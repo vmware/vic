@@ -41,10 +41,10 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
-	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
+	vicurl "github.com/vmware/vic/pkg/net/url"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
@@ -644,7 +644,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		}
 
 		// Parse URL
-		url, err := validate.ParseURL(conf.KubernetesServerAddress)
+		url, err := vicurl.ParseURL(conf.KubernetesServerAddress)
 		if err != nil {
 			d.op.Errorf("Failed to parse Kubernetes URL: %s, error: %s", conf.KubernetesServerAddress, err)
 			return err

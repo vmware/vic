@@ -232,6 +232,7 @@ func (m *PortlayerEventMonitor) monitor() error {
 func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 	// create a shortID for the container for logging purposes
 	containerShortID := uid.Parse(event.Ref).Truncate()
+	op := trace.NewOperation(context.Background(), "PublishEvent: %s", event.ID)
 	defer trace.End(trace.Begin(fmt.Sprintf("Event Monitor received eventID(%s) for container(%s) - %s", event.ID, containerShortID, event.Event)))
 
 	vc := cache.ContainerCache().GetContainer(event.Ref)
@@ -245,7 +246,7 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 
 	switch event.Event {
 	case plevents.ContainerCreated:
-		syncContainerCache()
+		syncContainerCache(op)
 	case plevents.ContainerStarted:
 		attrs = make(map[string]string)
 
