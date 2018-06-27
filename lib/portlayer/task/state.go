@@ -29,13 +29,25 @@ func State(op trace.Operation, e *executor.SessionConfig) (string, error) {
 	switch {
 	case e.Started == "" && e.Detail.StartTime == 0 && e.Detail.StopTime == 0:
 		return constants.TaskCreatedState, nil
+
+	case e.Started == "" && e.Detail.StartTime > e.Detail.StopTime:
+		// HACK: ghicken - we're seeing Started not get written, but start set
+		// This is here to determine if this is the only outstanding issue
+		return constants.TaskRunningState, nil
 	case e.Started == "true" && e.Detail.StartTime > e.StopTime:
 		return constants.TaskRunningState, nil
+
+	case e.Started == "" && e.Detail.StartTime <= e.Detail.StopTime:
+		// HACK: ghicken - we're seeing Started not get written, but start and stop set
+		// This is here to determine if this is the only outstanding issue
+		return constants.TaskStoppedState, nil
 	case e.Started == "true" && e.Detail.StartTime <= e.Detail.StopTime:
 		return constants.TaskStoppedState, nil
+
 	case e.Started != "" && e.Started != "true" && e.StartTime >= e.Detail.StopTime:
 		// NOTE: this assumes that StopTime does not get set. We really need to investigate this further as it does not look like it will be the case based on the way the child reaper attempts to write things.
 		return constants.TaskFailedState, nil
+
 	default:
 		op.Debugf("task state cannot be determined (start=%s, starttime: %s, stoptime: %s)", e.Started, e.StartTime, e.StopTime)
 		return constants.TaskUnknownState, nil

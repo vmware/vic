@@ -217,77 +217,100 @@ Exec Non Binary
      Should Be Equal As Integers  ${rc}  1
 
 Concurrent Simple Exec
-     ${status}=  Get State Of Github Issue  7410
-     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-38-Docker-Exec.robot needs to be updated now that Issue #7410 has been resolved
-     # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
-     # Should Be Equal As Integers  ${rc}  0
-     # Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
 
-     # ${suffix}=  Evaluate  '%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
-     # Set Test Variable  ${ExecSimpleContainer}  Exec-simple-${suffix}
-     # ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecSimpleContainer} ${busybox} /bin/top
-     # Should Be Equal As Integers  ${rc}  0
+    ${suffix}=  Evaluate  '%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
+    Set Test Variable  ${ExecSimpleContainer}  Exec-simple-${suffix}
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecSimpleContainer} ${busybox} /bin/top
+    Should Be Equal As Integers  ${rc}  0
 
-     # :FOR  ${idx}  IN RANGE  1  3
-     # \   Start Process  docker %{VCH-PARAMS} exec ${id} /bin/ls  alias=exec-simple-%{VCH-NAME}-${idx}  shell=true
+    :FOR  ${idx}  IN RANGE  1  20
+    \   Start Process  docker %{VCH-PARAMS} exec ${id} /bin/ls  alias=exec-simple-%{VCH-NAME}-${idx}  shell=true
 
-     # :FOR  ${idx}  IN RANGE  1  3
-     # \   ${result}=  Wait For Process  exec-simple-%{VCH-NAME}-${idx}  timeout=40s
-     # \   Should Be Equal As Integers  ${result.rc}  0
-     # \   Verify LS Output For Busybox  ${result.stdout}
-     # # stop the container now that we have a successful series of concurrent execs
-     # ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} stop ${id}
-     # Should Be Equal As Integers  ${rc}  0
+    :FOR  ${idx}  IN RANGE  1  20
+    \   ${result}=  Wait For Process  exec-simple-%{VCH-NAME}-${idx}  timeout=40s
+    \   Should Be Equal As Integers  ${result.rc}  0
+    \   Verify LS Output For Busybox  ${result.stdout}
+    # stop the container now that we have a successful series of concurrent execs
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} stop ${id}
+    Should Be Equal As Integers  ${rc}  0
+
+
+Concurrent Simple Exec Detached
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
+    ${suffix}=  Evaluate  '%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
+    Set Test Variable  ${ExecSimpleContainer}  Exec-simple-${suffix}
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecSimpleContainer} ${busybox} /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+    :FOR  ${idx}  IN RANGE  1  20
+    \   Start Process  docker %{VCH-PARAMS} exec -d ${id} touch /tmp/${idx}  alias=exec-simple-detached-%{VCH-NAME}-${idx}  shell=true
+
+    :FOR  ${idx}  IN RANGE  1  20
+    \   ${result}=  Wait For Process  exec-simple-detached-%{VCH-NAME}-${idx}  timeout=40s
+    \   Should Be Equal As Integers  ${result.rc}  0
+
+    ### TODO: check inspect status and wait for execs to stop
+    
+    # stop the container now that we have a successful series of concurrent execs
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} stop ${id}
+    Should Be Equal As Integers  ${rc}  0
 
 
 Exec During Poweroff Of A Container Performing A Long Running Task
-     ${status}=  Get State Of Github Issue  7410
-     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-38-Docker-Exec.robot needs to be updated now that Issue #7410 has been resolved
-     # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
-     # Should Be Equal As Integers  ${rc}  0
-     # Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
 
-     # ${suffix}=  Evaluate  '%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
-     # Set Test Variable  ${ExecPowerOffContainerLong}  Exec-Poweroff-${suffix}
-     # ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecPoweroffContainerLong} ${busybox} /bin/top
-     # Should Be Equal As Integers  ${rc}  0
+    ${suffix}=  Evaluate  '%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
+    Set Test Variable  ${ExecPowerOffContainerLong}  Exec-Poweroff-${suffix}
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecPoweroffContainerLong} ${busybox} /bin/top
+    Should Be Equal As Integers  ${rc}  0
 
-     # :FOR  ${idx}  IN RANGE  1  15
-     # \   Start Process  docker %{VCH-PARAMS} exec ${id} /bin/ls  alias=exec-%{VCH-NAME}-${idx}  shell=true
+    :FOR  ${idx}  IN RANGE  1  15
+    \   Start Process  docker %{VCH-PARAMS} exec ${id} /bin/ls  alias=exec-%{VCH-NAME}-${idx}  shell=true
 
 
-     # Sleep  1s
-     # ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${id}
-     # Should Be Equal As Integers  ${rc}  0
+    Sleep  1s
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${id}
+    Should Be Equal As Integers  ${rc}  0
 
-     # ${combinedErr}=  Set Variable
-     # ${combinedOut}=  Set Variable
+    ${combinedErr}=  Set Variable
+    ${combinedOut}=  Set Variable
 
-     # :FOR  ${idx}  IN RANGE  1  15
-     # \   ${result}=  Wait For Process  exec-%{VCH-NAME}-${idx}  timeout=2 mins
-     # \   ${combinedErr}=  Catenate  ${combinedErr}  ${result.stderr}${\n}
-     # \   ${combinedOut}=  Catenate  ${combinedOut}  ${result.stdout}${\n}
+    :FOR  ${idx}  IN RANGE  1  15
+    \   ${result}=  Wait For Process  exec-%{VCH-NAME}-${idx}  timeout=2 mins
+    \   ${combinedErr}=  Catenate  ${combinedErr}  ${result.stderr}${\n}
+    \   ${combinedOut}=  Catenate  ${combinedOut}  ${result.stdout}${\n}
 
-     # # We combine err and out into err since exec can return errors on both.
-     # ${combinedErr}=  Catenate  ${combinedErr}  ${combinedOut}
-     # Verify Poweroff During Exec Error Message  ${combinedErr}  ${id}  ${ExecPowerOffContainerLong}
+    # We combine err and out into err since exec can return errors on both.
+    ${combinedErr}=  Catenate  ${combinedErr}  ${combinedOut}
+    Verify Poweroff During Exec Error Message  ${combinedErr}  ${id}  ${ExecPowerOffContainerLong}
 
 Exec During Poweroff Of A Container Performing A Short Running Task
-     ${status}=  Get State Of Github Issue  7410
-     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-38-Docker-Exec.robot needs to be updated now that Issue #7410 has been resolved
-     # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
-     # Should Be Equal As Integers  ${rc}  0
-     # Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
 
-     # ${suffix}=  Evaluate  '%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
-     # Set Test Variable  ${ExecPoweroffContainerShort}  Exec-Poweroff-${suffix}
-     # ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecPoweroffContainerShort} ${busybox} sleep 20
-     # Should Be Equal As Integers  ${rc}  0
+    ${suffix}=  Evaluate  '%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
+    Set Test Variable  ${ExecPoweroffContainerShort}  Exec-Poweroff-${suffix}
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecPoweroffContainerShort} ${busybox} sleep 20
+    Should Be Equal As Integers  ${rc}  0
 
-     # ## the /bin/top should stay open the entire life of the container from start of the exec.
-     # ${rc}  ${output}=  Run And Return Rc And output  docker %{VCH-PARAMS} exec ${id} /bin/top
-     # Should Be Equal As Integers  ${rc}  0
+    ## the /bin/top should stay open the entire life of the container from start of the exec.
+    ${rc}  ${output}=  Run And Return Rc And output  docker %{VCH-PARAMS} exec ${id} /bin/top
+    # We should see tether every time since it is required to run the container.
+    Should Contain  ${output}  /.tether/tether
 
-     # # We should see tether every time since it is required to run the container.
-     # Should Contain  ${output}  /.tether/tether
-     # Verify No Poweroff During Exec Error Message  ${output}  ${id}  ${ExecPoweroffContainerShort}
+    # Docker behaviour is as the commented out assertions below (137 and no error output)
+    #Should Be Equal As Integers  ${rc}  137
+    #Verify No Poweroff During Exec Error Message  ${output}  ${id}  ${ExecPoweroffContainerShort}
+    # The lack of error output is problematic for us currently due to lack of typed errors from container_proxy.InspectTask
+    # so we're going to stick with an informational error and default error exit code and test will assert this behaviour for now
+    Should Be Equal As Integers  ${rc}  1
+    Verify Poweroff During Exec Error Message  ${output}  ${id}  ${ExecPoweroffContainerShort}
