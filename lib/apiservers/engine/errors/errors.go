@@ -85,7 +85,7 @@ func NotFoundError(msg string) error {
 }
 
 func TaskInspectNotFoundError(msg string) error {
-	return derr.NewRequestNotFoundError(fmt.Errorf("No container was found with exec id: %s", msg))
+	return derr.NewRequestNotFoundError(fmt.Errorf("no container was found with exec id: %s", msg))
 }
 
 func TaskBindPowerError() error {

@@ -25,7 +25,6 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/vmware/vic/lib/config/executor"
-	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
@@ -112,7 +111,7 @@ func TestOutboundRuleAndCmd(t *testing.T) {
 	fmt.Println("Waiting for tether exit")
 	<-mocker.Cleaned
 
-	result := tether.ExecutorConfig{}
+	result := executor.ExecutorConfig{}
 	extraconfig.Decode(src, &result)
 
 	// confirm outbound rules configured

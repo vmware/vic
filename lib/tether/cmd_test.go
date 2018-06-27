@@ -65,7 +65,7 @@ func TestPathLookup(t *testing.T) {
 	_, src, err := RunTether(t, &cfg, mocker)
 	assert.NoError(t, err, "Didn't expected error from runTether")
 
-	result := ExecutorConfig{}
+	result := executor.ExecutorConfig{}
 	extraconfig.Decode(src, &result)
 
 	assert.Equal(t, "true", result.Sessions["pathlookup"].Started, "Expected command to have been started successfully")
@@ -105,7 +105,7 @@ func TestRelativePath(t *testing.T) {
 	_, src, err := RunTether(t, &cfg, mocker)
 	assert.NoError(t, err, "Didn't expected error from RunTether")
 
-	result := ExecutorConfig{}
+	result := executor.ExecutorConfig{}
 	extraconfig.Decode(src, &result)
 
 	assert.Equal(t, "true", result.Sessions["relpath"].Started, "Expected command to have been started successfully")
@@ -145,7 +145,7 @@ func TestAbsPath(t *testing.T) {
 	_, src, err := RunTether(t, &cfg, mocker)
 	assert.NoError(t, err, "Didn't expected error from RunTether")
 
-	result := ExecutorConfig{}
+	result := executor.ExecutorConfig{}
 	extraconfig.Decode(src, &result)
 
 	assert.Equal(t, "true", result.Sessions["abspath"].Started, "Expected command to have been started successfully")
@@ -206,7 +206,7 @@ func TestHalt(t *testing.T) {
 	// block until tether exits
 	<-mocker.Cleaned
 
-	result := ExecutorConfig{}
+	result := executor.ExecutorConfig{}
 	extraconfig.Decode(src, &result)
 
 	assert.Equal(t, "true", result.Sessions["abspath"].Started, "Expected command to have been started successfully")

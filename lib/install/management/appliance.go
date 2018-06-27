@@ -183,12 +183,12 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 
 	// Power off the VM if necessary
 	retryErrHandler := func(err error) bool {
-		if vm.IsInvalidPowerStateError(err) {
+		if tasks.IsInvalidPowerStateError(err) {
 			_, terr := vm.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
 				return vm.PowerOff(ctx)
 			})
 
-			if terr == nil || tasks.IsTransientError(d.op, terr) || vm.IsInvalidPowerStateError(terr) {
+			if terr == nil || tasks.IsTransientError(d.op, terr) || tasks.IsInvalidPowerStateError(terr) {
 				return true
 			}
 		}
