@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/lib/config/executor"
-	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
@@ -72,7 +71,7 @@ func TestRestart(t *testing.T) {
 	// wait for initialization
 	<-Mocked.Started
 
-	result := &tether.ExecutorConfig{}
+	result := &executor.ExecutorConfig{}
 	extraconfig.Decode(src, result)
 
 	// Started returns when we reload but that doesn't mean that the process is started
@@ -89,7 +88,7 @@ func TestRestart(t *testing.T) {
 
 	// wait for the resurrection count to max out the channel
 	for result.Sessions["pathlookup"].Diagnostics.ResurrectionCount < 10 {
-		result = &tether.ExecutorConfig{}
+		result = &executor.ExecutorConfig{}
 		extraconfig.Decode(src, &result)
 		assert.Equal(t, 0, result.Sessions["pathlookup"].ExitStatus, "Expected command to have exited cleanly")
 		// proceed to the next reincarnation

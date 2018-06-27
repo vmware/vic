@@ -30,7 +30,6 @@ import (
 	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
-	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 
 	"github.com/vmware/vic/pkg/retry"
@@ -650,24 +649,6 @@ func (vm *VirtualMachine) IsInvalidState(ctx context.Context) bool {
 	}
 	if o.Summary.Runtime.ConnectionState == types.VirtualMachineConnectionStateInvalid {
 		return true
-	}
-	return false
-}
-
-// IsInvalidPowerStateError is an error certifier function for errors coming back from vsphere. It checks for an InvalidPowerStateFault
-func (vm *VirtualMachine) IsInvalidPowerStateError(err error) bool {
-	if soap.IsVimFault(err) {
-		_, ok1 := soap.ToVimFault(err).(*types.InvalidPowerState)
-		_, ok2 := soap.ToVimFault(err).(*types.InvalidPowerStateFault)
-		return ok1 || ok2
-	}
-
-	if soap.IsSoapFault(err) {
-		_, ok1 := soap.ToSoapFault(err).VimFault().(types.InvalidPowerState)
-		_, ok2 := soap.ToSoapFault(err).VimFault().(types.InvalidPowerStateFault)
-		// sometimes we get the correct fault but wrong type
-		return ok1 || ok2 || soap.ToSoapFault(err).String == "vim.fault.InvalidPowerState" ||
-			soap.ToSoapFault(err).String == "vim.fault.InvalidPowerState"
 	}
 	return false
 }

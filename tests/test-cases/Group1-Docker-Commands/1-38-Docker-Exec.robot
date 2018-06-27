@@ -22,9 +22,9 @@ Test Timeout  20 minutes
 *** Keywords ***
 Verify Poweroff During Exec Error Message
        [Arguments]  ${error}  ${containerID}  ${containerName}
-       Set Test Variable  ${msg1}  Container (${containerName}) is not running
+       Set Test Variable  ${msg1}  container (${containerName}) is not running
        Set Test Variable  ${msg2}  container (${containerID}) has been stopped
-       Set Test Variable  ${msg3}  Unable to wait for task when container ${containerID} is not running
+       Set Test Variable  ${msg3}  unable to wait for task when container ${containerID} is not running
        Set Test Variable  ${msg4}  the Container(${containerID}) has been shutdown during execution of the exec operation
        Set Test Variable  ${msg5}  container(${containerID}) must be powered on in order to perform the desired exec operation
        Set Test Variable  ${msg6}  the container has been stopped
@@ -33,9 +33,9 @@ Verify Poweroff During Exec Error Message
 
 Verify No Poweroff During Exec Error Message
        [Arguments]  ${error}  ${containerID}  ${containerName}
-       Set Test Variable  ${msg1}  Container (${containerName}) is not running
+       Set Test Variable  ${msg1}  container (${containerName}) is not running
        Set Test Variable  ${msg2}  container (${containerID}) has been stopped
-       Set Test Variable  ${msg3}  Unable to wait for task when container ${containerID} is not running
+       Set Test Variable  ${msg3}  unable to wait for task when container ${containerID} is not running
        Should Not Contain Any  ${error}  ${msg1}  ${msg2}  ${msg3}
 
 Verify LS Output For Busybox

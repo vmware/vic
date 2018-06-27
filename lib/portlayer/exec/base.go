@@ -16,6 +16,7 @@ package exec
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -25,7 +26,6 @@ import (
 	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/mo"
-	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/migration"
@@ -261,6 +261,18 @@ func (c *containerBase) startGuestProgram(op trace.Operation, name string, args 
 
 	_, err = m.StartProgram(op, &auth, &spec)
 
+	if tasks.IsInvalidPowerStateError(err) {
+		return err
+	}
+
+	if tasks.IsInvalidStateError(err) {
+		// we special case this for now as we _presume_ that it's either a conflict
+		// of reconfigure with guest operation, or a conflict with another guest operation.
+		// These cases do not return a TaskInProgress or concurrent modification.
+		op.Debugf("Transforming invalid state error into concurrent access for start guest program call: %#v", err)
+		return ConcurrentAccessError{errors.New("invalid state from start guest program")}
+	}
+
 	return err
 }
 
@@ -314,7 +326,7 @@ func (c *containerBase) kill(op trace.Operation) error {
 	if err != nil {
 		timeout.Warnf("killing %s attempt resulted in: %s", c, err.Error())
 
-		if isInvalidPowerStateError(err) {
+		if tasks.IsInvalidPowerStateError(err) {
 			return nil
 		}
 	}
@@ -372,7 +384,7 @@ func (c *containerBase) shutdown(op trace.Operation, waitTime *int32) error {
 			// If the error tells us "The attempted operation cannot be performed in the current state (Powered off)" (InvalidPowerState),
 			// we can avoid hard poweroff (issues #6236 and #6252). Here we wait for the power state changes instead of return
 			// immediately to avoid excess vSphere queries
-			if isInvalidPowerStateError(err) {
+			if tasks.IsInvalidPowerStateError(err) {
 				killed = true
 			}
 		}
@@ -498,14 +510,4 @@ func (c *containerBase) waitFor(ctx context.Context, key string) error {
 	}
 
 	return nil
-}
-
-// isInvalidPowerStateError verifies if an error is the InvalidPowerStateError
-func isInvalidPowerStateError(err error) bool {
-	if soap.IsSoapFault(err) {
-		_, ok := soap.ToSoapFault(err).VimFault().(types.InvalidPowerState)
-		return ok
-	}
-
-	return false
 }
