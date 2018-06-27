@@ -218,8 +218,16 @@ func IsInvalidArgumentError(err error) bool {
 	return false
 }
 
-// IsConcurrentAccessError checks if a soap fault or vim fault is ConcurrentAccess error
+// IsConcurrentAccessError checks if a raw fault, soap fault or vim fault is ConcurrentAccess error
 func IsConcurrentAccessError(err error) bool {
+	if f, ok := err.(types.HasFault); ok {
+		_, ok1 := f.Fault().(*types.ConcurrentAccess)
+		_, ok2 := f.Fault().(*types.ConcurrentAccessFault)
+		if ok1 || ok2 {
+			return true
+		}
+	}
+
 	if soap.IsVimFault(err) {
 		_, ok1 := soap.ToVimFault(err).(*types.ConcurrentAccess)
 		_, ok2 := soap.ToVimFault(err).(*types.ConcurrentAccessFault)
@@ -275,6 +283,43 @@ func IsNotFoundError(err error) bool {
 			soap.ToSoapFault(err).String == "vim.fault.ManagedObjectNotFoundFault"
 	}
 
+	return false
+}
+
+// IsInvalidPowerStateError is an error certifier function for errors coming back from vsphere. It checks for an InvalidPowerStateFault
+func IsInvalidPowerStateError(err error) bool {
+	if soap.IsVimFault(err) {
+		_, ok1 := soap.ToVimFault(err).(*types.InvalidPowerState)
+		_, ok2 := soap.ToVimFault(err).(*types.InvalidPowerStateFault)
+		return ok1 || ok2
+	}
+
+	if soap.IsSoapFault(err) {
+		_, ok1 := soap.ToSoapFault(err).VimFault().(types.InvalidPowerState)
+		_, ok2 := soap.ToSoapFault(err).VimFault().(types.InvalidPowerStateFault)
+		// sometimes we get the correct fault but wrong type
+		return ok1 || ok2 || soap.ToSoapFault(err).String == "vim.fault.InvalidPowerState" ||
+			soap.ToSoapFault(err).String == "vim.fault.InvalidPowerState"
+	}
+	return false
+}
+
+// IsInvalidStateError is an error certifier function for errors coming back from vsphere. It checks for an InvalidStateFault
+func IsInvalidStateError(err error) bool {
+	if soap.IsVimFault(err) {
+		_, ok1 := soap.ToVimFault(err).(*types.InvalidState)
+		// types.InvalidStateFault does not implement GetMethodFault for pointer receiver so cannot
+		// match the other IsXError methods here.
+		return ok1
+	}
+
+	if soap.IsSoapFault(err) {
+		_, ok1 := soap.ToSoapFault(err).VimFault().(types.InvalidState)
+		_, ok2 := soap.ToSoapFault(err).VimFault().(types.InvalidStateFault)
+		// sometimes we get the correct fault but wrong type
+		return ok1 || ok2 || soap.ToSoapFault(err).String == "vim.fault.InvalidState" ||
+			soap.ToSoapFault(err).String == "vim.fault.InvalidState"
+	}
 	return false
 }
 

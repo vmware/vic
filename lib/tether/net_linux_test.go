@@ -233,7 +233,7 @@ func TestOutboundRuleAndCmd(t *testing.T) {
 	fmt.Println("Waiting for tether exit")
 	<-mocker.Cleaned
 
-	result := ExecutorConfig{}
+	result := executor.ExecutorConfig{}
 	extraconfig.Decode(src, &result)
 
 	// confirm command ran - necessary to detect early exit due to net config error
