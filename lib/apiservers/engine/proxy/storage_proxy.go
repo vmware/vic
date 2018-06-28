@@ -46,6 +46,7 @@ type VicStorageProxy interface {
 	VolumeInfo(ctx context.Context, name string) (*models.VolumeResponse, error)
 	Remove(ctx context.Context, name string) error
 
+	VolumeJoin(ctx context.Context, handle, volName, mountPath string, flags map[string]string) (string, error)
 	AddVolumesToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error)
 }
 
@@ -53,7 +54,7 @@ type StorageProxy struct {
 	client *client.PortLayer
 }
 
-type volumeFields struct {
+type VolumeFields struct {
 	ID    string
 	Dest  string
 	Flags string
@@ -117,7 +118,7 @@ func (s *StorageProxy) Create(ctx context.Context, name, driverName string, volu
 	if err != nil {
 		switch err := err.(type) {
 		case *storage.CreateVolumeConflict:
-			return result, errors.VolumeInternalServerError(fmt.Errorf("A volume named %s already exists. Choose a different volume name.", name))
+			return result, errors.VolumeExistError{Volume: name}
 		case *storage.CreateVolumeNotFound:
 			return result, errors.VolumeInternalServerError(fmt.Errorf("No volume store named (%s) exists", volumeStore(volumeData)))
 		case *storage.CreateVolumeInternalServerError:
@@ -263,7 +264,6 @@ func (s *StorageProxy) Remove(ctx context.Context, name string) error {
 func (s *StorageProxy) AddVolumesToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
 	op := trace.FromContext(ctx, "AddVolumesToContainer: %s", handle)
 	defer trace.End(trace.Begin(handle, op))
-	opID := op.ID()
 
 	if s.client == nil {
 		return "", errors.NillPortlayerClientError("StorageProxy")
@@ -311,49 +311,58 @@ func (s *StorageProxy) AddVolumesToContainer(ctx context.Context, handle string,
 		// NOTE: calling volumeCreate regardless of whether the volume is already
 		// present can be avoided by adding an extra optional param to VolumeJoin,
 		// which would then call volumeCreate if the volume does not exist.
-		_, err := s.volumeCreate(op, fields.ID, "vsphere", volumeData, nil)
-		if err != nil {
-			switch err := err.(type) {
-			case *storage.CreateVolumeConflict:
-				// Implicitly ignore the error where a volume with the same name
-				// already exists. We can just join the said volume to the container.
-				log.Infof("a volume with the name %s already exists", fields.ID)
-			case *storage.CreateVolumeNotFound:
-				return handle, errors.VolumeCreateNotFoundError(volumeStore(volumeData))
-			default:
-				return handle, errors.InternalServerError(err.Error())
-			}
-		} else {
-			log.Infof("volumeCreate succeeded. Volume mount section ID: %s", fields.ID)
+		_, err := s.Create(op, fields.ID, "vsphere", volumeData, nil)
+		if err != nil && !errors.IsVolumeExistError(err) {
+			return handle, err
 		}
 
 		flags := make(map[string]string)
 		//NOTE: for now we are passing the flags directly through. This is NOT SAFE and only a stop gap.
 		flags[constants.Mode] = fields.Flags
-		joinParams := storage.NewVolumeJoinParamsWithContext(op).
-			WithOpID(&opID).
-			WithJoinArgs(&models.VolumeJoinConfig{
-				Flags:     flags,
-				Handle:    handle,
-				MountPath: fields.Dest,
-			}).WithName(fields.ID)
-
-		res, err := s.client.Storage.VolumeJoin(joinParams)
+		h, err := s.VolumeJoin(op, handle, fields.ID, fields.Dest, flags)
 		if err != nil {
-			switch err := err.(type) {
-			case *storage.VolumeJoinInternalServerError:
-				return handle, errors.InternalServerError(err.Payload.Message)
-			case *storage.VolumeJoinDefault:
-				return handle, errors.InternalServerError(err.Payload.Message)
-			case *storage.VolumeJoinNotFound:
-				return handle, errors.VolumeJoinNotFoundError(err.Payload.Message)
-			default:
-				return handle, errors.InternalServerError(err.Error())
-			}
+			return handle, err
 		}
 
-		handle = res.Payload
+		handle = h
 	}
+
+	return handle, nil
+}
+
+// VolumeJoin declares a volume mount for a container.  This should be called on container create.
+func (s *StorageProxy) VolumeJoin(ctx context.Context, handle, volName, mountPath string, flags map[string]string) (string, error) {
+	op := trace.FromContext(ctx, "VolumeJoin: %s", handle)
+	defer trace.End(trace.Begin(handle, op))
+	opID := op.ID()
+
+	if s.client == nil {
+		return "", errors.NillPortlayerClientError("StorageProxy")
+	}
+
+	joinParams := storage.NewVolumeJoinParamsWithContext(op).
+		WithOpID(&opID).
+		WithJoinArgs(&models.VolumeJoinConfig{
+			Flags:     flags,
+			Handle:    handle,
+			MountPath: mountPath,
+		}).WithName(volName)
+
+	res, err := s.client.Storage.VolumeJoin(joinParams)
+	if err != nil {
+		switch err := err.(type) {
+		case *storage.VolumeJoinInternalServerError:
+			return handle, errors.InternalServerError(err.Payload.Message)
+		case *storage.VolumeJoinDefault:
+			return handle, errors.InternalServerError(err.Payload.Message)
+		case *storage.VolumeJoinNotFound:
+			return handle, errors.VolumeJoinNotFoundError(err.Payload.Message)
+		default:
+			return handle, errors.InternalServerError(err.Error())
+		}
+	}
+
+	handle = res.Payload
 
 	return handle, nil
 }
@@ -497,17 +506,17 @@ func RemoveAnonContainerVols(ctx context.Context, pl *client.PortLayer, cID stri
 	}
 }
 
-// processVolumeParam is used to turn any call from docker create -v <stuff> into a volumeFields object.
+// processVolumeParam is used to turn any call from docker create -v <stuff> into a VolumeFields object.
 // The -v has 3 forms. -v <anonymous mount path>, -v <Volume Name>:<Destination Mount Path> and
 // -v <Volume Name>:<Destination Mount Path>:<mount flags>
-func processVolumeParam(volString string) (volumeFields, error) {
+func processVolumeParam(volString string) (VolumeFields, error) {
 	volumeStrings := strings.Split(volString, ":")
-	fields := volumeFields{}
+	fields := VolumeFields{}
 
 	// Error out if the intended volume is a directory on the client filesystem.
 	numVolParams := len(volumeStrings)
 	if numVolParams > 1 && strings.HasPrefix(volumeStrings[0], "/") {
-		return volumeFields{}, errors.InvalidVolumeError{}
+		return VolumeFields{}, errors.InvalidVolumeError{}
 	}
 
 	// This switch determines which type of -v was invoked.
@@ -530,7 +539,7 @@ func processVolumeParam(volString string) (volumeFields, error) {
 		fields.Flags = volumeStrings[2]
 	default:
 		// NOTE: the docker cli should cover this case. This is here for posterity.
-		return volumeFields{}, errors.InvalidBindError{Volume: volString}
+		return VolumeFields{}, errors.InvalidBindError{Volume: volString}
 	}
 	return fields, nil
 }
@@ -538,8 +547,8 @@ func processVolumeParam(volString string) (volumeFields, error) {
 // processVolumeFields parses fields for volume mappings specified in a create/run -v.
 // It returns a map of unique mountable volumes. This means that it removes dupes favoring
 // specified volumes over anonymous volumes.
-func processVolumeFields(volumes []string) (map[string]volumeFields, error) {
-	volumeFields := make(map[string]volumeFields)
+func processVolumeFields(volumes []string) (map[string]VolumeFields, error) {
+	vf := make(map[string]VolumeFields)
 
 	for _, v := range volumes {
 		fields, err := processVolumeParam(v)
@@ -547,12 +556,12 @@ func processVolumeFields(volumes []string) (map[string]volumeFields, error) {
 		if err != nil {
 			return nil, err
 		}
-		volumeFields[fields.Dest] = fields
+		vf[fields.Dest] = fields
 	}
-	return volumeFields, nil
+	return vf, nil
 }
 
-func finalizeVolumeList(specifiedVolumes, anonymousVolumes []string) ([]volumeFields, error) {
+func finalizeVolumeList(specifiedVolumes, anonymousVolumes []string) ([]VolumeFields, error) {
 	log.Infof("Specified Volumes : %#v", specifiedVolumes)
 	processedVolumes, err := processVolumeFields(specifiedVolumes)
 	if err != nil {
@@ -570,7 +579,7 @@ func finalizeVolumeList(specifiedVolumes, anonymousVolumes []string) ([]volumeFi
 		processedAnonVolumes[k] = v
 	}
 
-	finalizedVolumes := make([]volumeFields, 0, len(processedAnonVolumes))
+	finalizedVolumes := make([]VolumeFields, 0, len(processedAnonVolumes))
 	for _, v := range processedAnonVolumes {
 		finalizedVolumes = append(finalizedVolumes, v)
 	}
