@@ -1,0 +1,708 @@
+all stderr redirected to debug logall stdout redirected to debug logApr 17 2018 17:10:29.245Z DEBUG log cfg: {Formatter:0xc420256bf0 Level:debug Syslog:<nil>}
+Apr 17 2018 17:10:29.249Z INFO  Registering tether extension Toolbox
+Apr 17 2018 17:10:29.252Z DEBUG op=197.1: [NewOperation] op=197.1 [vic/pkg/logmgr.NewLogManager:131]
+Apr 17 2018 17:10:29.256Z INFO  Registering tether extension logrotate
+Apr 17 2018 17:10:29.260Z DEBUG [BEGIN]  [vic/lib/tether.(*tether).Start:508] main tether loop
+Apr 17 2018 17:10:29.264Z DEBUG [BEGIN]  [vic/lib/tether.(*tether).setup:132] main tether setup
+Apr 17 2018 17:10:29.268Z DEBUG [BEGIN]  [main.(*operations).Log:92] operations.Log
+Apr 17 2018 17:10:29.272Z INFO  opening var/log/vic/init.log for debug log
+Apr 17 2018 17:10:29.276Z DEBUG [ END ]  [main.(*operations).Log:92] [7.39486ms] operations.Log
+Apr 17 2018 17:10:29.280Z INFO  Started reaping child processes
+Apr 17 2018 17:10:29.283Z DEBUG writing "::1 ipv6-localhost ipv6-loopback\n" to /.tether/etc/hosts
+Apr 17 2018 17:10:29.287Z DEBUG writing "127.0.0.1 localhost.localdomain localhost\n" to /.tether/etc/hosts
+Apr 17 2018 17:10:29.292Z DEBUG writing "::1 ipv6-localhost ipv6-loopback ip6-localhost localhost localhost.localdomain localhost6.localdomain6 ip6-loopback\n" to /.tether/etc/hosts
+Apr 17 2018 17:10:29.299Z DEBUG writing "127.0.0.1 localhost.localdomain localhost localhost4 localhost4.localdomain4\n" to /.tether/etc/hosts
+Apr 17 2018 17:10:29.305Z DEBUG writing "fe00:: ip6-localnet\n" to /.tether/etc/hosts
+Apr 17 2018 17:10:29.309Z DEBUG writing "ff00:: ip6-mcastprefix\n" to /.tether/etc/hosts
+Apr 17 2018 17:10:29.313Z DEBUG writing "ff02::1 ip6-allnodes\n" to /.tether/etc/hosts
+Apr 17 2018 17:10:29.317Z DEBUG writing "ff02::2 ip6-allrouters\n" to /.tether/etc/hosts
+Apr 17 2018 17:10:29.321Z INFO  unmounting /etc/hosts
+Apr 17 2018 17:10:29.323Z DEBUG path is not currently a bindmount target
+Apr 17 2018 17:10:29.327Z INFO  bind-mounting /.tether/etc/hosts on /etc/hosts
+Apr 17 2018 17:10:29.331Z INFO  Launching vch-init pprof server on 127.0.0.1:6060
+Apr 17 2018 17:10:29.335Z INFO  Starting extension Toolbox
+Apr 17 2018 17:10:29.338Z INFO  toolbox: waiting for initialization
+2018/04/17 17:10:29 dispatching power op "OS_PowerOn"
+Apr 17 2018 17:10:29.349Z INFO  toolbox: service is ready (power on event received)
+Apr 17 2018 17:10:29.358Z INFO  Starting extension logrotate
+Apr 17 2018 17:10:29.364Z DEBUG op=197.1: logrotate config: /var/log/vic/port-layer.log {
+    compress
+    daily
+    rotate 2
+    size 20971520
+    minsize 20971519
+    copytruncate
+    dateext
+    dateformat -%Y%m%d-%s
+}
+
+/var/log/vic/init.log {
+    compress
+    daily
+    rotate 2
+    size 20971520
+    minsize 20971519
+    copytruncate
+    dateext
+    dateformat -%Y%m%d-%s
+}
+
+/var/log/vic/docker-personality.log {
+    compress
+    daily
+    rotate 2
+    size 20971520
+    minsize 20971519
+    copytruncate
+    dateext
+    dateformat -%Y%m%d-%s
+}
+
+/var/log/vic/vicadmin.log {
+    compress
+    daily
+    rotate 2
+    size 20971520
+    minsize 20971519
+    copytruncate
+    dateext
+    dateformat -%Y%m%d-%s
+}
+
+Apr 17 2018 17:10:29.471Z DEBUG [BEGIN]  [vic/lib/tether.(*tether).triggerReaper:178] Triggering child reaping
+Apr 17 2018 17:10:29.480Z DEBUG [ END ]  [vic/lib/tether.(*tether).triggerReaper:178] [8.867303ms] Triggering child reaping
+Apr 17 2018 17:10:29.491Z DEBUG [ END ]  [vic/lib/tether.(*tether).setup:132] [226.306292ms] main tether setup
+Apr 17 2018 17:10:29.497Z INFO  Loading main configuration
+Apr 17 2018 17:10:29.502Z DEBUG GuestInfoSource: key: guestinfo.vice./init/common/name, value: "", error: key not found
+Apr 17 2018 17:10:29.515Z DEBUG GuestInfoSource: key: guestinfo.vice./init/common/id, value: "VirtualMachine:vm-47", error: %!s(<nil>)
+Apr 17 2018 17:10:29.527Z DEBUG GuestInfoSource: key: guestinfo.vice./init/diagnostics/debug, value: "1", error: %!s(<nil>)
+Apr 17 2018 17:10:29.539Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions, value: "docker-personality|port-layer|vicadmin", error: %!s(<nil>)
+Apr 17 2018 17:10:29.552Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/common/ExecutionEnvironment, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:29.572Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/common/id, value: "docker-personality", error: %!s(<nil>)
+Apr 17 2018 17:10:29.584Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/common/name, value: "docker-personality", error: %!s(<nil>)
+Apr 17 2018 17:10:29.592Z DEBUG GuestInfoSource: key: guestinfo.vice.sinitsessions|docker-personality/common/notes, value: "", error: key not found
+Apr 17 2018 17:10:29.598Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|docker-personality.detail.createtime, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:29.605Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|docker-personality.detail.starttime, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:29.612Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|docker-personality.detail.stoptime, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:29.619Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/diagnostics/debug, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:29.625Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|docker-personality.diagnostics.resurrections, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:29.634Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|docker-personality.diagnostics.exitlogs, value: "", error: key not found
+Apr 17 2018 17:10:29.642Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/diagnostics/syslog/Network, value: "", error: key not found
+Apr 17 2018 17:10:29.649Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/diagnostics/syslog/RAddr, value: "", error: key not found
+Apr 17 2018 17:10:29.656Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/cmd/Path, value: "/sbin/docker-engine-server", error: %!s(<nil>)
+Apr 17 2018 17:10:29.663Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/cmd/Args, value: "2", error: %!s(<nil>)
+Apr 17 2018 17:10:29.670Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/cmd/Args~, value: "/sbin/docker-engine-server|-port=2376|-port-layer-port=2377", error: %!s(<nil>)
+Apr 17 2018 17:10:29.679Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/cmd/Env, value: "1", error: %!s(<nil>)
+Apr 17 2018 17:10:29.685Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/cmd/Env~, value: "PATH=/sbin|GOTRACEBACK=all", error: %!s(<nil>)
+Apr 17 2018 17:10:29.692Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/cmd/Dir, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:29.699Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/cmd/ExtraFiles, value: "", error: key not found
+Apr 17 2018 17:10:29.706Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/cmd/ExtraFiles~, value: "", error: key not found
+Apr 17 2018 17:10:29.713Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|docker-personality.status, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:29.719Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|docker-personality.started, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:29.725Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/attach, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:29.732Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/openstdin, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:29.738Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|docker-personality.runblock, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:29.745Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/active, value: "true", error: %!s(<nil>)
+Apr 17 2018 17:10:29.752Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/tty, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:29.758Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/restart, value: "true", error: %!s(<nil>)
+Apr 17 2018 17:10:29.764Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/stopSignal, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:29.770Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/user, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:29.777Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|docker-personality/group, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:29.783Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/common/ExecutionEnvironment, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:29.789Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/common/id, value: "port-layer", error: %!s(<nil>)
+Apr 17 2018 17:10:29.796Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/common/name, value: "port-layer", error: %!s(<nil>)
+Apr 17 2018 17:10:29.802Z DEBUG GuestInfoSource: key: guestinfo.vice.sinitsessions|port-layer/common/notes, value: "", error: key not found
+Apr 17 2018 17:10:29.808Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|port-layer.detail.createtime, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:29.815Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|port-layer.detail.starttime, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:29.821Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|port-layer.detail.stoptime, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:29.827Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/diagnostics/debug, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:29.834Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|port-layer.diagnostics.resurrections, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:29.840Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|port-layer.diagnostics.exitlogs, value: "", error: key not found
+Apr 17 2018 17:10:29.847Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/diagnostics/syslog/Network, value: "", error: key not found
+Apr 17 2018 17:10:29.853Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/diagnostics/syslog/RAddr, value: "", error: key not found
+Apr 17 2018 17:10:29.860Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/cmd/Path, value: "/sbin/port-layer-server", error: %!s(<nil>)
+Apr 17 2018 17:10:29.867Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/cmd/Args, value: "2", error: %!s(<nil>)
+Apr 17 2018 17:10:29.873Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/cmd/Args~, value: "/sbin/port-layer-server|--host=localhost|--port=2377", error: %!s(<nil>)
+Apr 17 2018 17:10:29.881Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/cmd/Env, value: "4", error: %!s(<nil>)
+Apr 17 2018 17:10:29.887Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/cmd/Env~, value: "VC_URL=https://10.162.10.26|DC_PATH=dc1|CS_PATH=/dc1/host/cls|POOL_PATH=/dc1/host/cls/Resources|DS_PATH=nfs0-1", error: %!s(<nil>)
+Apr 17 2018 17:10:29.897Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/cmd/Dir, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:29.903Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/cmd/ExtraFiles, value: "", error: key not found
+Apr 17 2018 17:10:29.909Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/cmd/ExtraFiles~, value: "", error: key not found
+Apr 17 2018 17:10:29.916Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|port-layer.status, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:29.921Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|port-layer.started, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:29.927Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/attach, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:29.933Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/openstdin, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:29.939Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|port-layer.runblock, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:29.946Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/active, value: "true", error: %!s(<nil>)
+Apr 17 2018 17:10:29.951Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/tty, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:29.959Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/restart, value: "true", error: %!s(<nil>)
+Apr 17 2018 17:10:29.965Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/stopSignal, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:29.971Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/user, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:29.976Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|port-layer/group, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:29.982Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/common/ExecutionEnvironment, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:29.989Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/common/id, value: "vicadmin", error: %!s(<nil>)
+Apr 17 2018 17:10:29.995Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/common/name, value: "vicadmin", error: %!s(<nil>)
+Apr 17 2018 17:10:30.001Z DEBUG GuestInfoSource: key: guestinfo.vice.sinitsessions|vicadmin/common/notes, value: "", error: key not found
+Apr 17 2018 17:10:30.007Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|vicadmin.detail.createtime, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:30.014Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|vicadmin.detail.starttime, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:30.020Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|vicadmin.detail.stoptime, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:30.026Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/diagnostics/debug, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:30.032Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|vicadmin.diagnostics.resurrections, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:30.039Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|vicadmin.diagnostics.exitlogs, value: "", error: key not found
+Apr 17 2018 17:10:30.045Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/diagnostics/syslog/Network, value: "", error: key not found
+Apr 17 2018 17:10:30.052Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/diagnostics/syslog/RAddr, value: "", error: key not found
+Apr 17 2018 17:10:30.058Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/cmd/Path, value: "/sbin/vicadmin", error: %!s(<nil>)
+Apr 17 2018 17:10:30.064Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/cmd/Args, value: "3", error: %!s(<nil>)
+Apr 17 2018 17:10:30.070Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/cmd/Args~, value: "/sbin/vicadmin|--dc=dc1|--pool=/dc1/host/cls/Resources|--cluster=/dc1/host/cls", error: %!s(<nil>)
+Apr 17 2018 17:10:30.079Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/cmd/Env, value: "1", error: %!s(<nil>)
+Apr 17 2018 17:10:30.085Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/cmd/Env~, value: "PATH=/sbin:/bin|GOTRACEBACK=all", error: %!s(<nil>)
+Apr 17 2018 17:10:30.092Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/cmd/Dir, value: "/home/vicadmin", error: %!s(<nil>)
+Apr 17 2018 17:10:30.099Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/cmd/ExtraFiles, value: "", error: key not found
+Apr 17 2018 17:10:30.105Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/cmd/ExtraFiles~, value: "", error: key not found
+Apr 17 2018 17:10:30.111Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|vicadmin.status, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:30.117Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|vicadmin.started, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:30.123Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/attach, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:30.129Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/openstdin, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:30.135Z DEBUG GuestInfoSource: key: guestinfo.vice..init.sessions|vicadmin.runblock, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:30.142Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/active, value: "true", error: %!s(<nil>)
+Apr 17 2018 17:10:30.148Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/tty, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:30.154Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/restart, value: "true", error: %!s(<nil>)
+Apr 17 2018 17:10:30.160Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/stopSignal, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:30.166Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/user, value: "vicadmin", error: %!s(<nil>)
+Apr 17 2018 17:10:30.172Z DEBUG GuestInfoSource: key: guestinfo.vice./init/sessions|vicadmin/group, value: "vicadmin", error: %!s(<nil>)
+Apr 17 2018 17:10:30.178Z DEBUG GuestInfoSource: key: guestinfo.vice./init/execs@non-persistent, value: "", error: key not found
+Apr 17 2018 17:10:30.184Z DEBUG GuestInfoSource: key: guestinfo.vice./init/mounts, value: "", error: key not found
+Apr 17 2018 17:10:30.190Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks, value: "bridge|client|management|public", error: %!s(<nil>)
+Apr 17 2018 17:10:30.196Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/Common/ExecutionEnvironment, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:30.203Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/Common/id, value: "1216", error: %!s(<nil>)
+Apr 17 2018 17:10:30.209Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/Common/name, value: "bridge", error: %!s(<nil>)
+Apr 17 2018 17:10:30.216Z DEBUG GuestInfoSource: key: guestinfo.vice.ninitnetworks|bridge/Common/notes, value: "", error: key not found
+Apr 17 2018 17:10:30.222Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/static, value: "true", error: %!s(<nil>)
+Apr 17 2018 17:10:30.228Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/ip/IP, value: "AAAAAAAAAAAAAP//AAAAAA==", error: %!s(<nil>)
+Apr 17 2018 17:10:30.235Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/ip/Mask, value: "", error: key not found
+Apr 17 2018 17:10:30.241Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|bridge.assigned.IP, value: "", error: key not found
+Apr 17 2018 17:10:30.247Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|bridge.assigned.Mask, value: "", error: key not found
+Apr 17 2018 17:10:30.253Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/network/Common/ExecutionEnvironment, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:30.260Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/network/Common/id, value: "DistributedVirtualPortgroup:dvportgroup-43", error: %!s(<nil>)
+Apr 17 2018 17:10:30.268Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/network/Common/name, value: "bridge", error: %!s(<nil>)
+Apr 17 2018 17:10:30.275Z DEBUG GuestInfoSource: key: guestinfo.vice.ninitnetworks|bridge/network/Common/notes, value: "", error: key not found
+Apr 17 2018 17:10:30.281Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|bridge.network.type, value: "bridge", error: %!s(<nil>)
+Apr 17 2018 17:10:30.287Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/network/destinations, value: "", error: key not found
+Apr 17 2018 17:10:30.293Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/network/gateway/IP, value: "", error: key not found
+Apr 17 2018 17:10:30.299Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/network/gateway/Mask, value: "", error: key not found
+Apr 17 2018 17:10:30.306Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/network/default, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:30.312Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/network/dns, value: "", error: key not found
+Apr 17 2018 17:10:30.318Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/network/pools, value: "", error: key not found
+Apr 17 2018 17:10:30.324Z DEBUG GuestInfoSource: key: guestinfo.vice.ninitnetworks|bridge/network/aliases, value: "", error: key not found
+Apr 17 2018 17:10:30.330Z DEBUG GuestInfoSource: key: guestinfo.vice.ninitnetworks|bridge/network/aliases~, value: "", error: key not found
+Apr 17 2018 17:10:30.336Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/network/TrustLevel, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:30.342Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|bridge.network.assigned.gateway.IP, value: "", error: key not found
+Apr 17 2018 17:10:30.349Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|bridge.network.assigned.gateway.Mask, value: "", error: key not found
+Apr 17 2018 17:10:30.356Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|bridge.network.assigned.dns, value: "", error: key not found
+Apr 17 2018 17:10:30.362Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/ports, value: "", error: key not found
+Apr 17 2018 17:10:30.368Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/ports~, value: "", error: key not found
+Apr 17 2018 17:10:30.374Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|bridge/internal, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:30.380Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/Common/ExecutionEnvironment, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:30.387Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/Common/id, value: "1184", error: %!s(<nil>)
+Apr 17 2018 17:10:30.393Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/Common/name, value: "client", error: %!s(<nil>)
+Apr 17 2018 17:10:30.400Z DEBUG GuestInfoSource: key: guestinfo.vice.ninitnetworks|client/Common/notes, value: "", error: key not found
+Apr 17 2018 17:10:30.406Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/static, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:30.412Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/ip/IP, value: "", error: key not found
+Apr 17 2018 17:10:30.418Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/ip/Mask, value: "", error: key not found
+Apr 17 2018 17:10:30.425Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|client.assigned.IP, value: "", error: key not found
+Apr 17 2018 17:10:30.431Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|client.assigned.Mask, value: "", error: key not found
+Apr 17 2018 17:10:30.437Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/network/Common/ExecutionEnvironment, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:30.444Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/network/Common/id, value: "DistributedVirtualPortgroup:dvportgroup-44", error: %!s(<nil>)
+Apr 17 2018 17:10:30.451Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/network/Common/name, value: "client", error: %!s(<nil>)
+Apr 17 2018 17:10:30.458Z DEBUG GuestInfoSource: key: guestinfo.vice.ninitnetworks|client/network/Common/notes, value: "", error: key not found
+Apr 17 2018 17:10:30.464Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|client.network.type, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:30.471Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/network/destinations, value: "", error: key not found
+Apr 17 2018 17:10:30.477Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/network/gateway/IP, value: "", error: key not found
+Apr 17 2018 17:10:30.484Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/network/gateway/Mask, value: "", error: key not found
+Apr 17 2018 17:10:30.490Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/network/default, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:30.496Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/network/dns, value: "", error: key not found
+Apr 17 2018 17:10:30.503Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/network/pools, value: "", error: key not found
+Apr 17 2018 17:10:30.509Z DEBUG GuestInfoSource: key: guestinfo.vice.ninitnetworks|client/network/aliases, value: "", error: key not found
+Apr 17 2018 17:10:30.515Z DEBUG GuestInfoSource: key: guestinfo.vice.ninitnetworks|client/network/aliases~, value: "", error: key not found
+Apr 17 2018 17:10:30.521Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/network/TrustLevel, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:30.528Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|client.network.assigned.gateway.IP, value: "", error: key not found
+Apr 17 2018 17:10:30.535Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|client.network.assigned.gateway.Mask, value: "", error: key not found
+Apr 17 2018 17:10:30.542Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|client.network.assigned.dns, value: "", error: key not found
+Apr 17 2018 17:10:30.548Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/ports, value: "", error: key not found
+Apr 17 2018 17:10:30.554Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/ports~, value: "", error: key not found
+Apr 17 2018 17:10:30.560Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|client/internal, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:30.566Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/Common/ExecutionEnvironment, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:30.573Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/Common/id, value: "1184", error: %!s(<nil>)
+Apr 17 2018 17:10:30.579Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/Common/name, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:30.585Z DEBUG GuestInfoSource: key: guestinfo.vice.ninitnetworks|management/Common/notes, value: "", error: key not found
+Apr 17 2018 17:10:30.591Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/static, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:30.598Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/ip/IP, value: "", error: key not found
+Apr 17 2018 17:10:30.604Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/ip/Mask, value: "", error: key not found
+Apr 17 2018 17:10:30.610Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|management.assigned.IP, value: "", error: key not found
+Apr 17 2018 17:10:30.616Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|management.assigned.Mask, value: "", error: key not found
+Apr 17 2018 17:10:30.622Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/network/Common/ExecutionEnvironment, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:30.629Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/network/Common/id, value: "DistributedVirtualPortgroup:dvportgroup-44", error: %!s(<nil>)
+Apr 17 2018 17:10:30.637Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/network/Common/name, value: "management", error: %!s(<nil>)
+Apr 17 2018 17:10:30.644Z DEBUG GuestInfoSource: key: guestinfo.vice.ninitnetworks|management/network/Common/notes, value: "", error: key not found
+Apr 17 2018 17:10:30.651Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|management.network.type, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:30.657Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/network/destinations, value: "", error: key not found
+Apr 17 2018 17:10:30.664Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/network/gateway/IP, value: "", error: key not found
+Apr 17 2018 17:10:30.670Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/network/gateway/Mask, value: "", error: key not found
+Apr 17 2018 17:10:30.677Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/network/default, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:30.683Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/network/dns, value: "", error: key not found
+Apr 17 2018 17:10:30.690Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/network/pools, value: "", error: key not found
+Apr 17 2018 17:10:30.696Z DEBUG GuestInfoSource: key: guestinfo.vice.ninitnetworks|management/network/aliases, value: "", error: key not found
+Apr 17 2018 17:10:30.702Z DEBUG GuestInfoSource: key: guestinfo.vice.ninitnetworks|management/network/aliases~, value: "", error: key not found
+Apr 17 2018 17:10:30.708Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/network/TrustLevel, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:30.715Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|management.network.assigned.gateway.IP, value: "", error: key not found
+Apr 17 2018 17:10:30.721Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|management.network.assigned.gateway.Mask, value: "", error: key not found
+Apr 17 2018 17:10:30.728Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|management.network.assigned.dns, value: "", error: key not found
+Apr 17 2018 17:10:30.735Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/ports, value: "", error: key not found
+Apr 17 2018 17:10:30.741Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/ports~, value: "", error: key not found
+Apr 17 2018 17:10:30.747Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|management/internal, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:30.753Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/Common/ExecutionEnvironment, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:30.760Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/Common/id, value: "1184", error: %!s(<nil>)
+Apr 17 2018 17:10:30.766Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/Common/name, value: "public", error: %!s(<nil>)
+Apr 17 2018 17:10:30.772Z DEBUG GuestInfoSource: key: guestinfo.vice.ninitnetworks|public/Common/notes, value: "", error: key not found
+Apr 17 2018 17:10:30.778Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/static, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:30.784Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/ip/IP, value: "", error: key not found
+Apr 17 2018 17:10:30.790Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/ip/Mask, value: "", error: key not found
+Apr 17 2018 17:10:30.796Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|public.assigned.IP, value: "", error: key not found
+Apr 17 2018 17:10:30.802Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|public.assigned.Mask, value: "", error: key not found
+Apr 17 2018 17:10:30.808Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/network/Common/ExecutionEnvironment, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:30.815Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/network/Common/id, value: "DistributedVirtualPortgroup:dvportgroup-44", error: %!s(<nil>)
+Apr 17 2018 17:10:30.823Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/network/Common/name, value: "public", error: %!s(<nil>)
+Apr 17 2018 17:10:30.829Z DEBUG GuestInfoSource: key: guestinfo.vice.ninitnetworks|public/network/Common/notes, value: "", error: key not found
+Apr 17 2018 17:10:30.835Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|public.network.type, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:30.841Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/network/destinations, value: "", error: key not found
+Apr 17 2018 17:10:30.848Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/network/gateway/IP, value: "", error: key not found
+Apr 17 2018 17:10:30.854Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/network/gateway/Mask, value: "", error: key not found
+Apr 17 2018 17:10:30.860Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/network/default, value: "true", error: %!s(<nil>)
+Apr 17 2018 17:10:30.866Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/network/dns, value: "", error: key not found
+Apr 17 2018 17:10:30.872Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/network/pools, value: "", error: key not found
+Apr 17 2018 17:10:30.878Z DEBUG GuestInfoSource: key: guestinfo.vice.ninitnetworks|public/network/aliases, value: "", error: key not found
+Apr 17 2018 17:10:30.885Z DEBUG GuestInfoSource: key: guestinfo.vice.ninitnetworks|public/network/aliases~, value: "", error: key not found
+Apr 17 2018 17:10:30.891Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/network/TrustLevel, value: "0", error: %!s(<nil>)
+Apr 17 2018 17:10:30.897Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|public.network.assigned.gateway.IP, value: "", error: key not found
+Apr 17 2018 17:10:30.904Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|public.network.assigned.gateway.Mask, value: "", error: key not found
+Apr 17 2018 17:10:30.911Z DEBUG GuestInfoSource: key: guestinfo.vice..init.networks|public.network.assigned.dns, value: "", error: key not found
+Apr 17 2018 17:10:30.917Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/ports, value: "", error: key not found
+Apr 17 2018 17:10:30.923Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/ports~, value: "", error: key not found
+Apr 17 2018 17:10:30.929Z DEBUG GuestInfoSource: key: guestinfo.vice./init/networks|public/internal, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:30.935Z DEBUG GuestInfoSource: key: guestinfo.vice./init/key, value: "", error: key not found
+Apr 17 2018 17:10:30.940Z DEBUG GuestInfoSource: key: guestinfo.vice./init/asymrouting, value: "false", error: %!s(<nil>)
+Apr 17 2018 17:10:30.945Z DEBUG GuestInfoSource: key: guestinfo.vice./init/hostname, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:30.950Z DEBUG GuestInfoSource: key: guestinfo.vice./init/domainname, value: "", error: %!s(<nil>)
+Apr 17 2018 17:10:30.955Z INFO  Loaded executor config
+Apr 17 2018 17:10:30.959Z DEBUG guestinfo.vice./sessions|port-layer/user: 
+Apr 17 2018 17:10:30.962Z DEBUG guestinfo.vice./networks|bridge/network/TrustLevel: 0
+Apr 17 2018 17:10:30.966Z DEBUG guestinfo.vice./sessions|vicadmin/stopSignal: 
+Apr 17 2018 17:10:30.970Z DEBUG guestinfo.vice..sessions|vicadmin.detail.starttime: 0
+Apr 17 2018 17:10:30.973Z DEBUG guestinfo.vice./sessions|docker-personality/common/ExecutionEnvironment: 
+Apr 17 2018 17:10:30.978Z DEBUG guestinfo.vice./networks|management/network/TrustLevel: 0
+Apr 17 2018 17:10:30.982Z DEBUG guestinfo.vice./sessions|vicadmin/common/id: vicadmin
+Apr 17 2018 17:10:30.986Z DEBUG guestinfo.vice./sessions|vicadmin/openstdin: false
+Apr 17 2018 17:10:30.989Z DEBUG guestinfo.vice./sessions|port-layer/openstdin: false
+Apr 17 2018 17:10:30.993Z DEBUG guestinfo.vice./sessions|port-layer/tty: false
+Apr 17 2018 17:10:30.997Z DEBUG guestinfo.vice./networks|bridge/network/default: false
+Apr 17 2018 17:10:31.001Z DEBUG guestinfo.vice./networks|management/Common/ExecutionEnvironment: 
+Apr 17 2018 17:10:31.005Z DEBUG guestinfo.vice./networks|public/static: false
+Apr 17 2018 17:10:31.008Z DEBUG guestinfo.vice..sessions|vicadmin.detail.createtime: 0
+Apr 17 2018 17:10:31.012Z DEBUG guestinfo.vice./sessions|port-layer/common/ExecutionEnvironment: 
+Apr 17 2018 17:10:31.017Z DEBUG guestinfo.vice./networks|client/network/Common/name: client
+Apr 17 2018 17:10:31.021Z DEBUG guestinfo.vice./networks|management/network/Common/name: management
+Apr 17 2018 17:10:31.026Z DEBUG networks|public/Common/notes: 
+Apr 17 2018 17:10:31.029Z DEBUG guestinfo.vice..sessions|docker-personality.started: 
+Apr 17 2018 17:10:31.032Z DEBUG guestinfo.vice./networks|management/Common/name: 
+Apr 17 2018 17:10:31.036Z DEBUG networks|public/network/Common/notes: 
+Apr 17 2018 17:10:31.040Z DEBUG guestinfo.vice..sessions|docker-personality.runblock: false
+Apr 17 2018 17:10:31.044Z DEBUG guestinfo.vice./sessions|port-layer/cmd/Path: /sbin/port-layer-server
+Apr 17 2018 17:10:31.048Z DEBUG guestinfo.vice./sessions|port-layer/stopSignal: 
+Apr 17 2018 17:10:31.052Z DEBUG guestinfo.vice./networks: bridge|client|management|public
+Apr 17 2018 17:10:31.055Z DEBUG guestinfo.vice./sessions|docker-personality/common/id: docker-personality
+Apr 17 2018 17:10:31.060Z DEBUG guestinfo.vice./networks|public/network/Common/id: DistributedVirtualPortgroup:dvportgroup-44
+Apr 17 2018 17:10:31.065Z DEBUG guestinfo.vice./networks|bridge/network/Common/ExecutionEnvironment: 
+Apr 17 2018 17:10:31.070Z DEBUG guestinfo.vice./sessions|port-layer/common/name: port-layer
+Apr 17 2018 17:10:31.074Z DEBUG guestinfo.vice./networks|public/network/Common/ExecutionEnvironment: 
+Apr 17 2018 17:10:31.078Z DEBUG guestinfo.vice./diagnostics/debug: 1
+Apr 17 2018 17:10:31.081Z DEBUG guestinfo.vice./sessions|port-layer/active: true
+Apr 17 2018 17:10:31.085Z DEBUG guestinfo.vice..networks|bridge.network.type: bridge
+Apr 17 2018 17:10:31.089Z DEBUG sessions|vicadmin/common/notes: 
+Apr 17 2018 17:10:31.092Z DEBUG guestinfo.vice..sessions|docker-personality.status: 0
+Apr 17 2018 17:10:31.096Z DEBUG guestinfo.vice./networks|management/static: false
+Apr 17 2018 17:10:31.099Z DEBUG guestinfo.vice./sessions|vicadmin/group: vicadmin
+Apr 17 2018 17:10:31.103Z DEBUG sessions|port-layer/common/notes: 
+Apr 17 2018 17:10:31.106Z DEBUG guestinfo.vice./networks|client/internal: false
+Apr 17 2018 17:10:31.110Z DEBUG networks|management/Common/notes: 
+Apr 17 2018 17:10:31.113Z DEBUG guestinfo.vice..sessions|vicadmin.runblock: false
+Apr 17 2018 17:10:31.117Z DEBUG guestinfo.vice./networks|public/Common/name: public
+Apr 17 2018 17:10:31.120Z DEBUG guestinfo.vice./sessions|docker-personality/group: 
+Apr 17 2018 17:10:31.124Z DEBUG guestinfo.vice./networks|client/Common/name: client
+Apr 17 2018 17:10:31.128Z DEBUG sessions|docker-personality/common/notes: 
+Apr 17 2018 17:10:31.131Z DEBUG guestinfo.vice./networks|management/Common/id: 1184
+Apr 17 2018 17:10:31.135Z DEBUG guestinfo.vice./sessions|docker-personality/tty: false
+Apr 17 2018 17:10:31.139Z DEBUG guestinfo.vice..sessions|docker-personality.detail.createtime: 0
+Apr 17 2018 17:10:31.143Z DEBUG guestinfo.vice..sessions|docker-personality.diagnostics.resurrections: 0
+Apr 17 2018 17:10:31.148Z DEBUG guestinfo.vice./networks|bridge/network/Common/name: bridge
+Apr 17 2018 17:10:31.152Z DEBUG guestinfo.vice./networks|management/internal: false
+Apr 17 2018 17:10:31.156Z DEBUG guestinfo.vice./networks|public/Common/ExecutionEnvironment: 
+Apr 17 2018 17:10:31.160Z DEBUG guestinfo.vice..sessions|vicadmin.started: 
+Apr 17 2018 17:10:31.163Z DEBUG guestinfo.vice./networks|bridge/Common/id: 1216
+Apr 17 2018 17:10:31.166Z DEBUG guestinfo.vice..sessions|port-layer.runblock: false
+Apr 17 2018 17:10:31.170Z DEBUG guestinfo.vice./sessions|docker-personality/common/name: docker-personality
+Apr 17 2018 17:10:31.175Z DEBUG guestinfo.vice./sessions|port-layer/restart: true
+Apr 17 2018 17:10:31.178Z DEBUG guestinfo.vice./hostname: 
+Apr 17 2018 17:10:31.181Z DEBUG guestinfo.vice./sessions|vicadmin/cmd/Dir: /home/vicadmin
+Apr 17 2018 17:10:31.185Z DEBUG guestinfo.vice./networks|bridge/Common/ExecutionEnvironment: 
+Apr 17 2018 17:10:31.189Z DEBUG guestinfo.vice./networks|client/network/Common/id: DistributedVirtualPortgroup:dvportgroup-44
+Apr 17 2018 17:10:31.194Z DEBUG guestinfo.vice./sessions|port-layer/common/id: port-layer
+Apr 17 2018 17:10:31.198Z DEBUG guestinfo.vice./sessions|vicadmin/user: vicadmin
+Apr 17 2018 17:10:31.202Z DEBUG networks|bridge/Common/notes: 
+Apr 17 2018 17:10:31.205Z DEBUG guestinfo.vice./networks|bridge/static: true
+Apr 17 2018 17:10:31.208Z DEBUG guestinfo.vice..networks|public.network.type: 
+Apr 17 2018 17:10:31.212Z DEBUG guestinfo.vice./sessions|vicadmin/attach: false
+Apr 17 2018 17:10:31.215Z DEBUG guestinfo.vice..sessions|vicadmin.status: 0
+Apr 17 2018 17:10:31.219Z DEBUG guestinfo.vice./sessions|vicadmin/restart: true
+Apr 17 2018 17:10:31.222Z DEBUG guestinfo.vice./sessions|docker-personality/openstdin: false
+Apr 17 2018 17:10:31.226Z DEBUG guestinfo.vice./sessions|port-layer/attach: false
+Apr 17 2018 17:10:31.230Z DEBUG guestinfo.vice./networks|bridge/internal: false
+Apr 17 2018 17:10:31.234Z DEBUG guestinfo.vice./networks|client/Common/id: 1184
+Apr 17 2018 17:10:31.237Z DEBUG guestinfo.vice..networks|management.network.type: 
+Apr 17 2018 17:10:31.241Z DEBUG guestinfo.vice./common/id: VirtualMachine:vm-47
+Apr 17 2018 17:10:31.244Z DEBUG guestinfo.vice./networks|public/internal: false
+Apr 17 2018 17:10:31.248Z DEBUG guestinfo.vice./networks|public/network/default: true
+Apr 17 2018 17:10:31.252Z DEBUG guestinfo.vice./sessions|vicadmin/cmd/Path: /sbin/vicadmin
+Apr 17 2018 17:10:31.255Z DEBUG guestinfo.vice./sessions|docker-personality/diagnostics/debug: 0
+Apr 17 2018 17:10:31.260Z DEBUG guestinfo.vice./sessions|docker-personality/stopSignal: 
+Apr 17 2018 17:10:31.264Z DEBUG guestinfo.vice..sessions|port-layer.diagnostics.resurrections: 0
+Apr 17 2018 17:10:31.268Z DEBUG guestinfo.vice./sessions|port-layer/cmd/Dir: 
+Apr 17 2018 17:10:31.271Z DEBUG guestinfo.vice..sessions|port-layer.status: 0
+Apr 17 2018 17:10:31.275Z DEBUG guestinfo.vice..sessions|port-layer.started: 
+Apr 17 2018 17:10:31.278Z DEBUG guestinfo.vice./sessions|vicadmin/common/ExecutionEnvironment: 
+Apr 17 2018 17:10:31.282Z DEBUG guestinfo.vice./domainname: 
+Apr 17 2018 17:10:31.285Z DEBUG guestinfo.vice./networks|client/Common/ExecutionEnvironment: 
+Apr 17 2018 17:10:31.289Z DEBUG guestinfo.vice./sessions|vicadmin/common/name: vicadmin
+Apr 17 2018 17:10:31.293Z DEBUG guestinfo.vice..sessions|port-layer.detail.stoptime: 0
+Apr 17 2018 17:10:31.297Z DEBUG guestinfo.vice./networks|bridge/ip/IP: AAAAAAAAAAAAAP//AAAAAA==
+Apr 17 2018 17:10:31.301Z DEBUG guestinfo.vice./networks|client/network/Common/ExecutionEnvironment: 
+Apr 17 2018 17:10:31.306Z DEBUG networks|client/network/Common/notes: 
+Apr 17 2018 17:10:31.309Z DEBUG guestinfo.vice./networks|client/network/default: false
+Apr 17 2018 17:10:31.313Z DEBUG guestinfo.vice./networks|management/network/default: false
+Apr 17 2018 17:10:31.317Z DEBUG guestinfo.vice./common/name: 
+Apr 17 2018 17:10:31.320Z DEBUG networks|client/Common/notes: 
+Apr 17 2018 17:10:31.323Z DEBUG guestinfo.vice./networks|public/network/TrustLevel: 0
+Apr 17 2018 17:10:31.327Z DEBUG guestinfo.vice./sessions|vicadmin/diagnostics/debug: 0
+Apr 17 2018 17:10:31.330Z DEBUG networks|bridge/network/Common/notes: 
+Apr 17 2018 17:10:31.334Z DEBUG guestinfo.vice..networks|client.network.type: 
+Apr 17 2018 17:10:31.337Z DEBUG guestinfo.vice./networks|public/network/Common/name: public
+Apr 17 2018 17:10:31.341Z DEBUG guestinfo.vice..sessions|port-layer.detail.createtime: 0
+Apr 17 2018 17:10:31.345Z DEBUG guestinfo.vice..sessions|port-layer.detail.starttime: 0
+Apr 17 2018 17:10:31.349Z DEBUG guestinfo.vice./networks|management/network/Common/ExecutionEnvironment: 
+Apr 17 2018 17:10:31.354Z DEBUG guestinfo.vice./networks|management/network/Common/id: DistributedVirtualPortgroup:dvportgroup-44
+Apr 17 2018 17:10:31.359Z DEBUG guestinfo.vice./sessions|docker-personality/user: 
+Apr 17 2018 17:10:31.363Z DEBUG guestinfo.vice./networks|client/network/TrustLevel: 0
+Apr 17 2018 17:10:31.367Z DEBUG guestinfo.vice./networks|bridge/network/Common/id: DistributedVirtualPortgroup:dvportgroup-43
+Apr 17 2018 17:10:31.372Z DEBUG guestinfo.vice./sessions|docker-personality/cmd/Dir: 
+Apr 17 2018 17:10:31.376Z DEBUG guestinfo.vice./sessions|vicadmin/tty: false
+Apr 17 2018 17:10:31.380Z DEBUG guestinfo.vice./sessions|docker-personality/active: true
+Apr 17 2018 17:10:31.384Z DEBUG guestinfo.vice./sessions|port-layer/diagnostics/debug: 0
+Apr 17 2018 17:10:31.387Z DEBUG guestinfo.vice./sessions|port-layer/group: 
+Apr 17 2018 17:10:31.391Z DEBUG guestinfo.vice./sessions: docker-personality|port-layer|vicadmin
+Apr 17 2018 17:10:31.395Z DEBUG guestinfo.vice./networks|bridge/Common/name: bridge
+Apr 17 2018 17:10:31.399Z DEBUG guestinfo.vice..sessions|vicadmin.diagnostics.resurrections: 0
+Apr 17 2018 17:10:31.403Z DEBUG guestinfo.vice./sessions|docker-personality/restart: true
+Apr 17 2018 17:10:31.407Z DEBUG guestinfo.vice./sessions|docker-personality/attach: false
+Apr 17 2018 17:10:31.411Z DEBUG networks|management/network/Common/notes: 
+Apr 17 2018 17:10:31.415Z DEBUG guestinfo.vice./sessions|vicadmin/active: true
+Apr 17 2018 17:10:31.418Z DEBUG guestinfo.vice./sessions|docker-personality/cmd/Path: /sbin/docker-engine-server
+Apr 17 2018 17:10:31.423Z DEBUG guestinfo.vice..sessions|docker-personality.detail.starttime: 0
+Apr 17 2018 17:10:31.427Z DEBUG guestinfo.vice..sessions|docker-personality.detail.stoptime: 0
+Apr 17 2018 17:10:31.431Z DEBUG guestinfo.vice./networks|client/static: false
+Apr 17 2018 17:10:31.435Z DEBUG guestinfo.vice./networks|public/Common/id: 1184
+Apr 17 2018 17:10:31.438Z DEBUG guestinfo.vice./asymrouting: false
+Apr 17 2018 17:10:31.442Z DEBUG guestinfo.vice..sessions|vicadmin.detail.stoptime: 0
+Apr 17 2018 17:10:31.446Z DEBUG [BEGIN]  [vic/lib/tether.(*BaseOperations).SetHostname:184] setting hostname to 
+Apr 17 2018 17:10:31.451Z DEBUG Updated kernel hostname
+Apr 17 2018 17:10:31.454Z INFO  unmounting /etc/hostname
+Apr 17 2018 17:10:31.457Z DEBUG path is not currently a bindmount target
+Apr 17 2018 17:10:31.460Z INFO  bind-mounting /.tether/etc/hostname on /etc/hostname
+Apr 17 2018 17:10:31.465Z DEBUG writing "::1 ipv6-localhost ipv6-loopback ip6-localhost localhost localhost.localdomain localhost6.localdomain6 ip6-loopback \n" to /.tether/etc/hosts
+Apr 17 2018 17:10:31.472Z DEBUG writing "127.0.0.1 localhost.localdomain localhost localhost4 localhost4.localdomain4\n" to /.tether/etc/hosts
+Apr 17 2018 17:10:31.478Z DEBUG writing "fe00:: ip6-localnet\n" to /.tether/etc/hosts
+Apr 17 2018 17:10:31.482Z DEBUG writing "ff00:: ip6-mcastprefix\n" to /.tether/etc/hosts
+Apr 17 2018 17:10:31.486Z DEBUG writing "ff02::1 ip6-allnodes\n" to /.tether/etc/hosts
+Apr 17 2018 17:10:31.490Z DEBUG writing "ff02::2 ip6-allrouters\n" to /.tether/etc/hosts
+Apr 17 2018 17:10:31.494Z DEBUG writing "127.0.1.1 \n" to /.tether/etc/hosts
+Apr 17 2018 17:10:31.497Z INFO  unmounting /etc/hosts
+Apr 17 2018 17:10:31.500Z INFO  bind-mounting /.tether/etc/hosts on /etc/hosts
+Apr 17 2018 17:10:31.504Z DEBUG [ END ]  [vic/lib/tether.(*BaseOperations).SetHostname:184] [58.846144ms] setting hostname to 
+Apr 17 2018 17:10:31.510Z DEBUG [BEGIN]  [vic/lib/tether.(*BaseOperations).Apply:608] applying endpoint configuration for bridge
+Apr 17 2018 17:10:31.515Z DEBUG got link name: "eth1"
+Apr 17 2018 17:10:31.518Z INFO  Renaming link eth1 to bridge
+Apr 17 2018 17:10:31.522Z DEBUG got link name: "bridge"
+Apr 17 2018 17:10:31.543Z DEBUG &{Common:{ExecutionEnvironment: ID:1216 Name:bridge Notes:} Static:true IP:<nil> Assigned:{IP:<nil> Mask:<nil>} Network: DHCP:<nil> Ports:[] Internal:false configured:false}
+Apr 17 2018 17:10:31.551Z INFO  successfully applied config for network bridge
+Apr 17 2018 17:10:31.555Z DEBUG [ END ]  [vic/lib/tether.(*BaseOperations).Apply:608] [45.039517ms] applying endpoint configuration for bridge
+Apr 17 2018 17:10:31.561Z DEBUG [BEGIN]  [vic/lib/tether.(*BaseOperations).Apply:608] applying endpoint configuration for client
+Apr 17 2018 17:10:31.566Z DEBUG got link name: "eth0"
+Apr 17 2018 17:10:31.569Z INFO  Renaming link eth0 to client
+Apr 17 2018 17:10:31.573Z DEBUG got link name: "client"
+Apr 17 2018 17:10:31.591Z DEBUG Inspecting children with status change
+Apr 17 2018 17:10:31.595Z DEBUG No more child processes to reap
+Apr 17 2018 17:10:31.594Z DEBUG &{Common:{ExecutionEnvironment: ID:1184 Name:client Notes:} Static:false IP:<nil> Assigned:{IP:<nil> Mask:<nil>} Network: DHCP:<nil> Ports:[] Internal:false configured:false}
+Apr 17 2018 17:10:31.612Z DEBUG [BEGIN]  [vic/lib/dhcp/client.NewClient:69]
+Apr 17 2018 17:10:31.615Z DEBUG [ END ]  [vic/lib/dhcp/client.NewClient:69] [3.599559ms] 
+Apr 17 2018 17:10:31.619Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).SetParameterRequestList:369]
+Apr 17 2018 17:10:31.624Z DEBUG c.params=[]byte{0x1, 0x3, 0x6}
+Apr 17 2018 17:10:31.627Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).SetParameterRequestList:369] [7.38452ms] 
+Apr 17 2018 17:10:31.631Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).Request:237]
+Apr 17 2018 17:10:31.635Z DEBUG id: {Type:255 Iaid:[3 208 35 209] Duid:{Type:2 PEN:6876 ID:2396537736497750938} IfIndex:2 HardwareAddr:00:50:56:bf:d7:6d}
+Apr 17 2018 17:10:31.642Z DEBUG [BEGIN]  [vic/lib/dhcp/client.withRetry:104]
+Apr 17 2018 17:10:31.645Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:10:31.649Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:10:31.654Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:10:31.658Z DEBUG opts=dhcp4.Options{0x35:[]uint8{0x1}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}, 0x37:[]uint8{0x1, 0x3, 0x6}}
+Apr 17 2018 17:10:31.666Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [12.80354ms] 
+Apr 17 2018 17:10:31.671Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [21.770269ms] 
+Apr 17 2018 17:10:48.581Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [16.935530224s] 
+Apr 17 2018 17:10:48.586Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:10:48.591Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:10:48.595Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:10:48.599Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:10:48.603Z DEBUG opts=dhcp4.Options{0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}}
+Apr 17 2018 17:10:48.612Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [13.103378ms] 
+Apr 17 2018 17:10:48.616Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [21.81325ms] 
+Apr 17 2018 17:10:58.621Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.029989453s] 
+Apr 17 2018 17:10:58.626Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:10:58.631Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:10:58.635Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:10:58.640Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:10:58.644Z DEBUG opts=dhcp4.Options{0x37:[]uint8{0x1, 0x3, 0x6}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}, 0x35:[]uint8{0x1}}
+Apr 17 2018 17:10:58.654Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [13.889853ms] 
+Apr 17 2018 17:10:58.659Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [23.526002ms] 
+Apr 17 2018 17:10:59.407Z WARN  no addresses set on client interface
+2018/04/17 17:10:59 failed to find primary IP
+Apr 17 2018 17:11:08.661Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.029804415s] 
+Apr 17 2018 17:11:08.666Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:11:08.673Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:11:08.679Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:11:08.685Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:11:08.689Z DEBUG opts=dhcp4.Options{0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}}
+Apr 17 2018 17:11:08.698Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [13.3118ms] 
+Apr 17 2018 17:11:08.703Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [23.493992ms] 
+Apr 17 2018 17:11:18.705Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.031251379s] 
+Apr 17 2018 17:11:18.709Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:11:18.714Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:11:18.719Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:11:18.723Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:11:18.727Z DEBUG opts=dhcp4.Options{0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}, 0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}}
+Apr 17 2018 17:11:18.737Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [13.888851ms] 
+Apr 17 2018 17:11:18.742Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [22.797219ms] 
+Apr 17 2018 17:11:28.745Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.03031203s] 
+Apr 17 2018 17:11:28.749Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:11:28.754Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:11:28.758Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:11:28.762Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:11:28.767Z DEBUG opts=dhcp4.Options{0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}, 0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}}
+Apr 17 2018 17:11:28.776Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [13.521928ms] 
+Apr 17 2018 17:11:28.781Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [22.134052ms] 
+Apr 17 2018 17:11:29.414Z WARN  no addresses set on client interface
+2018/04/17 17:11:29 failed to find primary IP
+Apr 17 2018 17:11:38.785Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.030119718s] 
+Apr 17 2018 17:11:38.790Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:11:38.795Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:11:38.799Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:11:38.803Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:11:38.807Z DEBUG opts=dhcp4.Options{0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}, 0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}}
+Apr 17 2018 17:11:38.817Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [13.98795ms] 
+Apr 17 2018 17:11:38.822Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [22.864882ms] 
+Apr 17 2018 17:11:48.825Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.030066456s] 
+Apr 17 2018 17:11:48.829Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:11:48.834Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:11:48.838Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:11:48.842Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:11:48.846Z DEBUG opts=dhcp4.Options{0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}, 0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}}
+Apr 17 2018 17:11:48.855Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [13.116653ms] 
+Apr 17 2018 17:11:48.860Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [22.06388ms] 
+Apr 17 2018 17:11:58.865Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.030705686s] 
+Apr 17 2018 17:11:58.870Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:11:58.875Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:11:58.879Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:11:58.883Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:11:58.887Z DEBUG opts=dhcp4.Options{0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}, 0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}}
+Apr 17 2018 17:11:58.896Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [13.295029ms] 
+Apr 17 2018 17:11:58.901Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [22.555189ms] 
+Apr 17 2018 17:11:59.421Z WARN  no addresses set on client interface
+2018/04/17 17:11:59 failed to find primary IP
+Apr 17 2018 17:12:08.905Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.029875435s] 
+Apr 17 2018 17:12:08.910Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:12:08.915Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:12:08.918Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:12:08.923Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:12:08.927Z DEBUG opts=dhcp4.Options{0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}}
+Apr 17 2018 17:12:08.936Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [13.526769ms] 
+Apr 17 2018 17:12:08.941Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [22.384409ms] 
+Apr 17 2018 17:12:18.945Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.030089836s] 
+Apr 17 2018 17:12:18.949Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:12:18.954Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:12:18.958Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:12:18.962Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:12:18.966Z DEBUG opts=dhcp4.Options{0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}, 0x37:[]uint8{0x1, 0x3, 0x6}, 0x35:[]uint8{0x1}}
+Apr 17 2018 17:12:18.975Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [13.07323ms] 
+Apr 17 2018 17:12:18.980Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [21.606542ms] 
+Apr 17 2018 17:12:28.981Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.026562375s] 
+Apr 17 2018 17:12:28.986Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:12:28.990Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:12:28.994Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:12:28.998Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:12:29.002Z DEBUG opts=dhcp4.Options{0x37:[]uint8{0x1, 0x3, 0x6}, 0x35:[]uint8{0x1}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}}
+Apr 17 2018 17:12:29.012Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [13.355422ms] 
+Apr 17 2018 17:12:29.016Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [22.214749ms] 
+Apr 17 2018 17:12:29.441Z WARN  no addresses set on client interface
+2018/04/17 17:12:29 failed to find primary IP
+Apr 17 2018 17:12:39.021Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.030348942s] 
+Apr 17 2018 17:12:39.028Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:12:39.035Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:12:39.040Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:12:39.046Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:12:39.050Z DEBUG opts=dhcp4.Options{0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}}
+Apr 17 2018 17:12:39.060Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [14.075628ms] 
+Apr 17 2018 17:12:39.065Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [24.68373ms] 
+Apr 17 2018 17:12:49.069Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.034130535s] 
+Apr 17 2018 17:12:49.074Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:12:49.079Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:12:49.084Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:12:49.088Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:12:49.092Z DEBUG opts=dhcp4.Options{0x35:[]uint8{0x1}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}, 0x37:[]uint8{0x1, 0x3, 0x6}}
+Apr 17 2018 17:12:49.102Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [13.667623ms] 
+Apr 17 2018 17:12:49.107Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [22.637848ms] 
+Apr 17 2018 17:12:59.109Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.029925974s] 
+Apr 17 2018 17:12:59.114Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:12:59.119Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:12:59.123Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:12:59.128Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:12:59.133Z DEBUG opts=dhcp4.Options{0x37:[]uint8{0x1, 0x3, 0x6}, 0x35:[]uint8{0x1}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}}
+Apr 17 2018 17:12:59.143Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [14.514201ms] 
+Apr 17 2018 17:12:59.148Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [24.406677ms] 
+Apr 17 2018 17:12:59.369Z WARN  no addresses set on client interface
+2018/04/17 17:12:59 failed to find primary IP
+Apr 17 2018 17:13:09.153Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.033532343s] 
+Apr 17 2018 17:13:09.158Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:13:09.163Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:13:09.167Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:13:09.171Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:13:09.175Z DEBUG opts=dhcp4.Options{0x37:[]uint8{0x1, 0x3, 0x6}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}, 0x35:[]uint8{0x1}}
+Apr 17 2018 17:13:09.184Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [13.516411ms] 
+Apr 17 2018 17:13:09.190Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [23.060132ms] 
+Apr 17 2018 17:13:19.193Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.030005792s] 
+Apr 17 2018 17:13:19.198Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:13:19.204Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:13:19.208Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:13:19.213Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:13:19.218Z DEBUG opts=dhcp4.Options{0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}}
+Apr 17 2018 17:13:19.228Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [15.10967ms] 
+Apr 17 2018 17:13:19.233Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [25.1858ms] 
+Apr 17 2018 17:13:29.237Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.033091859s] 
+Apr 17 2018 17:13:29.241Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:13:29.247Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:13:29.251Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:13:29.256Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:13:29.261Z DEBUG opts=dhcp4.Options{0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}}
+Apr 17 2018 17:13:29.271Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [14.412814ms] 
+Apr 17 2018 17:13:29.275Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [24.178144ms] 
+Apr 17 2018 17:13:29.398Z WARN  no addresses set on client interface
+2018/04/17 17:13:29 failed to find primary IP
+Apr 17 2018 17:13:39.277Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.029954403s] 
+Apr 17 2018 17:13:39.282Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:13:39.287Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:13:39.291Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:13:39.295Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:13:39.300Z DEBUG opts=dhcp4.Options{0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}}
+Apr 17 2018 17:13:39.310Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [14.345421ms] 
+Apr 17 2018 17:13:39.315Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [23.952991ms] 
+Apr 17 2018 17:13:49.317Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.029731433s] 
+Apr 17 2018 17:13:49.322Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:13:49.327Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:13:49.331Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:13:49.336Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:13:49.340Z DEBUG opts=dhcp4.Options{0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}}
+Apr 17 2018 17:13:49.350Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [14.408954ms] 
+Apr 17 2018 17:13:49.355Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [23.838555ms] 
+Apr 17 2018 17:13:59.357Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.030044007s] 
+Apr 17 2018 17:13:59.362Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:13:59.367Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:13:59.373Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:13:59.378Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:13:59.382Z DEBUG opts=dhcp4.Options{0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}}
+Apr 17 2018 17:13:59.392Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [13.814862ms] 
+Apr 17 2018 17:13:59.397Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [23.242797ms] 
+Apr 17 2018 17:13:59.427Z WARN  no addresses set on client interface
+2018/04/17 17:13:59 failed to find primary IP
+Apr 17 2018 17:14:09.401Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.033339888s] 
+Apr 17 2018 17:14:09.406Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:14:09.411Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:14:09.416Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:14:09.420Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:14:09.425Z DEBUG opts=dhcp4.Options{0x35:[]uint8{0x1}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}, 0x37:[]uint8{0x1, 0x3, 0x6}}
+Apr 17 2018 17:14:09.435Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [15.137301ms] 
+Apr 17 2018 17:14:09.440Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [24.619518ms] 
+Apr 17 2018 17:14:19.445Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.033455388s] 
+Apr 17 2018 17:14:19.449Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:14:19.455Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:14:19.459Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:14:19.463Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:14:19.467Z DEBUG opts=dhcp4.Options{0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}}
+Apr 17 2018 17:14:19.477Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [13.86676ms] 
+Apr 17 2018 17:14:19.482Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [23.686852ms] 
+Apr 17 2018 17:14:29.454Z WARN  no addresses set on client interface
+2018/04/17 17:14:29 failed to find primary IP
+Apr 17 2018 17:14:29.485Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.02999105s] 
+Apr 17 2018 17:14:29.489Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:14:29.494Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:14:29.498Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:14:29.503Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:14:29.507Z DEBUG opts=dhcp4.Options{0x35:[]uint8{0x1}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}, 0x37:[]uint8{0x1, 0x3, 0x6}}
+Apr 17 2018 17:14:29.516Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [12.936046ms] 
+Apr 17 2018 17:14:29.520Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [22.021756ms] 
+Apr 17 2018 17:14:39.525Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.030331319s] 
+Apr 17 2018 17:14:39.530Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:14:39.535Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:14:39.539Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:14:39.545Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:14:39.550Z DEBUG opts=dhcp4.Options{0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}}
+Apr 17 2018 17:14:39.559Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [14.41435ms] 
+Apr 17 2018 17:14:39.563Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [24.706896ms] 
+Apr 17 2018 17:14:49.569Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.033927551s] 
+Apr 17 2018 17:14:49.573Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:14:49.578Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:14:49.583Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:14:49.589Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:14:49.593Z DEBUG opts=dhcp4.Options{0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}, 0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}}
+Apr 17 2018 17:14:49.603Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [14.265678ms] 
+Apr 17 2018 17:14:49.608Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [25.347301ms] 
+Apr 17 2018 17:14:59.435Z WARN  no addresses set on client interface
+2018/04/17 17:14:59 failed to find primary IP
+Apr 17 2018 17:14:59.613Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.034202334s] 
+Apr 17 2018 17:14:59.617Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:14:59.622Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:14:59.626Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:14:59.630Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:14:59.634Z DEBUG opts=dhcp4.Options{0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}}
+Apr 17 2018 17:14:59.643Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [13.332004ms] 
+Apr 17 2018 17:14:59.648Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [22.281436ms] 
+Apr 17 2018 17:15:09.653Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.030752562s] 
+Apr 17 2018 17:15:09.658Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:15:09.664Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:15:09.668Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:15:09.673Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:15:09.677Z DEBUG opts=dhcp4.Options{0x35:[]uint8{0x1}, 0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}, 0x37:[]uint8{0x1, 0x3, 0x6}}
+Apr 17 2018 17:15:09.688Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [14.722458ms] 
+Apr 17 2018 17:15:09.693Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [24.948558ms] 
+Apr 17 2018 17:15:19.697Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).request:187] [10.033000288s] 
+Apr 17 2018 17:15:19.702Z DEBUG retrying "DHCP request": errno=11, error=resource temporarily unavailable
+Apr 17 2018 17:15:19.707Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).request:187]
+Apr 17 2018 17:15:19.711Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).discoverPacket:155]
+Apr 17 2018 17:15:19.716Z DEBUG [BEGIN]  [vic/lib/dhcp/client.(*client).setOptions:378]
+Apr 17 2018 17:15:19.720Z DEBUG opts=dhcp4.Options{0x3d:[]uint8{0xff, 0x3, 0xd0, 0x23, 0xd1, 0x0, 0x2, 0x0, 0x0, 0x1a, 0xdc, 0x21, 0x42, 0x36, 0x5f, 0xba, 0xc4, 0x63, 0x9a}, 0x35:[]uint8{0x1}, 0x37:[]uint8{0x1, 0x3, 0x6}}
+Apr 17 2018 17:15:19.730Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).setOptions:378] [14.632777ms] 
+Apr 17 2018 17:15:19.736Z DEBUG [ END ]  [vic/lib/dhcp/client.(*client).discoverPacket:155] [24.261203ms] 

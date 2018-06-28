@@ -88,14 +88,13 @@ Set Test Environment Variables
     Run Keyword If  ${status}  Wait Until Keyword Succeeds  5x  1s  Create Unique Bridge Network
 
 Create Unique Bridge Network
-    # Ensure unique bridges are non-overlapping in a shared build environment (our CI)
-    @{URLs}=  Split String  %{TEST_URL_ARRAY}
-    ${idx}=  Get Index From List  ${URLs}  %{TEST_URL}
-    ${lowerVLAN}=  Evaluate  (${idx}+2) * 100
-    ${upperVLAN}=  Evaluate  ${lowerVLAN}+100
-
     # Set a unique bridge network for each VCH that has a random VLAN ID
-    ${vlan}=  Evaluate  str(random.randint(${lowerVLAN}, ${upperVLAN}))  modules=random
+    ${hvlan}=  Evaluate  str(random.randint(3201, 3230))  modules=random
+    ${nvlan}=  Evaluate  str(random.randint(2801, 2878))  modules=random
+
+    ${IN_HAAS}=  Run Keyword And Return Status  Should Contain  %{HAAS_URL_ARRAY}  %{TEST_URL}
+    ${vlan}=  Set Variable If  ${IN_HAAS}  ${hvlan}  ${nvlan}
+
     ${vswitch}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.vswitch.info -json | jq -r ".Vswitch[0].Name"
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc host.portgroup.add -vlan=${vlan} -vswitch ${vswitch} VCH-%{DRONE_BUILD_NUMBER}-${vlan}
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
