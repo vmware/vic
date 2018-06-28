@@ -74,7 +74,7 @@ import (
 )
 
 // VicContainerProxy interface
-type VicContainerProxy interface {
+type ContainerProxy interface {
 	CreateContainerHandle(ctx context.Context, vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error)
 	AddImageToContainer(ctx context.Context, handle string, deltaID string, layerID string, imageID string, config types.ContainerCreateConfig) (string, error)
 	CreateContainerTask(ctx context.Context, handle string, id string, layerID string, config types.ContainerCreateConfig) (string, error)
@@ -108,7 +108,7 @@ type VicContainerProxy interface {
 }
 
 // ContainerProxy struct
-type ContainerProxy struct {
+type VicContainerProxy struct {
 	client        *client.PortLayer
 	portlayerAddr string
 	portlayerName string
@@ -126,15 +126,15 @@ const (
 )
 
 // NewContainerProxy will create a new proxy
-func NewContainerProxy(plClient *client.PortLayer, portlayerAddr string, portlayerName string) *ContainerProxy {
-	return &ContainerProxy{client: plClient, portlayerAddr: portlayerAddr, portlayerName: portlayerName}
+func NewContainerProxy(plClient *client.PortLayer, portlayerAddr string, portlayerName string) *VicContainerProxy {
+	return &VicContainerProxy{client: plClient, portlayerAddr: portlayerAddr, portlayerName: portlayerName}
 }
 
 // Handle retrieves a handle to a VIC container.  Handles should be treated as opaque strings.
 //
 // returns:
 //	(handle string, error)
-func (c *ContainerProxy) Handle(ctx context.Context, id, name string) (string, error) {
+func (c *VicContainerProxy) Handle(ctx context.Context, id, name string) (string, error) {
 	op := trace.FromContext(ctx, "Handle: %s", id)
 	defer trace.End(trace.Begin(name, op))
 	opID := op.ID()
@@ -162,7 +162,7 @@ func (c *ContainerProxy) Handle(ctx context.Context, id, name string) (string, e
 //
 // returns:
 //	(containerID, containerHandle, error)
-func (c *ContainerProxy) CreateContainerHandle(ctx context.Context, vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error) {
+func (c *VicContainerProxy) CreateContainerHandle(ctx context.Context, vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error) {
 	op := trace.FromContext(ctx, "CreateContainerHandle: %s", vc.Name)
 	defer trace.End(trace.Begin(vc.Name, op))
 	opID := op.ID()
@@ -209,7 +209,7 @@ func (c *ContainerProxy) CreateContainerHandle(ctx context.Context, vc *vicconta
 //
 // returns:
 //	modified handle
-func (c *ContainerProxy) AddImageToContainer(ctx context.Context, handle, deltaID, layerID, imageID string, config types.ContainerCreateConfig) (string, error) {
+func (c *VicContainerProxy) AddImageToContainer(ctx context.Context, handle, deltaID, layerID, imageID string, config types.ContainerCreateConfig) (string, error) {
 	defer trace.End(trace.Begin(handle))
 
 	if c.client == nil {
@@ -243,7 +243,7 @@ func (c *ContainerProxy) AddImageToContainer(ctx context.Context, handle, deltaI
 //
 // returns:
 //	(containerHandle, error)
-func (c *ContainerProxy) CreateContainerTask(ctx context.Context, handle, id, layerID string, config types.ContainerCreateConfig) (string, error) {
+func (c *VicContainerProxy) CreateContainerTask(ctx context.Context, handle, id, layerID string, config types.ContainerCreateConfig) (string, error) {
 	op := trace.FromContext(ctx, "CreateContainerTask: %s", id)
 	defer trace.End(trace.Begin(id, op))
 	opID := op.ID()
@@ -286,7 +286,7 @@ func (c *ContainerProxy) CreateContainerTask(ctx context.Context, handle, id, la
 	return handle, nil
 }
 
-func (c *ContainerProxy) CreateExecTask(ctx context.Context, handle string, config *types.ExecConfig) (string, string, error) {
+func (c *VicContainerProxy) CreateExecTask(ctx context.Context, handle string, config *types.ExecConfig) (string, string, error) {
 	op := trace.FromContext(ctx, "CreateExecTask: %s", handle)
 	defer trace.End(trace.Begin(handle, op))
 	opID := op.ID()
@@ -327,7 +327,7 @@ func (c *ContainerProxy) CreateExecTask(ctx context.Context, handle string, conf
 //
 // returns:
 //	modified handle
-func (c *ContainerProxy) AddContainerToScope(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
+func (c *VicContainerProxy) AddContainerToScope(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
 	op := trace.FromContext(ctx, "AddContainerToScope: %s", handle)
 	defer trace.End(trace.Begin(handle, op))
 	opID := op.ID()
@@ -377,7 +377,7 @@ func (c *ContainerProxy) AddContainerToScope(ctx context.Context, handle string,
 //
 // returns:
 //	modified handle
-func (c *ContainerProxy) AddLoggingToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
+func (c *VicContainerProxy) AddLoggingToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
 	op := trace.FromContext(ctx, "AddLoggingToContainer: %s", handle)
 	defer trace.End(trace.Begin(handle, op))
 	opID := op.ID()
@@ -407,7 +407,7 @@ func (c *ContainerProxy) AddLoggingToContainer(ctx context.Context, handle strin
 //
 // returns:
 //	modified handle
-func (c *ContainerProxy) AddInteractionToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
+func (c *VicContainerProxy) AddInteractionToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
 	op := trace.FromContext(ctx, "AddLoggingToContainer: %s", handle)
 	defer trace.End(trace.Begin(handle, op))
 	opID := op.ID()
@@ -433,7 +433,7 @@ func (c *ContainerProxy) AddInteractionToContainer(ctx context.Context, handle s
 }
 
 // BindInteraction enables interaction capabilities
-func (c *ContainerProxy) BindInteraction(ctx context.Context, handle string, name string, id string) (string, error) {
+func (c *VicContainerProxy) BindInteraction(ctx context.Context, handle string, name string, id string) (string, error) {
 	op := trace.FromContext(ctx, "BindInteraction: %s", handle)
 	defer trace.End(trace.Begin(handle, op))
 	opID := op.ID()
@@ -465,7 +465,7 @@ func (c *ContainerProxy) BindInteraction(ctx context.Context, handle string, nam
 }
 
 // UnbindInteraction disables interaction capabilities
-func (c *ContainerProxy) UnbindInteraction(ctx context.Context, handle string, name string, id string) (string, error) {
+func (c *VicContainerProxy) UnbindInteraction(ctx context.Context, handle string, name string, id string) (string, error) {
 	op := trace.FromContext(ctx, "UnbindInteraction: %s", handle)
 	defer trace.End(trace.Begin(handle, op))
 	opID := op.ID()
@@ -496,7 +496,7 @@ func (c *ContainerProxy) UnbindInteraction(ctx context.Context, handle string, n
 //
 // Args:
 //	waitTime <= 0 means no wait time
-func (c *ContainerProxy) CommitContainerHandle(ctx context.Context, handle, containerID string, waitTime int32) error {
+func (c *VicContainerProxy) CommitContainerHandle(ctx context.Context, handle, containerID string, waitTime int32) error {
 	op := trace.FromContext(ctx, "CommitContainerHandle: %s", handle)
 	defer trace.End(trace.Begin(handle, op))
 	opID := op.ID()
@@ -530,7 +530,7 @@ func (c *ContainerProxy) CommitContainerHandle(ctx context.Context, handle, cont
 	return nil
 }
 
-func (c *ContainerProxy) InspectTask(op trace.Operation, handle string, eid string, cid string) (*models.TaskInspectResponse, error) {
+func (c *VicContainerProxy) InspectTask(op trace.Operation, handle string, eid string, cid string) (*models.TaskInspectResponse, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s), eid(%s), cid(%s)", handle, eid, cid), op))
 	opID := op.ID()
 
@@ -565,7 +565,7 @@ func (c *ContainerProxy) InspectTask(op trace.Operation, handle string, eid stri
 	return resp.Payload, nil
 }
 
-func (c *ContainerProxy) BindTask(op trace.Operation, handle string, eid string) (string, error) {
+func (c *VicContainerProxy) BindTask(op trace.Operation, handle string, eid string) (string, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s), eid(%s)", handle, eid), op))
 	opID := op.ID()
 
@@ -606,7 +606,7 @@ func (c *ContainerProxy) BindTask(op trace.Operation, handle string, eid string)
 	return respHandle, nil
 }
 
-func (c *ContainerProxy) WaitTask(op trace.Operation, handle string, cid string, eid string) error {
+func (c *VicContainerProxy) WaitTask(op trace.Operation, handle string, cid string, eid string) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s), cid(%s)", handle, cid), op))
 	opID := op.ID()
 
@@ -643,7 +643,7 @@ func (c *ContainerProxy) WaitTask(op trace.Operation, handle string, cid string,
 //
 // returns
 //	error
-func (c *ContainerProxy) Stop(ctx context.Context, vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error {
+func (c *VicContainerProxy) Stop(ctx context.Context, vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error {
 	op := trace.FromContext(ctx, "Stop: %s", name)
 	defer trace.End(trace.Begin(fmt.Sprintf("Name: %s, container id: %s", name, vc.ContainerID), op))
 	opID := op.ID()
@@ -723,7 +723,7 @@ func (c *ContainerProxy) Stop(ctx context.Context, vc *viccontainer.VicContainer
 }
 
 // UnbindContainerFromNetwork unbinds a container from the networks that it connects to
-func (c *ContainerProxy) UnbindContainerFromNetwork(ctx context.Context, vc *viccontainer.VicContainer, handle string) (string, error) {
+func (c *VicContainerProxy) UnbindContainerFromNetwork(ctx context.Context, vc *viccontainer.VicContainer, handle string) (string, error) {
 	op := trace.FromContext(ctx, "UnbindContainerFromNetwork: %s", vc.ContainerID)
 	defer trace.End(trace.Begin(vc.ContainerID, op))
 	opID := op.ID()
@@ -750,7 +750,7 @@ func (c *ContainerProxy) UnbindContainerFromNetwork(ctx context.Context, vc *vic
 }
 
 // State returns container state
-func (c *ContainerProxy) State(ctx context.Context, vc *viccontainer.VicContainer) (*types.ContainerState, error) {
+func (c *VicContainerProxy) State(ctx context.Context, vc *viccontainer.VicContainer) (*types.ContainerState, error) {
 	op := trace.FromContext(ctx, "State: %s", vc.ContainerID)
 	defer trace.End(trace.Begin(vc.ContainerID, op))
 	opID := op.ID()
@@ -781,7 +781,7 @@ func (c *ContainerProxy) State(ctx context.Context, vc *viccontainer.VicContaine
 }
 
 // GetStateFromHandle takes a handle and returns the state of the container based on that handle. Also returns handle that comes back with the response.
-func (c *ContainerProxy) GetStateFromHandle(op trace.Operation, handle string) (string, string, error) {
+func (c *VicContainerProxy) GetStateFromHandle(op trace.Operation, handle string) (string, string, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", handle), op))
 	opID := op.ID()
 
@@ -804,7 +804,7 @@ func (c *ContainerProxy) GetStateFromHandle(op trace.Operation, handle string) (
 }
 
 // ExitCode returns container exitCode
-func (c *ContainerProxy) ExitCode(ctx context.Context, vc *viccontainer.VicContainer) (string, error) {
+func (c *VicContainerProxy) ExitCode(ctx context.Context, vc *viccontainer.VicContainer) (string, error) {
 	op := trace.FromContext(ctx, "ExitCode: %s", vc.ContainerID)
 	defer trace.End(trace.Begin(vc.ContainerID, op))
 	opID := op.ID()
@@ -836,7 +836,7 @@ func (c *ContainerProxy) ExitCode(ctx context.Context, vc *viccontainer.VicConta
 	return strconv.Itoa(dockerState.ExitCode), nil
 }
 
-func (c *ContainerProxy) Wait(ctx context.Context, vc *viccontainer.VicContainer, timeout time.Duration) (
+func (c *VicContainerProxy) Wait(ctx context.Context, vc *viccontainer.VicContainer, timeout time.Duration) (
 	*types.ContainerState, error) {
 	op := trace.FromContext(ctx, "Wait: %s", vc.ContainerID)
 	defer trace.End(trace.Begin(vc.ContainerID, op))
@@ -884,7 +884,7 @@ func (c *ContainerProxy) Wait(ctx context.Context, vc *viccontainer.VicContainer
 	return dockerState, nil
 }
 
-func (c *ContainerProxy) Signal(ctx context.Context, vc *viccontainer.VicContainer, sig uint64) error {
+func (c *VicContainerProxy) Signal(ctx context.Context, vc *viccontainer.VicContainer, sig uint64) error {
 	op := trace.FromContext(ctx, "Signal: %s", vc.ContainerID)
 	defer trace.End(trace.Begin(vc.ContainerID, op))
 	opID := op.ID()
@@ -931,7 +931,7 @@ func (c *ContainerProxy) Signal(ctx context.Context, vc *viccontainer.VicContain
 	return nil
 }
 
-func (c *ContainerProxy) Resize(ctx context.Context, id string, height, width int32) error {
+func (c *VicContainerProxy) Resize(ctx context.Context, id string, height, width int32) error {
 	op := trace.FromContext(ctx, "Resize: %s", id)
 	defer trace.End(trace.Begin(id, op))
 	opID := op.ID()
@@ -963,7 +963,7 @@ func (c *ContainerProxy) Resize(ctx context.Context, id string, height, width in
 
 // Rename calls the portlayer's RenameContainerHandler to update the container name in the handle,
 // and then commit the new name to vSphere
-func (c *ContainerProxy) Rename(ctx context.Context, vc *viccontainer.VicContainer, newName string) error {
+func (c *VicContainerProxy) Rename(ctx context.Context, vc *viccontainer.VicContainer, newName string) error {
 	op := trace.FromContext(ctx, "Rename: %s", vc.ContainerID)
 	defer trace.End(trace.Begin(vc.ContainerID, op))
 	opID := op.ID()
@@ -1017,7 +1017,7 @@ func (c *ContainerProxy) Rename(ctx context.Context, vc *viccontainer.VicContain
 
 // Remove calls the portlayer's ContainerRemove handler to remove the container and its
 // anonymous volumes if the remove flag is set.
-func (c *ContainerProxy) Remove(ctx context.Context, vc *viccontainer.VicContainer, config *types.ContainerRmConfig) error {
+func (c *VicContainerProxy) Remove(ctx context.Context, vc *viccontainer.VicContainer, config *types.ContainerRmConfig) error {
 	op := trace.FromContext(ctx, "Remove: %s", vc.ContainerID)
 	defer trace.End(trace.Begin(vc.ContainerID, op))
 	opID := op.ID()

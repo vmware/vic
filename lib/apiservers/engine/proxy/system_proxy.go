@@ -48,25 +48,25 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-type VicSystemProxy interface {
+type SystemProxy interface {
 	PingPortlayer(ctx context.Context) bool
 	ContainerCount(ctx context.Context) (int, int, int, error)
 	VCHInfo(ctx context.Context) (*models.VCHInfo, error)
 }
 
-type SystemProxy struct {
+type VicSystemProxy struct {
 	client *client.PortLayer
 }
 
-func NewSystemProxy(client *client.PortLayer) VicSystemProxy {
+func NewSystemProxy(client *client.PortLayer) *VicSystemProxy {
 	if client == nil {
 		return nil
 	}
 
-	return &SystemProxy{client: client}
+	return &VicSystemProxy{client: client}
 }
 
-func (s *SystemProxy) PingPortlayer(ctx context.Context) bool {
+func (s *VicSystemProxy) PingPortlayer(ctx context.Context) bool {
 	defer trace.End(trace.Begin(""))
 
 	if s.client == nil {
@@ -85,7 +85,7 @@ func (s *SystemProxy) PingPortlayer(ctx context.Context) bool {
 
 // Use the Portlayer's support for docker ps to get the container count
 //   return order: running, paused, stopped counts
-func (s *SystemProxy) ContainerCount(ctx context.Context) (int, int, int, error) {
+func (s *VicSystemProxy) ContainerCount(ctx context.Context) (int, int, int, error) {
 	defer trace.End(trace.Begin(""))
 
 	var running, paused, stopped int
@@ -112,7 +112,7 @@ func (s *SystemProxy) ContainerCount(ctx context.Context) (int, int, int, error)
 	return running, paused, stopped, nil
 }
 
-func (s *SystemProxy) VCHInfo(ctx context.Context) (*models.VCHInfo, error) {
+func (s *VicSystemProxy) VCHInfo(ctx context.Context) (*models.VCHInfo, error) {
 	defer trace.End(trace.Begin(""))
 
 	if s.client == nil {

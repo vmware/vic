@@ -41,7 +41,7 @@ import (
 
 // Volume which defines the docker personalities view of a Volume
 type VolumeBackend struct {
-	storageProxy proxy.VicStorageProxy
+	storageProxy proxy.StorageProxy
 }
 
 // acceptedVolumeFilters are volume filters that are supported by VIC

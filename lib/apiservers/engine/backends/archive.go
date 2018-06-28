@@ -436,7 +436,7 @@ func (wm *ArchiveStreamWriterMap) FindArchiveWriter(containerDestPath, assetName
 //
 // As demonstrated above, the mount prefix and writer cannot be determined with just the
 // container destination path.  It must be combined with the actual asset's name.
-func (wm *ArchiveStreamWriterMap) WriterForAsset(proxy proxy.VicArchiveProxy, cid, containerDestPath string, assetHeader tar.Header) (*tar.Writer, error) {
+func (wm *ArchiveStreamWriterMap) WriterForAsset(proxy proxy.ArchiveProxy, cid, containerDestPath string, assetHeader tar.Header) (*tar.Writer, error) {
 	defer trace.End(trace.Begin(assetHeader.Name))
 
 	var err error
@@ -635,7 +635,7 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 //
 //			containerSourcePath -	/mnt/A
 // In the above, both readers are within the the container source path.
-func (rm *ArchiveStreamReaderMap) ReadersForSourcePath(proxy proxy.VicArchiveProxy, cid, containerSourcePath string) ([]io.ReadCloser, error) {
+func (rm *ArchiveStreamReaderMap) ReadersForSourcePath(proxy proxy.ArchiveProxy, cid, containerSourcePath string) ([]io.ReadCloser, error) {
 	defer trace.End(trace.Begin(containerSourcePath))
 
 	var streamReaders []io.ReadCloser

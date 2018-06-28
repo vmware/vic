@@ -147,9 +147,9 @@ var once sync.Once
 
 // Container struct represents the Container
 type ContainerBackend struct {
-	containerProxy proxy.VicContainerProxy
-	streamProxy    proxy.VicStreamProxy
-	storageProxy   proxy.VicStorageProxy
+	containerProxy proxy.ContainerProxy
+	streamProxy    proxy.StreamProxy
+	storageProxy   proxy.StorageProxy
 }
 
 // NewContainerBackend will create a new containerEngine or return the existing

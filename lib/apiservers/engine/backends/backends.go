@@ -73,7 +73,7 @@ var (
 
 	vchConfig        *dynConfig
 	RegistryCertPool *x509.CertPool
-	archiveProxy     proxy.VicArchiveProxy
+	archiveProxy     proxy.ArchiveProxy
 
 	eventService *events.Events
 

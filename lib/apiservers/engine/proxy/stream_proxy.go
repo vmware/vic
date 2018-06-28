@@ -36,13 +36,13 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-type VicStreamProxy interface {
+type StreamProxy interface {
 	AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer, autoclose bool) error
 	StreamContainerLogs(ctx context.Context, name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 	StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error
 }
 
-type StreamProxy struct {
+type VicStreamProxy struct {
 	client *client.PortLayer
 }
 
@@ -70,15 +70,15 @@ type AttachConfig struct {
 	CloseStdin bool
 }
 
-func NewStreamProxy(client *client.PortLayer) VicStreamProxy {
-	return &StreamProxy{client: client}
+func NewStreamProxy(client *client.PortLayer) *VicStreamProxy {
+	return &VicStreamProxy{client: client}
 }
 
 // AttachStreams takes the the hijacked connections from the calling client and attaches
 // them to the 3 streams from the portlayer's rest server.
 // stdin, stdout, stderr are the hijacked connection
 // autoclose controls whether the underlying client transport will be closed when stdout/stderr
-func (s *StreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer, autoclose bool) error {
+func (s *VicStreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer, autoclose bool) error {
 	// Cancel will close the child connections.
 	var wg, outWg sync.WaitGroup
 
@@ -220,7 +220,7 @@ func (s *StreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, stdin
 
 // StreamContainerLogs reads the log stream from the portlayer rest server and writes
 // it directly to the io.Writer that is passed in.
-func (s *StreamProxy) StreamContainerLogs(ctx context.Context, name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error {
+func (s *VicStreamProxy) StreamContainerLogs(ctx context.Context, name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error {
 	defer trace.End(trace.Begin(""))
 
 	if s.client == nil {
@@ -259,7 +259,7 @@ func (s *StreamProxy) StreamContainerLogs(ctx context.Context, name string, out 
 // StreamContainerStats will provide a stream of container stats written to the provided
 // io.Writer.  Prior to writing to the provided io.Writer there will be a transformation
 // from the portLayer representation of stats to the docker format
-func (s *StreamProxy) StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error {
+func (s *VicStreamProxy) StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error {
 	defer trace.End(trace.Begin(config.ContainerID))
 
 	if s.client == nil {

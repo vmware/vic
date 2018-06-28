@@ -58,7 +58,7 @@ import (
 )
 
 type SystemBackend struct {
-	systemProxy proxy.VicSystemProxy
+	systemProxy proxy.SystemProxy
 }
 
 const (
