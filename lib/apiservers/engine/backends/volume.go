@@ -18,23 +18,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	//"regexp"
-	//"strconv"
-	//"strings"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
-	//derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	//"github.com/docker/go-units"
-	//"github.com/google/uuid"
 
 	vicfilter "github.com/vmware/vic/lib/apiservers/engine/backends/filter"
 	"github.com/vmware/vic/lib/apiservers/engine/errors"
 	"github.com/vmware/vic/lib/apiservers/engine/proxy"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
-	//"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -99,9 +91,9 @@ func (v *VolumeBackend) Volumes(filter string) ([]*types.Volume, []string, error
 		}
 	}
 
-	log.Infoln("volumes found:")
+	op.Info("volumes found:")
 	for _, vol := range volumeResponses {
-		log.Infof("%s", vol.Name)
+		op.Infof("%s", vol.Name)
 
 		volumeMetadata, err := extractDockerMetadata(vol.Metadata)
 		if err != nil {

@@ -96,7 +96,9 @@ type dynConfig struct {
 }
 
 func Init(portLayerAddr, product string, port uint, config *config.VirtualContainerHostConfigSpec) error {
-	op := trace.NewOperation(context.Background(), "backends.Init")
+	op := trace.NewOperation(context.Background(), "backends.Init(%s, %d)", portLayerAddr, port)
+	defer trace.End(trace.Audit("", op))
+
 	servicePort = port
 	_, _, err := net.SplitHostPort(portLayerAddr)
 	if err != nil {
@@ -122,7 +124,7 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 		return err
 	}
 
-	loadRegistryCACerts()
+	loadRegistryCACerts(op)
 
 	t := rc.New(portLayerAddr, "/", []string{"http"})
 	t.Consumers["application/x-tar"] = runtime.ByteStreamConsumer()
@@ -133,19 +135,18 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 	portLayerClient = apiclient.New(t, nil)
 	portLayerServerAddr = portLayerAddr
 
-	log.Infof("*** Portlayer Address = %s", portLayerAddr)
+	op.Infof("*** Portlayer Address = %s", portLayerAddr)
 
 	// block indefinitely while waiting on the portlayer to respond to pings
 	// the vic-machine installer timeout will intervene if this blocks for too long
-	pingPortLayer()
+	pingPortLayer(op)
 
 	if err := hydrateCaches(op); err != nil {
 		return err
 	}
 
-	log.Info("Creating image store")
 	if err := createImageStore(op); err != nil {
-		log.Errorf("Failed to create image store")
+		op.Errorf("Failed to create image store")
 		return err
 	}
 
@@ -169,7 +170,7 @@ func hydrateCaches(op trace.Operation) error {
 			errChan <- fmt.Errorf("Failed to initialize layer cache: %s", err)
 			return
 		}
-		log.Info("Layer cache initialized successfully")
+		op.Info("Layer cache initialized successfully")
 		errChan <- nil
 	}()
 
@@ -179,7 +180,7 @@ func hydrateCaches(op trace.Operation) error {
 			errChan <- fmt.Errorf("Failed to initialize image cache: %s", err)
 			return
 		}
-		log.Info("Image cache initialized successfully")
+		op.Info("Image cache initialized successfully")
 
 		// container cache relies on image cache so we share a goroutine to update
 		// them serially
@@ -187,19 +188,19 @@ func hydrateCaches(op trace.Operation) error {
 			errChan <- fmt.Errorf("Failed to update container cache: %s", err)
 			return
 		}
-		log.Info("Container cache updated successfully")
+		op.Info("Container cache updated successfully")
 		errChan <- nil
 	}()
 
 	go func() {
-		log.Info("Refreshing repository cache")
+		op.Info("Refreshing repository cache")
 		defer wg.Done()
 		if err := cache.NewRepositoryCache(portLayerClient); err != nil {
 			errChan <- fmt.Errorf("Failed to create repository cache: %s", err.Error())
 			return
 		}
 		errChan <- nil
-		log.Info("Repository cache updated successfully")
+		op.Info("Repository cache updated successfully")
 	}()
 
 	wg.Wait()
@@ -219,7 +220,7 @@ func hydrateCaches(op trace.Operation) error {
 	}
 
 	if e != nil {
-		log.Errorf("Errors occurred during cache hydration at VCH start: %s", e)
+		op.Errorf("Errors occurred during cache hydration at VCH start: %s", e)
 	}
 
 	return e
@@ -245,16 +246,16 @@ func ProductVersion() string {
 	return productVersion
 }
 
-func pingPortLayer() {
+func pingPortLayer(op trace.Operation) {
 	ticker := time.NewTicker(RetryTimeSeconds * time.Second)
 	defer ticker.Stop()
 	params := misc.NewPingParamsWithContext(context.TODO())
 
-	log.Infof("Waiting for portlayer to come up")
+	op.Infof("Waiting for portlayer to come up")
 
 	for range ticker.C {
 		if _, err := portLayerClient.Misc.Ping(params); err == nil {
-			log.Info("Portlayer is up and responding to pings")
+			op.Info("Portlayer is up and responding to pings")
 			return
 		}
 	}
@@ -264,11 +265,11 @@ func createImageStore(op trace.Operation) error {
 	// TODO(jzt): we should move this to a utility package or something
 	host, err := sys.UUID()
 	if err != nil {
-		log.Errorf("Failed to determine host UUID")
+		op.Errorf("Failed to determine host UUID")
 		return err
 	}
 
-	log.Infof("*** UUID = %s", host)
+	op.Infof("*** UUID = %s", host)
 
 	// attempt to create the image store if it doesn't exist
 	store := &models.ImageStore{Name: host}
@@ -278,18 +279,18 @@ func createImageStore(op trace.Operation) error {
 
 	if err != nil {
 		if _, ok := err.(*storage.CreateImageStoreConflict); ok {
-			log.Debugf("Store already exists")
+			op.Debugf("Store already exists")
 			return nil
 		}
 		return err
 	}
-	log.Infof("Image store created successfully")
+	op.Infof("Image store created successfully")
 	return nil
 }
 
 // syncContainerCache runs once at startup to populate the container cache
 func syncContainerCache(op trace.Operation) error {
-	log.Debugf("Updating container cache")
+	op.Debugf("Updating container cache")
 
 	backend := NewContainerBackend()
 	client := PortLayerClient()
@@ -300,7 +301,7 @@ func syncContainerCache(op trace.Operation) error {
 		return errors.Errorf("Failed to retrieve container list from portlayer: %s", err)
 	}
 
-	log.Debugf("Found %d containers", len(containme.Payload))
+	op.Debugf("Found %d containers", len(containme.Payload))
 	cc := cache.ContainerCache()
 	var errs []string
 	for _, info := range containme.Payload {
@@ -319,16 +320,16 @@ func syncContainerCache(op trace.Operation) error {
 
 func setPortMapping(op trace.Operation, info *models.ContainerInfo, backend *ContainerBackend, container *container.VicContainer) error {
 	if info.ContainerConfig.State == "" {
-		log.Infof("container state is nil")
+		op.Infof("container state is nil")
 		return nil
 	}
 
 	if info.ContainerConfig.State != "Running" || len(container.HostConfig.PortBindings) == 0 {
-		log.Infof("No need to restore port bindings, state: %s, portbinding: %+v", info.ContainerConfig.State, container.HostConfig.PortBindings)
+		op.Infof("No need to restore port bindings, state: %s, portbinding: %+v", info.ContainerConfig.State, container.HostConfig.PortBindings)
 		return nil
 	}
 
-	log.Debugf("Set port mapping for container %q, portmapping %+v", container.Name, container.HostConfig.PortBindings)
+	op.Debugf("Set port mapping for container %q, portmapping %+v", container.Name, container.HostConfig.PortBindings)
 	client := PortLayerClient()
 	endpointsOK, err := client.Scopes.GetContainerEndpoints(
 		scopes.NewGetContainerEndpointsParamsWithContext(op).WithHandleOrID(container.ContainerID))
@@ -338,7 +339,7 @@ func setPortMapping(op trace.Operation, info *models.ContainerInfo, backend *Con
 	for _, e := range endpointsOK.Payload {
 		if len(e.Ports) > 0 && e.Scope == constants.BridgeScopeType {
 			if err = network.MapPorts(container, e, container.ContainerID); err != nil {
-				log.Errorf(err.Error())
+				op.Errorf(err.Error())
 				return err
 			}
 		}
@@ -346,24 +347,24 @@ func setPortMapping(op trace.Operation, info *models.ContainerInfo, backend *Con
 	return nil
 }
 
-func loadRegistryCACerts() {
+func loadRegistryCACerts(op trace.Operation) {
 	var err error
 
 	RegistryCertPool, err = x509.SystemCertPool()
-	log.Debugf("Loaded %d CAs for registries from system CA bundle", len(RegistryCertPool.Subjects()))
+	op.Debugf("Loaded %d CAs for registries from system CA bundle", len(RegistryCertPool.Subjects()))
 	if err != nil {
-		log.Errorf("Unable to load system CAs")
+		op.Errorf("Unable to load system CAs")
 		return
 	}
 
 	vchConfig.Lock()
 	defer vchConfig.Unlock()
 	if !RegistryCertPool.AppendCertsFromPEM(vchConfig.Cfg.RegistryCertificateAuthorities) {
-		log.Errorf("Unable to load CAs for registry access in config")
+		op.Errorf("Unable to load CAs for registry access in config")
 		return
 	}
 
-	log.Debugf("Loaded %d CAs for registries from config", len(RegistryCertPool.Subjects()))
+	op.Debugf("Loaded %d CAs for registries from config", len(RegistryCertPool.Subjects()))
 }
 
 func EventService() *events.Events {

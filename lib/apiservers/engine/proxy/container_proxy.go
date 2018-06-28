@@ -190,7 +190,7 @@ func (c *VicContainerProxy) CreateContainerHandle(ctx context.Context, vc *vicco
 	if err != nil {
 		if _, ok := err.(*containers.CreateNotFound); ok {
 			cerr := fmt.Errorf("No such image: %s", vc.ImageID)
-			log.Errorf("%s (%s)", cerr, err)
+			op.Errorf("%s (%s)", cerr, err)
 			return "", "", errors.NotFoundError(cerr.Error())
 		}
 
@@ -252,14 +252,14 @@ func (c *VicContainerProxy) CreateContainerTask(ctx context.Context, handle, id,
 		return "", errors.NillPortlayerClientError("ContainerProxy")
 	}
 
-	plTaskParams := dockerContainerCreateParamsToTask(ctx, id, layerID, config)
+	plTaskParams := dockerContainerCreateParamsToTask(op, id, layerID, config)
 	plTaskParams.Config.Handle = handle
 	plTaskParams.WithOpID(&opID)
 
-	log.Infof("*** CreateContainerTask - params = %#v", *plTaskParams.Config)
+	op.Infof("*** CreateContainerTask - params = %#v", *plTaskParams.Config)
 	responseJoin, err := c.client.Tasks.Join(plTaskParams)
 	if err != nil {
-		log.Errorf("Unable to join primary task to container: %+v", err)
+		op.Errorf("Unable to join primary task to container: %+v", err)
 		return "", errors.InternalServerError(err.Error())
 	}
 
@@ -274,7 +274,7 @@ func (c *VicContainerProxy) CreateContainerTask(ctx context.Context, handle, id,
 
 	responseBind, err := c.client.Tasks.Bind(plBindParams)
 	if err != nil {
-		log.Errorf("Unable to bind primary task to container: %+v", err)
+		op.Errorf("Unable to bind primary task to container: %+v", err)
 		return "", errors.InternalServerError(err.Error())
 	}
 
@@ -336,7 +336,7 @@ func (c *VicContainerProxy) AddContainerToScope(ctx context.Context, handle stri
 		return "", errors.NillPortlayerClientError("ContainerProxy")
 	}
 
-	log.Debugf("Network Configuration Section - Container Create")
+	op.Debugf("Network Configuration Section - Container Create")
 	// configure network
 	netConf := toModelsNetworkConfig(config)
 	if netConf != nil {
@@ -349,7 +349,7 @@ func (c *VicContainerProxy) AddContainerToScope(ctx context.Context, handle stri
 			}))
 
 		if err != nil {
-			log.Errorf("ContainerProxy.AddContainerToScope: Scopes error: %s", err.Error())
+			op.Errorf("ContainerProxy.AddContainerToScope: Scopes error: %s", err.Error())
 			return handle, errors.InternalServerError(err.Error())
 		}
 
@@ -362,7 +362,7 @@ func (c *VicContainerProxy) AddContainerToScope(ctx context.Context, handle stri
 				WithHandle(handle).
 				WithScope(netConf.NetworkName).
 				WithOpID(&opID)); err2 != nil {
-				log.Warnf("could not roll back container add: %s", err2)
+				op.Warnf("could not roll back container add: %s", err2)
 			}
 		}()
 
@@ -738,7 +738,7 @@ func (c *VicContainerProxy) UnbindContainerFromNetwork(ctx context.Context, vc *
 		switch err := err.(type) {
 		case *scopes.UnbindContainerNotFound:
 			// ignore error
-			log.Warnf("Container %s not found by network unbind", vc.ContainerID)
+			op.Warnf("Container %s not found by network unbind", vc.ContainerID)
 		case *scopes.UnbindContainerInternalServerError:
 			return "", errors.InternalServerError(err.Payload.Message)
 		default:

@@ -26,11 +26,6 @@
 	},
 	"paths": {
 		"/_ping": {
-			"parameters": [
-				{
-					"$ref": "#/parameters/operationID"
-				}
-			],
 			"get": {
 				"description": "Pings the server to see if it's running",
 				"summary": "ping the portlayer server",

@@ -154,7 +154,7 @@ func (s *VicStorageProxy) volumeCreate(op trace.Operation, name, driverName stri
 	if varErr != nil {
 		return result, varErr
 	}
-	log.Infof("Finalized model for volume create request to portlayer: %#v", req)
+	op.Infof("Finalized model for volume create request to portlayer: %#v", req)
 
 	res, err := s.client.Storage.CreateVolume(storage.NewCreateVolumeParamsWithContext(op).WithOpID(&opID).WithVolumeRequest(req))
 	if err != nil {
@@ -270,8 +270,8 @@ func (s *VicStorageProxy) AddVolumesToContainer(ctx context.Context, handle stri
 	}
 
 	// Volume Attachment Section
-	log.Debugf("ContainerProxy.AddVolumesToContainer - VolumeSection")
-	log.Debugf("Raw volume arguments: binds:  %#v, volumes: %#v", config.HostConfig.Binds, config.Config.Volumes)
+	op.Debugf("ContainerProxy.AddVolumesToContainer - VolumeSection")
+	op.Debugf("Raw volume arguments: binds:  %#v, volumes: %#v", config.HostConfig.Binds, config.Config.Volumes)
 
 	// Collect all volume mappings. In a docker create/run, they
 	// can be anonymous (-v /dir) or specific (-v vol-name:/dir).
@@ -286,7 +286,7 @@ func (s *VicStorageProxy) AddVolumesToContainer(ctx context.Context, handle stri
 	if err != nil {
 		return handle, errors.BadRequestError(err.Error())
 	}
-	log.Infof("Finalized volume list: %#v", volList)
+	op.Infof("Finalized volume list: %#v", volList)
 
 	if len(config.Config.Volumes) > 0 {
 		// override anonymous volume list with generated volume id
@@ -295,7 +295,7 @@ func (s *VicStorageProxy) AddVolumesToContainer(ctx context.Context, handle stri
 				delete(config.Config.Volumes, vol.Dest)
 				mount := getMountString(vol.ID, vol.Dest, vol.Flags)
 				config.Config.Volumes[mount] = struct{}{}
-				log.Debugf("Replace anonymous volume config %s with %s", vol.Dest, mount)
+				op.Debugf("Replace anonymous volume config %s with %s", vol.Dest, mount)
 			}
 		}
 	}
@@ -467,7 +467,7 @@ func RemoveAnonContainerVols(ctx context.Context, pl *client.PortLayer, cID stri
 	for _, entry := range namedVolumes {
 		fields := strings.SplitN(entry, ":", 2)
 		if len(fields) != 2 {
-			log.Errorf("Invalid entry in the HostConfig.Binds metadata section for container %s: %s", cID, entry)
+			op.Errorf("Invalid entry in the HostConfig.Binds metadata section for container %s: %s", cID, entry)
 			continue
 		}
 		destPath := fields[1]
@@ -477,7 +477,7 @@ func RemoveAnonContainerVols(ctx context.Context, pl *client.PortLayer, cID stri
 	proxy := VicStorageProxy{client: pl}
 	joinedVols, err := proxy.fetchJoinedVolumes(op)
 	if err != nil {
-		log.Errorf("Unable to obtain joined volumes from portlayer, skipping removal of anonymous volumes for %s: %s", cID, err.Error())
+		op.Errorf("Unable to obtain joined volumes from portlayer, skipping removal of anonymous volumes for %s: %s", cID, err.Error())
 		return
 	}
 
@@ -487,7 +487,7 @@ func RemoveAnonContainerVols(ctx context.Context, pl *client.PortLayer, cID stri
 
 		// NOTE(mavery): this check will start to fail when we fix our metadata correctness issues
 		if len(volFields) != 3 {
-			log.Debugf("Invalid entry in the volumes metadata section for container %s: %s", cID, vol)
+			op.Debugf("Invalid entry in the volumes metadata section for container %s: %s", cID, vol)
 			continue
 		}
 		volName := volFields[0]
@@ -498,10 +498,10 @@ func RemoveAnonContainerVols(ctx context.Context, pl *client.PortLayer, cID stri
 		if !joined && !isNamed {
 			_, err := pl.Storage.RemoveVolume(storage.NewRemoveVolumeParamsWithContext(op).WithOpID(&opID).WithName(volName))
 			if err != nil {
-				log.Debugf("Unable to remove anonymous volume %s in container %s: %s", volName, cID, err.Error())
+				op.Debugf("Unable to remove anonymous volume %s in container %s: %s", volName, cID, err.Error())
 				continue
 			}
-			log.Debugf("Successfully removed anonymous volume %s during remove operation against container(%s)", volName, cID)
+			op.Debugf("Successfully removed anonymous volume %s during remove operation against container(%s)", volName, cID)
 		}
 	}
 }

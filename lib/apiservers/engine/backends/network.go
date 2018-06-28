@@ -180,7 +180,7 @@ func (n *NetworkBackend) CreateNetwork(nc types.NetworkCreateRequest) (*types.Ne
 		encodedLabels := base64.StdEncoding.EncodeToString(labelsBytes)
 		cfg.Annotations[convert.AnnotationKeyLabels] = encodedLabels
 	} else {
-		log.Errorf("error marshaling labels: %s", err)
+		op.Errorf("error marshaling labels: %s", err)
 		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("unable to marshal labels: %s", err), http.StatusInternalServerError)
 	}
 
@@ -304,7 +304,7 @@ func connectContainerToNetwork(op trace.Operation, containerName, networkName st
 			if _, err2 := client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(op).
 				WithOpID(&opID).
 				WithHandle(h)); err2 != nil {
-				log.Warnf("failed bind container rollback: %s", err2)
+				op.Warnf("failed bind container rollback: %s", err2)
 			}
 		}()
 

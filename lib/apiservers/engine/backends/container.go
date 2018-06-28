@@ -28,7 +28,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	log "github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -643,22 +642,22 @@ func (c *ContainerBackend) ContainerCreate(config types.ContainerCreateConfig) (
 
 	var err error
 
-	log.Infof("** createconfig = %#v", config)
-	log.Infof("** container config = %#v", config.Config)
+	op.Infof("** createconfig = %#v", config)
+	op.Infof("** container config = %#v", config.Config)
 
 	// get the image from the cache
 	image, err := cache.ImageCache().Get(config.Config.Image)
 	if err != nil {
 		// if no image found then error thrown and a pull
 		// will be initiated by the docker client
-		log.Errorf("ContainerCreate: image %s error: %s", config.Config.Image, err.Error())
+		op.Errorf("ContainerCreate: image %s error: %s", config.Config.Image, err.Error())
 		return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestNotFoundError(err)
 	}
 
 	setCreateConfigOptions(config.Config, image.Config)
 
-	log.Debugf("config.Config = %+v", config.Config)
-	if err = validateCreateConfig(&config); err != nil {
+	op.Debugf("config.Config = %+v", config.Config)
+	if err = validateCreateConfig(op, &config); err != nil {
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
 
@@ -702,7 +701,7 @@ func (c *ContainerBackend) ContainerCreate(config types.ContainerCreateConfig) (
 	container.ContainerID = id
 	cache.ContainerCache().AddContainer(container)
 
-	log.Debugf("Container create - name(%s), containerID(%s), config(%#v), host(%#v)",
+	op.Debugf("Container create - name(%s), containerID(%s), config(%#v), host(%#v)",
 		container.Name, container.ContainerID, container.Config, container.HostConfig)
 
 	// Add create event
@@ -946,7 +945,7 @@ func (c *ContainerBackend) cleanupPortBindings(op trace.Operation, vc *viccontai
 				continue
 			}
 
-			log.Debugf("Container %q maps host port %s to container port %s", mappedCtr, hPort, ctrPort)
+			op.Debugf("Container %q maps host port %s to container port %s", mappedCtr, hPort, ctrPort)
 			// check state of the previously bound container with PL
 			cc := cache.ContainerCache().GetContainer(mappedCtr)
 			if cc == nil {
@@ -957,7 +956,7 @@ func (c *ContainerBackend) cleanupPortBindings(op trace.Operation, vc *viccontai
 			state, err := c.containerProxy.State(op, cc)
 			if err != nil {
 				if engerr.IsNotFoundError(err) {
-					log.Debugf("container(%s) not found in portLayer, removing from persona cache", cc.ContainerID)
+					op.Debugf("container(%s) not found in portLayer, removing from persona cache", cc.ContainerID)
 					// we have a container in the persona cache, but it's been removed from the portLayer
 					// which is the source of truth -- so remove from the persona cache after this func
 					// completes
@@ -969,11 +968,11 @@ func (c *ContainerBackend) cleanupPortBindings(op trace.Operation, vc *viccontai
 			}
 
 			if state != nil && state.Running {
-				log.Debugf("Running container %q still holds port %s", mappedCtr, hPort)
+				op.Debugf("Running container %q still holds port %s", mappedCtr, hPort)
 				continue
 			}
 
-			log.Debugf("Unmapping ports for powered off / removed container %q", mappedCtr)
+			op.Debugf("Unmapping ports for powered off / removed container %q", mappedCtr)
 			err = network.UnmapPorts(cc.ContainerID, vc)
 			if err != nil {
 				return fmt.Errorf("Failed to unmap host port %s for container %q: %s",
@@ -1142,12 +1141,12 @@ func (c *ContainerBackend) defaultScope(op trace.Operation) string {
 	client := PortLayerClient()
 	listRes, err := client.Scopes.List(scopes.NewListParamsWithContext(op).WithIDName("default"))
 	if err != nil {
-		log.Error(err)
+		op.Error(err)
 		return ""
 	}
 
 	if len(listRes.Payload) != 1 {
-		log.Errorf("could not get default scope name")
+		op.Errorf("could not get default scope name")
 		return ""
 	}
 
@@ -1164,17 +1163,17 @@ func (c *ContainerBackend) findPortBoundNetworkEndpoint(op trace.Operation, host
 	// check if the port binding vicnetwork is a bridge type
 	listRes, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(op).WithIDName(hostconfig.NetworkMode.NetworkName()))
 	if err != nil {
-		log.Error(err)
+		op.Error(err)
 		return nil, nil
 	}
 
 	if l := len(listRes.Payload); l != 1 {
-		log.Warnf("found %d scopes", l)
+		op.Warnf("found %d scopes", l)
 		return nil, nil
 	}
 
 	if listRes.Payload[0].ScopeType != constants.BridgeScopeType {
-		log.Warnf("port binding for vicnetwork %s is not bridge type", hostconfig.NetworkMode.NetworkName())
+		op.Warnf("port binding for vicnetwork %s is not bridge type", hostconfig.NetworkMode.NetworkName())
 		return listRes.Payload[0], nil
 	}
 
@@ -1358,7 +1357,7 @@ func (c *ContainerBackend) ContainerInspect(name string, size bool, version stri
 		return nil, engerr.NotFoundError(name)
 	}
 	id := vc.ContainerID
-	log.Debugf("Found %q in cache as %q", id, vc.ContainerID)
+	op.Debugf("Found %q in cache as %q", id, vc.ContainerID)
 
 	client := PortLayerClient()
 
@@ -1377,11 +1376,11 @@ func (c *ContainerBackend) ContainerInspect(name string, size bool, version stri
 
 	inspectJSON, err := proxy.ContainerInfoToDockerContainerInspect(vc, results.Payload, PortLayerName())
 	if err != nil {
-		log.Errorf("containerInfoToDockerContainerInspect failed with %s", err)
+		op.Errorf("containerInfoToDockerContainerInspect failed with %s", err)
 		return nil, err
 	}
 
-	log.Debugf("ContainerInspect json config = %+v\n", inspectJSON.Config)
+	op.Debugf("ContainerInspect json config = %+v\n", inspectJSON.Config)
 
 	return inspectJSON, nil
 }
@@ -1422,7 +1421,7 @@ func (c *ContainerBackend) ContainerLogs(ctx context.Context, name string, confi
 		// Don't return an error encountered while streaming logs.
 		// Once we've started streaming logs, the Docker client doesn't expect
 		// an error to be returned as it leads to a malformed response body.
-		log.Errorf("error while streaming logs: %#v", err)
+		op.Errorf("error while streaming logs: %#v", err)
 	}
 
 	return nil
@@ -1445,7 +1444,7 @@ func (c *ContainerBackend) ContainerStats(ctx context.Context, name string, conf
 	if err != nil {
 		// wrap error to provide a bit more detail
 		sysErr := fmt.Errorf("unable to gather system CPUMhz for container(%s): %s", vc.ContainerID, err)
-		log.Error(sysErr)
+		op.Error(sysErr)
 		return engerr.InternalServerError(sysErr.Error())
 	}
 
@@ -1479,7 +1478,7 @@ func (c *ContainerBackend) ContainerStats(ctx context.Context, name string, conf
 
 	err = c.streamProxy.StreamContainerStats(ctx, statsConfig)
 	if err != nil {
-		log.Errorf("error while streaming container (%s) stats: %s", vc.ContainerID, err)
+		op.Errorf("error while streaming container (%s) stats: %s", vc.ContainerID, err)
 	}
 	return nil
 }
@@ -1571,7 +1570,7 @@ payloadLoop:
 
 			ips, err := network.PublicIPv4Addrs()
 			if err != nil {
-				log.Errorf("Could not get IP information for reporting port bindings: %s", err)
+				op.Errorf("Could not get IP information for reporting port bindings: %s", err)
 				// display port mappings without IP data if we cannot get it
 				ips = []string{""}
 			}
@@ -1582,7 +1581,7 @@ payloadLoop:
 					ports = append(ports, pi...)
 				}
 			} else {
-				log.Warningf("Container is not found in cache: %s", t.ContainerConfig.ContainerID)
+				op.Warnf("Container is not found in cache: %s", t.ContainerConfig.ContainerID)
 			}
 		}
 
@@ -1703,7 +1702,7 @@ func (c *ContainerBackend) containerAttach(op trace.Operation, name string, ca *
 	err = c.streamProxy.AttachStreams(op, ac, stdin, stdout, stderr, true)
 	if err != nil {
 		if _, ok := err.(engerr.DetachError); ok {
-			log.Infof("Detach detected, tearing down connection")
+			op.Infof("Detach detected, tearing down connection")
 
 			// fire detach event
 			EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
@@ -1729,33 +1728,33 @@ func (c *ContainerBackend) ContainerRename(oldName, newName string) error {
 
 	if oldName == "" || newName == "" {
 		err := fmt.Errorf("neither old nor new names may be empty")
-		log.Errorf("%s", err.Error())
+		op.Errorf("%s", err.Error())
 		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 	}
 
 	if !utils.RestrictedNamePattern.MatchString(newName) {
 		err := fmt.Errorf("invalid container name (%s), only %s are allowed", newName, utils.RestrictedNameChars)
-		log.Errorf("%s", err.Error())
+		op.Errorf("%s", err.Error())
 		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 	}
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(oldName)
 	if vc == nil {
-		log.Errorf("Container %s not found", oldName)
+		op.Errorf("Container %s not found", oldName)
 		return engerr.NotFoundError(oldName)
 	}
 
 	oldName = vc.Name
 	if oldName == newName {
 		err := fmt.Errorf("renaming a container with the same name as its current name")
-		log.Errorf("%s", err.Error())
+		op.Errorf("%s", err.Error())
 		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 	}
 
 	// reserve the new name in containerCache
 	if err := cache.ContainerCache().ReserveName(vc, newName); err != nil {
-		log.Errorf("%s", err.Error())
+		op.Errorf("%s", err.Error())
 		return derr.NewRequestConflictError(err)
 	}
 
@@ -1764,19 +1763,19 @@ func (c *ContainerBackend) ContainerRename(oldName, newName string) error {
 	}
 
 	if err := retry.Do(renameOp, engerr.IsConflictError); err != nil {
-		log.Errorf("Rename error: %s", err)
+		op.Errorf("Rename error: %s", err)
 		cache.ContainerCache().ReleaseName(newName)
 		return err
 	}
 
 	// update containerCache
 	if err := cache.ContainerCache().UpdateContainerName(oldName, newName); err != nil {
-		log.Errorf("Failed to update container cache: %s", err)
+		op.Errorf("Failed to update container cache: %s", err)
 		cache.ContainerCache().ReleaseName(newName)
 		return err
 	}
 
-	log.Infof("Container %s renamed to %s", oldName, newName)
+	op.Infof("Container %s renamed to %s", oldName, newName)
 
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{"newName": fmt.Sprintf("%s", newName)})
 
@@ -1901,8 +1900,8 @@ func setPathFromImageConfig(env []string, imgEnv []string) []string {
 
 // validateCreateConfig() checks the parameters for ContainerCreate().
 // It may "fix up" the config param passed into ConntainerCreate() if needed.
-func validateCreateConfig(config *types.ContainerCreateConfig) error {
-	defer trace.End(trace.Begin("Container.validateCreateConfig"))
+func validateCreateConfig(op trace.Operation, config *types.ContainerCreateConfig) error {
+	defer trace.End(trace.Begin("", op))
 
 	if config.Config == nil {
 		return engerr.BadRequestError("invalid config")
@@ -1935,7 +1934,7 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	if cpuCount < MinCPUs {
 		config.HostConfig.CPUCount = MinCPUs
 	}
-	log.Infof("Container CPU count: %d", config.HostConfig.CPUCount)
+	op.Infof("Container CPU count: %d", config.HostConfig.CPUCount)
 
 	// convert from bytes to MiB for vsphere
 	memoryMB := config.HostConfig.Memory / units.MiB
@@ -1947,12 +1946,12 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 
 	// check that memory is aligned
 	if remainder := memoryMB % MemoryAlignMB; remainder != 0 {
-		log.Warnf("Default container VM memory must be %d aligned for hotadd, rounding up.", MemoryAlignMB)
+		op.Warnf("Default container VM memory must be %d aligned for hotadd, rounding up.", MemoryAlignMB)
 		memoryMB += MemoryAlignMB - remainder
 	}
 
 	config.HostConfig.Memory = memoryMB
-	log.Infof("Container memory: %d MB", config.HostConfig.Memory)
+	op.Infof("Container memory: %d MB", config.HostConfig.Memory)
 
 	if config.NetworkingConfig == nil {
 		config.NetworkingConfig = &dnetwork.NetworkingConfig{}
@@ -1969,7 +1968,7 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	// validate port bindings
 	var ips []string
 	if addrs, err := network.PublicIPv4Addrs(); err != nil {
-		log.Warnf("could not get address for public interface: %s", err)
+		op.Warnf("could not get address for public interface: %s", err)
 	} else {
 		ips = make([]string, len(addrs))
 		for i := range addrs {

@@ -27,7 +27,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/tchap/go-patricia/patricia"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
@@ -47,8 +46,8 @@ import (
 // specified path in the container identified by the given name. Returns a
 // tar archive of the resource and whether it was a directory or a single file.
 func (c *ContainerBackend) ContainerArchivePath(name string, path string) (io.ReadCloser, *types.ContainerPathStat, error) {
-	defer trace.End(trace.Begin(name))
-	op := trace.NewOperation(context.Background(), "ContainerArchivePath: %s", name)
+	op := trace.NewOperation(context.Background(), "")
+	defer trace.End(trace.Audit(name, op))
 
 	path = "/" + strings.TrimPrefix(path, "/")
 	vc := cache.ContainerCache().GetContainer(name)
@@ -118,8 +117,8 @@ func (c *ContainerBackend) ContainerExport(name string, out io.Writer) error {
 // be an error if unpacking the given content would cause an existing directory
 // to be replaced with a non-directory and vice versa.
 func (c *ContainerBackend) ContainerExtractToDir(name, path string, noOverwriteDirNonDir bool, content io.Reader) error {
-	defer trace.End(trace.Begin(name))
-	op := trace.NewOperation(context.Background(), "ContainerExtractToDir: %s", name)
+	op := trace.NewOperation(context.Background(), "")
+	defer trace.End(trace.Audit(name, op))
 
 	path = "/" + strings.TrimPrefix(path, "/")
 
@@ -195,8 +194,8 @@ func (c *ContainerBackend) importToContainer(op trace.Operation, vc *viccontaine
 // ContainerStatPath stats the filesystem resource at the specified path in the
 // container identified by the given name.
 func (c *ContainerBackend) ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error) {
-	defer trace.End(trace.Begin(name))
-	op := trace.NewOperation(context.Background(), "ContainerStatPath: %s", name)
+	op := trace.NewOperation(context.Background(), "")
+	defer trace.End(trace.Audit(name, op))
 
 	op.Debugf("path received by statpath %s", path)
 
@@ -779,9 +778,7 @@ func (rm *ArchiveStreamReaderMap) buildMountsAndNodes(path string, node *Archive
 
 	err := rm.prefixTrie.VisitSubtree(nodePrefix, childWalker)
 	if err != nil {
-		msg := fmt.Sprintf("Failed to build exclusion filter for %s: %s", path, err.Error())
-		log.Error(msg)
-		return nil, nil, fmt.Errorf(msg)
+		return nil, nil, fmt.Errorf("Failed to build exclusion filter for %s: %s", path, err.Error())
 	}
 
 	return mounts, nodes, nil

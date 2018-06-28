@@ -36,8 +36,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/engine/errors"
 	"github.com/vmware/vic/lib/apiservers/engine/proxy"
@@ -99,7 +97,7 @@ func (s *SystemBackend) SystemInfo() (*types.Info, error) {
 	// Retrieve container status from port layer
 	running, paused, stopped, err := s.systemProxy.ContainerCount(context.Background())
 	if err != nil {
-		log.Infof("System.SytemInfo unable to get global status on containers: %s", err.Error())
+		op.Infof("System.SytemInfo unable to get global status on containers: %s", err.Error())
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), infoTimeout)
@@ -170,7 +168,7 @@ func (s *SystemBackend) SystemInfo() (*types.Info, error) {
 	// Add in volume label from the VCH via guestinfo
 	volumeStoreString, err := FetchVolumeStores(op, client)
 	if err != nil {
-		log.Infof("Unable to get the volume store list from the portlayer : %s", err.Error())
+		op.Infof("Unable to get the volume store list from the portlayer : %s", err.Error())
 	} else {
 		customInfo := [2]string{volumeStoresID, volumeStoreString}
 		info.SystemStatus = append(info.SystemStatus, customInfo)
@@ -199,7 +197,7 @@ func (s *SystemBackend) SystemInfo() (*types.Info, error) {
 	// Add in vch information
 	vchInfo, err := s.systemProxy.VCHInfo(context.Background())
 	if err != nil || vchInfo == nil {
-		log.Infof("System.SystemInfo unable to get vch info from port layer: %s", err.Error())
+		op.Infof("System.SystemInfo unable to get vch info from port layer: %s", err.Error())
 	} else {
 		if vchInfo.CPUMhz > 0 {
 			info.NCPU = int(vchInfo.CPUMhz)
@@ -302,7 +300,7 @@ func (s *SystemBackend) SystemVersion() types.Version {
 		Version:       Version,
 	}
 
-	log.Infof("***** version = %#v", version)
+	op.Infof("***** version = %#v", version)
 
 	return version
 }
@@ -353,7 +351,7 @@ func (s *SystemBackend) AuthenticateToRegistry(ctx context.Context, authConfig *
 	loginURL, err := url.Parse(registryAddress)
 	if err != nil {
 		msg := fmt.Sprintf("Bad login address: %s", registryAddress)
-		log.Errorf(msg)
+		op.Errorf(msg)
 		return msg, "", err
 	}
 
@@ -368,7 +366,7 @@ func (s *SystemBackend) AuthenticateToRegistry(ctx context.Context, authConfig *
 
 	var certPool *x509.CertPool
 	if insecureOk {
-		log.Infof("Attempting to log into %s insecurely", loginURL.Host)
+		op.Infof("Attempting to log into %s insecurely", loginURL.Host)
 		certPool = nil
 	} else {
 		certPool = RegistryCertPool
@@ -391,7 +389,7 @@ func (s *SystemBackend) AuthenticateToRegistry(ctx context.Context, authConfig *
 		hdr, err := fetcher.Ping(loginURL)
 		if err == nil {
 			if fetcher.IsStatusUnauthorized() {
-				log.Debugf("Looking up OAuth URL from server %s", loginURL)
+				op.Debugf("Looking up OAuth URL from server %s", loginURL)
 				authURL, err = fetcher.ExtractOAuthURL(hdr.Get("www-authenticate"), nil)
 			} else {
 				// We're not suppose to be here, but if we do end up here, use the login
@@ -400,17 +398,17 @@ func (s *SystemBackend) AuthenticateToRegistry(ctx context.Context, authConfig *
 			}
 		}
 		if err != nil {
-			log.Errorf("Looking up OAuth URL failed: %s", err)
+			op.Errorf("Looking up OAuth URL failed: %s", err)
 			return "", err
 		}
 
-		log.Debugf("logging onto %s", authURL.String())
+		op.Debugf("logging onto %s", authURL.String())
 
 		// Just check if we get a token back.
 		token, err := fetcher.FetchAuthToken(authURL)
 		if err != nil || token.Token == "" {
 			// At this point, if a request cannot be solved by a retry, it is an authentication error.
-			log.Errorf("Fetch auth token failed: %s", err)
+			op.Errorf("Fetch auth token failed: %s", err)
 			if _, ok := err.(urlfetcher.DoNotRetry); ok {
 				err = fmt.Errorf("Get %s: unauthorized: incorrect username or password", loginURL)
 			} else {

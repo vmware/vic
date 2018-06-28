@@ -22,7 +22,6 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/strfmt"
 
 	"github.com/docker/docker/api/types/backend"
@@ -33,6 +32,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/interaction"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/events"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -40,6 +40,7 @@ type StreamProxy interface {
 	AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer, autoclose bool) error
 	StreamContainerLogs(ctx context.Context, name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 	StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error
+	StreamEvents(ctx context.Context, out io.Writer) error
 }
 
 type VicStreamProxy struct {
@@ -79,6 +80,9 @@ func NewStreamProxy(client *client.PortLayer) *VicStreamProxy {
 // stdin, stdout, stderr are the hijacked connection
 // autoclose controls whether the underlying client transport will be closed when stdout/stderr
 func (s *VicStreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer, autoclose bool) error {
+	op := trace.FromContext(ctx, "")
+	defer trace.End(trace.Begin("", op))
+
 	// Cancel will close the child connections.
 	var wg, outWg sync.WaitGroup
 
@@ -97,7 +101,7 @@ func (s *VicStreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 		}
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(op)
 	defer cancel()
 
 	if ac.UseStdin && autoclose {
@@ -132,9 +136,9 @@ func (s *VicStreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 			}
 			err := copyStdIn(ctx, s.client, ac, stdin, keys, autoclose)
 			if err != nil {
-				log.Errorf("container attach: stdin (%s): %s", ac.ID, err)
+				op.Errorf("container attach: stdin (%s): %s", ac.ID, err)
 			} else {
-				log.Infof("container attach: stdin (%s) done", ac.ID)
+				op.Infof("container attach: stdin (%s) done", ac.ID)
 			}
 
 			// Check for EOF or canceled context. We can only detect EOF by checking the error string returned by swagger :/
@@ -157,9 +161,9 @@ func (s *VicStreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 
 			err := copyStdOut(ctx, s.client, ac, stdout, attachAttemptTimeout)
 			if err != nil {
-				log.Errorf("container attach: stdout (%s): %s", ac.ID, err)
+				op.Errorf("container attach: stdout (%s): %s", ac.ID, err)
 			} else {
-				log.Infof("container attach: stdout (%s) done", ac.ID)
+				op.Infof("container attach: stdout (%s) done", ac.ID)
 			}
 
 			// Check for EOF or canceled context. We can only detect EOF by checking the error string returned by swagger :/
@@ -176,9 +180,9 @@ func (s *VicStreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 
 			err := copyStdErr(ctx, s.client, ac, stderr)
 			if err != nil {
-				log.Errorf("container attach: stderr (%s): %s", ac.ID, err)
+				op.Errorf("container attach: stderr (%s): %s", ac.ID, err)
 			} else {
-				log.Infof("container attach: stderr (%s) done", ac.ID)
+				op.Infof("container attach: stderr (%s) done", ac.ID)
 			}
 
 			// Check for EOF or canceled context. We can only detect EOF by checking the error string returned by swagger :/
@@ -194,12 +198,12 @@ func (s *VicStreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 	// close the channel so that we don't leak (if there is an error)/or get blocked (if there are no errors)
 	close(errChan)
 
-	log.Infof("cleaned up connections to %s", ac.ID)
+	op.Infof("cleaned up connections to %s", ac.ID)
 	for err := range errChan {
 		if err != nil {
 			// check if we got DetachError
 			if _, ok := err.(errors.DetachError); ok {
-				log.Infof("Detached from container detected")
+				op.Infof("Detached from container detected")
 				return err
 			}
 
@@ -208,20 +212,21 @@ func (s *VicStreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 			// Go-swagger returns untyped errors to us if the error is not one that we define
 			// in the swagger spec.  Even EOF.  Therefore, we must scan the error string (if there
 			// is an error string in the untyped error) for the term EOF.
-			log.Errorf("container attach error: %s", err)
+			op.Errorf("container attach error: %s", err)
 
 			return err
 		}
 	}
 
-	log.Debugf("No error found. Returning nil...")
 	return nil
 }
 
 // StreamContainerLogs reads the log stream from the portlayer rest server and writes
 // it directly to the io.Writer that is passed in.
 func (s *VicStreamProxy) StreamContainerLogs(ctx context.Context, name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error {
-	defer trace.End(trace.Begin(""))
+	op := trace.FromContext(ctx, "")
+	defer trace.End(trace.Begin("", op))
+	opID := op.ID()
 
 	if s.client == nil {
 		return errors.NillPortlayerClientError("StreamProxy")
@@ -229,12 +234,13 @@ func (s *VicStreamProxy) StreamContainerLogs(ctx context.Context, name string, o
 
 	close(started)
 
-	params := containers.NewGetContainerLogsParamsWithContext(ctx).
+	params := containers.NewGetContainerLogsParamsWithContext(op).
 		WithID(name).
 		WithFollow(&followLogs).
 		WithTimestamp(&showTimestamps).
 		WithSince(&since).
-		WithTaillines(&tailLines)
+		WithTaillines(&tailLines).
+		WithOpID(&opID)
 	_, err := s.client.Containers.GetContainerLogs(params, out)
 	if err != nil {
 		switch err := err.(type) {
@@ -260,7 +266,9 @@ func (s *VicStreamProxy) StreamContainerLogs(ctx context.Context, name string, o
 // io.Writer.  Prior to writing to the provided io.Writer there will be a transformation
 // from the portLayer representation of stats to the docker format
 func (s *VicStreamProxy) StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error {
-	defer trace.End(trace.Begin(config.ContainerID))
+	op := trace.FromContext(ctx, "")
+	defer trace.End(trace.Begin(config.ContainerID, op))
+	opID := op.ID()
 
 	if s.client == nil {
 		return errors.NillPortlayerClientError("StreamProxy")
@@ -270,7 +278,7 @@ func (s *VicStreamProxy) StreamContainerStats(ctx context.Context, config *conve
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	params := containers.NewGetContainerStatsParamsWithContext(ctx)
+	params := containers.NewGetContainerStatsParamsWithContext(op).WithOpID(&opID)
 	params.ID = config.ContainerID
 	params.Stream = config.Stream
 
@@ -309,11 +317,48 @@ func (s *VicStreamProxy) StreamContainerStats(ctx context.Context, config *conve
 	return nil
 }
 
+// StreamEvents() handles all swagger interaction to the Portlayer's event manager
+//
+// Input:
+//	context and a io.Writer
+func (s *VicStreamProxy) StreamEvents(ctx context.Context, out io.Writer) error {
+	op := trace.FromContext(ctx, "")
+	defer trace.End(trace.Begin("", op))
+	opID := op.ID()
+
+	if s.client == nil {
+		return errors.NillPortlayerClientError("StreamProxy")
+	}
+
+	params := events.NewGetEventsParamsWithContext(ctx).WithOpID(&opID)
+	if _, err := s.client.Events.GetEvents(params, out); err != nil {
+		switch err := err.(type) {
+		case *events.GetEventsInternalServerError:
+			return errors.InternalServerError("Server error from the events port layer")
+		default:
+			//Check for EOF.  Since the connection, transport, and data handling are
+			//encapsulated inside of Swagger, we can only detect EOF by checking the
+			//error string
+			if strings.Contains(err.Error(), SwaggerSubstringEOF) {
+				return nil
+			}
+			return errors.InternalServerError(fmt.Sprintf("Unknown error from the interaction port layer: %s", err))
+		}
+	}
+
+	return nil
+}
+
+
 //------------------------------------
 // ContainerAttach() Utility Functions
 //------------------------------------
 
 func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdin io.ReadCloser, keys []byte, autoclose bool) error {
+	op := trace.FromContext(ctx, "")
+	defer trace.End(trace.Begin("", op))
+	opID := op.ID()
+
 	// Pipe for stdin so we can interject and watch the input streams for detach keys.
 	stdinReader, stdinWriter := io.Pipe()
 	defer stdinReader.Close()
@@ -355,7 +400,7 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdi
 		// Write some init bytes into the pipe to force Swagger to make the initial
 		// call to the portlayer, prior to any user input in whatever attach client
 		// he/she is using.
-		log.Debugf("copyStdIn writing primer bytes")
+		op.Debugf("copyStdIn writing primer bytes")
 		stdinWriter.Write([]byte(attachStdinInitString))
 		if ac.UseTty {
 			_, err = copyEscapable(stdinWriter, stdin, keys)
@@ -365,10 +410,10 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdi
 
 		if err != nil {
 			if _, ok := err.(errors.DetachError); ok {
-				log.Infof("stdin detach detected")
+				op.Infof("stdin detach detected")
 				detach = true
 			} else {
-				log.Errorf("stdin err: %s", err)
+				op.Errorf("stdin err: %s", err)
 			}
 		}
 	}()
@@ -377,19 +422,21 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdi
 
 	// Swagger wants an io.reader so give it the reader pipe.  Also, the swagger call
 	// to set the stdin is synchronous so we need to run in a goroutine
-	setStdinParams := interaction.NewContainerSetStdinParamsWithContext(ctx).WithID(id)
-	setStdinParams = setStdinParams.WithRawStream(stdinReader)
+	setStdinParams := interaction.NewContainerSetStdinParamsWithContext(op).
+		WithID(id).
+		WithRawStream(stdinReader).
+		WithOpID(&opID)
 
 	_, err := pl.Interaction.ContainerSetStdin(setStdinParams)
 	<-done
 
 	if ac.CloseStdin && !ac.UseTty {
 		// Close the stdin connection.  Mimicing Docker's behavior.
-		log.Errorf("Attach stream has stdinOnce set.  Closing the stdin.")
+		op.Errorf("Attach stream has stdinOnce set.  Closing the stdin.")
 		params := interaction.NewContainerCloseStdinParamsWithContext(ctx).WithID(id)
 		_, err := pl.Interaction.ContainerCloseStdin(params)
 		if err != nil {
-			log.Errorf("CloseStdin failed with %s", err)
+			op.Errorf("CloseStdin failed with %s", err)
 		}
 	}
 
@@ -402,19 +449,21 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdi
 }
 
 func copyStdOut(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdout io.Writer, attemptTimeout time.Duration) error {
+	op := trace.FromContext(ctx, "")
+	defer trace.End(trace.Begin("", op))
 	id := ac.ID
 
 	//Calculate how much time to let portlayer attempt
 	plAttemptTimeout := attemptTimeout - attachPLAttemptDiff //assumes personality deadline longer than portlayer's deadline
 	plAttemptDeadline := time.Now().Add(plAttemptTimeout)
 	swaggerDeadline := strfmt.DateTime(plAttemptDeadline)
-	log.Debugf("* stdout portlayer deadline: %s", plAttemptDeadline.Format(time.UnixDate))
-	log.Debugf("* stdout personality deadline: %s", time.Now().Add(attemptTimeout).Format(time.UnixDate))
+	op.Debugf("* stdout portlayer deadline: %s", plAttemptDeadline.Format(time.UnixDate))
+	op.Debugf("* stdout personality deadline: %s", time.Now().Add(attemptTimeout).Format(time.UnixDate))
 
-	log.Debugf("* stdout attach start %s", time.Now().Format(time.UnixDate))
+	op.Debugf("* stdout attach start %s", time.Now().Format(time.UnixDate))
 	getStdoutParams := interaction.NewContainerGetStdoutParamsWithContext(ctx).WithID(id).WithDeadline(&swaggerDeadline)
 	_, err := pl.Interaction.ContainerGetStdout(getStdoutParams, stdout)
-	log.Debugf("* stdout attach end %s", time.Now().Format(time.UnixDate))
+	op.Debugf("* stdout attach end %s", time.Now().Format(time.UnixDate))
 	if err != nil {
 		if _, ok := err.(*interaction.ContainerGetStdoutNotFound); ok {
 			return errors.ContainerResourceNotFoundError(id, "interaction connection")

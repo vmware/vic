@@ -348,7 +348,7 @@ func (i *ImageBackend) PullImage(ctx context.Context, image, tag string, metaHea
 	op := trace.NewOperation(context.Background(), "PullImage: %s", image)
 	defer trace.End(trace.Audit(image, op))
 
-	log.Debugf("PullImage: image = %s, tag = %s, metaheaders = %+v\n", image, tag, metaHeaders)
+	op.Debugf("PullImage: image = %s, tag = %s, metaheaders = %+v\n", image, tag, metaHeaders)
 
 	//***** Code from Docker 1.13 PullImage to convert image and tag to a ref
 	image = strings.TrimSuffix(image, ":")
@@ -392,7 +392,7 @@ func (i *ImageBackend) PullImage(ctx context.Context, image, tag string, metaHea
 	if err != nil || hostnameURL.Hostname() == "" {
 		hostnameURL, err = url.Parse("//" + ic.Registry)
 		if err != nil {
-			log.Infof("Error parsing hostname %s during registry access: %s", ic.Registry, err.Error())
+			op.Infof("Error parsing hostname %s during registry access: %s", ic.Registry, err.Error())
 		}
 	}
 
@@ -402,7 +402,7 @@ func (i *ImageBackend) PullImage(ctx context.Context, image, tag string, metaHea
 	whitelistOk, _, insecureOk := vchConfig.RegistryCheck(regctx, hostnameURL)
 	if !whitelistOk {
 		err = fmt.Errorf("Access denied to unauthorized registry (%s) while VCH is in whitelist mode", hostnameURL.Host)
-		log.Errorf(err.Error())
+		op.Errorf(err.Error())
 		sf := streamformatter.NewJSONStreamFormatter()
 		outStream.Write(sf.FormatError(err))
 		return nil
@@ -420,7 +420,7 @@ func (i *ImageBackend) PullImage(ctx context.Context, image, tag string, metaHea
 		}
 	}
 
-	log.Infof("PullImage: reference: %s, %s, portlayer: %#v",
+	op.Infof("PullImage: reference: %s, %s, portlayer: %#v",
 		ic.Reference,
 		ic.Host,
 		portLayerServer)
