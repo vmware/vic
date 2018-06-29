@@ -23,19 +23,20 @@ my-debug () {
 # explicit directives we know how to process
 directive_skip_unit="skip-unit"
 directive_focused_unit="focused-unit"
-directive_skip_functional="skip-functional"
-directive_all_functional="all-functional"
-directive_specific_functional="specific-functional"
-directive_specific_integration="specific-integration"
+directive_skip_integration="skip-integration"
 directive_all_integration="all-integration"
+directive_specific_integration="specific-integration"
+directive_specific_scenario="specific-scenario"
+directive_all_scenario="all-scenario"
 directive_fast_fail="fast-fail"
 directive_shared_datastore="shared-datastore"
 directive_ops_user="ops-user"
-directive_parallel_jobs="parallel_jobs"
+directive_parallel_jobs="parallel-jobs"
 
 # the suffixes combined with directives for parameter blocks
 directive_parameter_begin="-begin"
 directive_parameter_end="-end"
+directive_parameter_inline="-inline"
 
 
 # Returns the comment body of a github PR.
@@ -47,7 +48,13 @@ directive_parameter_end="-end"
 get-pr-body () {
     ${GITHUB_AUTOMATION_API_KEY:?Automation key must be provided in environment}
 
-    echo "$(curl -q https://api.github.com/repos/vmware/vic/pulls/${1}?access_token=${GITHUB_AUTOMATION_API_KEY} 2>/dev/null | jq -r '.body')"
+    declare -A cachedPrs
+
+    body=cachedPrs[$1]
+    body="${body:-$(curl -q https://api.github.com/repos/vmware/vic/pulls/${1}?access_token=${GITHUB_AUTOMATION_API_KEY} 2>/dev/null | jq -r '.body')}"
+    cachedPrs[$1]=body
+    
+    echo "${body}"
 }
 
 # Returns the enabled (checked) directives for a PR
@@ -95,9 +102,18 @@ get-pr-directive-parameters () {
         # TODO: check for the directive occurring more than once
         # TODO: check for the directive occurring without parameters
         if ! ${accumulating}; then
-            local processed=$(echo ${line} | sed -n 's/\[X\] <!-- directive:\(.*\) -->/\1/p')
+            local processed=$(echo ${line} | sed -n 's/\[X\] <!-- directive:\(.*\) -->\(.*\)/\1/p')
+
             if [ "${label}${directive_parameter_begin}" == "${processed}" ]; then
                 accumulating=true
+            fi
+
+            if [ "${label}${directive_parameter_inline}" == "${processed}" ]; then
+                local trailing=$(echo ${line} | sed -n 's/\[X\] <!-- directive:\(.*\) -->\(.*\)/\2/p')
+                # note that this is not appending to parameters, but replacing them
+                parameters=$(get-parameter-from-inline-content "$trailing")
+
+                my-debug "# assigning parameter: ${parameters[@]}"
             fi
 
             # TODO: check for the inline single parameter case
@@ -107,7 +123,10 @@ get-pr-directive-parameters () {
 
         local processed=$(echo ${line} | sed -n 's/<!-- directive:\(.*\) -->/\1/p')
         if [ "${label}${directive_parameter_end}" == "${processed}" ]; then
-            break
+            # no longer in the parameter block, but keep processing as we may have multiple instances
+            # of the directive
+            accumulating=false
+            continue
         fi
 
         if [ "${line}" == "\`\`\`" ]; then
@@ -120,4 +139,18 @@ get-pr-directive-parameters () {
 
     echo "${parameters[@]}"
     return
+}
+
+# Extracts the parameter value for an inline parameter. This is needed as there is likely decoration around the actual
+# value. To do so we will have to define some rules about how the value is separated from both prefix and suffix
+# decoration.
+# For now we assume anything in ` is value and if there are multiple of those we use the first only
+# Arguments:
+# 1: all line content after the directive
+get-parameter-from-inline-content () {
+    local inline="'${*}'"
+    inline="${inline#*\`}"
+    inline="${inline%%\`*}"
+
+    echo ${inline}
 }

@@ -40,7 +40,7 @@ MISSPELL ?= $(GOPATH)/bin/misspell$(BIN_ARCH)
 
 .PHONY: all tools clean test check distro \
 	goversion goimports gopath govet gofmt misspell gas golint \
-	isos tethers apiservers copyright
+	isos tethers apiservers copyright bats-test focused-test
 
 .DEFAULT_GOAL := all
 
@@ -59,7 +59,7 @@ endif
 # Caches dependencies to speed repeated calls
 define godeps
 	$(call assert,$(call gmsl_compatible,1 1 7), Wrong GMSL version) \
-	$(if $(filter-out push push-portlayer push-docker push-vic-init push-vicadmin focused-test test check clean distclean mrrobot mark sincemark local-ci-test .DEFAULT,$(MAKECMDGOALS)), \
+	$(if $(filter-out push push-portlayer push-docker push-vic-init push-vicadmin focused-test bats-test test check clean distclean mrrobot mark sincemark local-ci-test .DEFAULT,$(MAKECMDGOALS)), \
 		$(if $(call defined,dep_cache,$(dir $1)),,$(info Generating dependency set for $(dir $1))) \
 		$(or \
 			$(if $(call defined,dep_cache,$(dir $1)), $(debug Using cached Go dependencies) $(wildcard $1) $(call get,dep_cache,$(dir $1))),
@@ -266,7 +266,7 @@ install-govmomi:
 # manually install govmomi so the huge types package doesn't break cover
 	$(GO) install ./vendor/github.com/vmware/govmomi
 
-test: install-govmomi $(portlayerapi-client) $(portlayerapi-server) $(serviceapi-server) $(admiralapi-client) $(TEST_JOBS)
+test: install-govmomi $(portlayerapi-client) $(portlayerapi-server) $(serviceapi-server) $(admiralapi-client) $(TEST_JOBS) bats-test
 
 push:
 	$(BASE_DIR)/infra/scripts/replace-running-components.sh
@@ -290,6 +290,9 @@ local-ci-test:
 focused-test:
 # test only those packages that have changes
 	infra/scripts/focused-test.sh $(REMOTE)
+
+bats-test:
+	bats $(shell find $(BASE_DIR) -mindepth 1 -type f -name *.bats)
 
 $(TEST_JOBS): test-job-%:
 	@echo Running unit tests
