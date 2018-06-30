@@ -21,8 +21,8 @@ DEFAULT_REPO="vmware/vic-tasks"
 DEFAULT_MAX_LABELS=1000
 
 API_ENDPOINT=${API_ENDPOINT:-${DEFAULT_API_ENDPOINT}}
-HEADERS=("${HEADERS:-${DEFAULT_HEADERS}}")
-CURL_ARGS=${CURL_ARGS:-${DEFAULT_CURL_ARGS}}
+HEADERS=("${HEADERS[@]:-${DEFAULT_HEADERS[@]}}")
+CURL_ARGS=("${CURL_ARGS[@]:-${DEFAULT_CURL_ARGS[@]}}")
 REPO=${REPO:-${DEFAULT_REPO}}
 MAX_LABELS=${MAX_LABELS:-${DEFAULT_MAX_LABELS}}
 
@@ -41,12 +41,12 @@ HEADER_ARGS=("${HEADERS[@]/#/"-H"}")
 # 0: the label exists
 # 1: the label does not exist
 label-exists () {
-    : ${1?"Usage: ${FUNCNAME[0]} LABEL"}
+    : "${1?"Usage: ${FUNCNAME[0]} LABEL"}"
 
     args=("-w %{http_code}\n" "${HEADER_ARGS[@]}" "${CURL_ARGS[@]}")
     code=$(curl "${args[@]}" "${API_ENDPOINT%/}/${REPO}/labels/$1" | tail -n1)
 
-    [ $code -eq 200 ]
+    [ "$code" -eq 200 ]
 }
 
 # Updates the description and color associated with an existing label
@@ -63,9 +63,9 @@ label-exists () {
 # 0: the operation succeeded
 # 1: the operation failed
 label-update () {
-    : ${2?"Usage: ${FUNCNAME[0]} LABEL DESCRIPTION [COLOR]"}
+    : "${2?"Usage: ${FUNCNAME[0]} LABEL DESCRIPTION [COLOR]"}"
 
-    if [ -z $3 ]
+    if [ -z "$3" ]
     then
         data="{\"description\": \"$2\"}"
     else
@@ -74,7 +74,7 @@ label-update () {
     args=("--data" "${data}" "-XPATCH" "-w %{http_code}\n" "${HEADER_ARGS[@]}" "${CURL_ARGS[@]}")
     code=$(curl "${args[@]}" "${API_ENDPOINT%/}/${REPO}/labels/$1" | tail -n1)
     
-    [ $code -eq 200 ]
+    [ "$code" -eq 200 ]
 }
 
 # Creates a label with the given description and color
@@ -91,9 +91,9 @@ label-update () {
 # 0: the operation succeeded
 # 1: the operation failed
 label-create () {
-    : ${2?"Usage: ${FUNCNAME[0]} LABEL DESCRIPTION [COLOR]"}
+    : "${2?"Usage: ${FUNCNAME[0]} LABEL DESCRIPTION [COLOR]"}"
 
-    if [ -z $3 ]
+    if [ -z "$3" ]
     then
         data="{\"name\":\"$1\", \"description\": \"$2\"}"
     else
@@ -102,7 +102,7 @@ label-create () {
     args=("--data" "${data}" "-w %{http_code}\n" "${HEADER_ARGS[@]}" "${CURL_ARGS[@]}")
     code=$(curl "${args[@]}" "${API_ENDPOINT%/}/${REPO}/labels" | tail -n1)
 
-    [ $code -eq 201 ]
+    [ "$code" -eq 201 ]
 }
 
 # Creates a label with the given description and color, or updates one that exists
@@ -119,7 +119,7 @@ label-create () {
 # 0: the operation succeeded
 # 1: the operation failed
 label-merge () {
-    : ${2?"Usage: ${FUNCNAME[0]} LABEL DESCRIPTION [COLOR]"}
+    : "${2?"Usage: ${FUNCNAME[0]} LABEL DESCRIPTION [COLOR]"}"
 
     if label-exists "$1"
     then
@@ -139,12 +139,12 @@ label-merge () {
 # Returns:
 # Warning strings about any unexpected labels which already exist with a given prefix
 merge () {
-    : ${3?"Usage: ${FUNCNAME[0]} PREFIX {LABEL:DESCRIPTION} COLOR"}
+    : "${3?"Usage: ${FUNCNAME[0]} PREFIX {LABEL:DESCRIPTION} COLOR"}"
 
-    prefix=$1
+    prefix="$1"
     l="$( declare -p $2 )"
     eval "declare -A labels=${l#*=}"
-    color=$3
+    color="$3"
 
     expected=()
     for label in "${!labels[@]}"; do
