@@ -147,6 +147,8 @@ merge () {
     color="$3"
 
     expected=()
+    # The array is declared in the eval above
+    # shellcheck disable=SC2154
     for label in "${!labels[@]}"; do
         name="${prefix}/${label/_/\/}"
         description="${labels[$label]}"
@@ -164,6 +166,8 @@ merge () {
 
 merge-impacts () {
     typeset -A impacts
+    # The array is passed by name at the end of this function
+    # shellcheck disable=SC2034
     impacts=(
         [doc_community]="Requires changes to documentation about contributing to the product and interacting with the team"
         [doc_design]="Requires changes to documentation about the design of the product"
@@ -177,6 +181,8 @@ merge-impacts () {
 
 merge-kinds () {
     typeset -A kinds
+    # The array is passed by name at the end of this function
+    # shellcheck disable=SC2034
     kinds=(
         [debt]="Problems that increase the cost of other work"
         [defect]="Behavior that is inconsistent with what's intended"
@@ -195,6 +201,8 @@ merge-kinds () {
 
 merge-source () {
     typeset -A sources
+    # The array is passed by name at the end of this function
+    # shellcheck disable=SC2034
     sources=(
         [ci]="Found via a continuous integration failure"
         [customer]="Reported by a customer, directly or via an intermediary"
