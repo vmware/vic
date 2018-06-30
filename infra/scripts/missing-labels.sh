@@ -157,8 +157,8 @@ merge () {
     done
 
     args=("${HEADER_ARGS[@]}" "${CURL_ARGS[@]}")
-    existing=($(curl "${args[@]}" "${API_ENDPOINT%/}/${REPO}/labels?per_page=${MAX_LABELS}" | \
-               jq ".[] | .name | select(select(startswith(\"${prefix}/\")) | in({$(printf '"%s":0,' ${expected[@]})}) != true)"))
+    existing=("$(curl "${args[@]}" "${API_ENDPOINT%/}/${REPO}/labels?per_page=${MAX_LABELS}" | \
+               jq ".[] | .name | select(select(startswith(\"${prefix}/\")) | in({$(printf '"%s":0,' "${expected[@]}")}) != true)")")
     printf "WARNING: unexpected ${prefix} label %s\n" "${existing[@]}"
 }
 
