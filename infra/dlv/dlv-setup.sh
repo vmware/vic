@@ -5,7 +5,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#50    http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,15 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.!/bin/bash
 
+set -eo pipefail
+
 SSH="ssh -o StrictHostKeyChecking=no"
-SCP="scp -o StrictHostKeyChecking=no"
+SCP="scp -q -o StrictHostKeyChecking=no"
 
 function usage() {
-    echo "Usage: $0 -h vch-address -p password -s -a" >&2
+    echo "Usage: $0 -h vch-address" >&2
     exit 1
 }
 
-while getopts "h:p:sa" flag
+# Setup go variables
+export GOPATH_LOCAL=$(go env | grep GOPATH | cut -d= -f2 | sed 's#"##g')
+export GOROOT_LOCAL=$(go env | grep GOROOT | cut -d= -f2 | sed 's#"##g')
+
+while getopts "h:" flag
 do
     case $flag in
 
@@ -30,16 +36,6 @@ do
             export DLV_TARGET_HOST="$OPTARG"
             ;;
 
-        p)
-            export SSHPASS="$OPTARG"
-            ;;
-
-        s)
-            COPY_SSH_KEY=true
-            ;;
-        a)
-            SSH_AUTHORIZED=true
-            ;;
         *)
             usage
             ;;
@@ -48,30 +44,25 @@ done
 
 shift $((OPTIND-1))
 
+# Look for docker host
+if [ -n "${DOCKER_HOST}" -a -z "${DLV_TARGET_HOST}" ]; then
+    export DLV_TARGET_HOST=$(echo $DOCKER_HOST | cut -d ':' -f 1)
+fi
+
 if [ -z "${DLV_TARGET_HOST}" ]; then
     usage
 fi
 
-if [ -z "${SSHPASS}" -a -z "${SSH_AUTHORIZED}" ]; then
-    usage
-fi
+# Get go variables
+export GOPATH_LOCAL=$(go env GOPATH)
+export GOROOT_LOCAL=$(go env GOROOT)
 
-if [ -n "${SSHPASS}" -a -z "${SSH_AUTHORIZED}" ]; then
-    SSH="sshpass -e ${SSH}"
-    SCP="sshpass -e ${SCP}"
-
-    if [ ! -f /usr/bin/sshpass ]; then
-        echo sshpass must be installed. Run \"apt-get install sshpass\"
-        exit 1
-    fi
-fi
-
-DLV_BIN="$GOPATH/bin/dlv"
-
-if [ -z "${GOPATH}" -o -z "${GOROOT}" ]; then
-    echo GOROOT and GOPATH should be set to point to the current GOLANG enironment
+if [ -z "${GOPATH_LOCAL}" -o -z "${GOROOT_LOCAL}" ]; then
+    echo "unable to find GOROOT and GOPATH in the current GOLANG enironment"
     exit 1
 fi
+
+DLV_BIN="$GOPATH_LOCAL/bin/dlv"
 
 # copy dlv binary
 echo -n copying dlv binary..
@@ -86,9 +77,8 @@ echo done
 # copy GOROOT env
 echo -n copying GOROOT environment..
 ${SSH} root@${DLV_TARGET_HOST} "mkdir -p /usr/local/go"
-${SCP} -r ${GOROOT}/bin root@${DLV_TARGET_HOST}:/usr/local/go
-${SCP} -r ${GOROOT}/api root@${DLV_TARGET_HOST}:/usr/local/go
-${SCP} ${GOROOT}/VERSION root@${DLV_TARGET_HOST}:/usr/local/go
+${SCP} -r ${GOROOT_LOCAL}/bin root@${DLV_TARGET_HOST}:/usr/local/go
+${SCP} ${GOROOT_LOCAL}/VERSION root@${DLV_TARGET_HOST}:/usr/local/go
 ${SSH} root@${DLV_TARGET_HOST} "ln -f -s /usr/local/go/bin/go /usr/local/bin/go"
 echo done
 
@@ -103,7 +93,7 @@ TEMPFILE=$(mktemp)
 cat > ${TEMPFILE} <<EOF
 #/bin/bash
 if [ \$# != 2 ]; then
-    echo "\$0 vic-init|vic-admin|docker-engine|port-layer|vic-machine|virtual-kubelet port"
+    echo "\$0 vic-init|vicadmin|docker-engine|port-layer|vic-machine port"
     exit 1
 fi
 
@@ -111,7 +101,7 @@ NAME=\$1
 PORT=\$2
 
 if [ -z "\${NAME}" -o -z "\${PORT}" ]; then
-    echo "\$0 vic-init|vic-admin|docker-engine|port-layer|vic-machine|virtual-kubelet port"
+    echo "\$0 vic-init|vicadmin|docker-engine|port-layer|vic-machine port"
     exit 1
 fi
 
@@ -157,15 +147,4 @@ ${SCP} ${TEMPFILE} root@${DLV_TARGET_HOST}:/usr/local/bin/dlv-detach-headless.sh
 
 ${SSH} root@${DLV_TARGET_HOST} 'chmod +x /usr/local/bin/*'
 
-${SSH} root@${DLV_TARGET_HOST} 'passwd -x 1000000 root'
-
 rm ${TEMPFILE}
-
-if [ -n "${COPY_SSH_KEY}" -a -n "${SSHPASS}" ]; then
-    # setup authorized_keys
-    ${SSH} root@${DLV_TARGET_HOST} "mkdir -p .ssh"
-    ${SCP} ${HOME}/.ssh/*.pub root@${DLV_TARGET_HOST}:.ssh
-    ${SSH} root@${DLV_TARGET_HOST} 'cat ~/.ssh/*.pub > ~/.ssh/authorized_keys'
-    ${SSH} root@${DLV_TARGET_HOST} 'rm ~/.ssh/*.pub'
-    ${SSH} root@${DLV_TARGET_HOST} 'chmod 600 ~/.ssh/authorized_keys'
-fi
