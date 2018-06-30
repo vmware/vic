@@ -172,6 +172,134 @@ merge-oneoff () {
     label-merge "cla-rejected" "" "fc2929"
 }
 
+merge-areas () {
+    typeset -A areas
+    # The array is passed by name at the end of this function
+    # shellcheck disable=SC2034
+    areas=()
+    if [ "vmware/vic" == "${REPO}" ]
+    then
+        areas+=(
+            [api]=""
+            [cli]=""
+            [diagnostics]=""
+            [docker]=""
+            [kubernetes]=""
+            [lifecycle]=""
+            [networking]=""
+            [security]=""
+            [storage]=""
+            [ui]=""
+            [vsphere]=""
+        )
+    elif [ "vmware/vic-product" == "${REPO}" ]
+    then
+        areas+=(
+            [diagnostics]=""
+            [lifecycle]=""
+            [security]=""
+            [ui]=""
+        )
+    elif [ "vmware/vic-tasks" == "${REPO}" ]
+    then
+        areas+=(
+            [customers]="Work related to customer interaction"
+            [operations]="Work related to operating our infrastructure"
+            [process]="Work related to our development process"
+            [staffing]="Work related to our organization"
+        )
+    elif [ "vmware/vic-tools" == "${REPO}" ]
+    then
+        areas+=(
+            [automation]=""
+            [monitoring]=""
+            [utilities]=""
+        )
+    elif [ "vmware/vic-ui" == "${REPO}" ]
+    then
+        areas+=(
+            [compute]=""
+            [datagrid]=""
+            [general]=""
+            [networking]=""
+            [registry]=""
+            [security]=""
+            [storage]=""
+            [summary]=""
+        )
+    fi
+
+    merge "area" areas "f9d0c4"
+}
+
+merge-components () {
+    typeset -A components
+    # The array is passed by name at the end of this function
+    # shellcheck disable=SC2034
+    components=(
+            [infrastructure]=""
+            [test]=""
+            [test_integration]=""
+            [test_scenario]=""
+    )
+
+    if [ "vmware/vic" == "${REPO}" ]
+    then
+        components+=(
+            [config]=""
+            [install]=""
+            [isos]=""
+            [gateway_vmomi]=""
+            [persona]=""
+            [persona_docker]=""
+            [persona_kublet]=""
+            [portlayer]=""
+            [portlayer_execution]=""
+            [portlayer_interaction]=""
+            [portlayer_network]=""
+            [portlayer_storage]=""
+            [registry]=""
+            [test_longevity]=""
+            [tether]=""
+            [trace]=""
+            [vicadmin]=""
+        )
+    elif [ "vmware/vic-product" == "${REPO}" ]
+    then
+        components+=(
+            [dinv]=""
+            [fileserver]=""
+            [initialization]=""
+            [ova]=""
+            [systemd]=""
+            [upgrade]=""
+        )
+    elif [ "vmware/vic-tasks" == "${REPO}" ]
+    then
+        # This repo doesn't have components
+        components=()
+    elif [ "vmware/vic-tools" == "${REPO}" ]
+    then
+        components+=(
+            [image_downstream]="The downstream trigger image"
+            [image_integration]="The generic integration image"
+            [image_passrate]="The passrate calculation image"
+            [gandalf]="The gandalf slack bot"
+            [robot]="Shared robot functionality"
+        )
+    elif [ "vmware/vic-ui" == "${REPO}" ]
+    then
+        components+=(
+            [flex]=""
+            [h5c]=""
+            [scripts]=""
+            [service]=""
+       )
+    fi
+
+    merge "component" components "d4c5f9"
+}
+
 merge-impacts () {
     typeset -A impacts
     # The array is passed by name at the end of this function
