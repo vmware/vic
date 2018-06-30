@@ -164,6 +164,14 @@ merge () {
     printf "WARNING: unexpected ${prefix} label %s\n" "${existing[@]}"
 }
 
+merge-oneoff () {
+    label-merge "Epic" "Represents a ZenHub Epic" "3e4b9e"
+    label-merge "help wanted" "A well-defined issue on which a pull request would be especially welcome" "c2e0c6"
+
+    label-merge "cla-not-required" "" "ffffff"
+    label-merge "cla-rejected" "" "fc2929"
+}
+
 merge-impacts () {
     typeset -A impacts
     # The array is passed by name at the end of this function
@@ -174,6 +182,10 @@ merge-impacts () {
         [doc_kb]="Requires creation of or changes to an official knowledge base article"
         [doc_note]="Requires creation of or changes to an official release note"
         [doc_user]="Requires changes to official user documentation"
+        [test_integration]="Requires creation of or changes to an integration test"
+        [test_integration_enable]="The test is associated with a disabled integration test"
+        [test_scenario]="Requires creation of or changes to a scenario test"
+        [test_scenario_enable]="The test is associated with a disabled scenario test"
     )
 
     merge "impact" impacts "fef2c0"
@@ -199,6 +211,20 @@ merge-kinds () {
     merge "kind" kinds "bfd4f2"
 }
 
+merge-resolution () {
+    typeset -A resolutions
+    # The array is passed by name at the end of this function
+    # shellcheck disable=SC2034
+    resolutions=(
+        [duplicate]="Another issue exists for this issue"
+        [incomplete]="Insufficint information is available to address this issue"
+        [invalid]="The issue is intended behavior or otherwise invalid"
+        [will-not-fix]="This issue is valid, but will not be fixed"
+    )
+
+    merge "resolution" resolutions "bfdadc"
+}
+
 merge-source () {
     typeset -A sources
     # The array is passed by name at the end of this function
@@ -214,4 +240,18 @@ merge-source () {
     )
 
     merge "source" sources "f9d0c4"
+}
+
+merge-status () {
+    typeset -A statuses
+    # The array is passed by name at the end of this function
+    # shellcheck disable=SC2034
+    statuses=(
+        [need-info]="Additional information is needed to make progress"
+        [needs-attention]="The issue needs to be discussed by the team"
+        [needs-estimation]="The issue needs to be estimated by the team"
+        [needs-triage]="The issue needs to be evaluated and metadata updated"
+    )
+
+    merge "status" statuses "e99695"
 }
