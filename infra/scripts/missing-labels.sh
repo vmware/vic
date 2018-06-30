@@ -142,7 +142,7 @@ merge () {
     : "${3?"Usage: ${FUNCNAME[0]} PREFIX {LABEL:DESCRIPTION} COLOR"}"
 
     prefix="$1"
-    l="$( declare -p $2 )"
+    l="$( declare -p "$2" )"
     eval "declare -A labels=${l#*=}"
     color="$3"
 
