@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License. 
+set -eu -o pipefail && [ -n "${DEBUG:-}" ] && set -x
 
 DEFAULT_API_ENDPOINT="https://api.github.com/repos/"
 DEFAULT_HEADERS=("Accept: application/vnd.github.symmetra-preview+json")
@@ -166,7 +167,8 @@ merge-impacts () {
     impacts=(
         [doc_community]="Requires changes to documentation about contributing to the product and interacting with the team"
         [doc_design]="Requires changes to documentation about the design of the product"
-        [doc_note]="Requires changes to official release notes"
+        [doc_kb]="Requires creation of or changes to an official knowledge base article"
+        [doc_note]="Requires creation of or changes to an official release note"
         [doc_user]="Requires changes to official user documentation"
     )
 
