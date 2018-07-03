@@ -24,8 +24,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	cli "gopkg.in/urfave/cli.v1"
 
+	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/list"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
@@ -36,13 +38,21 @@ import (
 )
 
 type mockFinder struct {
+	mock.Mock
+
 	path string
 }
 
-func (mf mockFinder) Element(ctx context.Context, t types.ManagedObjectReference) (*list.Element, error) {
-	return &list.Element{
-		Path: t.Value,
-	}, nil
+func (mf *mockFinder) Element(ctx context.Context, t types.ManagedObjectReference) (*list.Element, error) {
+	args := mf.Called(ctx, t)
+
+	if p := args.Get(0); p != nil {
+		return &list.Element{
+			Path: p.(string),
+		}, args.Error(1)
+	}
+
+	return nil, args.Error(1)
 }
 
 func TestFromManagedObject(t *testing.T) {
@@ -50,33 +60,102 @@ func TestFromManagedObject(t *testing.T) {
 	var m *models.ManagedObject
 
 	expected := ""
-	actual, err := fromManagedObject(op, nil, "t", m)
+	actual, err := fromManagedObject(op, nil, m, "t")
 	assert.NoError(t, err, "Expected nil error, got %#v", err)
 	assert.Equal(t, expected, actual)
 
+	name := "testManagedObject"
+	path := "/folder/" + name
+
 	m = &models.ManagedObject{
-		Name: "testManagedObject",
+		Name: name,
 	}
 
-	mf := mockFinder{}
+	mf := &mockFinder{}
+	mf.On("Element", op, mock.AnythingOfType("types.ManagedObjectReference")).Return(path, nil)
 
-	expected = m.Name
-	actual, err = fromManagedObject(op, mf, "t", m)
+	expected = name
+	actual, err = fromManagedObject(op, mf, m, "t")
 	assert.NoError(t, err, "Expected nil error, got %#v", err)
 	assert.Equal(t, expected, actual)
 
 	m.ID = "testID"
 
-	expected = m.ID
-	actual, err = fromManagedObject(op, mf, "t", m)
+	expected = path
+	actual, err = fromManagedObject(op, mf, m, "t")
 	assert.NoError(t, err, "Expected nil error, got %#v", err)
 	assert.Equal(t, expected, actual)
 
 	m.Name = ""
 
-	expected = m.ID
-	actual, err = fromManagedObject(op, mf, "t", m)
+	expected = path
+	actual, err = fromManagedObject(op, mf, m, "t")
 	assert.NoError(t, err, "Expected nil error, got %#v", err)
+	assert.Equal(t, expected, actual)
+}
+
+func TestFromManagedObject_Negative(t *testing.T) {
+	op := trace.NewOperation(context.Background(), "TestFromManagedObject")
+
+	m := &models.ManagedObject{
+		ID: "testID",
+	}
+
+	mf := &mockFinder{}
+	mf.On("Element", op, mock.AnythingOfType("types.ManagedObjectReference")).Return(nil, nil)
+
+	expected := ""
+	actual, err := fromManagedObject(op, mf, m, "t")
+	assert.Error(t, err, "Expected error when no resource found")
+	assert.Equal(t, expected, actual)
+
+	expected = ""
+	actual, err = fromManagedObject(op, mf, m, "t", "u", "v")
+	assert.Error(t, err, "Expected error when no resource found")
+	assert.Equal(t, expected, actual)
+}
+
+func TestFromManagedObject_Fallback(t *testing.T) {
+	op := trace.NewOperation(context.Background(), "TestFromManagedObject")
+
+	m := &models.ManagedObject{
+		ID: "testID",
+	}
+
+	mf := &mockFinder{}
+	mf.On("Element", op, mock.MatchedBy(func(t types.ManagedObjectReference) bool { return t.Type == "t" })).Return(nil, &find.NotFoundError{})
+	mf.On("Element", op, mock.MatchedBy(func(t types.ManagedObjectReference) bool { return t.Type == "u" })).Return(nil, nil)
+	mf.On("Element", op, mock.MatchedBy(func(t types.ManagedObjectReference) bool { return t.Type == "v" })).Return("Result", nil)
+	mf.On("Element", op, mock.MatchedBy(func(t types.ManagedObjectReference) bool { return t.Type == "e" })).Return(nil, fmt.Errorf("Expected"))
+
+	expected := ""
+	actual, err := fromManagedObject(op, mf, m, "t")
+	assert.Error(t, err, "Expected error when NotFoundError encountered")
+	assert.Equal(t, expected, actual)
+
+	expected = ""
+	actual, err = fromManagedObject(op, mf, m, "t", "u")
+	assert.Error(t, err, "Expected error when no resource found")
+	assert.Equal(t, expected, actual)
+
+	expected = "Result"
+	actual, err = fromManagedObject(op, mf, m, "t", "u", "v")
+	assert.NoError(t, err, "Did not expect error when third type returns valid result, but got %#v", err)
+	assert.Equal(t, expected, actual)
+
+	expected = "Result"
+	actual, err = fromManagedObject(op, mf, m, "t", "v")
+	assert.NoError(t, err, "Did not expect error when second type returns valid result, but got %#v", err)
+	assert.Equal(t, expected, actual)
+
+	expected = "Result"
+	actual, err = fromManagedObject(op, mf, m, "u", "v")
+	assert.NoError(t, err, "Did not expect error when second type returns valid result, but got %#v", err)
+	assert.Equal(t, expected, actual)
+
+	expected = "Result"
+	actual, err = fromManagedObject(op, mf, m, "u", "e", "v")
+	assert.NoError(t, err, "Did not expect error when third type returns valid result, but got %#v", err)
 	assert.Equal(t, expected, actual)
 }
 
@@ -132,13 +211,11 @@ func TestCreateVCH(t *testing.T) {
 			Bridge: &models.VCHNetworkBridge{
 				IPRange: "17.16.0.0/12",
 				PortGroup: &models.ManagedObject{
-					ID:   "bridge", // required for mocked finder to work
 					Name: "bridge",
 				},
 			},
 			Public: &models.Network{
 				PortGroup: &models.ManagedObject{
-					ID:   "public", // required for mock finder to work
 					Name: "public",
 				},
 			},
@@ -197,7 +274,8 @@ func TestCreateVCH(t *testing.T) {
 	assert.NoError(t, err, "Error while processing params: %s", err)
 	op.Infof("ca EnvFile: %s", ca.Certs.EnvFile)
 
-	mf := mockFinder{}
+	mf := &mockFinder{}
+	mf.On("Element", op, mock.AnythingOfType("types.ManagedObjectReference")).Return(nil, nil)
 
 	cb, err := buildCreate(op, data, mf, vch)
 	assert.NoError(t, err, "Error while processing params: %s", err)

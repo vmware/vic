@@ -178,7 +178,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				c.ResourceLimits.VCHMemoryShares = fromShares(vch.Compute.Memory.Shares)
 			}
 
-			resourcePath, err := fromManagedObject(op, finder, "ResourcePool", vch.Compute.Resource) // TODO (#6711): Do we need to handle clusters differently?
+			resourcePath, err := fromManagedObject(op, finder, vch.Compute.Resource, "ResourcePool", "ComputeResource", "ClusterComputeResource", "HostSystem")
 			if err != nil {
 				return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding resource pool: %s", err))
 			}
@@ -194,7 +194,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 
 		if vch.Network != nil {
 			if vch.Network.Bridge != nil {
-				path, err := fromManagedObject(op, finder, "Network", vch.Network.Bridge.PortGroup)
+				path, err := fromManagedObject(op, finder, vch.Network.Bridge.PortGroup, "Network")
 				if err != nil {
 					return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding bridge network: %s", err))
 				}
@@ -210,7 +210,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 			}
 
 			if vch.Network.Client != nil {
-				path, err := fromManagedObject(op, finder, "Network", vch.Network.Client.PortGroup)
+				path, err := fromManagedObject(op, finder, vch.Network.Client.PortGroup, "Network")
 				if err != nil {
 					return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding client network portgroup: %s", err))
 				}
@@ -227,7 +227,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 			}
 
 			if vch.Network.Management != nil {
-				path, err := fromManagedObject(op, finder, "Network", vch.Network.Management.PortGroup)
+				path, err := fromManagedObject(op, finder, vch.Network.Management.PortGroup, "Network")
 				if err != nil {
 					return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding management network portgroup: %s", err))
 				}
@@ -244,7 +244,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 			}
 
 			if vch.Network.Public != nil {
-				path, err := fromManagedObject(op, finder, "Network", vch.Network.Public.PortGroup)
+				path, err := fromManagedObject(op, finder, vch.Network.Public.PortGroup, "Network")
 				if err != nil {
 					return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding public network portgroup: %s", err))
 				}
@@ -280,7 +280,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				for _, cnetwork := range vch.Network.Container {
 					alias := cnetwork.Alias
 
-					path, err := fromManagedObject(op, finder, "Network", cnetwork.PortGroup)
+					path, err := fromManagedObject(op, finder, cnetwork.PortGroup, "Network")
 					if err != nil {
 						return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding portgroup for container network %s: %s", alias, err))
 					}
@@ -484,20 +484,25 @@ func handleCreate(op trace.Operation, c *create.Create, validator *validate.Vali
 	return nil, nil
 }
 
-func fromManagedObject(op trace.Operation, finder finder, t string, m *models.ManagedObject) (string, error) {
+func fromManagedObject(op trace.Operation, finder finder, m *models.ManagedObject, ts ...string) (string, error) {
 	if m == nil {
 		return "", nil
 	}
 
 	if m.ID != "" {
-		managedObjectReference := types.ManagedObjectReference{Type: t, Value: m.ID}
-		element, err := finder.Element(op, managedObjectReference)
+		for _, t := range ts {
+			managedObjectReference := types.ManagedObjectReference{Type: t, Value: m.ID}
+			element, err := finder.Element(op, managedObjectReference)
 
-		if err != nil {
-			return "", err
+			if err == nil && element != nil {
+				return element.Path, nil
+			} else if err != nil {
+				// Ideally, we would continue only on *find.NotFoundError, but it is not reliably returned.
+				continue
+			}
 		}
 
-		return element.Path, nil
+		return "", fmt.Errorf("Unable to locate %q as any of %s", m.ID, ts)
 	}
 
 	return m.Name, nil
