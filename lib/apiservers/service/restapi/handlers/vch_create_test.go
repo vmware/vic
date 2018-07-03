@@ -46,41 +46,6 @@ func (mf mockFinder) Element(ctx context.Context, t types.ManagedObjectReference
 	}, nil
 }
 
-func TestFromManagedObject(t *testing.T) {
-	op := trace.NewOperation(context.Background(), "TestFromManagedObject")
-	var m *models.ManagedObject
-
-	expected := ""
-	actual, err := decode.FromManagedObject(op, nil, "t", m)
-	assert.NoError(t, err, "Expected nil error, got %#v", err)
-	assert.Equal(t, expected, actual)
-
-	m = &models.ManagedObject{
-		Name: "testManagedObject",
-	}
-
-	mf := mockFinder{}
-
-	expected = m.Name
-	actual, err = decode.FromManagedObject(op, mf, "t", m)
-	assert.NoError(t, err, "Expected nil error, got %#v", err)
-	assert.Equal(t, expected, actual)
-
-	m.ID = "testID"
-
-	expected = m.ID
-	actual, err = decode.FromManagedObject(op, mf, "t", m)
-	assert.NoError(t, err, "Expected nil error, got %#v", err)
-	assert.Equal(t, expected, actual)
-
-	m.Name = ""
-
-	expected = m.ID
-	actual, err = decode.FromManagedObject(op, mf, "t", m)
-	assert.NoError(t, err, "Expected nil error, got %#v", err)
-	assert.Equal(t, expected, actual)
-}
-
 func TestFromCIDR(t *testing.T) {
 	var m models.CIDR
 
