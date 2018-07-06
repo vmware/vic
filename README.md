@@ -6,6 +6,10 @@ vSphere Integrated Containers Engine (VIC Engine) is a container runtime for vSp
 
 See [VIC Engine Architecture](doc/design/arch/arch.md) for a high level overview.
 
+## Support and Troubleshooting
+
+For general questions, visit the [vSphere Integrated Containers Engine channel](https://vmwarecode.slack.com/messages/vic-engine). If you do not have an @vmware.com or @emc.com email address, sign up at https://code.vmware.com to get an invitation.
+
 ## Project Status
 
 [commands]:https://vmware.github.io/vic-product/assets/files/html/1.3/vic_app_dev/container_operations.html
