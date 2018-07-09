@@ -300,13 +300,36 @@ Example:
 
 ## Browsing and managing issues
 
-We use [Zenhub](https://www.zenhub.io/) for project management on top of GitHub issues.  Once you have the Zenhub
-browser plugin installed, click on the [Boards](https://github.com/vmware/vic/issues#boards) tab to open the Zenhub task
-board.
+We use [ZenHub][zenhub] for project management on top of GitHub issues. Boards
+can be viewed [via the ZenHub website][board-zenhub] or, once you have installed
+the [brower extension][zenhub-plugin], directly [within GitHub][board-github].
+ZenHub integrates tightly with GitHub to provide additional project management
+[functionality][zenhub-features] intended to facilitate an iterative development
+approach, such as support for Epics and [related concepts][zenhub-agile].
 
-Our task board practices are as follows:
+[zenhub]:https://www.zenhub.io/
+[zenhub-plugin]:https://www.zenhub.com/extension
+[zenhub-features]:https://help.zenhub.com/support/solutions/articles/43000010337-take-a-tour-of-zenhub-s-key-features
+[zenhub-agile]:https://help.zenhub.com/support/solutions/articles/43000010338-agile-concepts-in-github-and-zenhub
+[board-zenhub]:https://app.zenhub.com/workspace/o/vmware/vic
+[board-github]:https://github.com/vmware/vic/issues#boards
 
-### New Issues
+### Pipelines
+
+ZenHub organizes issues into pipelines, which represent the status of an issue.
+We use the following pipelines:
+
+1. **New Issues**: The default pipeline, for issues which need to be reviewed by
+   a member of the team.
+2. **Not Ready**: Issues that have undergone initial review, but require
+   additional refinement or information before they could be worked on.
+3. **Backlog**: Issues that include all necessary information for work to begin.
+4. **To Do**: Issues that will be worked on next.
+5. **In Progress**: Issues that are being worked on.
+6. **Verify**: Issues that are being reviewed.
+7. **Closed**: Issues that are closed.
+
+#### New Issues
 
 The New Issues are triaged by the team at least once a week.  We try to keep issues from staying in this pipeline for
 too long.  After triaging and issue, it will likely be moved to the backlog or stay under [Not Ready](#not-ready) for deferred
@@ -314,7 +337,7 @@ discussion.
 
 For VIC engineers, you should set the priority based on the below guidelines. Everyone else, do not set the priority of a new issue.
 
-#### Priorities
+##### Priorities
 
 | Priority | Bugs | Features | Non Bugs |
 | -------- | ---- | -------- | -------- |
@@ -324,11 +347,11 @@ For VIC engineers, you should set the priority based on the below guidelines. Ev
 | priority/p3 | Bugs that SHOULD be fixed by a given release, time permitting. | A feature that can be fixed in the next release. eg. Migrate to a new kernel version. Or a feature that is nice to have for a pebble. | An issue that can be fixed in the next release. eg. Low hanging productivity improvements. |
 | priority/p4 | Bugs that SHOULD be fixed in a future (to be determined) release. | An issue or feature that will be fixed in a future release. | An issue or feature that will be fixed in a future release. |
 
-### Not Ready
+#### Not Ready
 
 The Not Ready column is for issues that need more discussion, details and/or triaging before being put in the [Backlog](#backlog). Issues in Not Ready should have assignee(s) to track whose input is needed to put the issue in the Backlog. For issues reported by VIC engineers: if the issue's details aren't fleshed out, the reporter should set themselves as the assignee.
 
-### Backlog
+#### Backlog
 
 Issues in Backlog should be ready to be worked on in future sprints. For example, they may be feature requests or ideas for a future version of
 the project. When moving issues to the Backlog, add more information (like requirements and outlines) into each issue. It's useful to
@@ -347,7 +370,7 @@ Prioritize issues by dragging and dropping their placement in the pipeline. Issu
 priority; accordingly, they should contain all the information necessary to get started when the time
 comes. Low-priority issues should still contain at least a short description.
 
-### To Do
+#### To Do
 
 This is the team's current focus and the issues should be well-defined. This pipeline should contain the high-priority
 items for the current milestone. These issues must have an assignee, milestone, estimate and tags. Items are moved
@@ -355,7 +378,7 @@ from this pipeline to In Progress when work has been started.
 
 To move an issue into the To Do swim lane, the assignee and milestone fields should be set.
 
-### In Progress
+#### In Progress
 
 This is the answer to, "What are you working on right now?" Ideally, this pipeline will not contain more issues than
 members of the team; each team member should be working on one thing at a time.
@@ -366,19 +389,19 @@ After an issue is In Progress, it is best practice to update the issue with curr
 
 Note: Epics should never be In Progress.
 
-### Verify
+#### Verify
 
 A "Verify" issue normally means the feature or fix is in code review and/or awaiting further testing. These issues require one final QE sign off or at the end of a sprint another dev that didn't work on the issue can verify the issue.
 
 In most cases, an issue should be in Verify _before_ the corresponding PR is merged. The developer can then close the issue while merging the PR.
 
-### Closed
+#### Closed
 
 This pipeline includes all closed issues. It can be filtered like the rest of the Board – by Label, Assignee or Milestone.
 
 This pipeline is also interactive: dragging issues into this pipeline will close them, while dragging them out will re-open them.
 
-## Story point estimates
+### Story point estimates
 
 * Use the fibonacci pattern
 * All bugs are a 2 unless we know it is significantly more or less work than the average bug
@@ -388,7 +411,7 @@ This pipeline is also interactive: dragging issues into this pipeline will close
 * Issues with an estimate higher than 5 should be decomposed further
 * Unless otherwise necessary, estimates for EPICs are the sum of their sub-issues' estimates - EPICs aren't assigned an estimate themselves
 
-## High level project planning
+### High level project planning
 
 We use the following structure for higher level project management:
 * Epic (zenhub) - implements a functional change - for example 'attach, stdout only', may span milestones and releases. Expected to be broken down from larger Epics into smaller epics prior to commencement.
@@ -397,15 +420,15 @@ We use the following structure for higher level project management:
 
 ## Repository structure
 
-The layout in the repo is as follows - this is a recent reorganisation so there is still some mixing between directories:
-* cmd - the main packages for compiled components
-* doc - all project documentation other than the standard files in the root
-* infra - supporting scripts, utilities, et al
-* isos - ISO mastering scripts and uncompiled content
-* lib - common library packages that are tightly coupled to vmware/vic
-* pkg - packages that are not tightly coupled to vmware/vic and could be usefully consumed in other projects. There is still some sanitization to do here.
-* tests - integration and system test code that doesn't use go test
-* vendor - standard Go vendor model
+The layout within the repository is as follows:
+* `cmd` - the main packages for compiled components
+* `doc` - all project documentation other than the standard files in the root
+* `infra` - supporting scripts, utilities, et al.
+* `isos` - ISO mastering scripts and uncompiled content
+* `lib` - common library packages that are tightly coupled to vmware/vic
+* `pkg` - packages that are not tightly coupled to vmware/vic and could be usefully consumed in other projects. There is still some sanitization to do here.
+* `tests` - integration and scenario test code that doesn't use go test
+* `vendor` - standard Go vendor model
 
 ## Troubleshooting
 
