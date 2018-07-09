@@ -1,180 +1,304 @@
 # Contributing to VIC Engine
 
+The VIC project team welcomes contributions from the community. If you wish to
+contribute code and you have not signed our contributor license agreement (CLA),
+our bot will update the issue when you open a Pull Request.
+For any questions about the CLA process, please refer to our
+[FAQ][cla].
+
+[cla]:https://cla.vmware.com/faq
+
+
 ## Community
 
-In addition to using the GitHub issue tracker, contributors and users are encouraged to collaborate using the following
-resources:
+To connect with the community, please [join][slack] our public Slack workspace,
+which includes a [#vic-engine slack channel][slack-channel] for this project.
 
-- [Slack](https://vmwarecode.slack.com/messages/vic-engine): This is the primary community channel. **If you don't have
-an @vmware.com or @emc.com email, please sign up at https://code.vmware.com/join to get a Slack invite.**
+[slack]:https://code.vmware.com/join
+[slack-channel]:https://vmwarecode.slack.com/messages/vic-engine
 
-- [Gitter](https://gitter.im/vmware/vic): Gitter is monitored, but please use the Slack channel if you need a response
-quickly.
 
 ## Getting started
 
-First, fork the repository on GitHub to your personal account.
+Go is the primary programming languge used by the project. These instructions
+will assume that you are familiar with Go and have [installed][go-install] it.
+If you are interested in contributing to ancillary portions of the project, such
+as documentation, tests, or scripts, this may not be strictly necessary, however
+it will provide consistency between your development environment and that of
+other contributors, simplifying subsequent instructions.
 
-Note that _GOPATH_ can be any directory, the example below uses _$HOME/vic_.
-Change _$USER_ below to your GitHub username.
+To begin contributing, please create your own [fork][fork] of this repository.
+This will allow you to share proposed changes with the community for review.
+
+The [hub][hub] utility can be used to do this from the command line.
 
 ``` shell
-export GOPATH=$HOME/vic
-mkdir -p $GOPATH/src/github.com/vmware
 go get github.com/vmware/vic
-cd $GOPATH/src/github.com/vmware/vic
-git config push.default nothing # anything to avoid pushing to vmware/vic by default
-git remote rename origin vmware
-git remote add $USER git@github.com:$USER/vic.git
-git fetch $USER
+cd $(go env GOPATH)/src/github.com/vmware/vic
+hub fork
 ```
 
 See the [README](README.md#building) for build instructions.
 
+[fork]:https://help.github.com/articles/fork-a-repo/
+[installed]:https://golang.org/doc/install
+
+
 ## Contribution flow
 
-This is a rough outline of what a contributor's workflow looks like:
+A rough outline of a contributor's workflow might look like:
 
-- Create a topic branch from where you want to base your work.
-- Make commits of logical units.
-- Make sure your commit messages are in the proper format (see below).
-- Push your changes to a topic branch in your fork of the repository.
-- Test your changes as detailed in the [Automated Testing](#automated-testing) section.
-- Submit a pull request to vmware/vic.
-- Your PR must receive approvals from component owners and at least two approvals overall from maintainers before merging.
+1. Create a topic branch from where you want to base your work
+2. Make commits of logical units
+3. Make sure your commit messages are in the proper format (see below)
+4. Push your changes to a topic branch in your fork of the repository
+5. [Test your changes](#automated-testing)
+6. Submit a pull request
 
 Example:
 
 ``` shell
-git checkout -b my-new-feature vmware/master
-git commit -a
-git push $USER my-new-feature
+git checkout -b my-new-topic-branch master
+# (make changes)
+git commit
+git push -u YOUR_USER my-new-topic-branch
 ```
+
+Note: You should push your topic branches to your fork, not origin, even if you
+are an existing contributor with write access to the repository.
 
 ### Stay in sync with upstream
 
-When your branch gets out of sync with the vmware/master branch, use the following to update it:
+When your branch gets out of sync with the vmware/master branch, use the
+following to update:
 
 ``` shell
-git checkout my-new-feature
-git fetch -a
-git rebase vmware/master
-git push --force-with-lease $USER my-new-feature
+git checkout my-new-topic-branch
+git remote update
+git pull --rebase origin master
+git push --force-with-lease my-new-topic-branch
 ```
 
-### Updating pull requests
+Note: In this case, we are able to invoke `git push` without specifying a remote
+because we previously invoked `git push` with the `-u` (`--set-upstream` flag).
 
-If your PR fails to pass CI or needs changes based on code review, you'll most likely want to squash these changes into
-existing commits.
-
-If your pull request contains a single commit or your changes are related to the most recent commit, you can simply
-amend the commit.
-
-``` shell
-git add .
-git commit --amend
-git push --force-with-lease $USER my-new-feature
-```
-
-If you need to squash changes into an earlier commit, you can use:
-
-``` shell
-git add .
-git commit --fixup <commit>
-git rebase -i --autosquash vmware/master
-git push --force-with-lease $USER my-new-feature
-```
-
-Be sure to add a comment to the PR indicating your new changes are ready to review, as GitHub does not generate a
-notification when you git push.
+To make `--rebase` the default behavior when invoking `git pull`, you can use
+`git config pull.rebase true`. This makes the history of your topic branch
+easier to read by avoiding merge commits.
 
 ### Code style
 
-VIC Engine uses the coding style suggested by the Golang community. See the
-[style doc](https://github.com/golang/go/wiki/CodeReviewComments) for details.
+Writing code that is easy to understand, debug, and modify is important to the
+long-term health of a project. To help achieve these goals, we have adopted
+coding style recommendations of the boarder software community.
 
-Try to limit column width to 120 characters for both code and markdown documents such as this one.
+[Effective Go][effective-go] introduces and discusses many key ideas and the
+[Code Review Comments wiki][crc] lists many common mistakes.
 
-### Format of the Commit Message
+The [Robot Frameowrk User Guide][robot-user-guide] includes stylistic tips and
+[How To Write Good Test Cases][good-test-cases] givs additional recommendations.
 
-We follow the conventions on [How to Write a Git Commit Message](http://chris.beams.io/posts/git-commit/).
+Docker provides [Best practices for writing Dockerfiles][dockerfiles].
 
-Be sure to include any related GitHub issue references in the commit message. See
-[GFM syntax](https://guides.github.com/features/mastering-markdown/#GitHub-flavored-markdown) for referencing issues and
-commits.
+For Bash, [unofficial Bash Strict Mode][bash-strict-mode] makes scripts behave
+more reliable and [shellcheck][shellcheck] can catch many common mistakes.
 
-To help write conforming commit messages, we recommend setting up the [git-good-commit][commithook] commit hook. Run this
-command in the VIC repo's root directory:
+[effective-go]:https://golang.org/doc/effective_go.html
+[crc]:https://github.com/golang/go/wiki/CodeReviewComments
+[robot-user-guide]:http://robotframework.org/robotframework/latest/RobotFrameworkUserGuide.html
+[good-test-cases]:https://github.com/robotframework/HowToWriteGoodTestCases/blob/master/HowToWriteGoodTestCases.rst
+[dockerfiles]:https://docs.docker.com/develop/develop-images/dockerfile_best-practices/
+[bash-strict-mode]:http://redsymbol.net/articles/unofficial-bash-strict-mode/
+[shellcheck]:https://github.com/koalaman/shellcheck
 
+### Formatting commit messages
+
+While the contents of your changes are easily improved in the future, your
+commit message becomes part the permanent historical record for the repository.
+Please take the time to craft meaningful commits with useful messages.
+
+[How to Write a Git Commit Message][commitmsg] provides helpful conventions.
+
+To be reminded when you may be making a common commit message mistake, you can
+use the [git-good-commit][commithook] commit hook.
+
+Example:
 ```shell
 curl https://cdn.rawgit.com/tommarshall/git-good-commit/v0.6.1/hook.sh > .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
+```
+
+Please include any related GitHub issue references in the body of the pull
+request, but not the commit message. See [GFM syntax][gfmsyntax] for referencing
+issues and commits.
+
+[commitmsg]:http://chris.beams.io/posts/git-commit/
+[commithook]:https://github.com/tommarshall/git-good-commit
+[gfmsyntax]:https://guides.github.com/features/mastering-markdown/#GitHub-flavored-markdown
+
+### Updating pull requests
+
+If your PR fails to pass CI or needs changes based on code review, you'll want
+to make additional commits to address these and push them to your topic branch
+on your fork.
+
+Providing updates this way instead of amending your existing commit makes it
+easier for reviewers to see what has changed since they last looked at your
+pull request.
+
+You can use the `--fixup` and `--squah` options of `git commit` to communicate
+your intent to combine these changes with a previous commit before merging.
+
+Be sure to add a comment to the PR indicating your new changes are ready to
+review, as GitHub does not generate a notification when you push to your topic
+branch to update your pull request.
+
+### Preparing to merge
+
+After the review process is complete and you are ready to merge your changes,
+you should rebase your changes into a series of meaningful, atomic commits.
+
+If you have used the `--fixup` and `--squash` options suggested above, you can
+leverage `git rebase -i --autosquash` to re-organize some of your history
+automatically based on the intent you previously communicated.
+
+If you have multiple commits on your topic branch, update the first line of
+each commit's message to include your PR number. If you have a single commit,
+you can use the "Squash & Merge" operation to do this automatically.
+
+Once you've cleaned up the history on your topic branch, it's best practice to
+wait for CI to run one last time before merging.
+
+### Merging
+
+Generally, we avoid merge commits on `master`. We suggest using "Squash & Merge"
+if you are merging a single commit or "Rebase & Merge" if you are merging a
+series of related commits. If you believe creating a merge commit is the right
+operation for your change (e.g., because you're merging a long-lived feature
+branch), please note that in your pull request.
+
+
+## Automated Testing
+
+Several kinds of automated testing are used by the project.
+
+1. Compile-time checks are used to statically analyze the product code. These
+   are run via `make check`.
+    - `goimports`, `gofmt`, and `golint` are used for Go linting.
+    - `gas` is used to check for potential security issues.
+    - `missspell.sh` is used to check for common spelling mistakes.
+    - `header-check.sh` is used to check for copyright headers.
+    - `whitespace-check.sh` is used to check for trailing whitespace.
+2. Compile-time testing is used to verify functionality of some individual
+   components. These tests do not depend on external systems to function. These
+   are run via `make test` (or `make focused-test` for pending changes).
+    - Unit tests are used to verify the functionality of individual functions,
+      methods, structs, and packages.
+    - Simulated tests leverage [vcsim][vcsim] to verify behavior of packages
+      which interact with vSphere.
+3. [Integration tests](tests/README.md) are used to verify the behavior of the
+   product against a live environment. These tests can be run against a VMware
+   vSphere ESXi host or a VMware vCenter Server (tests only applicable to one
+   environment or the other should automatically be skipped). All integration
+   tests are automatically against vCenter Server when a change is merged to
+   `master` or a `release/*` branch. A configurable set of integration tests are
+   run when a pull request is submitted or updated. `local-integration-test.sh`
+   can be used to run tests from a development environment.
+    - Integration tests are written using the Robot Framework and divided into
+      various Groups covering areas of product functionality and Suites within
+      those Groups.
+4. Scenario tests are used for more complex verification. These are periodically
+   run using internal VMware infrastructure.
+    - Interoperability tests are used to verify functionality against various
+      supported versions of infrastructure components.
+    - Workload tests mimic a realistic customer workload.
+
+[vcsim]:https://github.com/vmware/govmomi/tree/master/vcsim
+
+### Drone
+
+[Drone][dronesrc] is used to run compile-time checks, compile-time tests, and
+integration tests on pull requests and pushed commits.
+
+By default, a pull request builds the project and runs compile-time tests,
+compile-time checks, and the "regression" integration test group. To customize
+the tests that run on a pull request, directives can be included in the body:
+
+- To skip all testing (e.g. for a work-in-progress PR), use `[skip ci]`.
+  - This must be included in the title of the pull request, not the body.
+- To run all integration tests, use `[full ci]`.
+- To run _specific_ integration tests, use `[specific ci=$test]`. This will run
+  the specified tests, suites, or groups in addition to the default regression
+  group. Examples:
+  - To run the `1-01-Docker-Info` suite: `[specific ci=1-01-Docker-Info]`
+  - To run all suites under the `Group1-Docker-Commands` group: `[specific ci=Group1-Docker-Commands]`
+  - To run several specific suites: `[specific ci=$test1 --suite $test2 --suite $test3]`.
+- To skip running the unit tests, use `[skip unit]`.
+- To make normal failures fatal during integration testing, use `[fast fail]`.
+- To specify a specific datastore, use `[shared datastore=nfs-datastore]`.
+- To specify the number of parallel jobs you want, use `[parallel jobs=2]`.
+
+Links to Drone builds results can be found within a pull request and on the list
+of changes pushed to a branch. Results can also be browsed [directly][dronevic].
+
+As the Drone environment is a shared resource, it is best to run tests locally
+before publishing a pull request. If you don't have an environment suitable for
+running the tests, you may leverage the Drone environment. When doing so, it is
+best to include `[WIP]` (work in progress) at the beginning of the title of the
+pull request to alert readers that the change is not ready for review.
+
+Drone builds can be restarted via the web interface or the [CLI][dronecli]:
+```shell
+export DRONE_TOKEN=<Drone Token, from https://ci-vic.vmware.com/account/token>
+export DRONE_SERVER=https://ci-vic.vmware.com
+
+drone build start vmware/vic <Build Number>
+```
+
+For security reasons, your pull request build may fail if you are not a member
+of the `vmware` organization in GitHub. If this occurs, leave a comment on your
+pull request asking that the build be restarted by an organization member.
+
+To skip membership checking when restarting a build:
+```shell
+drone build start --param SKIP_CHECK_MEMBERSHIP=true vmware/vic <Build Number>
 ```
 
 [dronevic]:https://ci-vic.vmware.com/vmware/vic
 [dronesrc]:https://github.com/drone/drone
 [dronecli]:http://docs.drone.io/cli-installation/
-[commithook]:https://github.com/tommarshall/git-good-commit
 
-## Automated Testing
 
-Automated testing uses [Drone][dronesrc].
+## Reporting bugs and creating issues
 
-Pull requests must pass unit tests and integration tests before being merged into the master branch. A standard PR builds
-the project and runs unit and regression tests. To customize the integration test suite that runs in your pull request,
-you can use these keywords in your PR body:
+Communicating clearly helps with efficient triage and resolution of reported
+issues.
 
-- To skip running tests (e.g. for a work-in-progress PR), use `[ci skip]` or `[skip ci]`.
-  - This customization must be set at the beginning of the PR title, not the PR body.
-- To run the full test suite, use `[full ci]`.
-- To run _specific_ integration test or group, use `[specific ci=$test]`. This will run the regression test as well. Examples:
-  - To run the `1-01-Docker-Info` suite: `[specific ci=1-01-Docker-Info]`
-  - To run all suites under the `Group1-Docker-Commands` group: `[specific ci=Group1-Docker-Commands]`
-  - To run several specific suites: `[specific ci=$test1 --suite $test2 --suite $test3]`.
-- To skip running the unit tests, use `[skip unit]`.
-- To fail fast (make normal failures fatal) during the integration testing, use `[fast fail]`.
-- To specify a specific datastore you want, use `[shared datastore=nfs-datastore]`.
-- To specify the number of parallel jobs you want, use `[parallel jobs=2]`.
+The summary of each issue will likely be read by many people. Quickly conveying
+the essence of the problem you are experiencing helps get the right people
+involved. Reports which are vague or unclear may take longer to be routed to
+a domain expert.
 
-You can run the tests locally before making a PR or view the Drone build results for [unit tests and integration tests][dronevic].
+The body of an issue should communicate what you are trying to accomplish and
+why; understanding your goal allows others to suggest potential workarounds. It
+should include specific details about what is (or isn't happening).
 
-If you don't have a running ESX required for tests, you can leverage the automated Drone servers for
-running tests. Add `WIP` (work in progress) to the PR title to alert reviewers that the PR is not ready to be merged.
+Proactively including screenshots and logs can be very helpful. When including
+logs, please ensure that formatting is preserved by using [code blocks][code].
+Consider formatting longer logs so that they are not shown by default.
 
-If your Drone build needs to be restarted, fork the build:
-```shell
-export DRONE_TOKEN=<Drone Token>
-export DRONE_SERVER=https://ci-vic.vmware.com
-
-drone build start vmware/vic <Build Number>
+Example:
+````
+<detail><summary>View Logs</summary>
 ```
-If you are not a member of `vmware` org in github, then your PR build may fail. In that case, request one of the existing members / reviewers to fork your failed build to skip membership checking.
-```shell
-drone build start --param SKIP_CHECK_MEMBERSHIP=true vmware/vic <Build Number>
+... (log content)
 ```
+</detail>
+````
 
-### Testing locally
+[code]:https://help.github.com/articles/creating-and-highlighting-code-blocks/
 
-Developers need to install [Drone CLI][dronecli].
 
-#### Unit tests
-
-``` shell
-VIC_ESX_TEST_URL="<USER>:<PASS>@<ESX IP>" drone exec .drone.yml
-```
-
-If you don't have a running ESX, tests requiring an ESX can be skipped with the following:
-
-``` shell
-drone exec
-```
-
-#### Integration tests
-
-Integration tests require a running ESX on which to deploy VIC Engine. See [VIC Integration & Functional Test Suite](tests/README.md).
-
-## Reporting Bugs and Creating Issues
-
-When opening a new issue, try to roughly follow the commit message format conventions above.
+## Browsing and managing issues
 
 We use [Zenhub](https://www.zenhub.io/) for project management on top of GitHub issues.  Once you have the Zenhub
 browser plugin installed, click on the [Boards](https://github.com/vmware/vic/issues#boards) tab to open the Zenhub task
