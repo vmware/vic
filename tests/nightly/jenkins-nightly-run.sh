@@ -13,12 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-ESX_60_VERSION="ob-5251623"
-VC_60_VERSION="ob-5112509"
 
-ESX_65_VERSION="ob-7867845"
-VC_65_VERSION="ob-7867539"
+# Permalink to ESX build numbers/versions: https://kb.vmware.com/kb/2143832
+# Permalink to vCenter build numbers/versions: https://kb.vmware.com/kb/2143838
 
+# 6.0u3e
+ESX_60_VERSION="ob-7967664"
+VC_60_VERSION="ob-7924803"
+
+# 6.5u2b
+ESX_65_VERSION="ob-8935087"
+VC_65_VERSION="ob-8815520" 
+
+# 6.7
 ESX_67_VERSION="ob-8169922"
 VC_67_VERSION="ob-8217866"
 
