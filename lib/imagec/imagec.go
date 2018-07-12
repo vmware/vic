@@ -138,7 +138,7 @@ var (
 
 const (
 	// DefaultDockerURL holds the URL of Docker registry
-	DefaultDockerURL = "registry.hub.docker.com"
+	DefaultDockerURL = "registry-1.docker.io"
 
 	// DefaultDestination specifies the default directory to use
 	DefaultDestination = "images"

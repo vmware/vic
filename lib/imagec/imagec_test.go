@@ -602,8 +602,8 @@ func TestFetchScenarios(t *testing.T) {
 	// valid token but image is missing we shouldn't retry
 	_, _, err = FetchImageManifest(op, ic.Options, 1, ic.progressOutput)
 	if err != nil {
-		// we should get a ImageNotFoundError
-		if _, imageErr := err.(urlfetcher.ImageNotFoundError); !imageErr {
+		// we should get a AccessDenied
+		if !strings.Contains(err.Error(), "pull access denied") {
 			t.Errorf(err.Error())
 		}
 	}

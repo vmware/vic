@@ -27,6 +27,7 @@ import (
 	"os"
 	"path"
 
+	log "github.com/Sirupsen/logrus"
 	ddigest "github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
@@ -353,6 +354,13 @@ func FetchImageManifest(op trace.Operation, options Options, schemaVersion int, 
 
 	manifestFileName, err := fetcher.Fetch(op, url, &reqHeaders, true, progressOutput)
 	if err != nil {
+		log.Debugf("Failed to fetch manifest: %s", err.Error())
+
+		switch err.(type) {
+		case urlfetcher.AccessDenied:
+			return nil, "", fmt.Errorf("pull access denied for %s, repository does not exist or may require 'docker login'", options.Reference.Name())
+
+		}
 		return nil, "", err
 	}
 
