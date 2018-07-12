@@ -17,9 +17,9 @@
 # Permalink to ESX build numbers/versions: https://kb.vmware.com/kb/2143832
 # Permalink to vCenter build numbers/versions: https://kb.vmware.com/kb/2143838
 
-# 6.0u3e
-ESX_60_VERSION="ob-7967664"
-VC_60_VERSION="ob-7924803"
+# 6.0u3
+ESX_60_VERSION="ob-5050593"
+VC_60_VERSION="ob-5112509" # the cloudvm build corresponding to the vpx build that is noted in the kb link above
 
 # 6.5u2b
 ESX_65_VERSION="ob-8935087"
