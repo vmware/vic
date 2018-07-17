@@ -1,10 +1,29 @@
 # VIC Engine Integration & Functional Test Suite
 
-To run the integration tests locally:
+Integration tests can be run locally in several different ways.
 
 ## Automatic with defaults
 
-Use ./local-integration-test.sh
+The recommended way to run integration tests is [local-integration-test.sh][sh].
+
+This script requires that `govc` is [installed][govc-install] and available on
+your `PATH`; that `docker` is installed, available on your `PATH`, and usable by
+your current user; and that the following environment variables are defined:
+
+* `GITHUB_TOKEN`: A GitHub API token, used for retrieving the status of GitHub
+  issues associated with disabled tests (to ensure tests are re-enabled if the
+  associated issue has been closed).
+* [`GOVC_URL`][govc-usage]: A valid `govc` URL including username and password.
+* `GOVC_DATASTORE` (optional): The datastore tests should use, if multiple exist
+  in the target environment.
+* `PUBLIC_NETWORK` (optional): The public network tests should use, if multiple
+  exist in the target environment.
+
+The script can be invoked with `-t` to specify a specific test, suite, or group.
+
+[sh]:local-integration-test.sh
+[govc-install]:https://github.com/vmware/govmomi/tree/master/govc#installation
+[govc-usage]:https://github.com/vmware/govmomi/tree/master/govc#usage
 
 ## Manually configure local Drone
 
