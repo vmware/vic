@@ -136,7 +136,7 @@ Pull non-existent image
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull fakebadimage
     Log  ${output}
     Should Be Equal As Integers  ${rc}  1
-    Should contain  ${output}  image library/fakebadimage not found
+    Should contain  ${output}  pull access denied
 
 Pull image from non-existent repo
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull fakebadrepo.com:9999/ubuntu
