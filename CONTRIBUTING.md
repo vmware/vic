@@ -90,7 +90,7 @@ easier to read by avoiding merge commits.
 
 Writing code that is easy to understand, debug, and modify is important to the
 long-term health of a project. To help achieve these goals, we have adopted
-coding style recommendations of the boarder software community.
+coding style recommendations of the broader software community.
 
 [Effective Go][effective-go] introduces and discusses many key ideas and the
 [Code Review Comments wiki][crc] lists many common mistakes.
@@ -145,7 +145,7 @@ Providing updates this way instead of amending your existing commit makes it
 easier for reviewers to see what has changed since they last looked at your
 pull request.
 
-You can use the `--fixup` and `--squah` options of `git commit` to communicate
+You can use the `--fixup` and `--squash` options of `git commit` to communicate
 your intent to combine these changes with a previous commit before merging.
 
 Be sure to add a comment to the PR indicating your new changes are ready to
@@ -221,21 +221,8 @@ integration tests on pull requests and pushed commits.
 
 By default, a pull request builds the project and runs compile-time tests,
 compile-time checks, and the "regression" integration test group. To customize
-the tests that run on a pull request, directives can be included in the body:
-
-- To skip all testing (e.g. for a work-in-progress PR), use `[skip ci]`.
-  - This must be included in the title of the pull request, not the body.
-- To run all integration tests, use `[full ci]`.
-- To run _specific_ integration tests, use `[specific ci=$test]`. This will run
-  the specified tests, suites, or groups in addition to the default regression
-  group. Examples:
-  - To run the `1-01-Docker-Info` suite: `[specific ci=1-01-Docker-Info]`
-  - To run all suites under the `Group1-Docker-Commands` group: `[specific ci=Group1-Docker-Commands]`
-  - To run several specific suites: `[specific ci=$test1 --suite $test2 --suite $test3]`.
-- To skip running the unit tests, use `[skip unit]`.
-- To make normal failures fatal during integration testing, use `[fast fail]`.
-- To specify a specific datastore, use `[shared datastore=nfs-datastore]`.
-- To specify the number of parallel jobs you want, use `[parallel jobs=2]`.
+the tests that run on a pull request, directives can be included in the body.
+The [pull request template](PULL_REQUEST_TEMPLATE.md) documents the supported directives and their use.
 
 Links to Drone builds results can be found within a pull request and on the list
 of changes pushed to a branch. Results can also be browsed [directly][dronevic].
@@ -258,7 +245,8 @@ For security reasons, your pull request build may fail if you are not a member
 of the `vmware` organization in GitHub. If this occurs, leave a comment on your
 pull request asking that the build be restarted by an organization member.
 
-To skip membership checking when restarting a build:
+When an organization member restarts a build submitted by a user who is not an
+organization member, they should include the `SKIP_CHECK_MEMBERSHIP` parameter:
 ```shell
 drone build start --param SKIP_CHECK_MEMBERSHIP=true vmware/vic <Build Number>
 ```
@@ -283,17 +271,18 @@ why; understanding your goal allows others to suggest potential workarounds. It
 should include specific details about what is (or isn't happening).
 
 Proactively including screenshots and logs can be very helpful. When including
-logs, please ensure that formatting is preserved by using [code blocks][code].
+log snippets in the body of an issue or a comment instead of as an attachment,
+please ensure that formatting is preserved by using [code blocks][code].
 Consider formatting longer logs so that they are not shown by default.
 
 Example:
-````
+```
 <detail><summary>View Logs</summary>
-```
+<pre><code>
 ... (log content)
-```
+</code></pre>
 </detail>
-````
+```
 
 [code]:https://help.github.com/articles/creating-and-highlighting-code-blocks/
 
