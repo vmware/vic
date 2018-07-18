@@ -75,13 +75,13 @@ Deploy Proxified VCH
     # We're just going to eschew helpers and install this VCH manually to avoid mutating hidden environmental state which is difficult to debug
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux create --name=VCH-XPLT --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --bridge-network=%{BRIDGE_NETWORK} --container-network=%{PUBLIC_NETWORK}:public --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --image-store=%{TEST_DATASTORE} --insecure-registry=http://${registry} --http-proxy http://${mitm}
     Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
 
     ${br2}=  Get Environment Variable  BRIDGE_NETWORK
     Set Environment Variable  BRIDGE_NETWORK_2  ${br2}
     # suite teardown fails if we don't set this back, and we're informed not to edit the Suite Teardown at the top of the file, so
     Set Environment Variable  BRIDGE_NETWORK  ${br1}
 
-    Should Be Equal As Integers  ${rc}  0
     ${rc}  ${vch2-params}=  Run And Return Rc And Output  echo '${output}' | grep -A1 "Connect to docker" | tail -n1 | cut -d' ' -f4- | sed 's/ info" $//g'
 
     # this comment fixes syntax highlighting "
