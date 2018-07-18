@@ -151,12 +151,22 @@ func ApplyDefaultULimit() {
 		log.Errorf("Cannot set ulimit for nofile: %s", err.Error())
 	}
 
+	// Setting the soft stack limit to Unlimited causes Linux to enable
+	// a legacy address-space-layout which is not acceptable to some
+	// applications. We leave the soft limit unchanged.
+	// Issue: https://github.com/vmware/vic/issues/8141
+	if err := syscall.Getrlimit(syscall.RLIMIT_STACK, &rLimit); err != nil {
+		log.Errorf("Cannot get ulimit for stack: %s ", err.Error())
+	}
+
+	// The hard limit can be safely set to Unlimited.
 	rLimit.Max = defaultULimit
-	rLimit.Cur = rLimit.Max
 	if err := syscall.Setrlimit(syscall.RLIMIT_STACK, &rLimit); err != nil {
 		log.Errorf("Cannot set ulimit for stack: %s ", err.Error())
 	}
 
+	rLimit.Max = defaultULimit
+	rLimit.Cur = rLimit.Max
 	if err := syscall.Setrlimit(syscall.RLIMIT_CORE, &rLimit); err != nil {
 		log.Errorf("Cannot set ulimit for core blocks: %s", err.Error())
 	}
