@@ -418,24 +418,6 @@ Fail to create a VCH specifying an ID
 #    Delete Path Under Target    vch/${id}
 
 
-Fail to create VCH where http != https (on http key/pair) in image_fetch_proxy - registry settings
-    Create VCH    '{"name":"%{VCH-NAME}-invalid_registry","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"${PUBLIC_NETWORK}"}}},"registry":{"image_fetch_proxy":{"http":"https://example.com","https":"https://example.com"},"insecure":["https://insecure.example.com"],"whitelist":["10.0.0.0/8"]},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
-
-    Verify Return Code
-    Verify Status Bad Request
-
-    Output Should Contain    error processing proxies: Could not parse HTTP proxy
-
-
-Fail to create VCH where https != http (on https key/pair) in image_fetch_proxy - registry settings
-    Create VCH    '{"name":"%{VCH-NAME}-invalid_registry","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"${PUBLIC_NETWORK}"}}},"registry":{"image_fetch_proxy":{"http":"http://example.com","https":"http://example.com"},"insecure":["https://insecure.example.com"],"whitelist":["10.0.0.0/8"]},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
-
-    Verify Return Code
-    Verify Status Bad Request
-
-    Output Should Contain    error processing proxies: Could not parse HTTPS proxy
-
-
 Fail to create VCH where whitelist contains an int and not string - registry settings
     Create VCH    '{"name":"%{VCH-NAME}-invalid_registry","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"${PUBLIC_NETWORK}"}}},"registry":{"image_fetch_proxy":{"http":"http://example.com","https":"https://example.com"},"insecure":["https://insecure.example.com"],"whitelist":[100008]},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
 
