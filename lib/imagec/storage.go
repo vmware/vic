@@ -15,7 +15,6 @@
 package imagec
 
 import (
-	"context"
 	"io"
 
 	log "github.com/Sirupsen/logrus"
@@ -31,18 +30,15 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-var (
-	ctx = context.TODO()
-)
-
 // PingPortLayer calls the _ping endpoint of the portlayer
-func PingPortLayer(host string) (bool, error) {
-	defer trace.End(trace.Begin(host))
+func PingPortLayer(op trace.Operation, host string) (bool, error) {
+	defer trace.End(trace.Begin(host, op))
+	opID := op.ID()
 
 	transport := rc.New(host, "/", []string{"http"})
 	client := apiclient.New(transport, nil)
 
-	ok, err := client.Misc.Ping(misc.NewPingParamsWithContext(ctx))
+	ok, err := client.Misc.Ping(misc.NewPingParamsWithContext(op).WithOpID(&opID))
 	if err != nil {
 		return false, err
 	}
@@ -50,8 +46,9 @@ func PingPortLayer(host string) (bool, error) {
 }
 
 // ListImages lists the images from given image store
-func ListImages(host, storename string, images []*ImageWithMeta) (map[string]*models.Image, error) {
-	defer trace.End(trace.Begin(storename))
+func ListImages(op trace.Operation, host, storename string, images []*ImageWithMeta) (map[string]*models.Image, error) {
+	defer trace.End(trace.Begin(storename, op))
+	opID := op.ID()
 
 	transport := rc.New(host, "/", []string{"http"})
 	client := apiclient.New(transport, nil)
@@ -63,7 +60,7 @@ func ListImages(host, storename string, images []*ImageWithMeta) (map[string]*mo
 	}
 
 	imageList, err := client.Storage.ListImages(
-		storage.NewListImagesParamsWithContext(ctx).WithStoreName(storename).WithIds(ids),
+		storage.NewListImagesParamsWithContext(op).WithOpID(&opID).WithStoreName(storename).WithIds(ids),
 	)
 	if err != nil {
 		return nil, err
@@ -78,8 +75,9 @@ func ListImages(host, storename string, images []*ImageWithMeta) (map[string]*mo
 }
 
 // WriteImage writes the image to given image store
-func WriteImage(host string, image *ImageWithMeta, data io.ReadCloser) error {
-	defer trace.End(trace.Begin(image.ID))
+func WriteImage(op trace.Operation, host string, image *ImageWithMeta, data io.ReadCloser) error {
+	defer trace.End(trace.Begin(image.ID, op))
+	opID := op.ID()
 
 	transport := rc.New(host, "/", []string{"http"})
 	client := apiclient.New(transport, nil)
@@ -96,7 +94,8 @@ func WriteImage(host string, image *ImageWithMeta, data io.ReadCloser) error {
 	*blob = image.Meta
 
 	r, err := client.Storage.WriteImage(
-		storage.NewWriteImageParamsWithContext(ctx).
+		storage.NewWriteImageParamsWithContext(op).
+			WithOpID(&opID).
 			WithImageID(image.ID).
 			WithParentID(image.Parent).
 			WithStoreName(image.Store).

@@ -36,6 +36,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 const (
@@ -99,7 +100,7 @@ const (
 )
 
 func TestParseReference(t *testing.T) {
-
+	op := trace.NewOperation(context.Background(), "TestParseReference")
 	options := Options{
 		Outstream: os.Stdout,
 	}
@@ -108,14 +109,14 @@ func TestParseReference(t *testing.T) {
 
 	ref, err := reference.ParseNamed("index.docker.io/library/busybox")
 	ic.Options.Reference = ref
-	ic.ParseReference()
+	ic.ParseReference(op)
 	assert.Equal(t, ic.Tag, reference.DefaultTag)
 	assert.Equal(t, ic.Image, BusyboxImage)
 	assert.Equal(t, ic.Registry, DefaultDockerURL)
 
 	ref, err = reference.ParseNamed("vmware/photon")
 	ic.Options.Reference = ref
-	ic.ParseReference()
+	ic.ParseReference(op)
 	assert.Equal(t, ic.Tag, reference.DefaultTag)
 	assert.Equal(t, ic.Image, "vmware/photon")
 	assert.Equal(t, ic.Registry, DefaultDockerURL)
@@ -125,7 +126,7 @@ func TestParseReference(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 	ic.Options.Reference = ref
-	ic.ParseReference()
+	ic.ParseReference(op)
 	assert.Equal(t, ic.Tag, reference.DefaultTag)
 	assert.Equal(t, ic.Image, BusyboxImage)
 	assert.Equal(t, ic.Registry, DefaultDockerURL)
@@ -135,7 +136,7 @@ func TestParseReference(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 	ic.Options.Reference = ref
-	ic.ParseReference()
+	ic.ParseReference(op)
 	assert.Equal(t, ic.Tag, reference.DefaultTag)
 	assert.Equal(t, ic.Image, BusyboxImage)
 	assert.Equal(t, ic.Registry, DefaultDockerURL)
@@ -145,7 +146,7 @@ func TestParseReference(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 	ic.Options.Reference = ref
-	ic.ParseReference()
+	ic.ParseReference(op)
 	assert.Equal(t, ic.Tag, reference.DefaultTag)
 	assert.Equal(t, ic.Image, BusyboxImage)
 	assert.Equal(t, ic.Registry, DefaultDockerURL)
@@ -164,14 +165,14 @@ func TestParseReference(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 	ic.Options.Reference = ref
-	ic.ParseReference()
+	ic.ParseReference(op)
 	assert.Equal(t, ic.Tag, "")
 	assert.Equal(t, ic.Image, BusyboxImage)
 	assert.Equal(t, ic.Registry, DefaultDockerURL)
 }
 
 func TestLearnRegistryURL(t *testing.T) {
-
+	op := trace.NewOperation(context.Background(), "TestLearnRegistryURL")
 	options := Options{
 		Outstream: os.Stdout,
 	}
@@ -191,20 +192,21 @@ func TestLearnRegistryURL(t *testing.T) {
 	ic.Options.Timeout = DefaultHTTPTimeout
 
 	// should fail
-	_, err := LearnRegistryURL(&ic.Options)
+	_, err := LearnRegistryURL(op, &ic.Options)
 	if err == nil {
 		t.Errorf(err.Error())
 	}
 
 	// should pass
 	ic.Options.InsecureAllowHTTP = true
-	_, err = LearnRegistryURL(&ic.Options)
+	_, err = LearnRegistryURL(op, &ic.Options)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
 }
 
 func TestLearnAuthURL(t *testing.T) {
+	op := trace.NewOperation(context.Background(), "TestLearnAuthURL")
 	var err error
 
 	options := Options{
@@ -230,7 +232,7 @@ func TestLearnAuthURL(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 
-	url, err := LearnAuthURL(ic.Options)
+	url, err := LearnAuthURL(op, ic.Options)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -241,7 +243,7 @@ func TestLearnAuthURL(t *testing.T) {
 }
 
 func TestFetchToken(t *testing.T) {
-
+	op := trace.NewOperation(context.Background(), "TestFetchToken")
 	options := Options{
 		Outstream: os.Stdout,
 		Timeout:   DefaultHTTPTimeout,
@@ -268,8 +270,7 @@ func TestFetchToken(t *testing.T) {
 	}
 	url.Path = path.Join(url.Path, "token?scope=repository%3Alibrary%2Fphoton%3Apull&service=registry.docker.io")
 
-	ctx := context.TODO()
-	token, err := FetchToken(ctx, ic.Options, url, ic.progressOutput)
+	token, err := FetchToken(op, ic.Options, url, ic.progressOutput)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -280,6 +281,7 @@ func TestFetchToken(t *testing.T) {
 }
 
 func TestFetchImageManifest(t *testing.T) {
+	op := trace.NewOperation(context.Background(), "TestFetchImageManifest")
 	var err error
 
 	options := Options{
@@ -316,8 +318,7 @@ func TestFetchImageManifest(t *testing.T) {
 
 	ic.Options.Destination = dir
 
-	ctx := context.TODO()
-	manifest, _, err := FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
+	manifest, _, err := FetchImageManifest(op, ic.Options, 1, ic.progressOutput)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -329,7 +330,7 @@ func TestFetchImageManifest(t *testing.T) {
 }
 
 func TestFetchImageBlob(t *testing.T) {
-
+	op := trace.NewOperation(context.Background(), "TestFetchImageBlob")
 	options := Options{
 		Outstream: os.Stdout,
 	}
@@ -398,7 +399,7 @@ func TestFetchImageBlob(t *testing.T) {
 		Meta:  LayerHistory,
 		Layer: FSLayer{BlobSum: DigestSHA256LayerContent},
 	}
-	diffID, err := FetchImageBlob(ctx, ic.Options, &image, ic.progressOutput)
+	diffID, err := FetchImageBlob(op, ic.Options, &image, ic.progressOutput)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -444,7 +445,7 @@ func TestFetchImageBlob(t *testing.T) {
 }
 
 func TestPingPortLayer(t *testing.T) {
-
+	op := trace.NewOperation(context.Background(), "TestPingPortLayer")
 	options := Options{
 		Outstream: os.Stdout,
 	}
@@ -460,14 +461,14 @@ func TestPingPortLayer(t *testing.T) {
 
 	ic.Options.Host = s.URL[7:]
 
-	b, err := PingPortLayer(ic.Host)
+	b, err := PingPortLayer(op, ic.Host)
 	if err != nil || b != true {
 		t.Errorf(err.Error())
 	}
 }
 
 func TestListImages(t *testing.T) {
-
+	op := trace.NewOperation(context.Background(), "TestListImages")
 	options := Options{
 		Outstream: os.Stdout,
 	}
@@ -497,7 +498,7 @@ func TestListImages(t *testing.T) {
 
 	ic.Options.Host = s.URL[7:]
 
-	m, err := ListImages(ic.Host, ic.Storename, nil)
+	m, err := ListImages(op, ic.Host, ic.Storename, nil)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -508,8 +509,8 @@ func TestListImages(t *testing.T) {
 }
 
 func TestFetchScenarios(t *testing.T) {
+	op := trace.NewOperation(context.Background(), "TestFetchScenarios")
 	var err error
-	ctx := context.TODO()
 
 	options := Options{
 		Outstream: os.Stdout,
@@ -567,7 +568,7 @@ func TestFetchScenarios(t *testing.T) {
 
 	ic.Options.Token = nil
 	// try without token, response will miss www-authenticate so we will retry (and fail eventually)
-	_, _, err = FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
+	_, _, err = FetchImageManifest(op, ic.Options, 1, ic.progressOutput)
 	if err == nil {
 		t.Errorf("Condition didn't fail (testing failure)")
 	}
@@ -575,7 +576,7 @@ func TestFetchScenarios(t *testing.T) {
 	// set the www-authenticate
 	wwwAuthenticate = true
 	// try without token, response will carry a valid www-authenticate so we won't retry
-	_, _, err = FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
+	_, _, err = FetchImageManifest(op, ic.Options, 1, ic.progressOutput)
 	if err != nil {
 		// we should get a DNR error
 		if _, isDNR := err.(urlfetcher.DoNotRetry); !isDNR {
@@ -590,7 +591,7 @@ func TestFetchScenarios(t *testing.T) {
 	// enable invalid token test
 	invalidToken = true
 	// valid token but faulty hub, we should retry but eventually fail
-	_, _, err = FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
+	_, _, err = FetchImageManifest(op, ic.Options, 1, ic.progressOutput)
 	if err == nil {
 		t.Errorf("Condition didn't fail (testing failure)")
 	}
@@ -599,7 +600,7 @@ func TestFetchScenarios(t *testing.T) {
 	// enable insufficient_scope test
 	insufficientScope = true
 	// valid token but image is missing we shouldn't retry
-	_, _, err = FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
+	_, _, err = FetchImageManifest(op, ic.Options, 1, ic.progressOutput)
 	if err != nil {
 		// we should get a ImageNotFoundError
 		if _, imageErr := err.(urlfetcher.ImageNotFoundError); !imageErr {
@@ -609,7 +610,7 @@ func TestFetchScenarios(t *testing.T) {
 	insufficientScope = false
 
 	// valid token, existing image, correct header. We should succeed
-	_, _, err = FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
+	_, _, err = FetchImageManifest(op, ic.Options, 1, ic.progressOutput)
 	if err != nil {
 		t.Errorf(err.Error())
 	}

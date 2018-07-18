@@ -656,7 +656,7 @@ func (v *Validator) reachableRegistries(op trace.Operation, input *data.Data, po
 
 		rs := r.String()
 		for _, s := range schemes {
-			if _, err = registry.Reachable(rs, s, "", "", nil, registryValidationTime, true); err == nil {
+			if _, err = registry.Reachable(op, rs, s, "", "", nil, registryValidationTime, true); err == nil {
 				break
 			}
 		}
@@ -692,7 +692,7 @@ func (v *Validator) reachableRegistries(op trace.Operation, input *data.Data, po
 			scheme = "https"
 		}
 
-		if _, err = registry.Reachable(w.String(), scheme, "", "", pool, registryValidationTime, false); err != nil {
+		if _, err = registry.Reachable(op, w.String(), scheme, "", "", pool, registryValidationTime, false); err != nil {
 			op.Warnf("Unable to confirm secure registry %s is a valid registry at this time.", w)
 		} else {
 			op.Debugf("Secure registry %s confirmed.", w)

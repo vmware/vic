@@ -161,7 +161,10 @@ func init() {
 }
 
 // ParseReference parses the -reference parameter and populate options struct
-func (ic *ImageC) ParseReference() {
+func (ic *ImageC) ParseReference(ctx context.Context) {
+	op := trace.FromContext(ctx, "ParseReference")
+	defer trace.End(trace.Begin(ic.Image, op))
+
 	if reference.IsNameOnly(ic.Reference) {
 		ic.Tag = reference.DefaultTag
 	} else {
@@ -226,7 +229,10 @@ func DestinationDirectory(options Options) string {
 }
 
 // LayersToDownload creates a slice of ImageWithMeta for the layers that need to be downloaded
-func (ic *ImageC) LayersToDownload() ([]*ImageWithMeta, error) {
+func (ic *ImageC) LayersToDownload(ctx context.Context) ([]*ImageWithMeta, error) {
+	op := trace.FromContext(ctx, "LayersToDownload")
+	defer trace.End(trace.Begin(ic.Image, op))
+
 	images := make([]*ImageWithMeta, len(ic.ImageManifestSchema1.FSLayers))
 
 	manifest := ic.ImageManifestSchema1
@@ -273,7 +279,10 @@ func (ic *ImageC) LayersToDownload() ([]*ImageWithMeta, error) {
 // UpdateRepositoryCache will update the repository cache
 // that resides in the docker persona.  This will add image tag,
 // digest and layer information.
-func UpdateRepoCache(ic *ImageC) error {
+func UpdateRepoCache(ctx context.Context, ic *ImageC) error {
+	op := trace.FromContext(ctx, "UpdateRepoCache")
+	defer trace.End(trace.Begin("", op))
+
 	// if standalone then no persona, so exit
 	if ic.Standalone {
 		return nil
@@ -317,8 +326,9 @@ func UpdateRepoCache(ic *ImageC) error {
 }
 
 // WriteImageBlob writes the image blob to the storage layer
-func (ic *ImageC) WriteImageBlob(image *ImageWithMeta, progressOutput progress.Output, cleanup bool) error {
-	defer trace.End(trace.Begin(image.Image.ID))
+func (ic *ImageC) WriteImageBlob(ctx context.Context, image *ImageWithMeta, progressOutput progress.Output, cleanup bool) error {
+	op := trace.FromContext(ctx, "WriteImageBlob")
+	defer trace.End(trace.Begin(image.Image.ID, op))
 
 	destination := DestinationDirectory(ic.Options)
 
@@ -347,7 +357,7 @@ func (ic *ImageC) WriteImageBlob(image *ImageWithMeta, progressOutput progress.O
 
 	if !ic.Standalone {
 		// Write the image
-		err = WriteImage(ic.Host, image, in)
+		err = WriteImage(op, ic.Host, image, in)
 		if err != nil {
 			return fmt.Errorf("Failed to write to image store: %s", err)
 		}
@@ -367,7 +377,9 @@ func (ic *ImageC) WriteImageBlob(image *ImageWithMeta, progressOutput progress.O
 }
 
 // CreateImageConfig constructs the image metadata from layers that compose the image
-func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConfig, error) {
+func (ic *ImageC) CreateImageConfig(ctx context.Context, images []*ImageWithMeta) (metadata.ImageConfig, error) {
+	op := trace.FromContext(ctx, "CreateImageConfig")
+	defer trace.End(trace.Begin(ic.Image, op))
 
 	imageLayer := images[0] // the layer that represents the actual image
 
@@ -464,8 +476,11 @@ func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConf
 }
 
 // PullImage pulls an image from docker hub
-func (ic *ImageC) PullImage() error {
-	ctx, cancel := context.WithTimeout(ctx, ic.Options.Timeout)
+func (ic *ImageC) PullImage(ctx context.Context) error {
+	op := trace.FromContext(ctx, "PullImage")
+	defer trace.End(trace.Begin(ic.Image, op))
+
+	ctx, cancel := context.WithTimeout(op, ic.Options.Timeout)
 	defer cancel()
 
 	// Authenticate, get URL, get token
@@ -484,7 +499,7 @@ func (ic *ImageC) PullImage() error {
 	log.Infof("Manifest for image = %#v", ic.ImageManifestSchema1)
 
 	// Get layers to download from manifest
-	layers, err := ic.LayersToDownload()
+	layers, err := ic.LayersToDownload(op)
 	if err != nil {
 		return err
 	}
@@ -500,10 +515,11 @@ func (ic *ImageC) PullImage() error {
 
 // ListLayer prints out the layers for an image to progress.  This is used by imagec standalone binary
 // for debug/validation.
-func (ic *ImageC) ListLayers() error {
-	defer trace.End(trace.Begin(""))
+func (ic *ImageC) ListLayers(ctx context.Context) error {
+	op := trace.FromContext(ctx, "ListLayers")
+	defer trace.End(trace.Begin(ic.Image, op))
 
-	ctx, cancel := context.WithTimeout(ctx, ic.Options.Timeout)
+	ctx, cancel := context.WithTimeout(op, ic.Options.Timeout)
 	defer cancel()
 
 	// Authenticate, get URL, get token
@@ -521,7 +537,7 @@ func (ic *ImageC) ListLayers() error {
 	}
 
 	// Get layers to download from manifest
-	layers, err := ic.LayersToDownload()
+	layers, err := ic.LayersToDownload(ctx)
 	if err != nil {
 		return err
 	}
@@ -536,9 +552,11 @@ func (ic *ImageC) ListLayers() error {
 
 // prepareTransfer Looks up URLs and fetch auth token
 func (ic *ImageC) prepareTransfer(ctx context.Context) error {
+	op := trace.FromContext(ctx, "prepareTransfer")
+	defer trace.End(trace.Begin(ic.Image, op))
 
 	// Parse the -reference parameter
-	ic.ParseReference()
+	ic.ParseReference(op)
 
 	// Host is either the host's UUID (if run on vsphere) or the hostname of
 	// the system (if run standalone)
@@ -561,7 +579,7 @@ func (ic *ImageC) prepareTransfer(ctx context.Context) error {
 		log.Debugf("Running with portlayer")
 
 		// Ping the server to ensure it's at least running
-		ok, err := PingPortLayer(ic.Host)
+		ok, err := PingPortLayer(op, ic.Host)
 		if err != nil || !ok {
 			log.Errorf("Failed to ping portlayer: %s", err)
 			return err
@@ -571,14 +589,14 @@ func (ic *ImageC) prepareTransfer(ctx context.Context) error {
 	}
 
 	// Calculate (and overwrite) the registry URL and make sure that it responds to requests
-	ic.Registry, err = LearnRegistryURL(&ic.Options)
+	ic.Registry, err = LearnRegistryURL(op, &ic.Options)
 	if err != nil {
 		log.Errorf("Error while pulling image: %s", err)
 		return err
 	}
 
 	// Get the URL of the OAuth endpoint
-	url, err := LearnAuthURL(ic.Options)
+	url, err := LearnAuthURL(op, ic.Options)
 	if err != nil {
 		log.Warnf("LearnAuthURL returned %s", err.Error())
 		switch err := err.(type) {
@@ -591,7 +609,7 @@ func (ic *ImageC) prepareTransfer(ctx context.Context) error {
 
 	// Get the OAuth token - if only we have a URL
 	if url != nil {
-		token, err := FetchToken(ctx, ic.Options, url, ic.progressOutput)
+		token, err := FetchToken(op, ic.Options, url, ic.progressOutput)
 		if err != nil {
 			log.Errorf("Failed to fetch OAuth token: %s", err)
 			return err
@@ -604,8 +622,11 @@ func (ic *ImageC) prepareTransfer(ctx context.Context) error {
 
 // pullManifest attempts to pull manifest for an image.  Attempts to get schema 2 but will fall back to schema 1.
 func (ic *ImageC) pullManifest(ctx context.Context) error {
+	op := trace.FromContext(ctx, "pullManifest")
+	defer trace.End(trace.Begin(ic.Image, op))
+
 	// Get the schema1 manifest
-	manifest, digest, err := FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
+	manifest, digest, err := FetchImageManifest(op, ic.Options, 1, ic.progressOutput)
 	if err != nil {
 		log.Infof(err.Error())
 		switch err := err.(type) {
@@ -627,7 +648,7 @@ func (ic *ImageC) pullManifest(ctx context.Context) error {
 	ic.ManifestDigest = digest
 
 	// Attempt to get schema2 manifest
-	manifest, digest, err = FetchImageManifest(ctx, ic.Options, 2, ic.progressOutput)
+	manifest, digest, err = FetchImageManifest(op, ic.Options, 2, ic.progressOutput)
 	if err == nil {
 		if schema2, ok := manifest.(*schema2.DeserializedManifest); ok {
 			if schema2 != nil {

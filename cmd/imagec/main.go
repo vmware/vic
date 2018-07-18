@@ -181,6 +181,8 @@ func main() {
 		log.SetOutput(io.MultiWriter(os.Stdout, f))
 	}
 
+	op := optrace.NewOperation(context.Background(), "imagec")
+
 	switch imageCOptions.operation {
 	case PullImage:
 		options := imageCOptions.options
@@ -188,7 +190,7 @@ func main() {
 		options.Outstream = os.Stdout
 
 		ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
-		if err := ic.PullImage(); err != nil {
+		if err := ic.PullImage(op); err != nil {
 			log.Fatalf("Pulling image failed due to %s\n", err)
 		}
 	case PushImage:
@@ -199,7 +201,7 @@ func main() {
 		options.Outstream = os.Stdout
 
 		ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
-		if err := ic.ListLayers(); err != nil {
+		if err := ic.ListLayers(op); err != nil {
 			log.Fatalf("Listing layers for image failed due to %s\n", err)
 		}
 	case Save:
@@ -209,7 +211,7 @@ func main() {
 
 		ap := archiveProxy(options.Host)
 		ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
-		if err := saveImage(ap, ic); err != nil {
+		if err := saveImage(op, ap, ic); err != nil {
 			log.Fatalf("Saving image %s failed due to %s\n", options.Reference.String(), err)
 		}
 	default:
@@ -217,13 +219,13 @@ func main() {
 	}
 }
 
-func saveImage(ap proxy.VicArchiveProxy, ic *imagec.ImageC) error {
+func saveImage(op optrace.Operation, ap proxy.VicArchiveProxy, ic *imagec.ImageC) error {
 	log.Debugf("Save image %s", ic.Options.Reference)
-	err := ic.ListLayers()
+	err := ic.ListLayers(op)
 	if err != nil {
 		return err
 	}
-	layers, err := ic.LayersToDownload()
+	layers, err := ic.LayersToDownload(op)
 	if err != nil {
 		return err
 	}

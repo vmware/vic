@@ -15,10 +15,13 @@
 package imagec
 
 import (
+	"context"
 	"testing"
 
 	"github.com/docker/docker/reference"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/vmware/vic/pkg/trace"
 )
 
 const (
@@ -79,12 +82,13 @@ const (
 )
 
 func TestGetManifestDigest(t *testing.T) {
+	op := trace.NewOperation(context.Background(), "TestGetManifestDigest")
 	// Get the manifest content when the image is not pulled by digest
 	ref, err := reference.ParseNamed(UbuntuTaggedRef)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
-	digest, err := getManifestDigest([]byte(UbuntuDigestManifest), ref)
+	digest, err := getManifestDigest(op, []byte(UbuntuDigestManifest), ref)
 	assert.NoError(t, err)
 	assert.Equal(t, digest, UbuntuDigestSHA)
 
@@ -95,11 +99,11 @@ func TestGetManifestDigest(t *testing.T) {
 	}
 	_, ok := ref.(reference.Canonical)
 	assert.True(t, ok)
-	digest, err = getManifestDigest([]byte(UbuntuDigestManifest), ref)
+	digest, err = getManifestDigest(op, []byte(UbuntuDigestManifest), ref)
 	assert.NoError(t, err)
 	assert.Equal(t, digest, UbuntuDigestSHA)
 
 	// Attempt to get and verify an incorrect manifest content with the digest
-	digest, err = getManifestDigest([]byte(DefaultManifest), ref)
+	digest, err = getManifestDigest(op, []byte(DefaultManifest), ref)
 	assert.NotNil(t, err)
 }
