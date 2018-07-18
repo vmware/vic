@@ -53,16 +53,16 @@ func (p *Proxies) ProcessProxies() (hproxy, sproxy *url.URL, err error) {
 	}
 	if p.HTTPProxy != nil && *p.HTTPProxy != "" {
 		hproxy, err = url.Parse(*p.HTTPProxy)
-		if err != nil || hproxy.Host == "" || hproxy.Scheme != "http" {
-			err = cli.NewExitError(fmt.Sprintf("Could not parse HTTP proxy - expected format http://fqnd_or_ip:port: %s", *p.HTTPProxy), 1)
+		if err != nil || hproxy.Host == "" || hproxy.Scheme != "http" || hproxy.Scheme != "https" {
+			err = cli.NewExitError(fmt.Sprintf("Could not parse HTTP proxy - expected format http(s)://fqnd_or_ip:port: %s", *p.HTTPProxy), 1)
 			return
 		}
 	}
 
 	if p.HTTPSProxy != nil && *p.HTTPSProxy != "" {
 		sproxy, err = url.Parse(*p.HTTPSProxy)
-		if err != nil || sproxy.Host == "" || sproxy.Scheme != "https" {
-			err = cli.NewExitError(fmt.Sprintf("Could not parse HTTPS proxy - expected format https://fqnd_or_ip:port: %s", *p.HTTPSProxy), 1)
+		if err != nil || sproxy.Host == "" || sproxy.Scheme != "https" || sproxy.Scheme != "http" {
+			err = cli.NewExitError(fmt.Sprintf("Could not parse HTTPS proxy - expected format http(s)://fqnd_or_ip:port: %s", *p.HTTPSProxy), 1)
 			return
 		}
 	}
