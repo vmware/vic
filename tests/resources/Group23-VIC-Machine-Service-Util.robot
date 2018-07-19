@@ -23,6 +23,7 @@ ${RC}            The return code of the last curl invocation
 ${OUTPUT}        The output of the last curl invocation
 ${STATUS}        The HTTP status of the last curl invocation
 
+${VIC_MACHINE_SERVER_BIN}    ./bin/vic-machine-server
 ${VIC_MACHINE_SERVER_LOG}    vic-machine-server.log
 ${SERVING_AT_TEXT}           Serving vic machine at
 
@@ -32,7 +33,7 @@ Start VIC Machine Server
     ${dir_name}=  Evaluate  'group23_log_dir' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable    ${SERVER_LOG_FILE}    ${dir_name}/${VIC_MACHINE_SERVER_LOG}
 
-    ${handle}=    Start Process    ./bin/vic-machine-server --scheme http --log-directory ${dir_name}/    shell=True    cwd=/go/src/github.com/vmware/vic
+    ${handle}=    Start Process    ${VIC_MACHINE_SERVER_BIN} --scheme http --log-directory ${dir_name}/    shell=True    cwd=/go/src/github.com/vmware/vic
     Set Suite Variable    ${SERVER_HANDLE}    ${handle}
     Process Should Be Running    ${handle}
     Sleep  5sec
