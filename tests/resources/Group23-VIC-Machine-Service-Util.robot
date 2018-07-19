@@ -14,7 +14,9 @@
 
 *** Settings ***
 Documentation    This resource contains keywords which are helpful for using curl to test the vic-machine API.
-Library  Process
+Library          Process
+Resource         HTTP-Util.robot
+
 
 *** Variables ***
 ${RC}            The return code of the last curl invocation
@@ -99,30 +101,6 @@ Delete Path Under Target
 Verify Return Code
     Should Be Equal As Integers    ${RC}    0
 
-Verify Status
-    [Arguments]    ${expected}
-    Should Be Equal As Integers    ${expected}    ${STATUS}
-
-Verify Status Ok
-    Verify Status    200
-
-Verify Status Created
-    Verify Status    201
-
-Verify Status Accepted
-    Verify Status    202
-
-Verify Status Bad Request
-    Verify Status    400
-
-Verify Status Not Found
-    Verify Status    404
-
-Verify Status Unprocessable Entity
-    Verify Status    422
-
-Verify Status Internal Server Error
-    Verify Status    500
 
 Output Should Contain
     [Arguments]    ${expected}
