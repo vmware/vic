@@ -250,3 +250,10 @@ Attempt docker pull mitm
     Enable SSH on MITMed VCH
     Check For Injected Binary  ${vch2-IP}
     [Teardown]  Destroy Proxified VCH
+
+Pull from docker store
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=victest --password=%{REGISTRY_PASSWORD}
+    Should Contain  ${output}  Login Succeeded
+    Should Be Equal As Integers  ${rc}  0
+
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  store/ibmcorp/mqadvanced-server-dev:9.0.5.0
