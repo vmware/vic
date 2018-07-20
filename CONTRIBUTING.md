@@ -42,6 +42,7 @@ See the [README](README.md#building) for build instructions.
 
 [fork]:https://help.github.com/articles/fork-a-repo/
 [installed]:https://golang.org/doc/install
+[hub]:http://hub.github.com/
 
 
 ## Contribution flow
