@@ -585,7 +585,7 @@ func (t *attachServerSSH) globalMux(in <-chan *ssh.Request, cleanup func()) {
 			payload = msg.Marshal()
 		case msgs.VersionReq:
 			msg := msgs.VersionMsg{
-				Version: feature.MaxPluginVersion - 1,
+				Version: feature.PluginVersion,
 			}
 			payload = msg.Marshal()
 		default:

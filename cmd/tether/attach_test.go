@@ -393,7 +393,7 @@ func TestAttachTTY(t *testing.T) {
 	defer sConn.Close()
 	client := ssh.NewClient(sConn, chans, reqs)
 
-	session, err := communication.NewSSHInteraction(client, cfg.ID, feature.MaxPluginVersion-1)
+	session, err := communication.NewSSHInteraction(client, cfg.ID, feature.PluginVersion)
 	assert.NoError(t, err)
 
 	stdout := session.Stdout()
@@ -498,7 +498,7 @@ func TestAttachTTYStdinClose(t *testing.T) {
 	ssh.NewClient(sshConn, chans, reqs)
 	_, err = communication.ContainerIDs(sshConn)
 	assert.NoError(t, err)
-	sshSession, err := communication.NewSSHInteraction(sshConn, cfg.ID, feature.MaxPluginVersion-1)
+	sshSession, err := communication.NewSSHInteraction(sshConn, cfg.ID, feature.PluginVersion)
 	assert.NoError(t, err)
 
 	// unblock before grabbing stdout - this should buffer in ssh

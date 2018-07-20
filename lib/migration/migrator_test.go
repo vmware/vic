@@ -77,7 +77,7 @@ func TestMigrateConfigure(t *testing.T) {
 	assert.True(t, migrated, "should be migrated")
 
 	latestVer := newData[manager.ApplianceVersionKey]
-	assert.Equal(t, strconv.Itoa(feature.MaxPluginVersion-1), latestVer, "upgrade version mismatch")
+	assert.Equal(t, strconv.Itoa(feature.PluginVersion), latestVer, "upgrade version mismatch")
 
 	// check new data
 	var found bool

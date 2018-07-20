@@ -73,7 +73,7 @@ func TestContainers(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	s := &VersionMsg{Version: feature.MaxPluginVersion - 1}
+	s := &VersionMsg{Version: feature.PluginVersion}
 
 	assert.Equal(t, s.RequestType(), VersionReq)
 
