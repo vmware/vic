@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"time"
 	// imported for the side effect
 	_ "net/http/pprof"
 	"net/url"
@@ -61,7 +62,13 @@ func init() {
 	debugLevel = vchConfig.ExecutorConfig.Diagnostics.DebugLevel
 }
 
+// GetPprofEndpoint determines on which interface the pprof server should be launched. This makes
+// an explicit assumption that there will be a `client.localhost` name when running in debug modes.
 func GetPprofEndpoint(component PprofPort) *url.URL {
+	return getEndpoint(component, debugLevel)
+}
+
+func getEndpoint(component PprofPort, debug int) *url.URL {
 	if component >= maxPort {
 		return nil
 	}
@@ -70,12 +77,18 @@ func GetPprofEndpoint(component PprofPort) *url.URL {
 	ip := "127.0.0.1"
 	// exposing this data on an external port definitely counts as a change of behaviour,
 	// so this is > 1, just debug on/off.
-	if debugLevel > 1 {
-		ips, err := net.LookupIP("client.localhost")
-		if err != nil || len(ips) == 0 {
-			log.Warnf("Unable to resolve 'client.localhost': ", err)
-		} else {
+	if debug > 1 {
+		log.Debugf("Waiting for client.localhost to resolve before launching pprof")
+		for {
+			ips, err := net.LookupIP("client.localhost")
+			if err != nil || len(ips) == 0 {
+				log.Warnf("Unable to resolve 'client.localhost': ", err)
+				time.Sleep(time.Second)
+				continue
+			}
+
 			ip = ips[0].String()
+			break
 		}
 	}
 
@@ -87,16 +100,20 @@ func GetPprofEndpoint(component PprofPort) *url.URL {
 }
 
 func StartPprof(name string, component PprofPort) error {
-	url := GetPprofEndpoint(component)
-	if url == nil {
-		err := fmt.Errorf("Unable to get pprof endpoint for %s.", name)
-		log.Error(err.Error())
-		return err
-	}
-	location := url.String()[7:] // Strip off leading "http://"
-
-	log.Info(fmt.Sprintf("Launching %s pprof server on %s", name, location))
 	go func() {
+		url := getEndpoint(component, debugLevel)
+		if url == nil {
+			log.Errorf("Unable to get pprof endpoint for %s, reverting to localhost.", name)
+			url = getEndpoint(component, 0)
+			if url == nil {
+				log.Errorf("Unable to construct localhost pprof endpoint for %s, giving up", name)
+				return
+			}
+		}
+
+		location := url.String()[7:] // Strip off leading "http://"
+
+		log.Info(fmt.Sprintf("Launching %s pprof server on %s", name, location))
 		log.Info(http.ListenAndServe(location, nil))
 	}()
 
