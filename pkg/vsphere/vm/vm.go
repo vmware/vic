@@ -1000,3 +1000,9 @@ func (vm *VirtualMachine) InCluster(op trace.Operation) bool {
 	op.Debugf("vm compute resource: %s", vm.Cluster.Name())
 	return cls
 }
+
+// IsAlreadyPoweredOffError is an accessor method because of the number of times package name and
+// variable name tend to collide for VMs.
+func (vm *VirtualMachine) IsAlreadyPoweredOffError(err error) bool {
+	return tasks.IsAlreadyPoweredOffError(err)
+}
