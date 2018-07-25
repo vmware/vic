@@ -379,7 +379,7 @@ func (v *Validator) QueryVCHStatus(ctx context.Context, vch *config.VirtualConta
 
 	for service, proc := range procs {
 		log.Infof("Checking status of %s", proc)
-		pid, err := ioutil.ReadFile(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(), proc)))
+		pid, err := ioutil.ReadFile(fmt.Sprintf("%s.pid", path.Join(shared.PIDFileDir(nil), proc)))
 		if err != nil {
 			// #nosec: this method will not auto-escape HTML. Verify data is well formed.
 			v.VCHIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s service is not running</span>\n",

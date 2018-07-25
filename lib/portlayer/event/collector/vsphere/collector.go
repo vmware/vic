@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"time"
 
 	"github.com/vmware/vic/lib/portlayer/event/events"
 
@@ -37,6 +38,7 @@ type EventCollector struct {
 	vmwManager *vmwEvents.Manager
 	mos        monitoredCache
 	callback   func(events.Event)
+	cancel     context.CancelFunc
 
 	lastProcessedID int32
 }
@@ -102,10 +104,10 @@ func (ec *EventCollector) monitoredObjects() []types.ManagedObjectReference {
 	return refs
 }
 func (ec *EventCollector) Stop() {
-	_, err := ec.vmwManager.Destroy(context.Background())
-	if err != nil {
-		log.Warnf("%s failed to destroy the govmomi manager: %s", name, err.Error())
-	}
+	// End the event collection
+	ec.cancel()
+
+	// Deletion of the event history collector is handled in govmomi when the main ec.vmwManager.Events exits
 }
 
 // eventTypes is used to filter the event collector so we only receive these event types.
@@ -142,7 +144,8 @@ func (ec *EventCollector) Start() error {
 	log.Debugf("%s starting collection for %d managed objects", name, len(refs))
 
 	// we don't want the event listener to timeout
-	ctx := context.Background()
+	controlContext, cancel := context.WithCancel(context.Background())
+	ec.cancel = cancel
 
 	// pageSize is the number of events on the last page of the eventCollector
 	// as new events are added the oldest are removed.  Originally this value
@@ -171,7 +174,7 @@ func (ec *EventCollector) Start() error {
 		// the manager will be closed with the session
 
 		for {
-			err := ec.vmwManager.Events(ctx, refs, pageSize, followStream, force, func(_ types.ManagedObjectReference, page []types.BaseEvent) error {
+			err := ec.vmwManager.Events(controlContext, refs, pageSize, followStream, force, func(_ types.ManagedObjectReference, page []types.BaseEvent) error {
 				evented(ec, page)
 				return nil
 			}, eventTypes...)
@@ -179,7 +182,12 @@ func (ec *EventCollector) Start() error {
 			if err != nil {
 				log.Debugf("Error configuring %s: %s", name, err.Error())
 			}
+
+			// this is a VERY basic throttle so that we don't DoS the remote when the client is NotAuthenticated.
+			// this should be removed/replaced once there is structured connection management in place to trigger re-authentication as required.
+			time.Sleep(2 * time.Second)
 		}
+
 	}(pageSize, followStream, force, refs, ec)
 
 	return nil

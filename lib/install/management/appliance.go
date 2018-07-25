@@ -42,6 +42,7 @@ import (
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/spec"
+	"github.com/vmware/vic/lib/tether/shared"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/retry"
@@ -139,6 +140,53 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 	return err
 }
 
+func (d *Dispatcher) powerOffVM(vm *vm.VirtualMachine) error {
+	var err error
+	power, err := vm.PowerState(d.op)
+	if err == nil && power == types.VirtualMachinePowerStatePoweredOff {
+		d.op.Debugf("VM is already powered off: %s", vm.Reference())
+		return nil
+	}
+
+	if err != nil {
+		d.op.Warnf("Failed to get vm power status %q: %s", vm.Reference(), err)
+	}
+
+	// try guest shutdown first
+	tools, err := vm.IsToolsRunning(d.op)
+	if tools {
+		d.op.Debugf("Performing guest shutdown for %s", vm.Reference())
+		err = vm.ShutdownGuest(d.op)
+		if err == nil {
+			// just enough time for the endpoint to shutdown cleanly even having timed out internally
+			timeout, cancel := trace.WithTimeout(&d.op, shared.GuestShutdownTimeout+(5*time.Second), "Shut down endpointVM")
+			err = vm.WaitForPowerState(timeout, types.VirtualMachinePowerStatePoweredOff)
+			cancel()
+			if err == nil {
+				return nil
+			}
+
+			d.op.Warnf("Guest shutdown timed out, resorting to power off - sessions may be left open: %s", err)
+		}
+
+		// this may well be because of delay in reporting the VM powering off so the actual detail is recorded as debug
+		// if this is the case then we will catch it via the IsAlreadyPoweredOff call below
+		d.op.Debugf("Guest shutdown failed: %s", err)
+	} else {
+		d.op.Warnf("Guest tools unavailable, resorting to power off - sessions will be left open")
+	}
+
+	_, err = vm.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
+		return vm.PowerOff(ctx)
+	})
+
+	if vm.IsAlreadyPoweredOffError(err) {
+		err = nil
+	}
+
+	return err
+}
+
 func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("vm %q, force %t", vm.String(), force)))
 
@@ -160,9 +208,9 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 			}
 			return err
 		}
-		if _, err = vm.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-			return vm.PowerOff(ctx)
-		}); err != nil {
+
+		err = d.powerOffVM(vm)
+		if err != nil {
 			d.op.Debugf("Failed to power off existing appliance for %s, try to remove anyway", err)
 		}
 	}

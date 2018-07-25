@@ -154,6 +154,18 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 	return nil
 }
 
+// Finalize performs cleanup before a graceful exit of the API server.
+// In this case that means logging out the dynamic config session if any.
+func Finalize(ctx context.Context) error {
+	log.Info("Shutting down docker API server backend")
+
+	if vchConfig != nil && vchConfig.sess != nil {
+		vchConfig.sess.Logout(ctx)
+	}
+
+	return nil
+}
+
 func hydrateCaches(op trace.Operation) error {
 	const waiters = 3
 

@@ -285,18 +285,10 @@ func (d *Dispatcher) deleteISOs(ds *object.Datastore, settings *data.InstallerDa
 func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(conf.Name, d.op))
 
-	power, err := d.appliance.PowerState(d.op)
+	err := d.powerOffVM(d.appliance)
 	if err != nil {
-		d.op.Errorf("Failed to get vm power status %q: %s", d.appliance.Reference(), err)
+		d.op.Errorf("Failed to power off appliance: %s", err)
 		return err
-	}
-	if power != types.VirtualMachinePowerStatePoweredOff {
-		if _, err = d.appliance.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
-			return d.appliance.PowerOff(ctx)
-		}); err != nil {
-			d.op.Errorf("Failed to power off appliance: %s", err)
-			return err
-		}
 	}
 
 	isoFile := ""

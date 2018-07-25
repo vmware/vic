@@ -121,16 +121,30 @@ func halt() {
 	syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
 }
 
+// This code is mirrored in cmd/vic-init/main_linux.go and should be de-duped
 func startSignalHandler() {
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGHUP)
+	// currently using a really basic set of signal behaviours, reflected from here:
+	//    https://github.com/troglobit/finit/blob/master/docs/signals.md
+	// itself sourced from here:
+	//    https://unix.stackexchange.com/a/191875
+	// This set was chosen because of suitably limited scope vs the complexity of systemd or similar.
+	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGUSR1, syscall.SIGUSR2, syscall.SIGPWR, syscall.SIGTERM, syscall.SIGINT)
 
 	go func() {
 		for s := range sigs {
 			switch s {
 			case syscall.SIGHUP:
-				log.Infof("Reloading tether configuration")
+				log.Infof("Reloading tether configuration via signal %s", s.String())
 				tthr.Reload()
+			case syscall.SIGUSR1, syscall.SIGUSR2, syscall.SIGPWR:
+				log.Infof("Stopping tether via signal %s", s.String())
+				tthr.Stop()
+			case syscall.SIGTERM, syscall.SIGINT:
+				log.Infof("Stopping system in lieu of restart handling via signal %s", s.String())
+				// TODO: update this to adjust power off handling for reboot
+				// this should be in guest reboot rather than power cycle
+				tthr.Stop()
 			default:
 				log.Infof("%s signal not defined", s.String())
 			}

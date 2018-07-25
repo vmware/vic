@@ -91,6 +91,14 @@ func Init(ctx context.Context, session *session.Session, pool *object.ResourcePo
 	return err
 }
 
+// TODO: figure out why the Init calls are wrapped in once.Do - implies it can be called
+// multiple times, but once Finalize is called things will not be functional.
+func Finalize(ctx context.Context) error {
+	Config.ContainerView.Destroy(ctx)
+
+	return nil
+}
+
 // RegisterImporter registers the specified importer against the provided store for later retrieval.
 func RegisterImporter(op trace.Operation, store string, i Importer) {
 	op.Infof("Registering importer: %s => %T", store, i)
