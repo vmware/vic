@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -58,11 +59,19 @@ func create(ctx context.Context, session *session.Session, pool *object.Resource
 
 	mngr := view.NewManager(session.Vim25())
 
+	op := trace.FromContext(ctx, "storage component initialization")
+
 	// Create view of VirtualMachine objects under the VCH's resource pool
-	Config.ContainerView, err = mngr.CreateContainerView(ctx, pool.Reference(), []string{"VirtualMachine"}, true)
+	Config.ContainerView, err = mngr.CreateContainerView(op, pool.Reference(), []string{"VirtualMachine"}, true)
 	if err != nil {
 		return err
 	}
+
+	Config.DiskManager, err = disk.NewDiskManager(op, session, Config.ContainerView)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
