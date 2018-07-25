@@ -529,7 +529,7 @@ func newSession(ctx context.Context, config *config.VirtualContainerHostConfigSp
 		User:       url.UserPassword(config.Username, config.Token),
 		Thumbprint: config.TargetThumbprint,
 		Keepalive:  defaultSessionKeepAlive,
-		UserAgent:  version.UserAgent("vic-engine"),
+		UserAgent:  version.UserAgent("vic-dynamic-config"),
 	}
 
 	sess := session.NewSession(sessCfg)
