@@ -34,6 +34,7 @@ import (
 	"github.com/vmware/vic/lib/iolog"
 	"github.com/vmware/vic/lib/portlayer/event/events"
 	stateevents "github.com/vmware/vic/lib/portlayer/event/events/vsphere"
+	"github.com/vmware/vic/lib/tether/shared"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
@@ -475,7 +476,7 @@ func (c *Container) Signal(op trace.Operation, num int64) error {
 		return c.containerBase.kill(op)
 	}
 
-	return c.startGuestProgram(op, "kill", fmt.Sprintf("%d", num))
+	return c.startGuestProgram(op, shared.GuestActionKill, fmt.Sprintf("%d", num))
 }
 
 func (c *Container) onStop() {

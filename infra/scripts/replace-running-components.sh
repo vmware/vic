@@ -152,7 +152,7 @@ function replace-component() {
     if [[ $1 == "vic-init" ]]; then
         on-vch systemctl restart vic-init
     else
-        on-vch kill -9 $pid
+        on-vch kill -TERM $pid
     fi
 }
 

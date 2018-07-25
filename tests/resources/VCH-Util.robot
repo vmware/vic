@@ -379,8 +379,21 @@ Run VIC Machine Delete Command
     ${ret}=  Run  govc find %{TEST_DATACENTER}/vm -type f
     Should Not Contain  ${ret}  %{VCH-NAME}
 
+    # confirm that no sessions are left open
+    Run Keyword If  '%{VCH-IP}' != ''  Check vSphere Sessions Are Reaped
+
     ${output}=  Run  rm -rf %{VCH-NAME}
     [Return]  ${output}
+
+Check vSphere Sessions Are Reaped
+    ${rc}  ${sessions}=  Run And Return Rc And Output  govc session.ls
+    Should Be Equal As Integers  ${rc}  0
+    Log  ${sessions}
+    # This filters for -dev tag to avoid matching on sessions during upgrade tests. Ideally this would be updated
+    # to check the VCH name if/when we change the client identifier to include that
+    ${lines}=  Get Lines Matching Regexp  ${sessions}  %{VCH-IP}${SPACE}.*-dev  partial_match=true
+    ${len}=  Get Length  ${lines}
+    Run Keyword If  ${len} > 0  Log  Dangling sessions found: ${lines}  level=WARN
 
 Run VIC Machine Inspect Command
     [Arguments]  ${name}=%{VCH-NAME}

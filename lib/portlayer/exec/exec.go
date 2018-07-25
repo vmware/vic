@@ -179,6 +179,16 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 	return initializer.err
 }
 
+func Finalize(ctx context.Context) error {
+	collectors := Config.EventManager.Collectors()
+	for name, collector := range collectors {
+		log.Infof("Shutting down event collector %s", name)
+		collector.Stop()
+	}
+
+	return nil
+}
+
 // publishContainerEvent will publish a ContainerEvent to the vic event stream
 func publishContainerEvent(op trace.Operation, id string, created time.Time, eventType string) {
 	if Config.EventManager == nil || eventType == "" {
