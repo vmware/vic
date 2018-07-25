@@ -325,11 +325,11 @@ func (c *containerBase) kill(op trace.Operation) error {
 		timeout.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c, sig)
 	}
 	if err != nil {
-		timeout.Warnf("killing %s attempt resulted in: %s", c, err.Error())
-
-		if tasks.IsInvalidPowerStateError(err) {
+		if tasks.IsAlreadyPoweredOffError(err) {
 			return nil
 		}
+
+		timeout.Warnf("killing %s attempt resulted in: %s", c, err.Error())
 	}
 
 	// Even if startGuestProgram failed above, it may actually have executed.  If the container came up and then
@@ -393,7 +393,7 @@ func (c *containerBase) shutdown(op trace.Operation, waitTime *int32) error {
 			// If the error tells us "The attempted operation cannot be performed in the current state (Powered off)" (InvalidPowerState),
 			// we can avoid hard poweroff (issues #6236 and #6252). Here we wait for the power state changes instead of return
 			// immediately to avoid excess vSphere queries
-			if tasks.IsInvalidPowerStateError(err) {
+			if tasks.IsAlreadyPoweredOffError(err) {
 				killed = true
 			}
 		}

@@ -513,3 +513,37 @@ func TestSoapFaults(t *testing.T) {
 		t.Errorf("called=%d", called)
 	}
 }
+
+// Added to validate the following, received from VC
+//&types.InvalidPowerState{
+//	InvalidState:types.InvalidState{
+//		VimFault:types.VimFault{
+//			MethodFault:types.MethodFault{
+//				FaultCause:(*types.LocalizedMethodFault)(nil),
+//				FaultMessage:[]types.LocalizableMessage(nil)
+//			}
+//		}
+//	},
+//	RequestedState:\"poweredOn\", ExistingState:\"poweredOff\"
+//}"
+func TestIsAlreadyPoweredOff(t *testing.T) {
+	fault := task.Error{
+		LocalizedMethodFault: &types.LocalizedMethodFault{
+			Fault: &types.InvalidPowerState{
+				InvalidState: types.InvalidState{
+					VimFault: types.VimFault{
+						MethodFault: types.MethodFault{
+							FaultCause:   (*types.LocalizedMethodFault)(nil),
+							FaultMessage: []types.LocalizableMessage(nil),
+						},
+					},
+				},
+				RequestedState: "poweredOn",
+				ExistingState:  "poweredOff",
+			},
+			LocalizedMessage: "test message",
+		},
+	}
+
+	assert.True(t, IsAlreadyPoweredOffError(fault), "expected to correctly detect already powered off from fault")
+}

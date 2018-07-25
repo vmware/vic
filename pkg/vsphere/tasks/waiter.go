@@ -286,22 +286,48 @@ func IsNotFoundError(err error) bool {
 	return false
 }
 
-// IsInvalidPowerStateError is an error certifier function for errors coming back from vsphere. It checks for an InvalidPowerStateFault
-func IsInvalidPowerStateError(err error) bool {
-	if soap.IsVimFault(err) {
-		_, ok1 := soap.ToVimFault(err).(*types.InvalidPowerState)
-		_, ok2 := soap.ToVimFault(err).(*types.InvalidPowerStateFault)
-		return ok1 || ok2
+func isInvalidPowerStateError(err error) (*types.InvalidPowerState, bool) {
+	if soap.IsSoapFault(err) {
+		switch f := soap.ToSoapFault(err).VimFault().(type) {
+		case types.InvalidPowerState:
+			return &f, true
+		case types.InvalidPowerStateFault:
+			return (*types.InvalidPowerState)(&f), true
+		}
 	}
 
-	if soap.IsSoapFault(err) {
-		_, ok1 := soap.ToSoapFault(err).VimFault().(types.InvalidPowerState)
-		_, ok2 := soap.ToSoapFault(err).VimFault().(types.InvalidPowerStateFault)
-		// sometimes we get the correct fault but wrong type
-		return ok1 || ok2 || soap.ToSoapFault(err).String == "vim.fault.InvalidPowerState" ||
-			soap.ToSoapFault(err).String == "vim.fault.InvalidPowerState"
+	if soap.IsVimFault(err) {
+		switch f := soap.ToVimFault(err).(type) {
+		case *types.InvalidPowerState:
+			return f, true
+		case *types.InvalidPowerStateFault:
+			return (*types.InvalidPowerState)(f), true
+		}
 	}
-	return false
+
+	if terr, ok := err.(task.Error); ok {
+		switch f := terr.Fault().(type) {
+		case *types.InvalidPowerState:
+			return f, true
+		case *types.InvalidPowerStateFault:
+			return (*types.InvalidPowerState)(f), true
+		}
+	}
+
+	return nil, false
+}
+
+// IsInvalidPowerStateError is an error certifier function for errors coming back from vsphere. It checks for an InvalidPowerStateFault
+func IsInvalidPowerStateError(err error) bool {
+	_, match := isInvalidPowerStateError(err)
+	return match
+}
+
+// IsAlreadyPoweredOffError verifies that the error is an InvalidPowerState error and
+// returns true if the existing state from the error is powered off
+func IsAlreadyPoweredOffError(err error) bool {
+	invalidState, match := isInvalidPowerStateError(err)
+	return match && invalidState.ExistingState == types.VirtualMachinePowerStatePoweredOff
 }
 
 // IsInvalidStateError is an error certifier function for errors coming back from vsphere. It checks for an InvalidStateFault
