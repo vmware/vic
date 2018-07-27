@@ -22,4 +22,7 @@ const (
 	FilterSpecQueryName  = "filter-spec"
 	SkipRecurseQueryName = "skip-recurse"
 	SkipDataQueryName    = "skip-data"
+	GuestActionReload    = "reload"
+	GuestActionKill      = "kill"
+	GuestActionGroupKill = "group-kill"
 )
