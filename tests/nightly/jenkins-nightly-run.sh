@@ -21,9 +21,9 @@
 ESX_60_VERSION="ob-5050593"
 VC_60_VERSION="ob-5112509" # the cloudvm build corresponding to the vpx build that is noted in the kb link above
 
-# 6.5u2b
+# 6.5u2
 ESX_65_VERSION="ob-8935087"
-VC_65_VERSION="ob-8815520" 
+VC_65_VERSION="ob-8307201"
 
 # 6.7
 ESX_67_VERSION="ob-8169922"
