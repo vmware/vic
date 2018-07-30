@@ -24,12 +24,6 @@ Get Login Page
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/authentication
     Should contain  ${output}  <title>VCH Admin</title>
 
-Check that HTTP Request Redirects to HTTPS
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -L -sk -vvv http://%{VCH-IP}:2378
-    Should Contain  ${output}  SSL connection using TLS
-    Should Contain  ${output}  301 Moved Permanently
-    Should not contain  ${output}  Empty reply from server
-
 While Logged Out Fail To Display HTML
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}
     Should not contain  ${output}  <title>VIC: %{VCH-NAME}</title>
