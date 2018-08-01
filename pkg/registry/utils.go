@@ -15,6 +15,7 @@
 package registry
 
 import (
+	"context"
 	"crypto/x509"
 	"fmt"
 	"net/url"
@@ -23,10 +24,14 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // Reachable test if a registry is a valid registry for VIC use and returns a url with scheme prepended
-func Reachable(registry, scheme, username, password string, registryCAs *x509.CertPool, timeout time.Duration, skipVerify bool) (string, error) {
+func Reachable(ctx context.Context, registry, scheme, username, password string, registryCAs *x509.CertPool, timeout time.Duration, skipVerify bool) (string, error) {
+	op := trace.FromContext(ctx, "Reachable")
+	defer trace.End(trace.Begin(registry, op))
+
 	registryPath := fmt.Sprintf("%s/v2/", registry)
 	if scheme != "" {
 		registryPath = fmt.Sprintf("%s://%s/v2/", scheme, registry)
@@ -46,7 +51,7 @@ func Reachable(registry, scheme, username, password string, registryCAs *x509.Ce
 		RootCAs:            registryCAs,
 	})
 
-	headers, err := fetcher.Head(url)
+	headers, err := fetcher.Head(ctx, url)
 	if err != nil {
 		return "", err
 	}

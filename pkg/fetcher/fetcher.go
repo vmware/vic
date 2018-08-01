@@ -51,10 +51,10 @@ const (
 // Fetcher interface
 type Fetcher interface {
 	Fetch(ctx context.Context, url *url.URL, reqHdrs *http.Header, toFile bool, po progress.Output, id ...string) (string, error)
-	FetchAuthToken(url *url.URL) (*Token, error)
+	FetchAuthToken(ctx context.Context, url *url.URL) (*Token, error)
 
-	Ping(url *url.URL) (http.Header, error)
-	Head(url *url.URL) (http.Header, error)
+	Ping(ctx context.Context, url *url.URL) (http.Header, error)
+	Head(ctx context.Context, url *url.URL) (http.Header, error)
 
 	ExtractOAuthURL(hdr string, repository *url.URL) (*url.URL, error)
 
@@ -132,7 +132,8 @@ func NewURLFetcher(options Options) Fetcher {
 // Fetch fetches from a url and stores its content in a temporary file.
 //	hdrs is optional.
 func (u *URLFetcher) Fetch(ctx context.Context, url *url.URL, reqHdrs *http.Header, toFile bool, po progress.Output, ids ...string) (string, error) {
-	defer trace.End(trace.Begin(url.String()))
+	op := trace.FromContext(ctx, "Fetch")
+	defer trace.End(trace.Begin(url.String(), op))
 
 	// extract ID from ids. Existence of an ID enables progress reporting
 	ID := ""
@@ -205,8 +206,9 @@ func (u *URLFetcher) Fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 	}
 }
 
-func (u *URLFetcher) FetchAuthToken(url *url.URL) (*Token, error) {
-	defer trace.End(trace.Begin(url.String()))
+func (u *URLFetcher) FetchAuthToken(ctx context.Context, url *url.URL) (*Token, error) {
+	op := trace.FromContext(ctx, "FetchAuthToken")
+	defer trace.End(trace.Begin(url.String(), op))
 
 	data, err := u.Fetch(context.Background(), url, nil, false, nil)
 	if err != nil {
@@ -232,6 +234,9 @@ func (u *URLFetcher) FetchAuthToken(url *url.URL) (*Token, error) {
 }
 
 func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Header, ID string) (io.ReadCloser, http.Header, error) {
+	op := trace.FromContext(ctx, "fetch")
+	defer trace.End(trace.Begin(url.String(), op))
+
 	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
@@ -310,6 +315,9 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 
 // fetch fetches the given URL using ctxhttp. It also streams back the progress bar only when ID is not an empty string.
 func (u *URLFetcher) fetchToFile(ctx context.Context, url *url.URL, reqHdrs *http.Header, ID string, po progress.Output) (string, error) {
+	op := trace.FromContext(ctx, "fetchToFile")
+	defer trace.End(trace.Begin(url.String(), op))
+
 	rdr, hdrs, err := u.fetch(ctx, url, reqHdrs, ID)
 	if err != nil {
 		return "", err
@@ -356,6 +364,9 @@ func (u *URLFetcher) fetchToFile(ctx context.Context, url *url.URL, reqHdrs *htt
 
 // fetch fetches the given URL using ctxhttp. It also streams back the progress bar only when ID is not an empty string.
 func (u *URLFetcher) fetchToString(ctx context.Context, url *url.URL, reqHdrs *http.Header, ID string) (string, error) {
+	op := trace.FromContext(ctx, "fetchToString")
+	defer trace.End(trace.Begin(url.String(), op))
+
 	rdr, _, err := u.fetch(ctx, url, reqHdrs, ID)
 	if err != nil {
 		log.Errorf("Fetch (%s) to string error: %s", url.String(), err)
@@ -377,7 +388,10 @@ func (u *URLFetcher) fetchToString(ctx context.Context, url *url.URL, reqHdrs *h
 }
 
 // Ping sends a GET request to an url and returns the header if successful
-func (u *URLFetcher) Ping(url *url.URL) (http.Header, error) {
+func (u *URLFetcher) Ping(ctx context.Context, url *url.URL) (http.Header, error) {
+	op := trace.FromContext(ctx, "Ping")
+	defer trace.End(trace.Begin(url.String(), op))
+
 	ctx, cancel := context.WithTimeout(context.Background(), u.options.Timeout)
 	defer cancel()
 
@@ -397,7 +411,10 @@ func (u *URLFetcher) Ping(url *url.URL) (http.Header, error) {
 }
 
 // Head sends a HEAD request to url
-func (u *URLFetcher) Head(url *url.URL) (http.Header, error) {
+func (u *URLFetcher) Head(ctx context.Context, url *url.URL) (http.Header, error) {
+	op := trace.FromContext(ctx, "Head")
+	defer trace.End(trace.Begin(url.String(), op))
+
 	ctx, cancel := context.WithTimeout(context.Background(), u.options.Timeout)
 	defer cancel()
 

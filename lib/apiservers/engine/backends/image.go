@@ -386,7 +386,7 @@ func (i *ImageBackend) PullImage(ctx context.Context, image, tag string, metaHea
 	}
 
 	ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
-	ic.ParseReference()
+	ic.ParseReference(op)
 	// create url from hostname
 	hostnameURL, err := url.Parse(ic.Registry)
 	if err != nil || hostnameURL.Hostname() == "" {
@@ -425,7 +425,7 @@ func (i *ImageBackend) PullImage(ctx context.Context, image, tag string, metaHea
 		ic.Host,
 		portLayerServer)
 
-	err = ic.PullImage()
+	err = ic.PullImage(op)
 	if err != nil {
 		return err
 	}

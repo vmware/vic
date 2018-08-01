@@ -30,7 +30,8 @@ import (
 )
 
 // Commit executes the requires steps on the handle
-func Commit(op trace.Operation, sess *session.Session, h *Handle, waitTime *int32) error {
+func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int32) error {
+	op := trace.FromContext(ctx, "Commit")
 	defer trace.End(trace.Begin(h.ExecConfig.ID, op))
 
 	c := Containers.Container(h.ExecConfig.ID)

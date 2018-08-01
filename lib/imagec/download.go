@@ -104,7 +104,8 @@ func (s *serialProgressOutput) stop() {
 // It handles existing and simultaneous layer download de-duplication
 // This code is utilizes Docker's xfer package: https://github.com/docker/docker/tree/v1.11.2/distribution/xfer
 func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) error {
-	defer trace.End(trace.Begin(""))
+	op := trace.FromContext(ctx, "Image: %s", ic.Image)
+	defer trace.End(trace.Begin("", op))
 
 	var (
 		topDownload    *downloadTransfer
@@ -144,7 +145,7 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 				// layer does not already exist in store and is not currently in flight, so download it
 				progress.Update(progressOutput, layer.String(), "Pulling fs layer")
 
-				xferFunc := ldm.makeDownloadFunc(layer, ic, topDownload, layers)
+				xferFunc := ldm.makeDownloadFunc(op, layer, ic, topDownload, layers)
 				d, watcher = ldm.tm.Transfer(id, xferFunc, progressOutput)
 				topDownload = d.(*downloadTransfer)
 
@@ -166,7 +167,7 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 
 			if existingDownload, ok := ldm.downloadsByID[id]; ok {
 
-				xferFunc := ldm.makeDownloadFuncFromDownload(layer, existingDownload, topDownload, layers)
+				xferFunc := ldm.makeDownloadFuncFromDownload(op, layer, existingDownload, topDownload, layers)
 				d, watcher = ldm.tm.Transfer(id, xferFunc, progressOutput)
 				topDownload = d.(*downloadTransfer)
 
@@ -196,7 +197,7 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 			return err
 		}
 	} else {
-		if err := UpdateRepoCache(ic); err != nil {
+		if err := UpdateRepoCache(op, ic); err != nil {
 			return err
 		}
 	}
@@ -214,13 +215,18 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 }
 
 // makeDownloadFunc returns a func used by xfer.TransferManager to download a layer
-func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, parentDownload *downloadTransfer, layers []*ImageWithMeta) xfer.DoFunc {
+func (ldm *LayerDownloader) makeDownloadFunc(op trace.Operation, layer *ImageWithMeta, ic *ImageC, parentDownload *downloadTransfer, layers []*ImageWithMeta) xfer.DoFunc {
 	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) xfer.Transfer {
 
 		d := &downloadTransfer{
 			Transfer: xfer.NewTransfer(),
 			layer:    layer,
 		}
+
+		// Use the new context (created as part of Transfer) and the operation ID
+		// passed in from the callers
+		opID := op.ID()
+		derivedOp := trace.NewOperationFromID(d.Transfer.Context(), &opID, "makeDownloadFunc")
 
 		go func() {
 
@@ -257,7 +263,7 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 			}
 
 			// fetch blob
-			diffID, err := FetchImageBlob(d.Transfer.Context(), ic.Options, layer, progressOutput)
+			diffID, err := FetchImageBlob(derivedOp, ic.Options, layer, progressOutput)
 			if err != nil {
 				d.err = fmt.Errorf("%s/%s returned %s", ic.Image, layer.ID, err)
 				return
@@ -288,7 +294,7 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 			if !ic.Standalone {
 				// if this is the leaf layer, we are done and can now create the image config
 				if imageLayer {
-					imageConfig, err := ic.CreateImageConfig(layers)
+					imageConfig, err := ic.CreateImageConfig(derivedOp, layers)
 					if err != nil {
 						d.err = err
 						return
@@ -303,7 +309,7 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 					// place calculated ImageID in struct
 					ic.ImageID = imageConfig.ImageID
 
-					if err = UpdateRepoCache(ic); err != nil {
+					if err = UpdateRepoCache(derivedOp, ic); err != nil {
 						d.err = err
 						return
 					}
@@ -315,7 +321,7 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 			defer ldm.m.Unlock()
 
 			// Write blob to the storage layer
-			if err := ic.WriteImageBlob(layer, progressOutput, imageLayer); err != nil {
+			if err := ic.WriteImageBlob(derivedOp, layer, progressOutput, imageLayer); err != nil {
 				d.err = err
 				return
 			}
@@ -335,7 +341,7 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 
 // makeDownloadFuncFromDownload returns a func used by the TransferManager to
 // handle a layer that was already seen in this image pull, or is currently being downloaded
-func (ldm *LayerDownloader) makeDownloadFuncFromDownload(layer *ImageWithMeta, sourceDownload, parentDownload *downloadTransfer, layers []*ImageWithMeta) xfer.DoFunc {
+func (ldm *LayerDownloader) makeDownloadFuncFromDownload(op trace.Operation, layer *ImageWithMeta, sourceDownload, parentDownload *downloadTransfer, layers []*ImageWithMeta) xfer.DoFunc {
 
 	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) xfer.Transfer {
 
