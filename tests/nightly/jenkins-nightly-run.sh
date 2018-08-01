@@ -30,6 +30,7 @@ ESX_67_VERSION="ob-8169922"
 VC_67_VERSION="ob-8217866"
 
 DEFAULT_LOG_UPLOAD_DEST="vic-ci-logs"
+DEFAULT_ARTIFACT_BUCKET="vic-engine-builds"
 DEFAULT_VCH_BRANCH=""
 DEFAULT_VCH_BUILD="*"
 DEFAULT_TESTCASES=("tests/manual-test-cases/Group5-Functional-Tests" "tests/manual-test-cases/Group13-vMotion" "tests/manual-test-cases/Group21-Registries" "tests/manual-test-cases/Group23-Future-Tests")
@@ -57,7 +58,11 @@ testcases=("${@:-${DEFAULT_TESTCASES[@]}}")
 # we will be running or similar mechanism.
 VCH_BUILD=${VCH_BUILD:-${DEFAULT_VCH_BUILD}}
 VCH_BRANCH=${VCH_BRANCH:-${DEFAULT_VCH_BRANCH}}
-input=$(gsutil ls -l gs://vic-engine-builds/${VCH_BRANCH}${VCH_BRANCH:+/}${VIC_BINARY_PREFIX}${VCH_BUILD} | grep -v TOTAL | sort -k2 -r | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
+ARTIFACT_BUCKET=${ARTIFACT_BUCKET:-${DEFAULT_ARTIFACT_BUCKET}}
+input=$(gsutil ls -l gs://${ARTIFACT_BUCKET}/${VCH_BRANCH}${VCH_BRANCH:+/}${VIC_BINARY_PREFIX}${VCH_BUILD} | grep -v TOTAL | sort -k2 -r | head -n1 | xargs | cut -d ' ' -f 3 | xargs basename)
+constructed_url="https://storage.googleapis.com/${ARTIFACT_BUCKET}/${VCH_BRANCH}${VCH_BRANCH:+/}${input}"
+ARTIFACT_URL="${ARTIFACT_URL:-${constructed_url}}"
+input=$(basename ${ARTIFACT_URL})
 
 # strip prefix and suffix from archive filename
 VCH_BUILD=${input#${VIC_BINARY_PREFIX}}
@@ -88,8 +93,8 @@ LOG_UPLOAD_DEST="${LOG_UPLOAD_DEST:-${DEFAULT_LOG_UPLOAD_DEST}}"
 n=0 && rm -f "${input}"
 until [ $n -ge 5 -o -f "${input}" ]; do
     echo "Retry.. $n"
-    echo "Downloading gcp file ${input}"
-    wget -nv https://storage.googleapis.com/vic-engine-builds/${input}
+    echo "Downloading gcp file ${input} from ${ARTIFACT_URL}"
+    wget -nv ${ARTIFACT_URL}
 
     ((n++))
     sleep 15
