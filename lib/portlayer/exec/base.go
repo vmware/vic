@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/migration"
+	"github.com/vmware/vic/lib/tether/shared"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
@@ -220,7 +221,7 @@ func (c *containerBase) State(op trace.Operation) State {
 func (c *containerBase) ReloadConfig(op trace.Operation) error {
 	defer trace.End(trace.Begin(c.ExecConfig.ID, op))
 
-	return c.startGuestProgram(op, "reload", "")
+	return c.startGuestProgram(op, shared.GuestActionReload, "")
 }
 
 // WaitForExec waits exec'ed task to set started field or timeout
@@ -319,7 +320,7 @@ func (c *containerBase) kill(op trace.Operation) error {
 	sig := string(ssh.SIGKILL)
 	timeout.Infof("sending kill -%s %s", sig, c)
 
-	err := c.startGuestProgram(timeout, "kill", sig)
+	err := c.startGuestProgram(timeout, shared.GuestActionKill, sig)
 	if err == nil && timeout.Err() != nil {
 		timeout.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c, sig)
 	}
@@ -361,21 +362,29 @@ func (c *containerBase) shutdown(op trace.Operation, waitTime *int32) error {
 	}
 
 	cs := c.ExecConfig.Sessions[c.ExecConfig.ID]
-	stop := []string{cs.StopSignal, string(ssh.SIGKILL)}
-	if stop[0] == "" {
-		stop[0] = string(ssh.SIGTERM)
+
+	stopSignal := cs.StopSignal
+	if stopSignal == "" {
+		stopSignal = string(ssh.SIGTERM)
+	}
+
+	actionSignals := []struct {
+		action string
+		sig    string
+	}{
+		{shared.GuestActionKill, stopSignal},
+		{shared.GuestActionGroupKill, string(ssh.SIGKILL)},
 	}
 
 	var killed bool
-
-	for _, sig := range stop {
-		msg := fmt.Sprintf("sending kill -%s %s", sig, c)
+	for _, actionSignal := range actionSignals {
+		msg := fmt.Sprintf("sending %s -%s %s", actionSignal.action, actionSignal.sig, c)
 		op.Infof(msg)
 
 		timeout, cancel := trace.WithTimeout(&op, wait, "shutdown")
 		defer cancel()
 
-		err := c.startGuestProgram(timeout, "kill", sig)
+		err := c.startGuestProgram(timeout, actionSignal.action, actionSignal.sig)
 		if err != nil {
 			// Just warn and proceed to waiting for power state per issue https://github.com/vmware/vic/issues/5803
 			// Description above in function kill()
@@ -399,14 +408,14 @@ func (c *containerBase) shutdown(op trace.Operation, waitTime *int32) error {
 			return err // error other than timeout
 		}
 
-		timeout.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c, sig)
+		timeout.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c, actionSignal.sig)
 
 		if killed {
 			return nil
 		}
 	}
 
-	return fmt.Errorf("failed to shutdown %s via kill signals %s", c, stop)
+	return fmt.Errorf("failed to shutdown %s via kill signals %s and %s", c, stopSignal, string(ssh.SIGKILL))
 }
 
 func (c *containerBase) poweroff(op trace.Operation) error {
