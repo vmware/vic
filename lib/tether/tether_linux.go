@@ -138,7 +138,15 @@ func (t *tether) childReaper() error {
 						log.Debugf("Removed child pid: %d", pid)
 						session.Lock()
 						session.ExitStatus = exitCode
+						session.Unlock()
 
+						// Don't hold the lock while waiting for the file descriptors
+						// to close as these can be held open by child processes
+						log.Debugf("Waiting on session.wait")
+						session.wait.Wait()
+						log.Debugf("Wait on session.wait completed")
+
+						session.Lock()
 						t.handleSessionExit(session)
 						session.Unlock()
 						continue

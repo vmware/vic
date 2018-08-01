@@ -677,10 +677,6 @@ func (t *tether) cleanupSession(session *SessionConfig) {
 func (t *tether) handleSessionExit(session *SessionConfig) {
 	defer trace.End(trace.Begin("handling exit of session " + session.ID))
 
-	log.Debugf("Waiting on session.wait")
-	session.wait.Wait()
-	log.Debugf("Wait on session.wait completed")
-
 	log.Debugf("Calling wait on cmd")
 	if err := session.Cmd.Wait(); err != nil {
 		// we expect this to get an error because the child reaper will have gathered it
