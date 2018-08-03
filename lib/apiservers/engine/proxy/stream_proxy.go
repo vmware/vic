@@ -79,6 +79,9 @@ func NewStreamProxy(client *client.PortLayer) VicStreamProxy {
 // stdin, stdout, stderr are the hijacked connection
 // autoclose controls whether the underlying client transport will be closed when stdout/stderr
 func (s *StreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer, autoclose bool) error {
+	op := trace.FromContext(ctx, "AttachStreams")
+	defer trace.End(trace.Begin(ac.ID, op))
+
 	// Cancel will close the child connections.
 	var wg, outWg sync.WaitGroup
 
@@ -221,7 +224,9 @@ func (s *StreamProxy) AttachStreams(ctx context.Context, ac *AttachConfig, stdin
 // StreamContainerLogs reads the log stream from the portlayer rest server and writes
 // it directly to the io.Writer that is passed in.
 func (s *StreamProxy) StreamContainerLogs(ctx context.Context, name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error {
-	defer trace.End(trace.Begin(""))
+	op := trace.FromContext(ctx, "StreamContainerLogs")
+	defer trace.End(trace.Begin(name, op))
+	opID := op.ID()
 
 	if s.client == nil {
 		return errors.NillPortlayerClientError("StreamProxy")
@@ -230,6 +235,7 @@ func (s *StreamProxy) StreamContainerLogs(ctx context.Context, name string, out 
 	close(started)
 
 	params := containers.NewGetContainerLogsParamsWithContext(ctx).
+		WithOpID(&opID).
 		WithID(name).
 		WithFollow(&followLogs).
 		WithTimestamp(&showTimestamps).
@@ -260,7 +266,9 @@ func (s *StreamProxy) StreamContainerLogs(ctx context.Context, name string, out 
 // io.Writer.  Prior to writing to the provided io.Writer there will be a transformation
 // from the portLayer representation of stats to the docker format
 func (s *StreamProxy) StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error {
-	defer trace.End(trace.Begin(config.ContainerID))
+	op := trace.FromContext(ctx, "StreamContainerStats")
+	defer trace.End(trace.Begin(config.ContainerID, op))
+	opID := op.ID()
 
 	if s.client == nil {
 		return errors.NillPortlayerClientError("StreamProxy")
@@ -270,7 +278,7 @@ func (s *StreamProxy) StreamContainerStats(ctx context.Context, config *convert.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	params := containers.NewGetContainerStatsParamsWithContext(ctx)
+	params := containers.NewGetContainerStatsParamsWithContext(ctx).WithOpID(&opID)
 	params.ID = config.ContainerID
 	params.Stream = config.Stream
 
@@ -314,6 +322,10 @@ func (s *StreamProxy) StreamContainerStats(ctx context.Context, config *convert.
 //------------------------------------
 
 func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdin io.ReadCloser, keys []byte, autoclose bool) error {
+	op := trace.FromContext(ctx, "copyStdIn")
+	defer trace.End(trace.Begin(ac.ID, op))
+	opID := op.ID()
+
 	// Pipe for stdin so we can interject and watch the input streams for detach keys.
 	stdinReader, stdinWriter := io.Pipe()
 	defer stdinReader.Close()
@@ -377,7 +389,7 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdi
 
 	// Swagger wants an io.reader so give it the reader pipe.  Also, the swagger call
 	// to set the stdin is synchronous so we need to run in a goroutine
-	setStdinParams := interaction.NewContainerSetStdinParamsWithContext(ctx).WithID(id)
+	setStdinParams := interaction.NewContainerSetStdinParamsWithContext(ctx).WithOpID(&opID).WithID(id)
 	setStdinParams = setStdinParams.WithRawStream(stdinReader)
 
 	_, err := pl.Interaction.ContainerSetStdin(setStdinParams)
@@ -386,7 +398,7 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdi
 	if ac.CloseStdin && !ac.UseTty {
 		// Close the stdin connection.  Mimicing Docker's behavior.
 		log.Errorf("Attach stream has stdinOnce set.  Closing the stdin.")
-		params := interaction.NewContainerCloseStdinParamsWithContext(ctx).WithID(id)
+		params := interaction.NewContainerCloseStdinParamsWithContext(ctx).WithOpID(&opID).WithID(id)
 		_, err := pl.Interaction.ContainerCloseStdin(params)
 		if err != nil {
 			log.Errorf("CloseStdin failed with %s", err)
@@ -402,6 +414,10 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdi
 }
 
 func copyStdOut(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdout io.Writer, attemptTimeout time.Duration) error {
+	op := trace.FromContext(ctx, "copyStdOut")
+	defer trace.End(trace.Begin(ac.ID, op))
+	opID := op.ID()
+
 	id := ac.ID
 
 	//Calculate how much time to let portlayer attempt
@@ -412,7 +428,7 @@ func copyStdOut(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, std
 	log.Debugf("* stdout personality deadline: %s", time.Now().Add(attemptTimeout).Format(time.UnixDate))
 
 	log.Debugf("* stdout attach start %s", time.Now().Format(time.UnixDate))
-	getStdoutParams := interaction.NewContainerGetStdoutParamsWithContext(ctx).WithID(id).WithDeadline(&swaggerDeadline)
+	getStdoutParams := interaction.NewContainerGetStdoutParamsWithContext(ctx).WithID(id).WithOpID(&opID).WithDeadline(&swaggerDeadline)
 	_, err := pl.Interaction.ContainerGetStdout(getStdoutParams, stdout)
 	log.Debugf("* stdout attach end %s", time.Now().Format(time.UnixDate))
 	if err != nil {
@@ -427,9 +443,13 @@ func copyStdOut(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, std
 }
 
 func copyStdErr(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stderr io.Writer) error {
+	op := trace.FromContext(ctx, "copyStdErr")
+	defer trace.End(trace.Begin(ac.ID, op))
+	opID := op.ID()
+
 	id := ac.ID
 
-	getStderrParams := interaction.NewContainerGetStderrParamsWithContext(ctx).WithID(id)
+	getStderrParams := interaction.NewContainerGetStderrParamsWithContext(ctx).WithOpID(&opID).WithID(id)
 	_, err := pl.Interaction.ContainerGetStderr(getStderrParams, stderr)
 	if err != nil {
 		if _, ok := err.(*interaction.ContainerGetStderrNotFound); ok {
