@@ -78,6 +78,11 @@ Display HTML
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b ${cookies}
     Should contain  ${output}  <title>VIC: %{VCH-NAME}</title>
 
+Content-Security-Policy
+    ${cookies}=  Login To VCH Admin And Save Cookies
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk -vvv %{VIC-ADMIN} -b ${cookies}
+    Should contain  ${output}  Content-Security-Policy: frame-ancestors 'none';
+
 Get Portlayer Log
     ${cookies}=  Login To VCH Admin And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b ${cookies}

@@ -470,6 +470,21 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// cspMiddleware sets the Content-Security-Policy header to prevent clickjacking
+// https://www.owasp.org/index.php/Content_Security_Policy_Cheat_Sheet#Preventing_Clickjacking
+func (s *server) cspMiddleware() func(next http.Handler) http.Handler {
+	header := "Content-Security-Policy"
+	value := "frame-ancestors 'none';"
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Add(header, value)
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func (s *server) serve() error {
 	defer trace.End(trace.Begin(""))
 
@@ -510,7 +525,7 @@ func (s *server) serve() error {
 	s.Authenticated("/logout", s.logoutHandler)
 	s.Authenticated("/", s.index)
 	server := &http.Server{
-		Handler: s.mux,
+		Handler: s.cspMiddleware()(s.mux),
 	}
 
 	return server.Serve(s.l)
