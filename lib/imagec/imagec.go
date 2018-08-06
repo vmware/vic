@@ -37,6 +37,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/reference"
+	"github.com/docker/docker/registry"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -137,9 +138,6 @@ var (
 )
 
 const (
-	// DefaultDockerURL holds the URL of Docker registry
-	DefaultDockerURL = "registry-1.docker.io"
-
 	// DefaultDestination specifies the default directory to use
 	DefaultDestination = "images"
 
@@ -175,7 +173,7 @@ func (ic *ImageC) ParseReference(ctx context.Context) {
 
 	ic.Registry = ic.Reference.Hostname()
 	if ic.Registry == reference.DefaultHostname {
-		ic.Registry = DefaultDockerURL
+		ic.Registry = registry.DefaultV2Registry.Host
 	}
 
 	ic.Image = ic.Reference.RemoteName()

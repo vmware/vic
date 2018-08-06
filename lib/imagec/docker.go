@@ -35,6 +35,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/reference"
+	"github.com/docker/docker/registry"
 	"github.com/docker/libtrust"
 
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
@@ -137,8 +138,8 @@ func LearnAuthURL(op trace.Operation, options Options) (*url.URL, error) {
 
 	// Private registry returned the manifest directly as auth option is optional.
 	// https://github.com/docker/distribution/blob/master/docs/configuration.md#auth
-	if err == nil && options.Registry != DefaultDockerURL && fetcher.IsStatusOK() {
-		op.Debugf("%s does not support OAuth", url)
+	if err == nil && options.Registry != registry.DefaultV2Registry.Host && fetcher.IsStatusOK() {
+		log.Debugf("%s does not support OAuth", url)
 		return nil, nil
 	}
 

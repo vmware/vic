@@ -136,7 +136,8 @@ Pull non-existent image
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull fakebadimage
     Log  ${output}
     Should Be Equal As Integers  ${rc}  1
-    Should contain  ${output}  pull access denied
+    # Check for registry V2 pull message
+    Should contain  ${output}  repository does not exist or may require 'docker login'
 
 Pull image from non-existent repo
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull fakebadrepo.com:9999/ubuntu

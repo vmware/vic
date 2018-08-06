@@ -113,7 +113,7 @@ Create simple top example
 Create fakeimage image
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create fakeimage
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  pull access denied
+    Should Contain  ${output}  repository does not exist or may require 'docker login'
 
 Create fakeImage repository
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create fakeImage
