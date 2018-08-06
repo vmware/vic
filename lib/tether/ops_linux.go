@@ -756,8 +756,11 @@ func ApplyEndpoint(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) err
 }
 
 func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc client.Client) {
-	divisor := time.Duration(2)
+	// wait half of the remaining lease time before trying again if we fail to renew
 	exp := time.After(dc.LastAck().LeaseTime() / 2)
+	// the divisor starts set to 4 so that we can update it AFTER the duration is calculated. This allows combining the check for integer overflow with
+	// the minimum wait time.
+	divisor := time.Duration(4)
 	for {
 		select {
 		case <-stop:
@@ -772,13 +775,13 @@ func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc cli
 			if err != nil {
 				log.Errorf("failed to renew ip address for network %s: %s", e.Name, err)
 
-				// wait half of the remaining lease time before trying again
-				divisor *= 2
 				duration := dc.LastAck().LeaseTime() / divisor
 
 				// for now go with a minimum retry of 1min
 				if duration < time.Minute {
 					duration = time.Minute
+				} else if divisor*2 > divisor {
+					divisor *= 2
 				}
 
 				exp = time.After(duration)
