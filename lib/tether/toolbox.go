@@ -32,6 +32,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	dar "github.com/docker/docker/pkg/archive"
+
 	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/govmomi/toolbox"
@@ -181,10 +182,21 @@ func (t *Toolbox) kill(_ context.Context, name string) error {
 
 	session.Lock()
 	defer session.Unlock()
-	return t.killHelper(session, name)
+	return t.killHelper(session, name, false)
 }
 
-func (t *Toolbox) killHelper(session *SessionConfig, name string) error {
+func (t *Toolbox) groupKill(_ context.Context, name string) error {
+	session := t.session()
+	if session == nil {
+		return fmt.Errorf("failed to kill container: process not found")
+	}
+
+	session.Lock()
+	defer session.Unlock()
+	return t.killHelper(session, name, true)
+}
+
+func (t *Toolbox) killHelper(session *SessionConfig, name string, groupKill bool) error {
 	if name == "" {
 		name = string(ssh.SIGTERM)
 	}
@@ -201,9 +213,19 @@ func (t *Toolbox) killHelper(session *SessionConfig, name string) error {
 
 	num := syscall.Signal(sig.Signum())
 
-	log.Infof("sending signal %s (%d) to process group for %s", sig.Signal, num, session.ID)
-	if err := syscall.Kill(-session.Cmd.Process.Pid, num); err != nil {
-		return fmt.Errorf("failed to signal %s group: %s", session.ID, err)
+	var pid int
+	if groupKill == false {
+		// Send signal to a single process
+		pid = session.Cmd.Process.Pid
+		log.Infof("sending signal %s (%d) to process %d for %s", sig.Signal, num, session.Cmd.Process.Pid, session.ID)
+	} else {
+		// Send signal to the whole process group
+		pid = -session.Cmd.Process.Pid
+		log.Infof("sending signal %s (%d) to process group %d for %s", sig.Signal, num, session.Cmd.Process.Pid, session.ID)
+	}
+
+	if err := syscall.Kill(pid, num); err != nil {
+		return fmt.Errorf("failed to signal %s: %s", session.ID, err)
 	}
 
 	return nil
@@ -220,7 +242,9 @@ func (t *Toolbox) containerAuthenticate(_ vix.CommandRequestHeader, data []byte)
 		return errors.New("not yet initialized")
 	}
 
+	log.Debugf("containerAuthenticate, acquiring session lock: %s ..", session.ID)
 	session.Lock()
+	log.Debugf("containerAuthenticate, acquired session lock: %s", session.ID)
 	defer session.Unlock()
 
 	// no authentication yet, just using container ID and device IDs as a sanity check for now
@@ -235,9 +259,11 @@ func (t *Toolbox) containerStartCommand(m *toolbox.ProcessManager, r *vix.StartP
 	var p *toolbox.Process
 
 	switch r.ProgramPath {
-	case "kill":
+	case shared.GuestActionKill:
 		p = toolbox.NewProcessFunc(t.kill)
-	case "reload":
+	case shared.GuestActionGroupKill:
+		p = toolbox.NewProcessFunc(t.groupKill)
+	case shared.GuestActionReload:
 		p = toolbox.NewProcessFunc(func(_ context.Context, _ string) error {
 			return ReloadConfig()
 		})
@@ -263,7 +289,7 @@ func (t *Toolbox) halt() error {
 
 	log.Infof("stopping %s", session.ID)
 
-	if err := t.killHelper(session, session.StopSignal); err != nil {
+	if err := t.killHelper(session, session.StopSignal, false); err != nil {
 		return err
 	}
 
