@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import (
 // Each blob in the metadata map is written to a file with the corresponding
 // name.  Likewise, when we read it back (on restart) we populate the map
 // accordingly.
-func writeMetadata(op trace.Operation, ds *datastore.Helper, dir string, meta map[string][]byte) error {
+func WriteMetadata(op trace.Operation, ds *datastore.Helper, dir string, meta map[string][]byte) error {
 	// XXX this should be done via disklib so this meta follows the disk in
 	// case of motion.
 
@@ -51,7 +51,7 @@ func writeMetadata(op trace.Operation, ds *datastore.Helper, dir string, meta ma
 }
 
 // Read the metadata from the given dir
-func getMetadata(op trace.Operation, ds *datastore.Helper, dir string) (map[string][]byte, error) {
+func GetMetadata(op trace.Operation, ds *datastore.Helper, dir string) (map[string][]byte, error) {
 
 	res, err := ds.Ls(op, dir)
 	if err != nil {

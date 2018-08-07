@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -435,7 +435,7 @@ func toolboxOverrideArchiveWrite(system System, u *url.URL, tw *tar.Writer) erro
 
 func mountDiskLabel(op trace.Operation, system System, label string) (string, error) {
 	// We know the vmdk will always be attached at '/'
-	if label == "containerfs" {
+	if label == shared.ScratchDiskLabel {
 		return "/", nil
 	}
 
