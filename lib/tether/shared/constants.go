@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,15 @@ const (
 	FilterSpecQueryName  = "filter-spec"
 	SkipRecurseQueryName = "skip-recurse"
 	SkipDataQueryName    = "skip-data"
+
 	GuestActionReload    = "reload"
 	GuestActionKill      = "kill"
 	GuestActionGroupKill = "group-kill"
+
+	// scratchDiskLabel labels the root image for the disk chain
+	ScratchDiskLabel = "containerfs"
+	// This string is referenced in isos/bootstrap/bootstrap and should be kept in sync.
+	// Using a 0011 prefix caused the disk not to present, so have taken the 6000 prefix
+	// that was being generated consistently when uuid left undefined.
+	ScratchUUID = "60002233445566778899aabbccddeeff"
 )

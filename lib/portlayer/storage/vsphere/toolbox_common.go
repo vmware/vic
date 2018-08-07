@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -60,9 +60,9 @@ func BuildArchiveURL(op trace.Operation, disklabel, target string, fs *archive.F
 	target = path.Join("/archive:/", target)
 
 	// if diskLabel is longer than 16 characters, then the function was passed a containerID
-	// use containerfs as the diskLabel
+	// so use the container rootfs
 	if len(disklabel) > 16 {
-		disklabel = "containerfs"
+		disklabel = shared.ScratchDiskLabel
 	}
 
 	// note that the query parameters a SkipX for recurse and data so values are inverted

@@ -637,6 +637,67 @@
 					}
 				}
 			},
+			"post": {
+				"description": "Join an image to a container",
+				"operationId": "ImageJoin",
+				"tags": [
+					"storage"
+				],
+				"consumes": [
+					"application/json"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "store_name",
+						"type": "string",
+						"in": "path",
+						"required": true
+					},
+					{
+						"name": "id",
+						"required": true,
+						"type": "string",
+						"in": "path"
+					},
+					{
+						"name": "config",
+						"in": "body",
+						"required": true,
+						"schema": {
+							"$ref": "#/definitions/ImageJoinConfig"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/ImageJoinResponse"
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "ServerError",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"default": {
+						"description": "error",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			},
 			"delete": {
 				"description": "Delete an image by id in an image store",
 				"summary": "Delete an image",
@@ -1964,12 +2025,12 @@
 							"$ref": "#/definitions/Error"
 						}
 					},
-            "409": {
-              "description": "Task failed due to power state change",
-              "schema": {
-                  "$ref": "#/definitions/Error"
-              }
-            },
+					"409": {
+						"description": "Task failed due to power state change",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
 					"500": {
 						"description": "Inspect of task failed",
 						"schema": {
@@ -3129,6 +3190,41 @@
 				}
 			}
 		},
+		"ImageJoinConfig": {
+			"type": "object",
+			"required": [
+				"handle",
+				"deltaID"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				},
+				"deltaID": {
+					"x-nullable": false,
+					"type": "string"
+				},
+				"imageID": {
+					"x-nullable": false,
+					"type": "string"
+				},
+				"repoName": {
+					"x-nullable": false,
+					"type": "string"
+				}
+			}
+		},
+		"ImageJoinResponse": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
 		"ScopeConfig": {
 			"type": "object",
 			"required": [
@@ -3252,18 +3348,6 @@
 			"type": "object",
 			"properties": {
 				"name": {
-					"type": "string"
-				},
-				"imageStore": {
-					"$ref": "#/definitions/ImageStore"
-				},
-				"image": {
-					"type": "string"
-				},
-				"layer": {
-					"type": "string"
-				},
-				"repoName": {
 					"type": "string"
 				},
 				"numCPUs": {

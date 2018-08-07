@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -56,10 +56,6 @@ func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.V
 	pv := spec.NewParaVirtualSCSIController(scsi)
 	s.AddParaVirtualSCSIController(pv)
 
-	// Disk
-	disk := spec.NewVirtualSCSIDisk(scsi)
-	s.AddVirtualDisk(disk)
-
 	// IDE controller
 	ide := spec.NewVirtualIDEController(ideKey)
 	s.AddVirtualIDEController(ide)
@@ -91,6 +87,10 @@ func (l *LinuxGuestType) Spec() *spec.VirtualMachineConfigSpec {
 // Controller returns the types.BaseVirtualController to the caller
 func (l *LinuxGuestType) Controller() *types.BaseVirtualController {
 	return &l.controller
+}
+
+func (l *LinuxGuestType) NewDisk() *types.VirtualDisk {
+	return spec.NewVirtualDisk(l.controller)
 }
 
 // GetSelf gets VirtualMachine reference for the VM this process is running on

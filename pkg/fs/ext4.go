@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,9 @@ import (
 
 	"github.com/vmware/vic/pkg/trace"
 )
+
+// MaxLabelLength is the maximum allowed length of a label for this filesystem
+const MaxLabelLength = 15
 
 // Ext4 satisfies the Filesystem interface
 type Ext4 struct{}
@@ -72,8 +75,13 @@ func (e *Ext4) Unmount(op trace.Operation, path string) error {
 func (e *Ext4) SetLabel(op trace.Operation, devPath, labelName string) error {
 	defer trace.End(trace.Begin(devPath))
 
+	// Warn if truncating label
+	if len(labelName) > MaxLabelLength {
+		op.Debugf("Label truncated to %s", labelName[:MaxLabelLength])
+	}
+
 	// #nosec: Subprocess launching with variable
-	cmd := exec.Command("/sbin/e2label", devPath, labelName)
+	cmd := exec.Command("/sbin/e2label", devPath, labelName[:MaxLabelLength])
 	if output, err := cmd.CombinedOutput(); err != nil {
 		op.Errorf("failed to set label %s: %s", devPath, err)
 		op.Errorf(string(output))

@@ -256,7 +256,7 @@ func main() {
 			Name:       name,
 			VMFullName: name,
 
-			ParentImageID: parent,
+			// ParentImageID: parent,
 			BootMediaPath: fmt.Sprintf("[%s] %s/%s", config.Datastore, config.VCH, ISO),
 			VMPathName:    fmt.Sprintf("[%s]", config.Datastore),
 

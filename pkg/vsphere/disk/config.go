@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,9 @@ type VirtualDiskConfig struct {
 
 	// Underlying filesystem
 	Filesystem Filesystem
+
+	// Base disk UUID
+	UUID string
 
 	DiskMode types.VirtualDiskMode
 }
@@ -73,6 +76,14 @@ func (d *VirtualDiskConfig) WithFilesystem(ftype FilesystemType) *VirtualDiskCon
 
 func (d *VirtualDiskConfig) WithCapacity(capacity int64) *VirtualDiskConfig {
 	d.CapacityInKB = capacity
+
+	return d
+}
+
+// WithUUID can only be set on the base disk layer due to disklib bug
+// TODO: add an error mechanism for validating conditional settings like this
+func (d *VirtualDiskConfig) WithUUID(uuid string) *VirtualDiskConfig {
+	d.UUID = uuid
 
 	return d
 }

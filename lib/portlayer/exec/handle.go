@@ -51,9 +51,7 @@ type Resources struct {
 type ContainerCreateConfig struct {
 	Metadata *executor.ExecutorConfig
 
-	ParentImageID  string
-	ImageStoreName string
-	Resources      Resources
+	Resources Resources
 }
 
 var handles *lru.Cache
@@ -71,6 +69,9 @@ func init() {
 type Handle struct {
 	// copy from container cache
 	containerBase
+
+	// The guest used to generate specific device types
+	Guest guest.Guest
 
 	// desired spec
 	Spec *spec.VirtualMachineConfigSpec
@@ -319,12 +320,8 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 		Name:     config.Metadata.Name,
 		BiosUUID: uuid,
 
-		ParentImageID: config.ParentImageID,
 		BootMediaPath: Config.BootstrapImagePath,
 		VMPathName:    fmt.Sprintf("[%s]", vmomiSession.Datastore.Name()),
-
-		ImageStoreName: config.ImageStoreName,
-		ImageStorePath: &Config.ImageStores[0],
 
 		Metadata: config.Metadata,
 	}
@@ -338,7 +335,7 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 
 	// log only core portions
 	s := specconfig
-	log.Debugf("id: %s, name: %s, cpu: %d, mem: %d, parent: %s, os: %s, path: %s", s.ID, s.Name, s.NumCPUs, s.MemoryMB, s.ParentImageID, s.BootMediaPath, s.VMPathName)
+	log.Debugf("id: %s, name: %s, cpu: %d, mem: %d, os: %s, path: %s", s.ID, s.Name, s.NumCPUs, s.MemoryMB, s.BootMediaPath, s.VMPathName)
 	m := s.Metadata
 	log.Debugf("annotations: %#v, reponame: %s", m.Annotations, m.RepoName)
 	for name, sess := range m.Sessions {
@@ -364,6 +361,7 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 		return nil, err
 	}
 
+	h.Guest = linux
 	h.Spec = linux.Spec()
 
 	handlesLock.Lock()

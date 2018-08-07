@@ -27,14 +27,26 @@ for i in ${drivers[@]}; do
 done
 
 MOUNTPOINT="/mnt/containerfs"
+ROOTFS="/dev/disk/by-id/wwn-0x60002233445566778899aabbccddeeff"
+V1_4_ROOTFS="/dev/disk/by-label/containerfs"
 
 mkdir -p /mnt/containerfs
 
 echo "Waiting for rootfs"
-while [ ! -e /dev/disk/by-label/containerfs ]; do sleep 0.1;done
+# the ID here is the ddb.uuid from the vmdk descriptor. It is set in lib/tether/shared/constants.go
+# ideally this would be moved to somewhere it does not need to be kept in sync manually.
+# TODO: this needs testing with additional scsi controllers and an understanding as to what that
+# 6000 prefix actually entails
+while [ ! -e ${ROOTFS} -a ! -e ${V1_4_ROOTFS} ]; do sleep 0.1; done
+
+# support pre 1.5 image identification mechanism
+if [ ! -e ${ROOTFS} ]; then
+    ROOTFS=${V1_4_ROOTFS}
+fi
+
 # https://github.com/vmware/vic/issues/6379
 # grab dmesg output and dump to debug log if mount doesn't occur in a useful timeframe (2min)
-if timeout --signal=KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
+if timeout --signal=KILL 2m mount -t ext4 ${ROOTFS} ${MOUNTPOINT}; then
     # ensure mountpoint exists
     mkdir -p ${MOUNTPOINT}/.tether
 
@@ -114,7 +126,7 @@ if timeout --signal=KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNT
     # TEMP: https://github.com/vmware/vic/issues/6279
     echo 262144 > /proc/sys/vm/max_map_count
 
-    until [[ $(ls -1 /dev/disk/by-label | wc -l) -eq $(ls -1 /sys/block | wc -l) ]]; do sleep 0.1;done
+    until [[ $(ls -1 /dev/disk/by-label | wc -l) -eq $(ls -1 --ignore='loop*' --ignore='ram*' /sys/block | wc -l) ]]; do sleep 0.1;done
 
     echo "switching to the new mount"
     systemctl switch-root ${MOUNTPOINT} /.tether/tether 2>&1

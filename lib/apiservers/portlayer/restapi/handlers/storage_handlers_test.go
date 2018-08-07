@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -25,15 +24,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/storage"
-	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/constants"
-	spl "github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/storage/image"
+	icache "github.com/vmware/vic/lib/portlayer/storage/image/cache"
+	imagemock "github.com/vmware/vic/lib/portlayer/storage/image/mock"
+	vcache "github.com/vmware/vic/lib/portlayer/storage/volume/cache"
+	volumemock "github.com/vmware/vic/lib/portlayer/storage/volume/mock"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 var (
@@ -48,204 +48,9 @@ var (
 	}
 )
 
-type MockDataStore struct {
-}
-
-type MockVolumeStore struct {
-	// id -> volume
-	db map[string]*spl.Volume
-}
-
-func NewMockVolumeStore() *MockVolumeStore {
-	m := &MockVolumeStore{
-		db: make(map[string]*spl.Volume),
-	}
-
-	return m
-}
-
-// Creates a volume on the given volume store, of the given size, with the given metadata.
-func (m *MockVolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*spl.Volume, error) {
-	storeName, err := util.VolumeStoreName(store)
-	if err != nil {
-		return nil, err
-	}
-
-	selfLink, err := util.VolumeURL(storeName, ID)
-	if err != nil {
-		return nil, err
-	}
-
-	vol := &spl.Volume{
-		ID:       ID,
-		Store:    store,
-		SelfLink: selfLink,
-	}
-
-	m.db[ID] = vol
-
-	return vol, nil
-}
-
-// Get an existing volume via it's ID and volume store.
-func (m *MockVolumeStore) VolumeGet(op trace.Operation, ID string) (*spl.Volume, error) {
-	vol, ok := m.db[ID]
-	if !ok {
-		return nil, os.ErrNotExist
-	}
-
-	return vol, nil
-}
-
-// Destroys a volume
-func (m *MockVolumeStore) VolumeDestroy(op trace.Operation, vol *spl.Volume) error {
-	if _, ok := m.db[vol.ID]; !ok {
-		return os.ErrNotExist
-	}
-
-	delete(m.db, vol.ID)
-
-	return nil
-}
-
-func (m *MockVolumeStore) VolumeStoresList(op trace.Operation) (map[string]url.URL, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-// Lists all volumes on the given volume store`
-func (m *MockVolumeStore) VolumesList(op trace.Operation) ([]*spl.Volume, error) {
-	var i int
-	list := make([]*spl.Volume, len(m.db))
-	for _, v := range m.db {
-		t := *v
-		list[i] = &t
-		i++
-	}
-
-	return list, nil
-}
-
-func (m *MockVolumeStore) Export(op trace.Operation, child, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
-	return nil, nil
-}
-
-func (m *MockVolumeStore) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
-	return nil
-}
-
-func (m *MockVolumeStore) NewDataSink(op trace.Operation, id string) (spl.DataSink, error) {
-	return nil, nil
-}
-
-func (m *MockVolumeStore) NewDataSource(op trace.Operation, id string) (spl.DataSource, error) {
-	return nil, nil
-}
-
-func (m *MockVolumeStore) URL(op trace.Operation, id string) (*url.URL, error) {
-	return nil, nil
-}
-
-func (m *MockVolumeStore) Owners(op trace.Operation, url *url.URL, filter func(vm *mo.VirtualMachine) bool) ([]*vm.VirtualMachine, error) {
-	return nil, nil
-}
-
-// GetImageStore checks to see if a named image store exists and returls the
-// URL to it if so or error.
-func (c *MockDataStore) GetImageStore(op trace.Operation, storeName string) (*url.URL, error) {
-	_, err := util.ImageStoreNameToURL(storeName)
-	if err != nil {
-		return nil, err
-	}
-	return nil, os.ErrNotExist
-}
-
-func (c *MockDataStore) CreateImageStore(op trace.Operation, storeName string) (*url.URL, error) {
-	u, err := util.ImageStoreNameToURL(storeName)
-	if err != nil {
-		return nil, err
-	}
-
-	return u, nil
-}
-
-func (c *MockDataStore) DeleteImageStore(op trace.Operation, storeName string) error {
-	return nil
-}
-
-func (c *MockDataStore) ListImageStores(op trace.Operation) ([]*url.URL, error) {
-	return nil, nil
-}
-
-func (c *MockDataStore) Export(op trace.Operation, child, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
-	return nil, nil
-}
-
-func (c *MockDataStore) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
-	return nil
-}
-
-func (c *MockDataStore) NewDataSink(op trace.Operation, id string) (spl.DataSink, error) {
-	return nil, nil
-}
-
-func (c *MockDataStore) NewDataSource(op trace.Operation, id string) (spl.DataSource, error) {
-	return nil, nil
-}
-
-func (c *MockDataStore) URL(op trace.Operation, id string) (*url.URL, error) {
-	return nil, nil
-}
-
-func (c *MockDataStore) Owners(op trace.Operation, url *url.URL, filter func(vm *mo.VirtualMachine) bool) ([]*vm.VirtualMachine, error) {
-	return nil, nil
-}
-
-func (c *MockDataStore) WriteImage(op trace.Operation, parent *spl.Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*spl.Image, error) {
-	storeName, err := util.ImageStoreName(parent.Store)
-	if err != nil {
-		return nil, err
-	}
-
-	selflink, err := util.ImageURL(storeName, ID)
-	if err != nil {
-		return nil, err
-	}
-
-	i := spl.Image{
-		ID:         ID,
-		Store:      parent.Store,
-		ParentLink: parent.SelfLink,
-		SelfLink:   selflink,
-		Metadata:   meta,
-	}
-
-	return &i, nil
-}
-func (c *MockDataStore) WriteMetadata(op trace.Operation, storeName string, ID string, meta map[string][]byte) error {
-	return nil
-}
-
-// GetImage gets the specified image from the given store by retreiving it from the cache.
-func (c *MockDataStore) GetImage(op trace.Operation, store *url.URL, ID string) (*spl.Image, error) {
-	if ID == constants.ScratchLayerID {
-		return &spl.Image{Store: store}, nil
-	}
-
-	return nil, os.ErrNotExist
-}
-
-// ListImages resturns a list of Images for a list of IDs, or all if no IDs are passed
-func (c *MockDataStore) ListImages(op trace.Operation, store *url.URL, IDs []string) ([]*spl.Image, error) {
-	return nil, fmt.Errorf("store (%s) doesn't exist", store.String())
-}
-
-func (c *MockDataStore) DeleteImage(op trace.Operation, image *spl.Image) (*spl.Image, error) {
-	return nil, nil
-}
-
 func TestCreateImageStore(t *testing.T) {
 	s := &StorageHandlersImpl{
-		imageCache: spl.NewLookupCache(&MockDataStore{}),
+		imageCache: icache.NewLookupCache(imagemock.NewMockDataStore(nil)),
 	}
 
 	store := &models.ImageStore{
@@ -281,7 +86,7 @@ func TestCreateImageStore(t *testing.T) {
 func TestGetImage(t *testing.T) {
 
 	s := &StorageHandlersImpl{
-		imageCache: spl.NewLookupCache(&MockDataStore{}),
+		imageCache: icache.NewLookupCache(imagemock.NewMockDataStore(nil)),
 	}
 
 	params := &storage.GetImageParams{
@@ -313,7 +118,7 @@ func TestGetImage(t *testing.T) {
 	}
 
 	// add image to store
-	parent := spl.Image{
+	parent := image.Image{
 		ID:         "scratch",
 		SelfLink:   nil,
 		ParentLink: nil,
@@ -365,7 +170,7 @@ func TestGetImage(t *testing.T) {
 func TestListImages(t *testing.T) {
 
 	s := &StorageHandlersImpl{
-		imageCache: spl.NewLookupCache(&MockDataStore{}),
+		imageCache: icache.NewLookupCache(imagemock.NewMockDataStore(nil)),
 	}
 
 	params := &storage.ListImagesParams{
@@ -389,8 +194,8 @@ func TestListImages(t *testing.T) {
 	}
 
 	// create a set of images
-	images := make(map[string]*spl.Image)
-	parent := spl.Image{
+	images := make(map[string]*image.Image)
+	parent := image.Image{
 		ID: constants.ScratchLayerID,
 	}
 	parent.Store = &testStoreURL
@@ -446,7 +251,7 @@ func TestListImages(t *testing.T) {
 }
 
 func TestWriteImage(t *testing.T) {
-	ic := spl.NewLookupCache(&MockDataStore{})
+	ic := icache.NewLookupCache(imagemock.NewMockDataStore(nil))
 
 	// create image store
 	op := trace.NewOperation(context.Background(), "test")
@@ -511,9 +316,9 @@ func TestWriteImage(t *testing.T) {
 func TestVolumeCreate(t *testing.T) {
 
 	op := trace.NewOperation(context.Background(), "test")
-	volCache := spl.NewVolumeLookupCache(op)
+	volCache := vcache.NewVolumeLookupCache(op)
 
-	testStore := NewMockVolumeStore()
+	testStore := volumemock.NewMockVolumeStore()
 	_, err := volCache.AddStore(op, "testStore", testStore)
 	if !assert.NoError(t, err) {
 		return
