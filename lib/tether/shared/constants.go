@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,4 +25,7 @@ const (
 	GuestActionReload    = "reload"
 	GuestActionKill      = "kill"
 	GuestActionGroupKill = "group-kill"
+
+	// scratchDiskLabel labels the root image for the disk chain
+	ScratchDiskLabel = "containerfs"
 )
