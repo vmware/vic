@@ -198,6 +198,29 @@ func (v *ImageStore) GetImageStore(op trace.Operation, storeName string) (*url.U
 		return nil, err
 	}
 
+	// THIS LOGIC IS DEALING WITH UPGRADE PATHS FROM IMAGE STORES WITHOUT THE SCRATCH UUID BEING
+	// SPECIFIED.
+	// HOWEVER, EVEN WITH THE SCRATCH UUID SPECIFIED IT DOES NOT ALLOW US TO ATTACH MULTIPLE OLD
+	// IMAGES TO A SINGLE VM BECAUSE THE IMAGES DO NOT HAVE THE EXPECTED DISK LABELS, BUT RATHER
+	// HAVE THE OLD containerfs LABEL.
+	// WE CANNOT USE UUID TO CAPTURE THE IMAGE ID (AS WOULD BE IDEAL) WITHOUT MODIFICATIONS TO
+	// DISKLIB AND/OR AN ESX AGENT DOING DISK WORK FOR US. WE SHOULD CONSIDER WHETHER IT'S WORTH
+	// YET AN OTHER ITERIM (THE FILESYSTEM LABELS) SOLUTION OR IF WE SHOULD PUSH DISKLIB TO FIX
+	// THIS AND ONLY SUPPORT PODVM ON SPECIFIC VSPHERE RELEASES.
+
+	// ensure that scratch has the expected UUID
+	diskDsURI := v.imageDiskDSPath(storeName, constants.ScratchLayerID)
+	config := disk.NewPersistentDisk(diskDsURI)
+	dsk, err := v.Get(op, config)
+	if err != nil {
+		return nil, err
+	}
+
+	err = v.Manager.SetUUID(op, dsk)
+	if err != nil {
+		return nil, err
+	}
+
 	return u, nil
 }
 
@@ -378,9 +401,16 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 		v.cleanupDisk(op, ID, storeName, vmdisk)
 	}()
 
-	config := disk.NewPersistentDisk(diskDsURI).WithParent(parentDiskDsURI)
+	// upgrade: we set the scratch UUID here to ensure that newly pulled images have either the uuid or the previous
+	// label that was used to differentiate image disks from volume disks.
+	config := disk.NewPersistentDisk(diskDsURI).WithParent(parentDiskDsURI).WithUUID(shared.ScratchUUID)
 	// Create the disk
 	vmdisk, err = v.CreateAndAttach(op, config)
+	if err != nil {
+		return nil, err
+	}
+
+	err = vmdisk.SetLabel(op, ID)
 	if err != nil {
 		return nil, err
 	}
@@ -466,7 +496,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) (*disk.Virtua
 		v.cleanupDisk(op, constants.ScratchLayerID, storeName, vmdisk)
 	}()
 
-	config := disk.NewPersistentDisk(imageDiskDsURI).WithCapacity(size)
+	config := disk.NewPersistentDisk(imageDiskDsURI).WithCapacity(size).WithUUID(shared.ScratchUUID)
 	// Create the disk
 	vmdisk, err = v.CreateAndAttach(op, config)
 	if err != nil {

@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -110,6 +110,10 @@ func (m *Manager) toSpec(config *VirtualDiskConfig) *types.VirtualDisk {
 		},
 	}
 
+	if config.UUID != "" {
+		backing.Uuid = config.UUID
+	}
+
 	disk := &types.VirtualDisk{
 		VirtualDevice: types.VirtualDevice{
 			Key:           -1,
@@ -145,6 +149,12 @@ func (m *Manager) toSpec(config *VirtualDiskConfig) *types.VirtualDisk {
 	*disk.VirtualDevice.UnitNumber = -1
 
 	return disk
+}
+
+// SetUUID sets the UUID on the specified disk if possible.
+func (m *Manager) SetUUID(op trace.Operation, disk *VirtualDisk) error {
+	panic("SetUUID not yet implemented in govmomi")
+	// m.vdMngr.SetVirtualDiskUuid(op, disk.DatastoreURI.String(), m.vm.Datacenter)
 }
 
 // CreateAndAttach creates a new VMDK, attaches it and ensures that the device becomes visible to the caller.
