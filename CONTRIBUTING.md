@@ -278,11 +278,11 @@ Consider formatting longer logs so that they are not shown by default.
 
 Example:
 ```
-<detail><summary>View Logs</summary>
+<details><summary>View Logs</summary>
 <pre><code>
 ... (log content)
 </code></pre>
-</detail>
+</details>
 ```
 
 [code]:https://help.github.com/articles/creating-and-highlighting-code-blocks/
