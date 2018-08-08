@@ -99,6 +99,8 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 	op := trace.NewOperation(context.Background(), "backends.Init(%s, %d)", portLayerAddr, port)
 	defer trace.End(trace.Audit("", op))
 
+	network.Init()
+
 	servicePort = port
 	_, _, err := net.SplitHostPort(portLayerAddr)
 	if err != nil {
