@@ -27,15 +27,15 @@ Heterogenous ESXi Setup
     ${pid-vc}=  Deploy Nimbus vCenter Server Async  ${vc}
     Set Suite Variable  @{list}  %{NIMBUS_USER}-${vc}
 
-    Run Keyword And Ignore Error  Cleanup Nimbus Folders  ${deletePXE}=%{true}
+    Run Keyword And Ignore Error  Cleanup Nimbus Folders  True
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  3029944
     Append To List  ${list}  ${esx1}
 
-    Run Keyword And Ignore Error  Cleanup Nimbus Folders  ${deletePXE}=%{true}
+    Run Keyword And Ignore Error  Cleanup Nimbus Folders  True
     ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  5572656
     Append To List  ${list}  ${esx2}
 
-    Run Keyword And Ignore Error  Cleanup Nimbus Folders  ${deletePXE}=%{true}
+    Run Keyword And Ignore Error  Cleanup Nimbus Folders  True
     ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Append To List  ${list}  ${esx3}
 
