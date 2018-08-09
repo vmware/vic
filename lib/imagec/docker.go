@@ -27,7 +27,6 @@ import (
 	"os"
 	"path"
 
-	log "github.com/Sirupsen/logrus"
 	ddigest "github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
@@ -139,7 +138,7 @@ func LearnAuthURL(op trace.Operation, options Options) (*url.URL, error) {
 	// Private registry returned the manifest directly as auth option is optional.
 	// https://github.com/docker/distribution/blob/master/docs/configuration.md#auth
 	if err == nil && options.Registry != registry.DefaultV2Registry.Host && fetcher.IsStatusOK() {
-		log.Debugf("%s does not support OAuth", url)
+		op.Debugf("%s does not support OAuth", url)
 		return nil, nil
 	}
 
@@ -355,7 +354,7 @@ func FetchImageManifest(op trace.Operation, options Options, schemaVersion int, 
 
 	manifestFileName, err := fetcher.Fetch(op, url, &reqHeaders, true, progressOutput)
 	if err != nil {
-		log.Debugf("Failed to fetch manifest: %s", err.Error())
+		op.Debugf("Failed to fetch manifest: %s", err.Error())
 
 		switch err.(type) {
 		case urlfetcher.AccessDenied:
