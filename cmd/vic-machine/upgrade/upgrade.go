@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
@@ -128,6 +129,7 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 		op.Infof("### Rolling back VCH ####")
 		action = management.ActionRollback
 	}
+	op.Debugf("Version %s", version.GetBuild().ShortVersion())
 
 	validator, err := validate.NewValidator(op, u.Data)
 	if err != nil {

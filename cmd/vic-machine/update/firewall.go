@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 )
 
 // UpdateFw has all input parameters for vic-machine update firewall command
@@ -121,6 +122,7 @@ func (i *UpdateFw) Run(clic *cli.Context) (err error) {
 	}
 
 	op.Infof("### Updating Firewall ####")
+	op.Debugf("Version %s", version.GetBuild().ShortVersion())
 
 	var validator *validate.Validator
 	if validator, err = validate.NewValidator(op, i.Data); err != nil {

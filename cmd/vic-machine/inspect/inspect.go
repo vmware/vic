@@ -144,6 +144,7 @@ func (i *Inspect) run(clic *cli.Context, op trace.Operation, cmd command) (err e
 	}
 
 	op.Infof("### Inspecting VCH ####")
+	op.Debugf("Version %s", version.GetBuild().ShortVersion())
 
 	validator, err := validate.NewValidator(op, i.Data)
 
