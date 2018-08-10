@@ -655,7 +655,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	// These operations will be executed without timeout
 	op := common.NewOperation(clic, c.Debug.Debug)
 	op.Infof("### Installing VCH ####")
-	op.Debugf("Version %s", version.GetBuild().ShortVersion())
+	op.Debugf("vic-machine version %s", version.GetBuild().ShortVersion())
 
 	defer func() {
 		// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.

@@ -108,7 +108,7 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 	}
 
 	op.Infof("### Removing VCH ####")
-	op.Debugf("Version %s", version.GetBuild().ShortVersion())
+	op.Debugf("vic-machine version %s", version.GetBuild().ShortVersion())
 
 	validator, err := validate.NewValidator(op, d.Data)
 	if err != nil {

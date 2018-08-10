@@ -122,7 +122,7 @@ func (i *UpdateFw) Run(clic *cli.Context) (err error) {
 	}
 
 	op.Infof("### Updating Firewall ####")
-	op.Debugf("Version %s", version.GetBuild().ShortVersion())
+	op.Debugf("vic-machine version %s", version.GetBuild().ShortVersion())
 
 	var validator *validate.Validator
 	if validator, err = validate.NewValidator(op, i.Data); err != nil {

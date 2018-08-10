@@ -129,7 +129,7 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 		op.Infof("### Rolling back VCH ####")
 		action = management.ActionRollback
 	}
-	op.Debugf("Version %s", version.GetBuild().ShortVersion())
+	op.Debugf("vic-machine version %s", version.GetBuild().ShortVersion())
 
 	validator, err := validate.NewValidator(op, u.Data)
 	if err != nil {
