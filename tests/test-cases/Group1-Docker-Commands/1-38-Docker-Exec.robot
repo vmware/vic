@@ -226,11 +226,11 @@ Concurrent Simple Exec
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecSimpleContainer} ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
 
-    :FOR  ${idx}  IN RANGE  1  20
+    :FOR  ${idx}  IN RANGE  1  50
     \   Start Process  docker %{VCH-PARAMS} exec ${id} /bin/ls  alias=exec-simple-%{VCH-NAME}-${idx}  shell=true
 
-    :FOR  ${idx}  IN RANGE  1  20
-    \   ${result}=  Wait For Process  exec-simple-%{VCH-NAME}-${idx}  timeout=40s
+    :FOR  ${idx}  IN RANGE  1  50
+    \   ${result}=  Wait For Process  exec-simple-%{VCH-NAME}-${idx}  timeout=300s
     \   Should Be Equal As Integers  ${result.rc}  0
     \   Verify LS Output For Busybox  ${result.stdout}
     # stop the container now that we have a successful series of concurrent execs
@@ -248,11 +248,11 @@ Concurrent Simple Exec Detached
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${ExecSimpleContainer} ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
 
-    :FOR  ${idx}  IN RANGE  1  20
+    :FOR  ${idx}  IN RANGE  1  50
     \   Start Process  docker %{VCH-PARAMS} exec -d ${id} touch /tmp/${idx}  alias=exec-simple-detached-%{VCH-NAME}-${idx}  shell=true
 
-    :FOR  ${idx}  IN RANGE  1  20
-    \   ${result}=  Wait For Process  exec-simple-detached-%{VCH-NAME}-${idx}  timeout=40s
+    :FOR  ${idx}  IN RANGE  1  50
+    \   ${result}=  Wait For Process  exec-simple-detached-%{VCH-NAME}-${idx}  timeout=300s
     \   Should Be Equal As Integers  ${result.rc}  0
 
     ### TODO: check inspect status and wait for execs to stop

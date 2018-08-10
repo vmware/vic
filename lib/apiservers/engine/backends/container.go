@@ -205,8 +205,13 @@ func (c *ContainerBackend) ContainerExecCreate(name string, config *types.ExecCo
 
 	var eid string
 	operation := func() error {
-		if vc.TryLock(APITimeout) {
+		op.Debugf("ContainerExecCreate trying to lock vc: %s", name)
+		if vc.TryLock(time.Second) {
+			op.Debugf("ContainerExecCreate successfully locked vc: %s", name)
 			defer vc.Unlock()
+		} else {
+			op.Debugf("ContainerExecCreate cannot lock vc, retrying ..: %s", name)
+			return engerr.NewLockTimeoutError("ContainerExecCreate")
 		}
 
 		handle, err := c.Handle(id, name)
@@ -250,10 +255,11 @@ func (c *ContainerBackend) ContainerExecCreate(name string, config *types.ExecCo
 
 	// configure custom exec back off configure
 	backoffConf := retry.NewBackoffConfig()
-	backoffConf.MaxInterval = 2 * time.Second
+	backoffConf.MaxInterval = 5 * time.Second
 	backoffConf.InitialInterval = 500 * time.Millisecond
+	backoffConf.MaxElapsedTime = 20 * time.Minute
 
-	if err := retry.DoWithConfig(operation, engerr.IsConflictError, backoffConf); err != nil {
+	if err := retry.DoWithConfig(operation, engerr.IsLockTimeoutOrConflictError, backoffConf); err != nil {
 		op.Errorf("Failed to start Exec task for container(%s) due to error (%s)", id, err)
 		return "", err
 	}
@@ -351,7 +357,7 @@ func (c *ContainerBackend) ContainerExecResize(eid string, height, width int) er
 // attachHelper performs some basic type transformation and makes blocking call to AttachStreams
 // autoclose determines if stdin will be closed when both stdout and stderr have closed
 func (c *ContainerBackend) attachHelper(op trace.Operation, ec *models.TaskInspectResponse, stdin io.ReadCloser, stdout, stderr io.Writer, autoclose bool) error {
-	defer trace.End(trace.Begin(ec.ID))
+	defer trace.End(trace.Begin(ec.ID, op))
 
 	ca := &backend.ContainerAttachConfig{
 		UseStdin:  ec.OpenStdin,
@@ -382,6 +388,8 @@ func processAttachError(op trace.Operation, actor *eventtypes.Actor, err error) 
 		return false, nil
 	}
 
+	defer trace.End(trace.Begin(err.Error(), op))
+
 	if _, ok := err.(engerr.DetachError); ok {
 		op.Infof("Detach detected")
 
@@ -406,6 +414,8 @@ func processAttachError(op trace.Operation, actor *eventtypes.Actor, err error) 
 //  task data
 //  error if any
 func (c *ContainerBackend) taskStartHelper(op trace.Operation, id, eid, name string) (*models.TaskInspectResponse, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("%s.%s", id, eid), op))
+
 	handle, err := c.Handle(id, name)
 	if err != nil {
 		op.Errorf("Failed to obtain handle during exec start for container(%s) due to error: %s", id, err)
@@ -509,6 +519,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 	backoffConf := retry.NewBackoffConfig()
 	backoffConf.MaxInterval = 2 * time.Second
 	backoffConf.InitialInterval = 500 * time.Millisecond
+	backoffConf.MaxElapsedTime = 20 * time.Minute
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainerFromExec(eid)
@@ -522,8 +533,13 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 
 	var ec *models.TaskInspectResponse
 	operation := func() error {
-		if vc.TryLock(APITimeout) {
+		op.Debugf("ContainerExecStart trying to lock vc: %s", name)
+		if vc.TryLock(time.Second) {
+			op.Debugf("ContainerExecStart successfully locked vc: %s", name)
 			defer vc.Unlock()
+		} else {
+			op.Debugf("ContainerExecStart cannot lock vc, retryng ..: %s", name)
+			return engerr.NewLockTimeoutError("ContainerExecStart")
 		}
 
 		var err error
@@ -531,7 +547,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		return err
 	}
 
-	if err := retry.DoWithConfig(operation, engerr.IsConflictError, backoffConf); err != nil {
+	if err := retry.DoWithConfig(operation, engerr.IsLockTimeoutOrConflictError, backoffConf); err != nil {
 		op.Errorf("Failed to start Exec task for container(%s) due to error (%s)", id, err)
 		return err
 	}
