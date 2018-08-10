@@ -782,7 +782,7 @@ func (c *Container) onEvent(op trace.Operation, newState State, e events.Event) 
 		case StateRemoved:
 			if c.vm != nil && c.vm.IsFixing() {
 				// is fixing vm, which will be registered back soon, so do not remove from containers cache
-				op.Debugf("Container(%s) %s is being fixed - %s event ignored", c, newState)
+				op.Debugf("Container(%s) %s is being fixed - %s event ignored", c, newState, e.String())
 
 				// Received remove event triggered by unregister VM operation - leave
 				// fixing state now. In a loaded environment, the remove event may be
@@ -793,6 +793,20 @@ func (c *Container) onEvent(op trace.Operation, newState State, e events.Event) 
 				// a container event to be propogated to subscribers
 				return
 			}
+			if c.state != StateRemoving {
+				// Check using findByInventoryPath
+				op.Infof("Container(%s) in state: %s, has received unexpected Removed event", c, c.state)
+
+				// Sometimes we get this event when a VM has been migrated, in that case
+				// we should not remove it from the cache as the container still exists, issue #7322
+				found, err := c.vmExists(op)
+				if found && err == nil {
+					op.Infof("Container(%s) still exists, ignoring event: %s", c, e.String())
+					// Ignore this Removed event, do not remove container from the cache
+					return
+				}
+			}
+
 			op.Debugf("Container(%s) %s via event activity", c, newState)
 			// if we are here the containerVM has been removed from vSphere, so lets remove it
 			// from the portLayer cache
@@ -807,6 +821,41 @@ func (c *Container) onEvent(op trace.Operation, newState State, e events.Event) 
 		publishContainerEvent(op, c.ExecConfig.ID, e.Created(), publishEventType)
 		return
 	}
+}
+
+func (c *Container) vmExists(op trace.Operation) (bool, error) {
+	// Check if there is an underlying vm and
+	// if there is and appropriate Session
+	if c.vm == nil || c.vm.Session == nil {
+		return false, nil
+	}
+
+	// Check Vim25 Client
+	client := c.vm.Session.Vim25()
+	if client == nil {
+		return false, nil
+	}
+
+	vm := c.vm
+	// Check power state
+	state, err := vm.PowerState(op)
+	if err == nil {
+		op.Debugf("container(%s) vmExists, PowerState: %s", c, state)
+		return true, nil
+	}
+
+	inventoryPath := vm.InventoryPath
+	op.Debugf("container(%s) vmExists, InventoryPath: %s", c, inventoryPath)
+
+	searchIndex := object.NewSearchIndex(client)
+	ref, err := searchIndex.FindByInventoryPath(op, inventoryPath)
+	moRef := ref.Reference()
+	if err == nil {
+		op.Debugf("container(%s) vmExists, Ref: %s", c, moRef.String())
+		return true, nil
+	}
+
+	return false, err
 }
 
 // get the containerVMs from infrastructure for this resource pool or the VCH Folder
