@@ -34,10 +34,6 @@ func Inspect(op *trace.Operation, h interface{}, id string) (*executor.SessionCo
 	stasks := handle.ExecConfig.Sessions
 	etasks := handle.ExecConfig.Execs
 
-	op.Debugf("target task ID: %s", id)
-	op.Debugf("session tasks during inspect: %s", stasks)
-	op.Debugf("exec tasks during inspect: %s", etasks)
-
 	if _, ok := stasks[id]; ok {
 		return stasks[id], nil
 	}
