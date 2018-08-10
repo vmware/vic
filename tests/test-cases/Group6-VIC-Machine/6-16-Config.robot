@@ -171,11 +171,11 @@ Configure VCH https-proxy
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  https://proxy.vmware.com:3128
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep HTTP_PROXY
-    Should Be Equal As Integers  ${rc}  1
-    Should Not Contain  ${output}  proxy.vmware.com:3128
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  https://proxy.vmware.com:3128
     ${output}=  Run  bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT}
     Should Contain  ${output}  --https-proxy=https://proxy.vmware.com:3128
-    Should Not Contain  ${output}  --http-proxy
+    Should Contain  ${output}  --http-proxy=https://proxy.vmware.com:3128
 
     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --https-proxy http://proxy.vmware.com:3128
     Should Contain  ${output}  Completed successfully
@@ -183,11 +183,25 @@ Configure VCH https-proxy
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  http://proxy.vmware.com:3128
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep HTTP_PROXY
-    Should Be Equal As Integers  ${rc}  1
-    Should Not Contain  ${output}  proxy.vmware.com:3128
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  https://proxy.vmware.com:3128
     ${output}=  Run  bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT}
     Should Contain  ${output}  --https-proxy=http://proxy.vmware.com:3128
-    Should Not Contain  ${output}  --http-proxy
+    Should Contain  ${output}  --http-proxy=https://proxy.vmware.com:3128
+
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --https-proxy http://proxy.vmware.com:3128 --no-proxy='localhost, .vmware.com'
+    Should Contain  ${output}  Completed successfully
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep NO_PROXY
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  .vmware.com
+    ${output}=  Run  bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT}
+    Should Contain  ${output}  --no-proxy=localhost,.vmware.com
+
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --http-proxy http://exmaple.com:3128 --https-proxy http://exmaple.com:3128 --no-proxy='*'
+    Should Contain  ${output}  Completed successfully
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${alpine}
+    Should Be Equal As Integers  ${rc}  0
+
 
 Configure VCH ops user credentials and thumbprint
     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --ops-user=%{TEST_USERNAME} --ops-password=%{TEST_PASSWORD}
@@ -202,7 +216,12 @@ Configure VCH https-proxy through vch id
     Should Contain  ${output}  Completed successfully
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep HTTPS_PROXY
     Should Be Equal As Integers  ${rc}  1
-    Should Not Contain  ${output}  proxy.vmware.com:3128
+    Should Not Contain  ${output}  example.com:3128
+
+    ${output}=  Run  bin/vic-machine-linux configure --id=${vch-id} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --no-proxy ""
+    Should Contain  ${output}  Completed successfully
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep NO_PROXY
+    Should Be Equal As Integers  ${rc}  1
 
 Configure VCH DNS server
     ${output}=  Run  bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}

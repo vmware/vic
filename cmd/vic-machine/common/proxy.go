@@ -15,17 +15,20 @@
 package common
 
 import (
+	"bytes"
 	"fmt"
 	"net/url"
-
-	"github.com/vmware/vic/pkg/flags"
+	"strings"
 
 	"gopkg.in/urfave/cli.v1"
+
+	"github.com/vmware/vic/pkg/flags"
 )
 
 type Proxies struct {
 	HTTPSProxy *string
 	HTTPProxy  *string
+	NoProxy    *string
 	IsSet      bool
 }
 
@@ -44,13 +47,20 @@ func (p *Proxies) ProxyFlags() []cli.Flag {
 			Usage:  "An HTTP proxy for use when fetching images, in the form http(s)://fqdn_or_ip:port",
 			Hidden: true,
 		},
+		cli.GenericFlag{
+			Name:   "no-proxy",
+			Value:  flags.NewOptionalString(&p.NoProxy),
+			Usage:  "URLs that should be excluded from proxying. This should be * or a comma-separated list of hostnames, domain names, or a mixture of both, e.g. localhost,.example.com",
+			Hidden: true,
+		},
 	}
 }
 
-func (p *Proxies) ProcessProxies() (hproxy, sproxy *url.URL, err error) {
+func (p *Proxies) ProcessProxies() (hproxy, sproxy *url.URL, nproxy *string, err error) {
 	if p.HTTPProxy != nil || p.HTTPSProxy != nil {
 		p.IsSet = true
 	}
+
 	if p.HTTPProxy != nil && *p.HTTPProxy != "" {
 		hproxy, err = p.validate(*p.HTTPProxy)
 		if err != nil {
@@ -60,6 +70,13 @@ func (p *Proxies) ProcessProxies() (hproxy, sproxy *url.URL, err error) {
 
 	if p.HTTPSProxy != nil && *p.HTTPSProxy != "" {
 		sproxy, err = p.validate(*p.HTTPSProxy)
+		if err != nil {
+			return
+		}
+	}
+
+	if p.NoProxy != nil && *p.NoProxy != "" {
+		nproxy, err = p.validateURIs(strings.Split(*p.NoProxy, ","))
 	}
 	return
 }
@@ -72,5 +89,23 @@ func (p *Proxies) validate(ref string) (proxy *url.URL, err error) {
 	if proxy.Host == "" || (proxy.Scheme != "http" && proxy.Scheme != "https") {
 		err = cli.NewExitError(fmt.Sprintf("Could not parse HTTP(S) proxy - expected format http(s)://fqnd_or_ip:port: %s", ref), 1)
 	}
+	return
+}
+
+func (p *Proxies) validateURIs(refs []string) (trimedNproxy *string, err error) {
+	var buffer bytes.Buffer
+	buffer.WriteString(strings.TrimSpace(refs[0]))
+	for _, ref := range refs[1:] {
+		trimedRef := strings.TrimSpace(ref)
+		_, err = url.Parse(trimedRef)
+		if err != nil {
+			err = cli.NewExitError(fmt.Sprintf("Could not parse no-proxy - expected format is * or a comma-separated list of hostnames, domain names, or a mixture of both, e.g. localhost,.example.com: %s", ref), 1)
+			return
+		}
+		buffer.WriteString(",")
+		buffer.WriteString(trimedRef)
+	}
+	trimedStr := buffer.String()
+	trimedNproxy = &trimedStr
 	return
 }

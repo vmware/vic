@@ -828,6 +828,13 @@
                 "https": {
                   "type": "string",
                   "format": "uri"
+                },
+                "no_proxy": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uri"
+                  }
                 }
               }
             }
