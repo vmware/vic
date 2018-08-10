@@ -93,7 +93,7 @@ func Wait(op *trace.Operation, h interface{}, id string) error {
 		return tasks.IsTransientError(*op, err)
 	}
 
-	if err := retry.DoWithConfig(operation, retryDecider, backoffConf); err != nil {
+	if err := retry.DoWithConfig(op, operation, retryDecider, backoffConf); err != nil {
 		op.Errorf("Unable to wait for task exec task completion: task(%s) : %s", id, err)
 		return err
 	}

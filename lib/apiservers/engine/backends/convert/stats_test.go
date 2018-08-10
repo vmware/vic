@@ -367,7 +367,7 @@ func success(converter *ContainerStats) bool {
 		return false
 	}
 	// use the retry package and keep retrying until we've hit the limit
-	if err := retry.Do(op, wait); err != nil {
+	if err := retry.Do(context.Background(), op, wait); err != nil {
 		return false
 	}
 	return true

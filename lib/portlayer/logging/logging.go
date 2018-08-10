@@ -94,7 +94,7 @@ func eventCallback(ie events.Event) {
 			return nil
 		}
 
-		if err := retry.Do(operation, exec.IsConcurrentAccessError); err != nil {
+		if err := retry.Do(op, operation, exec.IsConcurrentAccessError); err != nil {
 			op.Errorf("Multiple attempts failed to commit handle after getting %s event for container %s: %s", ie, ie.Reference(), err)
 		}
 	}

@@ -327,7 +327,7 @@ func reloadConfig(op trace.Operation, h *Handle, c *Container) error {
 		return nil
 	}
 
-	err := retry.Do(retryFunc, isIntermittentFailure)
+	err := retry.Do(op, retryFunc, isIntermittentFailure)
 	if err != nil {
 		op.Debugf("Failed an exec operation with err: %s", err)
 		return err

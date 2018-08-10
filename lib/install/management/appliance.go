@@ -245,7 +245,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	}
 
 	// Only retry VM destroy on ConcurrentAccess error
-	err = retry.Do(func() error {
+	err = retry.Do(d.op, func() error {
 		_, err := vm.DeleteExceptDisks(d.op)
 		return err
 	}, retryErrHandler)
@@ -253,7 +253,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	if err != nil {
 		d.op.Warnf("Destroy VM %s failed with %s, unregister the VM instead", vm.Reference(), err)
 
-		err = retry.Do(func() error {
+		err = retry.Do(d.op, func() error {
 			return vm.Unregister(d.op)
 		}, retryErrHandler)
 
