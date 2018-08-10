@@ -66,7 +66,7 @@ Try to exploit VCH with offline copy of malicious tarball
 
     Enable VCH SSH
 
-    ${rc}  ${output}=  Run And Return Rc And Output  sshpass -ppassword ssh %{VCH-IP} -lroot -C -oStrictHostKeyChecking=no "ls /tmp | grep pingme"
+    ${rc}  ${output}=  Run And Return Rc And Output  sshpass -ppassword ssh %{VCH-IP} -lroot -C -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "ls /tmp | grep pingme"
 
     Log  ${output}
     Should Not Be Equal As Integers  ${rc}  0

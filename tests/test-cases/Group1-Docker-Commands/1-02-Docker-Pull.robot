@@ -60,7 +60,7 @@ Enable SSH On MITMed VCH
 
 Check For Injected Binary
     [Arguments]  ${vch2-IP}
-    ${rc}  ${output}=  Run And Return Rc And Output  sshpass -ppassword ssh ${vch2-IP} -lroot -C -oStrictHostKeyChecking=no "ls /tmp | grep pingme"
+    ${rc}  ${output}=  Run And Return Rc And Output  sshpass -ppassword ssh ${vch2-IP} -lroot -C -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "ls /tmp | grep pingme"
     Log  ${output}
     Should Not Contain  ${output}  pingme
 

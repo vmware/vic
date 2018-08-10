@@ -211,12 +211,12 @@ Configure VCH DNS server
     Should Contain  ${output}  Completed successfully
 
     Enable VCH SSH
-    ${rc}  ${output}=  Run And Return Rc and Output  sshpass -p %{TEST_PASSWORD} ssh -o StrictHostKeyChecking=no root@%{VCH-IP} cat /etc/resolv.conf
+    ${rc}  ${output}=  Run And Return Rc and Output  sshpass -p %{TEST_PASSWORD} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@%{VCH-IP} cat /etc/resolv.conf
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  nameserver 10.118.81.1
     Should Contain  ${output}  nameserver 10.118.81.2
 
-    ${rc}  ${output}=  Run And Return Rc and Output  sshpass -p %{TEST_PASSWORD} ssh -o StrictHostKeyChecking=no root@%{VCH-IP} cat /etc/resolv.conf | grep nameserver | wc -l
+    ${rc}  ${output}=  Run And Return Rc and Output  sshpass -p %{TEST_PASSWORD} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@%{VCH-IP} cat /etc/resolv.conf | grep nameserver | wc -l
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  2
 
@@ -233,7 +233,7 @@ Configure VCH DNS server
     Should Be Equal As Integers  ${rc}  0
 
     Enable VCH SSH
-    ${rc}  ${output}=  Run And Return Rc and Output  sshpass -p %{TEST_PASSWORD} ssh -o StrictHostKeyChecking=no root@%{VCH-IP} cat /etc/resolv.conf
+    ${rc}  ${output}=  Run And Return Rc and Output  sshpass -p %{TEST_PASSWORD} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@%{VCH-IP} cat /etc/resolv.conf
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  nameserver 10.118.81.1
     Should Not Contain  ${output}  nameserver 10.118.81.2
