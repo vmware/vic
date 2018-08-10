@@ -35,13 +35,13 @@ func (p *Proxies) ProxyFlags(hidden bool) []cli.Flag {
 		cli.GenericFlag{
 			Name:   "https-proxy",
 			Value:  flags.NewOptionalString(&p.HTTPSProxy),
-			Usage:  "An HTTPS proxy for use when fetching images, in the form https://fqdn_or_ip:port",
+			Usage:  "An HTTPS proxy for use when fetching images, in the form http(s)://fqdn_or_ip:port",
 			Hidden: hidden,
 		},
 		cli.GenericFlag{
 			Name:   "http-proxy",
 			Value:  flags.NewOptionalString(&p.HTTPProxy),
-			Usage:  "An HTTP proxy for use when fetching images, in the form http://fqdn_or_ip:port",
+			Usage:  "An HTTP proxy for use when fetching images, in the form http(s)://fqdn_or_ip:port",
 			Hidden: hidden,
 		},
 	}
@@ -52,19 +52,25 @@ func (p *Proxies) ProcessProxies() (hproxy, sproxy *url.URL, err error) {
 		p.IsSet = true
 	}
 	if p.HTTPProxy != nil && *p.HTTPProxy != "" {
-		hproxy, err = url.Parse(*p.HTTPProxy)
-		if err != nil || hproxy.Host == "" || hproxy.Scheme != "http" {
-			err = cli.NewExitError(fmt.Sprintf("Could not parse HTTP proxy - expected format http://fqnd_or_ip:port: %s", *p.HTTPProxy), 1)
+		hproxy, err = p.validate(*p.HTTPProxy)
+		if err != nil {
 			return
 		}
 	}
 
 	if p.HTTPSProxy != nil && *p.HTTPSProxy != "" {
-		sproxy, err = url.Parse(*p.HTTPSProxy)
-		if err != nil || sproxy.Host == "" || sproxy.Scheme != "https" {
-			err = cli.NewExitError(fmt.Sprintf("Could not parse HTTPS proxy - expected format https://fqnd_or_ip:port: %s", *p.HTTPSProxy), 1)
-			return
-		}
+		sproxy, err = p.validate(*p.HTTPSProxy)
+	}
+	return
+}
+
+func (p *Proxies) validate(ref string) (proxy *url.URL, err error) {
+	proxy, err = url.Parse(ref)
+	if err != nil {
+		return
+	}
+	if proxy.Host == "" || (proxy.Scheme != "http" && proxy.Scheme != "https") {
+		err = cli.NewExitError(fmt.Sprintf("Could not parse HTTP(S) proxy - expected format http(s)://fqnd_or_ip:port: %s", ref), 1)
 	}
 	return
 }
