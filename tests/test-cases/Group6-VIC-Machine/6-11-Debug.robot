@@ -49,7 +49,7 @@ Check Password Change When Expired
     Should Be Equal As Integers  ${rc}  0
 
     # push the date forward, past the support duration
-    ${rc}  ${output}=  Run And Return Rc And Output  ssh -o StrictHostKeyChecking=no -i %{VCH-NAME}.key root@%{VCH-IP} 'date -s " +6 year"'
+    ${rc}  ${output}=  Run And Return Rc And Output  ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i %{VCH-NAME}.key root@%{VCH-IP} 'date -s " +6 year"'
     Should Be Equal As Integers  ${rc}  0
 
     # command should fail with expired password
@@ -61,7 +61,7 @@ Check Password Change When Expired
     Should Be Equal As Integers  ${rc}  0
 
     # check we can now log in cleanly - log in via password
-    ${rc}=  Run And Return Rc  sshpass -p dictionary ssh -o StrictHostKeyChecking=no root@%{VCH-IP} /bin/true
+    ${rc}=  Run And Return Rc  sshpass -p dictionary ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@%{VCH-IP} /bin/true
     Should Be Equal As Integers  ${rc}  0
 
     # delete the keys
