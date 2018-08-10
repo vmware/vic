@@ -73,7 +73,7 @@ func (t *ToolboxDataSink) Import(op trace.Operation, spec *archive.FilterSpec, d
 		return client.Upload(op, buf, target, p, &types.GuestPosixFileAttributes{}, true)
 	}
 
-	err = retry.DoWithConfig(retryFunc, isInvalidStateError, toolboxRetryConf)
+	err = retry.DoWithConfig(op, retryFunc, isInvalidStateError, toolboxRetryConf)
 
 	if err != nil {
 		op.Debugf("Upload error: %s", err.Error())

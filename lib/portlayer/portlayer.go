@@ -196,7 +196,7 @@ func TakeCareOfSerialPorts(sess *session.Session) {
 			return nil
 		}
 
-		if err := retry.Do(operation, exec.IsConcurrentAccessError); err != nil {
+		if err := retry.Do(op, operation, exec.IsConcurrentAccessError); err != nil {
 			op.Errorf("Multiple attempts failed for committing the handle with %s", err)
 		}
 	}

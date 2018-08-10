@@ -259,7 +259,7 @@ func (c *ContainerBackend) ContainerExecCreate(name string, config *types.ExecCo
 	backoffConf.InitialInterval = 500 * time.Millisecond
 	backoffConf.MaxElapsedTime = 20 * time.Minute
 
-	if err := retry.DoWithConfig(operation, engerr.IsLockTimeoutOrConflictError, backoffConf); err != nil {
+	if err := retry.DoWithConfig(op, operation, engerr.IsLockTimeoutOrConflictError, backoffConf); err != nil {
 		op.Errorf("Failed to start Exec task for container(%s) due to error (%s)", id, err)
 		return "", err
 	}
@@ -547,7 +547,7 @@ func (c *ContainerBackend) ContainerExecStart(ctx context.Context, eid string, s
 		return err
 	}
 
-	if err := retry.DoWithConfig(operation, engerr.IsLockTimeoutOrConflictError, backoffConf); err != nil {
+	if err := retry.DoWithConfig(ctx, operation, engerr.IsLockTimeoutOrConflictError, backoffConf); err != nil {
 		op.Errorf("Failed to start Exec task for container(%s) due to error (%s)", id, err)
 		return err
 	}
@@ -866,14 +866,14 @@ func (c *ContainerBackend) ContainerRestart(name string, seconds *int) error {
 	operation := func() error {
 		return c.containerProxy.Stop(op, vc, name, seconds, false)
 	}
-	if err := retry.Do(operation, engerr.IsConflictError); err != nil {
+	if err := retry.Do(op, operation, engerr.IsConflictError); err != nil {
 		return engerr.InternalServerError(fmt.Sprintf("Stop failed with: %s", err))
 	}
 
 	operation = func() error {
 		return c.containerStart(op, name, nil, true)
 	}
-	if err := retry.Do(operation, engerr.IsConflictError); err != nil {
+	if err := retry.Do(op, operation, engerr.IsConflictError); err != nil {
 		return engerr.InternalServerError(fmt.Sprintf("Start failed with: %s", err))
 	}
 
@@ -945,7 +945,7 @@ func (c *ContainerBackend) ContainerRm(name string, config *types.ContainerRmCon
 			return c.containerProxy.Remove(op, vc, config)
 		}
 
-		return retry.Do(operation, engerr.IsConflictError)
+		return retry.Do(op, operation, engerr.IsConflictError)
 	}
 
 	return c.containerProxy.Remove(op, vc, config)
@@ -1010,7 +1010,7 @@ func (c *ContainerBackend) ContainerStart(name string, hostConfig *containertype
 	operation := func() error {
 		return c.containerStart(op, name, hostConfig, true)
 	}
-	if err := retry.Do(operation, engerr.IsConflictError); err != nil {
+	if err := retry.Do(op, operation, engerr.IsConflictError); err != nil {
 		op.Debugf("Container start failed due to error - %s", err.Error())
 		return err
 	}
@@ -1236,7 +1236,7 @@ func (c *ContainerBackend) ContainerStop(name string, seconds *int) error {
 
 	config := retry.NewBackoffConfig()
 	config.MaxElapsedTime = maxElapsedTime
-	if err := retry.DoWithConfig(operation, engerr.IsConflictError, config); err != nil {
+	if err := retry.DoWithConfig(op, operation, engerr.IsConflictError, config); err != nil {
 		return err
 	}
 
@@ -1656,7 +1656,7 @@ func (c *ContainerBackend) ContainerAttach(name string, ca *backend.ContainerAtt
 	operation := func() error {
 		return c.containerAttach(op, name, ca)
 	}
-	if err := retry.Do(operation, engerr.IsConflictError); err != nil {
+	if err := retry.Do(op, operation, engerr.IsConflictError); err != nil {
 		return err
 	}
 	return nil
@@ -1778,7 +1778,7 @@ func (c *ContainerBackend) ContainerRename(oldName, newName string) error {
 		return c.containerProxy.Rename(op, vc, newName)
 	}
 
-	if err := retry.Do(renameOp, engerr.IsConflictError); err != nil {
+	if err := retry.Do(op, renameOp, engerr.IsConflictError); err != nil {
 		log.Errorf("Rename error: %s", err)
 		cache.ContainerCache().ReleaseName(newName)
 		return err
