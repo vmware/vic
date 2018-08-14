@@ -333,7 +333,7 @@ func (n *NetworkBackend) ConnectContainerToNetwork(containerName, networkName st
 
 	config := retry.NewBackoffConfig()
 	config.MaxElapsedTime = maxElapsedTime
-	err := retry.DoWithConfig(operation, isCommitConflictError, config)
+	err := retry.DoWithConfig(op, operation, isCommitConflictError, config)
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.CommitNotFound:

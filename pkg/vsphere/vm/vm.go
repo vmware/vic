@@ -388,7 +388,7 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInf
 	}
 
 	firstTime := true
-	err = retry.Do(func() error {
+	err = retry.Do(op, func() error {
 		op.Debugf("Getting list of the devices for VM %q", vmName)
 		devices, err := vm.Device(op)
 		if err != nil {
@@ -429,7 +429,7 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInf
 
 	// If destroy method is disabled on this VM, re-enable it and retry
 	op.Debugf("Destroy is disabled. Enabling destroy for VM %q", vmName)
-	err = retry.Do(func() error {
+	err = retry.Do(op, func() error {
 		return vm.EnableDestroy(op)
 	}, tasks.IsConcurrentAccessError)
 
@@ -907,7 +907,7 @@ func (vm *VirtualMachine) PowerOn(op trace.Operation) error {
 	conf.MaxInterval = 1 * time.Second
 	conf.MaxElapsedTime = 20 * time.Second
 
-	err = retry.DoWithConfig(f, retry.OnError, conf)
+	err = retry.DoWithConfig(op, f, retry.OnError, conf)
 	if err != nil {
 		return err
 	}
@@ -928,7 +928,7 @@ func (vm *VirtualMachine) PowerOn(op trace.Operation) error {
 		// if relocation or powerOn fails, something has changed and we need a new recommendation
 		subset = hosts[1:]
 
-		if err = retry.DoWithConfig(f, retry.OnError, conf); err != nil {
+		if err = retry.DoWithConfig(op, f, retry.OnError, conf); err != nil {
 			return err
 		}
 

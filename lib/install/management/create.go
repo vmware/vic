@@ -188,7 +188,7 @@ func (d *Dispatcher) uploadISOs(files map[string]string) error {
 			return true
 		}
 
-		uploadErr := retry.DoWithConfig(operationForRetry, uploadRetryDecider, backoffConf)
+		uploadErr := retry.DoWithConfig(d.op, operationForRetry, uploadRetryDecider, backoffConf)
 		if uploadErr != nil {
 			finalMessage := fmt.Sprintf("\t\tUpload failed for %q: %s\n", image, uploadErr)
 			if d.force {
