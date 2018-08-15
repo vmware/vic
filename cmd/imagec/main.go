@@ -30,6 +30,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/reference"
+	"github.com/docker/docker/registry"
 	"github.com/go-openapi/runtime"
 	rc "github.com/go-openapi/runtime/client"
 	"github.com/pkg/profile"
@@ -100,9 +101,9 @@ func init() {
 
 	flag.StringVar(&imageCOptions.operation, "operation", "pull", "Pull image/push image/listlayers/save image")
 
-	flag.StringVar(&imageCOptions.options.Registry, "registry", imagec.DefaultDockerURL, "Registry to pull/push images (default: registry-1.docker.io)")
+	flag.StringVar(&imageCOptions.options.Registry, "registry", registry.DefaultV2Registry.Host, "Registry to pull/push images (default: registry-1.docker.io)")
 
-	flag.StringVar(&imageCOptions.options.ImageStore, "image-store", imagec.DefaultDockerURL, "portlayer image store name or url used to query image data")
+	flag.StringVar(&imageCOptions.options.ImageStore, "image-store", registry.DefaultV2Registry.Host, "portlayer image store name or url used to query image data")
 
 	flag.Parse()
 
