@@ -332,6 +332,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	}
 
 	op.Infof("### Configuring VCH ####")
+	op.Debugf("vic-machine version %s", version.GetBuild().ShortVersion())
 
 	validator, err := validate.NewValidator(op, c.Data)
 	if err != nil {
