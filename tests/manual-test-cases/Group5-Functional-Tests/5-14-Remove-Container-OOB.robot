@@ -26,7 +26,7 @@ Remove Container OOB Setup
     Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  %{NIMBUS_USER}-${vc}
 
 *** Test Cases ***
-Docker run an image from a container that was removed OOB
+Docker run a container and verify cannot destroy the VM Out of Band
     Install VIC Appliance To Test Server
 
     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
@@ -37,3 +37,41 @@ Docker run an image from a container that was removed OOB
     ${rc}  ${out}=  Run And Return Rc And Output  govc vm.destroy removeOOB*
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${out}  govc: ServerFaultCode: The method is disabled by 'VIC'
+
+Docker run a container destroy VM Out Of Band verify container is cleaned up
+    Install VIC Appliance To Test Server
+
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+
+    # Create an anchor container to prevent VC from removing all the images and scractch disks
+    # when the main container VM is destroyed out of band. This would leave the VCH in an unusable state.
+    # VC uses using reference counting to keep disks around. Having a second active container while the
+    # target is being destroyed keeps the reference count from going to 0
+    ${rc}  ${anchor}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name anchorVmOOB busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name removeVmOOB busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${out}=  Run And Return Rc And Output  govc object.method -name Destroy_Task -enable=true removeVmOOB*
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${out}=  Run And Return Rc And Output  govc vm.destroy removeVmOOB*
+    Should Be Equal As Integers  ${rc}  0
+
+    # Wait for main contaier to stop
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} wait ${container}
+
+    # Make sure the container has been removed from the list of active containers
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${out}  removeVmOOB
+    Should Not Contain  ${out}  ${container}
+
+    # Clenup anchor container
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill ${anchor}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${anchor}
+    Should Be Equal As Integers  ${rc}  0
+

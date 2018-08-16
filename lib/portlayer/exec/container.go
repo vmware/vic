@@ -849,8 +849,8 @@ func (c *Container) vmExists(op trace.Operation) (bool, error) {
 
 	searchIndex := object.NewSearchIndex(client)
 	ref, err := searchIndex.FindByInventoryPath(op, inventoryPath)
-	moRef := ref.Reference()
-	if err == nil {
+	if err == nil && ref != nil {
+		moRef := ref.Reference()
 		op.Debugf("container(%s) vmExists, Ref: %s", c, moRef.String())
 		return true, nil
 	}
