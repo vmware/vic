@@ -725,7 +725,7 @@ func (c *ContainerBackend) ContainerCreate(config types.ContainerCreateConfig) (
 	container.ContainerID = id
 	cache.ContainerCache().AddContainer(container)
 
-	log.Debugf("Container create - name(%s), containerID(%s), config(%#v), host(%#v)",
+	log.Debugf("ContainerCreate - name(%s), containerID(%s), config(%#v), host(%#v)",
 		container.Name, container.ContainerID, container.Config, container.HostConfig)
 
 	// Add create event
