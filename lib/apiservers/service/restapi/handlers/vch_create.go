@@ -178,12 +178,17 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				c.ResourceLimits.VCHMemoryShares = fromShares(vch.Compute.Memory.Shares)
 			}
 
-			resourcePath, err := fromManagedObject(op, finder, vch.Compute.Resource, "ResourcePool", "ComputeResource", "ClusterComputeResource", "HostSystem")
+			resourcePath, resourceType, err := fromManagedObject(op, finder, vch.Compute.Resource, "ResourcePool", "ComputeResource", "ClusterComputeResource", "HostSystem")
 			if err != nil {
 				return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding resource pool: %s", err))
 			}
 			if resourcePath == "" {
 				return nil, util.NewError(http.StatusBadRequest, "Resource pool must be specified (by name or id)")
+			}
+			if resourceType == "HostSystem" {
+				// When looking up a stand-alone host, the returned path will be like "/dc1/host/192.0.2.1/192.0.2.1".
+				// This is the correct path for the host, but we actually want the path for the host's "resource pool".
+				resourcePath = path.Dir(resourcePath)
 			}
 			c.ComputeResourcePath = resourcePath
 
@@ -194,7 +199,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 
 		if vch.Network != nil {
 			if vch.Network.Bridge != nil {
-				path, err := fromManagedObject(op, finder, vch.Network.Bridge.PortGroup, "Network")
+				path, _, err := fromManagedObject(op, finder, vch.Network.Bridge.PortGroup, "Network")
 				if err != nil {
 					return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding bridge network: %s", err))
 				}
@@ -210,7 +215,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 			}
 
 			if vch.Network.Client != nil {
-				path, err := fromManagedObject(op, finder, vch.Network.Client.PortGroup, "Network")
+				path, _, err := fromManagedObject(op, finder, vch.Network.Client.PortGroup, "Network")
 				if err != nil {
 					return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding client network portgroup: %s", err))
 				}
@@ -227,7 +232,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 			}
 
 			if vch.Network.Management != nil {
-				path, err := fromManagedObject(op, finder, vch.Network.Management.PortGroup, "Network")
+				path, _, err := fromManagedObject(op, finder, vch.Network.Management.PortGroup, "Network")
 				if err != nil {
 					return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding management network portgroup: %s", err))
 				}
@@ -244,7 +249,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 			}
 
 			if vch.Network.Public != nil {
-				path, err := fromManagedObject(op, finder, vch.Network.Public.PortGroup, "Network")
+				path, _, err := fromManagedObject(op, finder, vch.Network.Public.PortGroup, "Network")
 				if err != nil {
 					return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding public network portgroup: %s", err))
 				}
@@ -280,7 +285,7 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 				for _, cnetwork := range vch.Network.Container {
 					alias := cnetwork.Alias
 
-					path, err := fromManagedObject(op, finder, cnetwork.PortGroup, "Network")
+					path, _, err := fromManagedObject(op, finder, cnetwork.PortGroup, "Network")
 					if err != nil {
 						return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error finding portgroup for container network %s: %s", alias, err))
 					}
@@ -484,9 +489,10 @@ func handleCreate(op trace.Operation, c *create.Create, validator *validate.Vali
 	return nil, nil
 }
 
-func fromManagedObject(op trace.Operation, finder finder, m *models.ManagedObject, ts ...string) (string, error) {
+// fromManagedObject returns a valid name/path for the supplied object and its type, if known.
+func fromManagedObject(op trace.Operation, finder finder, m *models.ManagedObject, ts ...string) (string, string, error) {
 	if m == nil {
-		return "", nil
+		return "", "", nil
 	}
 
 	if m.ID != "" {
@@ -495,17 +501,17 @@ func fromManagedObject(op trace.Operation, finder finder, m *models.ManagedObjec
 			element, err := finder.Element(op, managedObjectReference)
 
 			if err == nil && element != nil {
-				return element.Path, nil
+				return element.Path, t, nil
 			} else if err != nil {
 				// Ideally, we would continue only on *find.NotFoundError, but it is not reliably returned.
 				continue
 			}
 		}
 
-		return "", fmt.Errorf("Unable to locate %q as any of %s", m.ID, ts)
+		return "", "", fmt.Errorf("Unable to locate %q as any of %s", m.ID, ts)
 	}
 
-	return m.Name, nil
+	return m.Name, "", nil
 }
 
 func fromCIDR(m *models.CIDR) string {
