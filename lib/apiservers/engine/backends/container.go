@@ -902,7 +902,7 @@ func (c *ContainerBackend) ContainerRm(name string, config *types.ContainerRmCon
 
 	// Use the force and stop the container first
 	if config.ForceRemove {
-		if err := c.ContainerStop(name, &secs); err != nil {
+		if err := c.containerStop(op, name, &secs); err != nil {
 			return err
 		}
 	} else {
@@ -1019,8 +1019,10 @@ func (c *ContainerBackend) ContainerStart(name string, hostConfig *containertype
 }
 
 func (c *ContainerBackend) containerStart(op trace.Operation, name string, hostConfig *containertypes.HostConfig, bind bool) error {
+	defer trace.End(trace.Begin(name, op))
 	var err error
 
+	opID := op.ID()
 	// Get an API client to the portlayer
 	client := PortLayerClient()
 
@@ -1060,7 +1062,7 @@ func (c *ContainerBackend) containerStart(op trace.Operation, name string, hostC
 		op.Debugf("Binding vicnetwork to container %s", id)
 
 		var bindRes *scopes.BindContainerOK
-		bindRes, err = client.Scopes.BindContainer(scopes.NewBindContainerParamsWithContext(op).WithHandle(handle))
+		bindRes, err = client.Scopes.BindContainer(scopes.NewBindContainerParamsWithContext(op).WithOpID(&opID).WithHandle(handle))
 		if err != nil {
 			switch err := err.(type) {
 			case *scopes.BindContainerNotFound:
@@ -1080,7 +1082,7 @@ func (c *ContainerBackend) containerStart(op trace.Operation, name string, hostC
 		defer func() {
 			if err != nil {
 				op.Debugf("Unbinding %s due to error - %s", id, err.Error())
-				client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(op).WithHandle(handle))
+				client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(op).WithOpID(&opID).WithHandle(handle))
 			}
 		}()
 
@@ -1095,7 +1097,7 @@ func (c *ContainerBackend) containerStart(op trace.Operation, name string, hostC
 	// TODO: We need a resolved ID from the name
 	op.Debugf("Setting container %s state to running", id)
 	var stateChangeRes *containers.StateChangeOK
-	stateChangeRes, err = client.Containers.StateChange(containers.NewStateChangeParamsWithContext(op).WithHandle(handle).WithState("RUNNING"))
+	stateChangeRes, err = client.Containers.StateChange(containers.NewStateChangeParamsWithContext(op).WithOpID(&opID).WithHandle(handle).WithState("RUNNING"))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.StateChangeNotFound:
@@ -1129,7 +1131,7 @@ func (c *ContainerBackend) containerStart(op trace.Operation, name string, hostC
 
 	// commit the handle; this will reconfigure and start the vm
 	op.Debugf("Commit container %s", id)
-	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(op).WithHandle(handle))
+	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(op).WithOpID(&opID).WithHandle(handle))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.CommitNotFound:
@@ -1150,15 +1152,18 @@ func (c *ContainerBackend) containerStart(op trace.Operation, name string, hostC
 }
 
 func (c *ContainerBackend) defaultScope(op trace.Operation) string {
+	defer trace.End(trace.Begin("", op))
+
 	defaultScope.Lock()
 	defer defaultScope.Unlock()
 
+	opID := op.ID()
 	if defaultScope.scope != "" {
 		return defaultScope.scope
 	}
 
 	client := PortLayerClient()
-	listRes, err := client.Scopes.List(scopes.NewListParamsWithContext(op).WithIDName("default"))
+	listRes, err := client.Scopes.List(scopes.NewListParamsWithContext(op).WithOpID(&opID).WithIDName("default"))
 	if err != nil {
 		log.Error(err)
 		return ""
@@ -1175,12 +1180,14 @@ func (c *ContainerBackend) defaultScope(op trace.Operation) string {
 
 func (c *ContainerBackend) findPortBoundNetworkEndpoint(op trace.Operation, hostconfig *containertypes.HostConfig,
 	endpoints []*models.EndpointConfig) (*models.ScopeConfig, *models.EndpointConfig) {
+	defer trace.End(trace.Begin("", op))
+	opID := op.ID()
 	if len(hostconfig.PortBindings) == 0 {
 		return nil, nil
 	}
 
 	// check if the port binding vicnetwork is a bridge type
-	listRes, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(op).WithIDName(hostconfig.NetworkMode.NetworkName()))
+	listRes, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(op).WithOpID(&opID).WithIDName(hostconfig.NetworkMode.NetworkName()))
 	if err != nil {
 		log.Error(err)
 		return nil, nil
@@ -1206,15 +1213,22 @@ func (c *ContainerBackend) findPortBoundNetworkEndpoint(op trace.Operation, host
 	return nil, nil
 }
 
-// ContainerStop looks for the given container and terminates it,
+// ContainerStop, external entry point
+func (c *ContainerBackend) ContainerStop(name string, seconds *int) error {
+	op := trace.NewOperation(context.Background(), "ContainerStop: %s", name)
+	defer trace.End(trace.Audit(name, op))
+
+	return c.containerStop(op, name, seconds)
+}
+
+// containerStop looks for the given container and terminates it,
 // waiting the given number of seconds before forcefully killing the
 // container. If a negative number of seconds is given, ContainerStop
 // will wait for a graceful termination. An error is returned if the
 // container is not found, is already stopped, or if there is a
 // problem stopping the container.
-func (c *ContainerBackend) ContainerStop(name string, seconds *int) error {
-	op := trace.NewOperation(context.Background(), "ContainerStop: %s", name)
-	defer trace.End(trace.Audit(name, op))
+func (c *ContainerBackend) containerStop(op trace.Operation, name string, seconds *int) error {
+	defer trace.End(trace.Begin("", op))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -1663,6 +1677,8 @@ func (c *ContainerBackend) ContainerAttach(name string, ca *backend.ContainerAtt
 }
 
 func (c *ContainerBackend) containerAttach(op trace.Operation, name string, ca *backend.ContainerAttachConfig) error {
+	defer trace.End(trace.Begin(name, op))
+
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
