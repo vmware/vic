@@ -56,7 +56,7 @@ This test requires that a vSphere server is running and available
 * Step 12 should return with the error message - Error response from daemon: vSphere Integrated Containers does not support mounting directories as a data volume.
 * Steps 13 and 14 should succeed
 * Step 15's and 16's output should contain the named volume created in Step 13
-* Step 18 should return with the error message - Error: image library/fakeimage not found
+* Step 18 should return with the error message - pull access denied for fakeimage, repository does not exist or may require 'docker login'
 * Step 19 should return with the error message - Error parsing reference: "fakeImage" is not a valid repository/tag
 * Step 22 should result in success and the busy2 container should exist
 * Step 24 should show that busy2 was able to successfully ping busy1 just using the linked name

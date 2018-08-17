@@ -437,7 +437,7 @@ Fail to create VCH where whitelist contains invalid character - registry setting
 
 
 Create VCH where whitelist registry contains valid registry wildcard domain and validate
-    ${wildcard_registry}=    Set Variable    "*.docker.com"
+    ${wildcard_registry}=    Set Variable    "*.docker.io"
 
     Create VCH    '{"name":"%{VCH-NAME}","compute":{"resource":{"name":"%{TEST_RESOURCE}"}},"storage":{"image_stores":["ds://%{TEST_DATASTORE}"]},"network":{"bridge":{"ip_range":"172.16.0.0/12","port_group":{"name":"%{BRIDGE_NETWORK}"}},"public":{"port_group":{"name":"${PUBLIC_NETWORK}"}}},"registry":{"whitelist":[${wildcard_registry}]},"auth":{"server":{"generate":{"cname":"vch.example.com","organization":["VMware, Inc."],"size":{"value":2048,"units":"bits"}}},"client":{"no_tls_verify": true}}}'
 

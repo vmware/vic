@@ -32,6 +32,7 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/reference"
+	"github.com/docker/docker/registry"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -112,14 +113,14 @@ func TestParseReference(t *testing.T) {
 	ic.ParseReference(op)
 	assert.Equal(t, ic.Tag, reference.DefaultTag)
 	assert.Equal(t, ic.Image, BusyboxImage)
-	assert.Equal(t, ic.Registry, DefaultDockerURL)
+	assert.Equal(t, ic.Registry, registry.DefaultV2Registry.Host)
 
 	ref, err = reference.ParseNamed("vmware/photon")
 	ic.Options.Reference = ref
 	ic.ParseReference(op)
 	assert.Equal(t, ic.Tag, reference.DefaultTag)
 	assert.Equal(t, ic.Image, "vmware/photon")
-	assert.Equal(t, ic.Registry, DefaultDockerURL)
+	assert.Equal(t, ic.Registry, registry.DefaultV2Registry.Host)
 
 	ref, err = reference.ParseNamed("busybox")
 	if err != nil {
@@ -129,7 +130,7 @@ func TestParseReference(t *testing.T) {
 	ic.ParseReference(op)
 	assert.Equal(t, ic.Tag, reference.DefaultTag)
 	assert.Equal(t, ic.Image, BusyboxImage)
-	assert.Equal(t, ic.Registry, DefaultDockerURL)
+	assert.Equal(t, ic.Registry, registry.DefaultV2Registry.Host)
 
 	ref, err = reference.ParseNamed("library/busybox")
 	if err != nil {
@@ -139,7 +140,7 @@ func TestParseReference(t *testing.T) {
 	ic.ParseReference(op)
 	assert.Equal(t, ic.Tag, reference.DefaultTag)
 	assert.Equal(t, ic.Image, BusyboxImage)
-	assert.Equal(t, ic.Registry, DefaultDockerURL)
+	assert.Equal(t, ic.Registry, registry.DefaultV2Registry.Host)
 
 	ref, err = reference.ParseNamed("library/busybox:latest")
 	if err != nil {
@@ -149,7 +150,7 @@ func TestParseReference(t *testing.T) {
 	ic.ParseReference(op)
 	assert.Equal(t, ic.Tag, reference.DefaultTag)
 	assert.Equal(t, ic.Image, BusyboxImage)
-	assert.Equal(t, ic.Registry, DefaultDockerURL)
+	assert.Equal(t, ic.Registry, registry.DefaultV2Registry.Host)
 
 	ic = NewImageC(options, streamformatter.NewJSONStreamFormatter())
 	ref, err = reference.ParseNamed("busybox")
@@ -168,7 +169,7 @@ func TestParseReference(t *testing.T) {
 	ic.ParseReference(op)
 	assert.Equal(t, ic.Tag, "")
 	assert.Equal(t, ic.Image, BusyboxImage)
-	assert.Equal(t, ic.Registry, DefaultDockerURL)
+	assert.Equal(t, ic.Registry, registry.DefaultV2Registry.Host)
 }
 
 func TestLearnRegistryURL(t *testing.T) {
@@ -602,8 +603,8 @@ func TestFetchScenarios(t *testing.T) {
 	// valid token but image is missing we shouldn't retry
 	_, _, err = FetchImageManifest(op, ic.Options, 1, ic.progressOutput)
 	if err != nil {
-		// we should get a ImageNotFoundError
-		if _, imageErr := err.(urlfetcher.ImageNotFoundError); !imageErr {
+		// we should get a V2 message
+		if !strings.Contains(err.Error(), "repository does not exist or may require 'docker login'") {
 			t.Errorf(err.Error())
 		}
 	}
