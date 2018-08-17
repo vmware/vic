@@ -36,6 +36,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/reference"
+	"github.com/docker/docker/registry"
 	"github.com/docker/libtrust"
 
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
@@ -138,7 +139,7 @@ func LearnAuthURL(options Options) (*url.URL, error) {
 
 	// Private registry returned the manifest directly as auth option is optional.
 	// https://github.com/docker/distribution/blob/master/docs/configuration.md#auth
-	if err == nil && options.Registry != DefaultDockerURL && fetcher.IsStatusOK() {
+	if err == nil && options.Registry != registry.DefaultV2Registry.Host && fetcher.IsStatusOK() {
 		log.Debugf("%s does not support OAuth", url)
 		return nil, nil
 	}
@@ -355,6 +356,13 @@ func FetchImageManifest(ctx context.Context, options Options, schemaVersion int,
 
 	manifestFileName, err := fetcher.Fetch(ctx, url, &reqHeaders, true, progressOutput)
 	if err != nil {
+		log.Debugf("Failed to fetch manifest: %s", err.Error())
+
+		switch err.(type) {
+		case urlfetcher.AccessDenied:
+			return nil, "", fmt.Errorf("pull access denied for %s, repository does not exist or may require 'docker login'", options.Reference.Name())
+
+		}
 		return nil, "", err
 	}
 

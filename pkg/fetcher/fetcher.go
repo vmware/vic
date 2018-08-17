@@ -172,7 +172,7 @@ func (u *URLFetcher) Fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 		}
 
 		switch err := err.(type) {
-		case DoNotRetry, TagNotFoundError, ImageNotFoundError:
+		case DoNotRetry, TagNotFoundError, ImageNotFoundError, AccessDenied:
 			log.Debugf("Error: %s", err.Error())
 			return "", err
 		}
@@ -280,10 +280,10 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 		if u.IsStatusUnauthorized() {
 			hdr := res.Header.Get("www-authenticate")
 
-			// check if image is non-existent (#757)
+			// Fix insufficient_scope return value.
+			// https://github.com/vmware/vic/blob/master/vendor/github.com/docker/distribution/registry/client/errors.go#L112
 			if strings.Contains(hdr, "error=\"insufficient_scope\"") {
-				err = fmt.Errorf("image not found")
-				return nil, nil, ImageNotFoundError{Err: err}
+				return nil, nil, AccessDenied{Err: err, res: url.String()}
 			} else if strings.Contains(hdr, "error=\"invalid_token\"") {
 				return nil, nil, fmt.Errorf("not authorized")
 			} else {

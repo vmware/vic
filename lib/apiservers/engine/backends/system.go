@@ -43,7 +43,6 @@ import (
 	"github.com/vmware/vic/lib/apiservers/engine/proxy"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
-	"github.com/vmware/vic/lib/imagec"
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
 	"github.com/vmware/vic/pkg/registry"
 	"github.com/vmware/vic/pkg/trace"
@@ -54,6 +53,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/pkg/platform"
+	dockerregistry "github.com/docker/docker/registry"
 	"github.com/docker/go-units"
 )
 
@@ -113,7 +113,7 @@ func (s *SystemBackend) SystemInfo() (*types.Info, error) {
 	// Build up the struct that the Remote API and CLI wants
 	info := &types.Info{
 		Driver:             PortLayerName(),
-		IndexServerAddress: imagec.DefaultDockerURL,
+		IndexServerAddress: dockerregistry.DefaultV2Registry.Host,
 		ServerVersion:      ProductVersion(),
 		ID:                 ProductName(),
 		Containers:         running + paused + stopped,
