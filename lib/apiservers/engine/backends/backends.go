@@ -97,6 +97,9 @@ type dynConfig struct {
 
 func Init(portLayerAddr, product string, port uint, config *config.VirtualContainerHostConfigSpec) error {
 	op := trace.NewOperation(context.Background(), "backends.Init")
+
+	network.Init()
+
 	servicePort = port
 	_, _, err := net.SplitHostPort(portLayerAddr)
 	if err != nil {
