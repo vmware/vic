@@ -24,9 +24,10 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-func FromManagedObject(op trace.Operation, finder client.Finder, m *models.ManagedObject, ts ...string) (string, error) {
+// FromManagedObject returns a valid name/path for the supplied object and its type, if known.
+func FromManagedObject(op trace.Operation, finder client.Finder, m *models.ManagedObject, ts ...string) (string, string, error) {
 	if m == nil {
-		return "", nil
+		return "", "", nil
 	}
 
 	if m.ID != "" {
@@ -35,15 +36,15 @@ func FromManagedObject(op trace.Operation, finder client.Finder, m *models.Manag
 			element, err := finder.Element(op, managedObjectReference)
 
 			if err == nil && element != nil {
-				return element.Path, nil
+				return element.Path, t, nil
 			} else if err != nil {
 				// Ideally, we would continue only on *find.NotFoundError, but it is not reliably returned.
 				continue
 			}
 		}
 
-		return "", fmt.Errorf("Unable to locate %q as any of %s", m.ID, ts)
+		return "", "", fmt.Errorf("Unable to locate %q as any of %s", m.ID, ts)
 	}
 
-	return m.Name, nil
+	return m.Name, "", nil
 }

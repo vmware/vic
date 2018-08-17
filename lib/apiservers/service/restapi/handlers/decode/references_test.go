@@ -52,8 +52,10 @@ func TestFromManagedObject(t *testing.T) {
 	op := trace.NewOperation(context.Background(), "TestFromManagedObject")
 	var m *models.ManagedObject
 
+	expectedType := "t"
+
 	expected := ""
-	actual, err := FromManagedObject(op, nil, m, "t")
+	actual, _, err := FromManagedObject(op, nil, m, expectedType)
 	assert.NoError(t, err, "Expected nil error, got %#v", err)
 	assert.Equal(t, expected, actual)
 
@@ -68,23 +70,25 @@ func TestFromManagedObject(t *testing.T) {
 	mf.On("Element", op, mock.AnythingOfType("types.ManagedObjectReference")).Return(path, nil)
 
 	expected = name
-	actual, err = FromManagedObject(op, mf, m, "t")
+	actual, _, err = FromManagedObject(op, mf, m, expectedType)
 	assert.NoError(t, err, "Expected nil error, got %#v", err)
 	assert.Equal(t, expected, actual)
 
 	m.ID = "testID"
 
 	expected = path
-	actual, err = FromManagedObject(op, mf, m, "t")
+	actual, actualType, err := FromManagedObject(op, mf, m, expectedType)
 	assert.NoError(t, err, "Expected nil error, got %#v", err)
 	assert.Equal(t, expected, actual)
+	assert.Equal(t, expectedType, actualType)
 
 	m.Name = ""
 
 	expected = path
-	actual, err = FromManagedObject(op, mf, m, "t")
+	actual, actualType, err = FromManagedObject(op, mf, m, expectedType)
 	assert.NoError(t, err, "Expected nil error, got %#v", err)
 	assert.Equal(t, expected, actual)
+	assert.Equal(t, expectedType, actualType)
 }
 
 func TestFromManagedObject_Negative(t *testing.T) {
@@ -98,12 +102,12 @@ func TestFromManagedObject_Negative(t *testing.T) {
 	mf.On("Element", op, mock.AnythingOfType("types.ManagedObjectReference")).Return(nil, nil)
 
 	expected := ""
-	actual, err := FromManagedObject(op, mf, m, "t")
+	actual, _, err := FromManagedObject(op, mf, m, "t")
 	assert.Error(t, err, "Expected error when no resource found")
 	assert.Equal(t, expected, actual)
 
 	expected = ""
-	actual, err = FromManagedObject(op, mf, m, "t", "u", "v")
+	actual, _, err = FromManagedObject(op, mf, m, "t", "u", "v")
 	assert.Error(t, err, "Expected error when no resource found")
 	assert.Equal(t, expected, actual)
 }
@@ -122,32 +126,38 @@ func TestFromManagedObject_Fallback(t *testing.T) {
 	mf.On("Element", op, mock.MatchedBy(func(t types.ManagedObjectReference) bool { return t.Type == "e" })).Return(nil, fmt.Errorf("Expected"))
 
 	expected := ""
-	actual, err := FromManagedObject(op, mf, m, "t")
+	actual, actualType, err := FromManagedObject(op, mf, m, "t")
 	assert.Error(t, err, "Expected error when NotFoundError encountered")
 	assert.Equal(t, expected, actual)
+	assert.Equal(t, "", actualType)
 
 	expected = ""
-	actual, err = FromManagedObject(op, mf, m, "t", "u")
+	actual, actualType, err = FromManagedObject(op, mf, m, "t", "u")
 	assert.Error(t, err, "Expected error when no resource found")
 	assert.Equal(t, expected, actual)
+	assert.Equal(t, "", actualType)
 
 	expected = "Result"
-	actual, err = FromManagedObject(op, mf, m, "t", "u", "v")
+	actual, actualType, err = FromManagedObject(op, mf, m, "t", "u", "v")
 	assert.NoError(t, err, "Did not expect error when third type returns valid result, but got %#v", err)
 	assert.Equal(t, expected, actual)
+	assert.Equal(t, "v", actualType)
 
 	expected = "Result"
-	actual, err = FromManagedObject(op, mf, m, "t", "v")
+	actual, actualType, err = FromManagedObject(op, mf, m, "t", "v")
 	assert.NoError(t, err, "Did not expect error when second type returns valid result, but got %#v", err)
 	assert.Equal(t, expected, actual)
+	assert.Equal(t, "v", actualType)
 
 	expected = "Result"
-	actual, err = FromManagedObject(op, mf, m, "u", "v")
+	actual, actualType, err = FromManagedObject(op, mf, m, "u", "v")
 	assert.NoError(t, err, "Did not expect error when second type returns valid result, but got %#v", err)
 	assert.Equal(t, expected, actual)
+	assert.Equal(t, "v", actualType)
 
 	expected = "Result"
-	actual, err = FromManagedObject(op, mf, m, "u", "e", "v")
+	actual, actualType, err = FromManagedObject(op, mf, m, "u", "e", "v")
 	assert.NoError(t, err, "Did not expect error when third type returns valid result, but got %#v", err)
 	assert.Equal(t, expected, actual)
+	assert.Equal(t, "v", actualType)
 }

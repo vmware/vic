@@ -152,12 +152,17 @@ func (h *vchCreate) buildCreate(op trace.Operation, d *data.Data, finder client.
 				c.ResourceLimits.VCHMemoryShares = decode.FromShares(vch.Compute.Memory.Shares)
 			}
 
-			resourcePath, err := decode.FromManagedObject(op, finder, vch.Compute.Resource, "ResourcePool", "ComputeResource", "ClusterComputeResource", "HostSystem")
+			resourcePath, resourceType, err := decode.FromManagedObject(op, finder, vch.Compute.Resource, "ResourcePool", "ComputeResource", "ClusterComputeResource", "HostSystem")
 			if err != nil {
 				return nil, errors.NewError(http.StatusBadRequest, "error finding resource pool: %s", err)
 			}
 			if resourcePath == "" {
 				return nil, errors.NewError(http.StatusBadRequest, "resource pool must be specified (by name or id)")
+			}
+			if resourceType == "HostSystem" {
+				// When looking up a stand-alone host, the returned path will be like "/dc1/host/192.0.2.1/192.0.2.1".
+				// This is the correct path for the host, but we actually want the path for the host's "resource pool".
+				resourcePath = path.Dir(resourcePath)
 			}
 			c.ComputeResourcePath = resourcePath
 
@@ -168,7 +173,7 @@ func (h *vchCreate) buildCreate(op trace.Operation, d *data.Data, finder client.
 
 		if vch.Network != nil {
 			if vch.Network.Bridge != nil {
-				path, err := decode.FromManagedObject(op, finder, vch.Network.Bridge.PortGroup, "Network")
+				path, _, err := decode.FromManagedObject(op, finder, vch.Network.Bridge.PortGroup, "Network")
 				if err != nil {
 					return nil, errors.NewError(http.StatusBadRequest, "error finding bridge network: %s", err)
 				}
@@ -184,7 +189,7 @@ func (h *vchCreate) buildCreate(op trace.Operation, d *data.Data, finder client.
 			}
 
 			if vch.Network.Client != nil {
-				path, err := decode.FromManagedObject(op, finder, vch.Network.Client.PortGroup, "Network")
+				path, _, err := decode.FromManagedObject(op, finder, vch.Network.Client.PortGroup, "Network")
 				if err != nil {
 					return nil, errors.NewError(http.StatusBadRequest, "error finding client network portgroup: %s", err)
 				}
@@ -201,7 +206,7 @@ func (h *vchCreate) buildCreate(op trace.Operation, d *data.Data, finder client.
 			}
 
 			if vch.Network.Management != nil {
-				path, err := decode.FromManagedObject(op, finder, vch.Network.Management.PortGroup, "Network")
+				path, _, err := decode.FromManagedObject(op, finder, vch.Network.Management.PortGroup, "Network")
 				if err != nil {
 					return nil, errors.NewError(http.StatusBadRequest, "error finding management network portgroup: %s", err)
 				}
@@ -218,7 +223,7 @@ func (h *vchCreate) buildCreate(op trace.Operation, d *data.Data, finder client.
 			}
 
 			if vch.Network.Public != nil {
-				path, err := decode.FromManagedObject(op, finder, vch.Network.Public.PortGroup, "Network")
+				path, _, err := decode.FromManagedObject(op, finder, vch.Network.Public.PortGroup, "Network")
 				if err != nil {
 					return nil, errors.NewError(http.StatusBadRequest, "error finding public network portgroup: %s", err)
 				}
@@ -254,7 +259,7 @@ func (h *vchCreate) buildCreate(op trace.Operation, d *data.Data, finder client.
 				for _, cnetwork := range vch.Network.Container {
 					alias := cnetwork.Alias
 
-					path, err := decode.FromManagedObject(op, finder, cnetwork.PortGroup, "Network")
+					path, _, err := decode.FromManagedObject(op, finder, cnetwork.PortGroup, "Network")
 					if err != nil {
 						return nil, errors.NewError(http.StatusBadRequest, "error finding portgroup for container network %s: %s", alias, err)
 					}
