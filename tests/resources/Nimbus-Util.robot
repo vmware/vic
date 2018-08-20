@@ -61,6 +61,7 @@ Deploy Nimbus ESXi Server
     \   Log To Console  ${out}
     \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 1 minutes
     \   Sleep  1 minutes
+    Should Be True  ${status}
 
     # Now grab the IP address and return the name and ip for later use
     @{out}=  Split To Lines  ${out}
