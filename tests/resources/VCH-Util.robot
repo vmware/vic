@@ -90,21 +90,20 @@ Set Test Environment Variables
 Create Unique Bridge Network
     #Retry 5 times,there might be vlan conflict while parallel tests are running
     Wait Until Keyword Succeeds  5x  1s  Create Unique Bridge Network Internal
+Create Unique Bridge Get Switch
+    Run Keyword And Return If  '%{HOST_TYPE}' == 'VC'  Run  govc find -type DistributedVirtualSwitch | head -n1
+    Run Keyword And Return  Run  govc host.vswitch.info -json | jq -r ".Vswitch[0].Name"
 Create Unique Bridge Network Internal
     # Ensure unique bridges are non-overlapping in a shared build environment (our CI)
     @{URLs}=  Split String  %{TEST_URL_ARRAY}
     ${idx}=  Get Index From List  ${URLs}  %{TEST_URL}
     ${lowerVLAN}=  Evaluate  (${idx}+2) * 100
     ${upperVLAN}=  Evaluate  ${lowerVLAN}+100
-
-    # Set a unique bridge network for each VCH that has a random VLAN ID
     ${vlan}=  Evaluate  str(random.randint(${lowerVLAN}, ${upperVLAN}))  modules=random
-    ${vswitch}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.vswitch.info -json | jq -r ".Vswitch[0].Name"
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc host.portgroup.add -vlan=${vlan} -vswitch ${vswitch} VCH-%{DRONE_BUILD_NUMBER}-${vlan}
 
-    ${dvs}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc find -type DistributedVirtualSwitch | head -n1
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc dvs.portgroup.add -vlan=${vlan} -dvs ${dvs} VCH-%{DRONE_BUILD_NUMBER}-${vlan}
+    ${vswitch}=  Create Unique Bridge Get Switch
 
+    ${rc}  ${output}=  Run And Return Rc And Output  govc host.portgroup.add -vlan=${vlan} -vswitch ${vswitch} VCH-%{DRONE_BUILD_NUMBER}-${vlan}
     Run Keyword If  ${rc} == 0  Run Keyword And Return  Set Environment Variable  BRIDGE_NETWORK  VCH-%{DRONE_BUILD_NUMBER}-${vlan}
         ...  ELSE  Log  ${output}  level=WARN
     Should Be Equal As Integers  ${rc}  0
