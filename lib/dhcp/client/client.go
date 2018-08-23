@@ -62,7 +62,7 @@ type client struct {
 }
 
 // The default timeout for the client
-const defaultTimeout = 10 * time.Second
+const defaultTimeout = 1 * time.Minute
 
 // NewClient creates a new DHCP client. Note the returned object is not thread-safe.
 func NewClient(ifIndex int, hwaddr net.HardwareAddr) (Client, error) {
