@@ -37,6 +37,9 @@ This test requires that an vSphere server is running and available.
     * gcr.io/google_samples/gb-redisslave:v1
     * gcr.io/google_samples/cassandra:v11
     * gcr.io/google_samples/cassandra:v12
+20. Verify image manifest digest against vanilla docker
+21. Attempt docker pull mitm
+22. Issue docker pull for store/ibmcorp/mqadvanced-server-dev:9.0.5.0
 
 # Expected Outcome:
 VIC appliance should respond with a properly formatted pull response to each command issued to it. No errors should be seen, except in the case of step 7, 8 and 9. In step 13, the image ID and size for ubuntu should match before and after removing and re-pulling the image.
