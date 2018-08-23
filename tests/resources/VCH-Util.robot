@@ -95,12 +95,21 @@ Create Unique Bridge Network Internal
 
     # Set a unique bridge network for each VCH that has a random VLAN ID
     ${vlan}=  Evaluate  str(random.randint(${lowerVLAN}, ${upperVLAN}))  modules=random
-    ${vswitch}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.vswitch.info -json | jq -r ".Vswitch[0].Name"
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc host.portgroup.add -vlan=${vlan} -vswitch ${vswitch} VCH-%{DRONE_BUILD_NUMBER}-${vlan}
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Create Unique Bridge Network ESX  ${vlan}
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Create Unique Bridge Network VC  ${vlan}
 
-    ${dvs}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc find -type DistributedVirtualSwitch | head -n1
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc dvs.portgroup.add -vlan=${vlan} -dvs ${dvs} VCH-%{DRONE_BUILD_NUMBER}-${vlan}
+Create Unique Bridge Network ESX
+    [Arguments]  ${vlan}
+    ${vswitch}=  Run  govc host.vswitch.info -json | jq -r ".Vswitch[0].Name"
+    ${rc}  ${output}=  Run And Return Rc And Output  govc host.portgroup.add -vlan=${vlan} -vswitch ${vswitch} VCH-%{DRONE_BUILD_NUMBER}-${vlan}
+    Run Keyword If  ${rc} == 0  Run Keyword And Return  Set Environment Variable  BRIDGE_NETWORK  VCH-%{DRONE_BUILD_NUMBER}-${vlan}
+        ...  ELSE  Log  ${output}  level=WARN
+    Should Be Equal As Integers  ${rc}  0
 
+Create Unique Bridge Network VC
+    [Arguments]  ${vlan}
+    ${dvs}=  Run  govc find -type DistributedVirtualSwitch | head -n1
+    ${rc}  ${output}=  Run And Return Rc And Output  govc dvs.portgroup.add -vlan=${vlan} -dvs ${dvs} VCH-%{DRONE_BUILD_NUMBER}-${vlan}
     Run Keyword If  ${rc} == 0  Run Keyword And Return  Set Environment Variable  BRIDGE_NETWORK  VCH-%{DRONE_BUILD_NUMBER}-${vlan}
         ...  ELSE  Log  ${output}  level=WARN
     Should Be Equal As Integers  ${rc}  0
