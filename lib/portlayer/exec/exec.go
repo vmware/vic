@@ -180,10 +180,12 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 }
 
 func Finalize(ctx context.Context) error {
-	collectors := Config.EventManager.Collectors()
-	for name, collector := range collectors {
-		log.Infof("Shutting down event collector %s", name)
-		collector.Stop()
+	if Config.EventManager != nil {
+		collectors := Config.EventManager.Collectors()
+		for name, collector := range collectors {
+			log.Infof("Shutting down event collector %s", name)
+			collector.Stop()
+		}
 	}
 
 	return nil
