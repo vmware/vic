@@ -94,7 +94,9 @@ func Init(ctx context.Context, session *session.Session, pool *object.ResourcePo
 // TODO: figure out why the Init calls are wrapped in once.Do - implies it can be called
 // multiple times, but once Finalize is called things will not be functional.
 func Finalize(ctx context.Context) error {
-	Config.ContainerView.Destroy(ctx)
+	if Config.ContainerView != nil {
+		Config.ContainerView.Destroy(ctx)
+	}
 
 	return nil
 }
