@@ -423,7 +423,7 @@ func appendToPrefix(prefix, separator, value string) string {
 }
 
 func calculateKeys(v reflect.Value, field string, prefix string) []string {
-	logger.Debugf("v=%#v, field=%#v, prefix=%#v", v, field, prefix)
+	logger.Debugf("calculateKeys: v=%#v, field=%#v, prefix=%#v", v, field, prefix)
 	if v.Kind() == reflect.Ptr {
 		return calculateKeys(v.Elem(), field, prefix)
 	}

@@ -153,6 +153,7 @@ func (s *Session) IsVSAN(ctx context.Context) bool {
 // Create accepts a Config and returns a Session with the cached vSphere resources.
 func (s *Session) Create(ctx context.Context) (*Session, error) {
 	op := trace.FromContext(ctx, "Create")
+	defer trace.End(trace.Begin("", op))
 
 	var vchConfig config.VirtualContainerHostConfigSpec
 	var connConfig config.Connection
@@ -196,6 +197,7 @@ func (s *Session) Create(ctx context.Context) (*Session, error) {
 // Connect establishes the connection for the session but nothing more
 func (s *Session) Connect(ctx context.Context) (*Session, error) {
 	op := trace.FromContext(ctx, "Connect")
+	defer trace.End(trace.Begin("", op))
 
 	op.Debugf("Creating VMOMI session with thumbprint %s", s.Thumbprint)
 
@@ -313,6 +315,7 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 // either from the CLI or have been retreived from the appliance extraConfig
 func (s *Session) Populate(ctx context.Context) (*Session, error) {
 	op := trace.FromContext(ctx, "Populate")
+	defer trace.End(trace.Begin("", op))
 
 	// Populate s
 	var errs []string

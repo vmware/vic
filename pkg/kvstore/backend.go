@@ -21,9 +21,9 @@ import (
 	"net/http"
 	"os"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/stringutils"
 
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 )
 
@@ -44,12 +44,13 @@ type dsBackend struct {
 
 // Save saves data to the specified path
 func (d *dsBackend) Save(ctx context.Context, r io.Reader, path string) error {
+	op := trace.FromContext(ctx, "Save")
 	// upload to an ephemeral file
 	tmpfile := fmt.Sprintf("%s-%s.tmp", path, stringutils.GenerateRandomAlphaOnlyString(10))
 	if err := d.ds.Upload(ctx, r, tmpfile); err != nil {
 		return err
 	}
-	log.Debugf("kv store upload of file (%s) was successful", tmpfile)
+	op.Debugf("kv store upload of file (%s) was successful", tmpfile)
 
 	return d.ds.Mv(ctx, tmpfile, path)
 }
@@ -65,11 +66,12 @@ func toOsError(err error) error {
 
 // Load loads data from the specified path
 func (d *dsBackend) Load(ctx context.Context, path string) (io.ReadCloser, error) {
+	op := trace.FromContext(ctx, "Load")
 	rc, err := d.ds.Download(ctx, path)
 	if err != nil {
 		return nil, toOsError(err)
 	}
-	log.Debugf("kv store download of file (%s) was successful", path)
+	op.Debugf("kv store download of file (%s) was successful", path)
 
 	return rc, err
 }

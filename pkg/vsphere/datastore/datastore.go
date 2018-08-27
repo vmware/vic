@@ -155,7 +155,8 @@ func mkdir(op trace.Operation, sess *session.Session, fm *object.FileManager, cr
 
 // Mkdir creates directories.
 func (d *Helper) Mkdir(ctx context.Context, createParentDirectories bool, dirs ...string) (string, error) {
-	op := trace.FromContext(ctx, "Mkdir")
+	op := trace.FromContext(ctx, "")
+	defer trace.End(trace.Begin("", op))
 
 	return mkdir(op, d.s, d.fm, createParentDirectories, path.Join(d.RootURL.String(), path.Join(dirs...)))
 }
@@ -181,6 +182,9 @@ func (d *Helper) Mkdir(ctx context.Context, createParentDirectories bool, dirs .
 // r, err := ds.Ls(ctx, "[vsanDatastore] /0ea65357-0494-d42d-2ede-000c292dc5b5")
 //
 func (d *Helper) Ls(ctx context.Context, p string, match ...string) (*types.HostDatastoreBrowserSearchResults, error) {
+	op := trace.FromContext(ctx, "")
+	defer trace.End(trace.Begin("", op))
+
 	if len(match) == 0 {
 		match = []string{"*"}
 	}
@@ -214,6 +218,9 @@ func (d *Helper) Ls(ctx context.Context, p string, match ...string) (*types.Host
 
 // LsDirs returns a list of dirents at the given path (relative to root)
 func (d *Helper) LsDirs(ctx context.Context, p string) (*types.ArrayOfHostDatastoreBrowserSearchResults, error) {
+	op := trace.FromContext(ctx, "")
+	defer trace.End(trace.Begin("", op))
+
 	spec := &types.HostDatastoreBrowserSearchSpec{
 		MatchPattern: []string{"*"},
 		Details: &types.FileQueryFlags{
@@ -242,15 +249,24 @@ func (d *Helper) LsDirs(ctx context.Context, p string) (*types.ArrayOfHostDatast
 }
 
 func (d *Helper) Upload(ctx context.Context, r io.Reader, pth string) error {
+	op := trace.FromContext(ctx, "")
+	defer trace.End(trace.Begin("", op))
+
 	return d.ds.Upload(ctx, r, path.Join(d.RootURL.Path, pth), &soap.DefaultUpload)
 }
 
 func (d *Helper) Download(ctx context.Context, pth string) (io.ReadCloser, error) {
+	op := trace.FromContext(ctx, "")
+	defer trace.End(trace.Begin("", op))
+
 	rc, _, err := d.ds.Download(ctx, path.Join(d.RootURL.Path, pth), &soap.DefaultDownload)
 	return rc, err
 }
 
 func (d *Helper) Stat(ctx context.Context, pth string) (types.BaseFileInfo, error) {
+	op := trace.FromContext(ctx, "")
+	defer trace.End(trace.Begin("", op))
+
 	i, err := d.ds.Stat(ctx, path.Join(d.RootURL.Path, pth))
 	if err != nil {
 		switch err.(type) {
@@ -265,7 +281,8 @@ func (d *Helper) Stat(ctx context.Context, pth string) (types.BaseFileInfo, erro
 }
 
 func (d *Helper) Mv(ctx context.Context, fromPath, toPath string) error {
-	op := trace.FromContext(ctx, "Mv")
+	op := trace.FromContext(ctx, "")
+	defer trace.End(trace.Begin("", op))
 
 	from := path.Join(d.RootURL.String(), fromPath)
 	to := path.Join(d.RootURL.String(), toPath)
@@ -278,7 +295,8 @@ func (d *Helper) Mv(ctx context.Context, fromPath, toPath string) error {
 }
 
 func (d *Helper) Rm(ctx context.Context, pth string) error {
-	op := trace.FromContext(ctx, "Rm")
+	op := trace.FromContext(ctx, "")
+	defer trace.End(trace.Begin("", op))
 
 	f := path.Join(d.RootURL.String(), pth)
 	op.Infof("Removing %s", pth)
@@ -298,6 +316,8 @@ func (d *Helper) IsVSAN(ctx context.Context) bool {
 // result so the URI doesn't need to be recomputed for every datastore
 // operation.
 func (d *Helper) mkRootDir(op trace.Operation, rootdir string) error {
+	defer trace.End(trace.Begin("", op))
+
 	if rootdir == "" {
 		return fmt.Errorf("root directory is empty")
 	}

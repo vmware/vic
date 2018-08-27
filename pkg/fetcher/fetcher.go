@@ -168,18 +168,18 @@ func (u *URLFetcher) Fetch(ctx context.Context, url *url.URL, reqHdrs *http.Head
 		retries++
 		// give up if we reached maxDownloadAttempts
 		if retries == maxDownloadAttempts {
-			log.Debugf("Hit max download attempts. Download failed: %v", err)
+			op.Debugf("Hit max download attempts. Download failed: %v", err)
 			return "", err
 		}
 
 		switch err := err.(type) {
 		case DoNotRetry, TagNotFoundError, ImageNotFoundError, AccessDenied:
-			log.Debugf("Error: %s", err.Error())
+			op.Debugf("Error: %s", err.Error())
 			return "", err
 		}
 
 		// retry downloading again
-		log.Debugf("Download failed, retrying: %v", err)
+		op.Debugf("Download failed, retrying: %v", err)
 
 		delay := retries * 5
 		ticker := time.NewTicker(time.Second)

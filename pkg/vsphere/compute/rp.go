@@ -58,7 +58,10 @@ func VM(op trace.Operation, session *session.Session, pool *object.ResourcePool)
 }
 
 // GetChildrenVMs returns a slice of VirtualMachines that are the pools VMs
-func (rp *ResourcePool) GetChildrenVMs(op trace.Operation) ([]*vm.VirtualMachine, error) {
+func (rp *ResourcePool) GetChildrenVMs(ctx context.Context) ([]*vm.VirtualMachine, error) {
+	op := trace.FromContext(ctx, "")
+	defer trace.End(trace.Begin("", op))
+
 	var vms []*vm.VirtualMachine
 	refs, err := VM(op, rp.Session, rp.ResourcePool)
 	if err != nil {
@@ -74,6 +77,7 @@ func (rp *ResourcePool) GetChildrenVMs(op trace.Operation) ([]*vm.VirtualMachine
 // GetChildVM searches the pool for a VM by name and returns a VirtualMachine
 func (rp *ResourcePool) GetChildVM(ctx context.Context, name string) (*vm.VirtualMachine, error) {
 	op := trace.FromContext(ctx, name)
+	defer trace.End(trace.Begin("", op))
 
 	searchIndex := object.NewSearchIndex(rp.Vim25())
 	child, err := searchIndex.FindChild(op, rp.Reference(), name)
@@ -89,6 +93,7 @@ func (rp *ResourcePool) GetChildVM(ctx context.Context, name string) (*vm.Virtua
 
 func (rp *ResourcePool) GetCluster(ctx context.Context) (*object.ComputeResource, error) {
 	op := trace.FromContext(ctx, rp.Name())
+	defer trace.End(trace.Begin("", op))
 
 	var err error
 	var mrp mo.ResourcePool
@@ -103,6 +108,7 @@ func (rp *ResourcePool) GetCluster(ctx context.Context) (*object.ComputeResource
 
 func (rp *ResourcePool) GetDatacenter(ctx context.Context) (*object.Datacenter, error) {
 	op := trace.FromContext(ctx, rp.Name())
+	defer trace.End(trace.Begin("", op))
 
 	dcRef, err := rp.getLowestAncestor(op, "Datacenter")
 	if err != nil || dcRef == nil {
@@ -114,6 +120,7 @@ func (rp *ResourcePool) GetDatacenter(ctx context.Context) (*object.Datacenter, 
 }
 
 func (rp *ResourcePool) getAncestors(op trace.Operation, inType string) ([]types.ManagedObjectReference, error) {
+	defer trace.End(trace.Begin("", op))
 	client := rp.Session.Vim25()
 
 	ancestors, err := mo.Ancestors(op, client, client.ServiceContent.PropertyCollector, rp.Reference())
@@ -134,6 +141,7 @@ func (rp *ResourcePool) getAncestors(op trace.Operation, inType string) ([]types
 }
 
 func (rp *ResourcePool) getLowestAncestor(op trace.Operation, inType string) (*types.ManagedObjectReference, error) {
+	defer trace.End(trace.Begin("", op))
 	ancestors, err := rp.getAncestors(op, inType)
 	if err != nil {
 		op.Errorf("Unable to get ancestors of rp %s: %s", rp.Name(), err)

@@ -446,6 +446,8 @@ func (m *Manager) DetachAll(op trace.Operation) error {
 }
 
 func (m *Manager) detach(op trace.Operation, disk *types.VirtualDisk) error {
+	defer trace.End(trace.Begin("", op))
+
 	config := []types.BaseVirtualDeviceConfigSpec{
 		&types.VirtualDeviceConfigSpec{
 			Device:    disk,
@@ -493,6 +495,7 @@ func (m *Manager) devicePathByURI(op trace.Operation, datastoreURI *object.Datas
 
 // AttachAndMount creates and attaches a vmdk as a non-persistent disk, mounts it, and returns the mount path.
 func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.DatastorePath, persistent bool) (string, error) {
+	defer trace.End(trace.Begin("", op))
 	var config *VirtualDiskConfig
 
 	op.Infof("Attach/Mount %s", datastoreURI.String())
@@ -521,6 +524,7 @@ func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.Datast
 
 // UnmountAndDetach unmounts and detaches a disk, subsequently cleaning the mount path
 func (m *Manager) UnmountAndDetach(op trace.Operation, datastoreURI *object.DatastorePath, persistent bool) error {
+	defer trace.End(trace.Begin("", op))
 	var config *VirtualDiskConfig
 
 	if !persistent {
@@ -551,7 +555,7 @@ func (m *Manager) UnmountAndDetach(op trace.Operation, datastoreURI *object.Data
 }
 
 func (m *Manager) InUse(op trace.Operation, config *VirtualDiskConfig, filter func(vm *mo.VirtualMachine) bool) ([]*vm.VirtualMachine, error) {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin("", op))
 
 	mngr := view.NewManager(m.vm.Vim25())
 
