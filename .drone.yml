@@ -345,22 +345,7 @@ pipeline:
       - drone_token
     when:
       repo: vmware/vic
-      event: [push]
-      branch: [master]
-      status: success
-
-  trigger-downstream-tag:
-    image: 'gcr.io/eminent-nation-87317/vic-downstream-trigger:1.3'
-    environment:
-      SHELL: /bin/bash
-      DOWNSTREAM_REPO: vmware/vic-product
-      DOWNSTREAM_BRANCH: ${DRONE_BRANCH}
-    secrets:
-      - drone_server
-      - drone_token
-    when:
-      repo: vmware/vic
-      event: [tag]
+      event: [push, tag]
       branch: [master, 'releases/*']
       status: success
 
