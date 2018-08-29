@@ -18,6 +18,35 @@ set -x
 gsutil version -l
 set +x
 
+function run_tests() {
+    echo
+    echo "#######################################"
+    echo "# Running tests a first time          #"
+    echo "#######################################"
+    echo
+    pabot --verbose --processes $jobs --outputdir output $@
+    if [ $? -eq 0 ]; then
+        echo "All tests pass on first try"
+        return 0
+    fi
+    cp output/log.html  output/first_run_log.html
+    echo
+    echo "#######################################"
+    echo "# Running again the tests that failed #"
+    echo "#######################################"
+    echo
+    pabot --verbose --processes $jobs --outputdir output --rerunfailed output/output.xml --output rerun.xml $@
+    retval=$?
+    cp output/log.html  output/second_run_log.html
+    echo
+    echo "########################"
+    echo "# Merging output files #"
+    echo "########################"
+    echo
+    rebot --nostatusrc --outputdir output --output output.xml --merge output/output.xml  output/rerun.xml
+    return ${retval}
+}
+
 dpkg -l > package.list
 
 set -x
@@ -52,21 +81,21 @@ fi
 
 if [[ $DRONE_BRANCH == "master" || $DRONE_BRANCH == "releases/"* ]] && [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "push" ]]; then
     echo "Running full CI for $DRONE_BUILD_EVENT on $DRONE_BRANCH"
-    pabot --verbose --processes $jobs --removekeywords TAG:secret --exclude skip tests/test-cases
+    run_tests --removekeywords TAG:secret --exclude skip tests/test-cases
 elif [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "tag" ]]; then
     echo "Running only Group11-Upgrade and 7-01-Regression for $DRONE_BUILD_EVENT on $DRONE_BRANCH"
-    pabot --verbose --processes $jobs --removekeywords TAG:secret --suite Group11-Upgrade --suite 7-01-Regression tests/test-cases
+    run_tests --removekeywords TAG:secret --suite Group11-Upgrade --suite 7-01-Regression tests/test-cases
 elif (echo $prBody | grep -q "\[full ci\]"); then
     echo "Running full CI as per commit message"
-    pabot --verbose --processes $jobs --removekeywords TAG:secret --exclude skip tests/test-cases
+    run_tests --removekeywords TAG:secret --exclude skip tests/test-cases
 elif (echo $prBody | grep -q "\[specific ci="); then
     echo "Running specific CI as per commit message"
     buildtype=$(echo $prBody | grep "\[specific ci=")
     testsuite=$(echo $buildtype | awk -F"\[specific ci=" '{sub(/\].*/,"",$2);print $2}')
-    pabot --verbose --processes $jobs --removekeywords TAG:secret --suite $testsuite --suite 7-01-Regression tests/test-cases
+    run_tests --removekeywords TAG:secret --suite $testsuite --suite 7-01-Regression tests/test-cases
 else
     echo "Running regressions"
-    pabot --verbose --processes $jobs --removekeywords TAG:secret --exclude skip --include regression tests/test-cases
+    run_tests --removekeywords TAG:secret --exclude skip --include regression tests/test-cases
 fi
 
 rc="$?"
@@ -74,7 +103,7 @@ rc="$?"
 timestamp=$(date +%s)
 outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT".zip"
 
-zip -9 -j $outfile output.xml log.html report.html package.list *container-logs*.zip *.log /var/log/vic-machine-server/vic-machine-server.log *.debug
+zip -9 -j $outfile output/* package.list *container-logs*.zip *.log /var/log/vic-machine-server/vic-machine-server.log *.debug
 
 # GC credentials
 keyfile="/root/vic-ci-logs.key"
