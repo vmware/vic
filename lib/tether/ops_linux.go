@@ -960,14 +960,33 @@ func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target
 	}
 	rawSource.WriteString(source.Path)
 
-	// NOTE: by default we are supporting "NOATIME" and it can be configurable later. this must be specfied as a flag.
-	// Additionally, we must parse out the "ro" option and supply it as a flag as well for this flavor of the mount call.
-	if err := Sys.Syscall.Mount(rawSource.String(), target, nfsFileSystemType, syscall.MS_NOATIME, mountOptions); err != nil {
+	if ip := net.ParseIP(source.Hostname()); ip != nil {
+		// NOTE: by default we are supporting "NOATIME" and it can be configurable later. this must be specfied as a flag.
+		// Additionally, we must parse out the "ro" option and supply it as a flag as well for this flavor of the mount call.
+		if err := Sys.Syscall.Mount(rawSource.String(), target, nfsFileSystemType, syscall.MS_NOATIME, mountOptions); err != nil {
+			log.Errorf("mounting %s on %s failed: %s", source.String(), target, err)
+			return err
+		}
+		return nil
+	}
+
+	log.Debugf("Looking up host %s", source.Hostname())
+	ips, err := net.LookupIP(source.Hostname())
+	if err != nil {
 		log.Errorf("mounting %s on %s failed: %s", source.String(), target, err)
 		return err
 	}
-
-	return nil
+	for _, ip := range ips {
+		//NOTE: the mountOptions of syscall mount only accept addr=ip; addr=FQDN doesn't work
+		//We resolve the ip address nearest the mounting action.
+		//An alternative place is nfs.CreateMountSpec function in /lib/portlayer/storage/nfs/vm.go
+		mountOptionsFQDN2IP := strings.Replace(mountOptions, source.Hostname(), ip.String(), -1)
+		if err = Sys.Syscall.Mount(rawSource.String(), target, nfsFileSystemType, syscall.MS_NOATIME, mountOptionsFQDN2IP); err == nil {
+			return nil
+		}
+	}
+	log.Errorf("mounting %s on %s failed: %s", source.String(), target, err)
+	return err
 }
 
 // CopyExistingContent copies the underlying files shadowed by a mount on a directory
