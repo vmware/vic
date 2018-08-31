@@ -198,7 +198,7 @@ Deploy Nimbus vCenter Server Async
 Deploy Nimbus Testbed
     [Arguments]  ${user}  ${password}  ${args}=  ${spec}=${EMPTY}
 
-    Run Keyword And Ignore Error  Cleanup Nimbus Folders  deletePxe=${true}
+    Run Keyword And Ignore Error  Cleanup Nimbus Folders  deletePXE=${true}
 
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
