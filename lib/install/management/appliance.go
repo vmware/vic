@@ -576,6 +576,9 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	if settings.HTTPSProxy != nil {
 		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("%s=%s", config.VICAdminHTTPSProxy, settings.HTTPSProxy.String()))
 	}
+	if settings.NoProxy != nil {
+		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("%s=%s", config.VICAdminNoProxy, *settings.NoProxy))
+	}
 
 	conf.AddComponent(config.VicAdminService, &executor.SessionConfig{
 		User:    "vicadmin",
@@ -606,6 +609,9 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	}
 	if settings.HTTPSProxy != nil {
 		personality.Env = append(personality.Env, fmt.Sprintf("%s=%s", config.GeneralHTTPSProxy, settings.HTTPSProxy.String()))
+	}
+	if settings.NoProxy != nil {
+		personality.Env = append(personality.Env, fmt.Sprintf("%s=%s", config.GeneralNoProxy, *settings.NoProxy))
 	}
 
 	conf.AddComponent(config.PersonaService, &executor.SessionConfig{

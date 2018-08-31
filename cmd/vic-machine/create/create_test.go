@@ -72,7 +72,7 @@ func TestParseGatewaySpec(t *testing.T) {
 func TestFlags(t *testing.T) {
 	c := NewCreate()
 	flags := c.Flags()
-	numberOfFlags := 61
+	numberOfFlags := 62
 	assert.Equal(t, numberOfFlags, len(flags), "Missing flags during Create.")
 }
 

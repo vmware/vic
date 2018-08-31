@@ -22,6 +22,7 @@ import (
 
 func TestProcessProxies(t *testing.T) {
 	gurls := [...]string{
+		"",
 		"https://fully.qualified.example.com",
 		"https://fully.qualified.example.com:443",
 		"http://fully.qualified.example.com",
@@ -39,13 +40,22 @@ func TestProcessProxies(t *testing.T) {
 		"httpd://example.com",
 	}
 
+	gnproxies := [...]string{
+		"*",
+		"localhost, .example.com",
+		"localhost,.example.com",
+		"192.168.2.5",
+	}
+
 	for _, ghttp := range gurls {
 		for _, ghttps := range gurls {
-			gproxy := Proxies{HTTPProxy: &ghttp, HTTPSProxy: &ghttps}
+			for _, uri := range gnproxies {
+				gproxy := Proxies{HTTPProxy: &ghttp, HTTPSProxy: &ghttps, NoProxy: &uri}
 
-			_, _, err := gproxy.ProcessProxies()
-			assert.NoError(t, err, "Expected %s and %s to be accepted", ghttp, ghttps)
-			assert.True(t, gproxy.IsSet, "Expected proxy to be marked as set")
+				_, _, nproxy, err := gproxy.ProcessProxies()
+				assert.NoError(t, err, "Expected %s, %s, %s and %s to be accepted", ghttp, ghttps, uri, nproxy)
+				assert.True(t, gproxy.IsSet, "Expected proxy to be marked as set")
+			}
 		}
 	}
 
@@ -53,7 +63,7 @@ func TestProcessProxies(t *testing.T) {
 		for _, bhttps := range burls {
 			bproxy := Proxies{HTTPProxy: &ghttp, HTTPSProxy: &bhttps}
 
-			_, _, err := bproxy.ProcessProxies()
+			_, _, _, err := bproxy.ProcessProxies()
 			assert.Error(t, err, "Expected %s to be rejected", bhttps)
 		}
 	}
@@ -62,7 +72,7 @@ func TestProcessProxies(t *testing.T) {
 		for _, ghttps := range gurls {
 			bproxy := Proxies{HTTPProxy: &bhttp, HTTPSProxy: &ghttps}
 
-			_, _, err := bproxy.ProcessProxies()
+			_, _, _, err := bproxy.ProcessProxies()
 			assert.Error(t, err, "Expected %s to be rejected", bhttp)
 		}
 	}
@@ -71,7 +81,7 @@ func TestProcessProxies(t *testing.T) {
 		for _, bhttps := range burls {
 			bproxy := Proxies{HTTPProxy: &bhttp, HTTPSProxy: &bhttps}
 
-			_, _, err := bproxy.ProcessProxies()
+			_, _, _, err := bproxy.ProcessProxies()
 			assert.Error(t, err, "Expected %s and %s to be rejected", bhttp, bhttps)
 		}
 	}
