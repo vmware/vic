@@ -126,12 +126,14 @@ func (c *Configure) processParams(op trace.Operation) error {
 		return err
 	}
 
-	hproxy, sproxy, err := c.proxies.ProcessProxies()
+	hproxy, sproxy, nproxy, err := c.proxies.ProcessProxies()
 	if err != nil {
 		return err
 	}
 	c.HTTPProxy = hproxy
 	c.HTTPSProxy = sproxy
+	c.NoProxy = nproxy
+
 	c.ProxyIsSet = c.proxies.IsSet
 
 	c.ContainerNetworks, err = c.cNetworks.ProcessContainerNetworks(op)
@@ -166,18 +168,26 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 	personaSession := o.ExecutorConfig.Sessions[config.PersonaService]
 	vicAdminSession := o.ExecutorConfig.Sessions[config.VicAdminService]
 	if c.proxies.IsSet {
-		hProxy := ""
-		if c.HTTPProxy != nil {
-			hProxy = c.HTTPProxy.String()
+		if c.proxies.HTTPProxy != nil {
+			hProxy := *c.proxies.HTTPProxy
+			updateSessionEnv(personaSession, config.GeneralHTTPProxy, hProxy)
+			updateSessionEnv(vicAdminSession, config.VICAdminHTTPProxy, hProxy)
 		}
-		sProxy := ""
-		if c.HTTPSProxy != nil {
-			sProxy = c.HTTPSProxy.String()
+		if c.proxies.HTTPSProxy != nil {
+			sProxy := *c.proxies.HTTPSProxy
+			updateSessionEnv(personaSession, config.GeneralHTTPSProxy, sProxy)
+			updateSessionEnv(vicAdminSession, config.VICAdminHTTPSProxy, sProxy)
 		}
-		updateSessionEnv(personaSession, config.GeneralHTTPProxy, hProxy)
-		updateSessionEnv(personaSession, config.GeneralHTTPSProxy, sProxy)
-		updateSessionEnv(vicAdminSession, config.VICAdminHTTPProxy, hProxy)
-		updateSessionEnv(vicAdminSession, config.VICAdminHTTPSProxy, sProxy)
+	}
+
+	if c.proxies.NoProxy != nil {
+		nProxy := ""
+		if *c.proxies.NoProxy != "" {
+			// prefer to whitespace trimmed format
+			nProxy = *c.NoProxy
+		}
+		updateSessionEnv(personaSession, config.GeneralNoProxy, nProxy)
+		updateSessionEnv(vicAdminSession, config.VICAdminNoProxy, nProxy)
 	}
 
 	if c.Debug.Debug != nil {

@@ -406,10 +406,10 @@ func TestGuestInfo(t *testing.T) {
 		"guestinfo.vice./init/networks|public/network/Common/id":                       "DistributedVirtualPortgroup:dvportgroup-56",
 		"guestinfo.vice./storage/image_stores|0/ForceQuery":                            "false",
 		"guestinfo.vice./init/imageid":                                                 "",
-		"guestinfo.vice./init/sessions|docker-personality/cmd/Env":                     "3",
+		"guestinfo.vice./init/sessions|docker-personality/cmd/Env":                     "4",
 		"guestinfo.vice./init/sessions|docker-personality/common/id":                   "docker-personality",
 		"guestinfo.vice./storage/VolumeLocations|vol1/Fragment":                        "",
-		"guestinfo.vice./init/sessions|vicadmin/cmd/Env":                               "3",
+		"guestinfo.vice./init/sessions|vicadmin/cmd/Env":                               "4",
 		"guestinfo.vice./init/sessions|vicadmin/common/ExecutionEnvironment":           "",
 		"guestinfo.vice./init/sessions|vicadmin/User":                                  "vicadmin",
 		"guestinfo.vice..init.networks|public.network.assigned.dns":                    "1",
@@ -559,8 +559,8 @@ func TestGuestInfo(t *testing.T) {
 		"guestinfo.vice./registry/whitelist_registries~":                     "harbor.com:2345|insecure:2345",
 		"guestinfo.vice./registry/insecure_registries~":                      "insecure:2345",
 		"guestinfo.vice./registry/insecure_registries":                       "0",
-		"guestinfo.vice./init/sessions|vicadmin/cmd/Env~":                    "PATH=/sbin:/bin|GOTRACEBACK=all|HTTP_PROXY=http://proxy.vmware.com:2318|HTTPS_PROXY=https://proxy.vmware.com:2318",
-		"guestinfo.vice./init/sessions|docker-personality/cmd/Env~":          "PATH=/sbin|GOTRACEBACK=all|HTTP_PROXY=http://proxy.vmware.com:2318|HTTPS_PROXY=https://proxy.vmware.com:2318",
+		"guestinfo.vice./init/sessions|vicadmin/cmd/Env~":                    "PATH=/sbin:/bin|GOTRACEBACK=all|HTTP_PROXY=http://proxy.vmware.com:2318|HTTPS_PROXY=https://proxy.vmware.com:2318|NO_PROXY=localhost",
+		"guestinfo.vice./init/sessions|docker-personality/cmd/Env~":          "PATH=/sbin|GOTRACEBACK=all|HTTP_PROXY=http://proxy.vmware.com:2318|HTTPS_PROXY=https://proxy.vmware.com:2318|NO_PROXY=localhost",
 	}
 
 	commands := map[string][]string{
@@ -584,6 +584,7 @@ func TestGuestInfo(t *testing.T) {
 		"whitelist-registry": {"harbor.com:2345", "insecure:2345"},
 		"http-proxy":         {"http://proxy.vmware.com:2318"},
 		"https-proxy":        {"https://proxy.vmware.com:2318"},
+		"no-proxy":           {"localhost"},
 	}
 	conf := &config.VirtualContainerHostConfigSpec{}
 	extraconfig.DecodeWithPrefix(extraconfig.MapSource(kv), conf, "")

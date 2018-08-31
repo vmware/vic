@@ -23,6 +23,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	cli "gopkg.in/urfave/cli.v1"
 
@@ -111,8 +112,9 @@ func TestCreateVCH(t *testing.T) {
 		},
 		Registry: &models.VCHRegistry{
 			ImageFetchProxy: &models.VCHRegistryImageFetchProxy{
-				HTTP:  "http://example.com",
-				HTTPS: "https://example.com",
+				HTTP:    "http://example.com",
+				HTTPS:   "https://example.com",
+				NoProxy: []strfmt.URI{"localhost", ".example.com"},
 			},
 			Insecure: []string{
 				"https://insecure.example.com",
@@ -190,9 +192,11 @@ func newCreate() *create.Create {
 	ca.Certs.KeySize = 2048
 	httpProxy := "http://example.com"
 	httpsProxy := "https://example.com"
+	noProxy := "localhost,.example.com"
 	ca.Proxies = common.Proxies{
 		HTTPProxy:  &httpProxy,
 		HTTPSProxy: &httpsProxy,
+		NoProxy:    &noProxy,
 	}
 	ca.Registries = common.Registries{
 		InsecureRegistriesArg:  cli.StringSlice{"https://insecure.example.com"},

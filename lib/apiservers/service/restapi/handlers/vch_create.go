@@ -407,12 +407,13 @@ func (h *vchCreate) buildCreate(op trace.Operation, d *data.Data, finder client.
 			if vch.Registry.ImageFetchProxy != nil {
 				c.Proxies = decode.FromImageFetchProxy(vch.Registry.ImageFetchProxy)
 
-				hproxy, sproxy, err := c.Proxies.ProcessProxies()
+				hproxy, sproxy, nproxy, err := c.Proxies.ProcessProxies()
 				if err != nil {
 					return nil, errors.NewError(http.StatusBadRequest, "error processing proxies: %s", err)
 				}
 				c.HTTPProxy = hproxy
 				c.HTTPSProxy = sproxy
+				c.NoProxy = nproxy
 			}
 		}
 
@@ -455,6 +456,7 @@ func (h *vchCreate) handleCreate(op trace.Operation, c *create.Create, hc *clien
 
 	vConfig.HTTPProxy = c.HTTPProxy
 	vConfig.HTTPSProxy = c.HTTPSProxy
+	vConfig.NoProxy = c.NoProxy
 
 	err = hc.Executor().CreateVCH(vchConfig, vConfig, receiver)
 	if err != nil {
