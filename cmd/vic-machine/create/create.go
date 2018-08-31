@@ -397,12 +397,13 @@ func (c *Create) ProcessParams(op trace.Operation) error {
 	c.WhitelistRegistries = c.Registries.WhitelistRegistries
 	c.RegistryCAs = c.Registries.RegistryCAs
 
-	hproxy, sproxy, err := c.Proxies.ProcessProxies()
+	hproxy, sproxy, nproxy, err := c.Proxies.ProcessProxies()
 	if err != nil {
 		return err
 	}
 	c.HTTPProxy = hproxy
 	c.HTTPSProxy = sproxy
+	c.NoProxy = nproxy
 
 	if err = c.ProcessSyslog(); err != nil {
 		return err
@@ -728,6 +729,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 
 	vConfig.HTTPProxy = c.HTTPProxy
 	vConfig.HTTPSProxy = c.HTTPSProxy
+	vConfig.NoProxy = c.NoProxy
 
 	vConfig.Timeout = c.Data.Timeout
 

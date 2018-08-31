@@ -56,8 +56,10 @@ const (
 
 	GeneralHTTPProxy   = "HTTP_PROXY"
 	GeneralHTTPSProxy  = "HTTPS_PROXY"
+	GeneralNoProxy     = "NO_PROXY"
 	VICAdminHTTPProxy  = "VICADMIN_HTTP_PROXY"
 	VICAdminHTTPSProxy = "VICADMIN_HTTPS_PROXY"
+	VICAdminNoProxy    = "NO_PROXY"
 
 	AddPerms = "ADD"
 )

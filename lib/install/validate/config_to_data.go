@@ -36,6 +36,7 @@ import (
 const (
 	httpProxy  = "HTTP_PROXY"
 	httpsProxy = "HTTPS_PROXY"
+	noProxy    = "NO_PROXY"
 )
 
 // Finder is defined for easy to test
@@ -296,22 +297,27 @@ func setHTTPProxies(d *data.Data, conf *config.VirtualContainerHostConfigSpec) e
 		return nil
 	}
 	for _, env := range persona.Cmd.Env {
-		if !strings.HasPrefix(env, httpProxy) && !strings.HasPrefix(env, httpsProxy) {
-			continue
-		}
-
 		strs := strings.Split(env, "=")
 		if len(strs) != 2 {
 			return fmt.Errorf("wrong env format: %s", env)
 		}
-		url, err := url.Parse(strs[1])
-		if err != nil {
-			return err
-		}
-		if strs[0] == httpProxy {
+		switch {
+		case strings.HasPrefix(env, httpProxy):
+			url, err := url.Parse(strs[1])
+			if err != nil {
+				return err
+			}
 			d.HTTPProxy = url
-		} else {
+
+		case strings.HasPrefix(env, httpsProxy):
+			url, err := url.Parse(strs[1])
+			if err != nil {
+				return err
+			}
 			d.HTTPSProxy = url
+
+		case strings.HasPrefix(env, noProxy):
+			d.NoProxy = &strs[1]
 		}
 	}
 	return nil
