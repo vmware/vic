@@ -18,8 +18,6 @@ VIC Manual Test Suite
 -
 [Group 17 - Manual TTY](Group17-ManualTTY/TestCases.md)
 -
-[Group 18 - VIC UI](Group18-VIC-UI/TestCases.md)
--
 [Group 19 - ROBO](Group18-ROBO/TestCases.md)
 -
 [Group 20 - Security](Group20-Security/TestCases.md)

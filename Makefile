@@ -94,9 +94,6 @@ rpctool := $(BIN)/rpctool
 vic-machine-linux := $(BIN)/vic-machine-linux
 vic-machine-windows := $(BIN)/vic-machine-windows.exe
 vic-machine-darwin := $(BIN)/vic-machine-darwin
-vic-ui-linux := $(BIN)/vic-ui-linux
-vic-ui-windows := $(BIN)/vic-ui-windows.exe
-vic-ui-darwin := $(BIN)/vic-ui-darwin
 vic-init := $(BIN)/vic-init
 vic-init-test := $(BIN)/vic-init-test
 # NOT BUILT WITH make all TARGET
@@ -144,7 +141,6 @@ bootstrap-debug: $(bootstrap-debug)
 bootstrap-staging-debug: $(bootstrap-staging-debug)
 iso-base: $(iso-base)
 vic-machine: $(vic-machine-linux) $(vic-machine-windows) $(vic-machine-darwin)
-vic-ui: $(vic-ui-linux) $(vic-ui-windows) $(vic-ui-darwin)
 # NOT BUILT WITH make all TARGET
 # vic-dns variants to create standalone DNS service.
 vic-dns: $(vic-dns-linux) $(vic-dns-windows) $(vic-dns-darwin)
@@ -156,7 +152,7 @@ gas: $(GAS)
 misspell: $(MISSPELL)
 
 # convenience targets
-all: components tethers isos vic-machine imagec vic-ui
+all: components tethers isos vic-machine imagec
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) $(MISSPELL) goversion
 check: goversion goimports gofmt misspell govet golint copyright whitespace gas
 apiservers: $(portlayerapi) $(docker-engine-api) $(serviceapi)
@@ -449,18 +445,6 @@ $(vic-machine-windows): $$(call godeps,cmd/vic-machine/*.go)
 $(vic-machine-darwin): $$(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine darwin...
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
-
-$(vic-ui-linux): $$(call godeps,cmd/vic-ui/*.go) $(admiralapi-client)
-	@echo building vic-ui linux...
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
-
-$(vic-ui-windows): $$(call godeps,cmd/vic-ui/*.go) $(admiralapi-client)
-	@echo building vic-ui windows...
-	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
-
-$(vic-ui-darwin): $$(call godeps,cmd/vic-ui/*.go) $(admiralapi-client)
-	@echo building vic-ui darwin...
-	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
 
 $(vic-dns-linux): $$(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns linux...
