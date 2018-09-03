@@ -117,7 +117,7 @@ func (v *VolumeBackend) Volumes(filter string) ([]*types.Volume, []string, error
 		// Include the volume in the output if it meets the filtering criteria
 		filterAction := vicfilter.IncludeVolume(volumeFilters, volFilterContext)
 		if filterAction == vicfilter.IncludeAction {
-			volume := NewVolumeModel(vol, volumeMetadata.Labels)
+			volume := NewVolumeModel(vol, volumeMetadata.Labels, volumeMetadata.DriverOpts)
 			volumes = append(volumes, volume)
 		}
 	}
@@ -139,8 +139,7 @@ func (v *VolumeBackend) VolumeInspect(name string) (*types.Volume, error) {
 	if err != nil {
 		return nil, errors.VolumeInternalServerError(fmt.Errorf("error unmarshalling docker metadata: %s", err))
 	}
-	volume := NewVolumeModel(volInfo, volumeMetadata.Labels)
-
+	volume := NewVolumeModel(volInfo, volumeMetadata.Labels, volumeMetadata.DriverOpts)
 	return volume, nil
 }
 
@@ -181,12 +180,14 @@ func (v *VolumeBackend) VolumesPrune(pruneFilters filters.Args) (*types.VolumesP
 // Utility Functions
 //------------------------------------
 
-func NewVolumeModel(volume *models.VolumeResponse, labels map[string]string) *types.Volume {
+func NewVolumeModel(volume *models.VolumeResponse, labels map[string]string, opts map[string]string) *types.Volume {
+
 	return &types.Volume{
 		Driver:     volume.Driver,
 		Name:       volume.Name,
 		Labels:     labels,
 		Mountpoint: volume.Label,
+		Options:    opts,
 	}
 }
 
