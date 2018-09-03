@@ -233,7 +233,7 @@ func vchToModel(op trace.Operation, vch *vm.VirtualMachine, d *data.Data, execut
 		Insecure:               vchConfig.Registry.InsecureRegistries,
 		Whitelist:              vchConfig.Registry.RegistryWhitelist,
 		CertificateAuthorities: asPemCertificates(vchConfig.Certificate.RegistryCertificateAuthorities),
-		ImageFetchProxy:        asImageFetchProxy(vchConfig.ExecutorConfig.Sessions[config.VicAdminService], config.VICAdminHTTPProxy, config.VICAdminHTTPSProxy),
+		ImageFetchProxy:        asImageFetchProxy(vchConfig.ExecutorConfig.Sessions[config.VicAdminService], config.VICAdminHTTPProxy, config.VICAdminHTTPSProxy, config.VICAdminNoProxy),
 	}
 
 	// runtime
@@ -445,20 +445,27 @@ func asPemCertificate(certificates []byte) *models.X509Data {
 	return m[0]
 }
 
-func asImageFetchProxy(sessionConfig *executor.SessionConfig, http, https string) *models.VCHRegistryImageFetchProxy {
+func asImageFetchProxy(sessionConfig *executor.SessionConfig, http, https, nproxy string) *models.VCHRegistryImageFetchProxy {
 	var httpProxy, httpsProxy strfmt.URI
+	var nProxy []strfmt.URI
 	for _, env := range sessionConfig.Cmd.Env {
-		if strings.HasPrefix(env, http+"=") {
+		switch {
+		case strings.HasPrefix(env, http+"="):
 			httpProxy = strfmt.URI(strings.SplitN(env, "=", 2)[1])
-		}
-		if strings.HasPrefix(env, https+"=") {
+		case strings.HasPrefix(env, https+"="):
 			httpsProxy = strfmt.URI(strings.SplitN(env, "=", 2)[1])
+		case strings.HasPrefix(env, nproxy+"="):
+			nProxyStrs := strings.Split(strings.SplitN(env, "=", 2)[1], ",")
+			nProxy = make([]strfmt.URI, len(nProxyStrs))
+			for i := range nProxy {
+				nProxy[i] = strfmt.URI(strings.TrimSpace(nProxyStrs[i]))
+			}
 		}
 	}
 
-	if httpProxy == "" && httpsProxy == "" {
+	if httpProxy == "" && httpsProxy == "" && nProxy == nil {
 		return nil
 	}
 
-	return &models.VCHRegistryImageFetchProxy{HTTP: httpProxy, HTTPS: httpsProxy}
+	return &models.VCHRegistryImageFetchProxy{HTTP: httpProxy, HTTPS: httpsProxy, NoProxy: nProxy}
 }

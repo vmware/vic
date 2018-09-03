@@ -15,6 +15,7 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math"
@@ -433,12 +434,13 @@ func buildCreate(op trace.Operation, d *data.Data, finder finder, vch *models.VC
 			if vch.Registry.ImageFetchProxy != nil {
 				c.Proxies = fromImageFetchProxy(vch.Registry.ImageFetchProxy)
 
-				hproxy, sproxy, err := c.Proxies.ProcessProxies()
+				hproxy, sproxy, nproxy, err := c.Proxies.ProcessProxies()
 				if err != nil {
 					return nil, util.NewError(http.StatusBadRequest, fmt.Sprintf("Error processing proxies: %s", err))
 				}
 				c.HTTPProxy = hproxy
 				c.HTTPSProxy = sproxy
+				c.NoProxy = nproxy
 			}
 		}
 
@@ -479,6 +481,7 @@ func handleCreate(op trace.Operation, c *create.Create, validator *validate.Vali
 
 	vConfig.HTTPProxy = c.HTTPProxy
 	vConfig.HTTPSProxy = c.HTTPSProxy
+	vConfig.NoProxy = c.NoProxy
 
 	executor := management.NewDispatcher(op, validator.Session, management.CreateAction, false)
 	err = executor.CreateVCH(vchConfig, vConfig, receiver)
@@ -678,9 +681,21 @@ func fromPemCertificates(m []*models.X509Data) []byte {
 func fromImageFetchProxy(p *models.VCHRegistryImageFetchProxy) common.Proxies {
 	http := string(p.HTTP)
 	https := string(p.HTTPS)
+	var nproxy *string
+	if p.NoProxy != nil {
+		var buffer bytes.Buffer
+		buffer.WriteString(string(p.NoProxy[0]))
+		for _, v := range p.NoProxy[1:] {
+			buffer.WriteString(",")
+			buffer.WriteString(string(v))
+		}
+		nproxyStr := buffer.String()
+		nproxy = &nproxyStr
+	}
 
 	return common.Proxies{
 		HTTPProxy:  &http,
 		HTTPSProxy: &https,
+		NoProxy:    nproxy,
 	}
 }
