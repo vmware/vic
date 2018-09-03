@@ -25,8 +25,11 @@ ${SYSLOG_FILE}  /var/log/syslog
 *** Keywords ***
 Get Remote PID
     [Arguments]  ${proc}
-    ${pid}=  Execute Command  ps -C ${proc} -o pid=
+    #photon 4.4.152 version truncates the proc name to 15 characters in /proc/xxx/status.
+    ${proc_realname}=  Get SubString  ${proc}  0  15
+    ${pid}=  Execute Command  ps -C ${proc_realname} -o pid=
     ${pid}=  Strip String  ${pid}
+    Should Not Be Empty  ${pid}
     [Return]  ${pid}
 
 *** Test Cases ***
