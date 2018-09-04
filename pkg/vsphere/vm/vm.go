@@ -980,8 +980,20 @@ func (vm *VirtualMachine) powerOnDRS(op trace.Operation) error {
 	case types.ClusterPowerOnVmResult:
 		attempts := len(r.Attempted)
 		if attempts != 1 {
-			return fmt.Errorf("Attempted to power on the wrong number of VMs. Expected 1, attempted %d", attempts)
+			msg := "unable to place VM for power on"
+			action := "no recommended action"
+
+			if len(r.NotAttempted) > 0 {
+				msg = r.NotAttempted[0].Fault.LocalizedMessage
+			}
+
+			if len(r.Recommendations) > 0 {
+				action = fmt.Sprintf("%s - %s", r.Recommendations[0].ReasonText, r.Recommendations[0].WarningText)
+			}
+
+			return fmt.Errorf("power on failed: %s, %s", msg, action)
 		}
+
 		info := r.Attempted[0]
 		task := object.NewTask(vm.Session.Vim25(), *info.Task)
 		_, err := task.WaitForResult(op, nil)
