@@ -498,7 +498,6 @@ Power Off Host
 Create Simple VC Cluster With Static IP
     [Arguments]  ${name}=vic-simple-vc-static-ip
     [Timeout]    110 minutes
-    Set Suite Variable  ${NIMBUS_LOCATION}  NIMBUS_LOCATION=wdc
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     Log To Console  Create a new simple vc cluster with static ip support...
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  spec=vic-simple-cluster-with-static.rb  args=--noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-simple-cluster-with-static --runName ${name}
