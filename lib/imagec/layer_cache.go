@@ -89,6 +89,19 @@ func InitializeLayerCache(client *client.PortLayer) error {
 		layerCache.layers = l.Layers
 	}
 
+	// Sanitize cache - evict inconsistent elements
+	evict := make([]string, 0, len(l.Layers))
+	// build the list for eviction - we should not iterate and modify in the same loop
+	for k, v := range l.Layers {
+		if v.Downloading {
+			evict = append(evict, k)
+		}
+	}
+
+	for _, k := range evict {
+		layerCache.Remove(k)
+	}
+
 	return nil
 }
 
