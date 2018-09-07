@@ -67,6 +67,8 @@ Verify VCH remote syslog
 
     Wait Until Container Stops  ${id}  5
 
+    Sleep  60
+
     ${syslog-conn}=  Open Connection  %{SYSLOG_SERVER}
     Login  %{SYSLOG_USER}  %{SYSLOG_PASSWD}
     ${out}=  Execute Command  cat ${SYSLOG_FILE}
