@@ -15,7 +15,7 @@
 package trace
 
 import (
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // Entry is like logrus.Entry, but for Operation. Functionality is added as needed.

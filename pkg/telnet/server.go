@@ -19,7 +19,7 @@ import (
 	"io"
 	"net"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // DataHandlerFunc is the callback function in the event of receiving data from the telnet client

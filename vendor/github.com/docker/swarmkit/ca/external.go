@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/cloudflare/cfssl/api"
 	"github.com/cloudflare/cfssl/signer"
 	"github.com/pkg/errors"

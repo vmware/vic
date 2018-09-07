@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/kv"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"

@@ -5,7 +5,7 @@ package libnetwork
 import (
 	"net"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 func newService(name string, id string, ingressPorts []*PortConfig, aliases []string) *service {

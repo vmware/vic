@@ -26,7 +26,7 @@ import (
 
 	"context"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/golang/groupcache/lru"
 
 	"github.com/vmware/govmomi/vim25/types"

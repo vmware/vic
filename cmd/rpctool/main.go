@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"os"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
