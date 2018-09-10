@@ -144,7 +144,7 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  port 10001 is not available
 
-    # docker pull should work
+    # docker pull should work after restart
     # if this fails, very likely the default gateway on the VCH is not set
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${alpine}
     Should Be Equal As Integers  ${rc}  0
@@ -257,3 +257,26 @@ Docker inspect mount and cmd data after reboot
     Should Contain X Times  ${out}  /bin/ls  1
     Should Contain X Times  ${out}  -la  1
     Should Contain X Times  ${out}  ${SPACE}/  1
+
+
+Docker pull interrupted by reboot should be restartable
+    ${interrupt-image}=  Set Variable  tomcat
+    # delete image so we can be sure it's not already present for when we pull after restart
+    # image may not exist
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi -f ${interrupt-image}
+
+    Log To Console  \nPull ${interrupt-image} in background
+    ${pid}=  Start Process  docker %{VCH-PARAMS} pull ${interrupt-image}  shell=True
+
+    # Gather logs before rebooting - this acts as a sleep
+    # There is some uncertainty as to where we interrupt the download which means failures in this test
+    # are inherently likely to be intermittent
+    Run Keyword And Continue On Failure  Gather Logs From Test Server  -interrupted-pull
+
+    # Reboot VCH
+    Reboot VM  %{VCH-NAME}
+    Wait For VCH Initialization  20x  10 seconds
+
+    # docker pull should work after restart
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${interrupt-image}
+    Should Be Equal As Integers  ${rc}  0
