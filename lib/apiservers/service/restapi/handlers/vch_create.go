@@ -693,6 +693,18 @@ func fromImageFetchProxy(p *models.VCHRegistryImageFetchProxy) common.Proxies {
 		nproxy = &nproxyStr
 	}
 
+	var nproxy *string
+	if p.NoProxy != nil {
+		var buffer bytes.Buffer
+		buffer.WriteString(string(p.NoProxy[0]))
+		for _, v := range p.NoProxy[1:] {
+			buffer.WriteString(",")
+			buffer.WriteString(string(v))
+		}
+		nproxyStr := buffer.String()
+		nproxy = &nproxyStr
+	}
+
 	return common.Proxies{
 		HTTPProxy:  &http,
 		HTTPSProxy: &https,
