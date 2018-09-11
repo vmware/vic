@@ -71,13 +71,13 @@ Hello world with -i
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -i hello-world
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  https://docs.docker.com/engine/userguide/
+    Should Contain  ${output}  https://docs.docker.com/get-started/
 
 Hello world with -it
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it hello-world
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  https://docs.docker.com/engine/userguide/
+    Should Contain  ${output}  https://docs.docker.com/get-started/
 
 Start with attach and interactive
     ${fifo}=  Make Fifo
