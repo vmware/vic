@@ -24,3 +24,7 @@ Test 5-27-Selenium-Grid
     ${status}=  Get State Of Github Issue  8236
     Run Keyword If  '${status}' == 'closed'  Fail  5-27-Selenium-Grid.robot needs to be moved out of "need-to-fix" folder now that Issue #8236 has been resolved
     Log  Test skipped; see issue \#8236  WARN
+
+    ${status}=  Get State Of Github Issue  7682
+    Run Keyword If  '${status}' == 'closed'  Fail  5-27-Selenium-Grid.robot needs to be moved out of "need-to-fix" folder now that Issue #7682 has been resolved
+    Log  Test skipped; see issue \#7682  WARN
