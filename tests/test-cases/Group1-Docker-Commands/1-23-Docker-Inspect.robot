@@ -162,3 +162,11 @@ Docker inspect container status
     # keyword at top of file
     ${stopped}=  Get container inspect status  ${container}
     Should Contain  ${stopped}  exited
+
+Docker inspect for macaddress
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name=test-macaddress -d busybox sleep 600
+    Should Be Equal As Integers  ${rc}  0
+    Sleep  60s
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{range .NetworkSettings.Networks}}{{.MacAddress}}{{end}}' ${container}
+    Should Be Equal As Integers  ${rc}  0
+    Should Match Regexp  ${output}  ^([0-9a-f]{2}[:-]){5}([0-9a-f]{2})$
