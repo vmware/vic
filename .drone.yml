@@ -235,7 +235,7 @@ pipeline:
     cache_control: 'public,max-age=3600'
     when:
       repo: vmware/vic
-      branch: ['releases/*']
+      branch: ['releases/*', 'refs/tags/*']
       event: tag
       status: success
 
@@ -267,7 +267,7 @@ pipeline:
     when:
       repo: vmware/vic
       event: tag
-      branch: 'releases/*'
+      branch: ['releases/*', 'refs/tags/*']
       status: success
 
   vic-machine-server-publish:
@@ -280,7 +280,7 @@ pipeline:
     when:
       repo: vmware/vic
       event: [push, tag]
-      branch: [master, 'releases/*']
+      branch: [master, 'releases/*', 'refs/tags/*']
       status: success
 
   trigger-downstream:
@@ -295,7 +295,7 @@ pipeline:
     when:
       repo: vmware/vic
       event: [push, tag]
-      branch: [master, 'releases/*']
+      branch: [master, 'releases/*', 'refs/tags/*']
       status: success
 
   notify-slack-on-fail:
@@ -308,7 +308,7 @@ pipeline:
     when:
       repo: vmware/vic
       event: [push, tag]
-      branch: [master, 'releases/*']
+      branch: [master, 'releases/*', 'refs/tags/*']
       status: failure
 
   notify-slack-on-pass:
@@ -333,7 +333,7 @@ pipeline:
     template: "The latest version of VIC engine has been released, find the build here: https://console.cloud.google.com/storage/browser/vic-engine-releases\n"
     when:
       repo: vmware/vic
-      branch: ['releases/*']
+      branch: ['releases/*', 'refs/tags/*']
       event: tag
       status: success
 
