@@ -203,11 +203,14 @@ Deploy Nimbus Testbed
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
-    ${specarg}=  Set Variable If  '${spec}' == '${EMPTY}'  ${EMPTY}  --testbedSpecRubyFile ./%{BUILD_TAG}/testbeds/${spec}    
+    ${specarg}=  Set Variable If  '${spec}' == '${EMPTY}'  ${EMPTY}  --testbedSpecRubyFile ./%{BUILD_TAG}/testbeds/${spec}
+    # Lack of vcfvt testware on vsphere65 use vcfvt on master instead
+    ${TESTWARE_BRANCH}=  Evaluate  '--testwarebranch vim-main' if os.environ.get('VSPHERE_VERSION') == '6.5' else ''  modules=os
+    ${addtionargs}=  Set Variable If  '${spec}' == '${EMPTY}'  ${TESTWARE_BRANCH}  ${EMPTY}
 
     :FOR  ${IDX}  IN RANGE  1  5
     \   Run Keyword Unless  '${spec}' == '${EMPTY}'  Put File  tests/resources/nimbus-testbeds/${spec}  destination=./%{BUILD_TAG}/testbeds/
-    \   ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-testbeddeploy --lease 0.25 ${specarg} ${args}
+    \   ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-testbeddeploy --lease 0.25 ${specarg} ${args} ${addtionargs}
     \   Log  ${out}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  "deployment_result"=>"PASS"
