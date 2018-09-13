@@ -112,7 +112,10 @@ func (c *RestClient) call(ctx context.Context, method, path string, data interfa
 
 	body, hdr, statusCode, err := c.clientRequest(ctx, method, path, params, headers)
 	if statusCode == http.StatusUnauthorized && strings.Contains(err.Error(), "This method requires authentication") {
-		c.Login(ctx)
+		err := c.Login(ctx)
+		if err != nil {
+			Logger.Debugf("Error logging in: %s", err)
+		}
 		Logger.Debugf("Rerun request after login")
 		return c.clientRequest(ctx, method, path, params, headers)
 	}
