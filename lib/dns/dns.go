@@ -246,7 +246,7 @@ func resolvconf() []string {
 
 // SeenBefore returns the cached response
 func (s *Server) SeenBefore(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
-	defer trace.End(trace.Begin(r.String()))
+	defer trace.End(trace.Begin(""))
 
 	// Do we have it in the cache
 	if m := s.cache.Get(r); m != nil {
@@ -268,11 +268,12 @@ func (s *Server) SeenBefore(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 
 // HandleForwarding forwards a request to the nameservers and returns the response
 func (s *Server) HandleForwarding(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
-	defer trace.End(trace.Begin(r.String()))
+	defer trace.End(trace.Begin(""))
 
 	var m *mdns.Msg
+	var nonAuthoritativeResp *mdns.Msg
+	var authoritativeResp *mdns.Msg
 	var err error
-	var try int
 
 	if len(s.Nameservers) == 0 {
 		log.Errorf("No nameservers defined, can not forward")
@@ -288,37 +289,72 @@ func (s *Server) HandleForwarding(w mdns.ResponseWriter, r *mdns.Msg) (bool, err
 	// Use request ID for "random" nameserver selection.
 	nsid := int(r.Id) % len(s.Nameservers)
 
-Redo:
-	nameserver := s.Nameservers[nsid]
-	if i := strings.Index(nameserver, ":"); i < 0 {
-		nameserver += ":53"
-	}
+	for try := 0; try < len(s.Nameservers); try++ {
+		nsid = (nsid + 1) % len(s.Nameservers)
 
-	if tcp {
-		m, _, err = s.tcpclient.Exchange(r, nameserver)
-	} else {
-		m, _, err = s.udpclient.Exchange(r, nameserver)
-	}
-	if err != nil {
-		// Seen an error, this can only mean, "server not reached", try again but only if we have not exausted our nameservers.
-		if try < len(s.Nameservers) {
-			try++
-			nsid = (nsid + 1) % len(s.Nameservers)
-			goto Redo
+		nameserver := s.Nameservers[nsid]
+		if i := strings.Index(nameserver, ":"); i < 0 {
+			nameserver += ":53"
 		}
 
-		log.Errorf("Failure to forward request: %q", err)
+		log.Debugf("Forwarding request to %s", nameserver)
+
+		if tcp {
+			m, _, err = s.tcpclient.Exchange(r, nameserver)
+		} else {
+			m, _, err = s.udpclient.Exchange(r, nameserver)
+		}
+
+		if err != nil || m == nil {
+			// Seen an error, this can only mean, "server not reached", or similar
+			log.Errorf("Failure to forward request to %s: %q", nameserver, err)
+			continue
+		}
+
+		if m.Authoritative {
+			// don't even check whether it was a successful return. If it's authoritative, then that's
+			// the answer
+			log.Debugf("Authoritative response")
+			authoritativeResp = m
+			break
+		}
+
+		// non-authoritative processing
+		// nothing clever:
+		// * if a success response, stash it
+		// * if not a success response, keep it if no previous stashed response
+		if m.Rcode == mdns.RcodeSuccess {
+			log.Debugf("Non-authoritative success")
+			nonAuthoritativeResp = m
+			continue
+		}
+
+		if nonAuthoritativeResp == nil {
+			log.Debugf("Non-authoritative non-successful")
+			nonAuthoritativeResp = m
+		}
+	}
+
+	if authoritativeResp == nil && nonAuthoritativeResp == nil {
+		log.Errorf("Failed to forward request to any nameservers")
 		return false, respServerFailure(w, r)
 	}
 
-	// We have a response so cache it
-	s.cache.Add(m)
+	m = nonAuthoritativeResp
+	// Cache only authoritative responses
+	if authoritativeResp != nil {
+		m = authoritativeResp
+		s.cache.Add(authoritativeResp)
+	}
+
+	log.Debugf("Using response: %s", m.String())
 
 	m.Compress = true
 	if err := w.WriteMsg(m); err != nil {
 		log.Errorf("Error writing response: %q", err)
 		return true, err
 	}
+
 	return true, nil
 }
 
@@ -368,7 +404,7 @@ func lookupByName(netCtx *network.Context, reqc *network.Container, name string)
 
 // HandleVIC returns a response to a container name/id request
 func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
-	defer trace.End(trace.Begin(r.String()))
+	defer trace.End(trace.Begin(""))
 
 	question := r.Question[0]
 
@@ -384,7 +420,7 @@ func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 		return false, err
 	}
 
-	log.Debugf("RemoteAddr: %s", clientIP)
+	log.Debugf("Response customized for requestor: %s", clientIP)
 	ip := net.ParseIP(clientIP)
 
 	var name string
@@ -500,11 +536,13 @@ func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 
 // ServeDNS implements the handler interface
 func (s *Server) ServeDNS(w mdns.ResponseWriter, r *mdns.Msg) {
-	defer trace.End(trace.Begin(r.String()))
+	defer trace.End(trace.Begin(""))
 
 	if r == nil || len(r.Question) == 0 {
 		return
 	}
+
+	log.Debugf("DNS request: %s", r.String())
 
 	// Reject multi-question query
 	if len(r.Question) != 1 {
