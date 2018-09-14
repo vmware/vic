@@ -73,8 +73,9 @@ Deploy Proxified VCH
     # Run VIC Machine Command assumes %{VCH-NAME}
     # Install VIC Appliance on Test Server assumes a bunch of environment variables
     # We're just going to eschew helpers and install this VCH manually to avoid mutating hidden environmental state which is difficult to debug
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux create --name=VCH-XPLT --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --bridge-network=%{BRIDGE_NETWORK} --container-network=%{PUBLIC_NETWORK}:public --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --image-store=%{TEST_DATASTORE} --insecure-registry=http://${registry} --http-proxy http://${mitm}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux create --name=VCH-XPLT --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --bridge-network=%{BRIDGE_NETWORK} --container-network=%{PUBLIC_NETWORK}:public --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --image-store=%{TEST_DATASTORE} --insecure-registry=http://${registry} --http-proxy http://${mitm} --debug=2
     Log  ${output}
+    Gather Logs From Test Server  name=VCH-XPLT
     Should Be Equal As Integers  ${rc}  0
 
     ${br2}=  Get Environment Variable  BRIDGE_NETWORK
