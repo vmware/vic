@@ -444,16 +444,19 @@ Portlayer Log Should Match Regexp
     ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b ${cookies} | grep -ie \'${pattern1}\' | grep -iqe \'${pattern2}\'
     Should Be Equal As Integers  ${rc}  0
 
+# Grab the vSphere logs for a VCH. This takes two optional parameters:
+# name-suffix: a suffix to append to the log bundle to allow for capture before/after reboot of VCH for example
+# name: override the default use of %{VCH-NAME} and specify a specific VCH name
 Gather Logs From Test Server
-    [Arguments]  ${name-suffix}=${EMPTY}
-    Run Keyword And Continue On Failure  Run  zip %{VCH-NAME}-certs -r %{VCH-NAME}
+    [Arguments]  ${name-suffix}=${EMPTY}  ${name}=%{VCH-NAME}
+    Run Keyword And Continue On Failure  Run  zip ${name}-certs -r ${name}
     Curl Container Logs  ${name-suffix}
-    ${host}=  Wait Until Keyword Succeeds  12x  10s  Get VM Host Name  %{VCH-NAME}
+    ${host}=  Wait Until Keyword Succeeds  12x  10s  Get VM Host Name  ${name}
     Log  ${host}
-    ${out}=  Run  govc datastore.download -host ${host} %{VCH-NAME}/vmware.log %{VCH-NAME}-vmware${name-suffix}.log
+    ${out}=  Run  govc datastore.download -host ${host} ${name}/vmware.log ${name}-vmware${name-suffix}.log
     Log  ${out}
     Should Contain  ${out}  OK
-    ${out}=  Run  govc datastore.download -host ${host} %{VCH-NAME}/tether.debug %{VCH-NAME}-tether${name-suffix}.debug
+    ${out}=  Run  govc datastore.download -host ${host} ${name}/tether.debug ${name}-tether${name-suffix}.debug
     Log  ${out}
     Should Contain  ${out}  OK
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc logs -log=vmkernel -n=10000 > vmkernel${name-suffix}.log
