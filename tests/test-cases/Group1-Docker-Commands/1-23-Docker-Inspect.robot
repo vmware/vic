@@ -98,6 +98,13 @@ Docker inspect container with multiple networks
     Should Contain  ${out}  net-one
     Should Be Equal As Integers  ${rc}  0
 
+Docker inspect container with correct gateway
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name=test-gateway -d ${busybox} sleep 600
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}' test-gateway
+    Should Contain  ${out}  172.16.0.1
+    Should Not Contain  ${out}  /
+
 Docker inspect invalid object
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect fake
     Should Be Equal As Integers  ${rc}  1
