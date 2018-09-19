@@ -1,0 +1,16 @@
+# By default, packages in pkg should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# BAD: logmgr depends on tether, but it should not
+^lib/archive/*
+^lib/config/executor/*
+^lib/dhcp/*
+^lib/dhcp/client/*
+^lib/etcconf/*
+^lib/migration/feature/*
+^lib/system/*
+^lib/tether/*
+^lib/tether/msgs/*
+^lib/tether/shared/*
+

@@ -1,0 +1,31 @@
+# By default, packages in lib should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# lib/portlayer depends on several other lib packages
+^lib/archive/*
+^lib/config/*
+^lib/constants/*
+^lib/guest/*
+^lib/iolog/*
+^lib/migration/*
+^lib/spec/*
+^lib/tether/msgs/*
+^lib/tether/shared/*
+
+# lib/tether/shared also depends on lib/system
+^lib/system/*
+
+# lib/system also depends on lib/etcconf
+^lib/etcconf/*
+
+# lib/portlayer subpackages should generally not depend on one another, but
+# event, exec, store, and util are valid dependencies for other sub-packages
+^lib/portlayer/event/*
+^lib/portlayer/exec/*
+^lib/portlayer/store/*
+^lib/portlayer/util/*
+
+# lib/portlayer/storage subpackages can depend on lib/portlayer/storage
+^lib/portlayer/storage/*
+

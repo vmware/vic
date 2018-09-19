@@ -1,0 +1,40 @@
+# By default, packages in lib should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# lib/apiservers/engine subpackages can depend on other subpackages
+^lib/apiservers/engine/*
+
+# lib/apiservers/engine acts as a client of the portlayer API
+^lib/apiservers/portlayer/client/*
+^lib/apiservers/portlayer/models/*
+
+# lib/apiservers/engine also depends on portlayer utilities and events
+^lib/portlayer/util/*
+^lib/portlayer/event/events/*
+
+# lib/apiservers/engine also depends on other lib packages
+^lib/archive/*
+^lib/config/*
+^lib/constants/*
+^lib/imagec/*
+^lib/iolog/*
+^lib/metadata/*
+^lib/migration/*
+^lib/spec/*
+^lib/tether/shared/*
+
+# lib/tether/shared also depends on lib/system
+^lib/system/*
+
+# lib/system also depends on lib/etcconf
+^lib/etcconf/*
+
+# BAD: lib/apiservers/engine/backends/middleware depends on lib/dns, which in turn
+# depends on a variety of code from the portlayer
+^lib/dns/*
+^lib/portlayer/event/*
+^lib/portlayer/exec/*
+^lib/portlayer/network/*
+^lib/portlayer/store/*
+^lib/guest/*

@@ -1,0 +1,9 @@
+# By default, packages in lib should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# lib/pprof also depends on lib/config
+^lib/config/*
+
+# BAD: pkg/version depends on lib/migration/feature
+^lib/migration/feature/*

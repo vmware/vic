@@ -1,0 +1,12 @@
+# By default, packages in cmd should depend only on packages under lib, pkg or vendor
+^lib/*
+^pkg/*
+^vendor/*
+
+# vic-machine packages can also depend on common vic-machine code
+^cmd/vic-machine/common/*
+
+# BAD: vic-machine inspect currently depends on sibling commands, but should not
+^cmd/vic-machine/converter/*
+^cmd/vic-machine/create/*
+

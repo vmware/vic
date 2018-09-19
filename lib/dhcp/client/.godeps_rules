@@ -1,0 +1,11 @@
+# By default, packages in lib should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# lib/dhcp/client can depend on 
+^lib/dhcp/*
+^lib/system/*
+
+# lib/system depends on lib/etcconf
+^lib/etcconf/*
+

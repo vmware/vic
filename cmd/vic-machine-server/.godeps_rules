@@ -1,0 +1,9 @@
+# By default, packages in cmd should depend only on packages under lib, pkg or vendor
+^lib/*
+^pkg/*
+^vendor/*
+
+# BAD: vic-machine-server currently depends on vic-machine code, but should not
+^cmd/vic-machine/common/*
+^cmd/vic-machine/create/*
+

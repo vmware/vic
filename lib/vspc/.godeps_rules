@@ -1,0 +1,9 @@
+# By default, packages in lib should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# vspc also depends on lib/constants
+^lib/constants/*
+
+# BAD: pkg/version depends on lib/migration/feature
+^lib/migration/feature/*

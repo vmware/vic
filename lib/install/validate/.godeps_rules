@@ -1,0 +1,19 @@
+# By default, packages in lib should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# All lib/install sub-packages can depend on lib/config (which in turn depends on lib/migration/feature)
+^lib/config/*
+^lib/config/executor/*
+^lib/migration/feature/*
+
+# lib/install/validate also depends on lib/constants
+^lib/constants/*
+
+# lib/install/validate also depends on other lib/install subpackages
+^lib/install/data/*
+^lib/install/opsuser/*
+
+# BAD: lib/install/validate also depends on code from cmd/vic-machine/common, but it should not
+^cmd/vic-machine/common/*
+

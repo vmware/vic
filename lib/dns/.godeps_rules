@@ -1,0 +1,15 @@
+# By default, packages in lib should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# lib/dns depends on several other lib packages
+^lib/config/*
+^lib/constants/*
+^lib/etcconf/*
+^lib/guest/*
+^lib/iolog/*
+^lib/migration/*
+^lib/portlayer/*
+^lib/spec/*
+^lib/system/*
+^lib/tether/shared/*

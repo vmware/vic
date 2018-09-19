@@ -1,0 +1,13 @@
+# By default, packages in lib should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# lib/guest depends on several other lib packages
+^lib/constants/*
+^lib/spec/*
+
+# lib/spec in turn depends on
+^lib/config/*
+
+# BAD: pkg/version depends on lib/migration/feature
+^lib/migration/feature/*

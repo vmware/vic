@@ -1,0 +1,16 @@
+# By default, packages in lib should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# Tether subpackages can depend on each other
+^lib/tether/*
+
+# Tether can also depend on the following libraries
+^lib/archive/*
+^lib/config/executor/*
+^lib/dhcp/*
+^lib/etcconf/*
+^lib/system/*
+
+# BAD: Test code depends on lib/migration/feature for the same reason as pkg/version
+^lib/migration/feature/*
