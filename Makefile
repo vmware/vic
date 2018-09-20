@@ -39,8 +39,8 @@ GAS ?= $(GOPATH)/bin/gas$(BIN_ARCH)
 MISSPELL ?= $(GOPATH)/bin/misspell$(BIN_ARCH)
 
 .PHONY: all tools clean test check distro \
-	goversion goimports gopath govet gofmt misspell gas golint \
-	isos tethers apiservers copyright
+	goversion goimports gopath govet gofmt misspell gas golint copyright enforce-deps \
+	isos tethers apiservers
 
 .DEFAULT_GOAL := all
 
@@ -154,7 +154,7 @@ misspell: $(MISSPELL)
 # convenience targets
 all: components tethers isos vic-machine imagec
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) $(MISSPELL) goversion
-check: goversion goimports gofmt misspell govet golint copyright whitespace gas
+check: goversion goimports gofmt misspell govet golint copyright whitespace gas enforce-deps
 apiservers: $(portlayerapi) $(docker-engine-api) $(serviceapi)
 components: check apiservers $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
@@ -239,6 +239,10 @@ govet:
 
 gas: $(GAS)
 	@echo checking security problems
+
+enforce-deps:
+	@echo checking dependencies...
+	@infra/scripts/go-deps-enforcement.sh
 
 vendor: $(GVT)
 	@echo restoring vendor
