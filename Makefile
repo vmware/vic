@@ -240,7 +240,8 @@ govet:
 gas: $(GAS)
 	@echo checking security problems
 
-enforce-deps:
+# requires swagger generation to avoid warnings about unused rules
+enforce-deps: $(portlayerapi-client) $(portlayerapi-server) $(serviceapi-server)
 	@echo checking dependencies...
 	@infra/scripts/go-deps-enforcement.sh
 

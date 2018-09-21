@@ -3,23 +3,23 @@
 ^vendor/*
 
 # lib/apiservers/engine subpackages can depend on other subpackages
-^lib/apiservers/engine/*
+#^lib/apiservers/engine/*
 
 # lib/apiservers/engine acts as a client of the portlayer API
-^lib/apiservers/portlayer/client/*
-^lib/apiservers/portlayer/models/*
+#^lib/apiservers/portlayer/client/*
+#^lib/apiservers/portlayer/models/*
 
 # lib/apiservers/engine also depends on portlayer utilities and events
 ^lib/portlayer/util/*
 ^lib/portlayer/event/events/*
 
 # lib/apiservers/engine also depends on other lib packages
-^lib/archive/*
+#^lib/archive/*
 ^lib/config/*
 ^lib/constants/*
-^lib/imagec/*
+#^lib/imagec/*
 ^lib/iolog/*
-^lib/metadata/*
+#^lib/metadata/*
 ^lib/migration/*
 ^lib/spec/*
 ^lib/tether/shared/*

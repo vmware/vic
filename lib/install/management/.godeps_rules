@@ -21,10 +21,10 @@
 ^lib/install/vchlog/*
 
 # QUESTIONABLE: lib/install/management also depends on portlayer utilities
-lib/portlayer/util/*
+^lib/portlayer/util/*
 
 # QUESTIONABLE: lib/install/management also depends on the shared tether sub-package
-lib/tether/shared/*
+^lib/tether/shared/*
 
 # BAD: lib/install/management also depends on code from cmd/vic-machine/common, but it should not
 ^cmd/vic-machine/common/*

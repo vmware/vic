@@ -1,5 +1,5 @@
 # By default, packages in lib should depend only on packages under pkg or vendor
-^pkg/*
+#^pkg/*
 ^vendor/*
 
 # portlayer API operations may reference portlayer API model objects

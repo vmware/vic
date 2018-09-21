@@ -18,15 +18,15 @@
 ^lib/config/*
 ^lib/constants/*
 ^lib/imagec/*
-^lib/iolog/*
+#^lib/iolog/*
 ^lib/metadata/*
 ^lib/migration/*
 ^lib/spec/*
-^lib/tether/shared/*
+#^lib/tether/shared/*
 
 # lib/tether/shared also depends on lib/system
-^lib/system/*
+#^lib/system/*
 
 # lib/system also depends on lib/etcconf
-^lib/etcconf/*
+#^lib/etcconf/*
 
