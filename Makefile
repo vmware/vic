@@ -478,10 +478,10 @@ clean: cleandeps
 	@rm -f ./lib/apiservers/portlayer/restapi/doc.go
 	@rm -f ./lib/apiservers/portlayer/restapi/embedded_spec.go
 	@rm -f ./lib/apiservers/portlayer/restapi/server.go
-	@rm -rf ./lib/apiservers/portlayer/client/
-	@rm -rf ./lib/apiservers/portlayer/cmd/
-	@rm -rf ./lib/apiservers/portlayer/models/
-	@rm -rf ./lib/apiservers/portlayer/restapi/operations/
+	@rm -rf ./lib/apiservers/portlayer/client/*
+	@rm -rf ./lib/apiservers/portlayer/cmd/*
+	@rm -rf ./lib/apiservers/portlayer/models/*
+	@rm -rf ./lib/apiservers/portlayer/restapi/operations/*
 	@rm -rf ./lib/config/dynamic/admiral/client
 	@rm -rf ./lib/config/dynamic/admiral/models
 	@rm -rf ./lib/config/dynamic/admiral/operations
@@ -489,9 +489,9 @@ clean: cleandeps
 	@rm -f ./lib/apiservers/service/restapi/doc.go
 	@rm -f ./lib/apiservers/service/restapi/embedded_spec.go
 	@rm -f ./lib/apiservers/service/restapi/server.go
-	@rm -rf ./lib/apiservers/service/restapi/cmd/
-	@rm -rf ./lib/apiservers/service/restapi/models/
-	@rm -rf ./lib/apiservers/service/restapi/operations/
+	@rm -rf ./lib/apiservers/service/restapi/cmd/*
+	@rm -rf ./lib/apiservers/service/restapi/models/*
+	@rm -rf ./lib/apiservers/service/restapi/operations/*
 
 	@rm -f *.log
 	@rm -f *.pem
