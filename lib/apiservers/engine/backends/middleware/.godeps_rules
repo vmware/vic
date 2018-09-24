@@ -30,8 +30,8 @@
 # lib/system also depends on lib/etcconf
 ^lib/etcconf/*
 
-# BAD: lib/apiservers/engine/backends/middleware depends on lib/dns, which in turn
-# depends on a variety of code from the portlayer
+# TODO[#8302]: lib/apiservers/engine/backends/middleware depends on lib/dns,
+# which in turn depends on a variety of code from the portlayer
 ^lib/dns/*
 ^lib/portlayer/event/*
 ^lib/portlayer/exec/*

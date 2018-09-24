@@ -2,11 +2,11 @@
 ^pkg/*
 ^vendor/*
 
-# BAD: pkg/vsphere/session/session.go currently depends on lib/config, but should not
+# TODO[#8300]: pkg/vsphere/session/session.go currently depends on lib/config, but should not
 ^lib/config/*
 ^lib/config/executor/*
 ^lib/migration/feature/*
 
-# BAD: pkg/vsphere/test/test.go currently depends on lib/spec, but should not
+# TODO[#8301]: pkg/vsphere/test/test.go currently depends on lib/spec, but should not
 ^lib/constants/*
 ^lib/spec/*

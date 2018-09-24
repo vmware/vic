@@ -12,5 +12,5 @@
 ^lib/etcconf/*
 ^lib/system/*
 
-# BAD: Test code depends on lib/migration/feature for the same reason as pkg/version
+# TODO[#8299]: Test code depends on lib/migration/feature for the same reason as pkg/version
 ^lib/migration/feature/*

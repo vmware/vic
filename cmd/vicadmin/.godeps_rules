@@ -3,5 +3,5 @@
 ^pkg/*
 ^vendor/*
 
-# BAD: vicadmin currently depends on vic-machine code, but should not
+# TODO[#8296]: vicadmin currently depends on vic-machine code, but should not
 ^cmd/vic-machine/common/*

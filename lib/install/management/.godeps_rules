@@ -13,6 +13,7 @@
 ^lib/migration/*
 ^lib/spec/*
 ^lib/system/*
+^lib/tether/shared/*
 
 # lib/install/management also depends on other lib/install sub-packages
 ^lib/install/data/*
@@ -20,11 +21,8 @@
 ^lib/install/validate/*
 ^lib/install/vchlog/*
 
-# QUESTIONABLE: lib/install/management also depends on portlayer utilities
+# TODO[#8303]: lib/install/management also depends on portlayer utilities
 ^lib/portlayer/util/*
 
-# QUESTIONABLE: lib/install/management also depends on the shared tether sub-package
-^lib/tether/shared/*
-
-# BAD: lib/install/management also depends on code from cmd/vic-machine/common, but it should not
+# TODO[#8296]: lib/install/management also depends on code from cmd/vic-machine/common, but it should not
 ^cmd/vic-machine/common/*

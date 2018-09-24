@@ -2,5 +2,5 @@
 ^pkg/*
 #^vendor/*
 
-# BAD: lib/constants depends on pkg/version, which depends on lib/migration/feature
+# TODO[#8299]: lib/constants depends on pkg/version, which depends on lib/migration/feature
 ^lib/migration/feature/*

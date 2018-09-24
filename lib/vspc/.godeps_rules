@@ -5,5 +5,5 @@
 # vspc also depends on lib/constants
 ^lib/constants/*
 
-# BAD: pkg/version depends on lib/migration/feature
+# TODO[#8299]: pkg/version depends on lib/migration/feature
 ^lib/migration/feature/*

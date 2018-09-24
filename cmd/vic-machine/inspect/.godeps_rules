@@ -6,6 +6,6 @@
 # vic-machine packages can also depend on common vic-machine code
 ^cmd/vic-machine/common/*
 
-# BAD: vic-machine inspect currently depends on sibling commands, but should not
+# TODO[#8297]: vic-machine inspect currently depends on sibling commands, but should not
 ^cmd/vic-machine/converter/*
 ^cmd/vic-machine/create/*

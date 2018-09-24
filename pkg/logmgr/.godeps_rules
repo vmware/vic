@@ -2,7 +2,7 @@
 ^pkg/*
 ^vendor/*
 
-# BAD: logmgr depends on tether, but it should not
+# TODO[#8298]: logmgr depends on tether, but it should not
 ^lib/archive/*
 ^lib/config/executor/*
 ^lib/dhcp/*

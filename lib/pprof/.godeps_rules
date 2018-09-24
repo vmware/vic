@@ -5,5 +5,5 @@
 # lib/pprof also depends on lib/config
 ^lib/config/*
 
-# BAD: pkg/version depends on lib/migration/feature
+# TODO[#8299]: pkg/version depends on lib/migration/feature
 ^lib/migration/feature/*

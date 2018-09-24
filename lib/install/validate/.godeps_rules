@@ -14,5 +14,5 @@
 ^lib/install/data/*
 ^lib/install/opsuser/*
 
-# BAD: lib/install/validate also depends on code from cmd/vic-machine/common, but it should not
+# TODO[#8296]: lib/install/validate also depends on code from cmd/vic-machine/common, but it should not
 ^cmd/vic-machine/common/*

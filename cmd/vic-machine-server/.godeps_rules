@@ -3,6 +3,6 @@
 ^pkg/*
 ^vendor/*
 
-# BAD: vic-machine-server currently depends on vic-machine code, but should not
+# TODO[#8296]: vic-machine-server transitively depends on vic-machine code, but should not
 ^cmd/vic-machine/common/*
 ^cmd/vic-machine/create/*

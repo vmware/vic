@@ -12,8 +12,8 @@
 ^lib/system/*
 ^lib/tether/shared/*
 
-# BAD: pkg/version depends on lib/migration/feature
+# TODO[#8299]: pkg/version depends on lib/migration/feature
 ^lib/migration/feature/*
 
-# BAD: vicadmin currently depends on code from cmd/vic-machine/common, but it should not
+# TODO[#8296]: vicadmin currently depends on code from cmd/vic-machine/common, but it should not
 ^cmd/vic-machine/common/*

@@ -24,6 +24,6 @@
 ^lib/system/*
 ^lib/tether/shared/*
 
-# BAD: lib/apiservers/service handlers depend on code from vic-machine
+# TODO[#8295]: lib/apiservers/service handlers depend on code from vic-machine
 ^cmd/vic-machine/common/*
 ^cmd/vic-machine/create/*
