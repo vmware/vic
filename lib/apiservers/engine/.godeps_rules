@@ -29,4 +29,3 @@
 
 # lib/system also depends on lib/etcconf
 #^lib/etcconf/*
-

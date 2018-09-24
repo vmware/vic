@@ -8,4 +8,3 @@
 # lib/migration/manager also depends other lib/migration sub-packages
 ^lib/migration/errors/*
 ^lib/migration/feature/*
-

@@ -4,4 +4,3 @@
 
 # lib/system can depend on lib/etcconf
 ^lib/etcconf/*
-

@@ -27,4 +27,3 @@
 # BAD: lib/apiservers/service handlers depend on code from vic-machine
 ^cmd/vic-machine/common/*
 ^cmd/vic-machine/create/*
-

@@ -4,4 +4,3 @@
 
 # BAD: pkg/version/version.go currently depends on lib/migration/feature, but should not
 ^lib/migration/feature/*
-

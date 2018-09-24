@@ -9,4 +9,3 @@
 # BAD: vic-machine inspect currently depends on sibling commands, but should not
 ^cmd/vic-machine/converter/*
 ^cmd/vic-machine/create/*
-

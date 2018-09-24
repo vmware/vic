@@ -9,4 +9,3 @@
 ^lib/migration/errors/*
 ^lib/migration/feature/*
 ^lib/migration/manager/*
-

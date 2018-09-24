@@ -9,4 +9,3 @@
 
 # BAD: lib/install/data also depends on code from cmd/vic-machine/common, but it should not
 ^cmd/vic-machine/common/*
-

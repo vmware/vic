@@ -4,4 +4,3 @@
 
 # lib/migration also depends on lib/config
 ^lib/config/*
-

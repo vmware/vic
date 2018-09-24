@@ -4,4 +4,3 @@
 
 # service API operations may reference service API model objects
 ^lib/apiservers/service/models/*
-

@@ -6,4 +6,3 @@
 ^lib/config/*
 ^lib/config/executor/*
 ^lib/migration/feature/*
-

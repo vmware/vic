@@ -6,4 +6,3 @@
 # BAD: vic-machine-server currently depends on vic-machine code, but should not
 ^cmd/vic-machine/common/*
 ^cmd/vic-machine/create/*
-

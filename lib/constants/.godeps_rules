@@ -4,4 +4,3 @@
 
 # BAD: lib/constants depends on pkg/version, which depends on lib/migration/feature
 ^lib/migration/feature/*
-
