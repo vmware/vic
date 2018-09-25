@@ -34,5 +34,7 @@ func TestSystem(t *testing.T) {
 }
 
 func TestHandleFlags(t *testing.T) {
-	assert.True(t, handleFlags(), "Flags were not parsed correctly")
+	if *systemTest {
+		assert.True(t, handleFlags(), "Flags were not parsed correctly")
+	}
 }
