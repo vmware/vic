@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
@@ -32,7 +33,7 @@ import (
 // based on that data. It returns:
 // index of entry names in the archive
 // archive byte stream
-func generateArchive(name string, num, size int) ([]string, io.Reader) {
+func generateArchive(t *testing.T, name string, num, size int) ([]string, io.Reader) {
 	r, w := io.Pipe()
 	tw := tar.NewWriter(w)
 
@@ -45,7 +46,7 @@ func generateArchive(name string, num, size int) ([]string, io.Reader) {
 	// our file contents are zeros - this is the worst case for stripping trailing headers
 	zeros := make([]byte, size)
 
-	go func() {
+	go func(t *testing.T) {
 		for i := 0; i < num; i++ {
 			// we only really care about two things in the header
 			hdr := &tar.Header{
@@ -53,13 +54,13 @@ func generateArchive(name string, num, size int) ([]string, io.Reader) {
 				Size: int64(size),
 			}
 
-			fmt.Printf("Writing header for file %s:%d\n", name, i)
+			t.Logf("Writing header for file %s:%d", name, i)
 			err := tw.WriteHeader(hdr)
 			if err != nil {
 				panic(err)
 			}
 
-			fmt.Printf("Writing data for file %s:%d\n", name, i)
+			t.Logf("Writing data for file %s:%d", name, i)
 			n, err := tw.Write(zeros)
 			if err != nil {
 				panic(err)
@@ -72,7 +73,7 @@ func generateArchive(name string, num, size int) ([]string, io.Reader) {
 		// add the end-of-archive
 		tw.Close()
 		w.Close()
-	}()
+	}(t)
 
 	return index, r
 }
@@ -84,7 +85,7 @@ func generateArchive(name string, num, size int) ([]string, io.Reader) {
 func TestSingleStripper(t *testing.T) {
 	size := 2048
 	count := 5
-	index, reader := generateArchive("single", count, size)
+	index, reader := generateArchive(t, "single", count, size)
 
 	source := tar.NewReader(reader)
 	stripper := NewStripper(trace.NewOperation(context.Background(), "strip"), source, nil)
@@ -99,7 +100,7 @@ func TestSingleStripper(t *testing.T) {
 		pw.Close()
 
 		wg.Done()
-		fmt.Printf("Done copying from stripper: %d, %s\n", n, err)
+		t.Logf("Done copying from stripper: %d, %s", n, err)
 		if !assert.NoError(t, err, "Expected nil error from io.Copy on end-of-file") {
 			t.FailNow()
 		}
@@ -107,7 +108,7 @@ func TestSingleStripper(t *testing.T) {
 	}()
 
 	for i := 0; i <= len(index); i++ {
-		fmt.Printf("Reading header for file %d\n", i)
+		t.Logf("Reading header for file %d", i)
 		header, err := tr.Next()
 		if err == io.EOF {
 			fmt.Printf("End-of-file")
@@ -115,34 +116,19 @@ func TestSingleStripper(t *testing.T) {
 			return
 		}
 
-		if err != nil {
-			fmt.Printf("Error from archive: %s\n", err)
-			t.FailNow()
-		}
-
-		if !assert.NotEqual(t, i, len(index), "Expected EOF after index exhausted") {
-			t.FailNow()
-		}
-
-		if !assert.Equal(t, header.Name, index[i], "Expected header name to match index") {
-			t.FailNow()
-		}
-		if !assert.Equal(t, header.Size, int64(size), "Expected file size in header to match target generated size") {
-			t.FailNow()
-		}
+		require.NoError(t, err, "Error from archive: %s", err)
+		require.NotEqual(t, i, len(index), "Expected EOF after index exhausted")
+		require.Equal(t, header.Name, index[i], "Expected header name to match index")
+		require.Equal(t, header.Size, int64(size), "Expected file size in header to match target generated size")
 
 		// make the buf just that little bit bigger to allow for errrors in the copy if they would occur
 		buf := make([]byte, size+10)
 
-		fmt.Printf("Reading data for file %d\n", i)
+		t.Logf("Reading data for file %d", i)
 		n, err := tr.Read(buf)
 
-		if !assert.NoError(t, err, "No expected errors from file data copy") {
-			t.FailNow()
-		}
-		if !assert.Equal(t, n, size, "Expected file data size to match target generated size") {
-			t.FailNow()
-		}
+		require.NoError(t, err, "No expected errors from file data copy")
+		require.Equal(t, n, size, "Expected file data size to match target generated size")
 	}
 
 	wg.Wait()
@@ -160,7 +146,7 @@ func TestConjoinedStrippers(t *testing.T) {
 
 	for m := 0; m < multiplicity; m++ {
 		var reader io.Reader
-		indices[m], reader = generateArchive(fmt.Sprintf("archive-%d", m), count, size)
+		indices[m], reader = generateArchive(t, fmt.Sprintf("archive-%d", m), count, size)
 		source := tar.NewReader(reader)
 		strippers[m] = NewStripper(trace.NewOperation(context.Background(), fmt.Sprintf("strip-%d", m)), source, nil)
 	}
@@ -177,53 +163,37 @@ func TestConjoinedStrippers(t *testing.T) {
 		pw.Close()
 
 		wg.Done()
-		fmt.Printf("Done copying from strippers: %d, %s\n", n, err)
-		if !assert.NoError(t, err, "Expected nil error from io.Copy on end-of-file") {
-			t.FailNow()
-		}
+		t.Logf("Done copying from strippers: %d, %s", n, err)
+		require.NoError(t, err, "Expected nil error from io.Copy on end-of-file")
 	}()
 
 	expectedEntries := count * multiplicity
 	for i := 0; i <= expectedEntries; i++ {
-		fmt.Printf("Reading header for file %d\n", i)
+		t.Logf("Reading header for file %d", i)
 		header, err := tr.Next()
 		if err == io.EOF {
-			fmt.Printf("End-of-file\n")
+			t.Logf("End-of-file")
 			// TODO: is this pass or fail?
 			return
 		}
 
-		if err != nil {
-			fmt.Printf("Error from archive: %s\n", err)
-			t.FailNow()
-		}
-
-		if !assert.NotEqual(t, i, expectedEntries, "Expected EOF after index exhausted") {
-			t.FailNow()
-		}
+		require.NoError(t, err, "Error from archive: %s", err)
+		require.NotEqual(t, i, expectedEntries, "Expected EOF after index exhausted")
 
 		member := i / count
 		entry := i % count
 
-		if !assert.Equal(t, header.Name, indices[member][entry], "Expected header name to match index") {
-			t.FailNow()
-		}
-		if !assert.Equal(t, header.Size, int64(size), "Expected file size in header to match target generated size") {
-			t.FailNow()
-		}
+		require.Equal(t, header.Name, indices[member][entry], "Expected header name to match index")
+		require.Equal(t, header.Size, int64(size), "Expected file size in header to match target generated size")
 
 		// make the buf just that little bit bigger to allow for errrors in the copy if they would occur
 		buf := make([]byte, size+10)
 
-		fmt.Printf("Reading data for file %d\n", i)
+		t.Logf("Reading data for file %d", i)
 		n, err := tr.Read(buf)
 
-		if !assert.NoError(t, err, "No expected errors from file data copy") {
-			t.FailNow()
-		}
-		if !assert.Equal(t, n, size, "Expected file data size to match target generated size") {
-			t.FailNow()
-		}
+		require.NoError(t, err, "No expected errors from file data copy")
+		require.Equal(t, n, size, "Expected file data size to match target generated size")
 	}
 
 	wg.Wait()
@@ -242,14 +212,14 @@ func TestConjoinedStrippersWithCloser(t *testing.T) {
 
 	for m := 0; m < multiplicity; m++ {
 		var reader io.Reader
-		indices[m], reader = generateArchive(fmt.Sprintf("archive-%d", m), count, size)
+		indices[m], reader = generateArchive(t, fmt.Sprintf("archive-%d", m), count, size)
 		source := tar.NewReader(reader)
 
 		if m < multiplicity-1 {
-			fmt.Printf("added stripper\n")
+			t.Logf("added stripper")
 			readers[m] = NewStripper(trace.NewOperation(context.Background(), fmt.Sprintf("strip-%d", m)), source, nil)
 		} else {
-			fmt.Printf("added raw\n")
+			t.Logf("added raw")
 			readers[m] = reader
 		}
 	}
@@ -266,54 +236,38 @@ func TestConjoinedStrippersWithCloser(t *testing.T) {
 		pw.Close()
 
 		wg.Done()
-		fmt.Printf("Done copying from all sources: %d, %s\n", n, err)
-		if !assert.NoError(t, err, "Expected nil error from io.Copy on end-of-file") {
-			t.FailNow()
-		}
+		t.Logf("Done copying from all sources: %d, %s", n, err)
+		require.NoError(t, err, "Expected nil error from io.Copy on end-of-file")
 	}()
 
 	expectedEntries := count * multiplicity
 	for i := 0; i <= expectedEntries; i++ {
-		fmt.Printf("Reading header for file %d\n", i)
+		t.Logf("Reading header for file %d", i)
 		header, err := tr.Next()
 		if err == io.EOF {
-			fmt.Printf("End-of-file\n")
+			t.Logf("End-of-file")
 
 			wg.Wait()
 			return
 		}
 
-		if err != nil {
-			fmt.Printf("Error from archive: %s\n", err)
-			t.FailNow()
-		}
-
-		if !assert.NotEqual(t, i, expectedEntries, "Expected EOF after index exhausted") {
-			t.FailNow()
-		}
+		require.NoError(t, err, "Error from archive: %s", err)
+		require.NotEqual(t, i, expectedEntries, "Expected EOF after index exhausted")
 
 		member := i / count
 		entry := i % count
 
-		if !assert.Equal(t, header.Name, indices[member][entry], "Expected header name to match index") {
-			t.FailNow()
-		}
-		if !assert.Equal(t, header.Size, int64(size), "Expected file size in header to match target generated size") {
-			t.FailNow()
-		}
+		require.Equal(t, header.Name, indices[member][entry], "Expected header name to match index")
+		require.Equal(t, header.Size, int64(size), "Expected file size in header to match target generated size")
 
 		// make the buf just that little bit bigger to allow for errrors in the copy if they would occur
 		buf := make([]byte, size+10)
 
-		fmt.Printf("Reading data for file %d\n", i)
+		t.Logf("Reading data for file %d", i)
 		n, err := tr.Read(buf)
 
-		if !assert.NoError(t, err, "No expected errors from file data copy") {
-			t.FailNow()
-		}
-		if !assert.Equal(t, n, size, "Expected file data size to match target generated size") {
-			t.FailNow()
-		}
+		require.NoError(t, err, "No expected errors from file data copy")
+		require.Equal(t, n, size, "Expected file data size to match target generated size")
 	}
 
 	wg.Wait()
