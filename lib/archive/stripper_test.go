@@ -127,8 +127,10 @@ func TestSingleStripper(t *testing.T) {
 		t.Logf("Reading data for file %d", i)
 		n, err := tr.Read(buf)
 
-		require.NoError(t, err, "No expected errors from file data copy")
 		require.Equal(t, n, size, "Expected file data size to match target generated size")
+		if err != io.EOF && err != nil {
+			assert.FailNow(t, "Unexpected error from file data copy: %s", err)
+		}
 	}
 
 	wg.Wait()
@@ -192,8 +194,10 @@ func TestConjoinedStrippers(t *testing.T) {
 		t.Logf("Reading data for file %d", i)
 		n, err := tr.Read(buf)
 
-		require.NoError(t, err, "No expected errors from file data copy")
 		require.Equal(t, n, size, "Expected file data size to match target generated size")
+		if err != io.EOF && err != nil {
+			assert.FailNow(t, "Unexpected error from file data copy: %s", err)
+		}
 	}
 
 	wg.Wait()
@@ -266,8 +270,10 @@ func TestConjoinedStrippersWithCloser(t *testing.T) {
 		t.Logf("Reading data for file %d", i)
 		n, err := tr.Read(buf)
 
-		require.NoError(t, err, "No expected errors from file data copy")
 		require.Equal(t, n, size, "Expected file data size to match target generated size")
+		if err != io.EOF && err != nil {
+			assert.FailNow(t, "Unexpected error from file data copy: %s", err)
+		}
 	}
 
 	wg.Wait()
