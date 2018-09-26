@@ -23,14 +23,17 @@ set -x
 # arg1: root of destination filesystem
 install-entropy () {
     # copy rngd and libraries to target from current root
-    mkdir -p $1/{opt/config,bin/lib64}
+    mkdir -p $1/{opt/config,bin,/lib64}
+    ln -s /lib64 $1/lib
+
     cp -Ln /lib64/ld-linux-x86-64.so.2 $1/lib64/ 
     cp -Ln /lib64/libc.so.6 $1/lib64/ 
+    cp -Ln /lib/libhavege.so.* $1/lib64/
     cp /sbin/haveged $1/bin/haveged
 
-    # TODO(morris-jason): Hack allowing tether to launch the entropy process
+     # TODO(morris-jason): Hack allowing tether to launch the entropy process
     cat - > $1/opt/config/entropy.txt <<ENTROPY
-/.tether/lib64/ld-linux-x86-64.so.2 --library-path /.tether/lib64 /.tether/bin/haveged -w 1024 -v 1 -F "\$@"
+/.tether/lib64/ld-linux-x86-64.so.2 --library-path /.tether/lib64 /.tether/bin/haveged -w 1024 -v 1 -F
 ENTROPY
 }
 
@@ -56,13 +59,16 @@ ENTROPY
 install-iptables () {
     # copy iptables and all associated libraries to target from current root
     mkdir -p $1/{bin,lib64}
+    ln -s /lib64 $1/lib
+
     cp -Ln /lib64/ld-linux-x86-64.so.2 $1/lib64/
-    cp -L /sbin/iptables $1/bin/iptables
+    cp -L /sbin/iptables $1/bin/
 
     # TODO: figure out what to do with the /etc/alternatives symlinks
     # just copy the target of the link for now
-    cp -Ln /lib64/lib{m.*,m-*,gcc_s*,ip*tc*,xtables*,dl*,c.so*,c-*} $1/lib64/
-    cp -a /lib64/xtables $1/lib64/
+    cp -Ln /lib/lib{m.*,m-*,gcc_s*,ip*tc*,xtables*,dl*,c.so*,c-*} $1/lib/
+    cp -a /lib/xtables $1/lib/
+    cp -r /usr/lib/iptables $1/usr/lib/
 
     # TODO: stop assuming bash - can we replace with:
     # a. json config with rtld, rtld args, binary, binary args, chroot?

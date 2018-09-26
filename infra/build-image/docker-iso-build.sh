@@ -24,19 +24,25 @@ function main {
   REPO=$(cat isos/base/repos/$1/repo-spec.json | jq -r '.packagemanager')
   shift
 
+  rmArg=""
+  if [ -z "$DEBUG" ]; then
+    rmArg="--rm"
+  fi
+
   docker run \
   -it \
-  --rm \
+  ${rmArg} \
   -v $GOPATH/bin:/go/bin:ro \
   -v $GOPATH/src/github.com/vmware/vic:/go/src/github.com/vmware/vic:ro \
   -v $GOPATH/src/github.com/vmware/vic/bin:/go/src/github.com/vmware/vic/bin \
   -w /go/src/github.com/vmware/vic \
   -e TERM=linux \
   -e DEBUG=${DEBUG} \
+  -e BUILD_NUMBER=${BUILD_NUMBER} \
   gcr.io/eminent-nation-87317/vic-build-image:${REPO:-tdnf} /bin/bash -c "$*"
 }
 
-REPO=""
+REPO="photon-2.0"
 # Find the dependency manager. The d stands for distro.
 while getopts ':d:' flag; do
   case "${flag}" in
@@ -49,5 +55,5 @@ echo "building $REPO"
 if [[ -f "/proc/1/cgroup" && -n "$(grep docker /proc/1/cgroup)" ]]; then
   /bin/bash -c "$*" # prevent docker in docker
 else
-  main "${REPO:-photon-2.0}" "$@"
+  main "${REPO}" "$@"
 fi

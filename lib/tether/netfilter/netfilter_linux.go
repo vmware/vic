@@ -173,7 +173,7 @@ func iptables(ctx context.Context, args []string) tether.UtilityFn {
 	cmd := &exec.Cmd{
 		Path: "/lib64/ld-linux-x86-64.so.2",
 		Dir:  "/",
-		Args: append([]string{"/lib64/ld-linux-x86-64.so.2", "/iptables"}, args...),
+		Args: append([]string{"/lib64/ld-linux-x86-64.so.2", "/bin/iptables"}, args...),
 		SysProcAttr: &syscall.SysProcAttr{
 			Chroot: "/.tether",
 		},
