@@ -12,6 +12,8 @@
 # Description: Executes the bootstrap init with a serial terminal redirect
 ### END INIT INFO
 
+set -x
+
 . /etc/rc.d/init.d/functions
 
 start() {

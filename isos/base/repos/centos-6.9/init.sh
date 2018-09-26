@@ -60,8 +60,6 @@ install-iptables () {
     mkdir -p $1/{bin,lib64}
     cp -Ln /lib64/ld-linux-x86-64.so.2 $1/lib64/
     cp -L /sbin/iptables $1/bin/iptables
-    # Temp until changing tether exec path
-    ln -s bin/iptables $1/iptables
 
     # TODO: figure out what to do with the /etc/alternatives symlinks
     # just copy the target of the link for now
