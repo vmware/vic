@@ -32,7 +32,7 @@ install-entropy () {
     # a. json config with rtld, rtld args, binary, binary args, chroot?
     # b. Go plugins for tether extensions
     cat - > $1/opt/config/entropy.txt <<ENTROPY
-/.tether/lib64/ld-linux-x86-64.so.2 --library-path /.tether/lib64/ /.tether/bin/rngd "\$@"
+/.tether/lib64/ld-linux-x86-64.so.2 --library-path /.tether/lib64/ /.tether/bin/rngd -v --no-tpm=1
 ENTROPY
 }
 
@@ -60,8 +60,6 @@ install-iptables () {
     mkdir -p $1/{bin,lib64}
     cp -Ln /lib64/ld-linux-x86-64.so.2 $1/lib64/
     cp -L /sbin/iptables $1/bin/iptables
-    # Temp until changing tether exec path
-    ln -s bin/iptables $1/iptables
 
     # TODO: figure out what to do with the /etc/alternatives symlinks
     # just copy the target of the link for now

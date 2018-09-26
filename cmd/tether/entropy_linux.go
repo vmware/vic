@@ -44,7 +44,7 @@ func NewEntropy() *Entropy {
 				log.Errorf("Cannot read entropy configuration %q", err.Error())
 				return nil, err
 			}
-			args := strings.Split(string(entropyConfig), " ")
+			args := strings.Split(strings.TrimSpace(string(entropyConfig)), " ")
 			// #nosec: Subprocess launching with variable
 			cmd := exec.Command(args[0], args[1:]...)
 			log.Infof("Starting entropy daemon")

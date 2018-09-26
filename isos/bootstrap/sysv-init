@@ -6,6 +6,12 @@
 # defined in repos/name/init.sh then continue with the common
 # bootstrap script
 
+# ensure all script output is logged - we ensure that ttyS1 exists first
+mknod /dev/ttyS1 c 4 65
+exec > /dev/ttyS1 2>&1
+
+set -x
+
 # path consistency
 export PATH=$PATH:/sbin
 

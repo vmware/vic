@@ -26,11 +26,12 @@ install-entropy () {
     mkdir -p $1/{opt/config,bin/lib64}
     cp -Ln /lib64/ld-linux-x86-64.so.2 $1/lib64/ 
     cp -Ln /lib64/libc.so.6 $1/lib64/ 
+    cp -Ln /lib/libhavege.so.* $1/lib64/
     cp /sbin/haveged $1/bin/haveged
 
     # TODO(morris-jason): Hack allowing tether to launch the entropy process
     cat - > $1/opt/config/entropy.txt <<ENTROPY
-/.tether/lib64/ld-linux-x86-64.so.2 --library-path /.tether/lib64 /.tether/bin/haveged -w 1024 -v 1 -F "\$@"
+/.tether/lib64/ld-linux-x86-64.so.2 --library-path /.tether/lib64 /.tether/bin/haveged -w 1024 -v 1 -F
 ENTROPY
 }
 

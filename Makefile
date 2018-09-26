@@ -448,11 +448,11 @@ $(bootstrap-debug): isos/bootstrap.sh $(tether-linux) $(archive) $(rpctool) $(bo
 	@echo "Making bootstrap-debug iso"
 	@$(TIME) $(DOCKER_BUILD) $< -p $(bootstrap-staging-debug) -b $(BIN) -d true
 
-$(bootstrap-staging): isos/bootstrap-staging.sh $(iso-base)
+$(bootstrap-staging): isos/bootstrap-staging.sh $(iso-base) isos/base/repos/photon-2.0/*
 	@echo staging for bootstrap
 	@$(TIME) $(DOCKER_BUILD) $< -c $(BIN)/.yum-cache-photon-2.0.tgz -p $(iso-base) -o $@
 
-$(bootstrap-staging-custom): isos/bootstrap-staging.sh $(iso-base-custom)
+$(bootstrap-staging-custom): isos/bootstrap-staging.sh $(iso-base-custom) isos/base/repos/$(REPO)/*
 	@echo custom staging for bootstrap
 	@$(TIME) $(DOCKER_BUILD) -d $(REPO) $< -c $(BIN)/.yum-cache-$(REPO).tgz -p $(iso-base-custom) -o $@
 

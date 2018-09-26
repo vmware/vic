@@ -14,6 +14,8 @@
 # limitations under the License.
 
 # File list to estimate the size of the target tempfs in bootstrap
+# TODO: this should be pulled from the install files for entropy and iptables
+# in the repo specific init.sh files (or where ever this list ends up)
 tempfs_target_list=('/lib/modules/*' \
     '/bin/tether' \
     '/bin/unpack' \
@@ -141,7 +143,7 @@ cp ${REPODIR}/init.sh $(rootfs_dir $PKGDIR)/bin/repoinit
 # compute the size of the target tempfs,
 # the list of directories/files in ${tempfs_target_list} should
 # match the directories/files that are actually copied into tempfs
-# by the script isos/bootstrap/bootstrap
+# by the script isos/bootstrap/bootstrap and the repo specific init.sh scripts.
 target_list=$(rootfs_prepend $PKGDIR "${tempfs_target_list[@]}")
 size=$(du -m --total ${target_list} | tail -1 | cut -f 1)
 # 20% overhead should give a little more than 80M for stripped binaries
