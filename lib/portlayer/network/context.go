@@ -61,10 +61,11 @@ type Context struct {
 }
 
 type AddContainerOptions struct {
-	Scope   string
-	IP      net.IP
-	Aliases []string
-	Ports   []string
+	Scope       string
+	IP          net.IP
+	Aliases     []string
+	Ports       []string
+	Nameservers []string
 }
 
 func NewContext(config *Configuration, kv kvstore.KeyValueStore) (*Context, error) {
@@ -1196,6 +1197,15 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 	ne.Network.Pools = make([]ip.Range, len(pools))
 	for i, p := range pools {
 		ne.Network.Pools[i] = *p
+	}
+
+	ne.Network.Nameservers = make([]net.IP, 0)
+	if len(options.Nameservers) > 0 {
+		for _, dns := range options.Nameservers {
+			if dns != "" {
+				ne.Network.Nameservers = append(ne.Network.Nameservers, net.ParseIP(dns))
+			}
+		}
 	}
 
 	ne.Static = false
