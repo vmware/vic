@@ -96,9 +96,6 @@ if timeout -s KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}
     iptables -P INPUT DROP
     iptables -P OUTPUT DROP
     iptables -P FORWARD DROP
-    iptables -P INPUT ACCEPT
-    iptables -P OUTPUT ACCEPT
-    iptables -P FORWARD ACCEPT
     # Direct any incoming/outgoing traffic immediately to VIC chain
     iptables -A INPUT -j VIC
     iptables -A OUTPUT -j VIC
