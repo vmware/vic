@@ -99,7 +99,7 @@ if [ -f "$(pwd)/$KERNEL" ]; then
         rpm2cpio $KERNEL | cpio -idm
     )
 else
-    echo "Using kernel file RPM package: $KERNEL"
+    echo "Using kernel RPM package: $KERNEL"
     package_cached -c $cache -u -p $PKGDIR install $KERNEL --nogpgcheck -y
 fi
 
