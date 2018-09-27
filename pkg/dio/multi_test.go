@@ -100,7 +100,7 @@ func read(t *testing.T, mreader DynamicMultiReader, limit int) []byte {
 
 func each(t *testing.T, buffers []*bytes.Buffer, s string) {
 	for _, b := range buffers {
-		// TODO: something about the way some of these test are writen causes the length of the buffer to start at 512
+		// TODO: something about the way some of these test are written causes the length of the buffer to start at 512
 		assert.Equal(t, s, strings.TrimRight(b.String(), "\x00"))
 	}
 }
