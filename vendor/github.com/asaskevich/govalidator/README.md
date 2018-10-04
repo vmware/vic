@@ -232,7 +232,7 @@ Here is a list of available validators for struct fields (validator - used funct
 "uuidv5":         IsUUIDv5,
 "variablewidth":  IsVariableWidth,
 ```
-Validators with parameters
+Validators with parameters:
 
 ```go
 "length(min|max)": ByteLength,
@@ -286,6 +286,3 @@ If you do have a contribution for the package feel free to put up a Pull Request
 * [Nathan Davies](https://github.com/nathj07)
 * [Matt Sanford](https://github.com/mzsanford)
 * [Simon ccl1115](https://github.com/ccl1115)
-
-[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/asaskevich/govalidator/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
-
