@@ -4,7 +4,7 @@
 ## golang-set
 
 
-The missing set collection for the Go language.  Until Go has sets built-in...use this.
+The missing set collection for the Go language.  Until Go has sets built-in... use this.
 
 Coming from Python one of the things I miss is the superbly wonderful set collection.  This is my attempt to mimic the primary features of the set from Python.
 You can of course argue that there is no need for a set in Go, otherwise the creators would have added one to the standard library.  To those I say simply ignore this repository
