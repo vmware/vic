@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation    Test 5-21 - Datastore-Path
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Setup Suite ESX
+Suite Setup  Nimbus Suite Setup  Setup Suite ESX
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Variables ***

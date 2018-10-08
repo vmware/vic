@@ -15,9 +15,9 @@
 package retry
 
 import (
+	"context"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/cenkalti/backoff"
 
 	"github.com/vmware/vic/pkg/trace"
@@ -56,14 +56,15 @@ func NewBackoffConfig() *BackoffConfig {
 
 // Do retries the given function until defaultMaxInterval time passes, while sleeping some time between unsuccessful attempts
 // if retryOnError returns true, continue retry, otherwise, return error
-func Do(operation func() error, retryOnError func(err error) bool) error {
+func Do(ctx context.Context, operation func() error, retryOnError func(err error) bool) error {
 	conf := NewBackoffConfig()
-	return DoWithConfig(operation, retryOnError, conf)
+	return DoWithConfig(ctx, operation, retryOnError, conf)
 }
 
 // DoWithConfig will attempt an operation while retrying using an exponential back off based on the config supplied by the caller. The retry decider is the supplied function retryOnError
-func DoWithConfig(operation func() error, retryOnError func(err error) bool, config *BackoffConfig) error {
-	defer trace.End(trace.Begin(""))
+func DoWithConfig(ctx context.Context, operation func() error, retryOnError func(err error) bool, config *BackoffConfig) error {
+	op := trace.FromContext(ctx, "DoWithConfig")
+	defer trace.End(trace.Begin("", op))
 
 	var err error
 	var next time.Duration
@@ -83,17 +84,17 @@ func DoWithConfig(operation func() error, retryOnError func(err error) bool, con
 		}
 
 		if next = b.NextBackOff(); next == backoff.Stop {
-			log.Errorf("Will stop trying again. Operation failed with %#+v", err)
+			op.Errorf("Will stop trying again. Operation failed with %#+v", err)
 			return err
 		}
 
 		// check error
 		if !retryOnError(err) {
-			log.Errorf("Operation failed with %#+v", err)
+			op.Errorf("Operation failed with %#+v", err)
 			return err
 		}
 		// Expected error
-		log.Warnf("Will try again in %s. Operation failed with detected error", next)
+		op.Warnf("Will try again in %s. Operation failed with detected error", next)
 
 		// sleep and try again
 		time.Sleep(next)

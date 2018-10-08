@@ -30,7 +30,7 @@ func OptionValueMap(src []types.BaseOptionValue) map[string]string {
 	for i := range src {
 		k := src[i].GetOptionValue().Key
 		v := src[i].GetOptionValue().Value.(string)
-		kv[k] = unescapeNil(v)
+		kv[k] = UnescapeNil(v)
 	}
 	return kv
 }
@@ -55,7 +55,7 @@ func OptionValueFromMap(data map[string]string, escape bool) []types.BaseOptionV
 	i := 0
 	for k, v := range data {
 		if escape {
-			v = escapeNil(v)
+			v = EscapeNil(v)
 		}
 		array[i] = &types.OptionValue{Key: k, Value: v}
 		i++
@@ -100,7 +100,7 @@ func OptionValueUpdatesFromMap(existing []types.BaseOptionValue, new map[string]
 			continue
 		} else if ok {
 			// changed
-			updates[v.Key] = escapeNil(nV)
+			updates[v.Key] = EscapeNil(nV)
 		} else {
 			// deletion
 			// NOTE: ignored as this also deletes non VIC entries currently
@@ -116,14 +116,14 @@ func OptionValueUpdatesFromMap(existing []types.BaseOptionValue, new map[string]
 		}
 
 		if _, ok := updates[k]; !ok {
-			updates[k] = escapeNil(v)
+			updates[k] = EscapeNil(v)
 		}
 	}
 
 	return OptionValueFromMap(updates, false)
 }
 
-func escapeNil(input string) string {
+func EscapeNil(input string) string {
 	if input == "" {
 		return "<nil>"
 	}
@@ -131,7 +131,7 @@ func escapeNil(input string) string {
 	return input
 }
 
-func unescapeNil(input string) string {
+func UnescapeNil(input string) string {
 	if input == "<nil>" {
 		return ""
 	}

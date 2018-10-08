@@ -60,7 +60,8 @@ func GetArchiveProxy() VicArchiveProxy {
 // ArchiveExportReader streams a tar archive from the portlayer.  Once the stream is complete,
 // an io.Reader is returned and the caller can use that reader to parse the data.
 func (a *ArchiveProxy) ArchiveExportReader(op trace.Operation, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error) {
-	defer trace.End(trace.Begin(deviceID))
+	defer trace.End(trace.Begin(deviceID, op))
+	opID := op.ID()
 
 	if a.client == nil {
 		return nil, errors.NillPortlayerClientError("ArchiveProxy")
@@ -90,6 +91,7 @@ func (a *ArchiveProxy) ArchiveExportReader(op trace.Operation, store, ancestorSt
 
 	go func() {
 		params := storage.NewExportArchiveParamsWithContext(op).
+			WithOpID(&opID).
 			WithStore(store).
 			WithAncestorStore(&ancestorStore).
 			WithDeviceID(deviceID).
@@ -142,7 +144,8 @@ func (a *ArchiveProxy) ArchiveExportReader(op trace.Operation, store, ancestorSt
 // ArchiveImportWriter initializes a write stream for a path.  This is usually called
 // for getting a writer during docker cp TO container.
 func (a *ArchiveProxy) ArchiveImportWriter(op trace.Operation, store, deviceID string, filterSpec archive.FilterSpec, wg *sync.WaitGroup, errchan chan error) (io.WriteCloser, error) {
-	defer trace.End(trace.Begin(deviceID))
+	defer trace.End(trace.Begin(deviceID, op))
+	opID := op.ID()
 
 	if a.client == nil {
 		return nil, errors.NillPortlayerClientError("ArchiveProxy")
@@ -176,6 +179,7 @@ func (a *ArchiveProxy) ArchiveImportWriter(op trace.Operation, store, deviceID s
 		// encodedFilter and destination are not required (from swagge spec) because
 		// they are allowed to be empty.
 		params := storage.NewImportArchiveParamsWithContext(op).
+			WithOpID(&opID).
 			WithStore(store).
 			WithDeviceID(deviceID).
 			WithArchive(pipeReader)
@@ -233,7 +237,8 @@ func (a *ArchiveProxy) ArchiveImportWriter(op trace.Operation, store, deviceID s
 // StatPath requests the portlayer to stat the filesystem resource at the
 // specified path in the container vc.
 func (a *ArchiveProxy) StatPath(op trace.Operation, store, deviceID string, filterSpec archive.FilterSpec) (*types.ContainerPathStat, error) {
-	defer trace.End(trace.Begin(deviceID))
+	defer trace.End(trace.Begin(deviceID, op))
+	opID := op.ID()
 
 	if a.client == nil {
 		return nil, errors.NillPortlayerClientError("ArchiveProxy")
@@ -241,6 +246,7 @@ func (a *ArchiveProxy) StatPath(op trace.Operation, store, deviceID string, filt
 
 	statPathParams := storage.
 		NewStatPathParamsWithContext(op).
+		WithOpID(&opID).
 		WithStore(store).
 		WithDeviceID(deviceID)
 

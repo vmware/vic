@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-18 - Datastore Cluster SDRS
 Resource  ../../resources/Util.robot
-#Suite Setup  Wait Until Keyword Succeeds  10x  10m  SDRS Datastore Setup
+#Suite Setup  Nimbus Suite Setup  SDRS Datastore Setup
 #Test Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***

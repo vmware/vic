@@ -79,13 +79,9 @@ type ImageStore struct {
 }
 
 func NewImageStore(op trace.Operation, s *session.Session, u *url.URL) (*ImageStore, error) {
-	dm, err := disk.NewDiskManager(op, s, portlayer.Config.ContainerView)
-	if err != nil {
-		return nil, err
-	}
-
 	if DetachAll {
-		if err = dm.DetachAll(op); err != nil {
+		// we can and should assume that Config objects are fully initialized
+		if err := portlayer.Config.DiskManager.DetachAll(op); err != nil {
 			return nil, err
 		}
 	}
@@ -106,7 +102,7 @@ func NewImageStore(op trace.Operation, s *session.Session, u *url.URL) (*ImageSt
 
 	vis := &ImageStore{
 		Vmdk: disk.Vmdk{
-			Manager: dm,
+			Manager: portlayer.Config.DiskManager,
 			Helper:  ds,
 			Session: s,
 		},

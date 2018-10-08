@@ -57,8 +57,9 @@ import (
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository.
 func (i *ImageBackend) Commit(name string, config *backend.ContainerCommitConfig) (imageID string, err error) {
-	defer trace.End(trace.Begin(name))
-	op := trace.NewOperation(context.Background(), "Commit")
+	op := trace.NewOperation(context.Background(), "Commit: %s", name)
+	defer trace.End(trace.Audit(name, op))
+
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
@@ -88,7 +89,7 @@ func (i *ImageBackend) Commit(name string, config *backend.ContainerCommitConfig
 			return "", err
 		}
 	}
-	ic, err := getImagec(config)
+	ic, err := getImagec(op, config)
 	if err != nil {
 		return "", err
 	}
@@ -129,7 +130,7 @@ func (i *ImageBackend) Commit(name string, config *backend.ContainerCommitConfig
 	}
 
 	ic.ImageLayers = layers
-	imageConfig, err := ic.CreateImageConfig(layers)
+	imageConfig, err := ic.CreateImageConfig(op, layers)
 	if err != nil {
 		return "", err
 	}
@@ -146,12 +147,12 @@ func (i *ImageBackend) Commit(name string, config *backend.ContainerCommitConfig
 	}
 	// if repo:tag is specified, update image to repo cache, otherwise, this image will be updated to repo cache while it's tagged
 	if ic.Reference != nil {
-		imagec.UpdateRepoCache(ic)
+		imagec.UpdateRepoCache(op, ic)
 	}
 
 	ic.Storename = layer.Image.Store
 	// Write blob to the storage layer
-	if err = ic.WriteImageBlob(layer, progress.DiscardOutput(), true); err != nil {
+	if err = ic.WriteImageBlob(op, layer, progress.DiscardOutput(), true); err != nil {
 		return "", err
 	}
 
@@ -166,7 +167,7 @@ func (i *ImageBackend) Commit(name string, config *backend.ContainerCommitConfig
 	return imageConfig.ImageID, nil
 }
 
-func getImagec(config *backend.ContainerCommitConfig) (*imagec.ImageC, error) {
+func getImagec(op trace.Operation, config *backend.ContainerCommitConfig) (*imagec.ImageC, error) {
 	var imageRef reference.Named
 	var err error
 
@@ -194,7 +195,7 @@ func getImagec(config *backend.ContainerCommitConfig) (*imagec.ImageC, error) {
 
 	ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
 	if imageRef != nil {
-		ic.ParseReference()
+		ic.ParseReference(op)
 	}
 
 	return ic, nil

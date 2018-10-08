@@ -81,8 +81,11 @@ func (t *tether) childReaper() error {
 	          signal and be able to wait(2) on the process to discover its
 	          termination status.
 	*/
+
+	// TODO: update to check /proc/sys/kernel/osrelease and use this only on supported kernel versions
 	if _, _, err := syscall.RawSyscall(syscall.SYS_PRCTL, SetChildSubreaper, uintptr(1), 0); err != 0 {
-		return err
+		// for now just log the error
+		log.Errorf("Unable to configure child subreaper - should not matter when run as pid1: %s", err)
 	}
 
 	log.Info("Started reaping child processes")
@@ -132,12 +135,21 @@ func (t *tether) childReaper() error {
 					exitCode := status.ExitStatus()
 					log.Debugf("Reaped process %d, return code: %d", pid, exitCode)
 
+					// TODO: we will likely need additional handling here to distinguish in the Session state machine whether the session was signaled or we exited. See some of the exec/session documentation added by @matthewavery
 					session, ok := t.removeChildPid(pid)
 					if ok {
 						log.Debugf("Removed child pid: %d", pid)
 						session.Lock()
 						session.ExitStatus = exitCode
+						session.Unlock()
 
+						// Don't hold the lock while waiting for the file descriptors
+						// to close as these can be held open by child processes
+						log.Debugf("Waiting on session.wait")
+						session.wait.Wait()
+						log.Debugf("Wait on session.wait completed")
+
+						session.Lock()
 						t.handleSessionExit(session)
 						session.Unlock()
 						continue

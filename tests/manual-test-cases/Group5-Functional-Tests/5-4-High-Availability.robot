@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-4 - High Availability
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  High Availability Setup
+Suite Setup  Nimbus Suite Setup  High Availability Setup
 Suite Teardown  Nimbus Cleanup  ${list}
 Test Teardown  Run Keyword If Test Failed  Gather vSphere Logs
 
@@ -136,7 +136,7 @@ High Availability Setup
     \   Should Contain  ${out}  OK
 
     Log To Console  Add all the hosts to the distributed switch
-    Wait Until Keyword Succeeds  5x  5min  Add Host To Distributed Switch  /${datacenter}/host/cls
+    Add Host To Distributed Switch  /${datacenter}/host/cls
 
     Log To Console  Enable HA and DRS on the cluster
     ${out}=  Run  govc cluster.change -drs-enabled -ha-enabled /${datacenter}/host/cls

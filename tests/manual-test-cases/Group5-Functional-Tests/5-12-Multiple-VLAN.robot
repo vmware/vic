@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-12 - Multiple VLAN
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Multiple VLAN Setup
+Suite Setup  Nimbus Suite Setup  Multiple VLAN Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 Test Teardown  Cleanup VIC Appliance On Test Server
 

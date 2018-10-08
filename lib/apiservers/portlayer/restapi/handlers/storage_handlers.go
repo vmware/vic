@@ -162,7 +162,9 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 
 // CreateImageStore creates a new image store
 func (h *StorageHandlersImpl) CreateImageStore(params storage.CreateImageStoreParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), fmt.Sprintf("CreateImageStore(%s)", params.Body.Name))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "CreateImageStore(%s)", params.Body.Name)
+	defer trace.End(trace.Begin("CreateImageStore", op))
+
 	name := params.Body.Name
 	defer trace.End(trace.Begin(fmt.Sprintf("CreateImageStore: %s", name), op))
 
@@ -206,6 +208,9 @@ func (h *StorageHandlersImpl) CreateImageStore(params storage.CreateImageStorePa
 
 // GetImage retrieves an image from a store
 func (h *StorageHandlersImpl) GetImage(params storage.GetImageParams) middleware.Responder {
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "GetImage(%s)", params.ID)
+	defer trace.End(trace.Begin("GetImage", op))
+
 	id := params.ID
 
 	url, err := util.ImageStoreNameToURL(params.StoreName)
@@ -217,7 +222,6 @@ func (h *StorageHandlersImpl) GetImage(params storage.GetImageParams) middleware
 			})
 	}
 
-	op := trace.NewOperation(context.Background(), fmt.Sprintf("GetImage(%s)", id))
 	image, err := h.imageCache.GetImage(op, url, id)
 	if err != nil {
 		e := &models.Error{
@@ -233,6 +237,8 @@ func (h *StorageHandlersImpl) GetImage(params storage.GetImageParams) middleware
 
 // DeleteImage deletes an image from a store
 func (h *StorageHandlersImpl) DeleteImage(params storage.DeleteImageParams) middleware.Responder {
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "DeleteImage(%s)", params.ID)
+	defer trace.End(trace.Begin("DeleteImage", op))
 
 	ferr := func(err error, code int) middleware.Responder {
 		log.Errorf("DeleteImage: error %s", err.Error())
@@ -263,7 +269,6 @@ func (h *StorageHandlersImpl) DeleteImage(params storage.DeleteImageParams) midd
 		keepNodes[idx] = k
 	}
 
-	op := trace.NewOperation(context.Background(), fmt.Sprintf("DeleteBranch(%s)", image.ID))
 	deletedImages, err := h.imageCache.DeleteBranch(op, image, keepNodes)
 	if err != nil {
 		switch {
@@ -288,6 +293,9 @@ func (h *StorageHandlersImpl) DeleteImage(params storage.DeleteImageParams) midd
 
 // ListImages returns a list of images in a store
 func (h *StorageHandlersImpl) ListImages(params storage.ListImagesParams) middleware.Responder {
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "ListImages(%s, %q)", params.StoreName, params.Ids)
+	defer trace.End(trace.Begin("ListImages", op))
+
 	u, err := util.ImageStoreNameToURL(params.StoreName)
 	if err != nil {
 		return storage.NewListImagesDefault(http.StatusInternalServerError).WithPayload(
@@ -297,7 +305,8 @@ func (h *StorageHandlersImpl) ListImages(params storage.ListImagesParams) middle
 			})
 	}
 
-	op := trace.NewOperation(context.Background(), fmt.Sprintf("ListImages(%s, %q)", u.String(), params.Ids))
+	op.Debugf("URL for image store: %s", u.String())
+
 	images, err := h.imageCache.ListImages(op, u, params.Ids)
 	if err != nil {
 		return storage.NewListImagesNotFound().WithPayload(
@@ -317,6 +326,9 @@ func (h *StorageHandlersImpl) ListImages(params storage.ListImagesParams) middle
 
 // WriteImage writes an image to an image store
 func (h *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) middleware.Responder {
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "WriteImage(%s)", params.ImageID)
+	defer trace.End(trace.Begin("WriteImage", op))
+
 	u, err := util.ImageStoreNameToURL(params.StoreName)
 	if err != nil {
 		return storage.NewWriteImageDefault(http.StatusInternalServerError).WithPayload(
@@ -337,7 +349,6 @@ func (h *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) middle
 		meta = map[string][]byte{*params.Metadatakey: []byte(*params.Metadataval)}
 	}
 
-	op := trace.NewOperation(context.Background(), fmt.Sprintf("WriteImage(%s)", params.ImageID))
 	image, err := h.imageCache.WriteImage(op, parent, params.ImageID, meta, params.Sum, params.ImageFile)
 	if err != nil {
 		return storage.NewWriteImageDefault(http.StatusInternalServerError).WithPayload(
@@ -352,9 +363,9 @@ func (h *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) middle
 
 // VolumeStoresList lists the configured volume stores and their datastore path URIs.
 func (h *StorageHandlersImpl) VolumeStoresList(params storage.VolumeStoresListParams) middleware.Responder {
-	defer trace.End(trace.Begin("storage_handlers.VolumeStoresList"))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "VolumeStoresList")
+	defer trace.End(trace.Begin("VolumeStoresList", op))
 
-	op := trace.NewOperation(context.Background(), "VolumeStoresList")
 	stores, err := h.volumeCache.VolumeStoresList(op)
 	if err != nil {
 		return storage.NewVolumeStoresListInternalServerError().WithPayload(
@@ -371,7 +382,8 @@ func (h *StorageHandlersImpl) VolumeStoresList(params storage.VolumeStoresListPa
 
 //CreateVolume : Create a Volume
 func (h *StorageHandlersImpl) CreateVolume(params storage.CreateVolumeParams) middleware.Responder {
-	defer trace.End(trace.Begin("storage_handlers.CreateVolume"))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "CreateVolume(%s)", params.VolumeRequest.Name)
+	defer trace.End(trace.Begin("CreateVolume", op))
 
 	//TODO: FIXME: add more errorcodes as we identify error scenarios.
 	storeURL, err := util.VolumeStoreNameToURL(params.VolumeRequest.Store)
@@ -395,7 +407,6 @@ func (h *StorageHandlersImpl) CreateVolume(params storage.CreateVolumeParams) mi
 		capacity = uint64(params.VolumeRequest.Capacity)
 	}
 
-	op := trace.NewOperation(context.Background(), fmt.Sprintf("VolumeCreate(%s)", params.VolumeRequest.Name))
 	volume, err := h.volumeCache.VolumeCreate(op, params.VolumeRequest.Name, storeURL, capacity*1024, byteMap)
 	if err != nil {
 
@@ -427,9 +438,9 @@ func (h *StorageHandlersImpl) CreateVolume(params storage.CreateVolumeParams) mi
 
 //GetVolume : Gets a handle to a volume
 func (h *StorageHandlersImpl) GetVolume(params storage.GetVolumeParams) middleware.Responder {
-	defer trace.End(trace.Begin(params.Name))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "GetVolume(%s)", params.Name)
+	defer trace.End(trace.Begin("GetVolume", op))
 
-	op := trace.NewOperation(context.Background(), fmt.Sprintf("VolumeGet(%s)", params.Name))
 	data, err := h.volumeCache.VolumeGet(op, params.Name)
 	if err == os.ErrNotExist {
 		return storage.NewGetVolumeNotFound().WithPayload(&models.Error{
@@ -452,9 +463,9 @@ func (h *StorageHandlersImpl) GetVolume(params storage.GetVolumeParams) middlewa
 
 //RemoveVolume : Remove a Volume from existence
 func (h *StorageHandlersImpl) RemoveVolume(params storage.RemoveVolumeParams) middleware.Responder {
-	defer trace.End(trace.Begin("storage_handlers.RemoveVolume"))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "RemoveVolume(%s)", params.Name)
+	defer trace.End(trace.Begin("RemoveVolume", op))
 
-	op := trace.NewOperation(context.Background(), fmt.Sprintf("VolumeDestroy(%s)", params.Name))
 	err := h.volumeCache.VolumeDestroy(op, params.Name)
 	if err != nil {
 		switch {
@@ -479,10 +490,10 @@ func (h *StorageHandlersImpl) RemoveVolume(params storage.RemoveVolumeParams) mi
 
 //VolumesList : Lists available volumes for use
 func (h *StorageHandlersImpl) VolumesList(params storage.ListVolumesParams) middleware.Responder {
-	defer trace.End(trace.Begin(""))
-	var result []*models.VolumeResponse
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "VolumesList")
+	defer trace.End(trace.Begin("VolumesList", op))
 
-	op := trace.NewOperation(context.Background(), "VolumeList")
+	var result []*models.VolumeResponse
 	portlayerVolumes, err := h.volumeCache.VolumesList(op)
 	if err != nil {
 		op.Error(err)
@@ -513,9 +524,8 @@ func (h *StorageHandlersImpl) VolumesList(params storage.ListVolumesParams) midd
 
 //VolumeJoin : modifies the config spec of a container to mount the specified container
 func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middleware.Responder {
-	defer trace.End(trace.Begin(""))
-
-	op := trace.NewOperation(context.Background(), fmt.Sprintf("VolumeJoin(%s)", params.Name))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "VolumeJoin(%s)", params.Name)
+	defer trace.End(trace.Begin("VolumeJoin", op))
 
 	actualHandle := epl.GetHandle(params.JoinArgs.Handle)
 
@@ -554,10 +564,10 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 
 // ImportArchive takes an input tar archive and unpacks to destination
 func (h *StorageHandlersImpl) ImportArchive(params storage.ImportArchiveParams) middleware.Responder {
-	defer trace.End(trace.Begin(""))
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "ImportArchive(%s)", params.DeviceID)
+	defer trace.End(trace.Begin("ImportArchive", op))
 
 	id := params.DeviceID
-	op := trace.NewOperation(context.Background(), "ImportArchive: %s", id)
 
 	filterSpec, err := archive.DecodeFilterSpec(op, params.FilterSpec)
 	if err != nil {
@@ -591,14 +601,14 @@ func (h *StorageHandlersImpl) ImportArchive(params storage.ImportArchiveParams) 
 
 // ExportArchive creates a tar archive and returns to caller
 func (h *StorageHandlersImpl) ExportArchive(params storage.ExportArchiveParams) middleware.Responder {
-	defer trace.End(trace.Begin(""))
 	id := params.DeviceID
 	ancestor := ""
 	if params.Ancestor != nil {
 		ancestor = *params.Ancestor
 	}
 
-	op := trace.NewOperation(context.Background(), "ExportArchive: %s:%s", id, ancestor)
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "ExportArchive(%s, %s)", id, ancestor)
+	defer trace.End(trace.Begin("ExportArchive", op))
 
 	filterSpec, err := archive.DecodeFilterSpec(op, params.FilterSpec)
 	if err != nil {
@@ -628,8 +638,8 @@ func (h *StorageHandlersImpl) ExportArchive(params storage.ExportArchiveParams) 
 
 // StatPath returns file info on the target path of a container copy
 func (h *StorageHandlersImpl) StatPath(params storage.StatPathParams) middleware.Responder {
-	defer trace.End(trace.Begin(""))
-	op := trace.NewOperation(context.Background(), "StatPath: %s", params.DeviceID)
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "StatPath(%s)", params.DeviceID)
+	defer trace.End(trace.Begin("StatPath", op))
 
 	filterSpec, err := archive.DecodeFilterSpec(op, params.FilterSpec)
 	if err != nil {

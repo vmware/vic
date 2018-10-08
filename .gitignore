@@ -8,9 +8,11 @@ secrets.yml
 test_secrets.yml
 nightly_ui_tests_secrets.yml
 secrets-e2e.yml
+*.secrets
 vic-ci-logs.key
 install-*.tar.gz
 *.log
+*.debug
 log.html
 report.html
 *.xml
@@ -26,6 +28,10 @@ vmware-ovftool
 
 # generally a bad idea to check certificates into repos - whitelist if needed
 **/*.pem
+
+# env files aren't usually intended to be committed - whitelist if needed
+*.env
+!tests/resources/dockerfiles/configs/env-file/test.env
 
 lib/apiservers/portlayer/client/
 lib/apiservers/portlayer/cmd
@@ -51,4 +57,3 @@ tests/.project
 
 # Eclipse files
 .project
-

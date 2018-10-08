@@ -66,7 +66,7 @@ func (t *ToolboxDataSource) Export(op trace.Operation, spec *archive.FilterSpec,
 			return retryErr
 		}
 
-		err = retry.DoWithConfig(retryFunc, isInvalidStateError, toolboxRetryConf)
+		err = retry.DoWithConfig(op, retryFunc, isInvalidStateError, toolboxRetryConf)
 		if err != nil {
 			op.Errorf("Download error: %s", err.Error())
 			return nil, err
@@ -121,7 +121,7 @@ func (t *ToolboxDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (
 		return retryErr
 	}
 
-	err = retry.DoWithConfig(retryFunc, isInvalidStateError, toolboxRetryConf)
+	err = retry.DoWithConfig(op, retryFunc, isInvalidStateError, toolboxRetryConf)
 	if err != nil {
 		op.Errorf("Download error: %s", err.Error())
 		return nil, err

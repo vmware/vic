@@ -69,6 +69,13 @@ func (u *UserSessionStore) Add(id string, config *session.Config, vs *session.Se
 func (u *UserSessionStore) Delete(id string) {
 	u.mutex.Lock()
 	defer u.mutex.Unlock()
+
+	us := u.sessions[id]
+	if us != nil && us.vsphere != nil {
+		log.Infof("Logging out vSphere session for %s", id)
+		us.vsphere.Logout(context.Background())
+	}
+
 	delete(u.sessions, id)
 }
 
@@ -109,6 +116,13 @@ func (u *UserSessionStore) reaper() {
 				u.Delete(id)
 			}
 		}
+	}
+}
+
+// Destroy will logout and delete all sessions in the store, irrespective of expiration
+func (u *UserSessionStore) Destroy() {
+	for id := range u.sessions {
+		u.Delete(id)
 	}
 }
 

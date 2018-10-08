@@ -18,10 +18,14 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server  certs=${True}
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
-*** Test Cases ***
-Compose LEMP Server
+*** Keywords ***
+Login To Docker Hub
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=victest --password=%{REGISTRY_PASSWORD}
     Should Be Equal As Integers  ${rc}  0
+
+*** Test Cases ***
+Compose LEMP Server
+    Wait Until Keyword Succeeds  12x  10s  Login To Docker Hub
 
     Set Environment Variable  COMPOSE_HTTP_TIMEOUT  300
 

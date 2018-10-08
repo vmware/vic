@@ -38,6 +38,7 @@ import (
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
+	"github.com/vmware/vic/pkg/vsphere/datastore/test"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -47,7 +48,7 @@ func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, string, 
 	trace.Logger.Level = logrus.DebugLevel
 	DetachAll = false
 
-	client := datastore.Session(context.TODO(), t)
+	client := test.Session(context.TODO(), t)
 	if client == nil {
 		return nil, nil, "", fmt.Errorf("skip")
 	}

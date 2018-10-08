@@ -34,7 +34,6 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
 	"github.com/vmware/vic/lib/portlayer"
-	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -59,7 +58,7 @@ var portlayerhandlers = []handler{
 
 var apiServers []*graceful.Server
 
-const stopTimeout = time.Second * 3
+const stopTimeout = time.Second * 20
 
 func configureFlags(api *operations.PortLayerAPI) {
 	api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{
@@ -96,11 +95,8 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 	api.ServerShutdown = func() {
 		log.Infof("Shutting down port-layer-server")
 
-		// stop the event collectors
-		collectors := exec.Config.EventManager.Collectors()
-		for _, c := range collectors {
-			c.Stop()
-		}
+		// shut down any component specific long running daemon tasks
+		portlayer.Finalize(context.Background())
 
 		// Logout the session
 		if err := sess.Logout(ctx); err != nil {
@@ -110,6 +106,8 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 
 	// initialize the port layer
 	if err = portlayer.Init(ctx, sess); err != nil {
+		// ensure that any setup that was done is unwound neatly
+		portlayer.Finalize(context.Background())
 		log.Fatalf("could not initialize port layer: %s", err)
 	}
 

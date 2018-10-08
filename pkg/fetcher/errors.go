@@ -56,3 +56,17 @@ type AuthTokenError struct {
 func (e AuthTokenError) Error() string {
 	return fmt.Sprintf("Failed to fetch auth token from %s", e.TokenServer.Host)
 }
+
+// AccessDenied is returned when the resource requested
+type AccessDenied struct {
+	Err error
+	res string
+}
+
+func (e AccessDenied) Error() string {
+	if e.res == "" {
+		return fmt.Sprintf("Access denied to requested resource")
+	}
+
+	return fmt.Sprintf("Access denied to %s", e.res)
+}

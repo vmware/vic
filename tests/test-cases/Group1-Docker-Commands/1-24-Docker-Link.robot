@@ -21,12 +21,17 @@ Test Timeout  20 minutes
 
 *** Test Cases ***
 Link and alias
+    # NOTE: we are using debian for the ping operations because busybox seems to have intermittent bugs in the net utilities.
+
+    # In the case of nslookup the busybox implementation is querying both the A and AAAA records. If the AAAA response comes back
+    # first then it doesn't report the A response, however if the other order then you get both responses output.
+
     # link support for container on bridge network only
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name foo busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name foo ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --link foo:bar busybox ping -c1 bar
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --link foo:bar ${debian} ping -c1 bar
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
@@ -41,49 +46,50 @@ Link and alias
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it -d --net jedi --name first busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it -d --net jedi --name first ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net jedi debian ping -c1 first
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net jedi ${debian} ping -c1 first
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
     # cannot reach first from another network
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run debian ping -c1 first
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run ${debian} ping -c1 first
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain Any  ${output}  unknown host  Name or service not known
 
     # the link
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net jedi --link first:1st debian ping -c1 1st
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net jedi --link first:1st ${debian} ping -c1 1st
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
     # cannot reach first using c1 from another container
     # first run a container that has the alias "c1" for the "first" container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --net jedi --link first:1st busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --net jedi --link first:1st ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     # check if we can use alias "c1" from another container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net jedi debian ping -c1 1st
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net jedi ${debian} ping -c1 1st
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain Any  ${output}  unknown host  Name or service not known
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it -d --net jedi --net-alias 2nd busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it -d --net jedi --net-alias 2nd ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
     # the alias
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net jedi debian ping -c1 2nd
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net jedi ${debian} ping -c1 2nd
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
     # another container with same network alias
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it -d --net jedi --net-alias 2nd busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it -d --net jedi --net-alias 2nd ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net jedi --name lookup busybox nslookup 2nd
+    # pinned the version of busybox to one with a working nslookup. See https://github.com/docker-library/busybox/issues/48
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net jedi --name lookup busybox:1.28.4 nslookup 2nd
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 

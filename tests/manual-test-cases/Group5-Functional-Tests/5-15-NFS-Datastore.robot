@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-15 - NFS Datastore
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  NFS Datastore Setup
+Suite Setup  Nimbus Suite Setup  NFS Datastore Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-15-nfs-datastore*'
 
 *** Keywords ***
@@ -23,7 +23,7 @@ NFS Datastore Setup
     [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-15-nfs-datastore*'  ${false}
     Log To Console  \nStarting testbed deploy...    
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-simple-cluster --testbedSpecRubyFile /dbc/pa-dbc1111/mhagen/nimbus-testbeds/testbeds/vic-simple-cluster.rb --runName 5-15-nfs-datastore
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  spec=vic-simple-cluster.rb  args=--noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-simple-cluster --runName 5-15-nfs-datastore
     Log  ${out}
 
     Open Connection  %{NIMBUS_GW}

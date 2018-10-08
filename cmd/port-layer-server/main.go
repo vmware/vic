@@ -149,6 +149,9 @@ func main() {
 	go func() {
 		<-sig
 
+		// if vspc server fails to shut down in a timely manner then the clean endpointVM shutdown will fail
+		// this failure to shut down cleanly can be observed in the "/var/log/vic/init.log" or
+		// "[datastore] endpointVM/tether.debug" log files as vic-init will report that it's waiting for the portlayer to exit.
 		vspc.Stop()
 		dnsserver.Stop()
 		restapi.StopAPIServers()

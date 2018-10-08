@@ -465,7 +465,7 @@ func (s *MockStorageProxy) AddVolumesToContainer(ctx context.Context, handle str
 	return "", nil
 }
 
-func (sp *MockStreamProxy) AttachStreams(ctx context.Context, ac *proxy.AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer) error {
+func (sp *MockStreamProxy) AttachStreams(ctx context.Context, ac *proxy.AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer, autoclose bool) error {
 	return nil
 }
 

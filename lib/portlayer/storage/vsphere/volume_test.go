@@ -26,11 +26,12 @@ import (
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
+	"github.com/vmware/vic/pkg/vsphere/datastore/test"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
 func TestVolumeCreateListAndRestart(t *testing.T) {
-	client := datastore.Session(context.TODO(), t)
+	client := test.Session(context.TODO(), t)
 	if client == nil {
 		return
 	}

@@ -308,7 +308,7 @@ func (d *Dispatcher) listResourcePools(searchPath string) ([]*object.ResourcePoo
 	// under some circumstances, such as when there is concurrent vic-machine delete operation running in the background,
 	// listing resource pools might fail because some VCH pool is being destroyed at the same time.
 	// If that happens, we retry and list pools again
-	err = retry.Do(func() error {
+	err = retry.Do(d.op, func() error {
 		pools, err = d.session.Finder.ResourcePoolList(d.op, path.Join(searchPath, "..."))
 		if _, ok := err.(*find.NotFoundError); ok {
 			return nil

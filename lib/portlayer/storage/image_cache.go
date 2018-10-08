@@ -187,7 +187,7 @@ func (c *NameLookupCache) CreateImageStore(op trace.Operation, storeName string)
 	config.MaxElapsedTime = time.Minute * 3
 
 	// attempt to get the image store
-	err = retry.DoWithConfig(getStore, isRetry, config)
+	err = retry.DoWithConfig(op, getStore, isRetry, config)
 	if err == nil {
 		// no error means that the image store exists and we can
 		// safely return

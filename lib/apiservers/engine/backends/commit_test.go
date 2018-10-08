@@ -18,6 +18,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"io"
 	"io/ioutil"
 	"os"
@@ -29,6 +30,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/lib/imagec"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 func getMockReader(t *testing.T) (io.ReadCloser, error) {
@@ -83,10 +85,11 @@ func TestDownload(t *testing.T) {
 		{repo: "", tag: ""},
 	}
 	for _, test := range tests {
+		op := trace.NewOperation(context.Background(), "test")
 		config := &backend.ContainerCommitConfig{}
 		config.Tag = test.tag
 		config.Repo = test.repo
-		ic, err := getImagec(config)
+		ic, err := getImagec(op, config)
 		if err != nil {
 			t.Errorf("Failed to get imagec: %s", err)
 			return

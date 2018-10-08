@@ -127,8 +127,25 @@ func NewVMCollector(session *session.Session) *VMCollector {
 	}
 }
 
-// Start will begin the collection polling process
+// Destroy exposes the Destroy method for the underlying performance manager
+func (vmc *VMCollector) Destroy(ctx context.Context) error {
+	vmc.Stop()
+
+	// Perform any additional cleanup needed.
+	// PerformanceManager isn't a ManagedEntity so nothing else known at this time
+
+	return nil
+}
+
+// Start will begin the collection polling process, taking the mutex to do so
 func (vmc *VMCollector) Start() {
+	vmc.mu.Lock()
+	defer vmc.mu.Unlock()
+	vmc.start()
+}
+
+// start will begin the collection polling process - no lock taken
+func (vmc *VMCollector) start() {
 	// create timer with sampleInterval alignment
 	vmc.timer = time.NewTicker(time.Duration(int64(sampleInterval)) * time.Second)
 	//create the stopper channel
@@ -153,10 +170,28 @@ func (vmc *VMCollector) Start() {
 	}()
 }
 
-// Stop will stop the collection polling process
+// Stop will stop the collection polling process, taking the mutex to do so
 func (vmc *VMCollector) Stop() {
-	vmc.timer.Stop()
-	close(vmc.stopper)
+	if vmc != nil {
+		vmc.mu.Lock()
+		defer vmc.mu.Unlock()
+		vmc.stop()
+	}
+}
+
+// stop will stop the collection polling process - no lock takenn
+func (vmc *VMCollector) stop() {
+	if vmc != nil {
+		if vmc.timer != nil {
+			vmc.timer.Stop()
+			vmc.timer = nil
+		}
+
+		if vmc.stopper != nil {
+			close(vmc.stopper)
+			vmc.stopper = nil
+		}
+	}
 }
 
 // collect will query vSphere for VM metrics and return to the subscribers
@@ -361,7 +396,7 @@ func (vmc *VMCollector) Subscribe(op trace.Operation, moref types.ManagedObjectR
 
 	// This is first subscription so start collection
 	if subscriptionCount == 0 {
-		vmc.Start()
+		vmc.start()
 	}
 
 	return ch, nil
@@ -387,7 +422,7 @@ func (vmc *VMCollector) Unsubscribe(op trace.Operation, moref types.ManagedObjec
 
 	// no subscriptions, so stop the collection
 	if len(vmc.subs) == 0 {
-		vmc.Stop()
+		vmc.stop()
 	}
 }
 

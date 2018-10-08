@@ -131,6 +131,7 @@ func (d *Debug) Run(clic *cli.Context) (err error) {
 	}
 
 	op.Info("### Configuring VCH for debug ####")
+	op.Debugf("vic-machine version %s", version.GetBuild().ShortVersion())
 
 	validator, err := validate.NewValidator(op, d.Data)
 

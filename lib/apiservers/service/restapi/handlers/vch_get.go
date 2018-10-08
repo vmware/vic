@@ -220,7 +220,7 @@ func (h *vchGet) vchToModel(op trace.Operation, d *data.Data, vch *vm.VirtualMac
 		Insecure:               vchConfig.Registry.InsecureRegistries,
 		Whitelist:              vchConfig.Registry.RegistryWhitelist,
 		CertificateAuthorities: encode.AsPemCertificates(vchConfig.Certificate.RegistryCertificateAuthorities),
-		ImageFetchProxy:        encode.AsImageFetchProxy(vchConfig.ExecutorConfig.Sessions[config.VicAdminService], config.VICAdminHTTPProxy, config.VICAdminHTTPSProxy),
+		ImageFetchProxy:        encode.AsImageFetchProxy(vchConfig.ExecutorConfig.Sessions[config.VicAdminService], config.VICAdminHTTPProxy, config.VICAdminHTTPSProxy, config.VICAdminNoProxy),
 	}
 
 	// runtime

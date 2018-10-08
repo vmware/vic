@@ -23,6 +23,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	cli "gopkg.in/urfave/cli.v1"
 
@@ -31,6 +32,7 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/cmd/vic-machine/create"
 	"github.com/vmware/vic/lib/apiservers/service/models"
+	"github.com/vmware/vic/lib/apiservers/service/restapi/handlers/decode"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -45,52 +47,17 @@ func (mf mockFinder) Element(ctx context.Context, t types.ManagedObjectReference
 	}, nil
 }
 
-func TestFromManagedObject(t *testing.T) {
-	op := trace.NewOperation(context.Background(), "TestFromManagedObject")
-	var m *models.ManagedObject
-
-	expected := ""
-	actual, err := fromManagedObject(op, nil, "t", m)
-	assert.NoError(t, err, "Expected nil error, got %#v", err)
-	assert.Equal(t, expected, actual)
-
-	m = &models.ManagedObject{
-		Name: "testManagedObject",
-	}
-
-	mf := mockFinder{}
-
-	expected = m.Name
-	actual, err = fromManagedObject(op, mf, "t", m)
-	assert.NoError(t, err, "Expected nil error, got %#v", err)
-	assert.Equal(t, expected, actual)
-
-	m.ID = "testID"
-
-	expected = m.ID
-	actual, err = fromManagedObject(op, mf, "t", m)
-	assert.NoError(t, err, "Expected nil error, got %#v", err)
-	assert.Equal(t, expected, actual)
-
-	m.Name = ""
-
-	expected = m.ID
-	actual, err = fromManagedObject(op, mf, "t", m)
-	assert.NoError(t, err, "Expected nil error, got %#v", err)
-	assert.Equal(t, expected, actual)
-}
-
 func TestFromCIDR(t *testing.T) {
 	var m models.CIDR
 
 	expected := ""
-	actual := fromCIDR(&m)
+	actual := decode.FromCIDR(&m)
 	assert.Equal(t, expected, actual)
 
 	m = "10.10.1.0/32"
 
 	expected = string(m)
-	actual = fromCIDR(&m)
+	actual = decode.FromCIDR(&m)
 	assert.Equal(t, expected, actual)
 }
 
@@ -98,7 +65,7 @@ func TestFromGateway(t *testing.T) {
 	var m *models.Gateway
 
 	expected := ""
-	actual := fromGateway(m)
+	actual := decode.FromGateway(m)
 	assert.Equal(t, expected, actual)
 
 	m = &models.Gateway{
@@ -110,7 +77,7 @@ func TestFromGateway(t *testing.T) {
 	}
 
 	expected = "192.168.1.1/24,172.17.0.1/24:192.168.31.37"
-	actual = fromGateway(m)
+	actual = decode.FromGateway(m)
 	assert.Equal(t, expected, actual)
 }
 
@@ -145,8 +112,9 @@ func TestCreateVCH(t *testing.T) {
 		},
 		Registry: &models.VCHRegistry{
 			ImageFetchProxy: &models.VCHRegistryImageFetchProxy{
-				HTTP:  "http://example.com",
-				HTTPS: "https://example.com",
+				HTTP:    "http://example.com",
+				HTTPS:   "https://example.com",
+				NoProxy: []strfmt.URI{"localhost", ".example.com"},
 			},
 			Insecure: []string{
 				"https://insecure.example.com",
@@ -199,7 +167,7 @@ func TestCreateVCH(t *testing.T) {
 
 	mf := mockFinder{}
 
-	cb, err := buildCreate(op, data, mf, vch)
+	cb, err := new(vchCreate).buildCreate(op, data, mf, vch)
 	assert.NoError(t, err, "Error while processing params: %s", err)
 
 	a := reflect.ValueOf(ca).Elem()
@@ -224,9 +192,11 @@ func newCreate() *create.Create {
 	ca.Certs.KeySize = 2048
 	httpProxy := "http://example.com"
 	httpsProxy := "https://example.com"
+	noProxy := "localhost,.example.com"
 	ca.Proxies = common.Proxies{
 		HTTPProxy:  &httpProxy,
 		HTTPSProxy: &httpsProxy,
+		NoProxy:    &noProxy,
 	}
 	ca.Registries = common.Registries{
 		InsecureRegistriesArg:  cli.StringSlice{"https://insecure.example.com"},

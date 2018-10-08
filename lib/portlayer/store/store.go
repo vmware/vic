@@ -81,6 +81,12 @@ func Init(ctx context.Context, session *session.Session, imgStoreURL *url.URL) e
 	return initializer.err
 }
 
+// TODO: figure out why the Init calls are wrapped in once.Do - implies it can be called
+// multiple times, but once Finalize is called things will not be functional.
+func Finalize(ctx context.Context) error {
+	return nil
+}
+
 // Store will return the requested store
 func Store(name string) (kvstore.KeyValueStore, error) {
 	mgr.m.RLock()

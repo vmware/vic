@@ -27,8 +27,6 @@ import (
 	"os"
 	"path"
 
-	log "github.com/Sirupsen/logrus"
-
 	ddigest "github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
@@ -36,6 +34,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/reference"
+	"github.com/docker/docker/registry"
 	"github.com/docker/libtrust"
 
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
@@ -71,24 +70,24 @@ type Manifest struct {
 }
 
 // LearnRegistryURL returns the registry URL after making sure that it responds to queries
-func LearnRegistryURL(options *Options) (string, error) {
-	defer trace.End(trace.Begin(options.Registry))
+func LearnRegistryURL(op trace.Operation, options *Options) (string, error) {
+	defer trace.End(trace.Begin(options.Registry, op))
 
-	log.Debugf("Trying https scheme for %#v", options)
+	op.Debugf("Trying https scheme for %#v", options)
 
-	registry, err := registryutils.Reachable(options.Registry, "https", options.Username, options.Password, options.RegistryCAs, options.Timeout, options.InsecureSkipVerify)
+	registry, err := registryutils.Reachable(op, options.Registry, "https", options.Username, options.Password, options.RegistryCAs, options.Timeout, options.InsecureSkipVerify)
 
 	if err != nil && options.InsecureAllowHTTP {
 		// try https without verification
-		log.Debugf("Trying https without verification, last error: %+v", err)
-		registry, err = registryutils.Reachable(options.Registry, "https", options.Username, options.Password, options.RegistryCAs, options.Timeout, true)
+		op.Debugf("Trying https without verification, last error: %+v", err)
+		registry, err = registryutils.Reachable(op, options.Registry, "https", options.Username, options.Password, options.RegistryCAs, options.Timeout, true)
 		if err == nil {
 			// Success, set InsecureSkipVerify to true
 			options.InsecureSkipVerify = true
 		} else {
 			// try http
-			log.Debugf("Falling back to http")
-			registry, err = registryutils.Reachable(options.Registry, "http", options.Username, options.Password, options.RegistryCAs, options.Timeout, options.InsecureSkipVerify)
+			op.Debugf("Falling back to http")
+			registry, err = registryutils.Reachable(op, options.Registry, "http", options.Username, options.Password, options.RegistryCAs, options.Timeout, options.InsecureSkipVerify)
 		}
 	}
 
@@ -96,8 +95,8 @@ func LearnRegistryURL(options *Options) (string, error) {
 }
 
 // LearnAuthURL returns the URL of the OAuth endpoint
-func LearnAuthURL(options Options) (*url.URL, error) {
-	defer trace.End(trace.Begin(options.Reference.String()))
+func LearnAuthURL(op trace.Operation, options Options) (*url.URL, error) {
+	defer trace.End(trace.Begin(options.Reference.String(), op))
 
 	url, err := url.Parse(options.Registry)
 	if err != nil {
@@ -120,8 +119,8 @@ func LearnAuthURL(options Options) (*url.URL, error) {
 
 	// We expect docker registry to return a 401 to us - with a WWW-Authenticate header
 	// We parse that header and learn the OAuth endpoint to fetch OAuth token.
-	log.Debugf("Pinging %s", manifestURL.String())
-	hdr, err := fetcher.Ping(manifestURL)
+	op.Debugf("Pinging %s", manifestURL.String())
+	hdr, err := fetcher.Ping(op, manifestURL)
 	if err == nil && fetcher.IsStatusUnauthorized() {
 		return fetcher.ExtractOAuthURL(hdr.Get("www-authenticate"), nil)
 	}
@@ -129,8 +128,8 @@ func LearnAuthURL(options Options) (*url.URL, error) {
 	if !fetcher.IsStatusOK() {
 		// Try with just the registry url.  This works better with some registries (e.g.
 		// Artifactory)
-		log.Debugf("Pinging %s", url.String())
-		hdr, err = fetcher.Ping(url)
+		op.Debugf("Pinging %s", url.String())
+		hdr, err = fetcher.Ping(op, url)
 		if err == nil && fetcher.IsStatusUnauthorized() {
 			return fetcher.ExtractOAuthURL(hdr.Get("www-authenticate"), nil)
 		}
@@ -138,8 +137,8 @@ func LearnAuthURL(options Options) (*url.URL, error) {
 
 	// Private registry returned the manifest directly as auth option is optional.
 	// https://github.com/docker/distribution/blob/master/docs/configuration.md#auth
-	if err == nil && options.Registry != DefaultDockerURL && fetcher.IsStatusOK() {
-		log.Debugf("%s does not support OAuth", url)
+	if err == nil && options.Registry != registry.DefaultV2Registry.Host && fetcher.IsStatusOK() {
+		op.Debugf("%s does not support OAuth", url)
 		return nil, nil
 	}
 
@@ -153,10 +152,10 @@ func LearnAuthURL(options Options) (*url.URL, error) {
 }
 
 // FetchToken fetches the OAuth token from OAuth endpoint
-func FetchToken(ctx context.Context, options Options, url *url.URL, progressOutput progress.Output) (*urlfetcher.Token, error) {
-	defer trace.End(trace.Begin(url.String()))
+func FetchToken(op trace.Operation, options Options, url *url.URL, progressOutput progress.Output) (*urlfetcher.Token, error) {
+	defer trace.End(trace.Begin(url.String(), op))
 
-	log.Debugf("URL: %s", url)
+	op.Debugf("URL: %s", url)
 
 	fetcher := urlfetcher.NewURLFetcher(urlfetcher.Options{
 		Timeout:            options.Timeout,
@@ -166,10 +165,10 @@ func FetchToken(ctx context.Context, options Options, url *url.URL, progressOutp
 		RootCAs:            options.RegistryCAs,
 	})
 
-	token, err := fetcher.FetchAuthToken(url)
+	token, err := fetcher.FetchAuthToken(op, url)
 	if err != nil {
 		err := fmt.Errorf("FetchToken (%s) failed: %s", url, err)
-		log.Error(err)
+		op.Error(err)
 		return nil, err
 	}
 
@@ -177,8 +176,8 @@ func FetchToken(ctx context.Context, options Options, url *url.URL, progressOutp
 }
 
 // FetchImageBlob fetches the image blob
-func FetchImageBlob(ctx context.Context, options Options, image *ImageWithMeta, progressOutput progress.Output) (string, error) {
-	defer trace.End(trace.Begin(options.Image + "/" + image.Layer.BlobSum))
+func FetchImageBlob(op trace.Operation, options Options, image *ImageWithMeta, progressOutput progress.Output) (string, error) {
+	defer trace.End(trace.Begin(options.Image+"/"+image.Layer.BlobSum, op))
 
 	id := image.ID
 	layer := image.Layer.BlobSum
@@ -191,7 +190,7 @@ func FetchImageBlob(ctx context.Context, options Options, image *ImageWithMeta, 
 	}
 	url.Path = path.Join(url.Path, options.Image, "blobs", layer)
 
-	log.Debugf("URL: %s\n ", url)
+	op.Debugf("URL: %s\n ", url)
 
 	fetcher := urlfetcher.NewURLFetcher(urlfetcher.Options{
 		Timeout:            options.Timeout,
@@ -203,7 +202,7 @@ func FetchImageBlob(ctx context.Context, options Options, image *ImageWithMeta, 
 	})
 
 	// ctx
-	ctx, cancel := context.WithTimeout(ctx, options.Timeout)
+	ctx, cancel := context.WithTimeout(op, options.Timeout)
 	defer cancel()
 
 	imageFileName, err := fetcher.Fetch(ctx, url, nil, true, progressOutput, image.String())
@@ -285,7 +284,7 @@ func FetchImageBlob(ctx context.Context, options Options, image *ImageWithMeta, 
 		image.Size = layerSize
 	}
 
-	log.Infof("diffID for layer %s: %s", id, diffID)
+	op.Infof("diffID for layer %s: %s", id, diffID)
 
 	// Ensure the parent directory exists
 	destination := path.Join(DestinationDirectory(options), id)
@@ -322,8 +321,8 @@ func tagOrDigest(r reference.Named, tag string) string {
 }
 
 // FetchImageManifest fetches the image manifest file
-func FetchImageManifest(ctx context.Context, options Options, schemaVersion int, progressOutput progress.Output) (interface{}, string, error) {
-	defer trace.End(trace.Begin(options.Reference.String()))
+func FetchImageManifest(op trace.Operation, options Options, schemaVersion int, progressOutput progress.Output) (interface{}, string, error) {
+	defer trace.End(trace.Begin(options.Reference.String(), op))
 
 	if schemaVersion != 1 && schemaVersion != 2 {
 		return nil, "", fmt.Errorf("Unknown schema version %d requested!", schemaVersion)
@@ -336,7 +335,7 @@ func FetchImageManifest(ctx context.Context, options Options, schemaVersion int,
 
 	tagOrDigest := tagOrDigest(options.Reference, options.Tag)
 	url.Path = path.Join(url.Path, options.Image, "manifests", tagOrDigest)
-	log.Debugf("URL: %s", url)
+	op.Debugf("URL: %s", url)
 
 	fetcher := urlfetcher.NewURLFetcher(urlfetcher.Options{
 		Timeout:            options.Timeout,
@@ -353,8 +352,15 @@ func FetchImageManifest(ctx context.Context, options Options, schemaVersion int,
 		reqHeaders.Add("Accept", schema1.MediaTypeManifest)
 	}
 
-	manifestFileName, err := fetcher.Fetch(ctx, url, &reqHeaders, true, progressOutput)
+	manifestFileName, err := fetcher.Fetch(op, url, &reqHeaders, true, progressOutput)
 	if err != nil {
+		op.Debugf("Failed to fetch manifest: %s", err.Error())
+
+		switch err.(type) {
+		case urlfetcher.AccessDenied:
+			return nil, "", fmt.Errorf("pull access denied for %s, repository does not exist or may require 'docker login'", options.Reference.Name())
+
+		}
 		return nil, "", err
 	}
 
@@ -367,9 +373,9 @@ func FetchImageManifest(ctx context.Context, options Options, schemaVersion int,
 
 	switch schemaVersion {
 	case 1: //schema 1, signed manifest
-		return decodeManifestSchema1(manifestFileName, options, url.Hostname())
+		return decodeManifestSchema1(op, manifestFileName, options, url.Hostname())
 	case 2: //schema 2
-		return decodeManifestSchema2(manifestFileName, options)
+		return decodeManifestSchema2(op, manifestFileName, options)
 	}
 
 	//We shouldn't really get here
@@ -380,7 +386,7 @@ func FetchImageManifest(ctx context.Context, options Options, schemaVersion int,
 // defined Manifest structure and returns the digest of the manifest as a string.
 // For historical reason, we did not use the Docker's defined schema1.Manifest
 // instead of our own and probably should do so in the future.
-func decodeManifestSchema1(filename string, options Options, registry string) (interface{}, string, error) {
+func decodeManifestSchema1(op trace.Operation, filename string, options Options, registry string) (interface{}, string, error) {
 	// Read the entire file into []byte for json.Unmarshal
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -393,7 +399,7 @@ func decodeManifestSchema1(filename string, options Options, registry string) (i
 		return nil, "", err
 	}
 
-	digest, err := getManifestDigest(content, options.Reference)
+	digest, err := getManifestDigest(op, content, options.Reference)
 	if err != nil {
 		return nil, "", err
 	}
@@ -430,7 +436,7 @@ func verifyManifestDigest(digested reference.Canonical, bytes []byte) error {
 
 // decodeManifestSchema2() reads a manifest schema 2 and creates a Docker
 // defined Manifest structure and returns the digest of the manifest as a string.
-func decodeManifestSchema2(filename string, options Options) (interface{}, string, error) {
+func decodeManifestSchema2(op trace.Operation, filename string, options Options) (interface{}, string, error) {
 	// Read the entire file into []byte for json.Unmarshal
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -441,11 +447,13 @@ func decodeManifestSchema2(filename string, options Options) (interface{}, strin
 
 	err = json.Unmarshal(content, manifest)
 	if err != nil {
+		op.Errorf("Unmarshal failed: %s", err)
 		return nil, "", err
 	}
 
 	_, canonical, err := manifest.Payload()
 	if err != nil {
+		op.Errorf("Payload manifest failed: %s", err)
 		return nil, "", err
 	}
 
@@ -454,7 +462,7 @@ func decodeManifestSchema2(filename string, options Options) (interface{}, strin
 	return manifest, string(digest), nil
 }
 
-func getManifestDigest(content []byte, ref reference.Named) (string, error) {
+func getManifestDigest(op trace.Operation, content []byte, ref reference.Named) (string, error) {
 	jsonSig, err := libtrust.ParsePrettySignature(content, "signatures")
 	if err != nil {
 		return "", err
@@ -463,10 +471,11 @@ func getManifestDigest(content []byte, ref reference.Named) (string, error) {
 	// Resolve the payload in the manifest.
 	bytes, err := jsonSig.Payload()
 	if err != nil {
+		op.Errorf("Payload manifest digest failed: %s", err)
 		return "", err
 	}
 
-	log.Debugf("Canonical Bytes: %d", len(bytes))
+	op.Debugf("Canonical Bytes: %d", len(bytes))
 
 	// Verify the manifest digest if the image is pulled by digest. If the image
 	// is not pulled by digest, we proceed without this check because we don't
@@ -480,6 +489,6 @@ func getManifestDigest(content []byte, ref reference.Named) (string, error) {
 
 	digest := ddigest.FromBytes(bytes)
 	// Correct Manifest Digest
-	log.Debugf("Manifest Digest: %v", digest)
+	op.Debugf("Manifest Digest: %v", digest)
 	return string(digest), nil
 }

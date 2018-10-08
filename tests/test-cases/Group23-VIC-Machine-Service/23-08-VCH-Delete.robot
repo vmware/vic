@@ -410,7 +410,7 @@ Delete VCH with powered off container deletes files
     Verify VCH Not Exists             vch/${id}
 
     # No VCH to delete
-    [Teardown]                        NONE
+    [Teardown]                        Run  govc datastore.rm %{VCH-NAME}-VOL
 
 Delete VCH without deleting powered on container
     ${id}=    Get VCH ID %{VCH-NAME}

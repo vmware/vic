@@ -15,6 +15,7 @@
 package decode
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -76,9 +77,21 @@ func FromGateway(m *models.Gateway) string {
 func FromImageFetchProxy(p *models.VCHRegistryImageFetchProxy) common.Proxies {
 	http := string(p.HTTP)
 	https := string(p.HTTPS)
+	var nproxy *string
+	if p.NoProxy != nil {
+		var buffer bytes.Buffer
+		buffer.WriteString(string(p.NoProxy[0]))
+		for _, v := range p.NoProxy[1:] {
+			buffer.WriteString(",")
+			buffer.WriteString(string(v))
+		}
+		nproxyStr := buffer.String()
+		nproxy = &nproxyStr
+	}
 
 	return common.Proxies{
 		HTTPProxy:  &http,
 		HTTPSProxy: &https,
+		NoProxy:    nproxy,
 	}
 }

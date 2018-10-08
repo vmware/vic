@@ -20,48 +20,18 @@ import (
 	"os"
 	"path"
 	"testing"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/datastore/test"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
-	"github.com/vmware/vic/pkg/vsphere/test/env"
 )
-
-func testSession(ctx context.Context, t *testing.T) *session.Session {
-	config := &session.Config{
-		Service: env.URL(t),
-
-		/// XXX Why does this insist on having this field populated?
-		DatastorePath: env.DS(t),
-
-		Insecure:  true,
-		Keepalive: time.Duration(5) * time.Minute,
-	}
-
-	s := session.NewSession(config)
-	_, err := s.Connect(ctx)
-	if err != nil {
-		s.Client.Logout(ctx)
-		t.Log(err.Error())
-		t.SkipNow()
-	}
-
-	_, err = s.Populate(ctx)
-	if err != nil {
-		t.Log(err.Error())
-		t.SkipNow()
-	}
-
-	return s
-}
 
 func dsSetup(t *testing.T) (context.Context, *Helper, func()) {
 	log.SetLevel(log.DebugLevel)
 	ctx := context.Background()
-	sess := testSession(ctx, t)
+	sess := test.Session(ctx, t)
 
 	ds, err := NewHelper(ctx, sess, sess.Datastore, TestName("dstests"))
 	if !assert.NoError(t, err) {

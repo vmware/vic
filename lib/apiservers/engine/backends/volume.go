@@ -66,12 +66,13 @@ func NewVolumeBackend() *VolumeBackend {
 
 // Volumes docker personality implementation for VIC
 func (v *VolumeBackend) Volumes(filter string) ([]*types.Volume, []string, error) {
-	defer trace.End(trace.Begin(filter))
+	op := trace.NewOperation(context.Background(), "Volumes")
+	defer trace.End(trace.Audit("", op))
 
 	var volumes []*types.Volume
 
 	// Get volume list from the portlayer
-	volumeResponses, err := v.storageProxy.VolumeList(context.Background(), filter)
+	volumeResponses, err := v.storageProxy.VolumeList(op, filter)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -92,7 +93,7 @@ func (v *VolumeBackend) Volumes(filter string) ([]*types.Volume, []string, error
 	joinedVolumes := make(map[string]struct{})
 	if volumeFilters.Include("dangling") {
 		// If the dangling filter is specified, gather required items beforehand
-		joinedVolumes, err = fetchJoinedVolumes()
+		joinedVolumes, err = fetchJoinedVolumes(op)
 		if err != nil {
 			return nil, nil, errors.VolumeInternalServerError(err)
 		}
@@ -126,9 +127,10 @@ func (v *VolumeBackend) Volumes(filter string) ([]*types.Volume, []string, error
 
 // VolumeInspect : docker personality implementation for VIC
 func (v *VolumeBackend) VolumeInspect(name string) (*types.Volume, error) {
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "VolumeInspect: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
-	volInfo, err := v.storageProxy.VolumeInfo(context.Background(), name)
+	volInfo, err := v.storageProxy.VolumeInfo(op, name)
 	if err != nil {
 		return nil, err
 	}
@@ -144,9 +146,10 @@ func (v *VolumeBackend) VolumeInspect(name string) (*types.Volume, error) {
 
 // VolumeCreate : docker personality implementation for VIC
 func (v *VolumeBackend) VolumeCreate(name, driverName string, volumeData, labels map[string]string) (*types.Volume, error) {
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "VolumeCreate: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
-	result, err := v.storageProxy.Create(context.Background(), name, driverName, volumeData, labels)
+	result, err := v.storageProxy.Create(op, name, driverName, volumeData, labels)
 	if err != nil {
 		return nil, err
 	}
@@ -156,9 +159,10 @@ func (v *VolumeBackend) VolumeCreate(name, driverName string, volumeData, labels
 
 // VolumeRm : docker personality for VIC
 func (v *VolumeBackend) VolumeRm(name string, force bool) error {
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "VolumeRm: %s", name)
+	defer trace.End(trace.Audit(name, op))
 
-	err := v.storageProxy.Remove(context.Background(), name)
+	err := v.storageProxy.Remove(op, name)
 	if err != nil {
 		return err
 	}
@@ -167,6 +171,9 @@ func (v *VolumeBackend) VolumeRm(name string, force bool) error {
 }
 
 func (v *VolumeBackend) VolumesPrune(pruneFilters filters.Args) (*types.VolumesPruneReport, error) {
+	op := trace.NewOperation(context.Background(), "VolumesPrune")
+	defer trace.End(trace.Audit("", op))
+
 	return nil, errors.APINotSupportedMsg(ProductName(), "VolumesPrune")
 }
 
@@ -185,8 +192,8 @@ func NewVolumeModel(volume *models.VolumeResponse, labels map[string]string) *ty
 
 // fetchJoinedVolumes obtains all containers from the portlayer and returns a map with all
 // volumes that are joined to at least one container.
-func fetchJoinedVolumes() (map[string]struct{}, error) {
-	conts, err := allContainers()
+func fetchJoinedVolumes(op trace.Operation) (map[string]struct{}, error) {
+	conts, err := allContainers(op)
 	if err != nil {
 		return nil, errors.VolumeInternalServerError(err)
 	}
@@ -203,14 +210,14 @@ func fetchJoinedVolumes() (map[string]struct{}, error) {
 }
 
 // allContainers obtains all containers from the portlayer, akin to `docker ps -a`.
-func allContainers() ([]*models.ContainerInfo, error) {
+func allContainers(op trace.Operation) ([]*models.ContainerInfo, error) {
 	client := PortLayerClient()
 	if client == nil {
 		return nil, errors.NillPortlayerClientError("Volume Backend")
 	}
 
 	all := true
-	cons, err := client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(ctx).WithAll(&all))
+	cons, err := client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(op).WithAll(&all))
 	if err != nil {
 		return nil, err
 	}

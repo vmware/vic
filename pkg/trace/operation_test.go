@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -26,6 +27,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestContextUnpack(t *testing.T) {
@@ -303,4 +305,28 @@ func TestLogInheritance(t *testing.T) {
 
 	lm.AssertExpectations(t)
 	lm.AssertNumberOfCalls(t, "Fire", 5)
+}
+
+func TestNewOperationFromID(t *testing.T) {
+	incomingOpID := "101.8"
+	op := NewOperationFromID(context.Background(), &incomingOpID, "TestOperation")
+
+	// Child ID should have three components
+	opIDSlice := strings.Split(op.ID(), ".")
+	require.Equal(t, len(opIDSlice), 3)
+	require.Equal(t, opIDSlice[0], "101")
+	require.Equal(t, opIDSlice[1], "8")
+
+	// Check the filename in the operation trace to verify
+	// that we picked up the correct stack frame
+	tFuncNameSlice := strings.Split(op.t[0].funcName, "/")
+
+	// Get current function name
+	pcptr, _, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	funcName := runtime.FuncForPC(pcptr).Name()
+	cFuncNameSlice := strings.Split(funcName, "/")
+
+	// Compare the last two entries
+	require.Equal(t, tFuncNameSlice[len(tFuncNameSlice)-1], cFuncNameSlice[len(cFuncNameSlice)-1])
 }

@@ -29,13 +29,19 @@ Nested Trap Signal Command
     # Container command runs an infinite loop, trapping and logging the given signal name in a nested shell
     # This is to test process group behaviours - same command as above, but nested in another shell
     [Arguments]  ${sig}
-    [Return]  ${busybox} sh -c "trap 'echo KillSignalParent${sig}' ${sig}; sh -c \\"trap 'echo KillSignalChild${sig}' ${sig}; echo READY; while true; do date && sleep 1; done\\""
+    [Return]  ${busybox} sh -c "trap 'echo KillSignalParent${sig}' ${sig}; sh -c \\"trap 'echo KillSignalChild${sig}' ${sig}; echo READY_CHILD; while true; do date && sleep 1; done\\" & echo READY_PARENT; while true; do date && sleep 1; done"
 
 Assert Container Output
     [Arguments]  ${id}  ${match}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${id}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${match}
+
+Assert Not In Container Output
+    [Arguments]  ${id}  ${match}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${id}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  ${match}
 
 Check That Container Was Killed
     [Arguments]  ${container}
@@ -82,7 +88,7 @@ Signal a container with SIGHUP
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow ${id}
 
-Confirm signal delivered to entire process group
+Confirm signal is not delivered to entire process group
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${trap}=  Nested Trap Signal Command  HUP
@@ -96,9 +102,10 @@ Confirm signal delivered to entire process group
     Should Be Equal As Integers  ${rc}  1
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill -s HUP ${id}
     Should Be Equal As Integers  ${rc}  0
-    Wait Until Keyword Succeeds  20x  200 milliseconds  Assert Container Output  ${id}  KillSignalChildHUP
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill -s TERM ${id}
+    Wait Until Keyword Succeeds  20x  200 milliseconds  Assert Container Output  ${id}  KillSignalParentHUP
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} stop ${id}
     Should Be Equal As Integers  ${rc}  0
+    Assert Not In Container Output  ${id}  KillSignalChildHUP
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow ${id}
 
 Signal a non-existent container

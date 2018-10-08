@@ -164,10 +164,18 @@ func (vspc *Vspc) Start() {
 
 	go func() {
 		for {
+
+			select {
+			case <-vspc.doneCh:
+				log.Infof("vSPC exiting...")
+				return
+			default:
+			}
+
 			_, err := vspc.Accept()
 			if err != nil {
 				log.Errorf("vSPC cannot accept connections: %v", err)
-				log.Errorf("vSPC exiting...")
+				log.Infof("vSPC exiting...")
 				return
 			}
 		}
@@ -179,7 +187,8 @@ func (vspc *Vspc) Start() {
 func (vspc *Vspc) Stop() {
 	defer trace.End(trace.Begin("stop vspc"))
 
-	vspc.doneCh <- true
+	close(vspc.doneCh)
+	vspc.Server.Close()
 }
 
 // cVM returns the VM struct from its uuid

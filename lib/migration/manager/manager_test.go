@@ -21,8 +21,13 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -45,6 +50,25 @@ func setUp() {
 	log.SetLevel(log.DebugLevel)
 	trace.Logger.Level = log.DebugLevel
 	testMap = make(map[int]bool)
+}
+
+// TestStableVersionKey is simply an assertion that the key generated for the version field has not changed
+func TestStableVersionKey(t *testing.T) {
+	containerReference := executor.ExecutorConfig{
+		Version: &version.Build{},
+	}
+
+	appReference := config.VirtualContainerHostConfigSpec{
+		ExecutorConfig: containerReference,
+	}
+
+	applianceVersionKeySanity := extraconfig.CalculateKey(&appReference, "ExecutorConfig.Version.PluginVersion", "")
+	containerVersionKeySanity := extraconfig.CalculateKey(&containerReference, "Version.PluginVersion", "")
+
+	// if the version field must change for some reason the migration package must be updated to support both version locations and
+	// the change MUST allow for unambiguous determination of the installed version
+	require.Equal(t, ApplianceVersionKey, applianceVersionKeySanity, "version keys should not change between releases")
+	require.Equal(t, ContainerVersionKey, containerVersionKeySanity, "version keys should not change between releases")
 }
 
 func TestInsertID(t *testing.T) {

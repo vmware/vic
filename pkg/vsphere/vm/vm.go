@@ -30,7 +30,6 @@ import (
 	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
-	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 
 	"github.com/vmware/vic/pkg/retry"
@@ -216,6 +215,9 @@ func (vm *VirtualMachine) FetchExtraConfigBaseOptions(ctx context.Context) ([]ty
 		return nil, err
 	}
 
+	if mvm.Config == nil || mvm.Config.ExtraConfig == nil {
+		return nil, errors.New("ExtraConfig came back nil, the vm was likely deleted")
+	}
 	return mvm.Config.ExtraConfig, nil
 }
 
@@ -294,13 +296,71 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 
 	err := vm.WaitForExtraConfig(op, waitFunc)
 	if err == nil && poweredOff != nil {
-		err = poweredOff
+		return "", poweredOff
 	}
 
 	if err != nil {
 		return "", err
 	}
 	return detail, nil
+}
+
+// WaitForKeyChange will block until it detects a change in value for ANY of the provided key value combinations. Additionally it will unblock if the container has powered off, returning an error in such a case.
+func (vm *VirtualMachine) WaitForKeyChange(op trace.Operation, keys map[string]string) error {
+	var poweredOff error
+
+	for k, v := range keys {
+		keys[k] = vmomi.EscapeNil(v)
+	}
+
+	waitFunc := func(pc []types.PropertyChange) bool {
+		for _, c := range pc {
+			if c.Op != types.PropertyChangeOpAssign {
+				continue
+			}
+
+			switch v := c.Val.(type) {
+			case types.ArrayOfOptionValue:
+				for _, value := range v.OptionValue {
+					// check if it is a key that we care about
+					key := value.GetOptionValue().Key
+					if v, ok := keys[key]; ok {
+						// has the key actually change in value?
+						changeValue := value.GetOptionValue().Value.(string)
+						if v != changeValue {
+							op.Debugf("Found a change: key(%s), Value(%s), change(%s)", key, v, changeValue)
+							poweredOff = nil
+							return true
+						}
+					}
+				}
+			case types.VirtualMachinePowerState:
+				// Give up if the vm has powered off
+				if v != types.VirtualMachinePowerStatePoweredOn {
+					msg := "powered off"
+					if v == types.VirtualMachinePowerStateSuspended {
+						// Unlikely, but possible if the VM was suspended out-of-band
+						msg = string(v)
+					}
+					poweredOff = fmt.Errorf("container VM has unexpectedly %s", msg)
+				}
+			}
+		}
+
+		return poweredOff != nil
+	}
+
+	err := vm.WaitForExtraConfig(op, waitFunc)
+	if err == nil && poweredOff != nil {
+		return poweredOff
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+
 }
 
 func (vm *VirtualMachine) UUID(ctx context.Context) (string, error) {
@@ -328,7 +388,7 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInf
 	}
 
 	firstTime := true
-	err = retry.Do(func() error {
+	err = retry.Do(op, func() error {
 		op.Debugf("Getting list of the devices for VM %q", vmName)
 		devices, err := vm.Device(op)
 		if err != nil {
@@ -369,7 +429,7 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*types.TaskInf
 
 	// If destroy method is disabled on this VM, re-enable it and retry
 	op.Debugf("Destroy is disabled. Enabling destroy for VM %q", vmName)
-	err = retry.Do(func() error {
+	err = retry.Do(op, func() error {
 		return vm.EnableDestroy(op)
 	}, tasks.IsConcurrentAccessError)
 
@@ -589,24 +649,6 @@ func (vm *VirtualMachine) IsInvalidState(ctx context.Context) bool {
 	}
 	if o.Summary.Runtime.ConnectionState == types.VirtualMachineConnectionStateInvalid {
 		return true
-	}
-	return false
-}
-
-// IsInvalidPowerStateError is an error certifier function for errors coming back from vsphere. It checks for an InvalidPowerStateFault
-func (vm *VirtualMachine) IsInvalidPowerStateError(err error) bool {
-	if soap.IsVimFault(err) {
-		_, ok1 := soap.ToVimFault(err).(*types.InvalidPowerState)
-		_, ok2 := soap.ToVimFault(err).(*types.InvalidPowerStateFault)
-		return ok1 || ok2
-	}
-
-	if soap.IsSoapFault(err) {
-		_, ok1 := soap.ToSoapFault(err).VimFault().(types.InvalidPowerState)
-		_, ok2 := soap.ToSoapFault(err).VimFault().(types.InvalidPowerStateFault)
-		// sometimes we get the correct fault but wrong type
-		return ok1 || ok2 || soap.ToSoapFault(err).String == "vim.fault.InvalidPowerState" ||
-			soap.ToSoapFault(err).String == "vim.fault.InvalidPowerState"
 	}
 	return false
 }
@@ -865,7 +907,7 @@ func (vm *VirtualMachine) PowerOn(op trace.Operation) error {
 	conf.MaxInterval = 1 * time.Second
 	conf.MaxElapsedTime = 20 * time.Second
 
-	err = retry.DoWithConfig(f, retry.OnError, conf)
+	err = retry.DoWithConfig(op, f, retry.OnError, conf)
 	if err != nil {
 		return err
 	}
@@ -886,7 +928,7 @@ func (vm *VirtualMachine) PowerOn(op trace.Operation) error {
 		// if relocation or powerOn fails, something has changed and we need a new recommendation
 		subset = hosts[1:]
 
-		if err = retry.DoWithConfig(f, retry.OnError, conf); err != nil {
+		if err = retry.DoWithConfig(op, f, retry.OnError, conf); err != nil {
 			return err
 		}
 
@@ -957,4 +999,10 @@ func (vm *VirtualMachine) InCluster(op trace.Operation) bool {
 	cls := vm.Cluster.Reference().Type == "ClusterComputeResource"
 	op.Debugf("vm compute resource: %s", vm.Cluster.Name())
 	return cls
+}
+
+// IsAlreadyPoweredOffError is an accessor method because of the number of times package name and
+// variable name tend to collide for VMs.
+func (vm *VirtualMachine) IsAlreadyPoweredOffError(err error) bool {
+	return tasks.IsAlreadyPoweredOffError(err)
 }

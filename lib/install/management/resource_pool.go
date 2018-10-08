@@ -99,22 +99,24 @@ func (d *Dispatcher) destroyResourcePoolIfEmpty(conf *config.VirtualContainerHos
 		d.op.Warn("Did not find parent VCH resource pool")
 		return nil
 	}
+
 	var vms []*vm.VirtualMachine
 	var err error
 	if vms, err = d.parentResourcepool.GetChildrenVMs(d.op); err != nil {
 		err = errors.Errorf("Unable to get children vm of resource pool %q: %s", d.parentResourcepool.Name(), err)
 		return err
 	}
+
 	if len(vms) != 0 {
-		err = errors.Errorf("Resource pool is not empty: found %d vms under %q", len(vms), d.parentResourcepool.Name())
+		err = errors.Errorf("resource pool %s is not empty (has %d VMs)", d.parentResourcepool.Name(), len(vms))
 		return err
 	}
-	if _, err := tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
+
+	_, err = tasks.WaitForResult(d.op, func(ctx context.Context) (tasks.Task, error) {
 		return d.parentResourcepool.Destroy(ctx)
-	}); err != nil {
-		return err
-	}
-	return nil
+	})
+
+	return err
 }
 
 func (d *Dispatcher) findResourcePool(path string) (*object.ResourcePool, error) {

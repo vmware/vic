@@ -56,12 +56,19 @@ my-vch () {
 ## Helper commands
 
 The follow are the set of available helper commands and some minor usage examples. In general the commands are written so that you can add additional arguments to the end of the function and it will be passed through to the underlying command.
+There is a `VIC_VERSION` environment variable that can be used to switch between different versions of the engine. Currently this is simply the name of a directory under the `bin` folder that contains vic-machine and ISO binaries. Setting the variable to `""` or unsetting it will use the binaries directly in the `bin` directory. For exanmple:
+```console
+$ curl https://storage.googleapis.com/vic-engine-releases/vic_v1.3.1.tar.gz | tar -C $(vic-path)/bin -zxf - 
+$ mv  $(vic-path)/bin/vic  $(vic-path)/bin/1.3.1
+$ export VIC_VERSION=1.3.1
+```
 
 These examples all assume that you have selected a profile by running the desired shell function and that you have the requisite binary files built in the `bin` folder of your repo:
 ```console
 $ my-vch
 ```
 The set of commands available are:
+* vic-set-version
 * vic-create
 * vic-ls
 * vic-select
@@ -75,6 +82,13 @@ The set of commands available are:
 * vic-tail-portlayer
 
 The _VCH_ created by or identified by the active profile is referred to as the _current_ VCH in this document.
+
+### Select the version of VIC
+Most uses of these scripts are for deployment of a local development build so setting a version is unneessary, however when testing upgrade or performing debugging on released builds it is convenient to be able to quickly deploy a VCH of a specific build or version.
+This function allows you to do so and allows you to specify the following version types:
+* [no argument] - use the local binaries
+* release version - e.g. 1.4.1 or 1.4.1-rc will get a release build
+* build-number - e.g. 10677 will download the binaries for a specific CI build. This includes failed builds, but only since build 17562
 
 ### Create a VCH
 

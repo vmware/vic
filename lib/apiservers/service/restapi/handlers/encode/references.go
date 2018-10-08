@@ -16,6 +16,8 @@ package encode
 
 import (
 	"github.com/vmware/govmomi/vim25/types"
+
+	"github.com/vmware/vic/lib/apiservers/service/models"
 )
 
 func AsManagedObjectID(mobid string) string {
@@ -26,4 +28,17 @@ func AsManagedObjectID(mobid string) string {
 	}
 
 	return moref.Value
+}
+
+// common provides an interface for the relevant parts of object.Common
+type common interface {
+	Reference() types.ManagedObjectReference
+	Name() string
+}
+
+func AsManagedObject(object common) models.ManagedObject {
+	return models.ManagedObject{
+		Name: object.Name(),
+		ID:   object.Reference().Value,
+	}
 }

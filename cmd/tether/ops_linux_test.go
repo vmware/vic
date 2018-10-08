@@ -20,7 +20,10 @@ import (
 	"errors"
 	"fmt"
 	"syscall"
+	"testing"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netlink"
 
 	"github.com/vmware/vic/pkg/trace"
@@ -158,4 +161,33 @@ func (t *Mocker) LinkBySlot(slot int32) (netlink.Link, error) {
 	}
 
 	return nil, errors.New("no such interface")
+}
+
+func TestLimitSetting(t *testing.T) {
+	var rLimitOut syscall.Rlimit
+
+	// CORE Limit should be set to Unlimited, MEMLOCK and NPROC, can only
+	// be set by root, therefore they cannot be tested here
+	ApplyDefaultULimit()
+
+	if err := syscall.Getrlimit(syscall.RLIMIT_CORE, &rLimitOut); err != nil {
+		logrus.Errorf("Cannot get ulimit for stack: %s ", err.Error())
+	}
+	require.Equal(t, rLimitOut.Max, uint64(defaultULimit))
+	require.Equal(t, rLimitOut.Cur, uint64(defaultULimit))
+
+	// Check the soft limit on the stack size, the new soft limit should be unchanged
+	// Issue: https://github.com/vmware/vic/issues/8141
+	if err := syscall.Getrlimit(syscall.RLIMIT_STACK, &rLimitOut); err != nil {
+		logrus.Errorf("Cannot get ulimit for stack: %s ", err.Error())
+	}
+	defaultSoftLimit := rLimitOut.Cur
+
+	ApplyDefaultULimit()
+
+	if err := syscall.Getrlimit(syscall.RLIMIT_STACK, &rLimitOut); err != nil {
+		logrus.Errorf("Cannot get ulimit for stack: %s ", err.Error())
+	}
+	require.Equal(t, rLimitOut.Max, uint64(defaultULimit))
+	require.Equal(t, rLimitOut.Cur, defaultSoftLimit)
 }

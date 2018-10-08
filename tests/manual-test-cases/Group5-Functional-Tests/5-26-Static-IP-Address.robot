@@ -22,12 +22,11 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 *** Keywords ***
 Setup VC With Static IP
     ${name}=  Evaluate  'vic-5-26-' + str(random.randint(1000,9999))  modules=random
-    Wait Until Keyword Succeeds  10x  10m  Create Simple VC Cluster With Static IP  ${name}
+    Nimbus Suite Setup  Create Simple VC Cluster With Static IP  ${name}
     
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
-    Custom Testbed Keepalive  /dbc/pa-dbc1111/mhagen
 
     Install VIC Appliance To Test Server  additional-args=--public-network-ip &{static}[ip]/&{static}[netmask] --public-network-gateway &{static}[gateway] --dns-server 10.170.16.48
     Run Regression Tests

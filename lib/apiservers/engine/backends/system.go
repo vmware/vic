@@ -43,7 +43,6 @@ import (
 	"github.com/vmware/vic/lib/apiservers/engine/proxy"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
-	"github.com/vmware/vic/lib/imagec"
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
 	"github.com/vmware/vic/pkg/registry"
 	"github.com/vmware/vic/pkg/trace"
@@ -54,6 +53,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/pkg/platform"
+	dockerregistry "github.com/docker/docker/registry"
 	"github.com/docker/go-units"
 )
 
@@ -91,13 +91,15 @@ func NewSystemBackend() *SystemBackend {
 }
 
 func (s *SystemBackend) SystemInfo() (*types.Info, error) {
-	defer trace.End(trace.Begin("SystemInfo"))
+	op := trace.NewOperation(context.Background(), "SystemInfo")
+	defer trace.End(trace.Audit("", op))
+
 	client := PortLayerClient()
 
 	// Retrieve container status from port layer
 	running, paused, stopped, err := s.systemProxy.ContainerCount(context.Background())
 	if err != nil {
-		log.Infof("System.SytemInfo unable to get global status on containers: %s", err.Error())
+		op.Infof("System.SytemInfo unable to get global status on containers: %s", err.Error())
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), infoTimeout)
@@ -113,7 +115,7 @@ func (s *SystemBackend) SystemInfo() (*types.Info, error) {
 	// Build up the struct that the Remote API and CLI wants
 	info := &types.Info{
 		Driver:             PortLayerName(),
-		IndexServerAddress: imagec.DefaultDockerURL,
+		IndexServerAddress: dockerregistry.DefaultV2Registry.Host,
 		ServerVersion:      ProductVersion(),
 		ID:                 ProductName(),
 		Containers:         running + paused + stopped,
@@ -166,9 +168,9 @@ func (s *SystemBackend) SystemInfo() (*types.Info, error) {
 	info.SystemStatus = make([][2]string, 0)
 
 	// Add in volume label from the VCH via guestinfo
-	volumeStoreString, err := FetchVolumeStores(client)
+	volumeStoreString, err := FetchVolumeStores(op, client)
 	if err != nil {
-		log.Infof("Unable to get the volume store list from the portlayer : %s", err.Error())
+		op.Infof("Unable to get the volume store list from the portlayer : %s", err.Error())
 	} else {
 		customInfo := [2]string{volumeStoresID, volumeStoreString}
 		info.SystemStatus = append(info.SystemStatus, customInfo)
@@ -197,7 +199,7 @@ func (s *SystemBackend) SystemInfo() (*types.Info, error) {
 	// Add in vch information
 	vchInfo, err := s.systemProxy.VCHInfo(context.Background())
 	if err != nil || vchInfo == nil {
-		log.Infof("System.SystemInfo unable to get vch info from port layer: %s", err.Error())
+		op.Infof("System.SystemInfo unable to get vch info from port layer: %s", err.Error())
 	} else {
 		if vchInfo.CPUMhz > 0 {
 			info.NCPU = int(vchInfo.CPUMhz)
@@ -260,6 +262,9 @@ func (s *SystemBackend) SystemInfo() (*types.Info, error) {
 const buildTimeLayout = "2006/01/02@15:04:05"
 
 func (s *SystemBackend) SystemVersion() types.Version {
+	op := trace.NewOperation(context.Background(), "SystemVersion")
+	defer trace.End(trace.Audit("", op))
+
 	Arch := runtime.GOARCH
 
 	BuildTime := version.BuildDate
@@ -297,7 +302,7 @@ func (s *SystemBackend) SystemVersion() types.Version {
 		Version:       Version,
 	}
 
-	log.Infof("***** version = %#v", version)
+	op.Infof("***** version = %#v", version)
 
 	return version
 }
@@ -312,6 +317,9 @@ func (s *SystemBackend) SystemCPUMhzLimit() (int64, error) {
 }
 
 func (s *SystemBackend) SystemDiskUsage() (*types.DiskUsage, error) {
+	op := trace.NewOperation(context.Background(), "SystemDiskUsage")
+	defer trace.End(trace.Audit("", op))
+
 	return nil, errors.APINotSupportedMsg(ProductName(), "SystemDiskUsage")
 }
 
@@ -329,7 +337,8 @@ func (s *SystemBackend) UnsubscribeFromEvents(listener chan interface{}) {
 
 // AuthenticateToRegistry handles docker logins
 func (s *SystemBackend) AuthenticateToRegistry(ctx context.Context, authConfig *types.AuthConfig) (string, string, error) {
-	defer trace.End(trace.Begin(""))
+	op := trace.NewOperation(context.Background(), "AuthenticateToRegistry")
+	defer trace.End(trace.Audit("", op))
 
 	// Only look at V2 registries
 	registryAddress := authConfig.ServerAddress
@@ -344,7 +353,7 @@ func (s *SystemBackend) AuthenticateToRegistry(ctx context.Context, authConfig *
 	loginURL, err := url.Parse(registryAddress)
 	if err != nil {
 		msg := fmt.Sprintf("Bad login address: %s", registryAddress)
-		log.Errorf(msg)
+		op.Errorf(msg)
 		return msg, "", err
 	}
 
@@ -359,7 +368,7 @@ func (s *SystemBackend) AuthenticateToRegistry(ctx context.Context, authConfig *
 
 	var certPool *x509.CertPool
 	if insecureOk {
-		log.Infof("Attempting to log into %s insecurely", loginURL.Host)
+		op.Infof("Attempting to log into %s insecurely", loginURL.Host)
 		certPool = nil
 	} else {
 		certPool = RegistryCertPool
@@ -379,10 +388,10 @@ func (s *SystemBackend) AuthenticateToRegistry(ctx context.Context, authConfig *
 		})
 
 		// Attempt to get the Auth URL from a simple ping operation (GET) to the registry
-		hdr, err := fetcher.Ping(loginURL)
+		hdr, err := fetcher.Ping(op, loginURL)
 		if err == nil {
 			if fetcher.IsStatusUnauthorized() {
-				log.Debugf("Looking up OAuth URL from server %s", loginURL)
+				op.Debugf("Looking up OAuth URL from server %s", loginURL)
 				authURL, err = fetcher.ExtractOAuthURL(hdr.Get("www-authenticate"), nil)
 			} else {
 				// We're not suppose to be here, but if we do end up here, use the login
@@ -391,14 +400,14 @@ func (s *SystemBackend) AuthenticateToRegistry(ctx context.Context, authConfig *
 			}
 		}
 		if err != nil {
-			log.Errorf("Looking up OAuth URL failed: %s", err)
+			op.Errorf("Looking up OAuth URL failed: %s", err)
 			return "", err
 		}
 
-		log.Debugf("logging onto %s", authURL.String())
+		op.Debugf("logging onto %s", authURL.String())
 
 		// Just check if we get a token back.
-		token, err := fetcher.FetchAuthToken(authURL)
+		token, err := fetcher.FetchAuthToken(op, authURL)
 		if err != nil || token.Token == "" {
 			// At this point, if a request cannot be solved by a retry, it is an authentication error.
 			log.Errorf("Fetch auth token failed: %s", err)
@@ -434,9 +443,9 @@ func getImageCount() int {
 	return len(images)
 }
 
-func FetchVolumeStores(client *client.PortLayer) (string, error) {
-
-	res, err := client.Storage.VolumeStoresList(storage.NewVolumeStoresListParamsWithContext(ctx))
+func FetchVolumeStores(op trace.Operation, client *client.PortLayer) (string, error) {
+	opID := op.ID()
+	res, err := client.Storage.VolumeStoresList(storage.NewVolumeStoresListParamsWithContext(op).WithOpID(&opID))
 	if err != nil {
 		return "", err
 	}

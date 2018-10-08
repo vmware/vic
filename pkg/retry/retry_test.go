@@ -15,6 +15,7 @@
 package retry
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -35,7 +36,7 @@ func TestRetry(t *testing.T) {
 		}
 		return false
 	}
-	err := Do(operation, retryOnError)
+	err := Do(context.Background(), operation, retryOnError)
 	assert.True(t, i == 4, "should retried 4 times")
 	assert.True(t, err != nil, fmt.Sprintf("retry do not depend on error status"))
 }

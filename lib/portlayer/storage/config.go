@@ -17,6 +17,7 @@ package storage
 import (
 	"github.com/vmware/govmomi/view"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/pkg/vsphere/disk"
 )
 
 var Config Configuration
@@ -32,4 +33,7 @@ type Configuration struct {
 	// ContainerView
 	// https://pubs.vmware.com/vsphere-6-0/index.jsp#com.vmware.wssdk.apiref.doc/vim.view.ContainerView.html
 	ContainerView *view.ContainerView
+
+	// Disk Manager for local VM
+	DiskManager *disk.Manager
 }

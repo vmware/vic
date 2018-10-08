@@ -16,14 +16,12 @@ SHELL=/bin/bash
 
 GO ?= go
 GOVERSION ?= go1.8
-OS := $(shell uname | tr '[:upper:]' '[:lower:]')
+OS := $(shell uname | awk '{print tolower($$0)}')
 ifeq (vagrant, $(filter vagrant,$(USER) $(SUDO_USER)))
 	# assuming we are in a shared directory where host arch is different from the guest
 	BIN_ARCH := -$(OS)
 endif
 REV :=$(shell git rev-parse --short=8 HEAD)
-TAG :=$(shell git describe --tags --abbrev=0) # e.g. `v0.9.0`
-TAG_NUM :=$(shell git describe --tags --abbrev=0 | cut -c 2-) # e.g. `0.9.0`
 
 BASE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 BASE_PKG := github.com/vmware/vic/
@@ -39,6 +37,7 @@ GVT ?= $(GOPATH)/bin/gvt$(BIN_ARCH)
 GOVC ?= $(GOPATH)/bin/govc$(BIN_ARCH)
 GAS ?= $(GOPATH)/bin/gas$(BIN_ARCH)
 MISSPELL ?= $(GOPATH)/bin/misspell$(BIN_ARCH)
+DOCKER_BUILD := $(BASE_DIR)/infra/build-image/docker-iso-build.sh
 
 .PHONY: all tools clean test check distro \
 	goversion goimports gopath govet gofmt misspell gas golint \
@@ -96,9 +95,6 @@ rpctool := $(BIN)/rpctool
 vic-machine-linux := $(BIN)/vic-machine-linux
 vic-machine-windows := $(BIN)/vic-machine-windows.exe
 vic-machine-darwin := $(BIN)/vic-machine-darwin
-vic-ui-linux := $(BIN)/vic-ui-linux
-vic-ui-windows := $(BIN)/vic-ui-windows.exe
-vic-ui-darwin := $(BIN)/vic-ui-darwin
 vic-init := $(BIN)/vic-init
 vic-init-test := $(BIN)/vic-init-test
 # NOT BUILT WITH make all TARGET
@@ -114,10 +110,13 @@ tether-linux := $(BIN)/tether-linux
 appliance := $(BIN)/appliance.iso
 appliance-staging := $(BIN)/.appliance-staging.tgz
 bootstrap := $(BIN)/bootstrap.iso
+bootstrap-custom := $(BIN)/bootstrap-$(REPO).iso
 bootstrap-staging := $(BIN)/.bootstrap-staging.tgz
+bootstrap-staging-custom := $(BIN)/.bootstrap-staging-$(REPO).tgz
 bootstrap-staging-debug := $(BIN)/.bootstrap-staging-debug.tgz
 bootstrap-debug := $(BIN)/bootstrap-debug.iso
-iso-base := $(BIN)/.iso-base.tgz
+iso-base := $(BIN)/.iso-base-photon-2.0.tgz
+iso-base-custom := $(BIN)/.iso-base-$(REPO).tgz
 
 # target aliases - target mapping
 docker-engine-api: $(docker-engine-api)
@@ -141,12 +140,15 @@ tether-linux: $(tether-linux)
 appliance: $(appliance)
 appliance-staging: $(appliance-staging)
 bootstrap: $(bootstrap)
+bootstrap-custom: $(bootstrap-custom)
 bootstrap-staging: $(bootstrap-staging)
+bootstrap-staging-custom: $(bootstrap-staging-custom)
 bootstrap-debug: $(bootstrap-debug)
 bootstrap-staging-debug: $(bootstrap-staging-debug)
 iso-base: $(iso-base)
+iso-base-custom: $(iso-base-custom)
+
 vic-machine: $(vic-machine-linux) $(vic-machine-windows) $(vic-machine-darwin)
-vic-ui: $(vic-ui-linux) $(vic-ui-windows) $(vic-ui-darwin)
 # NOT BUILT WITH make all TARGET
 # vic-dns variants to create standalone DNS service.
 vic-dns: $(vic-dns-linux) $(vic-dns-windows) $(vic-dns-darwin)
@@ -158,7 +160,7 @@ gas: $(GAS)
 misspell: $(MISSPELL)
 
 # convenience targets
-all: components tethers isos vic-machine imagec vic-ui
+all: components tethers isos vic-machine imagec
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) $(MISSPELL) goversion
 check: goversion goimports gofmt misspell govet golint copyright whitespace gas
 apiservers: $(portlayerapi) $(docker-engine-api) $(serviceapi)
@@ -240,13 +242,11 @@ misspell: $(MISSPELL)
 
 govet:
 	@echo checking go vet...
-	@$(GO) tool vet -all -lostcancel -tests $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
 # 	one day we will enable shadow check
 # 	@$(GO) tool vet -all -shadow -lostcancel -tests $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
 
 gas: $(GAS)
 	@echo checking security problems
-	@$(GAS) -skip=*_responses.go -quiet lib/... cmd/... pkg/... 2> /dev/null
 
 vendor: $(GVT)
 	@echo restoring vendor
@@ -270,7 +270,7 @@ install-govmomi:
 # manually install govmomi so the huge types package doesn't break cover
 	$(GO) install ./vendor/github.com/vmware/govmomi
 
-test: install-govmomi portlayerapi $(TEST_JOBS)
+test: install-govmomi $(portlayerapi-client) $(portlayerapi-server) $(serviceapi-server) $(admiralapi-client) $(TEST_JOBS)
 
 push:
 	$(BASE_DIR)/infra/scripts/replace-running-components.sh
@@ -411,37 +411,53 @@ $(serviceapi): $$(call godeps,cmd/vic-machine-server/*.go) $(serviceapi-server)
 	@$(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o $@ ./cmd/vic-machine-server
 
 
-$(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
-	@echo building iso-base docker image
-	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $@
+# ISO Targets
+$(iso-base): isos/base.sh isos/base/repos/photon-2.0/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
+	@echo "building iso-base image (photon-2.0)"
+	@$(TIME) $(DOCKER_BUILD) $< -r photon-2.0 -c $(BIN)/.yum-cache-photon-2.0.tgz -p $@
+
+$(iso-base-custom): isos/base.sh isos/base/repos/$(REPO)/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
+	@echo "building custom iso-base image ($(REPO))"
+	@$(TIME) $(DOCKER_BUILD) -d $(REPO) $< -r $(REPO) -c $(BIN)/.yum-cache-$(REPO).tgz -p $@
+
+# main appliance target - depends on all top level component targets
+$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(appliance-staging) $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(archive)
+	@echo building VCH appliance ISO
+	@$(TIME) $(DOCKER_BUILD) $< -p $(appliance-staging) -b $(BIN)
 
 # appliance staging - allows for caching of package install
 $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 	@echo staging for VCH appliance
-	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $(iso-base) -o $@
-
-# main appliance target - depends on all top level component targets
-$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging) $(archive)
-	@echo building VCH appliance ISO
-	@$(TIME) $< -p $(appliance-staging) -b $(BIN)
+	@$(TIME) $(DOCKER_BUILD) $< -c $(BIN)/.yum-cache-photon-2.0.tgz -p $(iso-base) -o $@
 
 # main bootstrap target
-$(bootstrap): isos/bootstrap.sh $(tether-linux) $(bootstrap-staging) isos/bootstrap/*
+$(bootstrap): isos/bootstrap.sh $(tether-linux) $(archive) $(bootstrap-staging) isos/bootstrap/*
 	@echo "Making bootstrap iso"
-	@$(TIME) $< -p $(bootstrap-staging) -b $(BIN)
+	@$(TIME) $(DOCKER_BUILD) $< -p $(bootstrap-staging) -b $(BIN)
 
-$(bootstrap-debug): isos/bootstrap.sh $(tether-linux) $(rpctool) $(bootstrap-staging-debug) isos/bootstrap/*
+# uses iso-base-custom to allow for custom kernels
+$(bootstrap-custom): isos/bootstrap.sh $(tether-linux) $(archive) $(bootstrap-staging-custom) isos/bootstrap/*
+	@echo "Making custom bootstrap iso"
+	@$(TIME) $(DOCKER_BUILD) -d $(REPO) $< -p $(bootstrap-staging-custom) -b $(BIN) -o $(notdir $@)
+
+$(bootstrap-debug): isos/bootstrap.sh $(tether-linux) $(archive) $(rpctool) $(bootstrap-staging-debug) isos/bootstrap/*
 	@echo "Making bootstrap-debug iso"
-	@$(TIME) $< -p $(bootstrap-staging-debug) -b $(BIN) -d true
+	@$(TIME) $(DOCKER_BUILD) $< -p $(bootstrap-staging-debug) -b $(BIN) -d true
 
-$(bootstrap-staging): isos/bootstrap-staging.sh $(iso-base)
+$(bootstrap-staging): isos/bootstrap-staging.sh $(iso-base) isos/base/repos/photon-2.0/*
 	@echo staging for bootstrap
-	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $(iso-base) -o $@
+	@$(TIME) $(DOCKER_BUILD) $< -c $(BIN)/.yum-cache-photon-2.0.tgz -p $(iso-base) -o $@
+
+$(bootstrap-staging-custom): isos/bootstrap-staging.sh $(iso-base-custom) isos/base/repos/$(REPO)/*
+	@echo custom staging for bootstrap
+	@$(TIME) $(DOCKER_BUILD) -d $(REPO) $< -c $(BIN)/.yum-cache-$(REPO).tgz -p $(iso-base-custom) -o $@
 
 $(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base)
 	@echo staging debug for bootstrap
-	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $(iso-base) -o $@ -d true
+	@$(TIME) $(DOCKER_BUILD) $< -c $(BIN)/.yum-cache-photon-2.0.tgz -p $(iso-base) -o $@ -d true
 
+
+# vic-machine targets
 $(vic-machine-linux): $$(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine linux...
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
@@ -453,18 +469,6 @@ $(vic-machine-windows): $$(call godeps,cmd/vic-machine/*.go)
 $(vic-machine-darwin): $$(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine darwin...
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
-
-$(vic-ui-linux): $$(call godeps,cmd/vic-ui/*.go) $(admiralapi-client)
-	@echo building vic-ui linux...
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
-
-$(vic-ui-windows): $$(call godeps,cmd/vic-ui/*.go) $(admiralapi-client)
-	@echo building vic-ui windows...
-	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
-
-$(vic-ui-darwin): $$(call godeps,cmd/vic-ui/*.go) $(admiralapi-client)
-	@echo building vic-ui darwin...
-	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
 
 $(vic-dns-linux): $$(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns linux...

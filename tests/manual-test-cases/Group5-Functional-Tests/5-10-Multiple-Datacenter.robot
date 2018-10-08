@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-10 - Multiple Datacenters
 Resource  ../../resources/Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Multiple Datacenter Setup
+Suite Setup  Nimbus Suite Setup  Multiple Datacenter Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Keywords ***

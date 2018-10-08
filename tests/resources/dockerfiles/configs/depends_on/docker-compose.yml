@@ -8,4 +8,4 @@ services:
   redis:
     image: redis
   db:
-    image: postgres
+    image: postgres:9.4

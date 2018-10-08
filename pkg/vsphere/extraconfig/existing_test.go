@@ -14,8 +14,50 @@
 
 package extraconfig
 
-import "testing"
+import (
+	"testing"
+	"time"
 
-func TestExistingBasic(t *testing.T) {
-	t.Skip("decode into existing target tests not yet implemented")
+	"github.com/stretchr/testify/assert"
+)
+
+func TestSkipDecode(t *testing.T) {
+	type Type struct {
+		Time     time.Time `vic:"0.1" scope:"read-write" key:"time"`
+		TimeSink time.Time `vic:"0.1" scope:"read-write" key:"timesink" recurse:"skip-decode"`
+	}
+
+	Time := Type{
+		Time:     time.Date(2009, 11, 10, 23, 00, 00, 0, time.UTC),
+		TimeSink: time.Date(2009, 11, 10, 23, 00, 00, 0, time.UTC),
+	}
+
+	encoded := map[string]string{}
+	Encode(MapSink(encoded), Time)
+
+	expected := map[string]string{
+		visibleRW("time"):     "2009-11-10 23:00:00 +0000 UTC",
+		visibleRW("timesink"): "2009-11-10 23:00:00 +0000 UTC",
+	}
+
+	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
+
+	// update the time values
+	Time.Time = time.Date(2010, 11, 10, 23, 00, 00, 0, time.UTC)
+	Time.TimeSink = time.Date(2010, 11, 10, 23, 00, 00, 0, time.UTC)
+
+	// Decode into the existing structure
+	Decode(MapSource(encoded), &Time)
+
+	encoded2 := map[string]string{}
+	Encode(MapSink(encoded2), Time)
+
+	// Encode again - change in TimeSink structure should have been preserved over decode but
+	// Time should have been reset to encoded value
+	expected2 := map[string]string{
+		visibleRW("time"):     "2009-11-10 23:00:00 +0000 UTC",
+		visibleRW("timesink"): "2010-11-10 23:00:00 +0000 UTC",
+	}
+
+	assert.Equal(t, encoded2, expected2, "Encoded and expected does not match")
 }

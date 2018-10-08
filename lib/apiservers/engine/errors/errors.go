@@ -85,7 +85,7 @@ func NotFoundError(msg string) error {
 }
 
 func TaskInspectNotFoundError(msg string) error {
-	return derr.NewRequestNotFoundError(fmt.Errorf("No container was found with exec id: %s", msg))
+	return derr.NewRequestNotFoundError(fmt.Errorf("no container was found with exec id: %s", msg))
 }
 
 func TaskBindPowerError() error {
@@ -177,4 +177,26 @@ type DetachError struct{}
 
 func (DetachError) Error() string {
 	return "detached from container"
+}
+
+// LockTimeoutError is returned when a tryLock operation times out
+type LockTimeoutError struct {
+	Desc string
+}
+
+func (e LockTimeoutError) Error() string {
+	return fmt.Sprintf("LockTimeoutError error: %s", e.Desc)
+}
+
+func NewLockTimeoutError(desc string) error {
+	return LockTimeoutError{Desc: desc}
+}
+
+func IsLockTimeoutOrConflictError(err error) bool {
+	// Is Error is due to Timeout or a Conflict return true
+	if _, ok := err.(LockTimeoutError); ok {
+		return true
+	}
+
+	return IsConflictError(err)
 }

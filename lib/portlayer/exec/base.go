@@ -16,7 +16,9 @@ package exec
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -24,16 +26,18 @@ import (
 	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/mo"
-	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/migration"
+	"github.com/vmware/vic/lib/tether/shared"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
+
+var extraconfigIDKey = extraconfig.CalculateKey(executor.ExecutorConfig{}, "ExecutorConfigCommon.ID", "")
 
 // NotYetExistError is returned when a call that requires a VM exist is made
 type NotYetExistError struct {
@@ -143,11 +147,11 @@ func (c *containerBase) updates(op trace.Operation) (*containerBase, error) {
 	// Get the ExtraConfig
 	var migratedConf map[string]string
 	containerExecKeyValues := vmomi.OptionValueMap(o.Config.ExtraConfig)
-	if containerExecKeyValues["guestinfo.vice./common/id"] == "" {
+	if containerExecKeyValues[extraconfigIDKey] == "" {
 		return nil, fmt.Errorf("Update: change version %s failed assertion extraconfig id != nil", o.Config.ChangeVersion)
 	}
 
-	op.Debugf("Update: for %s, change version %s, extraconfig id: %+v", c, o.Config.ChangeVersion, containerExecKeyValues["guestinfo.vice./common/id"])
+	op.Debugf("Update: for %s, change version %s, extraconfig id: %+v", c, o.Config.ChangeVersion, containerExecKeyValues[extraconfigIDKey])
 	// #nosec: Errors unhandled.
 	base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
 	migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
@@ -217,7 +221,7 @@ func (c *containerBase) State(op trace.Operation) State {
 func (c *containerBase) ReloadConfig(op trace.Operation) error {
 	defer trace.End(trace.Begin(c.ExecConfig.ID, op))
 
-	return c.startGuestProgram(op, "reload", "")
+	return c.startGuestProgram(op, shared.GuestActionReload, "")
 }
 
 // WaitForExec waits exec'ed task to set started field or timeout
@@ -257,6 +261,18 @@ func (c *containerBase) startGuestProgram(op trace.Operation, name string, args 
 	}
 
 	_, err = m.StartProgram(op, &auth, &spec)
+
+	if tasks.IsInvalidPowerStateError(err) {
+		return err
+	}
+
+	if tasks.IsInvalidStateError(err) {
+		// we special case this for now as we _presume_ that it's either a conflict
+		// of reconfigure with guest operation, or a conflict with another guest operation.
+		// These cases do not return a TaskInProgress or concurrent modification.
+		op.Debugf("Transforming invalid state error into concurrent access for start guest program call: %#v", err)
+		return ConcurrentAccessError{errors.New("invalid state from start guest program")}
+	}
 
 	return err
 }
@@ -304,16 +320,16 @@ func (c *containerBase) kill(op trace.Operation) error {
 	sig := string(ssh.SIGKILL)
 	timeout.Infof("sending kill -%s %s", sig, c)
 
-	err := c.startGuestProgram(timeout, "kill", sig)
+	err := c.startGuestProgram(timeout, shared.GuestActionKill, sig)
 	if err == nil && timeout.Err() != nil {
 		timeout.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c, sig)
 	}
 	if err != nil {
-		timeout.Warnf("killing %s attempt resulted in: %s", c, err.Error())
-
-		if isInvalidPowerStateError(err) {
+		if tasks.IsAlreadyPoweredOffError(err) {
 			return nil
 		}
+
+		timeout.Warnf("killing %s attempt resulted in: %s", c, err.Error())
 	}
 
 	// Even if startGuestProgram failed above, it may actually have executed.  If the container came up and then
@@ -346,21 +362,29 @@ func (c *containerBase) shutdown(op trace.Operation, waitTime *int32) error {
 	}
 
 	cs := c.ExecConfig.Sessions[c.ExecConfig.ID]
-	stop := []string{cs.StopSignal, string(ssh.SIGKILL)}
-	if stop[0] == "" {
-		stop[0] = string(ssh.SIGTERM)
+
+	stopSignal := cs.StopSignal
+	if stopSignal == "" {
+		stopSignal = string(ssh.SIGTERM)
+	}
+
+	actionSignals := []struct {
+		action string
+		sig    string
+	}{
+		{shared.GuestActionKill, stopSignal},
+		{shared.GuestActionGroupKill, string(ssh.SIGKILL)},
 	}
 
 	var killed bool
-
-	for _, sig := range stop {
-		msg := fmt.Sprintf("sending kill -%s %s", sig, c)
+	for _, actionSignal := range actionSignals {
+		msg := fmt.Sprintf("sending %s -%s %s", actionSignal.action, actionSignal.sig, c)
 		op.Infof(msg)
 
 		timeout, cancel := trace.WithTimeout(&op, wait, "shutdown")
 		defer cancel()
 
-		err := c.startGuestProgram(timeout, "kill", sig)
+		err := c.startGuestProgram(timeout, actionSignal.action, actionSignal.sig)
 		if err != nil {
 			// Just warn and proceed to waiting for power state per issue https://github.com/vmware/vic/issues/5803
 			// Description above in function kill()
@@ -369,7 +393,7 @@ func (c *containerBase) shutdown(op trace.Operation, waitTime *int32) error {
 			// If the error tells us "The attempted operation cannot be performed in the current state (Powered off)" (InvalidPowerState),
 			// we can avoid hard poweroff (issues #6236 and #6252). Here we wait for the power state changes instead of return
 			// immediately to avoid excess vSphere queries
-			if isInvalidPowerStateError(err) {
+			if tasks.IsAlreadyPoweredOffError(err) {
 				killed = true
 			}
 		}
@@ -384,14 +408,14 @@ func (c *containerBase) shutdown(op trace.Operation, waitTime *int32) error {
 			return err // error other than timeout
 		}
 
-		timeout.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c, sig)
+		timeout.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c, actionSignal.sig)
 
 		if killed {
 			return nil
 		}
 	}
 
-	return fmt.Errorf("failed to shutdown %s via kill signals %s", c, stop)
+	return fmt.Errorf("failed to shutdown %s via kill signals %s and %s", c, stopSignal, string(ssh.SIGKILL))
 }
 
 func (c *containerBase) poweroff(op trace.Operation) error {
@@ -457,16 +481,31 @@ func (c *containerBase) waitForSession(ctx context.Context, id string) error {
 	defer trace.End(trace.Begin(id, ctx))
 
 	// guestinfo key that we want to wait for
-	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", id), "")[0]
+	key := extraconfig.CalculateKey(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", id), "")
 	return c.waitFor(ctx, key)
 }
 
+// WaitForExec will wait for any kind of change in the state of a task. Then it will return signifying that the a refreshed handle must be returned.
+// users can then inspect that handle to examine and act against the changes in the task.
 func (c *containerBase) waitForExec(op trace.Operation, id string) error {
 	defer trace.End(trace.Begin(id, op))
 
-	// guestinfo key that we want to wait for
-	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Execs.%s.Started", id), "")[0]
-	return c.waitFor(op, key)
+	// guestinfo keys that we want to wait for
+	startedKey := extraconfig.CalculateKey(c.ExecConfig, fmt.Sprintf("Execs.%s.Started", id), "")
+	startKey := extraconfig.CalculateKey(c.ExecConfig, fmt.Sprintf("Execs.%s.Detail.StartTime", id), "")
+	stopKey := extraconfig.CalculateKey(c.ExecConfig, fmt.Sprintf("Execs.%s.Detail.StopTime", id), "")
+
+	// targeted exec
+	execConf := c.ExecConfig.Execs[id]
+
+	// construct key filter for exec state changes
+	filter := map[string]string{
+		startedKey: execConf.Started,
+		startKey:   strconv.FormatInt(execConf.Detail.StartTime, 10),
+		stopKey:    strconv.FormatInt(execConf.Detail.StopTime, 10),
+	}
+
+	return c.vm.WaitForKeyChange(op, filter)
 }
 
 func (c *containerBase) waitFor(ctx context.Context, key string) error {
@@ -480,14 +519,4 @@ func (c *containerBase) waitFor(ctx context.Context, key string) error {
 	}
 
 	return nil
-}
-
-// isInvalidPowerStateError verifies if an error is the InvalidPowerStateError
-func isInvalidPowerStateError(err error) bool {
-	if soap.IsSoapFault(err) {
-		_, ok := soap.ToSoapFault(err).VimFault().(types.InvalidPowerState)
-		return ok
-	}
-
-	return false
 }

@@ -67,6 +67,7 @@ type Data struct {
 
 	HTTPSProxy *url.URL `cmd:"https-proxy"`
 	HTTPProxy  *url.URL `cmd:"http-proxy"`
+	NoProxy    *string  `cmd:"no-proxy"`
 	ProxyIsSet bool
 
 	NumCPUs  int `cmd:"endpoint-cpu"`
@@ -138,6 +139,7 @@ type InstallerData struct {
 
 	HTTPSProxy *url.URL
 	HTTPProxy  *url.URL
+	NoProxy    *string
 
 	// Used only for configure, so that the current state can be validated relative to the requested changes
 	CreateVMGroup bool
@@ -296,6 +298,10 @@ func (d *Data) CopyNonEmpty(src *Data) error {
 	if src.ProxyIsSet {
 		d.HTTPProxy = src.HTTPProxy
 		d.HTTPSProxy = src.HTTPSProxy
+	}
+
+	if src.NoProxy != nil {
+		d.NoProxy = src.NoProxy
 	}
 
 	if src.Debug.Debug != nil {

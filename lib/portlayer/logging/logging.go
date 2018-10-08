@@ -47,6 +47,12 @@ func Init(ctx context.Context) error {
 	return nil
 }
 
+// TODO: figure out why the Init calls are wrapped in once.Do - implies it can be called
+// multiple times, but once Finalize is called things will not be functional.
+func Finalize(ctx context.Context) error {
+	return nil
+}
+
 // listens migrated events and connects the file backed serial ports
 func eventCallback(ie events.Event) {
 	defer trace.End(trace.Begin(""))
@@ -88,7 +94,7 @@ func eventCallback(ie events.Event) {
 			return nil
 		}
 
-		if err := retry.Do(operation, exec.IsConcurrentAccessError); err != nil {
+		if err := retry.Do(op, operation, exec.IsConcurrentAccessError); err != nil {
 			op.Errorf("Multiple attempts failed to commit handle after getting %s event for container %s: %s", ie, ie.Reference(), err)
 		}
 	}

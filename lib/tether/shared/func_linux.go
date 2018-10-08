@@ -22,6 +22,10 @@ import (
 
 var Sys = system.New()
 
-func PIDFileDir() string {
-	return path.Join(Sys.Root, pidFilePath)
+func PIDFileDir(sys *system.System) string {
+	if sys == nil {
+		sys = &Sys
+	}
+
+	return path.Join(sys.Root, pidFilePath)
 }

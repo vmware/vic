@@ -16,7 +16,7 @@
 Documentation  Test 21-01 - Whitelist
 Resource  ../../resources/Util.robot
 Resource  ../../resources/Harbor-Util.robot
-Suite Setup  Wait Until Keyword Succeeds  10x  10m  Setup Harbor
+Suite Setup  Nimbus Suite Setup  Setup Harbor
 Suite Teardown  Nimbus Cleanup  ${list}  ${false}
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
@@ -42,6 +42,7 @@ Setup Harbor
     Simple ESXi Setup
 
     # Install a Harbor server with HTTPS a Harbor server with HTTP
+    Run Keyword and Ignore Error  Remove File  ${HARBOR_VERSION}.ova
     Install Harbor To Test Server  protocol=https  name=harbor-https
     Set Environment Variable  HTTPS_HARBOR_IP  %{HARBOR-IP}
 
@@ -71,7 +72,7 @@ Basic Whitelisting
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Registry Whitelist Mode: enabled
     Should Contain  ${output}  Whitelisted Registries:
-    Should Contain  ${output}  Registry: registry.hub.docker.com
+    Should Contain  ${output}  Registry: registry-1.docker.io
 
     # Try to login and pull from the HTTPS whitelisted registry (should succeed)
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u admin -p %{TEST_PASSWORD} %{HTTPS_HARBOR_IP}

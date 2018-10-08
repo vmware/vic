@@ -45,8 +45,8 @@ func (handler *TaskHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Hand
 
 // JoinHandler calls the Join
 func (handler *TaskHandlersImpl) JoinHandler(params tasks.JoinParams) middleware.Responder {
-	defer trace.End(trace.Begin(""))
-	op := trace.NewOperation(context.Background(), "task.Join(%s, %s)", params.Config.Handle, params.Config.ID)
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "task.JoinHandler(%s, %s)", params.Config.Handle, params.Config.ID)
+	defer trace.End(trace.Begin("JoinHandler", op))
 
 	handle := exec.HandleFromInterface(params.Config.Handle)
 	if handle == nil {
@@ -113,8 +113,8 @@ func (handler *TaskHandlersImpl) JoinHandler(params tasks.JoinParams) middleware
 
 // BindHandler calls the Bind
 func (handler *TaskHandlersImpl) BindHandler(params tasks.BindParams) middleware.Responder {
-	defer trace.End(trace.Begin(""))
-	op := trace.NewOperation(context.Background(), "task.Bind(%s, %s)", params.Config.Handle, params.Config.ID)
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "task.BindHandler(%s, %s)", params.Config.Handle, params.Config.ID)
+	defer trace.End(trace.Begin("BindHandler", op))
 
 	handle := exec.HandleFromInterface(params.Config.Handle)
 	if handle == nil {
@@ -148,8 +148,8 @@ func (handler *TaskHandlersImpl) BindHandler(params tasks.BindParams) middleware
 
 // UnbindHandler calls the Unbind
 func (handler *TaskHandlersImpl) UnbindHandler(params tasks.UnbindParams) middleware.Responder {
-	defer trace.End(trace.Begin(""))
-	op := trace.NewOperation(context.Background(), "task.Unbind(%s, %s)", params.Config.Handle, params.Config.ID)
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "task.UnbindHandler(%s, %s)", params.Config.Handle, params.Config.ID)
+	defer trace.End(trace.Begin("UnbindHandler", op))
 
 	handle := exec.HandleFromInterface(params.Config.Handle)
 	if handle == nil {
@@ -182,8 +182,8 @@ func (handler *TaskHandlersImpl) UnbindHandler(params tasks.UnbindParams) middle
 
 // RemoveHandler calls remove
 func (handler *TaskHandlersImpl) RemoveHandler(params tasks.RemoveParams) middleware.Responder {
-	defer trace.End(trace.Begin(""))
-	op := trace.NewOperation(context.Background(), "task.Remove(%s, %s)", params.Config.Handle, params.Config.ID)
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "task.RemoveHandler(%s, %s)", params.Config.Handle, params.Config.ID)
+	defer trace.End(trace.Begin("RemoveHandler", op))
 
 	handle := exec.HandleFromInterface(params.Config.Handle)
 	if handle == nil {
@@ -208,8 +208,8 @@ func (handler *TaskHandlersImpl) RemoveHandler(params tasks.RemoveParams) middle
 
 // InspectHandler calls inspect
 func (handler *TaskHandlersImpl) InspectHandler(params tasks.InspectParams) middleware.Responder {
-	defer trace.End(trace.Begin(""))
-	op := trace.NewOperation(context.Background(), "task.Inspect(%s, %s)", params.Config.Handle, params.Config.ID)
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "task.InspectHandler(%s, %s)", params.Config.Handle, params.Config.ID)
+	defer trace.End(trace.Begin("InspectHandler", op))
 
 	handle := exec.HandleFromInterface(params.Config.Handle)
 	if handle == nil {
@@ -233,15 +233,20 @@ func (handler *TaskHandlersImpl) InspectHandler(params tasks.InspectParams) midd
 		}
 	}
 
+	tState, err := task.State(op, handle.ExecConfig.Execs[params.Config.ID])
+	if err != nil {
+		return tasks.NewInspectInternalServerError().WithPayload(&models.Error{Message: err.Error()})
+	}
+
 	op.Debugf("ID: %#v", t.ID)
 	op.Debugf("Path: %#v", t.Cmd.Path)
 	op.Debugf("Args: %#v", t.Cmd.Args)
-	op.Debugf("Running: %#v", t.StartTime)
+	op.Debugf("State: %s", tState)
 	op.Debugf("ExitCode: %#v", t.ExitStatus)
 
 	res := &models.TaskInspectResponse{
 		ID:       t.ID,
-		Running:  t.Started == "true",
+		State:    tState,
 		ExitCode: int64(t.ExitStatus),
 		ProcessConfig: &models.ProcessConfig{
 			ExecPath: t.Cmd.Path,
@@ -265,8 +270,8 @@ func (handler *TaskHandlersImpl) InspectHandler(params tasks.InspectParams) midd
 
 // WaitHandler calls wait
 func (handler *TaskHandlersImpl) WaitHandler(params tasks.WaitParams) middleware.Responder {
-	defer trace.End(trace.Begin(""))
-	op := trace.NewOperation(context.Background(), "task.Wait(%s, %s)", params.Config.Handle, params.Config.ID)
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "task.WaitHandler(%s, %s)", params.Config.Handle, params.Config.ID)
+	defer trace.End(trace.Begin("WaitHandler", op))
 
 	handle := exec.HandleFromInterface(params.Config.Handle)
 	if handle == nil {

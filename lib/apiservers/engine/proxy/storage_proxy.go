@@ -105,13 +105,14 @@ func NewStorageProxy(client *client.PortLayer) VicStorageProxy {
 }
 
 func (s *StorageProxy) Create(ctx context.Context, name, driverName string, volumeData, labels map[string]string) (*types.Volume, error) {
-	defer trace.End(trace.Begin(""))
+	op := trace.FromContext(ctx, "VolumeCreate: %s", name)
+	defer trace.End(trace.Begin(name, op))
 
 	if s.client == nil {
 		return nil, errors.NillPortlayerClientError("StorageProxy")
 	}
 
-	result, err := s.volumeCreate(ctx, name, driverName, volumeData, labels)
+	result, err := s.volumeCreate(op, name, driverName, volumeData, labels)
 	if err != nil {
 		switch err := err.(type) {
 		case *storage.CreateVolumeConflict:
@@ -132,8 +133,9 @@ func (s *StorageProxy) Create(ctx context.Context, name, driverName string, volu
 }
 
 // volumeCreate issues a CreateVolume request to the portlayer
-func (s *StorageProxy) volumeCreate(ctx context.Context, name, driverName string, volumeData, labels map[string]string) (*types.Volume, error) {
-	defer trace.End(trace.Begin(""))
+func (s *StorageProxy) volumeCreate(op trace.Operation, name, driverName string, volumeData, labels map[string]string) (*types.Volume, error) {
+	defer trace.End(trace.Begin(name, op))
+	opID := op.ID()
 	result := &types.Volume{}
 
 	if s.client == nil {
@@ -152,7 +154,7 @@ func (s *StorageProxy) volumeCreate(ctx context.Context, name, driverName string
 	}
 	log.Infof("Finalized model for volume create request to portlayer: %#v", req)
 
-	res, err := s.client.Storage.CreateVolume(storage.NewCreateVolumeParamsWithContext(ctx).WithVolumeRequest(req))
+	res, err := s.client.Storage.CreateVolume(storage.NewCreateVolumeParamsWithContext(op).WithOpID(&opID).WithVolumeRequest(req))
 	if err != nil {
 		return result, err
 	}
@@ -161,13 +163,15 @@ func (s *StorageProxy) volumeCreate(ctx context.Context, name, driverName string
 }
 
 func (s *StorageProxy) VolumeList(ctx context.Context, filter string) ([]*models.VolumeResponse, error) {
-	defer trace.End(trace.Begin(""))
+	op := trace.FromContext(ctx, "VolumeList")
+	defer trace.End(trace.Begin("", op))
+	opID := op.ID()
 
 	if s.client == nil {
 		return nil, errors.NillPortlayerClientError("StorageProxy")
 	}
 
-	res, err := s.client.Storage.ListVolumes(storage.NewListVolumesParamsWithContext(ctx).WithFilterString(&filter))
+	res, err := s.client.Storage.ListVolumes(storage.NewListVolumesParamsWithContext(op).WithOpID(&opID).WithFilterString(&filter))
 	if err != nil {
 		switch err := err.(type) {
 		case *storage.ListVolumesInternalServerError:
@@ -183,7 +187,9 @@ func (s *StorageProxy) VolumeList(ctx context.Context, filter string) ([]*models
 }
 
 func (s *StorageProxy) VolumeInfo(ctx context.Context, name string) (*models.VolumeResponse, error) {
-	defer trace.End(trace.Begin(name))
+	op := trace.FromContext(ctx, "VolumeInfo: %s", name)
+	defer trace.End(trace.Begin(name, op))
+	opID := op.ID()
 
 	if name == "" {
 		return nil, nil
@@ -193,7 +199,7 @@ func (s *StorageProxy) VolumeInfo(ctx context.Context, name string) (*models.Vol
 		return nil, errors.NillPortlayerClientError("StorageProxy")
 	}
 
-	param := storage.NewGetVolumeParamsWithContext(ctx).WithName(name)
+	param := storage.NewGetVolumeParamsWithContext(op).WithOpID(&opID).WithName(name)
 	res, err := s.client.Storage.GetVolume(param)
 	if err != nil {
 		switch err := err.(type) {
@@ -208,13 +214,15 @@ func (s *StorageProxy) VolumeInfo(ctx context.Context, name string) (*models.Vol
 }
 
 func (s *StorageProxy) Remove(ctx context.Context, name string) error {
-	defer trace.End(trace.Begin(name))
+	op := trace.FromContext(ctx, "VolumeRemove: %s", name)
+	defer trace.End(trace.Begin(name, op))
+	opID := op.ID()
 
 	if s.client == nil {
 		return errors.NillPortlayerClientError("StorageProxy")
 	}
 
-	_, err := s.client.Storage.RemoveVolume(storage.NewRemoveVolumeParamsWithContext(ctx).WithName(name))
+	_, err := s.client.Storage.RemoveVolume(storage.NewRemoveVolumeParamsWithContext(op).WithOpID(&opID).WithName(name))
 	if err != nil {
 		switch err := err.(type) {
 		case *storage.RemoveVolumeNotFound:
@@ -237,7 +245,9 @@ func (s *StorageProxy) Remove(ctx context.Context, name string) error {
 // returns:
 //	modified handle
 func (s *StorageProxy) AddVolumesToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
-	defer trace.End(trace.Begin(handle))
+	op := trace.FromContext(ctx, "AddVolumesToContainer: %s", handle)
+	defer trace.End(trace.Begin(handle, op))
+	opID := op.ID()
 
 	if s.client == nil {
 		return "", errors.NillPortlayerClientError("StorageProxy")
@@ -285,7 +295,7 @@ func (s *StorageProxy) AddVolumesToContainer(ctx context.Context, handle string,
 		// NOTE: calling volumeCreate regardless of whether the volume is already
 		// present can be avoided by adding an extra optional param to VolumeJoin,
 		// which would then call volumeCreate if the volume does not exist.
-		_, err := s.volumeCreate(ctx, fields.ID, "vsphere", volumeData, nil)
+		_, err := s.volumeCreate(op, fields.ID, "vsphere", volumeData, nil)
 		if err != nil {
 			switch err := err.(type) {
 			case *storage.CreateVolumeConflict:
@@ -304,11 +314,13 @@ func (s *StorageProxy) AddVolumesToContainer(ctx context.Context, handle string,
 		flags := make(map[string]string)
 		//NOTE: for now we are passing the flags directly through. This is NOT SAFE and only a stop gap.
 		flags[constants.Mode] = fields.Flags
-		joinParams := storage.NewVolumeJoinParamsWithContext(ctx).WithJoinArgs(&models.VolumeJoinConfig{
-			Flags:     flags,
-			Handle:    handle,
-			MountPath: fields.Dest,
-		}).WithName(fields.ID)
+		joinParams := storage.NewVolumeJoinParamsWithContext(op).
+			WithOpID(&opID).
+			WithJoinArgs(&models.VolumeJoinConfig{
+				Flags:     flags,
+				Handle:    handle,
+				MountPath: fields.Dest,
+			}).WithName(fields.ID)
 
 		res, err := s.client.Storage.VolumeJoin(joinParams)
 		if err != nil {
@@ -331,13 +343,18 @@ func (s *StorageProxy) AddVolumesToContainer(ctx context.Context, handle string,
 }
 
 // allContainers obtains all containers from the portlayer, akin to `docker ps -a`.
-func (s *StorageProxy) allContainers(ctx context.Context) ([]*models.ContainerInfo, error) {
+func (s *StorageProxy) allContainers(op trace.Operation) ([]*models.ContainerInfo, error) {
+	defer trace.End(trace.Begin("", op))
+	opID := op.ID()
+
 	if s.client == nil {
 		return nil, errors.NillPortlayerClientError("StorageProxy")
 	}
 
 	all := true
-	cons, err := s.client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(ctx).WithAll(&all))
+	cons, err := s.client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(op).
+		WithOpID(&opID).
+		WithAll(&all))
 	if err != nil {
 		return nil, err
 	}
@@ -347,8 +364,9 @@ func (s *StorageProxy) allContainers(ctx context.Context) ([]*models.ContainerIn
 
 // fetchJoinedVolumes obtains all containers from the portlayer and returns a map with all
 // volumes that are joined to at least one container.
-func (s *StorageProxy) fetchJoinedVolumes(ctx context.Context) (map[string]struct{}, error) {
-	conts, err := s.allContainers(ctx)
+func (s *StorageProxy) fetchJoinedVolumes(op trace.Operation) (map[string]struct{}, error) {
+	defer trace.End(trace.Begin("", op))
+	conts, err := s.allContainers(op)
 	if err != nil {
 		return nil, errors.VolumeInternalServerError(err)
 	}
@@ -410,6 +428,10 @@ func createVolumeMetadata(req *models.VolumeRequest, driverargs, labels map[stri
 // to at least one other container, and calls the portlayer to remove this container's
 // anonymous volumes if they are dangling. Errors, if any, are only logged.
 func RemoveAnonContainerVols(ctx context.Context, pl *client.PortLayer, cID string, vc *viccontainer.VicContainer) {
+	op := trace.FromContext(ctx, "RemoveAnonContainerVols: %s", cID)
+	defer trace.End(trace.Begin(cID, op))
+	opID := op.ID()
+
 	// NOTE: these strings come in the form of <volume id>:<destination>:<volume options>
 	volumes := vc.Config.Volumes
 	// NOTE: these strings come in the form of <volume id>:<destination path>
@@ -428,7 +450,7 @@ func RemoveAnonContainerVols(ctx context.Context, pl *client.PortLayer, cID stri
 	}
 
 	proxy := StorageProxy{client: pl}
-	joinedVols, err := proxy.fetchJoinedVolumes(ctx)
+	joinedVols, err := proxy.fetchJoinedVolumes(op)
 	if err != nil {
 		log.Errorf("Unable to obtain joined volumes from portlayer, skipping removal of anonymous volumes for %s: %s", cID, err.Error())
 		return
@@ -449,7 +471,7 @@ func RemoveAnonContainerVols(ctx context.Context, pl *client.PortLayer, cID stri
 		_, isNamed := namedMaskList[volPath]
 		_, joined := joinedVols[volName]
 		if !joined && !isNamed {
-			_, err := pl.Storage.RemoveVolume(storage.NewRemoveVolumeParamsWithContext(ctx).WithName(volName))
+			_, err := pl.Storage.RemoveVolume(storage.NewRemoveVolumeParamsWithContext(op).WithOpID(&opID).WithName(volName))
 			if err != nil {
 				log.Debugf("Unable to remove anonymous volume %s in container %s: %s", volName, cID, err.Error())
 				continue

@@ -110,6 +110,20 @@ func Init(ctx context.Context, sess *session.Session) error {
 	return nil
 }
 
+func Finalize(ctx context.Context) error {
+	op := trace.NewOperation(context.Background(), "Shutdown")
+	defer trace.End(trace.Begin("", op))
+
+	storage.Finalize(op)
+	store.Finalize(ctx)
+	exec.Finalize(op)
+	network.Finalize(ctx)
+	logging.Finalize(ctx)
+	metrics.Finalize(op)
+
+	return nil
+}
+
 // TakeCareOfSerialPorts disconnects serial ports backed by network on the VCH's old IP and connects serial ports backed by file.
 // This is useful when the appliance or the portlayer restarts and the VCH has a new IP or container vms gets migrated
 // Any errors are logged and portlayer init proceeds as usual.
@@ -182,7 +196,7 @@ func TakeCareOfSerialPorts(sess *session.Session) {
 			return nil
 		}
 
-		if err := retry.Do(operation, exec.IsConcurrentAccessError); err != nil {
+		if err := retry.Do(op, operation, exec.IsConcurrentAccessError); err != nil {
 			op.Errorf("Multiple attempts failed for committing the handle with %s", err)
 		}
 	}

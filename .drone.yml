@@ -57,6 +57,24 @@ pipeline:
     when:
       status: success
 
+  vic-engine-isos:
+    image: 'gcr.io/eminent-nation-87317/vic-build-image:tdnf'
+    pull: true
+    environment:
+      BIN: bin
+      GOPATH: /go
+      SHELL: /bin/bash
+    secrets:
+      - drone_server
+      - drone_token
+      - github_automation_api_key
+      - codecov_token
+    commands:
+      - export BUILD_NUMBER=${DRONE_BUILD_NUMBER}
+      - make isos
+    when:
+      status: success
+
   vic-engine:
     image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
     pull: true
@@ -128,50 +146,6 @@ pipeline:
     when:
       status: success
 
-  vic-ui:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
-    pull: true
-    environment:
-     BIN: bin
-    secrets:
-      - gs_client_email
-      - gs_private_key
-      - gs_project_id
-    commands:
-      - 'export BUILD_NUMBER=${DRONE_BUILD_NUMBER}'
-      - 'mkdir -p $BIN/ui'
-      - 'export LATEST_VIC_UI_BUILD="$(gsutil ls -l ''gs://vic-ui-builds'' | grep -v TOTAL | grep vic_ | sort -k2 -r | (trap '' '' PIPE; head -1))"'
-      - 'export VIC_UI_URL=$(echo $LATEST_VIC_UI_BUILD | xargs | cut -d " " -f 3 | sed "s|gs://|https://storage.googleapis.com/|")'
-      - 'wget -nv $VIC_UI_URL -P $BIN'
-      - 'tar -xvzf $BIN/vic_ui_*.tar.gz'
-      - 'ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1'
-      - 'rm $BIN/vic_ui_*.tar.gz'
-    when:
-      event: push
-      status: [success, failure]
-
-  vic-ui-release:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
-    pull: true
-    environment:
-      BIN: bin
-    secrets:
-      - gs_client_email
-      - gs_private_key
-      - gs_project_id
-    commands:
-      - 'export BUILD_NUMBER=${DRONE_BUILD_NUMBER}'
-      - 'mkdir -p $BIN/ui'
-      - 'export LATEST_VIC_UI_RELEASE="$(gsutil ls -l ''gs://vic-ui-releases'' | grep -v TOTAL | grep vic_ | sort -k2 -r | (trap '' '' PIPE; head -1))"'
-      - 'export VIC_UI_URL=$(echo $LATEST_VIC_UI_RELEASE | xargs | cut -d " " -f 3 | sed "s|gs://|https://storage.googleapis.com/|")'
-      - 'wget -nv $VIC_UI_URL -P $BIN'
-      - 'tar -xvzf $BIN/vic_ui_*.tar.gz'
-      - 'ls -la ./$BIN && ./$BIN/ui/sync-vic-ui-version.sh -p bin/ 2>&1'
-      - 'rm $BIN/vic_ui_*.tar.gz'
-    when:
-      branch: ['releases/*']
-      event: tag
-
   bundle:
     image: 'wdc-harbor-ci.eng.vmware.com/default-project/golang:1.8'
     pull: true
@@ -183,11 +157,9 @@ pipeline:
     commands:
       - 'rm -rf $BIN_TEMP_DIR'
       - 'mkdir -p $BIN_TEMP_DIR'
-      - 'mv $BIN/ui $BIN_TEMP_DIR'
       - 'cp LICENSE $BIN_TEMP_DIR'
       - 'cp doc/bundle/README $BIN_TEMP_DIR'
       - 'cp $BIN/vic-machine* $BIN_TEMP_DIR'
-      - 'cp $BIN/vic-ui* $BIN_TEMP_DIR'
       - 'cp $BIN/appliance.iso $BIN_TEMP_DIR'
       - 'cp $BIN/bootstrap.iso $BIN_TEMP_DIR'
       - 'mkdir -p $BIN_TEMP_DIR/autocomplete/bash'
@@ -206,27 +178,56 @@ pipeline:
       - 'mkdir bundle'
       - 'mkdir bundle-release'
       - 'cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle'
-      - 'cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle-release/vic_`git describe --tags --abbrev=0)`.tar.gz'
+      - 'cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle-release/vic_$(git describe --tags --abbrev=0).tar.gz'
     when:
       repo: vmware/vic
-      branch: [master, 'releases/*']
-      event: [push, tag]
       status: [success, failure]
 
-  publish-gcs-builds-on-pass:
+  publish-gcs-builds-for-pr:
     image: 'victest/drone-gcs:1'
     pull: true
     secrets:
       - google_key
     source: bundle
-    target: vic-engine-builds
+    target: vic-engine-pr-builds/pull/${DRONE_PULL_REQUEST}/
+    acl:
+      - 'allUsers:READER'
+    cache_control: 'public,max-age=3600'
+    when:
+      repo: vmware/vic
+      event: pull_request
+      status: success
+
+  publish-gcs-builds-on-master-push-pass:
+    image: 'victest/drone-gcs:1'
+    pull: true
+    secrets:
+      - google_key
+    source: bundle
+    target: vic-engine-builds/
     acl:
       - 'allUsers:READER'
     cache_control: 'public,max-age=3600'
     when:
       repo: vmware/vic
       event: push
-      branch: [master, 'releases/*']
+      branch: [master]
+      status: success
+
+  publish-gcs-builds-on-release-push-pass:
+    image: 'victest/drone-gcs:1'
+    pull: true
+    secrets:
+      - google_key
+    source: bundle
+    target: vic-engine-builds/${DRONE_BRANCH}/
+    acl:
+      - 'allUsers:READER'
+    cache_control: 'public,max-age=3600'
+    when:
+      repo: vmware/vic
+      event: push
+      branch: ['releases/*']
       status: success
 
   publish-gcs-builds-on-fail:
@@ -235,7 +236,7 @@ pipeline:
     secrets:
       - google_key
     source: bundle
-    target: vic-engine-failed-builds
+    target: vic-engine-failed-builds/
     acl:
       - 'allUsers:READER'
     cache_control: 'public,max-age=3600'
@@ -251,13 +252,13 @@ pipeline:
     secrets:
       - google_key
     source: bundle-release
-    target: vic-engine-releases
+    target: vic-engine-releases/
     acl:
       - 'allUsers:READER'
     cache_control: 'public,max-age=3600'
     when:
       repo: vmware/vic
-      branch: ['releases/*']
+      branch: ['releases/*', 'refs/tags/*']
       event: tag
       status: success
 
@@ -289,7 +290,7 @@ pipeline:
     when:
       repo: vmware/vic
       event: tag
-      branch: 'releases/*'
+      branch: ['releases/*', 'refs/tags/*']
       status: success
 
   vic-machine-server-publish:
@@ -302,20 +303,22 @@ pipeline:
     when:
       repo: vmware/vic
       event: [push, tag]
-      branch: [master, 'releases/*']
+      branch: [master, 'releases/*', 'refs/tags/*']
       status: success
 
   trigger-downstream:
-    image: 'gcr.io/eminent-nation-87317/vic-downstream-trigger:1.0'
+    image: 'gcr.io/eminent-nation-87317/vic-downstream-trigger:1.3'
     environment:
       SHELL: /bin/bash
+      DOWNSTREAM_REPO: vmware/vic-product
+      DOWNSTREAM_BRANCH: ${DRONE_BRANCH}
     secrets:
       - drone_server
       - drone_token
     when:
       repo: vmware/vic
       event: [push, tag]
-      branch: [master, 'releases/*']
+      branch: [master, 'releases/*', 'refs/tags/*']
       status: success
 
   notify-slack-on-fail:
@@ -328,7 +331,7 @@ pipeline:
     when:
       repo: vmware/vic
       event: [push, tag]
-      branch: [master, 'releases/*']
+      branch: [master, 'releases/*', 'refs/tags/*']
       status: failure
 
   notify-slack-on-pass:
@@ -353,12 +356,12 @@ pipeline:
     template: "The latest version of VIC engine has been released, find the build here: https://console.cloud.google.com/storage/browser/vic-engine-releases\n"
     when:
       repo: vmware/vic
-      branch: ['releases/*']
+      branch: ['releases/*', 'refs/tags/*']
       event: tag
       status: success
 
   pass-rate:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-pass-rate:1.0'
     pull: true
     environment:
       BIN: bin
@@ -366,8 +369,8 @@ pipeline:
     secrets:
       - github_automation_api_key
       - slack_url
-    commands:
-      - tests/pass-rate.sh
     when:
+      repo: vmware/vic
+      event: [push, tag]
+      branch: [master, 'releases/*']
       status: [success, failure]
-

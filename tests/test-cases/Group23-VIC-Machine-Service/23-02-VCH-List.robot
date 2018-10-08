@@ -27,7 +27,7 @@ Setup
     Install VIC Appliance To Test Server
 
 Teardown
-    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
+    Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
     Stop VIC Machine Server
 
 Get VCH List
@@ -46,6 +46,7 @@ Verify VCH List
     Property Should Not Be Empty    .vchs[] | select(.name=="%{VCH-NAME}").docker_host
     Property Should Not Be Empty    .vchs[] | select(.name=="%{VCH-NAME}").upgrade_status
     Property Should Not Be Empty    .vchs[] | select(.name=="%{VCH-NAME}").version
+    Property Should Not Be Empty    .vchs[] | select(.name=="%{VCH-NAME}").parent
 
 Get VCH List Using Session
     Get Path Under Target Using Session    vch

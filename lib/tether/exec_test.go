@@ -73,7 +73,7 @@ func TestExec(t *testing.T) {
 	<-mocker.Started
 
 	// at this point the primary process should be up and running, so grab the pid
-	result := ExecutorConfig{}
+	result := executor.ExecutorConfig{}
 	extraconfig.Decode(src, &result)
 
 	for result.Sessions["primary"].Started != "true" {
@@ -291,7 +291,7 @@ func TestExecHalt(t *testing.T) {
 	<-mocker.Started
 
 	// at this point the primary process should be up and running, so grab the pid
-	result := ExecutorConfig{}
+	result := executor.ExecutorConfig{}
 	extraconfig.Decode(src, &result)
 
 	for result.Sessions["primary"].Started != "true" {
