@@ -651,8 +651,8 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 			Direct:      endpoint.Network.Type == constants.ExternalScopeType,
 		}
 
-		if !ip.IsUnspecifiedIP(endpoint.Network.Gateway.IP) {
-			ep.Gateway = endpoint.Network.Gateway.String()
+		if !ip.IsUnspecifiedIP(endpoint.Network.Assigned.Gateway.IP) {
+			ep.Gateway = endpoint.Network.Assigned.Gateway.IP.String()
 		}
 
 		if !ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
