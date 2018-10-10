@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -26,8 +27,7 @@ import (
 	"github.com/vmware/vic/lib/tether"
 )
 
-// TODO(morris-jason): Not sure this is the best file path. Open to suggestions.
-const entropyConfigPath = "/.tether/opt/config/entropy.txt"
+var entropyConfigPath = path.Join(tether.BindSys.Root, "opt/config/entropy.txt")
 
 // Entropy is a tether extension that wraps command
 type Entropy struct {
