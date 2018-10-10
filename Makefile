@@ -113,8 +113,6 @@ bootstrap := $(BIN)/bootstrap.iso
 bootstrap-custom := $(BIN)/bootstrap-$(REPO).iso
 bootstrap-staging := $(BIN)/.bootstrap-staging.tgz
 bootstrap-staging-custom := $(BIN)/.bootstrap-staging-$(REPO).tgz
-bootstrap-staging-debug := $(BIN)/.bootstrap-staging-debug.tgz
-bootstrap-debug := $(BIN)/bootstrap-debug.iso
 iso-base := $(BIN)/.iso-base-photon-2.0.tgz
 iso-base-custom := $(BIN)/.iso-base-$(REPO).tgz
 
@@ -143,8 +141,6 @@ bootstrap: $(bootstrap)
 bootstrap-custom: $(bootstrap-custom)
 bootstrap-staging: $(bootstrap-staging)
 bootstrap-staging-custom: $(bootstrap-staging-custom)
-bootstrap-debug: $(bootstrap-debug)
-bootstrap-staging-debug: $(bootstrap-staging-debug)
 iso-base: $(iso-base)
 iso-base-custom: $(iso-base-custom)
 
@@ -444,10 +440,6 @@ $(bootstrap-custom): isos/bootstrap.sh $(tether-linux) $(archive) $(bootstrap-st
 	@echo "Making custom bootstrap iso"
 	@$(TIME) $(DOCKER_BUILD) -d $(REPO) $< -p $(bootstrap-staging-custom) -b $(BIN) -o $(notdir $@)
 
-$(bootstrap-debug): isos/bootstrap.sh $(tether-linux) $(archive) $(rpctool) $(bootstrap-staging-debug) isos/bootstrap/*
-	@echo "Making bootstrap-debug iso"
-	@$(TIME) $(DOCKER_BUILD) $< -p $(bootstrap-staging-debug) -b $(BIN) -d true
-
 $(bootstrap-staging): isos/bootstrap-staging.sh $(iso-base) isos/base/repos/photon-2.0/*
 	@echo staging for bootstrap
 	@$(TIME) $(DOCKER_BUILD) $< -c $(BIN)/.yum-cache-photon-2.0.tgz -p $(iso-base) -o $@
@@ -455,11 +447,6 @@ $(bootstrap-staging): isos/bootstrap-staging.sh $(iso-base) isos/base/repos/phot
 $(bootstrap-staging-custom): isos/bootstrap-staging.sh $(iso-base-custom) isos/base/repos/$(REPO)/*
 	@echo custom staging for bootstrap
 	@$(TIME) $(DOCKER_BUILD) -d $(REPO) $< -c $(BIN)/.yum-cache-$(REPO).tgz -p $(iso-base-custom) -o $@
-
-$(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base)
-	@echo staging debug for bootstrap
-	@$(TIME) $(DOCKER_BUILD) $< -c $(BIN)/.yum-cache-photon-2.0.tgz -p $(iso-base) -o $@ -d true
-
 
 # vic-machine targets
 $(vic-machine-linux): $$(call godeps,cmd/vic-machine/*.go)

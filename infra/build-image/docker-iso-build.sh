@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash
 # Copyright 2016 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,8 @@
 # runs the given command in a container with iso build dependencies
 set -e && [ -n "$DEBUG" ] && set -x
 
-function main {  
-  which jq >/dev/null 2>&1
-  [ ! $? -eq 0 ] && "Echo please install 'jq' to continue..." && exit 1
-
-  REPO=$(cat isos/base/repos/$1/repo-spec.json | jq -r '.packagemanager')
+function main {
+  PKGMGR=$(cat isos/base/repos/$1/repo-spec.json | jq -r '.packagemanager')
   shift
 
   rmArg=""
@@ -35,11 +32,9 @@ function main {
   -v $GOPATH/bin:/go/bin:ro \
   -v $GOPATH/src/github.com/vmware/vic:/go/src/github.com/vmware/vic:ro \
   -v $GOPATH/src/github.com/vmware/vic/bin:/go/src/github.com/vmware/vic/bin \
-  -w /go/src/github.com/vmware/vic \
-  -e TERM=linux \
   -e DEBUG=${DEBUG} \
   -e BUILD_NUMBER=${BUILD_NUMBER} \
-  gcr.io/eminent-nation-87317/vic-build-image:${REPO:-tdnf} /bin/bash -c "$*"
+  gcr.io/eminent-nation-87317/vic-build-image:${PKGMGR:-tdnf} /bin/bash -c "$*"
 }
 
 REPO="photon-2.0"
@@ -51,9 +46,14 @@ while getopts ':d:' flag; do
 done
 shift $((OPTIND-1))
 
+# Check if jq is available - we need this on either path
+which jq >/dev/null 2>&1
+[ $? -ne 0 ] && "Echo please install 'jq' to continue..." && exit 1
+
 echo "building $REPO"
-if [[ -f "/proc/1/cgroup" && -n "$(grep docker /proc/1/cgroup)" ]]; then
-  /bin/bash -c "$*" # prevent docker in docker
+# Check if docker installed
+if ! docker info >/dev/null 2>&1; then
+   /bin/bash -c "$*" # prevent docker in docker
 else
-  main "${REPO}" "$@"
+   main "${REPO}" "$@"
 fi

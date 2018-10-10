@@ -30,7 +30,7 @@ echo "Usage: $0 -p pull-request OR -b github_user/branch" 1>&2
 exit 1
 }
 
-while getopts "p:b:" flag
+while getopts "p:b:h" flag
 do
     case $flag in
 
@@ -38,38 +38,50 @@ do
             # Optional. Pull request number
             pull_req="$OPTARG"
             github_user=vmware
+
+            refspec=refs/pull/${pull_req}/head:refs/remotes/origin/pr/${pull_req}
+            localbranch=pr/${pull_req}
             ;;
 
         b)
             # Optional. Branch specifier
-            # bit of an abuse of dirname/basename but hey, / separators
-            github_user=$(dirname $OPTARG)
-            branch=$(basename $OPTARG)
-            ;;
+            github_user=${OPTARG%%/*}
+            branch=${OPTARG#*/}
 
-        *)
+            refspec=refs/heads/${branch}:refs/remotes/origin/${branch}
+            localbranch=origin/${branch}
+            ;;
+        h)
             usage
+            ;;
+        *)
+            break
             ;;
     esac
 done
 
 shift $((OPTIND-1))
 
-# check there were no extra args and the required ones are set
-if [ ! -z "$*" -o -z "${github_user}" -o -n "${pull_req}" -a -n "${branch}" ]; then
-    usage
+mkdir -p ${SRCDIR:?Expected script to be run with SRCDIR set} && cd ${SRCDIR}
+url=https://github.com/${github_user}/vic
+
+if ! git remote show -n origin >/dev/null 2>&1 ; then
+    git init . && git remote add origin ${url}
 fi
 
-mkdir -p ${SRCDIR:?Expected script to be run with SRCDIR set} && cd ${SRCDIR} && git init .
-git remote add origin https://github.com/${github_user}/vic
-
-if [ ! -z ${pull_req} ]; then
-    git fetch origin --depth=5 -v refs/pull/${pull_req}/head:refs/remotes/origin/pr/${pull_req}
-    git checkout pr/${pull_req}
-elif [ ! -b ${branch} ]; then
-    git fetch origin --depth=5 -v refs/heads/${branch}:refs/remotes/origin/${branch}
-    git checkout origin/${branch}
+if [ ! -z ${refspec} ]; then
+    # we don't limit the depth as that was resulting in failure to find the most recent tag for a given commit
+    git fetch origin -v ${refspec}
+    if [ "$(git rev-parse --abbrev-ref HEAD)" != "$branch" ]; then
+        git checkout -b ${branch} ${localbranch}
+    fi
+    # try to fast-forward but just checkout if that fails
+    git pull --ff-only || git checkout ${localbranch}
 fi
 
-# drop to interactive shell
-exec bash
+if [ $# -ne 0 ]; then
+    exec bash -c "$*"
+else
+    # drop to interactive shell after running any 
+    exec bash
+fi

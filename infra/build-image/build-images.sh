@@ -12,16 +12,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# This file builds the docker images vic-build-image.tdnf vic-build-image.yum
+# when there are changes to the dockerfiles that warrant an image update in gcr.
 set -ex;
 
 REV=$(git rev-parse --verify --short=8 HEAD)
-REPO="gcr.io/eminent-nation-87317"
+REGISTRY="gcr.io/eminent-nation-87317"
 IMAGE="vic-build-image"
 
-for DEP in yum tdnf; do
-    docker build -t "$IMAGE-$DEP:$REV" -f ./infra/build-image/Dockerfile.$DEP .
-    docker tag "$IMAGE-$DEP:$REV" "$REPO/$IMAGE:$DEP"
-    docker tag "$IMAGE-$DEP:$REV" "$REPO/$IMAGE:$DEP-$REV"
-    # gcloud docker -- push "$REPO/$IMAGE:$DEP"
-    # gcloud docker -- push "$REPO/$IMAGE:$DEP-$REV"
+for PKGMGR in yum tdnf; do
+    docker build -t "$IMAGE-$PKGMGR:$REV" -f ./infra/build-image/Dockerfile.$PKGMGR ./infra/build-image
+    docker tag "$IMAGE-$PKGMGR:$REV" "$REGISTRY/$IMAGE:$PKGMGR"
+    docker tag "$IMAGE-$PKGMGR:$REV" "$REGISTRY/$IMAGE:$PKGMGR-$REV"
+    # gcloud docker -- push "$REGISTRY/$IMAGE:$PKGMGR"
+    # gcloud docker -- push "$REGISTRY/$IMAGE:$PKGMGR-$REV"
 done
