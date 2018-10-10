@@ -71,5 +71,8 @@ elif [ ! -b ${branch} ]; then
     git checkout origin/${branch}
 fi
 
+# Fix tags not available
+git fetch --tags
+
 # drop to interactive shell
 exec bash
