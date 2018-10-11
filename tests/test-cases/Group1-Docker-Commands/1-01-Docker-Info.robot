@@ -26,6 +26,7 @@ Get resource pool CPU and mem limits
     ${cpuline}=  Get Lines Containing String  ${info}  CPUs:
     ${memline}=  Get Lines Containing String  ${info}  Total Memory:
     @{cpuline}=  Split String  ${cpuline}
+    Log @{cpuline}
     Length Should Be  ${cpuline}  2
     @{memline}=  Split String  ${memline}
     Length Should Be  ${memline}  4
