@@ -32,7 +32,7 @@ install-entropy () {
     # a. json config with rtld, rtld args, binary, binary args, chroot?
     # b. Go plugins for tether extensions
     cat - > $1/opt/config/entropy.txt <<ENTROPY
-/.tether/lib64/ld-linux-x86-64.so.2 --library-path /.tether/lib64/ /.tether/bin/rngd "\$@"
+/.tether/lib64/ld-linux-x86-64.so.2 --library-path /.tether/lib64/ /.tether/bin/rngd -v --no-tpm=1
 ENTROPY
 }
 
