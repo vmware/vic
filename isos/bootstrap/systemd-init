@@ -35,11 +35,19 @@ mknod -m 444 /dev/urandom c 1 9
 chown root:tty /dev/{console,ptmx,tty}
 
 mkdir -p /dev/{pts,shm}
-mount -t devpts -o gid=4,mode=620 none /dev/pts
+# attempt with ptmxmode first
+mount -t devpts -o gid=5,mode=620,ptmxmode=666 none /dev/pts || mount -t devpts -o gid=5,mode=620 none /dev/pts
 mount -t tmpfs none /dev/shm
 
-/usr/lib/systemd/systemd-udevd --daemon
+# don't use `--daemon` option so that we can easily get the pid to kill it later
+/usr/lib/systemd/systemd-udevd &
+UDEV_PID=$!
+
 udevadm trigger
+
+echo 'Bring up loopback interface'
+until ifconfig lo;do sleep 0.1;done
+ifconfig lo up
 
 # launch the main entry point
 echo "######## Launching bootstrap entrypoint ########"

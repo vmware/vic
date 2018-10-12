@@ -15,6 +15,15 @@
 #
 set -x
 
+# kernel modules to load
+drivers=(
+    "nf_nat_redirect" \
+    "xt_REDIRECT" \
+    "nf_reject_ipv4" \
+    "nfsv3" \
+    "lockd" \
+)
+
 # Usage: copies entropy source to target system. Creates the following
 # executable in the target filesystem to launch the actual entropy source:
 # /bin/entropy - should exec the target binary with any arguments required

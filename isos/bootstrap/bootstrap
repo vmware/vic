@@ -6,23 +6,21 @@ echo 1 > /proc/sys/net/ipv4/conf/all/arp_notify
 echo 1 > /proc/sys/net/ipv4/conf/default/arp_notify
 
 # depending on kernel, some may already be loaded or built in
+# this appends to any defined in a "drivers" arayy via repo customizations
 echo "Loading drivers"
-drivers=( \
+drivers+=( \
     "vmw_pvscsi" \
     "vmxnet3" \
 	"nfnetlink" \
 	"iptable_filter" \
 	"xt_conntrack" \
-    "nf_nat_redirect" \
-    "xt_REDIRECT" \
     "nf_nat_ipv4" \
     "iptable_nat" \
 	"nf_conntrack" \
 	"nf_conntrack_ipv4" \
 	"nf_defrag_ipv4" \
 	"ipt_REJECT"\
-	"nf_reject_ipv4"\
-	"nfsv3" \
+	"xt_state" \
 )
 
 
@@ -107,21 +105,36 @@ if timeout -s KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}
     # TEMP: https://github.com/vmware/vic/issues/6279
     echo 262144 > /proc/sys/vm/max_map_count
 
-    until [[ $(ls -1 /dev/disk/by-label | wc -l) -eq $(ls -1 /sys/block | grep -v ram | grep -v loop | wc -l) ]]; do sleep 0.1;done
+    # mount the cgroup hierarchy to allow DinV
+    if [ -d /sys/fs/cgroup ];then
+        mount -t cgroup -o all cgroup /sys/fs/cgroup
+    fi
+
+    until [[ $(ls -1 /dev/disk/by-label | wc -l) -eq $(ls -1 /sys/block/ | grep -v 'loop*' | grep -v 'ram*' | wc -l) ]]; do sleep 0.1;done
+
+    # stop udevd if we've recorded the pid to be removed - udev rules are likely not available in the container.
+    # if we need hotadd support in the container then we need to copy the rules over to /.tether
+    if [[ "${UDEV_PID}" != "" ]]; then
+        kill ${UDEV_PID}
+    fi
 
     echo "switching to the new mount"
     if systemctl; then
-        systemctl switch-root ${MOUNTPOINT} /.tether/tether 2>&1
+        systemctl switch-root ${MOUNTPOINT} /.tether/tether >/dev/console 2>/dev/console
     elif [[ "$(readlink /usr/sbin/switch_root)" == *"toybox"* ]]; then # see https://github.com/landley/toybox/issues/91
         mount --move /sys ${MOUNTPOINT}/sys
         mount --move /proc ${MOUNTPOINT}/proc
         mount --move /dev ${MOUNTPOINT}/dev
-        exec switch_root ${MOUNTPOINT} /.tether/tether 2>&1 
+        exec switch_root ${MOUNTPOINT} /.tether/tether >/dev/console 2>/dev/console
     else
-        exec switch_root ${MOUNTPOINT} /.tether/tether 2>&1 
+        exec switch_root ${MOUNTPOINT} /.tether/tether >/dev/console 2>/dev/console
         # if successful then nothing after this point executes
-        echo "Failed to switch to the new mount"
     fi
+
+    # if we fail to switch root then restore output to the debug file and note the problem
+    err=$?
+    exec >/dev/ttyS1 2>&1
+    echo "Failed to switch to the new mount: $err"
 else
     # TODO: what do we do here? we really need to somehow report an error
     # fail hard

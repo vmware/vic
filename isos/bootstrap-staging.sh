@@ -87,6 +87,9 @@ script=$(cat $REPODIR/repo-spec.json | jq -r '.packages_script_staging.bootstrap
 STAGING_PKGS=$(cat $REPODIR/repo-spec.json | jq -r '.packages.bootstrap')
 [ -n "$STAGING_PKGS" ] && package_cached -c $cache -u -p $PKGDIR install $STAGING_PKGS --nogpgcheck -y
 
+# preform a repo customization if needed
+[ -f $REPODIR/staging.sh ] && . $REPODIR/staging.sh
+
 # ensure we're not including a cache in the staging bundle
 # but don't update the cache bundle we're using to install
 package_cached -p $PKGDIR clean all
