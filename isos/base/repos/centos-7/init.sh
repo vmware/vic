@@ -33,7 +33,7 @@ install-entropy () {
     # b. Go plugins for tether extensions
     cat - > $1/bin/entropy <<ENTROPY
 #!/bin/sh
-exec /.tether/lib64/ld-linux-x86-64.so.2 --library-path /.tether/lib64/ /.tether/bin/rngd "\$@"
+exec /.tether/lib64/ld-linux-x86-64.so.2 --library-path /.tether/lib64/ /.tether/bin/rngd -v --no-tpm=1
 ENTROPY
 
     chmod a+x $1/bin/entropy
