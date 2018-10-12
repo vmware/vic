@@ -31,7 +31,9 @@ tempfs_target_list=('/lib/modules/*' \
     '/lib64/ld-*' \
     '/usr/lib/iptables' \
     '/lib/libhavege.so.1' \
-    '/usr/sbin/haveged')
+    '/usr/sbin/haveged' \
+    '/sbin/rngd' \
+    )
 
 # Build the bootstrap filesystem ontop of the base
 
@@ -145,7 +147,7 @@ cp ${REPODIR}/init.sh $(rootfs_dir $PKGDIR)/bin/repoinit
 # match the directories/files that are actually copied into tempfs
 # by the script isos/bootstrap/bootstrap and the repo specific init.sh scripts.
 target_list=$(rootfs_prepend $PKGDIR "${tempfs_target_list[@]}")
-size=$(du -m --total ${target_list} | tail -1 | cut -f 1)
+size=$(du -m --total ${target_list} 2>/dev/null | tail -1 | cut -f 1)
 # 20% overhead should give a little more than 80M for stripped binaries
 overhead=$(( size / 5 ))
 size=$(( size + overhead ))
