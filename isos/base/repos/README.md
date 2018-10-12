@@ -31,7 +31,8 @@ This is the example repo spec for photon-2.0:
 Each repository folder under isos/base/repos consists of:
 
  - `init.sh`            - Functions needed by bootstrap to set the entropy and iptables config paths.
- - `base.sh`            - An extra script to run during the base filesystem layout if needed.
+ - `base.sh`            - An extra script to run at the start of the base filesystem layout if needed.
+ - `staging.sh`         - An extra script to run after the staging step if filesystem modification is needed (see packages_script_staging for package level modification).
  - `distro.repo`        - A yum-compatible specification of the desired repositories for package downloads, added to /etc/yum.repos.d/.
  - `repo-spec.json`     - The repository specification. See below.
 
