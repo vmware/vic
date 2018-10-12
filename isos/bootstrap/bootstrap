@@ -6,23 +6,21 @@ echo 1 > /proc/sys/net/ipv4/conf/all/arp_notify
 echo 1 > /proc/sys/net/ipv4/conf/default/arp_notify
 
 # depending on kernel, some may already be loaded or built in
+# this appends to any defined in a "drivers" arayy via repo customizations
 echo "Loading drivers"
-drivers=( \
+drivers+=( \
     "vmw_pvscsi" \
     "vmxnet3" \
 	"nfnetlink" \
 	"iptable_filter" \
 	"xt_conntrack" \
-    "nf_nat_redirect" \
-    "xt_REDIRECT" \
     "nf_nat_ipv4" \
     "iptable_nat" \
 	"nf_conntrack" \
 	"nf_conntrack_ipv4" \
 	"nf_defrag_ipv4" \
 	"ipt_REJECT"\
-	"nf_reject_ipv4"\
-	"nfsv3" \
+	"xt_state" \
 )
 
 

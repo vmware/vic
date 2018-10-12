@@ -15,6 +15,12 @@
 #
 set -x
 
+# kernel modules to load
+drivers=(
+    "nfs" \
+    "lockd" \
+)
+
 # Usage: copies entropy source to target system. Creates the following
 # executable in the target filesystem to launch the actual entropy source:
 # /bin/entropy - should exec the target binary with any arguments required
