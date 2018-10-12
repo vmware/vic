@@ -4,7 +4,7 @@
 # docker run -v $(pwd):/go/src/github.com/vmware/vic gcr.io/eminent-nation-87317/vic-build-image:yum make isos
 #
 # To build this image:
-# docker build -t vic-build-image-yum -f infra/build-image/Dockerfile.yum .
+# docker build -t vic-build-image-yum -f infra/build-image/Dockerfile.yum infra/build-image/
 # docker tag vic-build-image-yum gcr.io/eminent-nation-87317/vic-build-image:yum
 # gcloud auth login
 # gcloud docker -- push gcr.io/eminent-nation-87317/vic-build-image:yum
@@ -19,7 +19,6 @@ ENV TERM linux
 WORKDIR ${SRCDIR}
 
 # rpm used for initialize_bundle - tdnf seems to require rpm -initdb to work
-# kmod is needed for depmod command
 # need the following for configure
 #   expr for xorriso configure which toybox doesn't have
 #   sed
@@ -35,16 +34,17 @@ WORKDIR ${SRCDIR}
 # xorriso is used for building iso file
 # epel-release allow yum to install packages and dependencies
 RUN set -ex; \
+    yum install -y epel-release; \
     yum install -y \
-    jq cpio git tar gzip make rpm kmod sed gcc \
-    binutils glibc-devel epel-release xorriso;
+    jq cpio git tar gzip make rpm sed gcc \
+    binutils glibc-devel xorriso;
 
 ADD https://dl.google.com/go/go1.8.7.linux-amd64.tar.gz /tmp/go.tgz
 RUN cd /usr/local && tar -zxf /tmp/go.tgz 
 
 RUN mkdir -p ${SRCDIR}
 
-COPY infra/build-image/setup-repo.sh /usr/local/bin
+COPY setup-repo.sh /usr/local/bin
 RUN chmod a+x /usr/local/bin/setup-repo.sh
 
 # ENTRYPOINT [ "/usr/local/bin/setup-repo.sh" ]
