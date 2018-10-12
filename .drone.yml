@@ -57,7 +57,7 @@ pipeline:
     when:
       status: success
 
-  vic-engine-isos:
+  vic-engine:
     image: 'gcr.io/eminent-nation-87317/vic-build-image:tdnf'
     pull: true
     environment:
@@ -71,11 +71,11 @@ pipeline:
       - codecov_token
     commands:
       - export BUILD_NUMBER=${DRONE_BUILD_NUMBER}
-      - make isos
+      - make all
     when:
       status: success
 
-  vic-engine:
+  vic-unit-test:
     image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
     pull: true
     environment:
@@ -88,8 +88,6 @@ pipeline:
       - github_automation_api_key
       - codecov_token
     commands:
-      - export BUILD_NUMBER=${DRONE_BUILD_NUMBER}
-      - make all
       - tests/unit-test-check.sh
     when:
       status: success
