@@ -17,10 +17,7 @@
 # runs the given command in a container with iso build dependencies
 set -e && [ -n "$DEBUG" ] && set -x
 
-function main {  
-  which jq >/dev/null 2>&1
-  [ $? -ne 0 ] && "Echo please install 'jq' to continue..." && exit 1
-
+function main {
   PKGMGR=$(cat isos/base/repos/$1/repo-spec.json | jq -r '.packagemanager')
   shift
 
@@ -49,14 +46,14 @@ while getopts ':d:' flag; do
 done
 shift $((OPTIND-1))
 
+# Check if jq is available - we need this on either path
+which jq >/dev/null 2>&1
+[ $? -ne 0 ] && "Echo please install 'jq' to continue..." && exit 1
+
 echo "building $REPO"
 # Check if docker installed
-set +e
-docker info 2>/dev/null
-retval=$?
-set -e
-if [ $retval -ne 0 ]; then
-  /bin/bash -c "$*" # prevent docker in docker
+if ! docker info >/dev/null 2>&1; then
+   /bin/bash -c "$*" # prevent docker in docker
 else
-  main "${REPO}" "$@"
+   main "${REPO}" "$@"
 fi
