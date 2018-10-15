@@ -60,6 +60,9 @@ const (
 	VICAdminHTTPProxy  = "VICADMIN_HTTP_PROXY"
 	VICAdminHTTPSProxy = "VICADMIN_HTTPS_PROXY"
 	VICAdminNoProxy    = "NO_PROXY"
+	PortLayerCSPath    = "CS_PATH"
+	PortLayerPoolPath  = "POOL_PATH"
+	PortLayerDCPath    = "DC_PATH"
 
 	AddPerms = "ADD"
 )
