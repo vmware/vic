@@ -40,12 +40,12 @@ RUN tdnf erase -y toybox && \
     tdnf install -y jq cpio git tar gzip make xz gawk rpm kmod sed which \
     gcc binutils glibc-devel linux-api-headers findutils xorriso
 
-ADD https://dl.google.com/go/go1.8.7.linux-amd64.tar.gz /tmp/go.tgz
+ADD https://dl.google.com/go/go1.8.6.linux-amd64.tar.gz /tmp/go.tgz
 RUN cd /usr/local && tar -zxf /tmp/go.tgz 
 
 RUN mkdir -p ${SRCDIR}
 
-COPY setup-repo.sh /usr/local/bin
+COPY infra/build-image/setup-repo.sh /usr/local/bin
 RUN chmod a+x /usr/local/bin/setup-repo.sh
 
 # ENTRYPOINT [ "/usr/local/bin/setup-repo.sh" ]
