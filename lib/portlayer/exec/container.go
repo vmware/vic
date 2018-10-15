@@ -147,6 +147,8 @@ type ContainerInfo struct {
 
 	state State
 
+	MemorySizeMB int32
+
 	// Size of the leaf (unused)
 	VMUnsharedDisk int64
 }
@@ -946,6 +948,8 @@ func convertInfraContainers(ctx context.Context, sess *session.Session, vms []mo
 		if v.Summary.Storage != nil {
 			c.VMUnsharedDisk = v.Summary.Storage.Unshared
 		}
+
+		c.MemorySizeMB = v.Summary.Config.MemorySizeMB
 
 		cons = append(cons, c)
 	}

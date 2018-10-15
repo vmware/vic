@@ -60,6 +60,7 @@ const (
 	VICAdminHTTPProxy  = "VICADMIN_HTTP_PROXY"
 	VICAdminHTTPSProxy = "VICADMIN_HTTPS_PROXY"
 	VICAdminNoProxy    = "NO_PROXY"
+	PortLayerDCPath    = "DC_PATH"
 
 	AddPerms = "ADD"
 )
@@ -158,6 +159,8 @@ type Network struct {
 type Storage struct {
 	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
 	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
+	// Storage quota for images and container vms
+	StorageQuota int64 `vic:"0.1" scope:"read-only" key:"storage_quota"`
 	// Permitted datastore URL roots for volumes
 	// Keyed by the volume store name (which is used by the docker user to
 	// refer to the datstore + path), valued by the datastores and the path.

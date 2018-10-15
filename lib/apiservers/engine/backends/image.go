@@ -348,6 +348,14 @@ func (i *ImageBackend) PullImage(ctx context.Context, image, tag string, metaHea
 	op := trace.NewOperation(context.Background(), "PullImage: %s", image)
 	defer trace.End(trace.Audit(image, op))
 
+	valid, err := validateStorageQuota()
+	if err != nil {
+		return err
+	}
+	if !valid {
+		return fmt.Errorf("Storage quota exceeds")
+	}
+
 	log.Debugf("PullImage: image = %s, tag = %s, metaheaders = %+v\n", image, tag, metaHeaders)
 
 	//***** Code from Docker 1.13 PullImage to convert image and tag to a ref
@@ -451,6 +459,24 @@ func (i *ImageBackend) SearchRegistryForImages(ctx context.Context, filtersArgs 
 }
 
 // Utility functions
+
+func validateStorageQuota() (bool, error) {
+	// 0 means unlimited
+	if vchConfig.Cfg.StorageQuota == 0 {
+		return true, nil
+	}
+	vmStorageUsage := cache.ContainerCache().VMStorageSize()
+	imageStorageUsage, err := cache.ImageCache().GetImageStorageUsage()
+	if err != nil {
+		log.Errorf("failed to get image storage usage: %v", err)
+		return false, err
+	}
+
+	if vchConfig.Cfg.StorageQuota > imageStorageUsage+vmStorageUsage {
+		return true, nil
+	}
+	return false, nil
+}
 
 func convertV1ImageToDockerImage(image *metadata.ImageConfig) *types.ImageSummary {
 	var labels map[string]string

@@ -50,9 +50,11 @@ import (
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/convert"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/filter"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/kv"
 	engerr "github.com/vmware/vic/lib/apiservers/engine/errors"
 	"github.com/vmware/vic/lib/apiservers/engine/network"
 	"github.com/vmware/vic/lib/apiservers/engine/proxy"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -128,6 +130,8 @@ var (
 
 	// allow mocking
 	randomName = namesgenerator.GetRandomName
+
+	kvlock sync.Mutex
 )
 
 func init() {
@@ -685,9 +689,17 @@ func (c *ContainerBackend) ContainerCreate(config types.ContainerCreateConfig) (
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
 
+	valid, err := checkStorageQuota(PortLayerClient(), &config)
+	if err != nil {
+		return containertypes.ContainerCreateCreatedBody{}, err
+	}
+	if !valid {
+		return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestForbiddenError(errors.New("Storage quota exceeds"))
+	}
+
 	// Create a container representation in the personality server.  This representation
 	// will be stored in the cache if create succeeds in the port layer.
-	container, err := createInternalVicContainer(image, &config)
+	container, err := createInternalVicContainer(image)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
@@ -783,6 +795,11 @@ func (c *ContainerBackend) containerCreate(op trace.Operation, vc *viccontainer.
 	}
 
 	err = c.containerProxy.CommitContainerHandle(op, h, id, -1)
+	if err != nil {
+		return id, err
+	}
+
+	err = updateStorageUsage(PortLayerClient(), config.HostConfig, true)
 	if err != nil {
 		return id, err
 	}
@@ -950,10 +967,18 @@ func (c *ContainerBackend) ContainerRm(name string, config *types.ContainerRmCon
 			return c.containerProxy.Remove(op, vc, config)
 		}
 
-		return retry.Do(op, operation, engerr.IsConflictError)
+		err := retry.Do(op, operation, engerr.IsConflictError)
+		if err != nil {
+			return err
+		}
+		return updateStorageUsage(PortLayerClient(), vc.HostConfig, false)
 	}
 
-	return c.containerProxy.Remove(op, vc, config)
+	err := c.containerProxy.Remove(op, vc, config)
+	if err != nil {
+		return err
+	}
+	return updateStorageUsage(PortLayerClient(), vc.HostConfig, false)
 }
 
 // cleanupPortBindings gets port bindings for the container and
@@ -1833,7 +1858,7 @@ func clientFriendlyContainerName(name string) string {
 
 // createInternalVicContainer() creates an container representation (for docker personality)
 // This is called by ContainerCreate()
-func createInternalVicContainer(image *metadata.ImageConfig, config *types.ContainerCreateConfig) (*viccontainer.VicContainer, error) {
+func createInternalVicContainer(image *metadata.ImageConfig) (*viccontainer.VicContainer, error) {
 	// provide basic container config via the image
 	container := viccontainer.NewVicContainer()
 	container.LayerID = image.V1Image.ID // store childmost layer ID to map to the proper vmdk
@@ -2118,6 +2143,53 @@ func (c *ContainerBackend) validateContainerLogsConfig(vc *viccontainer.VicConta
 	}
 
 	return tailLines, since.Unix(), nil
+}
+
+// initial implementation: read value from kvstore/storage_usage + container vm's mem(swap) + image_disk_size
+// TODO improve implementation to consider log files
+func checkStorageQuota(client *client.PortLayer, config *types.ContainerCreateConfig) (bool, error) {
+	// 0 means unlimited
+	if vchConfig.Cfg.StorageQuota == 0 {
+		return true, nil
+	}
+
+	vmStorageUsage := cache.ContainerCache().VMStorageSize()
+	imageStorageUsage, err := cache.ImageCache().GetImageStorageUsage()
+	if err != nil {
+		log.Errorf("failed to get image storage usage: %v", err)
+		return false, err
+	}
+
+	if vchConfig.Cfg.StorageQuota > imageStorageUsage+vmStorageUsage+config.HostConfig.Memory*units.MiB+vchConfig.Cfg.ScratchSize*units.KB {
+		return true, nil
+	}
+	return false, nil
+}
+
+// update storage usage into kv store so configure quota check can read out
+// initial implementation: kvstore/storage_usage + container vm's mem(swap) + image_disk_size
+// TODO improve implementation to consider log files
+func updateStorageUsage(client *client.PortLayer, hostConfig *containertypes.HostConfig, isCreate bool) error {
+	kvlock.Lock()
+	defer kvlock.Unlock()
+
+	storageUsageBytes, err := kv.Get(client, "storage.usage")
+	if err != nil && err != kv.ErrKeyNotFound {
+		return err
+	}
+	storageUsage, _ := strconv.ParseInt(string(storageUsageBytes), 10, 64)
+	if isCreate {
+		storageUsage += hostConfig.Memory*units.MiB + vchConfig.Cfg.ScratchSize*units.KB
+	} else {
+		storageUsage -= hostConfig.Memory*units.MiB + vchConfig.Cfg.ScratchSize*units.KB
+		// storage usage should always be non negative
+		if storageUsage < 0 {
+			storageUsage = 0
+		}
+	}
+
+	kv.Put(client, "storage.usage", strconv.FormatInt(storageUsage, 10))
+	return nil
 }
 
 func CreateContainerEventActorWithAttributes(vc *viccontainer.VicContainer, attributes map[string]string) eventtypes.Actor {

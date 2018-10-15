@@ -21,6 +21,9 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/stretchr/testify/assert"
 
+	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/go-units"
+
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -82,6 +85,14 @@ func TestValidateContainerFilters(t *testing.T) {
 		ContainerID: "12345",
 		Name:        "fuzzy",
 	}
+	cache.SetVMScratchSize(8 * units.GiB)
+	resources := containertypes.Resources{
+		Memory: 2048,
+	}
+	hostConfig := containertypes.HostConfig{
+		Resources: resources,
+	}
+	containerBefore.HostConfig = &hostConfig
 	cache.ContainerCache().AddContainer(containerBefore)
 
 	// successful before validation

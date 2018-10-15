@@ -117,6 +117,7 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 	api.StorageExportArchiveHandler = storage.ExportArchiveHandlerFunc(h.ExportArchive)
 	api.StorageImportArchiveHandler = storage.ImportArchiveHandlerFunc(h.ImportArchive)
 	api.StorageStatPathHandler = storage.StatPathHandlerFunc(h.StatPath)
+	api.StorageGetImageStorageUsageHandler = storage.GetImageStorageUsageHandlerFunc(h.GetImageStorageUsage)
 }
 
 func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerCtx *HandlerContext) {
@@ -730,6 +731,20 @@ func (h *StorageHandlersImpl) StatPath(params storage.StatPathParams) middleware
 		WithSize(fileStat.Size).
 		WithModTime(string(modTimeBytes))
 
+}
+
+// ListImages returns a list of images in a store
+func (h *StorageHandlersImpl) GetImageStorageUsage(params storage.GetImageStorageUsageParams) middleware.Responder {
+	op := trace.NewOperationFromID(context.Background(), params.OpID, "GetImageStorageUsage(%s)", params.StoreName)
+	defer trace.End(trace.Begin("GetImageStorageUsage", op))
+
+	result, err := h.imageCache.DataStore.GetImageStorageUsage(op)
+	if err != nil {
+		op.Errorf("Error gettting image storage usage: %s", err)
+		return storage.NewGetImageStorageUsageDefault(500)
+	}
+
+	return storage.NewGetImageStorageUsageOK().WithPayload(result)
 }
 
 //utility functions

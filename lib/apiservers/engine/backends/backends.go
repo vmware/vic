@@ -95,7 +95,7 @@ type dynConfig struct {
 	lastCfg *dynConfig
 }
 
-func Init(portLayerAddr, product string, port uint, config *config.VirtualContainerHostConfigSpec) error {
+func Init(portLayerAddr, product string, port uint, staticConfig *config.VirtualContainerHostConfigSpec) error {
 	op := trace.NewOperation(context.Background(), "backends.Init")
 
 	network.Init()
@@ -106,14 +106,14 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 		return err
 	}
 
-	if config == nil {
+	if staticConfig == nil {
 		return fmt.Errorf("docker API server requires VCH config")
 	}
 
 	productName = product
 
-	if config.Version != nil {
-		productVersion = config.Version.ShortVersion()
+	if staticConfig.Version != nil {
+		productVersion = staticConfig.Version.ShortVersion()
 	}
 	if productVersion == "" {
 		portLayerName = product + " Backend Engine"
@@ -121,7 +121,7 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 		portLayerName = product + " " + productVersion + " Backend Engine"
 	}
 
-	if vchConfig, err = newDynConfig(op, config); err != nil {
+	if vchConfig, err = newDynConfig(op, staticConfig); err != nil {
 		return err
 	}
 
@@ -140,7 +140,7 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 	// the vic-machine installer timeout will intervene if this blocks for too long
 	pingPortLayer()
 
-	if err := hydrateCaches(op); err != nil {
+	if err := hydrateCaches(op, vchConfig.Cfg.ScratchSize); err != nil {
 		return err
 	}
 
@@ -169,7 +169,7 @@ func Finalize(ctx context.Context) error {
 	return nil
 }
 
-func hydrateCaches(op trace.Operation) error {
+func hydrateCaches(op trace.Operation, vs int64) error {
 	const waiters = 3
 
 	wg := sync.WaitGroup{}
@@ -196,7 +196,7 @@ func hydrateCaches(op trace.Operation) error {
 
 		// container cache relies on image cache so we share a goroutine to update
 		// them serially
-		if err := syncContainerCache(op); err != nil {
+		if err := syncContainerCache(op, vs); err != nil {
 			errChan <- fmt.Errorf("Failed to update container cache: %s", err)
 			return
 		}
@@ -299,7 +299,7 @@ func createImageStore(op trace.Operation) error {
 }
 
 // syncContainerCache runs once at startup to populate the container cache
-func syncContainerCache(op trace.Operation) error {
+func syncContainerCache(op trace.Operation, vs int64) error {
 	log.Debugf("Updating container cache")
 
 	backend := NewContainerBackend()
@@ -313,6 +313,8 @@ func syncContainerCache(op trace.Operation) error {
 
 	log.Debugf("Found %d containers", len(containme.Payload))
 	cc := cache.ContainerCache()
+	cache.SetVMScratchSize(vchConfig.Cfg.ScratchSize)
+
 	var errs []string
 	for _, info := range containme.Payload {
 		container := proxy.ContainerInfoToVicContainer(*info, portLayerName)

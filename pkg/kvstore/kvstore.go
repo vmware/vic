@@ -82,7 +82,7 @@ func NewKeyValueStore(ctx context.Context, store Backend, name string) (KeyValue
 		return nil, err
 	}
 
-	log.Infof("NewKeyValueStore(%s) restored %d keys", name, len(p.kv))
+	log.Debugf("NewKeyValueStore(%s) restored %d keys", name, len(p.kv))
 
 	return p, nil
 }

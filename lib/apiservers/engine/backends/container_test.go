@@ -33,6 +33,9 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/stretchr/testify/assert"
 
+	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/go-units"
+
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/convert"
@@ -42,6 +45,7 @@ import (
 	plscopes "github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	plmodels "github.com/vmware/vic/lib/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
@@ -437,11 +441,20 @@ func AddMockContainerToCache() {
 
 	image, err := cache.ImageCache().Get("e732471cb81a564575aad46b9510161c5945deaf18e9be3db344333d72f0b4b2")
 	if err == nil {
+		cache.SetVMScratchSize(8 * units.GiB)
+
 		vc := viccontainer.NewVicContainer()
 		vc.ImageID = image.ID
 		vc.Config = image.Config //Set defaults.  Overrides will get copied below.
 		vc.Config.Tty = false
 		vc.ContainerID = dummyContainerID
+		resources := containertypes.Resources{
+			Memory: 2048,
+		}
+		hostConfig := containertypes.HostConfig{
+			Resources: resources,
+		}
+		vc.HostConfig = &hostConfig
 		cache.ContainerCache().AddContainer(vc)
 
 		vc = viccontainer.NewVicContainer()
@@ -449,6 +462,7 @@ func AddMockContainerToCache() {
 		vc.Config = image.Config
 		vc.Config.Tty = true
 		vc.ContainerID = dummyContainerIDTTY
+		vc.HostConfig = &hostConfig
 		cache.ContainerCache().AddContainer(vc)
 
 		vc = viccontainer.NewVicContainer()
@@ -456,6 +470,7 @@ func AddMockContainerToCache() {
 		vc.Config = image.Config
 		vc.Config.Tty = false
 		vc.ContainerID = fakeContainerID
+		vc.HostConfig = &hostConfig
 		cache.ContainerCache().AddContainer(vc)
 	}
 }
@@ -555,6 +570,16 @@ func TestCreateHandle(t *testing.T) {
 	cb := &ContainerBackend{
 		containerProxy: mockContainerProxy,
 		storageProxy:   mockStorageProxy,
+	}
+
+	storagecfg := config.Storage{
+		StorageQuota: 0,
+	}
+	cfg := &config.VirtualContainerHostConfigSpec{
+		Storage: storagecfg,
+	}
+	vchConfig = &dynConfig{
+		Cfg: cfg,
 	}
 
 	AddMockImageToCache()

@@ -296,7 +296,7 @@ Use Target VIC Appliance
     [Return]  ${True}
 
 Conditional Install VIC Appliance To Test Server
-    [Arguments]  ${certs}=${true}  ${init}=${False}
+    [Arguments]  ${certs}=${true}  ${init}=${False}  ${additional-args}=${EMPTY}
     ${target-vch}=  Get Environment Variable  TARGET_VCH  ${EMPTY}
     ${multi-vch}=  Get Environment Variable  MULTI_VCH  ${EMPTY}
 
@@ -304,7 +304,7 @@ Conditional Install VIC Appliance To Test Server
     Run Keyword If  '${target-vch}' != '${EMPTY}'  Use Target VIC Appliance  target-vch=${target-vch}
     Return From Keyword If  '${target-vch}' != '${EMPTY}'  ${True}
 
-    Install VIC Appliance To Test Server  certs=${certs}
+    Install VIC Appliance To Test Server  certs=${certs}  additional-args=${additional-args}
 
     # If MULT_VCH set to 1, then we are in multi VCH mode, otherwise, we are in single VCH mode
     ${single-vch-mode}=  Run Keyword If  '${multi-vch}' == '1'  Set Variable  ${False}

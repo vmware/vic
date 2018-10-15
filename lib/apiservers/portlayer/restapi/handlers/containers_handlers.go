@@ -583,6 +583,7 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 	info.ContainerConfig.Names = []string{container.ExecConfig.Name}
 	info.ContainerConfig.RestartCount = int64(container.ExecConfig.Diagnostics.ResurrectionCount)
 	info.ContainerConfig.StorageSize = container.VMUnsharedDisk
+	info.ContainerConfig.MemorySizeMB = int64(container.MemorySizeMB)
 
 	if container.ExecConfig.Annotations != nil && len(container.ExecConfig.Annotations) > 0 {
 		info.ContainerConfig.Annotations = make(map[string]string)

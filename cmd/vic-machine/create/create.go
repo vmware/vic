@@ -27,6 +27,8 @@ import (
 
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/docker/go-units"
+
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
@@ -286,10 +288,11 @@ func (c *Create) Flags() []cli.Flag {
 	proxies := c.Proxies.ProxyFlags()
 	debug := c.DebugFlags(true)
 	help := c.help.HelpFlags()
+	squota := c.VCHStorageQuotaFlag()
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, compute, ops, create, affinity, container, volume, dns, networks, cNetwork, memory, cpu, tls, registries, proxies, syslog, iso, util, debug, help} {
+	for _, f := range [][]cli.Flag{target, compute, ops, create, affinity, container, volume, dns, networks, cNetwork, memory, cpu, squota, tls, registries, proxies, syslog, iso, util, debug, help} {
 		flags = append(flags, f...)
 	}
 
@@ -690,6 +693,15 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	if err != nil {
 		op.Error("Create cannot continue: configuration validation failed")
 		return err
+	}
+
+	if c.StorageQuotaGB != nil {
+		err = validator.ValidateStorageQuota(op, *c.StorageQuotaGB, nil, false)
+		if err != nil {
+			op.Error("Configuring cannot continue: storage quota validation failed")
+			return err
+		}
+		vchConfig.StorageQuota = int64(*c.StorageQuotaGB) * units.GiB
 	}
 
 	// persist cli args used to create the VCH
