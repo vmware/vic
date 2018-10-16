@@ -59,11 +59,6 @@ fi
 
 REPO=${REPO:-photon-2.0}
 
-if [[ $DRONE_BUILD_NUMBER && $DRONE_BUILD_NUMBER > 0 ]]; then
-    # THIS SHOULD BE MOVED TO .drone.yml AS IT OVERRIDES THE -r OPTION
-    REPO="ci"
-fi
-
 REPODIR="$DIR/base/repos/${REPO}/"
 PACKAGE_MANAGER=$(cat $REPODIR/repo-spec.json | jq -r '.packagemanager')
 PACKAGE_MANAGER=${PACKAGE_MANAGER:-tdnf}
