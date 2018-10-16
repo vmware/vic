@@ -103,6 +103,7 @@ func TestValidator(t *testing.T) {
 		conf := testCompute(ctx, validator, input, t)
 		testTargets(ctx, validator, input, conf, t)
 		testStorage(ctx, validator, input, conf, t)
+		testNetwork(ctx, validator, input, conf, t)
 	}
 }
 
@@ -512,6 +513,31 @@ func testStorage(ctx context.Context, v *Validator, input *data.Data, conf *conf
 		}
 		v.issues = nil
 		conf.VolumeLocations = nil
+	}
+}
+
+
+func testNetwork(ctx context.Context, v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
+	op := trace.FromContext(ctx, "testNetwork")
+	tests := []struct {
+		path   string
+		vc     bool
+		hasErr bool
+	}{
+		{"/DC0/network/overlay-logical-switch", true, false},
+		{"/DC0/network/bridge", true, false},
+	}
+    for _, test := range tests {
+		t.Logf("%+v", test)
+		input.BridgeNetworkName = test.path
+		v.network(op, input, conf)
+		v.ListIssues(op)
+		if !test.hasErr {
+			assert.Equal(t, 0, len(v.issues))
+		} else {
+			assert.True(t, len(v.issues) > 0, "Error checking network for")
+		}
+		v.issues = nil
 	}
 }
 
