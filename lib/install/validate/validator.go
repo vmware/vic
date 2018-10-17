@@ -488,9 +488,11 @@ func (v *Validator) credentials(op trace.Operation, input *data.Data, conf *conf
 
 	if input.Thumbprint != "" {
 		// if any thumprint is specified, then object if there's a mismatch
-		soapClient = soap.NewClient(stripped, false)
+                op.Debugf("Building client for validation of operations credentials with thumbprint=%s, force=%t", conf.TargetThumbprint, input.Force)
+		soapClient = soap.NewClient(stripped, input.Force)
 		soapClient.SetThumbprint(stripped.Host, conf.TargetThumbprint)
 	} else {
+                op.Debugf("Building client for validation of operations credentials without a thumbprint, force=%t", input.Force)
 		soapClient = soap.NewClient(stripped, input.Force)
 	}
 	soapClient.UserAgent = "vice-validator"
