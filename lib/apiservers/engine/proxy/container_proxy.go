@@ -1152,6 +1152,13 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 		nc.Ports = append(nc.Ports, fromPortbinding(p, cc.HostConfig.PortBindings[p])...)
 	}
 
+	if len(cc.HostConfig.DNS) > 0 {
+		for _, dns := range cc.HostConfig.DNS {
+			if dns != "" {
+				nc.Nameservers = append(nc.Nameservers, dns)
+			}
+		}
+	}
 	return nc
 }
 
@@ -1280,15 +1287,14 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 	hostConfig.Resources = resourceConfig
 	hostConfig.DNS = make([]string, 0)
 
-	if len(info.Endpoints) > 0 {
-		for _, ep := range info.Endpoints {
-			for _, dns := range ep.Nameservers {
-				if dns != "" {
-					hostConfig.DNS = append(hostConfig.DNS, dns)
-				}
+	if len(vc.HostConfig.DNS) > 0 {
+		for _, dns := range vc.HostConfig.DNS {
+			if dns != "" {
+				hostConfig.DNS = append(hostConfig.DNS, dns)
 			}
 		}
-
+	}
+	if len(info.Endpoints) > 0 {
 		hostConfig.NetworkMode = container.NetworkMode(info.Endpoints[0].Scope)
 	}
 

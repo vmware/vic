@@ -3354,6 +3354,12 @@
 					"items": {
 						"type": "string"
 					}
+				},
+				"nameservers": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
 				}
 			}
 		},
