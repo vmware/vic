@@ -168,3 +168,23 @@ Docker inspect container with specified hostname
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Config.Hostname}}' test-hostname
     Should Be Equal  ${out}  testhostname
+
+Docker inspect container with specified DNS
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --dns=8.8.8.8 --name=test-with-specified-dns busybox sleep 600
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${container}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  8.8.8.8
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
+    Should Be Equal As Integers  ${rc}  0
+
+Docker inspect container with multiple specified DNS
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --dns=8.8.8.8 --dns=8.8.8.9 --name=test-with-multiple-specified-dns busybox sleep 600
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${container}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  8.8.8.8
+    Should Contain  ${output}  8.8.8.9
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
+    Should Be Equal As Integers  ${rc}  0
+
