@@ -118,6 +118,10 @@ func (c *containerBase) refresh(op trace.Operation) error {
 	return nil
 }
 
+func (c *containerBase) GetContainerVM() *vm.VirtualMachine {
+	return c.vm
+}
+
 // updates acquires updates from the infrastructure without holding a lock
 func (c *containerBase) updates(op trace.Operation) (*containerBase, error) {
 	defer trace.End(trace.Begin(c.ExecConfig.ID, op))

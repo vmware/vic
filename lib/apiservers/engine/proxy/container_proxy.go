@@ -1460,7 +1460,7 @@ func networkFromContainerInfo(vc *viccontainer.VicContainer, info *models.Contai
 			IPv6Gateway:         "", //Get from Scope PL
 			GlobalIPv6Address:   "", //Get from Scope PL
 			GlobalIPv6PrefixLen: 0,  //Get from Scope PL
-			MacAddress:          "", //Container endpoints currently do not have mac addr yet
+			MacAddress:          ep.Macaddress,
 		}
 
 		if ep.Address != "" {

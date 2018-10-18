@@ -169,6 +169,14 @@ Docker inspect container with specified hostname
     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Config.Hostname}}' test-hostname
     Should Be Equal  ${out}  testhostname
 
+Docker inspect for macaddress
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name=test-macaddress -d busybox sleep 600
+    Should Be Equal As Integers  ${rc}  0
+    Sleep  60s
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{range .NetworkSettings.Networks}}{{.MacAddress}}{{end}}' ${container}
+    Should Be Equal As Integers  ${rc}  0
+    Should Match Regexp  ${output}  ^([0-9a-f]{2}[:-]){5}([0-9a-f]{2})$
+
 Docker inspect container with specified DNS
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --dns=8.8.8.8 --name=test-with-specified-dns busybox sleep 600
     Should Be Equal As Integers  ${rc}  0

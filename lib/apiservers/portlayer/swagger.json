@@ -3245,6 +3245,10 @@
 				"direct": {
 					"x-nullable": false,
 					"type": "boolean"
+				},
+				"macaddress": {
+					"x-nullable": false,
+					"type": "string"
 				}
 			}
 		},
