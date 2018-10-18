@@ -492,12 +492,22 @@ func (r datastoreReader) open() (entry, error) {
 		req.AddCookie(ticket)
 	}
 
-	res, err := r.ds.Client().Do(req)
-	if err != nil {
+	res := make(chan entry, 1)
+
+	err = r.ds.Client().Do(r.ctx, req, func(response *http.Response) error {
+		e, err := httpEntry(r.path, response)
+
+		res <- e
+
+		return err
+	})
+
+	select {
+	case e := <-res:
+		return e, err
+	default:
 		return nil, err
 	}
-
-	return httpEntry(r.path, res)
 }
 
 // stripCredentials removes user credentials from "in"
