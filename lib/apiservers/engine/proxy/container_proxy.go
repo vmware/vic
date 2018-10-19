@@ -1361,7 +1361,7 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 	// Copy the working copy of our container's config
 	container := *vc.Config
 
-	if info.ContainerConfig.ContainerID != "" {
+	if container.Hostname == "" && info.ContainerConfig.ContainerID != "" {
 		container.Hostname = stringid.TruncateID(info.ContainerConfig.ContainerID) // Hostname
 	}
 	if info.ContainerConfig.AttachStdin != nil {

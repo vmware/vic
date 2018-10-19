@@ -163,6 +163,12 @@ Docker inspect container status
     ${stopped}=  Get container inspect status  ${container}
     Should Contain  ${stopped}  exited
 
+Docker inspect container with specified hostname
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -h testhostname --name=test-hostname -d ${busybox} sleep 600
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Config.Hostname}}' test-hostname
+    Should Be Equal  ${out}  testhostname
+
 Docker inspect for macaddress
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name=test-macaddress -d busybox sleep 600
     Should Be Equal As Integers  ${rc}  0
