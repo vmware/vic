@@ -191,7 +191,12 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 		updateSessionEnv(vicAdminSession, config.VICAdminNoProxy, nProxy)
 	}
 
+	// update renamed datacenter or cluster into session
 	if c.ComputeResourcePath != "" {
+		updateSessionArgs(vicAdminSession, config.VICAdminDCPath, v.Session().Datacenter.Name())
+		updateSessionArgs(vicAdminSession, config.VICAdminPoolPath, v.Session().PoolPath)
+		updateSessionArgs(vicAdminSession, config.VICAdminCSPath, v.Session().Cluster.InventoryPath)
+
 		updateSessionEnv(portlayerSession, config.PortLayerCSPath, v.Session().Cluster.InventoryPath)
 		updateSessionEnv(portlayerSession, config.PortLayerPoolPath, v.Session().PoolPath)
 		updateSessionEnv(portlayerSession, config.PortLayerDCPath, v.Session().Datacenter.Name())
@@ -274,6 +279,21 @@ func updateSessionEnv(sess *executor.SessionConfig, envName, envValue string) {
 		newEnvs = append(newEnvs, fmt.Sprintf("%s=%s", envName, envValue))
 	}
 	sess.Cmd.Env = newEnvs
+}
+
+func updateSessionArgs(sess *executor.SessionConfig, argName, argValue string) {
+	args := sess.Cmd.Args
+	var newArgs []string
+	for _, arg := range args {
+		if strings.HasPrefix(arg, argName+"=") {
+			continue
+		}
+		newArgs = append(newArgs, arg)
+	}
+	if argValue != "" {
+		newArgs = append(newArgs, fmt.Sprintf("%s=%s", argName, argValue))
+	}
+	sess.Cmd.Args = newArgs
 }
 
 func (c *Configure) processCertificates(op trace.Operation, client, public, management data.NetworkConfig) error {
