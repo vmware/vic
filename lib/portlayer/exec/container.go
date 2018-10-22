@@ -574,7 +574,6 @@ func (c *Container) LogReader(op trace.Operation, tail int, follow bool, since i
 
 // Remove removes a containerVM after detaching the disks
 func (c *Container) Remove(op trace.Operation, sess *session.Session) error {
-	// op := trace.FromContext(ctx, "Remove")
 	defer trace.End(trace.Begin(c.ExecConfig.ID, op))
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -840,7 +839,7 @@ func (c *Container) vmExists(op trace.Operation) (bool, error) {
 	// Check power state
 	state, err := vm.PowerState(op)
 	if err == nil {
-		op.Debugf("container(%s) vmExists, PowerState: %s", c, state)
+		op.Infof("container(%s) vmExists, PowerState: %s", c, state)
 		return true, nil
 	}
 
@@ -851,7 +850,7 @@ func (c *Container) vmExists(op trace.Operation) (bool, error) {
 	ref, err := searchIndex.FindByInventoryPath(op, inventoryPath)
 	if err == nil && ref != nil {
 		moRef := ref.Reference()
-		op.Debugf("container(%s) vmExists, Ref: %s", c, moRef.String())
+		op.Infof("container(%s) vmExists, Ref: %s", c, moRef.String())
 		return true, nil
 	}
 
@@ -860,6 +859,7 @@ func (c *Container) vmExists(op trace.Operation) (bool, error) {
 
 // get the containerVMs from infrastructure for this resource pool or the VCH Folder
 func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, error) {
+	op := trace.FromContext(ctx, "infraContainers")
 	defer trace.End(trace.Begin(""))
 	var vms []mo.VirtualMachine
 	var vmRefs []types.ManagedObjectReference
@@ -871,7 +871,7 @@ func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, 
 		// populate the vm property of the vch resource pool
 		if err := Config.ResourcePool.Properties(ctx, Config.ResourcePool.Reference(), []string{"vm"}, &rp); err != nil {
 			name := Config.ResourcePool.Name()
-			log.Errorf("List failed to get %s resource pool child vms: %s", name, err)
+			op.Errorf("List failed to get %s resource pool child vms: %s", name, err)
 			return nil, err
 		}
 		vmRefs = rp.Vm
@@ -879,7 +879,7 @@ func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, 
 		// vch has it's own folder. get the cvm's from here.
 		children, err := sess.VCHFolder.Children(ctx)
 		if err != nil {
-			log.Errorf("List failed to get the children of Folder %s: %s", sess.VCHFolder.InventoryPath, err)
+			op.Errorf("List failed to get the children of Folder %s: %s", sess.VCHFolder.InventoryPath, err)
 			return nil, err
 		}
 
@@ -915,6 +915,7 @@ func instanceUUID(id string) (string, error) {
 
 // convert the infra containers to a container object
 func convertInfraContainers(ctx context.Context, sess *session.Session, vms []mo.VirtualMachine) []*Container {
+	op := trace.FromContext(ctx, "convertInfraContainers")
 	defer trace.End(trace.Begin(fmt.Sprintf("converting %d containers", len(vms))))
 	var cons []*Container
 
@@ -925,7 +926,7 @@ func convertInfraContainers(ctx context.Context, sess *session.Session, vms []mo
 
 		id := uid.Parse(c.ExecConfig.ID)
 		if id == uid.NilUID {
-			log.Warnf("skipping converting container VM %s: could not parse id", v.Reference())
+			op.Warnf("skipping converting container VM %s: could not parse id", v.Reference())
 			continue
 		}
 

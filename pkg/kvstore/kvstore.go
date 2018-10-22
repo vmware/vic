@@ -24,7 +24,7 @@ import (
 	"regexp"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 var (
@@ -72,6 +72,8 @@ func fileName(name string) string {
 // Create a new KeyValueStore instance using the given Backend with the given
 // file.  If the file exists on the Backend, it is restored.
 func NewKeyValueStore(ctx context.Context, store Backend, name string) (KeyValueStore, error) {
+	op := trace.FromContext(ctx, "NewKeyValueStore")
+	defer trace.End(trace.Begin(name, op))
 	p := &kv{
 		b:    store,
 		kv:   make(map[string][]byte),
@@ -82,7 +84,7 @@ func NewKeyValueStore(ctx context.Context, store Backend, name string) (KeyValue
 		return nil, err
 	}
 
-	log.Infof("NewKeyValueStore(%s) restored %d keys", name, len(p.kv))
+	op.Infof("NewKeyValueStore(%s) restored %d keys", name, len(p.kv))
 
 	return p, nil
 }
@@ -92,6 +94,9 @@ func (p *kv) Name() string {
 }
 
 func (p *kv) restore(ctx context.Context) error {
+	op := trace.FromContext(ctx, "restore")
+	defer trace.End(trace.Begin("", op))
+
 	p.l.Lock()
 	defer p.l.Unlock()
 
@@ -115,6 +120,9 @@ func (p *kv) restore(ctx context.Context) error {
 // Set a key to the KeyValueStore with the given value.  If they key already
 // exists, the value is overwritten.
 func (p *kv) Put(ctx context.Context, key string, value []byte) error {
+	op := trace.FromContext(ctx, "Put")
+	defer trace.End(trace.Begin(key, op))
+
 	p.l.Lock()
 	defer p.l.Unlock()
 

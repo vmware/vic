@@ -255,6 +255,8 @@ func (d *VirtualDisk) InUseByOther() bool {
 // Enhancement: allow provision of mount path and refcount for:
 //   specific mount point and options
 func (d *VirtualDisk) Mount(op trace.Operation, options []string) (string, error) {
+	defer trace.End(trace.Begin("", op))
+
 	d.l.Lock()
 	defer d.l.Unlock()
 
@@ -318,6 +320,8 @@ func (d *VirtualDisk) Mount(op trace.Operation, options []string) (string, error
 // TODO: if we support different mount opts, we can't use the same bindTarget anymore.
 // need to assign each opt a different name, we can add a field in VirtualDisk that tracks bindTarget
 func (d *VirtualDisk) getMountSource(op trace.Operation, options []string) (string, error) {
+	defer trace.End(trace.Begin("", op))
+
 	// need to first mount the disk under the diskBindBase
 	bindTarget := path.Join(diskBindBase, d.DevicePath)
 
@@ -363,6 +367,8 @@ func (d *VirtualDisk) getMountSource(op trace.Operation, options []string) (stri
 
 // Unmount attempts to unmount a virtual disk
 func (d *VirtualDisk) Unmount(op trace.Operation) error {
+	defer trace.End(trace.Begin("", op))
+
 	d.l.Lock()
 	defer d.l.Unlock()
 

@@ -42,6 +42,8 @@ const (
 // Mount mounts the disk, returning the mount path and the function used to unmount/detaches
 // when no longer in use
 func (v *Vmdk) Mount(op trace.Operation, uri *url.URL, persistent bool) (string, func(), error) {
+	defer trace.End(trace.Begin("", op))
+
 	if uri.Scheme != "ds" {
 		return "", nil, errors.New("vmdk path must be a datastore url with \"ds\" scheme")
 	}

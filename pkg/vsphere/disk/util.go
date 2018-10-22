@@ -155,6 +155,8 @@ func waitForDevice(op trace.Operation, sysPath string) (string, error) {
 // The directory inside block isn't a devnode, but it's name can be mapped to
 // its /dev/ path.
 func verifyParavirtualScsiController(op trace.Operation, vm *vm.VirtualMachine) (*types.ParaVirtualSCSIController, string, error) {
+	defer trace.End(trace.Begin("", op))
+
 	devices, err := vm.Device(op)
 	if err != nil {
 		op.Errorf("vmware driver failed to retrieve device list for VM %s: %s", vm, errors.ErrorStack(err))
