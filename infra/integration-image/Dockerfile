@@ -8,12 +8,12 @@
 # docker tag vic-test wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.x
 # docker push wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.x
 
-FROM golang:1.8
+FROM golang:1.10
 
 RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
 RUN sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
 
-RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
+RUN curl -sL https://deb.nodesource.com/setup_8.x | bash - && \
     apt-get update && apt-get install -y --no-install-recommends \
     jq \
     bc \
@@ -25,7 +25,7 @@ RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
     sshpass \
     ant \
 	ant-optional \
-    openjdk-7-jdk \
+    openjdk-8-jdk \
     rpcbind \
     nfs-common \
     unzip \
@@ -87,9 +87,6 @@ RUN wget https://github.com/drone/drone-cli/releases/download/v0.8.3/drone_linux
     install -t /usr/local/bin drone
 
 RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.17.1/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc && chmod +x /usr/local/bin/govc
-
-RUN  wget https://launchpad.net/ubuntu/+source/wget/1.18-2ubuntu1/+build/10470166/+files/wget_1.18-2ubuntu1_amd64.deb && \
-     dpkg -i wget_1.18-2ubuntu1_amd64.deb
 
 # Add docker in docker support
 # version: docker:1.13-dind

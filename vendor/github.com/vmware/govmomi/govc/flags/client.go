@@ -28,8 +28,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/vmware/govmomi/session"
@@ -51,6 +53,8 @@ const (
 	envVimVersion    = "GOVC_VIM_VERSION"
 	envTLSCaCerts    = "GOVC_TLS_CA_CERTS"
 	envTLSKnownHosts = "GOVC_TLS_KNOWN_HOSTS"
+
+	defaultMinVimVersion = "5.5"
 )
 
 const cDescr = "ESX or vCenter URL"
@@ -108,6 +112,10 @@ func (flag *ClientFlag) URLWithoutPassword() *url.URL {
 	withoutCredentials := *flag.url
 	withoutCredentials.User = url.User(flag.url.User.Username())
 	return &withoutCredentials
+}
+
+func (flag *ClientFlag) Userinfo() *url.Userinfo {
+	return flag.url.User
 }
 
 func (flag *ClientFlag) IsSecure() bool {
@@ -183,7 +191,7 @@ func (flag *ClientFlag) Register(ctx context.Context, f *flag.FlagSet) {
 		{
 			env := os.Getenv(envMinAPIVersion)
 			if env == "" {
-				env = soap.DefaultMinVimVersion
+				env = defaultMinVimVersion
 			}
 
 			flag.minAPIVersion = env
@@ -192,7 +200,7 @@ func (flag *ClientFlag) Register(ctx context.Context, f *flag.FlagSet) {
 		{
 			value := os.Getenv(envVimNamespace)
 			if value == "" {
-				value = soap.DefaultVimNamespace
+				value = vim25.Namespace
 			}
 			usage := fmt.Sprintf("Vim namespace [%s]", envVimNamespace)
 			f.StringVar(&flag.vimNamespace, "vim-namespace", value, usage)
@@ -201,7 +209,7 @@ func (flag *ClientFlag) Register(ctx context.Context, f *flag.FlagSet) {
 		{
 			value := os.Getenv(envVimVersion)
 			if value == "" {
-				value = soap.DefaultVimVersion
+				value = vim25.Version
 			}
 			usage := fmt.Sprintf("Vim version [%s]", envVimVersion)
 			f.StringVar(&flag.vimVersion, "vim-version", value, usage)
@@ -264,8 +272,17 @@ func (flag *ClientFlag) Process(ctx context.Context) error {
 
 // configure TLS and retry settings before making any connections
 func (flag *ClientFlag) configure(sc *soap.Client) (soap.RoundTripper, error) {
+	if flag.cert != "" {
+		cert, err := tls.LoadX509KeyPair(flag.cert, flag.key)
+		if err != nil {
+			return nil, err
+		}
+
+		sc.SetCertificate(cert)
+	}
+
 	// Set namespace and version
-	sc.Namespace = flag.vimNamespace
+	sc.Namespace = "urn:" + flag.vimNamespace
 	sc.Version = flag.vimVersion
 
 	sc.UserAgent = fmt.Sprintf("govc/%s", Version)
@@ -403,29 +420,24 @@ func (flag *ClientFlag) SetRootCAs(c *soap.Client) error {
 func (flag *ClientFlag) login(ctx context.Context, c *vim25.Client) error {
 	m := session.NewManager(c)
 	u := flag.url.User
+	name := u.Username()
 
-	if u.Username() == "" {
-		if !c.IsVC() {
-			// If no username is provided, try to acquire a local ticket.
-			// When invoked remotely, ESX returns an InvalidRequestFault.
-			// So, rather than return an error here, fallthrough to Login() with the original User to
-			// to avoid what would be a confusing error message.
-			luser, lerr := flag.localTicket(ctx, m)
-			if lerr == nil {
-				// We are running directly on an ESX or Workstation host and can use the ticket with Login()
-				u = luser
-			} else {
-				flag.persist = true // Not persisting, but this avoids the call to Logout()
-				return nil          // Avoid SaveSession for non-authenticated session
-			}
+	if name == "" && !c.IsVC() {
+		// If no username is provided, try to acquire a local ticket.
+		// When invoked remotely, ESX returns an InvalidRequestFault.
+		// So, rather than return an error here, fallthrough to Login() with the original User to
+		// to avoid what would be a confusing error message.
+		luser, lerr := flag.localTicket(ctx, m)
+		if lerr == nil {
+			// We are running directly on an ESX or Workstation host and can use the ticket with Login()
+			u = luser
+			name = u.Username()
 		}
 	}
-
-	if flag.cert != "" {
-		err := m.LoginExtensionByCertificate(ctx, u.Username(), "")
-		if err != nil {
-			return err
-		}
+	if name == "" {
+		// Skip auto-login if we don't have a username
+		flag.persist = true // Not persisting, but this avoids the call to Logout()
+		return nil          // Avoid SaveSession for non-authenticated session
 	}
 
 	return m.Login(ctx, u)
@@ -434,15 +446,6 @@ func (flag *ClientFlag) login(ctx context.Context, c *vim25.Client) error {
 func (flag *ClientFlag) newClient() (*vim25.Client, error) {
 	ctx := context.TODO()
 	sc := soap.NewClient(flag.url, flag.insecure)
-
-	if flag.cert != "" {
-		cert, err := tls.LoadX509KeyPair(flag.cert, flag.key)
-		if err != nil {
-			return nil, err
-		}
-
-		sc.SetCertificate(cert)
-	}
 
 	rt, err := flag.configure(sc)
 	if err != nil {
@@ -573,7 +576,7 @@ func (flag *ClientFlag) Environ(extra bool) []string {
 		u.User = nil
 	}
 
-	if u.Path == "/sdk" {
+	if u.Path == vim25.Path {
 		u.Path = ""
 	}
 	u.Fragment = ""
@@ -623,4 +626,30 @@ func (flag *ClientFlag) Environ(extra bool) []string {
 	}
 
 	return env
+}
+
+// WithCancel calls the given function, returning when complete or canceled via SIGINT.
+func (flag *ClientFlag) WithCancel(ctx context.Context, f func(context.Context) error) error {
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT)
+
+	wctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	done := make(chan bool)
+	var werr error
+
+	go func() {
+		defer close(done)
+		werr = f(wctx)
+	}()
+
+	select {
+	case <-sig:
+		cancel()
+		<-done // Wait for f() to complete
+	case <-done:
+	}
+
+	return werr
 }

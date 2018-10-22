@@ -61,7 +61,7 @@ fi
 
 # Run the Robot tests in a container
 envfile="vic-internal/drs-disabled-secrets.list"
-image="gcr.io/eminent-nation-87317/vic-integration-test:1.48"
+image="gcr.io/eminent-nation-87317/vic-integration-test:1.49"
 cmd="pabot --processes 1 --removekeywords TAG:secret -d drs-disabled tests/manual-test-cases/Group19-DRS-Disabled"
 docker run --rm -v $PWD/vic:/go --env-file $envfile $image $cmd
 

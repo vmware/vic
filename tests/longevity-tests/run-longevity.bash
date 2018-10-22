@@ -94,6 +94,6 @@ docker run -w /go/vic -i \
     --env-file vic-internal/longevity-${target}-secrets.list \
     -e SYSLOG_VCH_OPTION="${syslogVchOption}" \
     -e DEBUG_VCH_LEVEL="${debugVchLevel}" \
-    -v $(pwd)/vic:/go/vic gcr.io/eminent-nation-87317/vic-integration-test:1.48 \
+    -v $(pwd)/vic:/go/vic gcr.io/eminent-nation-87317/vic-integration-test:1.49 \
     pybot tests/manual-test-cases/Group14-Longevity/14-1-Longevity.robot
 

@@ -1275,12 +1275,12 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 	//
 	// The values we fill out below is an abridged list of the original struct.
 	resourceConfig := container.Resources{
-	// Applicable to all platforms
-	//			CPUShares int64 `json:"CpuShares"` // CPU shares (relative weight vs. other containers)
-	//			Memory    int64 // Memory limit (in bytes)
+		// Applicable to all platforms
+		//			CPUShares int64 `json:"CpuShares"` // CPU shares (relative weight vs. other containers)
+		//			Memory    int64 // Memory limit (in bytes)
 
-	//			// Applicable to UNIX platforms
-	//			DiskQuota            int64           // Disk limit (in bytes)
+		//			// Applicable to UNIX platforms
+		//			DiskQuota            int64           // Disk limit (in bytes)
 	}
 
 	hostConfig.VolumeDriver = portlayerName
