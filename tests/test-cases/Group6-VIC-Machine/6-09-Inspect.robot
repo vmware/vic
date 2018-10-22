@@ -20,9 +20,9 @@ Test Timeout  20 minutes
 
 *** Keywords ***
 Cleanup Container Network Test Networks
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove published-net
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove 6-09-published-net
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove peers-net
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  published-net
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  6-09-published-net
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Remove VC Distributed Portgroup  peers-net
 
 Cleanup Container Network Test
@@ -137,18 +137,18 @@ Inspect VCH Configuration with Container Networks
     Cleanup Container Network Test Networks
 
     ${vswitch}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.vswitch.info -json | jq -r ".Vswitch[0].Name"
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vswitch ${vswitch} published-net
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vswitch ${vswitch} 6-09-published-net
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vswitch ${vswitch} peers-net
     ${dvs}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc find -type DistributedVirtualSwitch | head -n1
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Add VC Distributed Portgroup  ${dvs}  published-net
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Add VC Distributed Portgroup  ${dvs}  6-09-published-net
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Add VC Distributed Portgroup  ${dvs}  peers-net
 
-    Install VIC Appliance To Test Server  additional-args=-container-network published-net -container-network peers-net -cnf peers-net:peers --container-network-ip-range peers-net:10.10.10.0/24 -cng peers-net:10.10.10.1/24
+    Install VIC Appliance To Test Server  additional-args=-container-network 6-09-published-net -container-network peers-net -cnf peers-net:peers --container-network-ip-range peers-net:10.10.10.0/24 -cng peers-net:10.10.10.1/24
 
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect config --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} --compute-resource=%{TEST_RESOURCE} --format raw
 
-    Should Contain  ${output}  --container-network=published-net:published-net
-    Should Not Contain  ${output}  --container-network-firewall=published-net:published
+    Should Contain  ${output}  --container-network=6-09-published-net:published-net
+    Should Not Contain  ${output}  --container-network-firewall=6-09-published-net:published
     Should Contain  ${output}  --container-network=peers-net:peers-net
     Should Contain  ${output}  --container-network-gateway=peers-net:10.10.10.1/24
     Should Contain  ${output}  --container-network-ip-range=peers-net:10.10.10.0/24
