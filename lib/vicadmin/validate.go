@@ -181,7 +181,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 
 	// Network Connection Check
 	hosts := []string{
-		"http://google.com",
+		"http://vmware.com",
 		"https://docker.io",
 	}
 
