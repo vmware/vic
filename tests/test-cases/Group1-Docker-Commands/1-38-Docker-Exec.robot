@@ -46,11 +46,9 @@ Verify LS Output For Busybox
        Should Contain  ${output}  home
        Should Contain  ${output}  lib
        Should Contain  ${output}  lost+found
-       Should Contain  ${output}  mnt
        Should Contain  ${output}  proc
        Should Contain  ${output}  root
        Should Contain  ${output}  run
-       Should Contain  ${output}  sbin
        Should Contain  ${output}  sys
        Should Contain  ${output}  tmp
        Should Contain  ${output}  usr
@@ -305,7 +303,7 @@ Exec During Poweroff Of A Container Performing A Short Running Task
     ## the /bin/top should stay open the entire life of the container from start of the exec.
     ${rc}  ${output}=  Run And Return Rc And output  docker %{VCH-PARAMS} exec ${id} /bin/top
     # We should see tether every time since it is required to run the container.
-    Should Contain  ${output}  /.tether/tether
+    Should Contain  ${output}  .tether/tether
 
     # Docker behaviour is as the commented out assertions below (137 and no error output)
     #Should Be Equal As Integers  ${rc}  137
