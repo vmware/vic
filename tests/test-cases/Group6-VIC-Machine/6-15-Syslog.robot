@@ -53,7 +53,7 @@ Verify VCH remote syslog
     \     Set To Dictionary  ${proc-pids}  ${proc}  ${pid}
     \     Set To Dictionary  ${proc-hosts}  ${proc}  ${vch-ip}
     Close Connection
-    Set To Dictionary  ${proc-hosts}  vic-init  Photon
+    Set To Dictionary  ${proc-hosts}  vic-init  localhost
 
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0

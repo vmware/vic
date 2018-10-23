@@ -123,9 +123,12 @@ Docker volume create with specific capacity no units
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} wait ${ContainerName}
     Should Be Equal As Integers  ${ContainerRC}  0
     Should Not Contain  ${output}  Error response from daemon
-    ${rc}  ${disk-size}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${ContainerName} | grep by-label | awk '{print $2}'
+    ${rc}  ${disk-size}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${ContainerName} | grep '/mydata' | awk '{print $2}'
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${disk-size}  96.0G
+    ${unit}=  Get Substring  ${disk-size}  -1
+    Should Be Equal  ${unit}  G
+    ${size}=  Get Substring  ${disk-size}  0  -1
+    Should Be True  ${size} >= 95.0
 
 Docker volume create large volume specifying units
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=unitVol1 --opt Capacity=10G
