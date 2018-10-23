@@ -43,11 +43,11 @@ DIR=$(dirname $(readlink -f "$0"))
 . $DIR/base/utils.sh
 
 function usage() {
-echo "Usage: $0 -p staged-package(tgz) -b binary-dir -d <activates debug when set>" 1>&2
+echo "Usage: $0 -p staged-package(tgz) -b binary-dir" 1>&2
 exit 1
 }
 
-while getopts "p:b:d:o:" flag
+while getopts "p:b:o:" flag
 do
     case $flag in
 
@@ -59,10 +59,6 @@ do
         b)
             # Required. Target for iso and source for components
             BIN="$OPTARG"
-            ;;
-        d)
-            # Optional. directs script to make a debug iso instead of a production iso.
-            debug="$OPTARG"
             ;;
         o)
             # Optional. Name of the generated ISO
@@ -100,14 +96,8 @@ setup_pm $REPODIR $PKGDIR $PACKAGE_MANAGER $REPO
 
 
 #selecting the init script as our entry point.
-if [ -v debug ]; then
-    export ISONAME=${ISONAME:-bootstrap-debug.iso}
-    cp ${DIR}/bootstrap/bootstrap.debug $(rootfs_dir $PKGDIR)/bin/bootstrap
-    cp ${BIN}/rpctool $(rootfs_dir $PKGDIR)/sbin/
-else
-    export ISONAME=${ISONAME:-bootstrap.iso}
-    cp ${DIR}/bootstrap/bootstrap $(rootfs_dir $PKGDIR)/bin/bootstrap
-fi
+export ISONAME=${ISONAME:-bootstrap.iso}
+cp ${DIR}/bootstrap/bootstrap $(rootfs_dir $PKGDIR)/bin/bootstrap
 
 # copy in our components
 cp ${BIN}/tether-linux $(rootfs_dir $PKGDIR)/bin/tether
