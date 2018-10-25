@@ -71,24 +71,26 @@ pipeline:
       - codecov_token
     commands:
       - export BUILD_NUMBER=${DRONE_BUILD_NUMBER}
-      - make all
+      - make appliance components vic-machine
     when:
       status: success
 
-  vic-unit-test:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
+  custom-bootstrap-iso:
+    image: 'gcr.io/eminent-nation-87317/vic-build-image:yum'
     pull: true
     environment:
       BIN: bin
       GOPATH: /go
       SHELL: /bin/bash
     secrets:
-      - drone_server
-      - drone_token
-      - github_automation_api_key
-      - codecov_token
+    - drone_server
+    - drone_token
+    - github_automation_api_key
+    - codecov_token
     commands:
-      - tests/unit-test-check.sh
+    - export BUILD_NUMBER=${DRONE_BUILD_NUMBER}
+    - REPO=centos-6.9 make bootstrap-custom
+    - mv bin/bootstrap-centos-6.9.iso bin/bootstrap.iso
     when:
       status: success
 
@@ -194,7 +196,7 @@ pipeline:
     when:
       repo: vmware/vic
       event: pull_request
-      status: success
+      status: [success, failure]
 
   publish-gcs-builds-on-master-push-pass:
     image: 'victest/drone-gcs:1'
