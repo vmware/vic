@@ -26,6 +26,9 @@ prNumber=$(drone build info --format "{{ .Ref }}" vmware/vic $DRONE_BUILD_NUMBER
 set +x
 prBody=$(curl https://api.github.com/repos/vmware/vic/pulls/$prNumber?access_token=$GITHUB_AUTOMATION_API_KEY | jq -r ".body")
 
+echo $prBody
+set -x
+
 if (echo $prBody | grep -q "\[fast fail\]"); then
     export FAST_FAILURE=1
 else
@@ -63,7 +66,7 @@ elif (echo $prBody | grep -q "\[specific ci="); then
     echo "Running specific CI as per commit message"
     buildtype=$(echo $prBody | grep "\[specific ci=")
     testsuite=$(echo $buildtype | awk -F"\[specific ci=" '{sub(/\].*/,"",$2);print $2}')
-    pabot --verbose --processes $jobs --removekeywords TAG:secret --suite $testsuite --suite 7-01-Regression tests/test-cases
+    pabot --verbose --processes $jobs --removekeywords TAG:secret --suite $testsuite tests/test-cases
 else
     echo "Running regressions"
     pabot --verbose --processes $jobs --removekeywords TAG:secret --exclude skip --include regression tests/test-cases
