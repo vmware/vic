@@ -1152,6 +1152,7 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 		nc.Ports = append(nc.Ports, fromPortbinding(p, cc.HostConfig.PortBindings[p])...)
 	}
 
+<<<<<<< HEAD
 	if len(cc.HostConfig.DNS) > 0 {
 		for _, dns := range cc.HostConfig.DNS {
 			if dns != "" {
@@ -1159,6 +1160,8 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 			}
 		}
 	}
+=======
+>>>>>>> 2cc54cbed96c280319fcd36b39fd773b6a4f3d46
 	return nc
 }
 
@@ -1287,6 +1290,7 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 	hostConfig.Resources = resourceConfig
 	hostConfig.DNS = make([]string, 0)
 
+<<<<<<< HEAD
 	if len(vc.HostConfig.DNS) > 0 {
 		for _, dns := range vc.HostConfig.DNS {
 			if dns != "" {
@@ -1295,6 +1299,17 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 		}
 	}
 	if len(info.Endpoints) > 0 {
+=======
+	if len(info.Endpoints) > 0 {
+		for _, ep := range info.Endpoints {
+			for _, dns := range ep.Nameservers {
+				if dns != "" {
+					hostConfig.DNS = append(hostConfig.DNS, dns)
+				}
+			}
+		}
+
+>>>>>>> 2cc54cbed96c280319fcd36b39fd773b6a4f3d46
 		hostConfig.NetworkMode = container.NetworkMode(info.Endpoints[0].Scope)
 	}
 
@@ -1361,7 +1376,11 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 	// Copy the working copy of our container's config
 	container := *vc.Config
 
+<<<<<<< HEAD
 	if container.Hostname == "" && info.ContainerConfig.ContainerID != "" {
+=======
+	if info.ContainerConfig.ContainerID != "" {
+>>>>>>> 2cc54cbed96c280319fcd36b39fd773b6a4f3d46
 		container.Hostname = stringid.TruncateID(info.ContainerConfig.ContainerID) // Hostname
 	}
 	if info.ContainerConfig.AttachStdin != nil {
@@ -1460,7 +1479,11 @@ func networkFromContainerInfo(vc *viccontainer.VicContainer, info *models.Contai
 			IPv6Gateway:         "", //Get from Scope PL
 			GlobalIPv6Address:   "", //Get from Scope PL
 			GlobalIPv6PrefixLen: 0,  //Get from Scope PL
+<<<<<<< HEAD
 			MacAddress:          ep.Macaddress,
+=======
+			MacAddress:          "", //Container endpoints currently do not have mac addr yet
+>>>>>>> 2cc54cbed96c280319fcd36b39fd773b6a4f3d46
 		}
 
 		if ep.Address != "" {

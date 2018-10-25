@@ -1,7 +1,6 @@
 
 workspace:
-
-  base: ~/go
+  base: /go
   path: src/github.com/vmware/vic
 
 clone:

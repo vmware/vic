@@ -203,6 +203,7 @@ func (vm *VirtualMachine) getNetworkName(op trace.Operation, nic types.BaseVirtu
 	return nic.GetVirtualEthernetCard().DeviceInfo.GetDescription().Summary, nil
 }
 
+<<<<<<< HEAD
 func (vm *VirtualMachine) GetMacAddressBasedSpecifiedNetworkName(ctx context.Context, ipaddress string) (string, error) {
 	op := trace.FromContext(ctx, "GetMacAddressBasedSpecifiedNetworkName")
 
@@ -229,6 +230,8 @@ func (vm *VirtualMachine) GetMacAddressBasedSpecifiedNetworkName(ctx context.Con
 	return "", errors.New("No network information for the specified network name")
 }
 
+=======
+>>>>>>> 2cc54cbed96c280319fcd36b39fd773b6a4f3d46
 func (vm *VirtualMachine) FetchExtraConfigBaseOptions(ctx context.Context) ([]types.BaseOptionValue, error) {
 	op := trace.FromContext(ctx, "FetchExtraConfigBaseOptions")
 

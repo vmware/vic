@@ -162,6 +162,7 @@ Docker inspect container status
     # keyword at top of file
     ${stopped}=  Get container inspect status  ${container}
     Should Contain  ${stopped}  exited
+<<<<<<< HEAD
 
 Docker inspect container with specified hostname
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -h testhostname --name=test-hostname -d ${busybox} sleep 600
@@ -196,3 +197,5 @@ Docker inspect container with multiple specified DNS
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
     Should Be Equal As Integers  ${rc}  0
 
+=======
+>>>>>>> 2cc54cbed96c280319fcd36b39fd773b6a4f3d46
