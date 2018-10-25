@@ -441,10 +441,9 @@ func (ic *ImageC) CreateImageConfig(ctx context.Context, images []*ImageWithMeta
 		return metadata.ImageConfig{}, fmt.Errorf("Failed to marshall image metadata: %s", err)
 	}
 
-	// calculate image ID
-	sum := fmt.Sprintf("%x", sha256.Sum256(imageConfigBytes))
-	log.Infof("Image ID: sha256:%s", sum)
-
+	// calculate image ID, add sha256 as prefix, to be compatible with image inspect and image --no-trunc result format.
+	sum := fmt.Sprintf("sha256:%x", sha256.Sum256(imageConfigBytes))
+	log.Infof("Image ID: %s", sum)
 	// prepare metadata
 	result.V1Image.Parent = image.Parent
 	result.Size = size

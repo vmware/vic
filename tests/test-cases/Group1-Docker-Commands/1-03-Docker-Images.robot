@@ -61,7 +61,7 @@ No-trunc images
     Should Be True  ${count} >= 3
     @{lines}=  Split To Lines  ${output}
     @{line}=  Split String  @{lines}[2]
-    Length Should Be  @{line}[2]  64
+    Length Should Be  @{line}[2]  71
 
 Filter images before
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f before=busybox

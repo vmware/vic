@@ -508,9 +508,7 @@ func imageConfigToDockerImageInspect(imageConfig *metadata.ImageConfig, productN
 
 	inspectData.GraphDriver.Name = productName + " " + PortlayerName
 
-	// ImageID is currently stored within VIC without the "sha256:" prefix
-	// so we add it here to match Docker output.
-	inspectData.ID = digest.Canonical.String() + ":" + imageConfig.ImageID
+	inspectData.ID = imageConfig.ImageID
 
 	return inspectData
 }
