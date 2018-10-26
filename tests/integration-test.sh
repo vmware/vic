@@ -25,7 +25,7 @@ buildinfo=$(drone build info vmware/vic $DRONE_BUILD_NUMBER)
 prNumber=$(drone build info --format "{{ .Ref }}" vmware/vic $DRONE_BUILD_NUMBER | cut -f 3 -d'/')
 set +x
 prBody=$(curl https://api.github.com/repos/vmware/vic/pulls/$prNumber?access_token=$GITHUB_AUTOMATION_API_KEY | jq -r ".body")
-
+echo $prBody
 if (echo $prBody | grep -q "\[fast fail\]"); then
     export FAST_FAILURE=1
 else
