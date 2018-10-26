@@ -33,4 +33,5 @@ Simple background mongo
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${ip}=  Get IP Address of Container  mongo1
+    Should Not Be Empty  ${ip}
     Wait Until Keyword Succeeds  5x  6s  Check mongo container  ${ip}
