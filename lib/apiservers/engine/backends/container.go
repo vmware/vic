@@ -2055,12 +2055,8 @@ func copyConfigOverrides(vc *viccontainer.VicContainer, config types.ContainerCr
 	vc.Config.StdinOnce = config.Config.StdinOnce
 	vc.Config.StopSignal = config.Config.StopSignal
 	vc.Config.Volumes = config.Config.Volumes
-<<<<<<< HEAD
 	vc.Config.Hostname = config.Config.Hostname
 	vc.Config.Domainname = config.Config.Domainname
-=======
->>>>>>> 2cc54cbed96c280319fcd36b39fd773b6a4f3d46
-	vc.HostConfig = config.HostConfig
 }
 
 //----------------------------------

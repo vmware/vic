@@ -1,4 +1,3 @@
-
 workspace:
   base: /go
   path: src/github.com/vmware/vic
