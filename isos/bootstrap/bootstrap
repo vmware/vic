@@ -115,17 +115,21 @@ if timeout -s KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}
 
     echo "switching to the new mount"
     if systemctl; then
-        systemctl switch-root ${MOUNTPOINT} /.tether/tether 2>&1
+        systemctl switch-root ${MOUNTPOINT} /.tether/tether >/dev/console 2>/dev/console
     elif [[ "$(readlink /usr/sbin/switch_root)" == *"toybox"* ]]; then # see https://github.com/landley/toybox/issues/91
         mount --move /sys ${MOUNTPOINT}/sys
         mount --move /proc ${MOUNTPOINT}/proc
         mount --move /dev ${MOUNTPOINT}/dev
-        exec switch_root ${MOUNTPOINT} /.tether/tether 2>&1 
+        exec switch_root ${MOUNTPOINT} /.tether/tether >/dev/console 2>/dev/console
     else
-        exec switch_root ${MOUNTPOINT} /.tether/tether 2>&1 
+        exec switch_root ${MOUNTPOINT} /.tether/tether >/dev/console 2>/dev/console
         # if successful then nothing after this point executes
-        echo "Failed to switch to the new mount"
     fi
+
+    # if we fail to switch root then restore output to the debug file and note the problem
+    err=$?
+    exec >/dev/ttyS1 2>&1
+    echo "Failed to switch to the new mount: $err"
 else
     # TODO: what do we do here? we really need to somehow report an error
     # fail hard
