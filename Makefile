@@ -145,6 +145,10 @@ iso-base: $(iso-base)
 iso-base-custom: $(iso-base-custom)
 
 vic-machine: $(vic-machine-linux) $(vic-machine-windows) $(vic-machine-darwin)
+vic-machine-linux: $(vic-machine-linux)
+vic-machine-windows: $(vic-machine-windows)
+vic-machine-darwin: $(vic-machine-darwin)
+
 # NOT BUILT WITH make all TARGET
 # vic-dns variants to create standalone DNS service.
 vic-dns: $(vic-dns-linux) $(vic-dns-windows) $(vic-dns-darwin)
