@@ -1,7 +1,7 @@
 # This is an image used for building bootstrap.iso and application.iso with photon 2.0 operate system.
 #
 # To use this image:
-# docker run -v $(pwd):/go/src/github.com/vmware/vic gcr.io/eminent-nation-87317/vic-build-image:tdnf make isos
+# docker run -v $(pwd):/go/src/github.com/vmware/vic gcr.io/eminent-nation-87317/vic-build-image:tdnf make most
 #
 # To build this image:
 # docker build -t vic-build-image-tdnf -f infra/build-image/Dockerfile.tdnf infra/build-image/
@@ -16,6 +16,8 @@ ENV GOPATH /go
 ENV PATH $PATH:${GOPATH}/bin:/${GOROOT}/bin
 ENV SRCDIR ${GOPATH}/src/github.com/vmware/vic
 ENV TERM linux
+ENV VIC_CACHE_DEPS=1
+
 WORKDIR ${SRCDIR}
 
 # gawk added purely for tolower function used in Makefile
@@ -48,4 +50,4 @@ RUN mkdir -p ${SRCDIR}
 COPY setup-repo.sh /usr/local/bin
 RUN chmod a+x /usr/local/bin/setup-repo.sh
 
-# ENTRYPOINT [ "/usr/local/bin/setup-repo.sh" ]
+ENTRYPOINT [ "/usr/local/bin/setup-repo.sh" ]
