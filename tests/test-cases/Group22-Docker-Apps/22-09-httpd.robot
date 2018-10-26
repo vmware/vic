@@ -36,6 +36,7 @@ Httpd with a mapped volume folder
     Should Be Equal As Integers  ${rc}  0
 
     ${ip}=  Get IP Address of Container  httpd1
+    Should Not Be Empty  ${ip}
 
     ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl httpd endpoint  %{VCH-IP}:8080/test.html
     Should Contain  ${output}  HelloWorld
