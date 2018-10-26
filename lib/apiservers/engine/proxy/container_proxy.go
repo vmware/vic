@@ -1295,14 +1295,6 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 		}
 	}
 	if len(info.Endpoints) > 0 {
-		for _, ep := range info.Endpoints {
-			for _, dns := range ep.Nameservers {
-				if dns != "" {
-					hostConfig.DNS = append(hostConfig.DNS, dns)
-				}
-			}
-		}
-
 		hostConfig.NetworkMode = container.NetworkMode(info.Endpoints[0].Scope)
 	}
 
