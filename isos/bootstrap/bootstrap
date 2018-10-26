@@ -108,7 +108,7 @@ if timeout -s KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}
     # mount the cgroup hierarchy to allow DinV
     mount -t cgroup -o all cgroup /sys/fs/cgroup
 
-    until [[ $(ls -1 /dev/disk/by-label | wc -l) -eq $(ls -l /sys/block/ | grep -v 'loop*' | grep -v 'ram*' | grep -v 'total' | wc -l) ]]; do sleep 0.1;done
+    until [[ $(ls -1 /dev/disk/by-label | wc -l) -eq $(ls -1 /sys/block/ | grep -v 'loop*' | grep -v 'ram*' | wc -l) ]]; do sleep 0.1;done
 
     # stop udevd if we've recorded the pid to be removed - udev rules are likely not available in the container.
     # if we need hotadd support in the container then we need to copy the rules over to /.tether
