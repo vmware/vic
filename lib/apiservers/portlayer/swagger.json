@@ -3245,13 +3245,10 @@
 				"direct": {
 					"x-nullable": false,
 					"type": "boolean"
-<<<<<<< HEAD
 				},
 				"macaddress": {
 					"x-nullable": false,
 					"type": "string"
-=======
->>>>>>> 2cc54cbed96c280319fcd36b39fd773b6a4f3d46
 				}
 			}
 		},
@@ -3357,15 +3354,12 @@
 					"items": {
 						"type": "string"
 					}
-<<<<<<< HEAD
 				},
 				"nameservers": {
 					"type": "array",
 					"items": {
 						"type": "string"
 					}
-=======
->>>>>>> 2cc54cbed96c280319fcd36b39fd773b6a4f3d46
 				}
 			}
 		},

@@ -61,18 +61,11 @@ type Context struct {
 }
 
 type AddContainerOptions struct {
-<<<<<<< HEAD
 	Scope       string
 	IP          net.IP
 	Aliases     []string
 	Ports       []string
 	Nameservers []string
-=======
-	Scope   string
-	IP      net.IP
-	Aliases []string
-	Ports   []string
->>>>>>> 2cc54cbed96c280319fcd36b39fd773b6a4f3d46
 }
 
 func NewContext(config *Configuration, kv kvstore.KeyValueStore) (*Context, error) {
@@ -1206,7 +1199,6 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 		ne.Network.Pools[i] = *p
 	}
 
-<<<<<<< HEAD
 	ne.Network.Nameservers = make([]net.IP, 0)
 	if len(options.Nameservers) > 0 {
 		for _, dns := range options.Nameservers {
@@ -1216,8 +1208,6 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 		}
 	}
 
-=======
->>>>>>> 2cc54cbed96c280319fcd36b39fd773b6a4f3d46
 	ne.Static = false
 	if len(options.IP) > 0 && !ip.IsUnspecifiedIP(options.IP) {
 		ne.Static = true

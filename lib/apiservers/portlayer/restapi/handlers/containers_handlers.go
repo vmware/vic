@@ -648,10 +648,7 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 			Aliases:     make([]string, 0),
 			Nameservers: make([]string, 0),
 			Trust:       endpoint.Network.TrustLevel.String(),
-<<<<<<< HEAD
 			Macaddress:  "",
-=======
->>>>>>> 2cc54cbed96c280319fcd36b39fd773b6a4f3d46
 			Direct:      endpoint.Network.Type == constants.ExternalScopeType,
 		}
 
@@ -667,12 +664,9 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 			ep.Ports = append(ep.Ports, endpoint.Ports...)
 		}
 
-<<<<<<< HEAD
 		macaddress, _ := container.GetContainerVM().GetMacAddressBasedSpecifiedNetworkName(context.Background(), endpoint.Assigned.IP.String())
 		ep.Macaddress = macaddress
 
-=======
->>>>>>> 2cc54cbed96c280319fcd36b39fd773b6a4f3d46
 		for _, alias := range endpoint.Network.Aliases {
 			parts := strings.Split(alias, ":")
 			if len(parts) > 1 {

@@ -2057,6 +2057,7 @@ func copyConfigOverrides(vc *viccontainer.VicContainer, config types.ContainerCr
 	vc.Config.Volumes = config.Config.Volumes
 	vc.Config.Hostname = config.Config.Hostname
 	vc.Config.Domainname = config.Config.Domainname
+	vc.HostConfig = config.HostConfig
 }
 
 //----------------------------------
