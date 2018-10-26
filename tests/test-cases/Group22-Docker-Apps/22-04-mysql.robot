@@ -33,4 +33,5 @@ Simple background mysql
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${ip}=  Get IP Address of Container  mysql1
+    Should Not Be Empty  ${ip}
     Wait Until Keyword Succeeds  5x  6s  Check mysql container  ${ip}

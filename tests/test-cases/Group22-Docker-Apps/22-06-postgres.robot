@@ -34,4 +34,6 @@ Simple background postgres
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${ip}=  Get IP Address of Container  postgres1
+    Should Not Be Empty  ${ip}
+
     Wait Until Keyword Succeeds  5x  6s  Check postgres container  ${ip}
