@@ -20,6 +20,7 @@ drivers+=( \
 	"nf_conntrack_ipv4" \
 	"nf_defrag_ipv4" \
 	"ipt_REJECT"\
+	"xt_state" \
 )
 
 
