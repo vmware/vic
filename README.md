@@ -8,7 +8,7 @@ See [VIC Engine Architecture](doc/design/arch/arch.md) for a high level overview
 
 ## Support and Troubleshooting
 
-For general questions, visit the [vSphere Integrated Containers Engine channel](https://vmwarecode.slack.com/messages/vic-engine). If you do not have an @vmware.com or @emc.com email address, sign up at https://code.vmware.com to get an invitation.
+For general questions, visit the [vSphere Integrated Containers Engine channel](https://vmwarecode.slack.com/messages/vic-engine). If you do not have an @vmware.com or @emc.com email address, sign up at https://code.vmware.com/join to get an invitation.
 
 ## Project Status
 
