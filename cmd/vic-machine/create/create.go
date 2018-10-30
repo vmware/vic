@@ -123,7 +123,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "bridge-network, b",
 			Value:       "",
-			Usage:       "The bridge network port group name (private port group for containers). Defaults to the Virtual Container Host name",
+			Usage:       "The bridge network port group inventory path or name (private port group for containers). Defaults to the Virtual Container Host name",
 			Destination: &c.BridgeNetworkName,
 		},
 		cli.StringFlag{
@@ -138,7 +138,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "client-network, cln",
 			Value:       "",
-			Usage:       "The client network port group name (restricts DOCKER_API access to this network). Defaults to DCHP - see advanced help (-x)",
+			Usage:       "The client network port group inventory path or name (restricts DOCKER_API access to this network). Defaults to DHCP - see advanced help (-x)",
 			Destination: &c.ClientNetworkName,
 		},
 		cli.StringFlag{
@@ -160,7 +160,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "public-network, pn",
 			Value:       "VM Network",
-			Usage:       "The public network port group name (port forwarding and default route). Defaults to 'VM Network' and DHCP -- see advanced help (-x)",
+			Usage:       "The public network port group inventory path or name (port forwarding and default route). Defaults to 'VM Network' and DHCP -- see advanced help (-x)",
 			Destination: &c.PublicNetworkName,
 		},
 		cli.StringFlag{
@@ -182,7 +182,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "management-network, mn",
 			Value:       "",
-			Usage:       "The management network port group name (provides route to target hosting vSphere). Defaults to DCHP - see advanced help (-x)",
+			Usage:       "The management network port group inventory path or name (provides route to target hosting vSphere). Defaults to DCHP - see advanced help (-x)",
 			Destination: &c.ManagementNetworkName,
 		},
 		cli.StringFlag{

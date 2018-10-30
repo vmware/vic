@@ -103,6 +103,7 @@ func TestValidator(t *testing.T) {
 		conf := testCompute(ctx, validator, input, t)
 		testTargets(ctx, validator, input, conf, t)
 		testStorage(ctx, validator, input, conf, t)
+		testNetwork(ctx, validator, input, conf, t)
 	}
 }
 
@@ -330,6 +331,16 @@ func testCompute(ctx context.Context, v *Validator, input *data.Data, t *testing
 		v.issues = nil
 	}
 	return conf
+}
+
+func testNetwork(ctx context.Context, v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
+	op := trace.FromContext(ctx, "testNetwork")
+
+	inValidNetworkPath := "/DC0/missing-network/management"
+	input.PublicNetwork.Name = inValidNetworkPath
+	v.network(op, input, conf)
+	v.ListIssues(op)
+	assert.True(t, len(v.issues) > 0, "Error checking network for")
 }
 
 func testTargets(ctx context.Context, v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {

@@ -443,7 +443,7 @@ func (v *Validator) checkBridgeIPRange(bridgeIPRange *net.IPNet) error {
 	return nil
 }
 
-// getNetwork gets a moref based on the network name
+// getNetwork gets a moref based on the network name or network inventory path
 func (v *Validator) getNetwork(op trace.Operation, name string) (object.NetworkReference, error) {
 	defer trace.End(trace.Begin(name, op))
 
@@ -626,10 +626,23 @@ func (v *Validator) suggestNetwork(op trace.Operation, flag string, incStdNets b
 		return
 	}
 
+	// Find out the duplicate network name
+	count := make(map[string]int)
+	for _, n := range nets {
+		shortName := path.Base(n)
+		count[shortName] = count[shortName] + 1
+	}
+
 	op.Infof("Suggested values for %s:", flag)
 	for _, n := range nets {
 		if v.isNetworkNameValid(n, flag) {
-			op.Infof("  %q", path.Base(n))
+			// Show whole inventory path if network name is duplicated
+			shortName := path.Base(n)
+			if count[shortName] > 1 {
+				op.Infof("  %q", n)
+			} else {
+				op.Infof("  %q", shortName)
+			}
 		}
 	}
 }
