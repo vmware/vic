@@ -23,7 +23,9 @@ echo "######## Done repo customizations ######## -- exit $?"
 mount -t proc none /proc
 mount -t sysfs none /sys
 mount -t devtmpfs none /dev
-
+# mount the cgroup hierarchy to allow DinV
+mount -t cgroup -o all cgroup /sys/fs/cgroup
+ 
 # make some of the basics and start udev
 mknod -m 622 /dev/console c 5 1
 mknod -m 666 /dev/null c 1 3
