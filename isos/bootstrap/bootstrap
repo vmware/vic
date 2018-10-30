@@ -106,7 +106,9 @@ if timeout -s KILL 2m mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}
     echo 262144 > /proc/sys/vm/max_map_count
 
     # mount the cgroup hierarchy to allow DinV
-    mount -t cgroup -o all cgroup /sys/fs/cgroup
+    if [ -d /sys/fs/cgroup ];then
+        mount -t cgroup -o all cgroup /sys/fs/cgroup
+    fi
 
     until [[ $(ls -1 /dev/disk/by-label | wc -l) -eq $(ls -1 /sys/block/ | grep -v 'loop*' | grep -v 'ram*' | wc -l) ]]; do sleep 0.1;done
 
