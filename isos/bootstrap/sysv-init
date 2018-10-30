@@ -33,6 +33,8 @@ mknod -m 666 /dev/tty c 5 0
 mknod -m 444 /dev/random c 1 8
 mknod -m 444 /dev/urandom c 1 9
 chown root:tty /dev/{console,ptmx,tty}
+# ensure the /dev/fd symlink is created - not all udevd seem to do so
+ln -s /proc/self/fd /dev/fd
 
 mkdir -p /dev/{pts,shm}
 mount -t devpts -o gid=4,mode=620 none /dev/pts
