@@ -22,7 +22,7 @@ REGISTRY="gcr.io/eminent-nation-87317"
 IMAGE="vic-build-image"
 
 for PKGMGR in yum tdnf; do
-    docker build -t "$IMAGE-$PKGMGR:$REV" -f ./infra/build-image/Dockerfile.$PKGMGR .
+    docker build -t "$IMAGE-$PKGMGR:$REV" -f ./infra/build-image/Dockerfile.$PKGMGR ./infra/build-image
     docker tag "$IMAGE-$PKGMGR:$REV" "$REGISTRY/$IMAGE:$PKGMGR"
     docker tag "$IMAGE-$PKGMGR:$REV" "$REGISTRY/$IMAGE:$PKGMGR-$REV"
     # gcloud docker -- push "$REGISTRY/$IMAGE:$PKGMGR"
