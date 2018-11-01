@@ -69,6 +69,11 @@ Simple background node application on alpine
     Should Be Equal As Integers  ${rc}  0
     ${ip}=  Get IP Address of Container  node2
     
-    Wait Until Keyword Succeeds  10x  12s  Check node container  ${ip}
-    
+    ${status}=  Get State Of Github Issue  8168
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 22-08-node.robot needs to be updated now that Issue #8168 has been resolved
+
+    # once Issue #8168 is fixed, revert 60s to 12s
+    Wait Until Keyword Succeeds  10x  60s  Check node container  ${ip}
+
     [Teardown]  Remove Directory  app  recursive=${true}
+
