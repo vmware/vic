@@ -177,9 +177,21 @@ func (v *Validator) listComputeResource(op trace.Operation) ([]string, error) {
 		return nil, nil
 	}
 
+	// Find out the duplicate compute resource name
+	count := make(map[string]int)
+	for _, c := range compute {
+		cname := c.Name()
+		count[cname] = count[cname] + 1
+	}
+
 	matches := make([]string, len(compute))
 	for i, c := range compute {
-		matches[i] = c.Name()
+		cname := c.Name()
+		if count[cname] > 1 {
+			matches[i] = c.InventoryPath
+		} else {
+			matches[i] = c.Name()
+		}
 	}
 	return matches, nil
 }
