@@ -62,6 +62,7 @@ No-trunc images
     @{lines}=  Split To Lines  ${output}
     @{line}=  Split String  @{lines}[2]
     Length Should Be  @{line}[2]  71
+    Should Contain  @{line}[2]  sha256:
 
 Filter images before
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f before=busybox
