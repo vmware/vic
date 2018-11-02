@@ -273,21 +273,21 @@ func (v *Validator) network(op trace.Operation, input *data.Data, conf *config.V
 	//
 	// for now we're hardcoded to "bridge" for the container host name
 	conf.BridgeNetwork = "bridge"
-	endpointMoref, err := v.dpgHelper(op, input.BridgeNetworkName)
+	endpointNet, err := v.dpgAndOpaqueHelper(op, input.BridgeNetworkName)
 
 	var bridgeID, netMoid string
 	if err != nil {
 		bridgeID = ""
 		netMoid = ""
 	} else {
-		bridgeID = endpointMoref.String()
-		netMoid = endpointMoref.String()
+		bridgeID = endpointNet.Reference().String()
+		netMoid = endpointNet.Reference().String()
 	}
 
 	checkBridgeVDS := true
 	if err != nil {
 		if _, ok := err.(*find.NotFoundError); !ok || v.isVC() {
-			v.NoteIssue(fmt.Errorf("An existing distributed port group must be specified for bridge network on vCenter: %s", err))
+			v.NoteIssue(fmt.Errorf("An existing distributed port group or opaque network must be specified for bridge network on vCenter: %s", err))
 			v.suggestNetwork(op, "--bridge-network", false)
 			checkBridgeVDS = false // prevent duplicate error output
 		}
@@ -331,16 +331,18 @@ func (v *Validator) network(op trace.Operation, input *data.Data, conf *config.V
 		op.Debugf("\tNetwork: %s NetworkEndpoint: %v", net, val)
 	}
 
-	err = v.checkVDSMembership(op, endpointMoref, input.BridgeNetworkName)
-	if err != nil && checkBridgeVDS {
-		v.NoteIssue(fmt.Errorf("Unable to check hosts in vDS for %q: %s", input.BridgeNetworkName, err))
+	if endpointNet != nil {
+		err = v.checkNetworkMembership(op, endpointNet, input.BridgeNetworkName)
+		if err != nil && checkBridgeVDS {
+			v.NoteIssue(fmt.Errorf("Unable to check hosts in vDS or Opaque Network for %q: %s", input.BridgeNetworkName, err))
+		}
 	}
 
 	// add mapped networks (from --container-network)
 	//   these should be a distributed port groups in vCenter
 	suggestedMapped := false // only suggest mapped nets once
 	for name, net := range input.MappedNetworks {
-		checkMappedVDS := true
+		checkMappedNetwork := true
 		// "bridge" is reserved
 		if name == "bridge" {
 			v.NoteIssue(fmt.Errorf("Cannot use reserved name \"bridge\" for container network"))
@@ -388,10 +390,10 @@ func (v *Validator) network(op trace.Operation, input *data.Data, conf *config.V
 			continue
 		}
 
-		moref, err := v.dpgHelper(op, net)
+		cnet, err := v.dpgAndOpaqueHelper(op, net)
 		if err != nil {
 			v.NoteIssue(fmt.Errorf("Error adding container network %q: %s", name, err))
-			checkMappedVDS = false
+			checkMappedNetwork = false
 			if !suggestedMapped {
 				v.suggestNetwork(op, "--container-network", true)
 				suggestedMapped = true
@@ -400,7 +402,7 @@ func (v *Validator) network(op trace.Operation, input *data.Data, conf *config.V
 		mappedNet := &executor.ContainerNetwork{
 			Common: executor.Common{
 				Name: name,
-				ID:   moref.String(),
+				ID:   cnet.Reference().String(),
 			},
 			Type:        "external",
 			Gateway:     gw,
@@ -412,9 +414,11 @@ func (v *Validator) network(op trace.Operation, input *data.Data, conf *config.V
 			v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - %q also mapped as container network %q", input.BridgeNetworkName, name))
 		}
 
-		err = v.checkVDSMembership(op, moref, net)
-		if err != nil && checkMappedVDS {
-			v.NoteIssue(fmt.Errorf("Unable to check hosts in vDS for %q: %s", net, err))
+		if cnet != nil {
+			err = v.checkNetworkMembership(op, cnet, net)
+			if err != nil && checkMappedNetwork {
+				v.NoteIssue(fmt.Errorf("Unable to check hosts in vDS or Opaque Network for %q: %s", net, err))
+			}
 		}
 
 		conf.AddContainerNetwork(mappedNet)
@@ -501,31 +505,33 @@ func (v *Validator) dpgMorefHelper(op trace.Operation, ref string) (string, erro
 	return ref, nil
 }
 
-func (v *Validator) dpgHelper(op trace.Operation, path string) (types.ManagedObjectReference, error) {
+func (v *Validator) dpgAndOpaqueHelper(op trace.Operation, path string) (object.NetworkReference, error) {
 	defer trace.End(trace.Begin(path, op))
 
 	net, err := v.getNetwork(op, path)
 	if err != nil {
-		return types.ManagedObjectReference{}, err
+		return nil, err
 	}
 
 	// ensure that the type of the network is a Distributed Port Group if the target is a vCenter
+	// or ensure the type of the network is NSXT opaque network
 	// if it's not then any network suffices
 	if v.isVC() {
 		_, dpg := net.(*object.DistributedVirtualPortgroup)
-		if !dpg {
-			return types.ManagedObjectReference{}, fmt.Errorf("%q is not a Distributed Port Group", path)
+		_, opaque := net.(*object.OpaqueNetwork)
+		if !dpg && !opaque {
+			return nil, fmt.Errorf("%q is not a Distributed Port Group or an Opaque Network", path)
 		}
 	}
 
-	return net.Reference(), nil
+	return net, nil
 }
 
-// inDVP checks if the host is in the distributed virtual portgroup (dvpHosts)
-func (v *Validator) inDVP(op trace.Operation, host types.ManagedObjectReference, dvpHosts []types.ManagedObjectReference) bool {
+// inNetworkHosts checks if the host is in the distributed virtual portgroup (dvpHosts)dvpHosts or Opaque Network hosts
+func (v *Validator) inNetworkHosts(op trace.Operation, host types.ManagedObjectReference, netHosts []types.ManagedObjectReference) bool {
 	defer trace.End(trace.Begin("", op))
 
-	for _, h := range dvpHosts {
+	for _, h := range netHosts {
 		if host == h {
 			return true
 		}
@@ -533,11 +539,10 @@ func (v *Validator) inDVP(op trace.Operation, host types.ManagedObjectReference,
 	return false
 }
 
-// checkVDSMembership verifes all hosts in the vCenter are connected to the vDS
-func (v *Validator) checkVDSMembership(op trace.Operation, network types.ManagedObjectReference, netName string) error {
-	defer trace.End(trace.Begin(network.Value, op))
+// checkNetworkMembership verifies all hosts in the vCenter are connected to the vDS or Opaque Network
+func (v *Validator) checkNetworkMembership(op trace.Operation, network object.NetworkReference, netName string) error {
+	defer trace.End(trace.Begin(network.Reference().Value, op))
 
-	var dvp mo.DistributedVirtualPortgroup
 	var nonMembers []string
 
 	if !v.isVC() {
@@ -553,28 +558,43 @@ func (v *Validator) checkVDSMembership(op trace.Operation, network types.Managed
 		return err
 	}
 
-	r := object.NewDistributedVirtualPortgroup(v.session.Client.Client, network)
-	if err := r.Properties(op, r.Reference(), []string{"name", "host"}, &dvp); err != nil {
-		return err
-	}
+	switch network.(type) {
+	case *object.DistributedVirtualPortgroup:
+		var dvp mo.DistributedVirtualPortgroup
 
-	for _, h := range clusterHosts {
-		if !v.inDVP(op, h.Reference(), dvp.Host) {
-			nonMembers = append(nonMembers, h.InventoryPath)
+		r := object.NewDistributedVirtualPortgroup(v.session.Client.Client, network.Reference())
+		if err := r.Properties(op, r.Reference(), []string{"name", "host"}, &dvp); err != nil {
+			return err
+		}
+		for _, h := range clusterHosts {
+			if !v.inNetworkHosts(op, h.Reference(), dvp.Host) {
+				nonMembers = append(nonMembers, h.InventoryPath)
+			}
+		}
+	case *object.OpaqueNetwork:
+		var on mo.OpaqueNetwork
+		r := object.NewOpaqueNetwork(v.Session().Client.Client, network.Reference())
+		if err := r.Properties(op, r.Reference(), []string{"name", "host"}, &on); err != nil {
+			return err
+		}
+		for _, h := range clusterHosts {
+			if !v.inNetworkHosts(op, h.Reference(), on.Host) {
+				nonMembers = append(nonMembers, h.InventoryPath)
+			}
 		}
 	}
 
 	if len(nonMembers) > 0 {
-		op.Errorf("vDS configuration incorrect on %q. All cluster hosts must be in the vDS.", netName)
+		op.Errorf("Configuration incorrect on %q. All cluster hosts must be in the vDS or Opaque Network.", netName)
 		op.Errorf("  %q is missing hosts:", netName)
 		for _, hs := range nonMembers {
 			op.Errorf("    %q", hs)
 		}
 
-		errMsg := fmt.Sprintf("All cluster hosts must be in the vDS. %q is missing hosts: %s", netName, nonMembers)
+		errMsg := fmt.Sprintf("All cluster hosts must be in the vDS or Opaque Network. %q is missing hosts: %s", netName, nonMembers)
 		v.NoteIssue(errors.New(errMsg))
 	} else {
-		op.Infof("vDS configuration OK on %q", netName)
+		op.Infof("Network configuration OK on %q", netName)
 	}
 	return nil
 }
@@ -600,6 +620,8 @@ func (v *Validator) listNetworks(op trace.Operation, incStdNets bool) ([]string,
 			if !v.isDVSUplink(op, net.Reference()) {
 				selectedNets = append(selectedNets, o.InventoryPath)
 			}
+		case *object.OpaqueNetwork:
+			selectedNets = append(selectedNets, o.InventoryPath)
 		case *object.Network:
 			if incStdNets {
 				selectedNets = append(selectedNets, o.InventoryPath)

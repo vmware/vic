@@ -57,6 +57,7 @@ func TestValidator(t *testing.T) {
 	for i, model := range []*simulator.Model{simulator.ESX(), simulator.VPX()} {
 		t.Logf("%d", i)
 		model.Datastore = 3
+		model.Portgroup = 1
 		defer model.Remove()
 		err := model.Create()
 		if err != nil {
@@ -103,7 +104,9 @@ func TestValidator(t *testing.T) {
 		conf := testCompute(ctx, validator, input, t)
 		testTargets(ctx, validator, input, conf, t)
 		testStorage(ctx, validator, input, conf, t)
-		testNetwork(ctx, validator, input, conf, t)
+		if i == 1 {
+			testNetwork(ctx, validator, input, conf, t)
+		}
 	}
 }
 
@@ -331,16 +334,6 @@ func testCompute(ctx context.Context, v *Validator, input *data.Data, t *testing
 		v.issues = nil
 	}
 	return conf
-}
-
-func testNetwork(ctx context.Context, v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
-	op := trace.FromContext(ctx, "testNetwork")
-
-	inValidNetworkPath := "/DC0/missing-network/management"
-	input.PublicNetwork.Name = inValidNetworkPath
-	v.network(op, input, conf)
-	v.ListIssues(op)
-	assert.True(t, len(v.issues) > 0, "Error checking network for")
 }
 
 func testTargets(ctx context.Context, v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
@@ -809,6 +802,32 @@ func TestValidateWithFolders(t *testing.T) {
 	}
 	input.RegistryCAs = input.ClientCAs
 	validator.registries(op, input, spec)
+}
+
+func testNetwork(ctx context.Context, v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
+	op := trace.FromContext(ctx, "testNetwork")
+	tests := []struct {
+		path   string
+		vc     bool
+		hasErr bool
+	}{
+		{"/DC0/network/DC0_DVPG0", true, false},
+		{"DC0_DVPG0", true, false},
+		{"bridge", true, true},
+	}
+	// Throw exception if there is no network
+	for _, test := range tests {
+		t.Logf("%+v", test)
+		input.BridgeNetworkName = test.path
+		v.network(op, input, conf)
+		v.ListIssues(op)
+		if !test.hasErr {
+			assert.Equal(t, 0, len(v.issues))
+		} else {
+			assert.True(t, len(v.issues) > 0, "Error checking network for")
+		}
+		v.issues = nil
+	}
 }
 
 func TestValidateWithESX(t *testing.T) {
