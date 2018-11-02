@@ -307,8 +307,15 @@ func (s *Server) HandleForwarding(w mdns.ResponseWriter, r *mdns.Msg) (bool, err
 
 		if err != nil || m == nil {
 			// Seen an error, this can only mean, "server not reached", or similar
-			log.Errorf("Failure to forward request to %s: %q", nameserver, err)
-			continue
+			// Propagating truncated DNS record to client. Client should retry using TCP.
+			if err == mdns.ErrTruncated {
+				log.Debugf("Propagate error: '%q' from %s to client", err, nameserver)
+
+			} else {
+				log.Errorf("Failure to forward request to %s: %q", nameserver, err)
+				continue
+			}
+
 		}
 
 		if m.Authoritative {

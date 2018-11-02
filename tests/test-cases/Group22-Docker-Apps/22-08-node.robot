@@ -71,11 +71,6 @@ Simple background node application on alpine
     ${ip}=  Get IP Address of Container  node2
     Should Not Be Empty  ${ip}
     
-    ${status}=  Get State Of Github Issue  8168
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 22-08-node.robot needs to be updated now that Issue #8168 has been resolved
-
-    # once Issue #8168 is fixed, revert 60s to 12s
-    Wait Until Keyword Succeeds  10x  60s  Check node container  ${ip}
-
+    Wait Until Keyword Succeeds  10x  12s  Check node container  ${ip}
+    
     [Teardown]  Remove Directory  app  recursive=${true}
-
