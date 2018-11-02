@@ -977,7 +977,7 @@ func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target
 	for _, ip := range ips {
 		//NOTE: the mountOptions of syscall mount only accept addr=ip. addr=FQDN doesn't work
 		//We resolve the ip address nearest the mounting action.
-		mountOptionsIP := strings.Replace(mountOptions, source.Hostname(), ip.String(), -1)
+		mountOptionsIP := strings.Replace(mountOptions, "addr="+source.Hostname(), "addr="+ip.String(), -1)
 		if err = syscallMount(rawSource.String(), target, nfsFileSystemType, mountOptionsIP); err != nil {
 			log.Debugf("mounting %s with resolved ip: %s on %s failed: %s", source.String(), ip.String(), target, err)
 		} else {
