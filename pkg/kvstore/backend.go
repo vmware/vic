@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"os"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/docker/docker/pkg/stringutils"
 
 	"github.com/vmware/vic/pkg/vsphere/datastore"

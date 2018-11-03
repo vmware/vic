@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // ErrorHook is a simple logrus hook to duplicate Fatalf leveled error messages to stderr

@@ -19,7 +19,7 @@ import (
 	"io"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/matryer/resync"
 
 	"golang.org/x/crypto/ssh"

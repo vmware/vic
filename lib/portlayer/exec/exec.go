@@ -21,7 +21,7 @@ import (
 
 	"context"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"

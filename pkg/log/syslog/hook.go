@@ -14,7 +14,7 @@
 
 package syslog
 
-import "github.com/Sirupsen/logrus"
+import "github.com/sirupsen/logrus"
 
 type Hook struct {
 	writer Writer

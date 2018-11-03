@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	engineapi "github.com/docker/docker/client"
 	"github.com/docker/swarmkit/agent/exec/container"
 	"github.com/docker/swarmkit/cli"

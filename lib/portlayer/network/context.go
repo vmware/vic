@@ -23,7 +23,7 @@ import (
 	"sync"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/docker/go-connections/nat"
 
 	"github.com/vmware/govmomi/object"

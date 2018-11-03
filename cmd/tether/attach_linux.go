@@ -24,7 +24,7 @@ import (
 
 	"golang.org/x/crypto/ssh/terminal"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/tether/msgs"
 	"github.com/vmware/vic/pkg/serial"

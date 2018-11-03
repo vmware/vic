@@ -20,7 +20,7 @@ import (
 
 	"context"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/stretchr/testify/assert"
 

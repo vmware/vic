@@ -27,7 +27,7 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/reference"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // repoCache is a cache of the docker repository information.
