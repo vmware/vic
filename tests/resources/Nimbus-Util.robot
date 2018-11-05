@@ -19,12 +19,13 @@ Documentation  This resource contains any keywords related to using the Nimbus c
 ${ESX_VERSION}  ob-7867845
 ${VC_VERSION}  ob-7867539
 ${NIMBUS_ESX_PASSWORD}  e2eFunctionalTest
-${NIMBUS_LOCATION}  ${EMPTY}
+${NIMBUS_LOCATION}  sc
+${NIMBUS_LOCATION_FULL}  NIMBUS_LOCATION=${NIMBUS_LOCATION}
 
 *** Keywords ***
 Fetch IP
     [Arguments]  ${name}
-    ${out}=  Execute Command  ${NIMBUS_LOCATION} nimbus-ctl ip %{NIMBUS_USER}-${name} | grep %{NIMBUS_USER}-${name}
+    ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} nimbus-ctl ip %{NIMBUS_USER}-${name} | grep %{NIMBUS_USER}-${name}
     Should Not Be Empty  ${out}
     ${len}=  Get Line Count  ${out}
     Should Be Equal As Integers  ${len}  1
