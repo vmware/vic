@@ -16,7 +16,7 @@
 Documentation  Test 5-13 - Invalid ESXi Install
 Resource  ../../resources/Util.robot
 Suite Setup  Nimbus Suite Setup  Invalid ESXi Install Setup
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
 
 *** Keywords ***
 Invalid ESXi Install Setup
