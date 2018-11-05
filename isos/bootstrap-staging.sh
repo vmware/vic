@@ -75,7 +75,7 @@ setup_pm $REPODIR $PKGDIR $PACKAGE_MANAGER $REPO
 
 # Run a staging script if needed
 script=$(cat $REPODIR/repo-spec.json | jq -r '.packages_script_staging.bootstrap')
-[ -n "$script" ] && package_cached -c $cache -u -p $PKGDIR $script --nogpgcheck -y
+[ -n "$script" ] && package_cached -c $cache -u -p $PKGDIR $script -y
 
 # Install bootstrap base packages
 #
@@ -85,7 +85,7 @@ script=$(cat $REPODIR/repo-spec.json | jq -r '.packages_script_staging.bootstrap
 #   util-linux  # photon2 for /bin/mount
 #
 STAGING_PKGS=$(cat $REPODIR/repo-spec.json | jq -r '.packages.bootstrap')
-[ -n "$STAGING_PKGS" ] && package_cached -c $cache -u -p $PKGDIR install $STAGING_PKGS --nogpgcheck -y
+[ -n "$STAGING_PKGS" ] && package_cached -c $cache -u -p $PKGDIR install $STAGING_PKGS -y
 
 # preform a repo customization if needed
 [ -f $REPODIR/staging.sh ] && . $REPODIR/staging.sh

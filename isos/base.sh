@@ -81,7 +81,7 @@ setup_pm $REPODIR $PKGDIR $PACKAGE_MANAGER $REPO
 # install the core packages
 CORE_PKGS=$(cat $REPODIR/repo-spec.json | jq -r '.packages.base')
 echo "Install core packages"
-package_cached -c $cache -u -p $PKGDIR install $CORE_PKGS --nogpgcheck -y
+package_cached -c $cache -u -p $PKGDIR install $CORE_PKGS -y
 
 # determine the kernel package
 KERNEL=$(cat $REPODIR/repo-spec.json | jq -r '.kernel')
@@ -95,7 +95,7 @@ if [ -f "$(pwd)/$KERNEL" ]; then
     )
 else
     echo "Using kernel RPM package: $KERNEL"
-    package_cached -c $cache -u -p $PKGDIR install $KERNEL --nogpgcheck -y
+    package_cached -c $cache -u -p $PKGDIR install $KERNEL -y
 fi
 
 # Issue 3858: find all kernel modules and unpack them and run depmod against that directory
