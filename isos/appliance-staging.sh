@@ -75,10 +75,10 @@ PACKAGE_MANAGER=${PACKAGE_MANAGER:-tdnf}
 setup_pm $REPODIR $PKGDIR $PACKAGE_MANAGER $REPO
 
 script=$(cat $REPODIR/repo-spec.json | jq -r '.packages_script_staging.appliance')
-[ -n "$script" ] && package_cached -c $cache -u -p $PKGDIR $script --nogpgcheck -y
+[ -n "$script" ] && package_cached -c $cache -u -p $PKGDIR $script -y
 
 STAGING_PKGS=$(cat $REPODIR/repo-spec.json | jq -r '.packages.appliance')
-package_cached -c $cache -u -p $PKGDIR install $STAGING_PKGS --nogpgcheck -y
+package_cached -c $cache -u -p $PKGDIR install $STAGING_PKGS -y
 
 # Give a permission to vicadmin to run iptables.
 echo "vicadmin ALL=NOPASSWD: /sbin/iptables --list" >> $(rootfs_dir $PKGDIR)/etc/sudoers

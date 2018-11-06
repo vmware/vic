@@ -59,6 +59,12 @@ setup_pm() {
     # select the repo directory and populate the basic yum config
     mkdir -p $(rootfs_dir $PKGDIR)/{etc/$PACKAGE_MANAGER,etc/yum.repos.d}
     cp -a $REPODIR/*.repo $(rootfs_dir $PKGDIR)/etc/yum.repos.d/
+    #place corresponding gpgkey files if gpgkey provided as a file rather than a url
+    for keypath in $(awk -F'gpgkey=file:' '/gpgkey=file:/{print $2}' $REPODIR/*.repo)
+    do
+        keyf=$(basename $keypath)
+        [ -f $REPODIR/$keyf ] && rpm --root=$(rootfs_dir $PKGDIR) --import $REPODIR/$keyf
+    done
 
     # Copy tdnf config to iso for later use with a relative rootfs
     cp $BASE_DIR/$PACKAGE_MANAGER.conf          $(rootfs_dir $PKGDIR)/etc/$PACKAGE_MANAGER/$PACKAGE_MANAGER.conf
