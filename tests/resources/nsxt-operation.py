@@ -100,10 +100,12 @@ def get_nsxt_overlay_logical_switch(nsxt_uri, nsxt_username, nsxt_password,
 def create_nsxt_logical_switch(nsxt_uri, nsxt_username, nsxt_password, logical_switch_name):
     # As there is no transport zone name returned, so we used first returned overlay TZ
     transport_zone_id = get_overlay_transport_zone(nsxt_uri, nsxt_username, nsxt_password)
+    if transport_zone_id is None:
+        return
     existing_ls = get_nsxt_overlay_logical_switch(nsxt_uri, nsxt_username, nsxt_password,
                                                   transport_zone_id, logical_switch_name)
     if existing_ls:
-        return existing_ls['display_name'], existing_ls['id']
+        return existing_ls['id']
 
     nsxclient = NSXtClient(nsxt_uri, nsxt_username, nsxt_password)
     body = {
@@ -113,4 +115,4 @@ def create_nsxt_logical_switch(nsxt_uri, nsxt_username, nsxt_password, logical_s
         'display_name': logical_switch_name
     }
     result = nsxclient.url_post('logical-switches', body)
-    return result['display_name'], result['id']
+    return result['id']
