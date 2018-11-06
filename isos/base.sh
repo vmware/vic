@@ -20,13 +20,12 @@ set -e && [ -n "$DEBUG" ] && set -x
 DIR=$(dirname $(readlink -f "$0"))
 . $DIR/base/utils.sh
 
-
 function usage() {
-echo "Usage: $0 -p package-name(tgz) [-c yum-cache]" 1>&2
+echo "Usage: $0 -p package-name(tgz) [-c package-cache]" 1>&2
 exit 1
 }
 
-while getopts "c:p:" flag
+while getopts "c:p:r:" flag
 do
     case $flag in
 
@@ -35,8 +34,13 @@ do
             PACKAGE="$OPTARG"
             ;;
 
+        r)
+            # Optional. Name of repo set in base/repos to use
+            REPO="$OPTARG"
+            ;;
+
         c)
-            # Optional. Offline cache of yum packages
+            # Optional. Offline cache of package packages
             cache="$OPTARG"
             ;;
 
@@ -53,38 +57,62 @@ if [ ! -z "$*" -o -z "$PACKAGE" ]; then
     usage
 fi
 
+REPO=${REPO:-photon-2.0}
+
+REPODIR="$DIR/base/repos/${REPO}/"
+PACKAGE_MANAGER=$(cat $REPODIR/repo-spec.json | jq -r '.packagemanager')
+PACKAGE_MANAGER=${PACKAGE_MANAGER:-tdnf}
+
 # prep the build system
-ensure_apt_packages cpio rpm tar ca-certificates xz-utils
+# ensure_apt_packages cpio rpm tar ca-certificates xz-utils
 
 PKGDIR=$(mktemp -d)
 
 # initialize the bundle
 initialize_bundle $PKGDIR
 
-# base filesystem setup
-mkdir -p $(rootfs_dir $PKGDIR)/{etc/yum,etc/yum.repos.d}
 ln -s /lib $(rootfs_dir $PKGDIR)/lib64
-if [[ $DRONE_BUILD_NUMBER && $DRONE_BUILD_NUMBER > 0 ]]; then
-    cp $DIR/base/*-local.repo $(rootfs_dir $PKGDIR)/etc/yum.repos.d/
-else
-    cp $DIR/base/*-remote.repo $(rootfs_dir $PKGDIR)/etc/yum.repos.d/
-fi
-cp $DIR/base/yum.conf $(rootfs_dir $PKGDIR)/etc/yum/
+
+# preform a repo customization if needed
+[ -f $REPODIR/base.sh ] && . $REPODIR/base.sh
+
+setup_pm $REPODIR $PKGDIR $PACKAGE_MANAGER $REPO
 
 # install the core packages
-yum_cached -c $cache -u -p $PKGDIR install filesystem coreutils linux-esx --nogpgcheck -y
+CORE_PKGS=$(cat $REPODIR/repo-spec.json | jq -r '.packages.base')
+echo "Install core packages"
+package_cached -c $cache -u -p $PKGDIR install $CORE_PKGS -y
 
+# determine the kernel package
+KERNEL=$(cat $REPODIR/repo-spec.json | jq -r '.kernel')
+# if the kernel isn't a file then install it with the other packages
+if [ -f "$(pwd)/$KERNEL" ]; then
+    echo "Using kernel package from directory: $(pwd)/$KERNEL"
+    KERNEL=$(pwd)/$KERNEL
+    (
+        cd $(rootfs_dir $PKGDIR)
+        rpm2cpio $KERNEL | cpio -idm
+    )
+else
+    echo "Using kernel RPM package: $KERNEL"
+    package_cached -c $cache -u -p $PKGDIR install $KERNEL -y
+fi
 
 # Issue 3858: find all kernel modules and unpack them and run depmod against that directory
-find $(rootfs_dir $PKGDIR)/lib/modules -name "*.ko.xz" | xargs xz -d
+find $(rootfs_dir $PKGDIR)/lib/modules -name "*.ko.xz" -exec xz -d {} \;
 KERNEL_VERSION=$(basename $(rootfs_dir $PKGDIR)/lib/modules/*)
-chroot $(rootfs_dir $PKGDIR) depmod $KERNEL_VERSION
+chroot $(rootfs_dir $PKGDIR) depmod $KERNEL_VERSION 
 
 # strip the cache from the resulting image
-yum_cached -c $cache -p $PKGDIR clean all
+package_cached -c $cache -p $PKGDIR clean all
 
 # move kernel into bootfs /boot directory so that syslinux could load it
 mv $(rootfs_dir $PKGDIR)/boot/vmlinuz-* $(bootfs_dir $PKGDIR)/boot/vmlinuz64
+# try copying over the other boot files - rhel kernel seems to need a side car configuration file and System map
+find $(rootfs_dir $PKGDIR)/boot -type f  -exec cp {} $(bootfs_dir $PKGDIR)/boot/ \;
+
+# https://www.freedesktop.org/wiki/Software/systemd/InitrdInterface/
+touch $(rootfs_dir $PKGDIR)/etc/initrd-release
 
 # package up the result
 pack $PKGDIR $PACKAGE

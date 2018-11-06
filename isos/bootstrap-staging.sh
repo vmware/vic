@@ -16,21 +16,16 @@
 # Build the bootstrap filesystem ontop of the base
 
 # exit on failure
-set -e
-
-if [ -n "$DEBUG" ]; then
-    set -x
-fi
-
+set -e && [ -n "$DEBUG" ] && set -x
 DIR=$(dirname $(readlink -f "$0"))
 . $DIR/base/utils.sh
 
 function usage() {
-echo "Usage: $0 -c yum-cache(tgz) -p base-package(tgz) -o output-package(tgz) -d <activates debug when set>" 1>&2
+echo "Usage: $0 -c package-cache(tgz) -p base-package(tgz) -o output-package(tgz) " 1>&2
 exit 1
 }
 
-while getopts "c:p:o:d:" flag
+while getopts "c:p:o:" flag
 do
     case $flag in
 
@@ -44,13 +39,8 @@ do
             OUT="$OPTARG"
             ;;
 
-        d)
-            # Optional. directs script to make a debug iso instead of a production iso.
-            debug='$OPTARG'
-            ;;
-
         c)
-            # Optional. Offline cache of yum packages
+            # Optional. Offline cache of package packages
             cache="$OPTARG"
             ;;
 
@@ -76,43 +66,33 @@ PKGDIR=$(mktemp -d)
 
 unpack $package $PKGDIR
 
-if [ -v debug ]; then
-    # These are the packages we install to create an interactive bootstrapVM
-    # Install bootstrap base packages
-    #
-    # packages list here
-    #   tndf      # allows package install during debugging.
-    #   vim       # basic editing function for debugging.
-    yum_cached -c $cache -u -p $PKGDIR install \
-        bash \
-        shadow \
-        tdnf \
-        vim \
-        -y --nogpgcheck
+# load the repo to use from the package if not explicit in env
+REPO=${REPO:-$(cat $PKGDIR/repo.cfg)}
+REPODIR="$DIR/base/repos/${REPO}/"
+PACKAGE_MANAGER=${PACKAGE_MANAGER:-$(cat $REPODIR/repo-spec.json | jq -r '.packagemanager')}
+PACKAGE_MANAGER=${PACKAGE_MANAGER:-tdnf}
+setup_pm $REPODIR $PKGDIR $PACKAGE_MANAGER $REPO
 
-    # HACK until the issues with override.conf above are dealt with
-    pwhash=$(openssl passwd -1 -salt vic password)
-    sed -i -e "s/^root:[^:]*:/root:${pwhash}:/" $(rootfs_dir $PKGDIR)/etc/shadow
-fi
+# Run a staging script if needed
+script=$(cat $REPODIR/repo-spec.json | jq -r '.packages_script_staging.bootstrap')
+[ -n "$script" ] && package_cached -c $cache -u -p $PKGDIR $script -y
 
 # Install bootstrap base packages
 #
 # List stable packages here
-#   iproute2  # for ip
-#   libtirpc  # due to a previous package reliance on rpc
+#   iproute2    # for ip
+#   libtirpc    # due to a previous package reliance on rpc
+#   util-linux  # photon2 for /bin/mount
 #
-yum_cached -c $cache -u -p $PKGDIR install \
-    haveged \
-    systemd \
-    iptables \
-    -y --nogpgcheck
+STAGING_PKGS=$(cat $REPODIR/repo-spec.json | jq -r '.packages.bootstrap')
+[ -n "$STAGING_PKGS" ] && package_cached -c $cache -u -p $PKGDIR install $STAGING_PKGS -y
 
-# https://www.freedesktop.org/wiki/Software/systemd/InitrdInterface/
-touch $(rootfs_dir $PKGDIR)/etc/initrd-release
+# preform a repo customization if needed
+[ -f $REPODIR/staging.sh ] && . $REPODIR/staging.sh
 
 # ensure we're not including a cache in the staging bundle
 # but don't update the cache bundle we're using to install
-yum_cached -p $PKGDIR clean all
+package_cached -p $PKGDIR clean all
 
 # package up the result
 pack $PKGDIR $OUT

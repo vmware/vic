@@ -24,6 +24,8 @@ import (
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 type TestReadCloser struct {
@@ -141,8 +143,78 @@ func TestWriteReadLargeEntry(t *testing.T) {
 		t.Errorf("Error reading random data: %s", err)
 	}
 
-	if len(result) != len(data) {
-		t.Errorf("Expected result of size %d, got %d", len(data), len(result))
+	if n != len(data) {
+		t.Errorf("Expected result of size %d, got %d", len(data), n)
+	}
+
+	h = sha256.New()
+	d = bytes.NewBuffer(result)
+	if _, err := io.Copy(h, d); err != nil {
+		t.Errorf("Error calculating sha256: %s", err)
+	}
+	shaDst := fmt.Sprintf("%x", h.Sum(nil))
+
+	if shaSrc != shaDst {
+		t.Errorf("Checksum failed: expected %s, got %s", shaSrc, shaDst)
+	}
+}
+
+func TestReadWithLeadingGarbage(t *testing.T) {
+	var in bytes.Buffer
+	w := NewLogWriter(&in, tc)
+	rc := &TestReadCloser{Buffer: &in}
+	r := NewLogReader(rc, false)
+
+	// add garbage prefix to log output buffer
+	errA := in.WriteByte(0x0d)
+	errB := in.WriteByte(0xff)
+	require.NoError(t, errA, "Expected setup to succeed (errA)")
+	require.NoError(t, errB, "Expected setup to succeed (errB)")
+
+	rand.Seed(time.Now().Unix())
+	data := make([]byte, 32*1024)
+	n := 0
+	for n < len(data) {
+		w, err := rand.Read(data[n:])
+		n += w
+		if err != nil {
+			break
+		}
+	}
+
+	h := sha256.New()
+	d := bytes.NewBuffer(data)
+	if _, err := io.Copy(h, d); err != nil {
+		t.Errorf("Error calculating sha256: %s", err)
+	}
+	shaSrc := fmt.Sprintf("%x", h.Sum(nil))
+
+	n, err := w.Write(data)
+	if n != len(data) {
+		t.Errorf("Wrote %d bytes, expected to write %d", n, len(data))
+	}
+	w.Close()
+
+	if err != nil {
+		t.Errorf("Error writing random data: %s", err)
+	}
+
+	result := make([]byte, len(data))
+	n = 0
+	for n < len(data) {
+		w, err := r.Read(result[n:])
+		n += w
+		if err != nil {
+			break
+		}
+	}
+
+	if err != nil {
+		t.Errorf("Error reading random data: %s", err)
+	}
+
+	if n != len(data) {
+		t.Errorf("Expected result of size %d, got %d", len(data), n)
 	}
 
 	h = sha256.New()

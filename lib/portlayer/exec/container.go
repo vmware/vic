@@ -557,7 +557,7 @@ func (c *Container) LogReader(op trace.Operation, tail int, follow bool, since i
 
 			entry, err := iolog.ParseLogEntry(buf)
 			if err != nil {
-				op.Errorf("Error parsing log entry: %s", err.Error())
+				op.Errorf("Error parsing log entry at line %d: %s", line, err.Error())
 				return false
 			}
 

@@ -92,9 +92,12 @@ Create VCH - custom base disk
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
-    ${output}=  Run  docker %{VCH-PARAMS} logs $(docker %{VCH-PARAMS} start $(docker %{VCH-PARAMS} create --name customDiskContainer ${busybox} /bin/df -h) && sleep 10) | grep /dev/sda | awk '{print $2}'
+    ${output}=  Run  docker %{VCH-PARAMS} logs $(docker %{VCH-PARAMS} start $(docker %{VCH-PARAMS} create --name customDiskContainer ${busybox} /bin/df -Pha) && sleep 10) | awk '$NF == "/" {print $2}'
     # df shows GiB and vic-machine takes in GB so 6GB on cmd line == 5.5GB in df
-    Should Be Equal As Strings  ${output}  5.5G
+    ${unit}=  Get Substring  ${output}  -1
+    Should Be Equal  ${unit}  G
+    ${size}=  Get Substring  ${output}  0  -1
+    Should Be True  ${size} > 5.0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f customDiskContainer
     Should Be Equal As Integers  ${rc}  0
 

@@ -53,19 +53,19 @@ See [CONTRIBUTING](CONTRIBUTING.md) for details on submitting changes and the co
 
 ## Building
 
-Building the project is done with a combination of make and containers, with golang:1.8 being the common container base. This is done so that it's possible to build directly, without a functional docker, if using a Debian based system with the Go 1.8 toolchain and Drone.io installed.
+Building the project is done with a combination of make and containers, with gcr.io/eminent-nation-87317/vic-build-image:tdnf being the common container base. This requires Docker installed. If gcr.io is not accessible you can follow the steps in [Dockerfile](infra/build-image/Dockerfile.tdnf) to build this image.
 
-To build as closely as possible to the formal build:
+To build as closely as possible to the formal build, you need the Go 1.8 toolchain and Drone.io installed:
 ```shell
 drone exec
 ```
 
 To build inside a Docker container:
 ```shell
-docker run -v $(pwd):/go/src/github.com/vmware/vic -w /go/src/github.com/vmware/vic golang:1.8 make all
+docker run -v $(pwd):/go/src/github.com/vmware/vic gcr.io/eminent-nation-87317/vic-build-image:tdnf make all
 ```
 
-To build directly:
+To build directly, you also need the Go 1.8 toolchain installed:
 ```shell
 make all
 ```
@@ -131,35 +131,19 @@ This will install the [gvt](https://github.com/FiloSottile/gvt) utility and retr
 ## Building the ISOs
 
 The component binaries above are packaged into ISO files, appliance.iso and bootstrap.iso, that are used by the installer. The generation of the ISOs is split into the following targets:
-iso-base, appliance-staging, bootstrap-staging, appliance, and bootstrap. Generation of the ISOs involves authoring a new root filesystem, meaning running a package manager (currently yum) and packing/unpacking archives. To install packages and preserve file permissions while unpacking these steps should be run as root, whether directly or in a container. To generate the ISOs:
+
+`iso-base, appliance-staging, bootstrap-staging, appliance, and bootstrap`
+
+Generation of the ISOs involves authoring a new root filesystem, meaning running a package manager (currently tdnf) and packing/unpacking archives. This is done with gcr.io/eminent-nation-87317/vic-build-image:tdnf being the build container. This requires Docker installed. If gcr.io is not accessible you can follow the steps in [Dockerfile](infra/build-image/Dockerfile.tdnf) to build this image. To generate the ISOs:
 
 ```shell
 make isos
 ```
 
-The appliance and bootstrap ISOs are bootable CD images used to start the VMs that make up VIC Engine. To build the image using [docker](https://www.docker.com/), ensure `GOPATH` is set and `docker` is installed, then issue the following.
+The appliance and bootstrap ISOs are bootable CD images used to start the VMs that make up VIC Engine. To build the image, issue the following.
 
 ```shell
-docker run -v $(pwd):/go/src/github.com/vmware/vic -w /go/src/github.com/vmware/vic golang:1.8 make isos
-```
-
-Alternatively, the iso image can be built locally.  Again, ensure `GOPATH` is set, but also ensure the following packages are installed. This will attempt to install the following packages if not present using apt-get:
-
-```shell
-apt-get install \
-	curl \
-	cpio \
-	tar \
-	xorriso \
-	rpm \
-	ca-certificates \
-	yum
-```
-
-Package names may vary depending on the distribution being used.  Once installed, issue the following (the targets listed here are those executed when using the `iso` target.
-
-```shell
-make iso-base appliance-staging appliance bootstrap-staging bootstrap
+docker run -v $(pwd):/go/src/github.com/vmware/vic gcr.io/eminent-nation-87317/vic-build-image:tdnf make isos
 ```
 
 The iso image will be created in `$BIN`

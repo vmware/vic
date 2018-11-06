@@ -43,10 +43,11 @@ Simple background node application
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp app copier:/mydata
     Should Be Equal As Integers  ${rc}  0
     
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name node1 -v vol1:/usr/src -d node sh -c "cd /usr/src/app && npm install && npm start"
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name node1 -v vol1:/usr/src -d node sh -c "cd /usr/src/app && echo 'Installing...' && npm install && echo 'Starting...' && npm start"
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${ip}=  Get IP Address of Container  node1
+    Should Not Be Empty  ${ip}
     
     Wait Until Keyword Succeeds  10x  12s  Check node container  ${ip}
     
@@ -68,6 +69,7 @@ Simple background node application on alpine
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${ip}=  Get IP Address of Container  node2
+    Should Not Be Empty  ${ip}
     
     ${status}=  Get State Of Github Issue  8168
     Run Keyword If  '${status}' == 'closed'  Fail  Test 22-08-node.robot needs to be updated now that Issue #8168 has been resolved

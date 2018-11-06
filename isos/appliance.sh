@@ -20,7 +20,6 @@ set -e && [ -n "$DEBUG" ] && set -x
 DIR=$(dirname $(readlink -f "$0"))
 . $DIR/base/utils.sh
 
-
 function usage() {
 echo "Usage: $0 -p staged-package(tgz) -b binary-dir" 1>&2
 exit 1
@@ -78,22 +77,23 @@ ln -s /etc/systemd/system/nat.service $(rootfs_dir $PKGDIR)/etc/systemd/system/v
 ln -s /etc/systemd/system/permissions.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
 ln -s /lib/systemd/system/multi-user.target $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
 
-# disable networkd given we manage the link state directly
-rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/systemd-networkd.service
-rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/sockets.target.wants/systemd-networkd.socket
-
-# Disable time synching.  We'll use toolbox for this.
-rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/sysinit.target.wants/systemd-timesyncd.service
-
 # change the default systemd target to launch VIC
-ln -sf /etc/systemd/system/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/default.target
+chroot $(rootfs_dir $PKGDIR) systemctl set-default vic.target
+
+# seal the systemd machine id
+# this prevents systemd from regenerating units on first boot
+chroot $(rootfs_dir $PKGDIR) systemd-machine-id-setup
+> $(rootfs_dir $PKGDIR)/etc/machine-id
+
+# disable networkd given we manage the link state directly
+chroot $(rootfs_dir $PKGDIR) systemctl disable \
+    systemd-networkd.service systemd-networkd.socket \
+    systemd-resolved.service \
+    systemd-timesyncd.service
 
 # do not use the systemd dhcp client
 rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
 cp ${DIR}/base/no-dhcp.network $(rootfs_dir $PKGDIR)/etc/systemd/network/
-
-# do not use the default iptables rules - nat-setup supplants this
-rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
 
 #
 # Set up component users
@@ -101,6 +101,7 @@ rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
 
 chroot $(rootfs_dir $PKGDIR) groupadd -g 1000 vicadmin
 chroot $(rootfs_dir $PKGDIR) useradd -u 1000 -g 1000 -G systemd-journal -m -d /home/vicadmin -s /bin/false vicadmin
+chroot $(rootfs_dir $PKGDIR) touch /etc/resolv.conf
 
 # Group vic should be used to run all VIC related services.
 chroot $(rootfs_dir $PKGDIR) groupadd -g 1001 vic
@@ -126,6 +127,6 @@ cp ${BIN}/vic-init $(rootfs_dir $PKGDIR)/sbin/vic-init
 cp ${BIN}/{docker-engine-server,port-layer-server,vicadmin} $(rootfs_dir $PKGDIR)/sbin/
 cp ${BIN}/unpack $(rootfs_dir $PKGDIR)/bin/
 
-## Generate the ISO
+# Generate the ISO
 # Select systemd for our init process
 generate_iso $PKGDIR $BIN/appliance.iso /lib/systemd/systemd

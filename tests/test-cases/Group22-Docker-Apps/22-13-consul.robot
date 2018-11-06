@@ -38,6 +38,7 @@ Multi-agent consul topology
     #Log  ${output}
     #Should Be Equal As Integers  ${rc}  0
     #${ip}=  Get IP Address of Container  dev-consul
+    #Should Not Be Empty  ${ip}
 
     #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -e CONSUL_BIND_INTERFACE=eth0 consul agent -dev -join=${ip}
     #Log  ${output}
