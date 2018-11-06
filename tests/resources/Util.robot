@@ -21,6 +21,7 @@ Library  Process
 Library  SSHLibrary  5 minute
 Library  DateTime
 Library  Selenium2Library  3  3
+Library  nsxt-operation.py
 Resource  Nimbus-Util.robot
 Resource  Vsphere-Util.robot
 Resource  VCH-Util.robot
