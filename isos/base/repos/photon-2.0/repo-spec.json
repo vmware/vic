@@ -9,6 +9,6 @@
     },
     "packages": {
         "base": "filesystem toybox kmod haveged iptables",
-        "bootstrap": "",
+        "bootstrap": "iproute2",
         "appliance": "procps-ng e2fsprogs shadow systemd iputils iproute2 tdnf gzip lsof logrotate photon-release mingetty rpm dbus net-tools openssh ca-certificates sudo vim lsof bash"
     }}
