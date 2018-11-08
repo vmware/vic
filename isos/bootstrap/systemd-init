@@ -46,8 +46,8 @@ UDEV_PID=$!
 udevadm trigger
 
 echo 'Bring up loopback interface'
-until ifconfig lo;do sleep 0.1;done
-ifconfig lo up
+until ip link show lo;do sleep 0.1;done
+ip link set lo up
 
 # launch the main entry point
 echo "######## Launching bootstrap entrypoint ########"

@@ -5,7 +5,7 @@
     "init": "/bin/init",
     "packages": {
         "base": "filesystem coreutils kmod haveged iptables",
-        "bootstrap": "",
+        "bootstrap": "grep iproute2",
         "appliance": "procps-ng e2fsprogs shadow systemd iputils iproute2 tdnf gzip lsof logrotate photon-release mingetty rpm dbus net-tools openssh ca-certificates sudo vim lsof"
     }
 }
