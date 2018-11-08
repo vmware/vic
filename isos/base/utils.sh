@@ -37,6 +37,29 @@ initialize_bundle() {
     cp -a $BASE_DIR/isolinux $1/bootfs/boot/isolinux
 }
 
+# Restore repository configurations
+# 1: package directory
+restore_repo() {
+    local PKGDIR=$1
+    if [ -f $PKGDIR/local.repo ]; then
+        echo "Restore package repository configurations"
+        rm -rf $(rootfs_dir $PKGDIR)/etc/yum.repos.d
+        mv $(rootfs_dir $PKGDIR)/etc/yum.repos.d.bak $(rootfs_dir $PKGDIR)/etc/yum.repos.d
+    fi
+}
+
+# Set local package repository for CI and backup repository configurations
+# 1: package directory
+set_local_repo() {
+    local PKGDIR=$1
+    if [ -f $PKGDIR/local.repo ]; then
+        echo "Find local repo file, configure it for package repository"
+        mv $(rootfs_dir $PKGDIR)/etc/yum.repos.d $(rootfs_dir $PKGDIR)/etc/yum.repos.d.bak
+        mkdir -p $(rootfs_dir $PKGDIR)/etc/yum.repos.d
+        cp $PKGDIR/local.repo $(rootfs_dir $PKGDIR)/etc/yum.repos.d/
+    fi
+}
+
 # Install the necessary package manager to the package root
 # All following calls to package_cached will call $PACKAGE_MANAGER from chroot $PKGDIR
 # 1: repository directory, containing repo files
@@ -49,6 +72,7 @@ setup_pm() {
     local PACKAGE_MANAGER=$3
     local REPO=$4
     local VER=$(echo $REPO | cut -d '-' -f2)
+    local LOCAL_REPO_FILE="$REPO.repo.local"
 
     [ -e $(rootfs_dir $PKGDIR)/var/lib/rpm ] || {
         mkdir -p $(rootfs_dir $PKGDIR)/var/lib/rpm
@@ -79,6 +103,9 @@ setup_pm() {
     # allow future stages to know which repo this is using
     echo "$REPO" > $PKGDIR/repo.cfg
     echo "$PACKAGE_MANAGER" > $PKGDIR/package.cfg
+    if [ -f $REPODIR/$LOCAL_REPO_FILE ]; then
+        cp $REPODIR/$LOCAL_REPO_FILE $PKGDIR/local.repo
+    fi
 }
 
 # unpackage working ISO filesystem bundle
@@ -353,13 +380,16 @@ package_cached () {
         fi
 
         touch ${INSTALLROOT}/${CACHE_DIR}/.unpack
-
+        # Enable local repo for CI build
+        [ $BUILD_NUMBER -gt 0 ] && set_local_repo $PKGDIR
         # we set home so that it doesn't inherit path from caller if invoked with sudo -E
         # use a chroot to use whatever package manager was isntalled by base.sh
         HOME=root /usr/bin/$MANAGER $MANAGER_OPTS $ACTION $cmds || {
             echo "Error while running package manager command \"$cmds\": $?" 1>&2
             return 4
         }
+        # Restore repo configurations
+        [ $BUILD_NUMBER -gt 0 ] && restore_repo $PKGDIR
     fi
 
     # repack cache

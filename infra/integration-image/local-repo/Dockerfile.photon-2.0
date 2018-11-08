@@ -1,0 +1,36 @@
+# Building:
+# docker build --no-cache -t vic-local-repo-photon-2.0 -f infra/integration-image/local-repo/Dockerfile.photon-2.0 infra/integration-image/local-repo/
+# docker tag vic-local-repo-photon-2.0 gcr.io/eminent-nation-87317/vic-local-repo:photon-2.0
+# gcloud auth login
+# gcloud docker -- push gcr.io/eminent-nation-87317/vic-local-repo:photon-2.0
+#
+# Running:
+# docker run -d -p 80:80 vic-local-repo-photon-2.0
+FROM fedora:21
+
+RUN yum install yum-plugin-ovl -y && yum install wget createrepo nginx -y
+
+RUN mkdir -p /usr/share/nginx/html/photon/x86_64 && \
+    mkdir -p /usr/share/nginx/html/photon/noarch && \
+    mkdir -p /usr/share/nginx/html/photon-updates/x86_64 && \
+    mkdir -p /usr/share/nginx/html/photon-updates/noarch
+
+ENV EXCLUDE_LIST "index.html*,openjdk*,openjre*,postgresql*,python-*,\
+python3*,ruby*,subversion*,gnome*,NetworkManager*,cloud*,docker*,grub*,ktap*,\
+kubernetes*,linux-docs*,linux-sound*,linux-tools*,docbook*,httpd*,go-*,jna*,\
+linux-debuginfo*,linux-dev*,linux-docs*,linux-drivers*,linux-oprofile*,linux-sound*,\
+linux-tools*,linux-esx-debuginfo*,linux-esx-devel*,linux-esx-docs*,nginx*,sysdig*"
+
+RUN wget -e robots=off -r -nH -nd -np -R $EXCLUDE_LIST https://dl.bintray.com/vmware/photon_release_2.0_x86_64/x86_64/ -P /usr/share/nginx/html/photon/x86_64/
+RUN wget -e robots=off -r -nH -nd -np -R $EXCLUDE_LIST https://dl.bintray.com/vmware/photon_release_2.0_x86_64/noarch/ -P /usr/share/nginx/html/photon/noarch/
+RUN wget -e robots=off -r -nH -nd -np -R $EXCLUDE_LIST https://dl.bintray.com/vmware/photon_updates_2.0_x86_64/x86_64/ -P /usr/share/nginx/html/photon-updates/x86_64/
+RUN wget -e robots=off -r -nH -nd -np -R $EXCLUDE_LIST https://dl.bintray.com/vmware/photon_updates_2.0_x86_64/noarch/ -P /usr/share/nginx/html/photon-updates/noarch/
+
+RUN createrepo /usr/share/nginx/html/photon
+RUN createrepo /usr/share/nginx/html/photon-updates
+
+RUN echo "daemon off;" >> /etc/nginx/nginx.conf
+
+EXPOSE 80
+
+CMD [ "/usr/sbin/nginx" ]
