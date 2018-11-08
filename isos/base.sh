@@ -59,7 +59,7 @@ fi
 
 REPO=${REPO:-photon-2.0}
 
-REPODIR="$DIR/base/repos/${REPO}/"
+REPODIR="$DIR/base/repos/${REPO}"
 PACKAGE_MANAGER=$(cat $REPODIR/repo-spec.json | jq -r '.packagemanager')
 PACKAGE_MANAGER=${PACKAGE_MANAGER:-tdnf}
 
