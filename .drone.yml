@@ -71,24 +71,7 @@ pipeline:
       - codecov_token
     commands:
       - export BUILD_NUMBER=${DRONE_BUILD_NUMBER}
-      - make all
-    when:
-      status: success
-
-  vic-unit-test:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
-    pull: true
-    environment:
-      BIN: bin
-      GOPATH: /go
-      SHELL: /bin/bash
-    secrets:
-      - drone_server
-      - drone_token
-      - github_automation_api_key
-      - codecov_token
-    commands:
-      - tests/unit-test-check.sh
+      - make appliance vic-machine
     when:
       status: success
 
@@ -106,7 +89,7 @@ pipeline:
     - codecov_token
     commands:
     - export BUILD_NUMBER=${DRONE_BUILD_NUMBER}
-    - ./tests/generate-custom-iso.sh centos-6.9
+    - REPO=centos-6.9 make bootstrap-custom
     when:
       status: success
 

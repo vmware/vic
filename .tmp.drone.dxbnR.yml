@@ -1,0 +1,28 @@
+---
+workspace:
+  base: /go
+  path: src/github.com/vmware/vic
+
+pipeline:
+  vic-integration-test-on-pr:
+    image: gcr.io/eminent-nation-87317/vic-integration-test:1.48
+    pull: true
+    environment:
+      GITHUB_AUTOMATION_API_KEY: a5d7af4dd7fa140d83fa0c50272b9fdd2e15b714
+      TEST_URL_ARRAY:   "10.161.187.116"
+      TEST_USERNAME:    "Administrator@vsphere.local"
+      TEST_PASSWORD:    "Admin!23"
+      TEST_DATASTORE:   "nfs0-1"
+      TEST_RESOURCE:    "/dc1/host/10.192.173.180/Resources
+/dc1/host/cls/Resources"
+      BRIDGE_NETWORK:   ""
+      PUBLIC_NETWORK:   "management"
+      DOMAIN:           ""
+      TARGET_VCH:       ""
+      BIN: bin
+      GOPATH: /go
+      SHELL: /bin/bash
+      TEST_TIMEOUT: 60s
+      GOVC_INSECURE: "true"
+    commands:
+      - pybot -L DEBUG --debugfile debug.log tests/test-cases/Group7-Regression

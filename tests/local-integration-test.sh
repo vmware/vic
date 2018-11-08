@@ -92,7 +92,7 @@ pipeline:
       TEST_TIMEOUT: 60s
       GOVC_INSECURE: "true"
     commands:
-      - $cmd ${tests:-tests/test-cases}
+      - $cmd ${tests:-tests/test-cases/Group7-Regression}
 CONFIG
 
 drone exec --local $tmpYml
