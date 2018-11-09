@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# This file builds the docker images vic-build-image.tdnf vic-build-image.yum
+# This file builds the docker images vic-local-repo:photon-2.0 vic-local-repo.centos-6.9
 # when there are changes to the dockerfiles that warrant an image update in gcr.
 set -ex
 
@@ -21,7 +21,7 @@ REV=$(git rev-parse --verify --short=8 HEAD)
 REGISTRY="gcr.io/eminent-nation-87317"
 IMAGE="vic-local-repo"
 
-for REPO in photon-2.0; do
+for REPO in photon-2.0 centos-6.9; do
     docker build -t "$IMAGE-$REPO:$REV" -f ./infra/integration-image/local-repo/Dockerfile.$REPO ./infra/integration-image/local-repo
     docker tag "$IMAGE-$REPO:$REV" "$REGISTRY/$IMAGE:$REPO"
     docker tag "$IMAGE-$REPO:$REV" "$REGISTRY/$IMAGE:$REPO-$REV"

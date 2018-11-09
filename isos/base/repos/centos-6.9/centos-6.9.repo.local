@@ -1,0 +1,15 @@
+[centos-base]
+name=VMware WDC CentOS-6.9 - Base
+baseurl=http://wdc-yum-builder-ci.eng.vmware.com:8088/centos/
+gpgkey=http://wdc-yum-builder-ci.eng.vmware.com:8088/centos/RPM-GPG-KEY-CentOS-6
+gpgcheck=1
+enabled=1
+
+#released updates
+[centos-updates]
+name=VMware WDC CentOS-6.9 - Updates
+baseurl=http://wdc-yum-builder-ci.eng.vmware.com:8088/centos-updates/
+gpgkey=http://wdc-yum-builder-ci.eng.vmware.com:8088/centos/RPM-GPG-KEY-CentOS-6
+gpgcheck=1
+enabled=1
+
