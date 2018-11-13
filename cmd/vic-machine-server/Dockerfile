@@ -5,7 +5,7 @@
 # gcloud auth login
 # gcloud docker -- push gcr.io/eminent-nation-87317/vic-machine-server:1.x
 
-FROM vmware/photon:1.0
+FROM photon:2.0
 
 RUN set -eux; \
      tdnf distro-sync --refresh -y; \
