@@ -217,3 +217,38 @@ Docker volume conflict in new container
     Should Be Equal As Integers  ${rc}  125
     Should Contain  ${output}  Error response from daemon
     Should Contain  ${output}  device ${volID} in use
+
+Simple volume ls
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=test17
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal As Strings  ${output}  test17
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  vsphere
+    Should Contain  ${output}  test17
+    Should Contain  ${output}  DRIVER
+    Should Contain  ${output}  VOLUME NAME
+
+
+Simple docker volume inspect
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name test18
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume inspect test18
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Evaluate  json.loads(r'''${output}''')  json
+    ${id}=  Get From Dictionary  ${output[0]}  Name
+    Should Be Equal As Strings  ${id}  test18
+
+
+Simple volume rm
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=test19
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal As Strings  ${output}  test19
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=test20
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal As Strings  ${output}  test20
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm test20
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  test20
