@@ -27,7 +27,7 @@ Check logstash logs
 
 *** Test Cases ***
 Logstash with stdin and stdout mapped
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name log1 -dit logstash -e 'input { stdin { } } output { stdout { } }'
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name log1 -dit logstash:6.5.0 -e 'input { stdin { } } output { stdout { } }'
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Wait Until Keyword Succeeds  10x  6s  Check logstash logs  log1  Successfully started Logstash API endpoint
@@ -38,7 +38,7 @@ Logstash with mapped volume log file
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --rm -v vol1:/mydata ${busybox} sh -c "echo 'Initial log message' > /mydata/my.log"
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${logstash_container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit -v vol1:/logs logstash -e 'input { file { path => "/logs/my.log" start_position => "beginning" } } output { stdout { } }'
+    ${rc}  ${logstash_container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit -v vol1:/logs logstash:6.5.0 -e 'input { file { path => "/logs/my.log" start_position => "beginning" } } output { stdout { } }'
     Log  ${logstash_container}
     Should Be Equal As Integers  ${rc}  0
     Wait Until Keyword Succeeds  10x  6s  Check logstash logs  ${logstash_container}  Initial log message
