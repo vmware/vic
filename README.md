@@ -148,6 +148,8 @@ docker run -v $(pwd):/go/src/github.com/vmware/vic gcr.io/eminent-nation-87317/v
 
 The iso image will be created in `$BIN`
 
+## Building Custom ISOs
+Please reference [this document](isos/base/repos/README.md) to build your custom isos.
 
 ## Building with CI
 
