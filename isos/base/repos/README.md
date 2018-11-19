@@ -161,16 +161,18 @@ Use the REPO environment variable to choose with iso distro to build:
 ```sh
 # Running against a local docker
 unset DOCKER_HOST DOCKER_TLS_VERIFY DOCKER_CERT_PATH
-rm -f bin/tether-linux bin/unpack  #NOTE: we have to delete the tether-linux and unpack binaries for each bootstrap ISO
+# NOTE: we have to delete the tether-linux and unpack binaries for each bootstrap ISO
+rm -f bin/tether-linux bin/unpack  
 
 # builds vic-machine binaries and both appliance.iso and bootstrap.iso with photon-2.0
-docker run -v $(pwd):/go/src/github.com/vmware/vic  gcr.io/eminent-nation-87317/vic-build-image:tdnf  make isos vic-machine
+docker run -v $(pwd):/go/src/github.com/vmware/vic  gcr.io/eminent-nation-87317/vic-build-image:tdnf  rm -f bin/tether-linux bin/unpack \&\& make isos vic-machine
 
 # builds appliance.iso with photon-2.0 and bootstrap.iso by photon-1.0
-docker run -v $(pwd):/go/src/github.com/vmware/vic  -e REPO=photon-1.0  gcr.io/eminent-nation-87317/vic-build-image:tdnf  make appliance bootstrap-custom
+docker run -v $(pwd):/go/src/github.com/vmware/vic  -e REPO=photon-1.0  gcr.io/eminent-nation-87317/vic-build-image:tdnf  rm -f bin/tether-linux bin/unpack \&\& make appliance bootstrap-custom
+
 
 # builds a bootstrap iso with a centos-6.9 kernel and package layout
-docker run -v $(pwd):/go/src/github.com/vmware/vic  -e REPO=centos-6.9  gcr.io/eminent-nation-87317/vic-build-image:yum  make bootstrap-custom
+docker run -v $(pwd):/go/src/github.com/vmware/vic  -e REPO=centos-6.9  gcr.io/eminent-nation-87317/vic-build-image:yum  rm -f bin/tether-linux bin/unpack \&\& make bootstrap-custom
 ```
 
 The output from these files will be in `bin/` titled `bootstrap[-repo].iso`. The default bootstrap build from the `bootstrap` make target will produce the `bootstrap.iso` file with no suffix.
