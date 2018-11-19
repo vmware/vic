@@ -26,7 +26,7 @@ The kernel is used to boot the containerVM, and the supporting elements are pres
 
 To add a new repo definition, create a new directory under `isos/base/repos`. This will need to have the core set of files that make up a repo definition, detailed later in this readme. This repo is then built using the `bootstrap-custom` make target while specifying the `REPO=<reponame>` environment variable - this results in a `bootstrap[-repo].iso` which can be deployed via `vic-machine create ... -bi=bootstrap[-repo].iso`
 
-The simplest approach to a new repo definition is to copy an existing repo and modify it to fit, tweaking the files described above to influce the final form of the bootstrap ISO. Chose an source repo definition that uses the same package manger as the desired custom repo. At this time only `tndf` and `yum` are supported. If others are needed then the `isos/base/utils.sh` functions need to be updated to support the new package manager.
+The simplest approach to a new repo definition is to copy an existing repo and modify it to fit, tweaking the files described above to influce the final form of the bootstrap ISO. Chose a source repo definition that uses the same package manger as the desired custom repo. At this time only `tndf` and `yum` are supported. If others are needed then the `isos/base/utils.sh` functions need to be updated to support the new package manager.
 
 When testing a custom bootstrap:
 1. confirm that your entropy daemon is running and present in the process listing for the containerVM, e.g.
