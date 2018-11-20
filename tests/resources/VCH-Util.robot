@@ -15,6 +15,9 @@
 *** Settings ***
 Documentation  This resource contains all keywords related to creating, deleting, maintaining VCHs
 
+*** Variables ***
+${BOOTSTRAP-ISO}  bin/bootstrap.iso
+
 *** Keywords ***
 Set Test Environment Variables
     # Finish setting up environment variables
@@ -311,7 +314,7 @@ Conditional Install VIC Appliance To Test Server
     Run Keyword If  ${init}  Set Environment Variable  TARGET_VCH  %{VCH-NAME}
 
 Install VIC Appliance To Test Server
-    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${additional-args}=${EMPTY}
+    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=${BOOTSTRAP-ISO}  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${additional-args}=${EMPTY}
     Set Test Environment Variables
     ${opsuser-args}=  Get Ops User Args
     ${output}=  Install VIC Appliance To Test Server With Current Environment Variables  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${cleanup}  ${debug}  ${opsuser-args}  ${additional-args}
@@ -319,7 +322,7 @@ Install VIC Appliance To Test Server
     [Return]  ${output}
 
 Install VIC Appliance To Test Server With Current Environment Variables
-    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${opsuser-args}=${EMPTY}  ${additional-args}=${EMPTY}
+    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=${BOOTSTRAP-ISO}  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${opsuser-args}=${EMPTY}  ${additional-args}=${EMPTY}
     # disable firewall
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
     # Attempt to cleanup old/canceled tests

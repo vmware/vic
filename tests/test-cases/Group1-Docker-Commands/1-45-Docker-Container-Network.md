@@ -1,9 +1,9 @@
-Test 26-01 - Centos6.9 Network
-==============================
+Test 1-45 - Docker Container Network
+====================================
 
 # Purpose:
-To verify that when containerVM is based on centos6.9 iso, the tomcat 
-application on docker hub works as expected on VIC. And also, verify that
+To verify that when containerVM is based on custom iso, the tomcat 
+application on docker hub works as expected on VIC. And verify that
 tomcat on vic-specific container-network works as expected.
 
 # References:
@@ -13,7 +13,7 @@ tomcat on vic-specific container-network works as expected.
 This test requires that a vSphere server is running and available
 
 # Test Steps:
-1. Deploy VIC appliance to the vSphere server with centos6.9 as containerVM
+1. Deploy VIC appliance to the vSphere server with custom iso as containerVM
 2. Run an tomcat container with a mapped port and verify the server is up and running:  
 `docker run --name tomcat1 -d -p 8080:8080 tomcat:alpine`
 3. Run an tomcat container on the specific container network:

@@ -13,9 +13,9 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 26-01 - Centos6.9 Network
+Documentation  Test 1-45 - Docker Container Network
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server  bootstrap-iso=bin/bootstrap-centos-6.9.iso  additional-args=--container-network-firewall=%{PUBLIC_NETWORK}:open
+Suite Setup  Install VIC Appliance To Test Server  additional-args=--container-network-firewall=%{PUBLIC_NETWORK}:open
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Default Tags
 

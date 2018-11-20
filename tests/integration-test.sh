@@ -44,6 +44,13 @@ if (echo $prBody | grep -q "\[shared datastore="); then
     export TEST_DATASTORE=$datastore
 fi
 
+bootstrapiso='bin/bootstrap-centos-6.9.iso'
+bootstrapdir='centos6.9'
+function test_custom_iso(){
+    #Currently we only test 3 cases for custom-bootstrap-iso 
+    pabot --verbose --processes $jobs --removekeywords TAG:secret -v BOOTSTRAP-ISO:$bootstrapiso --outputdir $bootstrapdir --suite 1-45-Docker-Container-Network --suite 1-19-Docker-Volume-Create --suite 7-01-Regression tests/test-cases
+}
+
 jobs="2"
 if (echo $prBody | grep -q "\[parallel jobs="); then
     parallel=$(echo $prBody | grep "\[parallel jobs=")
@@ -53,20 +60,24 @@ fi
 if [[ $DRONE_BRANCH == "master" || $DRONE_BRANCH == "releases/"* ]] && [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "push" ]]; then
     echo "Running full CI for $DRONE_BUILD_EVENT on $DRONE_BRANCH"
     pabot --verbose --processes $jobs --removekeywords TAG:secret --exclude skip tests/test-cases
+    test_custom_iso
 elif [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "tag" ]]; then
     echo "Running only Group11-Upgrade and 7-01-Regression for $DRONE_BUILD_EVENT on $DRONE_BRANCH"
     pabot --verbose --processes $jobs --removekeywords TAG:secret --suite Group11-Upgrade --suite 7-01-Regression tests/test-cases
 elif (echo $prBody | grep -q "\[full ci\]"); then
     echo "Running full CI as per commit message"
     pabot --verbose --processes $jobs --removekeywords TAG:secret --exclude skip tests/test-cases
+    test_custom_iso
 elif (echo $prBody | grep -q "\[specific ci="); then
     echo "Running specific CI as per commit message"
     buildtype=$(echo $prBody | grep "\[specific ci=")
     testsuite=$(echo $buildtype | awk -F"\[specific ci=" '{sub(/\].*/,"",$2);print $2}')
     pabot --verbose --processes $jobs --removekeywords TAG:secret --suite $testsuite --suite 7-01-Regression tests/test-cases
+    pabot --verbose --processes $jobs --removekeywords TAG:secret -v BOOTSTRAP-ISO:$bootstrapiso --outputdir $bootstrapdir --suite $testsuite --suite 7-01-Regression tests/test-cases
 else
     echo "Running regressions"
     pabot --verbose --processes $jobs --removekeywords TAG:secret --exclude skip --include regression tests/test-cases
+    test_custom_iso
 fi
 
 rc="$?"
@@ -74,7 +85,8 @@ rc="$?"
 timestamp=$(date +%s)
 outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT".zip"
 
-zip -9 -j $outfile output.xml log.html report.html package.list *container-logs*.zip *.log /var/log/vic-machine-server/vic-machine-server.log *.debug
+( cd $bootstrapdir && for f in *; do mv $f ../$bootstrapdir"_"$f; done)
+zip -9 -j $outfile $bootstrapdir"_"* output.xml log.html report.html package.list *container-logs*.zip *.log /var/log/vic-machine-server/vic-machine-server.log *.debug
 
 # GC credentials
 keyfile="/root/vic-ci-logs.key"

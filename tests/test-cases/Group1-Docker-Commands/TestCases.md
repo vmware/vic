@@ -83,3 +83,5 @@ Group 1 - Docker Commands
 [Test 1-43 - Docker CP Offline](1-43-Docker-CP-Offline.md)
 -
 [Test 1-44 - Docker CP Online](1-44-Docker-CP-Online.md)
+-
+[Test 1-45 - Docker Container Network](1-45-Docker-Container-Network.md)
