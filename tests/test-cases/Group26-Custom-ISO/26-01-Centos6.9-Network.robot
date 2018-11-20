@@ -38,6 +38,14 @@ Tomcat in container-network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name tomcat2 -d --net=public tomcat:alpine
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${ip}=  Get Container IP  %{VCH-PARAMS}  tomcat2  public  
+    ${ip}=  Get Container IP  %{VCH-PARAMS}  tomcat2  public
     ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl tomcat endpoint  ${ip}:8080
+    Should Contain  ${output}  Apache Tomcat
+
+Tomcat with port mapping in container-network
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name tomcat3 -d -p 8083:8080 --net=public tomcat:alpine
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    ${ip}=  Get Container IP  %{VCH-PARAMS}  tomcat3  public
+    ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl tomcat endpoint  ${ip}:8083
     Should Contain  ${output}  Apache Tomcat
