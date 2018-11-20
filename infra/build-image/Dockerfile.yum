@@ -9,7 +9,7 @@
 # gcloud auth login
 # gcloud docker -- push gcr.io/eminent-nation-87317/vic-build-image:yum
 
-FROM centos:6.9
+FROM centos:7
 
 ENV GOROOT /usr/local/go
 ENV GOPATH /go
@@ -38,7 +38,7 @@ WORKDIR ${SRCDIR}
 RUN set -ex; \
     yum install -y epel-release; \
     yum install -y \
-    jq cpio git tar gzip make rpm sed gcc \
+    which jq cpio git tar gzip make rpm sed gcc \
     binutils glibc-devel xorriso glibc-static;
 
 ADD https://dl.google.com/go/go1.8.6.linux-amd64.tar.gz /tmp/go.tgz
