@@ -29,6 +29,7 @@ This test requires that a vSphere server is running and available
 15. Create container with a named volume and verify that base image files are copied to the named volume
 16. Create container with a named volume. Modify the copied image file. Remount the volume in a new container.
 17. Run container with a volume, and run another container with same volume
+18. Create a nfs server, get its fqdn and add a fqdn-based nfs VolumeStore to VCH, and run a container to mount the volume of this VolumeStore.
 
 # Expected Outcome:
 * Steps 2 and 3 should complete successfully and return the name of the volume created, you should then be able to see the volume has been created
@@ -58,6 +59,7 @@ Error response from daemon: create test???: "test???" includes invalid character
 * Step 15 should result in success and print data in the volume
 * Step 16 should result in success and the second container should contain the modified file contents
 * Step 17 should result in error with message `devices <volume id> in use`
+* Step 18 should result in success and print data in the volume
 
 # Possible Problems:
 * VIC requires you to specify storage on creation of the VCH that volumes can be created from, so when installing the VCH make sure to specify this parameter: --volume-store=
