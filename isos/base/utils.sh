@@ -86,8 +86,13 @@ setup_pm() {
     #place corresponding gpgkey files if gpgkey provided as a file rather than a url
     for keypath in $(awk -F'gpgkey=file:' '/gpgkey=file:/{print $2}' $REPODIR/*.repo)
     do
+        keyd=$(dirname $keypath)
         keyf=$(basename $keypath)
-        [ -f $REPODIR/$keyf ] && rpm --root=$(rootfs_dir $PKGDIR) --import $REPODIR/$keyf
+        [ -f $REPODIR/$keyf ] && {
+            rpm --root=$(rootfs_dir $PKGDIR) --import $REPODIR/$keyf
+            mkdir -p $(rootfs_dir $PKGDIR)/$keyd
+            cp $REPODIR/$keyf $(rootfs_dir $PKGDIR)/$keyd   #to enable gpgcheck in VCH
+        }
     done
 
     # Copy tdnf config to iso for later use with a relative rootfs
