@@ -15,8 +15,8 @@ RUN mkdir -p /usr/share/nginx/html/photon/x86_64 && \
     mkdir -p /usr/share/nginx/html/photon-updates/x86_64 && \
     mkdir -p /usr/share/nginx/html/photon-updates/noarch
 
-ENV EXCLUDE_LIST "index.html*,openjdk*,openjre*,postgresql*,python-*,\
-python3*,ruby*,subversion*,gnome*,NetworkManager*,cloud*,docker*,grub*,ktap*,\
+ENV EXCLUDE_LIST "index.html*,openjdk*,postgresql*,\
+ruby*,subversion*,gnome*,NetworkManager*,cloud*,docker*,grub*,ktap*,\
 kubernetes*,linux-docs*,linux-sound*,linux-tools*,docbook*,httpd*,go-*,jna*,\
 linux-debuginfo*,linux-dev*,linux-docs*,linux-drivers*,linux-oprofile*,linux-sound*,\
 linux-tools*,linux-esx-debuginfo*,linux-esx-devel*,linux-esx-docs*,nginx*,sysdig*"
