@@ -219,6 +219,13 @@ Test
 
     Verify Volume Inspect Info  After Host Power OFF  ${containerMountDataTestID}  ${checkList}
 
+    #Check if container and VCH are on the same host
+    ${shortContainerID}=  Get Substring  ${containerMountDataTestID}  0  12
+    ${testContainerName}=  Set Variable  ${mntDataTestContainer}-${shortContainerID}
+    ${testContainerHost}=  Get VM Host Name  ${testContainerName}
+    Log  ${testContainerHost}
+    Run Keyword If  "${testContainerHost}" == "${curHost}"  Wait Until Keyword Succeeds  30x  10s  VM Host Has Changed  ${curHost}  ${testContainerName}
+
     # Remove Mount Data Test Container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${containerMountDataTestID}
     Should Be Equal As Integers  ${rc}  0
