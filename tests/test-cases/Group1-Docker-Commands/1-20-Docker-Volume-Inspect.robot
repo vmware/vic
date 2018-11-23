@@ -33,3 +33,12 @@ Docker volume inspect invalid object
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume inspect fakeVolume
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error: No such volume: fakeVolume
+
+Docker volume inpect options
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --opt Capacity=200MB --name test1
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume inspect test1
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Evaluate  json.loads(r'''${output}''')  json
+    ${capacity}=  Get From Dictionary  ${output[0]['Options']}  Capacity
+    Should Be Equal As Strings  ${capacity}  200MB
