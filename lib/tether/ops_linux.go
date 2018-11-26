@@ -960,15 +960,6 @@ func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target
 	}
 	rawSource.WriteString(source.Path)
 
-	if ip := net.ParseIP(source.Hostname()); ip != nil {
-		if err := syscallMount(rawSource.String(), target, nfsFileSystemType, mountOptions); err != nil {
-			log.Errorf("mounting %s on %s failed: %s", source.String(), target, err)
-			return err
-		}
-		return nil
-	}
-
-	log.Debugf("Looking up host %s", source.Hostname())
 	ips, err := net.LookupIP(source.Hostname())
 	if err != nil {
 		log.Errorf("failing to resolve %s. mounting %s on %s failed: %s", source.Hostname(), source.String(), target, err)
@@ -978,7 +969,9 @@ func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target
 		//NOTE: the mountOptions of syscall mount only accept addr=ip. addr=FQDN doesn't work
 		//We resolve the ip address nearest the mounting action.
 		mountOptionsIP := strings.Replace(mountOptions, "addr="+source.Hostname(), "addr="+ip.String(), -1)
-		if err = syscallMount(rawSource.String(), target, nfsFileSystemType, mountOptionsIP); err != nil {
+		// NOTE: by default we are supporting "NOATIME" and it can be configurable later. this must be specfied as a flag.
+		// Additionally, we must parse out the "ro" option and supply it as a flag as well for this flavor of the mount call.
+		if err = Sys.Syscall.Mount(rawSource.String(), target, nfsFileSystemType, syscall.MS_NOATIME, mountOptionsIP); err != nil {
 			log.Debugf("mounting %s with resolved ip: %s on %s failed: %s", source.String(), ip.String(), target, err)
 		} else {
 			return nil
@@ -1359,10 +1352,4 @@ func handleUtilityExit(t *BaseOperations, pid, exitCode int) bool {
 	close(pidchannel)
 
 	return true
-}
-
-func syscallMount(source string, target string, fstype string, mountOptions string) (err error) {
-	// NOTE: by default we are supporting "NOATIME" and it can be configurable later. this must be specfied as a flag.
-	// Additionally, we must parse out the "ro" option and supply it as a flag as well for this flavor of the mount call.
-	return Sys.Syscall.Mount(source, target, fstype, syscall.MS_NOATIME, mountOptions)
 }
