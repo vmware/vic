@@ -60,12 +60,9 @@ func (i *ImageBackend) Commit(name string, config *backend.ContainerCommitConfig
 	op := trace.NewOperation(context.Background(), "Commit: %s", name)
 	defer trace.End(trace.Audit(name, op))
 
-	valid, err := validateStorageQuota()
+	err = validateStorageQuota()
 	if err != nil {
-		return "", errors.InternalServerError(err.Error())
-	}
-	if !valid {
-		return "", fmt.Errorf("Storage quota exceeds")
+		return "", err
 	}
 
 	// Look up the container name in the metadata cache to get long ID

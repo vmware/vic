@@ -60,7 +60,6 @@ const (
 	VICAdminHTTPProxy  = "VICADMIN_HTTP_PROXY"
 	VICAdminHTTPSProxy = "VICADMIN_HTTPS_PROXY"
 	VICAdminNoProxy    = "NO_PROXY"
-	PortLayerDCPath    = "DC_PATH"
 
 	AddPerms = "ADD"
 )

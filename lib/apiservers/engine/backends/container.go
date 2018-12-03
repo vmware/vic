@@ -689,12 +689,9 @@ func (c *ContainerBackend) ContainerCreate(config types.ContainerCreateConfig) (
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
 
-	valid, err := checkStorageQuota(PortLayerClient(), &config)
+	err = checkStorageQuota(PortLayerClient(), &config)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{}, err
-	}
-	if !valid {
-		return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestForbiddenError(errors.New("Storage quota exceeds"))
 	}
 
 	// Create a container representation in the personality server.  This representation
@@ -2147,23 +2144,24 @@ func (c *ContainerBackend) validateContainerLogsConfig(vc *viccontainer.VicConta
 
 // initial implementation: read value from kvstore/storage_usage + container vm's mem(swap) + image_disk_size
 // TODO improve implementation to consider log files
-func checkStorageQuota(client *client.PortLayer, config *types.ContainerCreateConfig) (bool, error) {
+func checkStorageQuota(client *client.PortLayer, config *types.ContainerCreateConfig) error {
 	// 0 means unlimited
 	if vchConfig.Cfg.StorageQuota == 0 {
-		return true, nil
+		return nil
 	}
 
 	vmStorageUsage := cache.ContainerCache().VMStorageSize()
 	imageStorageUsage, err := cache.ImageCache().GetImageStorageUsage()
 	if err != nil {
 		log.Errorf("failed to get image storage usage: %v", err)
-		return false, err
+		return err
 	}
 
-	if vchConfig.Cfg.StorageQuota > imageStorageUsage+vmStorageUsage+config.HostConfig.Memory*units.MiB+vchConfig.Cfg.ScratchSize*units.KB {
-		return true, nil
+	if vchConfig.Cfg.StorageQuota >= imageStorageUsage+vmStorageUsage+config.HostConfig.Memory*units.MiB+vchConfig.Cfg.ScratchSize*units.KB {
+		return nil
 	}
-	return false, nil
+	return fmt.Errorf("Storage quota exceeds. Storage quota: %dGB, image storage usage: %.3fGB, container storage usage: %.3fGB",
+		vchConfig.Cfg.StorageQuota/units.GiB, (float32)(imageStorageUsage)/units.GiB, (float32)(vmStorageUsage)/units.GiB)
 }
 
 // update storage usage into kv store so configure quota check can read out
