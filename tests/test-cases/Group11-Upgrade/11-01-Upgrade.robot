@@ -59,12 +59,12 @@ Run Docker Checks
     Should Be Equal As Integers  ${rc}  0
 
 
-    ${status}=  Get State Of Github Issue  5653
-    Run Keyword If  '${status}' == 'closed'  Should Contain  ${output}  Exited (143)
-    Run Keyword If  '${status}' == 'closed'  Fail  Exit code check below needs to be updated now that Issue #5653 has been resolved
+    #${status}=  Get State Of Github Issue  5653
+    #Run Keyword If  '${status}' == 'closed'  Should Contain  ${output}  Exited (143)
+    #Run Keyword If  '${status}' == 'closed'  Fail  Exit code check below needs to be updated now that Issue #5653 has been resolved
     # Disabling the precise check for error code until https://github.com/vmware/vic/issues/5653 is fixed - we can get rid of the
     # conditional around the exit code check once the issue is closed
-    #Should Contain  ${output}  Exited (143)
+    Should Contain  ${output}  Exited (143)
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start vch-restart-test1
     Should Be Equal As Integers  ${rc}  0
