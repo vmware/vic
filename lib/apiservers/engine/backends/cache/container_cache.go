@@ -22,7 +22,6 @@ import (
 
 	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/pkg/truncindex"
-
 	"github.com/docker/go-units"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"

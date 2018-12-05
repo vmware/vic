@@ -21,12 +21,11 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/docker/go-units"
-
-	"strconv"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"

@@ -33,7 +33,6 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/reference"
-
 	"github.com/docker/go-units"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
