@@ -354,7 +354,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	}
 	defer validator.Session().Logout(parentOp) // parentOp is used here to ensure the logout occurs, even in the event of timeout
 
-	updatedStorageQuota := c.Data.StorageQuotaGB != nil && *c.Data.StorageQuotaGB != 0
+	updatedStorageQuota := c.Data.StorageQuotaGB != nil && *c.Data.StorageQuotaGB > 0
 
 	_, err = validator.ValidateTarget(op, c.Data, false)
 	if err != nil {
@@ -479,7 +479,12 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	c.Data.ResourceLimits = mergedResources
 
 	if c.StorageQuotaGB != nil {
-		vchConfig.StorageQuota = int64(*c.StorageQuotaGB) * units.GiB
+		// Treat minus values as unlimited
+		if *c.StorageQuotaGB <= 0 {
+			vchConfig.StorageQuota = 0
+		} else {
+			vchConfig.StorageQuota = int64(*c.StorageQuotaGB) * units.GiB
+		}
 	}
 
 	// TODO: copy changed configuration here. https://github.com/vmware/vic/issues/2911

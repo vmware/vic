@@ -695,7 +695,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 		return err
 	}
 
-	if c.StorageQuotaGB != nil {
+	if c.StorageQuotaGB != nil && *c.StorageQuotaGB > 0 {
 		err = validator.ValidateStorageQuota(op, *c.StorageQuotaGB, nil, false)
 		if err != nil {
 			op.Error("Configuring cannot continue: storage quota validation failed")

@@ -217,6 +217,10 @@ func (s *SystemBackend) SystemInfo() (*types.Info, error) {
 			customInfo := [2]string{systemStatusMemory, units.BytesSize(float64(info.MemTotal))}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
+		if cfg.StorageQuota > 0 {
+			storageQuota := [2]string{systemStatusStorageQuota, units.BytesSize(float64(cfg.StorageQuota))}
+			info.SystemStatus = append(info.SystemStatus, storageQuota)
+		}
 		if vchInfo.CPUUsage >= 0 {
 			customInfo := [2]string{systemStatusCPUUsageMhz, fmt.Sprintf("%d MHz", int(vchInfo.CPUUsage))}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
@@ -224,10 +228,6 @@ func (s *SystemBackend) SystemInfo() (*types.Info, error) {
 		if vchInfo.MemUsage >= 0 {
 			customInfo := [2]string{systemStatusMemUsage, units.BytesSize(float64(vchInfo.MemUsage))}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
-		}
-		if cfg.StorageQuota > 0 {
-			storageQuota := [2]string{systemStatusStorageQuota, units.BytesSize(float64(cfg.StorageQuota))}
-			info.SystemStatus = append(info.SystemStatus, storageQuota)
 		}
 		imageStorageUsage, err := cache.ImageCache().GetImageStorageUsage()
 		if err != nil {
