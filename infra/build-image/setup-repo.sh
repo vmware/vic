@@ -30,6 +30,7 @@ echo "Usage: $0 -p pull-request OR -b github_user/branch OR -t tag OR -c commit"
 exit 1
 }
 
+args_num=0
 while getopts "t:c:p:b:h" flag
 do
     case $flag in
@@ -38,11 +39,13 @@ do
             # Optional. Tag name
             localbranch="$OPTARG"
             github_user=vmware
+            (( args_num += 1 ))
             ;;
         c)
             # Optional. Commit ID
             localbranch="$OPTARG"
             github_user=vmware
+            (( args_num += 1 ))
             ;;
         p)
             # Optional. Pull request number
@@ -51,6 +54,7 @@ do
 
             refspec=refs/pull/${pull_req}/head:refs/remotes/origin/pr/${pull_req}
             localbranch=pr/${pull_req}
+            (( args_num += 1 ))
             ;;
 
         b)
@@ -60,6 +64,7 @@ do
 
             refspec=refs/heads/${branch}:refs/remotes/origin/${branch}
             localbranch=origin/${branch}
+            (( args_num += 1 ))
             ;;
         h)
             usage
@@ -69,6 +74,10 @@ do
             ;;
     esac
 done
+
+if [ "$args_num" -gt 1 ]; then
+    usage
+fi
 
 shift $((OPTIND-1))
 
