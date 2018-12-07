@@ -26,14 +26,27 @@ set -e && [ -n "$DEBUG" ] && set -x
 DIR=$(dirname $(readlink -f "$0"))
 
 function usage() {
-echo "Usage: $0 -p pull-request OR -b github_user/branch" 1>&2
+echo "Usage: $0 -p pull-request OR -b github_user/branch OR -t tag OR -c commit" 1>&2
 exit 1
 }
 
-while getopts "p:b:h" flag
+args_num=0
+while getopts "t:c:p:b:h" flag
 do
     case $flag in
 
+        t)
+            # Optional. Tag name
+            localbranch="$OPTARG"
+            github_user=vmware
+            (( args_num += 1 ))
+            ;;
+        c)
+            # Optional. Commit ID
+            localbranch="$OPTARG"
+            github_user=vmware
+            (( args_num += 1 ))
+            ;;
         p)
             # Optional. Pull request number
             pull_req="$OPTARG"
@@ -41,6 +54,7 @@ do
 
             refspec=refs/pull/${pull_req}/head:refs/remotes/origin/pr/${pull_req}
             localbranch=pr/${pull_req}
+            (( args_num += 1 ))
             ;;
 
         b)
@@ -50,6 +64,7 @@ do
 
             refspec=refs/heads/${branch}:refs/remotes/origin/${branch}
             localbranch=origin/${branch}
+            (( args_num += 1 ))
             ;;
         h)
             usage
@@ -59,6 +74,10 @@ do
             ;;
     esac
 done
+
+if [ "$args_num" -gt 1 ]; then
+    usage
+fi
 
 shift $((OPTIND-1))
 
@@ -75,6 +94,9 @@ if [ ! -z ${refspec} ]; then
     if [ "$(git rev-parse --abbrev-ref HEAD)" != "$branch" ]; then
         git checkout -b ${branch} ${localbranch}
     fi
+fi
+
+if [ -n ${localbranch} ]; then
     # try to fast-forward but just checkout if that fails
     git pull --ff-only || git checkout ${localbranch}
 fi
