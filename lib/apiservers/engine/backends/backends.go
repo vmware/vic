@@ -140,7 +140,7 @@ func Init(portLayerAddr, product string, port uint, staticConfig *config.Virtual
 	// the vic-machine installer timeout will intervene if this blocks for too long
 	pingPortLayer()
 
-	if err := hydrateCaches(op, vchConfig.Cfg.ScratchSize); err != nil {
+	if err := hydrateCaches(op); err != nil {
 		return err
 	}
 
@@ -169,7 +169,7 @@ func Finalize(ctx context.Context) error {
 	return nil
 }
 
-func hydrateCaches(op trace.Operation, vs int64) error {
+func hydrateCaches(op trace.Operation) error {
 	const waiters = 3
 
 	wg := sync.WaitGroup{}
@@ -196,7 +196,7 @@ func hydrateCaches(op trace.Operation, vs int64) error {
 
 		// container cache relies on image cache so we share a goroutine to update
 		// them serially
-		if err := syncContainerCache(op, vs); err != nil {
+		if err := syncContainerCache(op); err != nil {
 			errChan <- fmt.Errorf("Failed to update container cache: %s", err)
 			return
 		}
@@ -299,7 +299,7 @@ func createImageStore(op trace.Operation) error {
 }
 
 // syncContainerCache runs once at startup to populate the container cache
-func syncContainerCache(op trace.Operation, vs int64) error {
+func syncContainerCache(op trace.Operation) error {
 	log.Debugf("Updating container cache")
 
 	backend := NewContainerBackend()
