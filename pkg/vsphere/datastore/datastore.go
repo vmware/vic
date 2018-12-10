@@ -212,8 +212,12 @@ func (d *Helper) Ls(ctx context.Context, p string, match ...string) (*types.Host
 	return &res, nil
 }
 
-// LsDirs returns a list of dirents at the given path (relative to root)
 func (d *Helper) LsDirs(ctx context.Context, p string, match ...string) (*types.ArrayOfHostDatastoreBrowserSearchResults, error) {
+	return d.LsDirsWithPatterns(ctx, p, match)
+}
+
+// LsDirs returns a list of dirents at the given path (relative to root)
+func (d *Helper) LsDirsWithPatterns(ctx context.Context, p string, match []string) (*types.ArrayOfHostDatastoreBrowserSearchResults, error) {
 	if len(match) == 0 {
 		match = []string{"*"}
 	}
@@ -246,8 +250,8 @@ func (d *Helper) LsDirs(ctx context.Context, p string, match ...string) (*types.
 	return &res, nil
 }
 
-func (d *Helper) GetFilesSize(ctx context.Context, p string, match string, noscratch bool) (int64, error) {
-	res, err := d.LsDirs(ctx, p, match)
+func (d *Helper) GetFilesSize(ctx context.Context, p string, noscratch bool, match ...string) (int64, error) {
+	res, err := d.LsDirsWithPatterns(ctx, p, match)
 	if err != nil {
 		return 0, err
 	}

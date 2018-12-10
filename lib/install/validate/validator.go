@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net/url"
 	"path"
-	"strconv"
 	"strings"
 	"time"
 
@@ -43,13 +42,13 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/opsuser"
 	"github.com/vmware/vic/pkg/errors"
-	"github.com/vmware/vic/pkg/kvstore"
 	"github.com/vmware/vic/pkg/registry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/optmanager"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 const defaultSyslogPort = 514
@@ -340,7 +339,7 @@ func (v *Validator) ValidateTarget(ctx context.Context, input *data.Data, allowE
 	return conf, v.ListIssues(op)
 }
 
-func (v *Validator) ValidateStorageQuota(ctx context.Context, quotaGB int, conf *config.VirtualContainerHostConfigSpec, calUsage bool) error {
+func (v *Validator) ValidateStorageQuota(ctx context.Context, quotaGB int, conf *config.VirtualContainerHostConfigSpec, vch *vm.VirtualMachine) error {
 	op := trace.FromContext(ctx, "ValidateStorageQuota")
 	defer trace.End(trace.Begin("", op))
 	op.Info("Validating storage quota")
@@ -348,8 +347,8 @@ func (v *Validator) ValidateStorageQuota(ctx context.Context, quotaGB int, conf 
 	vmStorageUsage := int64(0)
 	imageStorageUsage := int64(0)
 	var err error
-	if calUsage {
-		vmStorageUsage, err = v.getVMStorageUsage(op, conf)
+	if vch != nil {
+		vmStorageUsage, err = v.getVMStorageUsage(op, vch)
 		if err != nil {
 			return err
 		}
@@ -364,31 +363,49 @@ func (v *Validator) ValidateStorageQuota(ctx context.Context, quotaGB int, conf 
 	return nil
 }
 
-func (v *Validator) getVMStorageUsage(op trace.Operation, conf *config.VirtualContainerHostConfigSpec) (int64, error) {
-	imageURL := conf.ImageStores[0]
-	// get a ds helper for this ds url
-	dsHelper, err := datastore.NewHelper(trace.NewOperation(op, "datastore helper creation"), v.session,
-		v.session.Datastore, fmt.Sprintf("%s/%s", imageURL.Path, constants.KVStoreFolder))
+func (v *Validator) getVMStorageUsage(op trace.Operation, vch *vm.VirtualMachine) (int64, error) {
+	vchFolder, err := vch.Folder(op)
+	if err != nil {
+		return 0, err
+	}
+	children, err := vchFolder.Children(op)
 	if err != nil {
 		return 0, err
 	}
 
-	kv, err := kvstore.NewKeyValueStore(op, kvstore.NewDatastoreBackend(dsHelper), APIKV)
-	if err != nil {
-		return 0, err
+	total := (int64)(0)
+	for _, child := range children {
+		vmObj, ok := child.(*object.VirtualMachine)
+		if vmObj.Reference().Value == vch.Reference().Value {
+			continue
+		}
+
+		if ok {
+			vm2 := vm.NewVirtualMachineFromVM(op, v.session, vmObj)
+
+			folder, err := vm2.DatastoreFolderName(op)
+			if err != nil {
+				op.Warn("Failed to get container vm information")
+				continue
+			}
+			// get a ds helper for this ds url
+			dsHelper, err := datastore.NewHelper(trace.NewOperation(op, "datastore helper creation"), v.session,
+				v.session.Datastore, folder)
+			if err != nil {
+				op.Warn("Failed to get datastore information for container vm")
+				continue
+			}
+
+			size, err := dsHelper.GetFilesSize(op, "", true, "*.vmdk", "*.vswp", "*.log")
+			if err != nil {
+				op.Warn("Failed to browse container vm files")
+				continue
+			}
+			total += size
+		}
 	}
 
-	if kv != nil {
-		storageUsageBytes, err := kv.Get("docker.storage.usage")
-		if err != nil && err != kvstore.ErrKeyNotFound {
-			return 0, err
-		}
-		if len(storageUsageBytes) != 0 {
-			return strconv.ParseInt(string(storageUsageBytes), 10, 64)
-		}
-	}
-
-	return 0, nil
+	return total, nil
 }
 
 func (v *Validator) getImageStorageUsage(op trace.Operation, conf *config.VirtualContainerHostConfigSpec) (int64, error) {
@@ -400,7 +417,7 @@ func (v *Validator) getImageStorageUsage(op trace.Operation, conf *config.Virtua
 		return 0, err
 	}
 
-	size, err := dsHelper.GetFilesSize(op, "", "*.vmdk", true)
+	size, err := dsHelper.GetFilesSize(op, "", true, "*.vmdk")
 	if err != nil {
 		return 0, err
 	}

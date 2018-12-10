@@ -50,7 +50,6 @@ import (
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/convert"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/filter"
-	"github.com/vmware/vic/lib/apiservers/engine/backends/kv"
 	engerr "github.com/vmware/vic/lib/apiservers/engine/errors"
 	"github.com/vmware/vic/lib/apiservers/engine/network"
 	"github.com/vmware/vic/lib/apiservers/engine/proxy"
@@ -796,11 +795,6 @@ func (c *ContainerBackend) containerCreate(op trace.Operation, vc *viccontainer.
 		return id, err
 	}
 
-	err = updateStorageUsage(PortLayerClient(), config.HostConfig, true)
-	if err != nil {
-		return id, err
-	}
-
 	return id, nil
 }
 
@@ -968,14 +962,9 @@ func (c *ContainerBackend) ContainerRm(name string, config *types.ContainerRmCon
 		if err != nil {
 			return err
 		}
-		return updateStorageUsage(PortLayerClient(), vc.HostConfig, false)
 	}
 
-	err := c.containerProxy.Remove(op, vc, config)
-	if err != nil {
-		return err
-	}
-	return updateStorageUsage(PortLayerClient(), vc.HostConfig, false)
+	return c.containerProxy.Remove(op, vc, config)
 }
 
 // cleanupPortBindings gets port bindings for the container and
@@ -2162,32 +2151,6 @@ func checkStorageQuota(client *client.PortLayer, config *types.ContainerCreateCo
 	}
 	return fmt.Errorf("Storage quota exceeds. Storage quota: %dGB, image storage usage: %.3fGB, container storage usage: %.3fGB",
 		vchConfig.Cfg.StorageQuota/units.GiB, (float32)(imageStorageUsage)/units.GiB, (float32)(vmStorageUsage)/units.GiB)
-}
-
-// update storage usage into kv store so configure quota check can read out
-// initial implementation: kvstore/storage_usage + container vm's mem(swap) + image_disk_size
-// TODO improve implementation to consider log files
-func updateStorageUsage(client *client.PortLayer, hostConfig *containertypes.HostConfig, isCreate bool) error {
-	kvlock.Lock()
-	defer kvlock.Unlock()
-
-	storageUsageBytes, err := kv.Get(client, "storage.usage")
-	if err != nil && err != kv.ErrKeyNotFound {
-		return err
-	}
-	storageUsage, _ := strconv.ParseInt(string(storageUsageBytes), 10, 64)
-	if isCreate {
-		storageUsage += hostConfig.Memory*units.MiB + vchConfig.Cfg.ScratchSize*units.KB
-	} else {
-		storageUsage -= hostConfig.Memory*units.MiB + vchConfig.Cfg.ScratchSize*units.KB
-		// storage usage should always be non negative
-		if storageUsage < 0 {
-			storageUsage = 0
-		}
-	}
-
-	kv.Put(client, "storage.usage", strconv.FormatInt(storageUsage, 10))
-	return nil
 }
 
 func CreateContainerEventActorWithAttributes(vc *viccontainer.VicContainer, attributes map[string]string) eventtypes.Actor {

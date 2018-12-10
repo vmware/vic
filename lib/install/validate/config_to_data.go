@@ -37,8 +37,6 @@ const (
 	httpProxy  = "HTTP_PROXY"
 	httpsProxy = "HTTPS_PROXY"
 	noProxy    = "NO_PROXY"
-
-	APIKV = "apiKV"
 )
 
 // Finder is defined for easy to test
