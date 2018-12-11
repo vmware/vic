@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,8 +29,10 @@ const (
 	GuestActionKill      = "kill"
 	GuestActionGroupKill = "group-kill"
 
-	GuestShutdownTimeout = 20 * time.Second
-	GuestRebootTimeout   = 20 * time.Second
-
+	GuestShutdownTimeout      = 20 * time.Second
+	GuestRebootTimeout        = 20 * time.Second
 	WaitForSessionExitTimeout = 20 * time.Second
+
+	// scratchDiskLabel labels the root image for the disk chain
+	ScratchDiskLabel = "containerfs"
 )

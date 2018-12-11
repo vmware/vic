@@ -12,6 +12,81 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package storage provides abstractions for interacting with storage locations, both management and access.
+// There are two primary type of storage handled by this package at this time:
+// a. VMDKs on a vSphere datastore
+// b. NFS shares
+//
+// We have more than two sub-packages however as we use distinct packages to provide different lifecycle and
+// usage semantics for types of data using those mechanisms. Examples include:
+// * application logic (images)
+// * application transient data (image read/write layer)
+// * application persistent data (volumes)
+//
+// As such there are a set of concepts, with all but `store` captured as interfaces:
+// * store
+// * resolver
+// * exporter
+// * importer
+// * data source
+// * data sink
+//
+// The odd one out for these concepts is the `store`. This is because we did not want to be prescriptive about
+// what a store supports, but it may well distill into an interface at a later date. Currently the various
+// store implementations consist of a composition of `resolver`, `importer`, and `exporter` interfaces.
+//
+// The `data source` and `data sink` interfaces are present to allow abstracted read and write access respectively
+// to a specific storage mechanism. The data source and data sink instances should be considered single use and not
+// reused for multiple access. This semantic was chosen as it's the least prescriptive on storage availability and
+// connectivity - the precise means used to read or write from storage may change, for example, based on whether
+// the storage is in use (has an owner).
+// The `resolver` interface is present to translate a potentially store specific ID into an unambiguous URI, and to
+// allow discovery of which virtual machines, if any, currently claim that ID. This returns virtual machines instead
+// of a further abstracted interface because it's not clear at time of writing what that abstraction should or would
+// be.
+// The `importer` and `exporter` interfaces are the factories used to acquire `data source` and `data sink` instances.
+// They also provide convenience methods for directly creating and consuming the source/sink in one operation.
+//
+// It is not required that all storage elements implement both Importer and Exporter mechanisms - having write only or
+// read only storage is viable.
+//
+// The data source and sink interfaces also specify a basic accessor method for the underlying mechanism. This was
+// added to allow for some future-proofing, with the primary extension expected to be a generic FileWalker interface
+// so that directory walk and listings can be done without needing to care about the access mechanism (e.g. common
+// between a local filesystem mount, an XDR NFS client, or a VM toolbox client).
+//
+// The general structure of a specific storage implementation is as follows and is imposed so that it is easier to
+// locate a specific functional path for a given usage/storage type combination. As of this writing there are two
+// additional folders in this structure, nfs and vsphere. These contain implementation specific logic used across
+// store types and must be at this level to avoid cyclic package dependencies:
+// ```
+// storage/                  - this package
+// ├── [type]/               - the high level type of use, implies semantics (i.e., container, image, volume)
+// │   ├── [type].go         - the common store implementation aspects across implementations
+// │   ├── errors.go         - [type] specific error types
+// │   ├── cache             - a `store` compliant cache implementation, if needed, with appropriate semantics for the type of use
+// │   │   └── cache.go
+// │   └── [implementation]/ - a specific implementation type (e.g., vsphere)
+// │       ├── bind.go       - modifies a portlayer handle to configure active use of a specific `joined` storage
+// │       ├── export.go     - implements the `read` side of the interfaces (Exporter and DataSource)
+// │       ├── import.go     - a specific implementation type
+// │       ├── join.go       - modifies a portlayer handle to configure basic access to a specific instance of the storage type
+// │       └── store.go      - constructor and implementation for specific store type and implementation
+// ├── storage.go            - interface definitions, portlayer lifecycle management functions, and the registration/lookup
+// |                           mechanisms for store instances.
+// └── [purpose].go          - common functions used by the various type/implementation combinations
+// ```
+//
+// This structure is not completely consistent at the time of writing. Most notable is that the bind.go functions
+// have all been rolled into the Join calls (the portlayer uses the following common verbs across components, again
+// with some inconsistencies at this time: Join, Bind, Inspect, Unbind, Remove, Wait).
+// In the case of the `container` store type there is only one implementation at this time (vsphere VMDKs) and the
+// `implementation` subdirectory has been omitted.
+//
+// This file implements lookup of store implementations via the `RegisterImporter` and `RegisterExporter` functions.
+// This is provided to allow a common pattern for implementing, finding, and accessing store implementations without
+// the caller requiring specific knowledge about the type of a specific store. All that's required is knowledge of
+// the set of `store` interfaces and the identifier with which a given store was implemented.
 package storage
 
 import (
@@ -40,6 +115,82 @@ var (
 	importers map[string]Importer
 	exporters map[string]Exporter
 )
+
+// Resolver defines methods for mapping ids to URLS, and urls to owners of that device
+type Resolver interface {
+	// URL returns a url to the data source representing `id`
+	// For historic reasons this is not the same URL that other parts of the storage component use, but an actual
+	// URL suited for locating the storage element without having additional precursor knowledge.
+	URL(op trace.Operation, id string) (*url.URL, error)
+
+	// Owners returns a list of VMs that are using the resource specified by `url`
+	Owners(op trace.Operation, url *url.URL, filter func(vm *mo.VirtualMachine) bool) ([]*vm.VirtualMachine, error)
+}
+
+// DataSource defines the methods for exporting data from a specific storage element as a tar stream
+type DataSource interface {
+	// Close releases all resources associated with this source. Shared resources should be reference counted.
+	io.Closer
+
+	// Export performs an export of the specified files, returning the data as a tar stream. This is single use; once
+	// the export has completed it should not be assumed that the source remains functional.
+	//
+	// spec: specifies which files will be included/excluded in the export and allows for path rebasing/stripping
+	// data: if true the actual file data is included, if false only the file headers are present
+	Export(op trace.Operation, spec *archive.FilterSpec, data bool) (io.ReadCloser, error)
+
+	// Source returns the mechanism by which the data source is accessed
+	// Examples:
+	//     vmdk mounted locally: *os.File
+	//     nfs volume:  		 XDR-client
+	//     via guesttools:  	 toolbox client
+	Source() interface{}
+
+	// Stat stats the filesystem target indicated by the last entry in the given Filterspecs inclusion map
+	Stat(op trace.Operation, spec *archive.FilterSpec) (*FileStat, error)
+}
+
+// DataSink defines the methods for importing data to a specific storage element from a tar stream
+type DataSink interface {
+	// Close releases all resources associated with this sink. Shared resources should be reference counted.
+	io.Closer
+
+	// Import performs an import of the tar stream to the source held by this DataSink.  This is single use; once
+	// the export has completed it should not be assumed that the sink remains functional.
+	//
+	// spec: specifies which files will be included/excluded in the import and allows for path rebasing/stripping
+	// tarStream: the tar stream to from which to import data
+	Import(op trace.Operation, spec *archive.FilterSpec, tarStream io.ReadCloser) error
+
+	// Sink returns the mechanism by which the data sink is accessed
+	// Examples:
+	//     vmdk mounted locally: *os.File
+	//     nfs volume:  		 XDR-client
+	//     via guesttools:  	 toolbox client
+	Sink() interface{}
+}
+
+// Importer defines the methods needed to write data into a storage element. This should be implemented by the various
+// store types.
+type Importer interface {
+	// Import allows direct construction and invocation of a data sink for the specified ID.
+	Import(op trace.Operation, id string, spec *archive.FilterSpec, tarStream io.ReadCloser) error
+
+	// NewDataSink constructs a data sink for the specified ID within the context of the Importer. This is a single
+	// use sink which may hold resources until Closed.
+	NewDataSink(op trace.Operation, id string) (DataSink, error)
+}
+
+// Exporter defines the methods needed to read data from a storage element, optionally diff with an ancestor. This
+// shoiuld be implemented by the various store types.
+type Exporter interface {
+	// Export allows direct construction and invocation of a data source for the specified ID.
+	Export(op trace.Operation, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error)
+
+	// NewDataSource constructs a data source for the specified ID within the context of the Exporter. This is a single
+	// use source which may hold resources until Closed.
+	NewDataSource(op trace.Operation, id string) (DataSource, error)
+}
 
 type FileStat struct {
 	LinkTarget string
@@ -147,80 +298,4 @@ func GetExporters() []string {
 	}
 
 	return keys
-}
-
-// Resolver defines methods for mapping ids to URLS, and urls to owners of that device
-type Resolver interface {
-	// URL returns a url to the data source representing `id`
-	// For historic reasons this is not the same URL that other parts of the storage component use, but an actual
-	// URL suited for locating the storage element without having additional precursor knowledge.
-	URL(op trace.Operation, id string) (*url.URL, error)
-
-	// Owners returns a list of VMs that are using the resource specified by `url`
-	Owners(op trace.Operation, url *url.URL, filter func(vm *mo.VirtualMachine) bool) ([]*vm.VirtualMachine, error)
-}
-
-// DataSource defines the methods for exporting data from a specific storage element as a tar stream
-type DataSource interface {
-	// Close releases all resources associated with this source. Shared resources should be reference counted.
-	io.Closer
-
-	// Export performs an export of the specified files, returning the data as a tar stream. This is single use; once
-	// the export has completed it should not be assumed that the source remains functional.
-	//
-	// spec: specifies which files will be included/excluded in the export and allows for path rebasing/stripping
-	// data: if true the actual file data is included, if false only the file headers are present
-	Export(op trace.Operation, spec *archive.FilterSpec, data bool) (io.ReadCloser, error)
-
-	// Source returns the mechanism by which the data source is accessed
-	// Examples:
-	//     vmdk mounted locally: *os.File
-	//     nfs volume:  		 XDR-client
-	//     via guesttools:  	 toolbox client
-	Source() interface{}
-
-	// Stat stats the filesystem target indicated by the last entry in the given Filterspecs inclusion map
-	Stat(op trace.Operation, spec *archive.FilterSpec) (*FileStat, error)
-}
-
-// DataSink defines the methods for importing data to a specific storage element from a tar stream
-type DataSink interface {
-	// Close releases all resources associated with this sink. Shared resources should be reference counted.
-	io.Closer
-
-	// Import performs an import of the tar stream to the source held by this DataSink.  This is single use; once
-	// the export has completed it should not be assumed that the sink remains functional.
-	//
-	// spec: specifies which files will be included/excluded in the import and allows for path rebasing/stripping
-	// tarStream: the tar stream to from which to import data
-	Import(op trace.Operation, spec *archive.FilterSpec, tarStream io.ReadCloser) error
-
-	// Sink returns the mechanism by which the data sink is accessed
-	// Examples:
-	//     vmdk mounted locally: *os.File
-	//     nfs volume:  		 XDR-client
-	//     via guesttools:  	 toolbox client
-	Sink() interface{}
-}
-
-// Importer defines the methods needed to write data into a storage element. This should be implemented by the various
-// store types.
-type Importer interface {
-	// Import allows direct construction and invocation of a data sink for the specified ID.
-	Import(op trace.Operation, id string, spec *archive.FilterSpec, tarStream io.ReadCloser) error
-
-	// NewDataSink constructs a data sink for the specified ID within the context of the Importer. This is a single
-	// use sink which may hold resources until Closed.
-	NewDataSink(op trace.Operation, id string) (DataSink, error)
-}
-
-// Exporter defines the methods needed to read data from a storage element, optionally diff with an ancestor. This
-// shoiuld be implemented by the various store types.
-type Exporter interface {
-	// Export allows direct construction and invocation of a data source for the specified ID.
-	Export(op trace.Operation, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error)
-
-	// NewDataSource constructs a data source for the specified ID within the context of the Exporter. This is a single
-	// use source which may hold resources until Closed.
-	NewDataSource(op trace.Operation, id string) (DataSource, error)
 }

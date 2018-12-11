@@ -169,14 +169,6 @@ func (c *ContainerProxy) CreateContainerHandle(ctx context.Context, vc *vicconta
 		return "", "", errors.NillPortlayerClientError("ContainerProxy")
 	}
 
-	if vc.ImageID == "" {
-		return "", "", errors.NotFoundError("No image specified")
-	}
-
-	if vc.LayerID == "" {
-		return "", "", errors.NotFoundError("No layer specified")
-	}
-
 	// Call the Exec port layer to create the container
 	host, err := sys.UUID()
 	if err != nil {
@@ -186,12 +178,6 @@ func (c *ContainerProxy) CreateContainerHandle(ctx context.Context, vc *vicconta
 	plCreateParams := dockerContainerCreateParamsToPortlayer(ctx, config, vc, host).WithOpID(&opID)
 	createResults, err := c.client.Containers.Create(plCreateParams)
 	if err != nil {
-		if _, ok := err.(*containers.CreateNotFound); ok {
-			cerr := fmt.Errorf("No such image: %s", vc.ImageID)
-			log.Errorf("%s (%s)", cerr, err)
-			return "", "", errors.NotFoundError(cerr.Error())
-		}
-
 		// If we get here, most likely something went wrong with the port layer API server
 		return "", "", errors.InternalServerError(err.Error())
 	}
@@ -1083,20 +1069,8 @@ func dockerContainerCreateParamsToPortlayer(ctx context.Context, cc types.Contai
 	config.NumCpus = cc.HostConfig.CPUCount
 	config.MemoryMB = cc.HostConfig.Memory
 
-	// Layer/vmdk to use
-	config.Layer = vc.LayerID
-
-	// Image ID
-	config.Image = vc.ImageID
-
-	// Repo Requested
-	config.RepoName = cc.Config.Image
-
 	//copy friendly name
 	config.Name = cc.Name
-
-	// image store
-	config.ImageStore = &models.ImageStore{Name: imageStore}
 
 	// network
 	config.NetworkDisabled = cc.Config.NetworkDisabled

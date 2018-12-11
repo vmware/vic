@@ -19,7 +19,7 @@ import (
 	"net/url"
 	"os"
 
-	nfsClient "github.com/vmware/go-nfs-client/nfs"
+	"github.com/vmware/go-nfs-client/nfs"
 	"github.com/vmware/go-nfs-client/nfs/rpc"
 
 	"github.com/vmware/vic/pkg/trace"
@@ -68,7 +68,7 @@ type NfsMount struct {
 	// The URL (host + path) of the NFS server and target path
 	TargetURL *url.URL
 
-	s *nfsClient.Mount
+	s *nfs.Mount
 }
 
 func NewMount(t *url.URL, hostname string, uid, gid uint32) *NfsMount {
@@ -82,7 +82,7 @@ func NewMount(t *url.URL, hostname string, uid, gid uint32) *NfsMount {
 
 func (m *NfsMount) Mount(op trace.Operation) (Target, error) {
 	op.Debugf("Mounting %s", m.TargetURL.String())
-	s, err := nfsClient.DialMount(m.TargetURL.Host)
+	s, err := nfs.DialMount(m.TargetURL.Host)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (m *NfsMount) URL() (*url.URL, error) {
 
 // wrap ReadDir to return a slice of os.FileInfo
 type target struct {
-	*nfsClient.Target
+	*nfs.Target
 }
 
 func (t *target) ReadDir(path string) ([]os.FileInfo, error) {
