@@ -9,6 +9,7 @@ FROM photon:2.0
 
 RUN set -eux; \
      tdnf distro-sync --refresh -y; \
+     tdnf install shadow -y; \
      tdnf info installed; \
      tdnf clean all
 
@@ -31,5 +32,12 @@ COPY bin/appliance.iso .
 COPY bin/bootstrap.iso .
 
 RUN setcap cap_net_bind_service=+ep bin/vic-machine-server
+
+# Create a VIC  user so the application doesn't run as root.
+RUN groupadd -g 10000 vic && \
+    useradd -u 10000 -g vic -s /sbin/nologin -c "VIC user" vic
+
+# Change to the VIC user.
+USER vic
 
 ENTRYPOINT bin/vic-machine-server
