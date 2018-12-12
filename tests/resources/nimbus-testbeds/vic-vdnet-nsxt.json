@@ -1,0 +1,165 @@
+{
+  "options": {
+    "collectlogs": 1,
+    "product": {
+      "nsxt": {
+        "feature_switch": {
+          "Lb": "true"
+        }
+      }
+    },
+    "testrunid": "${TESTRUNID}",
+    "dontupgstafsdk": 1,
+    "noTools": 1,
+    "racetrack": "jarvis@racetrack.eng.vmware.com",
+    "params": "/src/nsx-qe/vdnet/automation/TDS/NSXTransformers/Openstack/HybridEdge/OSDeployTds.yaml::DeployOSMHTestbed  --exit-on-workload CreateIPDiscoveryProfile --testdata /src/nsx-qe/vdnet/automation/TDS/NSXTransformers/Common/JarvisTestData.yaml",
+    "useSamePod": 1,
+    "nimbus_location": "${NIMBUS_LOCATION}",
+    "env_user": "%{NIMBUS_USER}",
+    "nsxsdkbuild": "${NSX_VERSION}"
+  },
+  "testbed": {
+    "nsxcontroller": {
+      "[1]": {
+        "username": "admin",
+        "cmd_password": "Admin!23Admin",
+        "cpus": {
+          "cores": 2
+        },
+        "root_username": "root",
+        "build": "${NSX_VERSION}",
+        "password": "Admin!23Admin",
+        "root_password": "Admin!23Admin",
+        "cmd_username": "root"
+      }
+    },
+    "vc": {
+      "[1]": {
+        "username": "Administrator@vsphere.local",
+        "password": "Admin!23",
+        "build": "${VC_VERSION}"
+      }
+    },
+    "network": {
+      "[1]": {
+        "name": "isolated-06"
+      }
+    },
+    "nsxedge": {
+      "[1]": {
+        "username": "admin",
+        "cmd_password": "Admin!23Admin",
+        "uplink_network": "internal",
+        "internal_network": "internal",
+        "root_username": "root",
+        "mtu": 9000,
+        "installtype": "nested",
+        "build": "${NSX_VERSION}",
+        "deploymentoption": "medium",
+        "dummy_vss_vmnic": "vmnic1",
+        "management_network": "VM Network",
+        "password": "Admin!23Admin",
+        "dummy_vss_vlan_id": 4095,
+        "esx": "esx.[100]",
+        "root_password": "Admin!23Admin",
+        "cmd_username": "root"
+      }
+    },
+    "kvm": {
+      "[3-4]": {
+        "username": "root",
+        "cpus": {
+          "cores": 2
+        },
+        "pif": {
+          "[1]": {
+            "interface": "eth1",
+            "network": "network.[1]"
+          }
+        },
+        "configure_package": {
+          "operation": "install",
+          "resource": [
+            "${NSX_VERSION}:xenial_amd64/.*nsx-lcp.*tar.gz"
+          ],
+          "timeout": 600,
+          "execution_type": "cmd"
+        },
+        "build": "ubuntu1604",
+        "password": "ca$hc0w"
+      }
+    },
+    "vm": {
+      "[-1]": {
+        "template": "ubuntu_1404_srv_64"
+      }
+    },
+    "esx": {
+      "[100]": {
+        "vmnic": {
+          "[1]": {
+            "driver": "e1000e",
+            "network": "network.[1]"
+          }
+        },
+        "cpus": {
+          "cores": 8
+        },
+        "installtype": "linkedclone",
+        "build": "${ESX_VERSION}",
+        "memory": {
+          "size": 32000
+        },
+        "disk": {
+          "[1]": {
+            "size": 100000000
+          }
+        }
+      },
+      "[1-2]": {
+        "vmnic": {
+          "[1]": {
+            "driver": "e1000e",
+            "network": "network.[1]"
+          }
+        },
+        "cpus": {
+          "cores": 2
+        },
+        "installtype": "linkedclone",
+        "configure_package": {
+          "signaturecheck": 0,
+          "operation": "install",
+          "resource": [
+            "${NSX_VERSION}:esx65/.*nsx-lcp.*.zip"
+          ],
+          "maintenance": 1,
+          "execution_type": "cli"
+        },
+        "build": "${ESX_VERSION}",
+        "memory": {
+          "size": 32000
+        },
+        "disk": {
+          "[1]": {
+            "size": 100000000
+          }
+        }
+      }
+    },
+    "nsxmanager": {
+      "[1]": {
+        "username": "admin",
+        "cmd_password": "Admin!23Admin",
+        "cpus": {
+          "cores": 2
+        },
+        "root_username": "root",
+        "build": "${NSX_VERSION}",
+        "password": "Admin!23Admin",
+        "root_password": "Admin!23Admin",
+        "cmd_username": "root"
+      }
+    }
+  }
+}
