@@ -59,25 +59,23 @@ fi
 
 if [[ $DRONE_BRANCH == "master" || $DRONE_BRANCH == "releases/"* ]] && [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "push" ]]; then
     echo "Running full CI for $DRONE_BUILD_EVENT on $DRONE_BRANCH"
-    pabot --verbose --processes $jobs --removekeywords TAG:secret --exclude skip tests/test-cases
-    test_custom_iso
+    pabot --verbose --processes $jobs --removekeywords TAG:secret --exclude skip tests/test-cases && test_custom_iso
 elif [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "tag" ]]; then
     echo "Running only Group11-Upgrade and 7-01-Regression for $DRONE_BUILD_EVENT on $DRONE_BRANCH"
     pabot --verbose --processes $jobs --removekeywords TAG:secret --suite Group11-Upgrade --suite 7-01-Regression tests/test-cases
 elif (echo $prBody | grep -q "\[full ci\]"); then
     echo "Running full CI as per commit message"
-    pabot --verbose --processes $jobs --removekeywords TAG:secret --exclude skip tests/test-cases
-    test_custom_iso
+    pabot --verbose --processes $jobs --removekeywords TAG:secret --exclude skip tests/test-cases && test_custom_iso
 elif (echo $prBody | grep -q "\[specific ci="); then
     echo "Running specific CI as per commit message"
     buildtype=$(echo $prBody | grep "\[specific ci=")
     testsuite=$(echo $buildtype | awk -F"\[specific ci=" '{sub(/\].*/,"",$2);print $2}')
-    pabot --verbose --processes $jobs --removekeywords TAG:secret --suite $testsuite --suite 7-01-Regression tests/test-cases
+    pabot --verbose --processes $jobs --removekeywords TAG:secret --suite $testsuite --suite 7-01-Regression tests/test-cases && \
     pabot --verbose --processes $jobs --removekeywords TAG:secret -v BOOTSTRAP-ISO:$bootstrapiso --outputdir $bootstrapdir --suite $testsuite --suite 7-01-Regression tests/test-cases
 else
     echo "Running regressions"
-    pabot --verbose --processes $jobs --removekeywords TAG:secret --exclude skip --include regression tests/test-cases
-    test_custom_iso
+    pabot --verbose --processes $jobs --removekeywords TAG:secret --exclude skip --include regression tests/test-cases && \
+    pabot --verbose --processes $jobs --removekeywords TAG:secret -v BOOTSTRAP-ISO:$bootstrapiso --outputdir $bootstrapdir --exclude skip --include regression tests/test-cases
 fi
 
 rc="$?"
