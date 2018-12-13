@@ -354,6 +354,10 @@ func (d *Data) CopyNonEmpty(src *Data) error {
 		d.VCHMemoryShares = src.VCHMemoryShares
 		resourceIsSet = true
 	}
+	if src.StorageQuotaGB != nil {
+		d.StorageQuotaGB = src.StorageQuotaGB
+		resourceIsSet = true
+	}
 	d.ResourceLimits.IsSet = resourceIsSet
 
 	d.Timeout = src.Timeout

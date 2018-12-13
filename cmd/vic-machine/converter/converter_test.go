@@ -299,7 +299,7 @@ func testConvertContainerNetworks(t *testing.T) {
 	assert.Equal(t, "172.16.0.2/12", options["management-network-ip"][0], "not expected management-network-ip option")
 }
 
-func TestConvertSharesInfo(t *testing.T) {
+func TestConvertLimitsInfo(t *testing.T) {
 	data := data.NewData()
 	cLimit, cReserve := 29300, 1024
 	data.NumCPUs = 2
@@ -317,10 +317,12 @@ func TestConvertSharesInfo(t *testing.T) {
 		Shares: 163840,
 		Level:  types.SharesLevelNormal,
 	}
+	quota := 100
+	data.StorageQuotaGB = &quota
 
 	options, err := DataToOption(data)
 	assert.Empty(t, err)
-	assert.Equal(t, 7, len(options), "should not have other option generated")
+	assert.Equal(t, 8, len(options), "should not have other option generated")
 	assert.Equal(t, "2", options["endpoint-cpu"][0], "not expected endpoint-cpu option")
 	assert.Equal(t, "4096", options["endpoint-memory"][0], "not expected endpoint-memory option")
 	assert.Equal(t, "13144", options["memory"][0], "not expected memory option")
@@ -328,6 +330,7 @@ func TestConvertSharesInfo(t *testing.T) {
 	assert.Equal(t, "29300", options["cpu"][0], "not expected cpu option")
 	assert.Equal(t, "1024", options["cpu-reservation"][0], "not expected cpu-reservation option")
 	assert.Equal(t, "6000", options["cpu-shares"][0], "not expected cpu-shares option")
+	assert.Equal(t, "100", options["storage-quota"][0], "not expected storage-quota option")
 }
 
 func TestGuestInfo(t *testing.T) {

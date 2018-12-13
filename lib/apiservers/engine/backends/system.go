@@ -62,19 +62,23 @@ type SystemBackend struct {
 }
 
 const (
-	systemStatusMhz          = " VCH CPU limit"
-	systemStatusMemory       = " VCH memory limit"
-	systemStatusCPUUsageMhz  = " VCH CPU usage"
-	systemStatusMemUsage     = " VCH memory usage"
-	systemOS                 = " VMware OS"
-	systemOSVersion          = " VMware OS version"
-	systemProductName        = " VMware Product"
-	volumeStoresID           = "VolumeStores"
-	loginTimeout             = 20 * time.Second
-	infoTimeout              = 5 * time.Second
-	vchWhitelistMode         = " Registry Whitelist Mode"
-	whitelistRegistriesLabel = " Whitelisted Registries"
-	insecureRegistriesLabel  = " Insecure Registries"
+	systemStatusMhz                   = " VCH CPU limit"
+	systemStatusMemory                = " VCH memory limit"
+	systemStatusStorageQuota          = " VCH storage limit"
+	systemStatusCPUUsageMhz           = " VCH CPU usage"
+	systemStatusMemUsage              = " VCH memory usage"
+	systemStatusStorageUsage          = " VCH storage usage"
+	systemStatusImageStorageUsage     = " VCH images storage usage"
+	systemStatusContainerStorageUsage = " VCH containers storage usage"
+	systemOS                          = " VMware OS"
+	systemOSVersion                   = " VMware OS version"
+	systemProductName                 = " VMware Product"
+	volumeStoresID                    = "VolumeStores"
+	loginTimeout                      = 20 * time.Second
+	infoTimeout                       = 5 * time.Second
+	vchWhitelistMode                  = " Registry Whitelist Mode"
+	whitelistRegistriesLabel          = " Whitelisted Registries"
+	insecureRegistriesLabel           = " Insecure Registries"
 )
 
 // var for use by other engine components
@@ -213,6 +217,10 @@ func (s *SystemBackend) SystemInfo() (*types.Info, error) {
 			customInfo := [2]string{systemStatusMemory, units.BytesSize(float64(info.MemTotal))}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
+		if cfg.StorageQuota > 0 {
+			storageQuota := [2]string{systemStatusStorageQuota, units.BytesSize(float64(cfg.StorageQuota))}
+			info.SystemStatus = append(info.SystemStatus, storageQuota)
+		}
 		if vchInfo.CPUUsage >= 0 {
 			customInfo := [2]string{systemStatusCPUUsageMhz, fmt.Sprintf("%d MHz", int(vchInfo.CPUUsage))}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
@@ -221,6 +229,22 @@ func (s *SystemBackend) SystemInfo() (*types.Info, error) {
 			customInfo := [2]string{systemStatusMemUsage, units.BytesSize(float64(vchInfo.MemUsage))}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
+		imageStorageUsage, err := cache.ImageCache().GetImageStorageUsage()
+		if err != nil {
+			op.Infof("Unable to get the image storage usage : %s", err.Error())
+		}
+		vmStorageUsage := cache.ContainerCache().VMStorageSize()
+		storageUsage := [2]string{systemStatusStorageUsage, units.BytesSize(float64(imageStorageUsage + vmStorageUsage))}
+		info.SystemStatus = append(info.SystemStatus, storageUsage)
+		if imageStorageUsage > 0 {
+			imageStorageInfo := [2]string{systemStatusImageStorageUsage, units.BytesSize(float64(imageStorageUsage))}
+			info.SystemStatus = append(info.SystemStatus, imageStorageInfo)
+		}
+		if vmStorageUsage > 0 {
+			vmStorageInfo := [2]string{systemStatusContainerStorageUsage, units.BytesSize(float64(vmStorageUsage))}
+			info.SystemStatus = append(info.SystemStatus, vmStorageInfo)
+		}
+
 		if vchInfo.HostProductName != "" {
 			customInfo := [2]string{systemProductName, vchInfo.HostProductName}
 			info.SystemStatus = append(info.SystemStatus, customInfo)

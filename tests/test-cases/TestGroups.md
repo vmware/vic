@@ -28,3 +28,5 @@ VIC Integration Test Suite
 -
 [Group 25 - Host Affinity](Group25-Host-Affinity/TestCases.md)
 -
+[Group 26 - Storage Quota](Group26-Storage-Quota/TestCases.md)
+-

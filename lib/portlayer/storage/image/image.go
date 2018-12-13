@@ -76,6 +76,9 @@ type ImageStorer interface {
 	// container, this will return an error.
 	DeleteImage(op trace.Operation, image *Image) (*Image, error)
 
+	// GetImageStorageUsage gets the image storage usage from the image store.
+	GetImageStorageUsage(op trace.Operation) (int64, error)
+
 	storage.Resolver
 	storage.Importer
 	storage.Exporter

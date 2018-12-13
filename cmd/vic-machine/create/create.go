@@ -286,10 +286,11 @@ func (c *Create) Flags() []cli.Flag {
 	proxies := c.Proxies.ProxyFlags()
 	debug := c.DebugFlags(true)
 	help := c.help.HelpFlags()
+	squota := c.VCHStorageQuotaFlag()
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, compute, ops, create, affinity, container, volume, dns, networks, cNetwork, memory, cpu, tls, registries, proxies, syslog, iso, util, debug, help} {
+	for _, f := range [][]cli.Flag{target, compute, ops, create, affinity, container, volume, dns, networks, cNetwork, memory, cpu, squota, tls, registries, proxies, syslog, iso, util, debug, help} {
 		flags = append(flags, f...)
 	}
 
@@ -690,6 +691,15 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	if err != nil {
 		op.Error("Create cannot continue: configuration validation failed")
 		return err
+	}
+
+	if c.StorageQuotaGB != nil && *c.StorageQuotaGB > 0 {
+		quotaBytes, err := validator.ValidateStorageQuota(op, *c.StorageQuotaGB, nil, nil)
+		if err != nil {
+			op.Error("Configuring cannot continue: storage quota validation failed")
+			return err
+		}
+		vchConfig.StorageQuota = quotaBytes
 	}
 
 	// persist cli args used to create the VCH

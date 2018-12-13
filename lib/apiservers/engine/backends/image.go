@@ -33,6 +33,7 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/reference"
+	"github.com/docker/go-units"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	vicfilter "github.com/vmware/vic/lib/apiservers/engine/backends/filter"
@@ -348,6 +349,11 @@ func (i *ImageBackend) PullImage(ctx context.Context, image, tag string, metaHea
 	op := trace.NewOperation(context.Background(), "PullImage: %s", image)
 	defer trace.End(trace.Audit(image, op))
 
+	err := validateStorageQuota()
+	if err != nil {
+		return err
+	}
+
 	log.Debugf("PullImage: image = %s, tag = %s, metaheaders = %+v\n", image, tag, metaHeaders)
 
 	//***** Code from Docker 1.13 PullImage to convert image and tag to a ref
@@ -451,6 +457,26 @@ func (i *ImageBackend) SearchRegistryForImages(ctx context.Context, filtersArgs 
 }
 
 // Utility functions
+
+func validateStorageQuota() error {
+	// 0 means unlimited
+	if vchConfig.Cfg.StorageQuota == 0 {
+		return nil
+	}
+	vmStorageUsage := cache.ContainerCache().VMStorageSize()
+	imageStorageUsage, err := cache.ImageCache().GetImageStorageUsage()
+	if err != nil {
+		log.Errorf("failed to get image storage usage: %v", err)
+		return err
+	}
+
+	if vchConfig.Cfg.StorageQuota >= imageStorageUsage+vmStorageUsage {
+		return nil
+	}
+
+	return fmt.Errorf("Storage quota exceeds. Storage quota: %dGB, image storage usage: %.3fGB, container storage usage: %.3fGB",
+		vchConfig.Cfg.StorageQuota/units.GiB, (float32)(imageStorageUsage)/units.GiB, (float32)(vmStorageUsage)/units.GiB)
+}
 
 func convertV1ImageToDockerImage(image *metadata.ImageConfig) *types.ImageSummary {
 	var labels map[string]string

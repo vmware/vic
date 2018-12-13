@@ -760,6 +760,44 @@
 				}
 			}
 		},
+		"/storage/{store_name}/usage": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
+			"get": {
+				"description": "Get images storage usage in an image store",
+				"summary": "Get images storage usage",
+				"tags": [
+					"storage"
+				],
+				"operationId": "GetImageStorageUsage",
+				"parameters": [
+					{
+						"name": "store_name",
+						"type": "string",
+						"in": "path",
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"type": "integer",
+							"format": "int64"
+						}
+					},
+					"default": {
+						"description": "error",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			}
+		},
 		"/storage/{store_name}/tar/{id}": {
 			"parameters": [
 				{
@@ -3689,6 +3727,9 @@
 					"$ref": "#/definitions/ReservationConfig"
 				},
 				"storageSize": {
+					"type": "integer"
+				},
+				"memorySizeMB": {
 					"type": "integer"
 				}
 			}

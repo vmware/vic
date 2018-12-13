@@ -247,10 +247,6 @@ Configure VCH DNS server
     Should Contain  ${output}  Completed successfully
     Should Not Contain  ${output}  --dns-server
 
-    # Remove old SSH key since it changes after reboot.
-    ${rc}=  Run And Return Rc  ssh-keygen -f "/root/.ssh/known_hosts" -R %{VCH-IP}
-    Should Be Equal As Integers  ${rc}  0
-
     Enable VCH SSH
     ${rc}  ${output}=  Run And Return Rc and Output  sshpass -p %{TEST_PASSWORD} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@%{VCH-IP} cat /etc/resolv.conf
     Should Be Equal As Integers  ${rc}  0
@@ -277,6 +273,14 @@ Configure VCH resources
     Should Contain  ${output}  --memory=4096
     Should Contain  ${output}  --memory-reservation=10
     Should Contain  ${output}  --memory-shares=163840
+
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --storage-quota 5
+    Should Contain  ${output}  Completed successfully
+    ${output}=  Run  bin/vic-machine-linux inspect config --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT}
+    Should Contain  ${output}  --storage-quota=5
+
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --storage-quota 1000
+    Should Contain  ${output}  Storage quota exceeds datastore free space
 
 Configure VCH volume stores
     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:default --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-conf:configure

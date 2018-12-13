@@ -222,3 +222,13 @@ func (v *Validator) suggestDatastore(op trace.Operation, path string, label stri
 		}
 	}
 }
+
+func (v *Validator) getDatastoreFreeSpace(op trace.Operation) int64 {
+	ds := datastore.NewHelperFromSession(op, v.session)
+	summary, err := ds.Summary(op)
+	if err != nil {
+		op.Error(err)
+		return 0
+	}
+	return summary.FreeSpace
+}

@@ -590,6 +590,10 @@ func (v *ImageStore) ListImages(op trace.Operation, store *url.URL, IDs []string
 	return images, nil
 }
 
+func (v *ImageStore) GetImageStorageUsage(op trace.Operation) (int64, error) {
+	return v.Helper.GetFilesSize(op, "", true, "*.vmdk")
+}
+
 // DeleteImage deletes an image from the image store.  If the image is in
 // use either by way of inheritance or because it's attached to a
 // container, this will return an error.

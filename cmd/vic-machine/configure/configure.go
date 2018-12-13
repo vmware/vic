@@ -24,6 +24,8 @@ import (
 
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/docker/go-units"
+
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
@@ -104,10 +106,11 @@ func (c *Configure) Flags() []cli.Flag {
 	certificates := c.certificates.CertFlags()
 	registries := c.registries.Flags()
 	help := c.help.HelpFlags()
+	squota := c.VCHStorageQuotaFlag()
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, ops, id, compute, affinity, container, volume, dns, cNetwork, memory, cpu, certificates, registries, proxies, util, debug, help} {
+	for _, f := range [][]cli.Flag{target, ops, id, compute, affinity, container, volume, dns, cNetwork, memory, cpu, squota, certificates, registries, proxies, util, debug, help} {
 		flags = append(flags, f...)
 	}
 
@@ -351,6 +354,8 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	}
 	defer validator.Session().Logout(parentOp) // parentOp is used here to ensure the logout occurs, even in the event of timeout
 
+	updatedStorageQuota := c.Data.StorageQuotaGB != nil && *c.Data.StorageQuotaGB > 0
+
 	_, err = validator.ValidateTarget(op, c.Data, false)
 	if err != nil {
 		op.Errorf("Configuring cannot continue - target validation failed: %s", err)
@@ -460,9 +465,27 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		op.Error("Configuring cannot continue: configuration validation failed")
 		return err
 	}
+
+	if updatedStorageQuota {
+		_, err = validator.ValidateStorageQuota(op, *c.StorageQuotaGB, vchConfig, vch)
+		if err != nil {
+			op.Error("Configuring cannot continue: storage quota validation failed")
+			return err
+		}
+	}
+
 	// The user supplied resource information has been validated, so
 	// switch back to the merged results
 	c.Data.ResourceLimits = mergedResources
+
+	if c.StorageQuotaGB != nil {
+		// Treat minus values as unlimited
+		if *c.StorageQuotaGB <= 0 {
+			vchConfig.StorageQuota = 0
+		} else {
+			vchConfig.StorageQuota = int64(*c.StorageQuotaGB) * units.GiB
+		}
+	}
 
 	// TODO: copy changed configuration here. https://github.com/vmware/vic/issues/2911
 	c.copyChangedConf(vchConfig, newConfig, clic)

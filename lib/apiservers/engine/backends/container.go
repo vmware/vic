@@ -53,6 +53,7 @@ import (
 	engerr "github.com/vmware/vic/lib/apiservers/engine/errors"
 	"github.com/vmware/vic/lib/apiservers/engine/network"
 	"github.com/vmware/vic/lib/apiservers/engine/proxy"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -685,9 +686,14 @@ func (c *ContainerBackend) ContainerCreate(config types.ContainerCreateConfig) (
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
 
+	err = checkStorageQuota(PortLayerClient(), &config)
+	if err != nil {
+		return containertypes.ContainerCreateCreatedBody{}, err
+	}
+
 	// Create a container representation in the personality server.  This representation
 	// will be stored in the cache if create succeeds in the port layer.
-	container, err := createInternalVicContainer(image, &config)
+	container, err := createInternalVicContainer(image)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
@@ -950,7 +956,10 @@ func (c *ContainerBackend) ContainerRm(name string, config *types.ContainerRmCon
 			return c.containerProxy.Remove(op, vc, config)
 		}
 
-		return retry.Do(op, operation, engerr.IsConflictError)
+		err := retry.Do(op, operation, engerr.IsConflictError)
+		if err != nil {
+			return err
+		}
 	}
 
 	return c.containerProxy.Remove(op, vc, config)
@@ -1833,7 +1842,7 @@ func clientFriendlyContainerName(name string) string {
 
 // createInternalVicContainer() creates an container representation (for docker personality)
 // This is called by ContainerCreate()
-func createInternalVicContainer(image *metadata.ImageConfig, config *types.ContainerCreateConfig) (*viccontainer.VicContainer, error) {
+func createInternalVicContainer(image *metadata.ImageConfig) (*viccontainer.VicContainer, error) {
 	// provide basic container config via the image
 	container := viccontainer.NewVicContainer()
 	container.LayerID = image.V1Image.ID // store childmost layer ID to map to the proper vmdk
@@ -2118,6 +2127,28 @@ func (c *ContainerBackend) validateContainerLogsConfig(vc *viccontainer.VicConta
 	}
 
 	return tailLines, since.Unix(), nil
+}
+
+// initial implementation: read value from kvstore/storage_usage + container vm's mem(swap) + image_disk_size
+// TODO improve implementation to consider log files
+func checkStorageQuota(client *client.PortLayer, config *types.ContainerCreateConfig) error {
+	// 0 means unlimited
+	if vchConfig.Cfg.StorageQuota == 0 {
+		return nil
+	}
+
+	vmStorageUsage := cache.ContainerCache().VMStorageSize()
+	imageStorageUsage, err := cache.ImageCache().GetImageStorageUsage()
+	if err != nil {
+		log.Errorf("failed to get image storage usage: %v", err)
+		return err
+	}
+
+	if vchConfig.Cfg.StorageQuota >= imageStorageUsage+vmStorageUsage+config.HostConfig.Memory*units.MiB+vchConfig.Cfg.ScratchSize*units.KB {
+		return nil
+	}
+	return fmt.Errorf("Storage quota exceeds. Storage quota: %dGB, image storage usage: %.3fGB, container storage usage: %.3fGB",
+		vchConfig.Cfg.StorageQuota/units.GiB, (float32)(imageStorageUsage)/units.GiB, (float32)(vmStorageUsage)/units.GiB)
 }
 
 func CreateContainerEventActorWithAttributes(vc *viccontainer.VicContainer, attributes map[string]string) eventtypes.Actor {

@@ -30,6 +30,8 @@ type ResourceLimits struct {
 	VCHMemoryReservationsMB *int              `cmd:"memory-reservation"`
 	VCHMemoryShares         *types.SharesInfo `cmd:"memory-shares"`
 
+	StorageQuotaGB *int `cmd:"storage-quota"`
+
 	IsSet bool
 }
 
@@ -73,6 +75,16 @@ func (r *ResourceLimits) VCHCPULimitFlags() []cli.Flag {
 			Value:  flags.NewSharesFlag(&r.VCHCPUShares),
 			Usage:  "VCH resource pool vCPUs shares, in level or share number, e.g. high, normal, low, or 4000",
 			Hidden: true,
+		},
+	}
+}
+
+func (r *ResourceLimits) VCHStorageQuotaFlag() []cli.Flag {
+	return []cli.Flag{
+		cli.GenericFlag{
+			Name:  "storage-quota, sq",
+			Value: flags.NewOptionalInt(&r.StorageQuotaGB),
+			Usage: "Storage quota for images and containers in GB (unlimited=0)",
 		},
 	}
 }
