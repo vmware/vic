@@ -129,8 +129,6 @@ var (
 
 	// allow mocking
 	randomName = namesgenerator.GetRandomName
-
-	kvlock sync.Mutex
 )
 
 func init() {

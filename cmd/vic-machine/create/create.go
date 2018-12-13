@@ -27,8 +27,6 @@ import (
 
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/docker/go-units"
-
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
@@ -696,12 +694,12 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	}
 
 	if c.StorageQuotaGB != nil && *c.StorageQuotaGB > 0 {
-		err = validator.ValidateStorageQuota(op, *c.StorageQuotaGB, nil, nil)
+		quotaBytes, err := validator.ValidateStorageQuota(op, *c.StorageQuotaGB, nil, nil)
 		if err != nil {
 			op.Error("Configuring cannot continue: storage quota validation failed")
 			return err
 		}
-		vchConfig.StorageQuota = int64(*c.StorageQuotaGB) * units.GiB
+		vchConfig.StorageQuota = quotaBytes
 	}
 
 	// persist cli args used to create the VCH

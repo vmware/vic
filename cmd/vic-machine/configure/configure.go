@@ -467,7 +467,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	}
 
 	if updatedStorageQuota {
-		err = validator.ValidateStorageQuota(op, *c.StorageQuotaGB, vchConfig, vch)
+		_, err = validator.ValidateStorageQuota(op, *c.StorageQuotaGB, vchConfig, vch)
 		if err != nil {
 			op.Error("Configuring cannot continue: storage quota validation failed")
 			return err

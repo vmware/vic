@@ -339,7 +339,7 @@ func (v *Validator) ValidateTarget(ctx context.Context, input *data.Data, allowE
 	return conf, v.ListIssues(op)
 }
 
-func (v *Validator) ValidateStorageQuota(ctx context.Context, quotaGB int, conf *config.VirtualContainerHostConfigSpec, vch *vm.VirtualMachine) error {
+func (v *Validator) ValidateStorageQuota(ctx context.Context, quotaGB int, conf *config.VirtualContainerHostConfigSpec, vch *vm.VirtualMachine) (int64, error) {
 	op := trace.FromContext(ctx, "ValidateStorageQuota")
 	defer trace.End(trace.Begin("", op))
 	op.Info("Validating storage quota")
@@ -350,17 +350,18 @@ func (v *Validator) ValidateStorageQuota(ctx context.Context, quotaGB int, conf 
 	if vch != nil {
 		vmStorageUsage, err = v.getVMStorageUsage(op, vch)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		imageStorageUsage, err = v.getImageStorageUsage(op, conf)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
-	if int64(quotaGB)*units.GiB > v.getDatastoreFreeSpace(op)+vmStorageUsage+imageStorageUsage {
-		return errors.New("Storage quota exceeds datastore free space")
+	quota := int64(quotaGB) * units.GiB
+	if quota > v.getDatastoreFreeSpace(op)+vmStorageUsage+imageStorageUsage {
+		return 0, errors.New("Storage quota exceeds datastore free space")
 	}
-	return nil
+	return quota, nil
 }
 
 func (v *Validator) getVMStorageUsage(op trace.Operation, vch *vm.VirtualMachine) (int64, error) {
