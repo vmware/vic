@@ -152,7 +152,19 @@ func handleEvent(netctx *Context, ie events.Event) {
 		if err := handle.Commit(op, nil, nil); err != nil {
 			op.Warnf("Failed to commit handle after network unbind for container %s: %s", ie.Reference(), err)
 		}
+	case events.ContainerStarted:
+		op := trace.NewOperation(context.Background(), fmt.Sprintf("handleEvent(%s)", ie.EventID()))
+		op.Infof("Handling Event: %s", ie.EventID())
+		// grab the operation from the event
+		handle := exec.GetContainer(op, uid.Parse(ie.Reference()))
+		if _, err := netctx.BindContainer(op, handle); err != nil {
+			op.Warnf("Failed to bind container %s: %s", ie.Reference(), err)
+			return
+		}
 
+		if err := handle.Commit(op, nil, nil); err != nil {
+			op.Warnf("Failed to commit handle after network bind for container %s: %s", ie.Reference(), err)
+		}
 	}
 	return
 }
