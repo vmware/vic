@@ -20,6 +20,7 @@ Suite Teardown  Vdnet NSXT Topology Cleanup  ${NIMBUS_POD}  ${testrunid}
 
 *** Variables ***
 ${NIMBUS_LOCATION}  sc
+${NIMBUS_LOCATION_FULL}  NIMBUS_LOCATION=${NIMBUS_LOCATION}
 ${VDNET_LAUNCHER_HOST}  10.160.201.180
 ${USE_LOCAL_TOOLCHAIN}  0
 ${VDNET_MC_SETUP}  0
@@ -86,8 +87,8 @@ Vdnet NSXT Topology Cleanup
     [Arguments]    ${pod_name}  ${testrunid}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Execute Command  ${NIMBUS_LOCATION} nimbus-ctl --nimbus=${pod_name} kill *${testrunid}*
-    Execute Command  ${NIMBUS_LOCATION} nimbus-ctl --nimbus=${pod_name} kill *isolated-06-gw
+    Execute Command  ${NIMBUS_LOCATION_FULL} nimbus-ctl --nimbus=${pod_name} kill *${testrunid}*
+    Execute Command  ${NIMBUS_LOCATION_FULL} nimbus-ctl --nimbus=${pod_name} kill *isolated-06-gw
     Close Connection
 
 *** Test Cases ***
