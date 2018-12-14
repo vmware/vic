@@ -1115,6 +1115,15 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 	}
 
 	if s.Type() == constants.ExternalScopeType {
+		// Check that specified static IP address for container network should only be
+		// allow when gateway is set
+		if len(options.IP) > 0 && !ip.IsUnspecifiedIP(options.IP) {
+			if ip.IsUnspecifiedIP(s.Gateway()) {
+				err = fmt.Errorf("Cannot set static IP (%s) when default gateway is not set for network %s", options.IP.String(), s.Name())
+				log.Errorln(err)
+				return err
+			}
+		}
 		// Check that ports are only opened on published network firewall configuration.
 		// Redirects are allow for all network types other than Closed and Outbound
 		if len(options.Ports) > 0 {
@@ -1209,6 +1218,7 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 	}
 
 	ne.Static = false
+
 	if len(options.IP) > 0 && !ip.IsUnspecifiedIP(options.IP) {
 		ne.Static = true
 		ne.IP = &net.IPNet{
@@ -1216,7 +1226,6 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 			Mask: s.Subnet().Mask,
 		}
 	}
-
 	h.ExecConfig.Networks[s.Name()] = ne
 	return nil
 }

@@ -646,12 +646,18 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 			Direct:      endpoint.Network.Type == constants.ExternalScopeType,
 		}
 
+		// for static endpoints we may not have forced a state refresh and therefore not have the address copied into the Assigned fields.
+		// In this case we used the configured data directly.
 		if !ip.IsUnspecifiedIP(endpoint.Network.Assigned.Gateway.IP) {
 			ep.Gateway = endpoint.Network.Assigned.Gateway.IP.String()
+		} else if endpoint.Static {
+			ep.Gateway = endpoint.Network.Gateway.IP.String()
 		}
 
 		if !ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
 			ep.Address = endpoint.Assigned.String()
+		} else if endpoint.Static {
+			ep.Address = endpoint.IP.String()
 		}
 
 		if len(endpoint.Ports) > 0 {
