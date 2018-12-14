@@ -61,7 +61,7 @@ Test
     Log To Console  \nWait until Nimbus is at least available...
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS2_USER}  %{NIMBUS2_PASSWORD}
-    ${out}=  Execute Command  nimbus-ctl --lease 5 extend_lease '*'
+    ${out}=  Execute Command  USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl --lease 5 extend_lease '*'
     Log  ${out}
     Close Connection
 

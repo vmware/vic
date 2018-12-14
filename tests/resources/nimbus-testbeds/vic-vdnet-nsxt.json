@@ -15,7 +15,7 @@
     "params": "/src/nsx-qe/vdnet/automation/TDS/NSXTransformers/Openstack/HybridEdge/OSDeployTds.yaml::DeployOSMHTestbed  --exit-on-workload CreateIPDiscoveryProfile --testdata /src/nsx-qe/vdnet/automation/TDS/NSXTransformers/Common/JarvisTestData.yaml",
     "useSamePod": 1,
     "nimbus_location": "${NIMBUS_LOCATION}",
-    "env_user": "%{NIMBUS_USER}",
+    "env_user": "%{NIMBUS_PERSONAL_USER}",
     "nsxsdkbuild": "${NSX_VERSION}"
   },
   "testbed": {

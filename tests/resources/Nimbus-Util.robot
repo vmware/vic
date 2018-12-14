@@ -25,7 +25,7 @@ ${NIMBUS_LOCATION_FULL}  NIMBUS_LOCATION=${NIMBUS_LOCATION}
 *** Keywords ***
 Fetch IP
     [Arguments]  ${name}
-    ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} nimbus-ctl ip %{NIMBUS_USER}-${name} | grep %{NIMBUS_USER}-${name}
+    ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl ip %{NIMBUS_PERSONAL_USER}-${name} | grep %{NIMBUS_PERSONAL_USER}-${name}
     Should Not Be Empty  ${out}
     ${len}=  Get Line Count  ${out}
     Should Be Equal As Integers  ${len}  1
@@ -39,7 +39,7 @@ Get IP
 
 Fetch POD
       [Arguments]  ${name}
-      ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} nimbus-ctl list | grep ${name}
+      ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl list | grep ${name}
       Should Not Be Empty  ${out}
       ${len}=  Get Line Count  ${out}
       Should Be Equal As Integers  ${len}  1
@@ -47,14 +47,14 @@ Fetch POD
       [return]  ${pod}
 
 Deploy Nimbus ESXi Server
-    [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}  ${tls_disabled}=True
+    [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}  ${tls_disabled}=True  ${personal_user}=%{NIMBUS_PERSONAL_USER}
     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
-    \   ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --lease=0.25 --nics 2 ${version}
+    \   ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --lease=0.25 --nics 2 ${version}
     \   Log  ${out}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  To manage this VM use
@@ -81,9 +81,9 @@ Deploy Nimbus ESXi Server
     ${out}=  Run  govc host.account.update -id root -password ${NIMBUS_ESX_PASSWORD}
     Should Be Empty  ${out}
     Run Keyword If  ${tls_disabled}  Disable TLS On ESX Host
-    Log To Console  Successfully deployed new ESXi server - ${user}-${name}
+    Log To Console  Successfully deployed new ESXi server - ${personal_user}-${name}
     Close connection
-    [Return]  ${user}-${name}  ${ip}
+    [Return]  ${personal_user}-${name}  ${ip}
 
 Set Host Password
     [Arguments]  ${ip}  ${NIMBUS_ESX_PASSWORD}
@@ -98,7 +98,7 @@ Set Host Password
     Log To Console  \nNimbus ESXi server IP: ${ip}
 
 Deploy Multiple Nimbus ESXi Servers in Parallel
-    [Arguments]  ${number}  ${user}=%{NIMBUS_USER}  ${password}=%{NIMBUS_PASSWORD}  ${version}=${ESX_VERSION}
+    [Arguments]  ${number}  ${user}=%{NIMBUS_USER}  ${password}=%{NIMBUS_PASSWORD}  ${version}=${ESX_VERSION}  ${personal_user}=%{NIMBUS_PERSONAL_USER}
     @{names}=  Create List
     ${num}=  Convert To Integer  ${number}
     :FOR  ${x}  IN RANGE  ${num}
@@ -125,7 +125,7 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     :FOR  ${name}  IN  @{names}
     \    ${ip}=  Get IP  ${name}
     \    ${ip}=  Evaluate  $ip if $ip else ''
-    \    Run Keyword If  '${ip}'  Set To Dictionary  ${ips}  ${user}-${name}  ${ip}
+    \    Run Keyword If  '${ip}'  Set To Dictionary  ${ips}  ${personal_user}-${name}  ${ip}
 
     # Let's set a password so govc doesn't complain
     ${just_ips}=  Get Dictionary Values  ${ips}
@@ -137,14 +137,14 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     [Return]  ${ips}
 
 Deploy Nimbus vCenter Server
-    [Arguments]  ${user}  ${password}  ${version}=${VC_VERSION}
+    [Arguments]  ${user}  ${password}  ${version}=${VC_VERSION}  ${personal_user}=%{NIMBUS_PERSONAL_USER}
     ${name}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     Log To Console  \nDeploying Nimbus vCenter server: ${name}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
-    \   ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} nimbus-vcvadeploy --lease=0.25 --vcvaBuild ${version} ${name}
+    \   ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-vcvadeploy --lease=0.25 --vcvaBuild ${version} ${name}
     \   Log  ${out}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  Overall Status: Succeeded
@@ -163,15 +163,15 @@ Deploy Nimbus vCenter Server
     Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
     Set Environment Variable  GOVC_PASSWORD  Admin!23
     Set Environment Variable  GOVC_URL  ${ip}
-    Log To Console  Successfully deployed new vCenter server - ${user}-${name}
+    Log To Console  Successfully deployed new vCenter server - ${personal_user}-${name}
     Close connection
-    [Return]  ${user}-${name}  ${ip}
+    [Return]  ${personal_user}-${name}  ${ip}
 
 Deploy Nimbus ESXi Server Async
     [Tags]  secret
     [Arguments]  ${name}  ${version}=${ESX_VERSION}
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
-    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  '${NIMBUS_LOCATION_FULL} nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --lease=0.25 --nics 2 ${version}'
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  '${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --lease=0.25 --nics 2 ${version}'
     [Return]  ${out}
 
 Run Secret SSHPASS command
@@ -186,7 +186,7 @@ Deploy Nimbus vCenter Server Async
     [Arguments]  ${name}  ${version}=${VC_VERSION}
     Log To Console  \nDeploying Nimbus VC server: ${name}
 
-    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  '${NIMBUS_LOCATION_FULL} nimbus-vcvadeploy --lease=0.25 --vcvaBuild ${version} ${name}'
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  '${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-vcvadeploy --lease=0.25 --vcvaBuild ${version} ${name}'
     [Return]  ${out}
 
 # Deploys a nimbus testbed based on the specified testbed spec and options
@@ -208,7 +208,7 @@ Deploy Nimbus Testbed
 
     :FOR  ${IDX}  IN RANGE  1  5
     \   Run Keyword Unless  '${spec}' == '${EMPTY}'  Put File  tests/resources/nimbus-testbeds/${spec}  destination=./%{BUILD_TAG}/testbeds/
-    \   ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} nimbus-testbeddeploy --lease 0.25 ${specarg} ${args}
+    \   ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-testbeddeploy --lease 0.25 ${specarg} ${args}
     \   Log  ${out}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  "deployment_result"=>"PASS"
@@ -221,7 +221,7 @@ Kill Nimbus Server
     [Arguments]  ${user}  ${password}  ${name}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
-    ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} nimbus-ctl kill ${name}
+    ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl kill ${name}
     Log  ${out}
     Close connection
 
@@ -422,7 +422,7 @@ Get Vsphere Version
     \   Run Keyword And Return If  ${status}  Fetch From Right  ${line}  ${SPACE}
 
 Deploy Simple NFS Testbed
-    [Arguments]  ${user}  ${password}  ${spec}=  ${args}=
+    [Arguments]  ${user}  ${password}  ${personal_user}=%{NIMBUS_PERSONAL_USER}  ${spec}=  ${args}=
     ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     Log To Console  \nDeploying Nimbus NFS testbed: ${name}
 
@@ -445,16 +445,16 @@ Deploy Simple NFS Testbed
     Log To Console  \nNFS READ-Only IP: ${nfs-ro-ip}
     Log To Console  \nESX IP: ${esx-ip}
 
-    [Return]  ${user}-${name}.nfs.0  ${user}-${name}.nfs.1  ${user}-${name}.esx.0  ${nfs-ip}  ${nfs-ro-ip}  ${esx-ip}
+    [Return]  ${personal_user}-${name}.nfs.0  ${personal_user}-${name}.nfs.1  ${personal_user}-${name}.esx.0  ${nfs-ip}  ${nfs-ro-ip}  ${esx-ip}
 
 Deploy Nimbus NFS Datastore
-    [Arguments]  ${user}  ${password}  ${additional-args}=
+    [Arguments]  ${user}  ${password}  ${personal_user}=%{NIMBUS_PERSONAL_USER}  ${additional-args}=
     ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     Log To Console  \nDeploying Nimbus NFS server: ${name}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
-    ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} nimbus-nfsdeploy ${name} ${additional-args}
+    ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-nfsdeploy ${name} ${additional-args}
     Log  ${out}
     # Make sure the deploy actually worked
     Should Contain  ${out}  To manage this VM use
@@ -466,9 +466,9 @@ Deploy Nimbus NFS Datastore
     @{gotIP}=  Split String  ${line}  ${SPACE}
     ${ip}=  Remove String  @{gotIP}[5]  ,
 
-    Log To Console  Successfully deployed new NFS server - ${user}-${name}
+    Log To Console  Successfully deployed new NFS server - ${personal_user}-${name}
     Close connection
-    [Return]  ${user}-${name}  ${ip}
+    [Return]  ${personal_user}-${name}  ${ip}
 
 Change ESXi Server Password
     [Arguments]  ${password}
@@ -510,7 +510,7 @@ Create Simple VC Cluster With Static IP
     ${worker-ip}=  Get IP  ${name}.worker.0
     Close Connection
 
-    Set Suite Variable  @{list}  %{NIMBUS_USER}-${name}.esx.0  %{NIMBUS_USER}-${name}.esx.1  %{NIMBUS_USER}-${name}.esx.2  %{NIMBUS_USER}-${name}.nfs.0  %{NIMBUS_USER}-${name}.vc.0  %{NIMBUS_USER}-${name}.worker.0
+    Set Suite Variable  @{list}  %{NIMBUS_PERSONAL_USER}-${name}.esx.0  %{NIMBUS_PERSONAL_USER}-${name}.esx.1  %{NIMBUS_PERSONAL_USER}-${name}.esx.2  %{NIMBUS_PERSONAL_USER}-${name}.nfs.0  %{NIMBUS_PERSONAL_USER}-${name}.vc.0  %{NIMBUS_PERSONAL_USER}-${name}.worker.0
     Log To Console  Finished creating cluster ${name}
 
     Set Environment Variable  STATIC_WORKER_IP  ${worker-ip}
@@ -539,14 +539,14 @@ Create Static IP Worker
     Log To Console  Create a new static ip address worker...
     ${name}=  Evaluate  'static-worker-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     Log To Console  \nDeploying static ip worker: ${name}
-    ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} nimbus-ctl --silentObjectNotFoundError kill '%{NIMBUS_USER}-static-worker' && ${NIMBUS_LOCATION_FULL} nimbus-worker-deploy --nimbus ${NIMBUS_POD} --enableStaticIpService ${name}
+    ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl --silentObjectNotFoundError kill '%{NIMBUS_PERSONAL_USER}-static-worker' && ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-worker-deploy --nimbus ${NIMBUS_POD} --enableStaticIpService ${name}
     Should Contain  ${out}  "deploy_status": "success"
 
     ${pod}=  Fetch POD  ${name}
-    Run Keyword If  '${pod}' != '${NIMBUS_POD}'  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  %{NIMBUS_USER}-${name}
+    Run Keyword If  '${pod}' != '${NIMBUS_POD}'  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  %{NIMBUS_PERSONAL_USER}-${name}
     Run Keyword If  '${pod}' != '${NIMBUS_POD}'  Fail  Nimbus pod suggestion failed
 
-    Set Environment Variable  STATIC_WORKER_NAME  %{NIMBUS_USER}-${name}
+    Set Environment Variable  STATIC_WORKER_NAME  %{NIMBUS_PERSONAL_USER}-${name}
     ${ip}=  Get IP  ${name}
     Set Environment Variable  STATIC_WORKER_IP  ${ip}
     Close Connection

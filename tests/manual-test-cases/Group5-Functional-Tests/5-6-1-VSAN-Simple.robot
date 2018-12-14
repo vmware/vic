@@ -23,7 +23,7 @@ Simple VSAN Setup
     [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${name}=  Evaluate  'vic-vsan-' + str(random.randint(1000,9999))  modules=random
-    Set Suite Variable  ${user}  %{NIMBUS_USER}
+    Set Suite Variable  ${user}  %{NIMBUS_PERSONAL_USER}
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  spec=vic-vsan.rb  args=--plugin testng --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-vsan-simple-pxeBoot-vcva --runName ${name}
 
     Log  ${out}

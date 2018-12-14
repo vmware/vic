@@ -18,22 +18,26 @@ Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10s  iSCSI Datastore Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
+*** Variables ***
+${NIMBUS_LOCATION}  sc
+${NIMBUS_LOCATION_FULL}  NIMBUS_LOCATION=${NIMBUS_LOCATION}
+
 *** Keywords ***
 iSCSI Datastore Setup
     [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${name}=  Evaluate  'vic-iscsi-' + str(random.randint(1000,9999))  modules=random
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --customizeTestbed '/esx desiredPassword=e2eFunctionalTest' --noSupportBundles --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-sdrs-iscsi-fullInstall-vcva --runName vic-iscsi
-    Set Suite Variable  @{list}  %{NIMBUS_USER}-vic-iscsi.vcva-${VC_VERSION}  %{NIMBUS_USER}-vic-iscsi.esx.0  %{NIMBUS_USER}-vic-iscsi.esx.1  %{NIMBUS_USER}-vic-iscsi.iscsi.0
+    Set Suite Variable  @{list}  %{NIMBUS_PERSONAL_USER}-vic-iscsi.vcva-${VC_VERSION}  %{NIMBUS_PERSONAL_USER}-vic-iscsi.esx.0  %{NIMBUS_PERSONAL_USER}-vic-iscsi.esx.1  %{NIMBUS_PERSONAL_USER}-vic-iscsi.iscsi.0
     Should Contain  ${out}  "deployment_result"=>"PASS"
 
-    ${out}=  Execute Command  nimbus-ctl ip %{NIMBUS_USER}-vic-iscsi.vcva-${VC_VERSION} | grep %{NIMBUS_USER}-vic-iscsi.vcva-${VC_VERSION}
+    ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl ip %{NIMBUS_PERSONAL_USER}-vic-iscsi.vcva-${VC_VERSION} | grep %{NIMBUS_PERSONAL_USER}-vic-iscsi.vcva-${VC_VERSION}
     ${vc-ip}=  Fetch From Right  ${out}  ${SPACE}
     
-    ${out}=  Execute Command  nimbus-ctl ip %{NIMBUS_USER}-vic-iscsi.esx.0 | grep %{NIMBUS_USER}-vic-iscsi.esx.0
+    ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl ip %{NIMBUS_PERSONAL_USER}-vic-iscsi.esx.0 | grep %{NIMBUS_PERSONAL_USER}-vic-iscsi.esx.0
     ${esx0-ip}=  Fetch From Right  ${out}  ${SPACE}
     
-    ${out}=  Execute Command  nimbus-ctl ip %{NIMBUS_USER}-vic-iscsi.esx.1 | grep %{NIMBUS_USER}-vic-iscsi.esx.1
+    ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl ip %{NIMBUS_PERSONAL_USER}-vic-iscsi.esx.1 | grep %{NIMBUS_PERSONAL_USER}-vic-iscsi.esx.1
     ${esx1-ip}=  Fetch From Right  ${out}  ${SPACE}
 
     Set Environment Variable  GOVC_URL  ${esx0-ip}

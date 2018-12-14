@@ -30,10 +30,10 @@ Deploy ELM DRS Disabled Testbed
     [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${name}=  Evaluate  'ELM-DRS-Disabled-'
-    Set Suite Variable  ${user}  %{NIMBUS_USER}
+    Set Suite Variable  ${user}  %{NIMBUS_PERSONAL_USER}
     Log To Console  \nDeploying Nimbus Testbed: ${name}
 
-    ${pid}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-testbeddeploy --lease 0.25 --noStatsDump --noSupportBundles --plugin test-vpx --testbedName test-vpx-m2n1-vcva-4esx-pxeBoot-8gbmem --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --runName ${name}'
+    ${pid}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'USER=%{NIMBUS_PERSONAL_USER} nimbus-testbeddeploy --lease 0.25 --noStatsDump --noSupportBundles --plugin test-vpx --testbedName test-vpx-m2n1-vcva-4esx-pxeBoot-8gbmem --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --runName ${name}'
 
     &{esxes}=  Create Dictionary
     ${num_of_esxes}=  Evaluate  4
