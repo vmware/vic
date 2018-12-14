@@ -16,7 +16,6 @@ package vsphere
 
 import (
 	"fmt"
-	"path"
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/exec"
@@ -30,7 +29,7 @@ func Join(op trace.Operation, handle *exec.Handle, id, imgID, repoName string, i
 	// set the rw layer name
 	// NOTE: this is a POOR assumption - I'm not clear on how it's functioning on vSAN at all in shipping code given the assumption that
 	// "[ds] id/id.vmdk" is a legitimate path. Some vsphere magic path adjustment?
-	rwlayer := fmt.Sprintf("%s/%s.vmdk", path.Dir(handle.Spec.VMPathName()), id)
+	rwlayer := handle.Spec.Datastore.Path(fmt.Sprintf("%s/%s.vmdk", id, id))
 
 	disk := handle.Guest.NewDisk()
 	moref := handle.Spec.Datastore.Reference()
