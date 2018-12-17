@@ -88,7 +88,7 @@ if ! git remote show -n origin >/dev/null 2>&1 ; then
     git init . && git remote add origin ${url}
 fi
 
-if [ ! -z ${refspec} ]; then
+if [ -n "${refspec}" ]; then
     # we don't limit the depth as that was resulting in failure to find the most recent tag for a given commit
     git fetch origin -v ${refspec}
     if [ "$(git rev-parse --abbrev-ref HEAD)" != "$branch" ]; then
@@ -96,7 +96,7 @@ if [ ! -z ${refspec} ]; then
     fi
 fi
 
-if [ -n ${localbranch} ]; then
+if [ -n "${localbranch}" ]; then
     # try to fast-forward but just checkout if that fails
     git pull --ff-only || git checkout ${localbranch}
 fi
