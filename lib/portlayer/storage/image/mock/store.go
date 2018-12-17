@@ -187,6 +187,6 @@ func (c *MockDataStore) DeleteImage(op trace.Operation, image *image.Image) (*im
 	return image, nil
 }
 
-func (c *MockDataStore) GetImageStorageUsage(op trace.Operation) (int64, error) {
+func (c *MockDataStore) GetImageStorageUsage(op trace.Operation, storeName string) (int64, error) {
 	return 0, nil
 }

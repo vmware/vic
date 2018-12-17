@@ -77,7 +77,7 @@ type ImageStorer interface {
 	DeleteImage(op trace.Operation, image *Image) (*Image, error)
 
 	// GetImageStorageUsage gets the image storage usage from the image store.
-	GetImageStorageUsage(op trace.Operation) (int64, error)
+	GetImageStorageUsage(op trace.Operation, storeName string) (int64, error)
 
 	storage.Resolver
 	storage.Importer
