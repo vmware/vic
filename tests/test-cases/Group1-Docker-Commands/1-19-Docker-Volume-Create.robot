@@ -217,3 +217,21 @@ Docker volume conflict in new container
     Should Be Equal As Integers  ${rc}  125
     Should Contain  ${output}  Error response from daemon
     Should Contain  ${output}  device ${volID} in use
+
+Docker volume create fqdn-based nfs datastore
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name nfs-vol --opt Capacity=5G
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v nfs-vol:/mnt/nfs-vol --net public --name nfs-server -p 111:111 -p 2049:2049 -p 32767:32767 -p 32768:32768 -e EXPORT_FOLDER=/mnt/nfs-vol bensdoings/nfs-server
+    Should Be Equal As Integers  ${rc}  0
+    ${ip}=  Get Container IP  %{VCH-PARAMS}  nfs-server  public
+    ${rc}  ${fqdn}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net public ${busybox} nslookup ${ip} | awk -F'${ip} ' '/${ip} /{print $2}'
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:default --volume-store=\'nfs://${fqdn}/mnt/nfs-vol?uid=0&gid=0&proto=tcp&port=2049:nfsfqdn\'
+    Should Contain  ${output}  Completed successfully
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name nfs-vol-fqdn --opt VolumeStore=nfsfqdn
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v nfs-vol-fqdn:/data ${busybox} sh -c "echo fqdn > /data/fqdn"
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v nfs-vol-fqdn:/data ${busybox} sh -c "cat /data/fqdn"
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  fqdn
