@@ -34,6 +34,11 @@ This test requires that a vSphere server is running and available
 21. Issue docker inspect busybox -f '{{.RepoDigest}}'
 22. Issue docker inspect on container with both an anonymous and named volume bound to mount points
 23. Issue docker inspect container status across container lifecycle (created, running, exited)
+24. Issue docker run with specified hostname and inspect hostname included in config
+25. Issue docker inspect -f {{range .NetworkSettings.Networks}}{{.MacAddress}}{{end}} <containerID>
+26. Issue docker create with specififed DNS and inspect DNS in the result
+27. Issue docker create with multiple specififed DNS and inspect all DNS entries in the result
+28. Issue docker inspect and get memory and cpu numbers included in hostconfig
 
 # Expected Outcome:
 * Step 3,4,7,8 should result in success and a properly formatted JSON response
@@ -56,6 +61,11 @@ Error: No such image or container: fake
 * Step 21 should result in a valid digest, previously cached
 * Step 22 should result in valid Mounts data
 * Step 23 should result in correct container status values (created, running, exited)
+* Step 24 should result in hostname in config
+* Step 25 should result macaddress in the result
+* Step 26 should result DNS
+* Step 27 should result multiple DNS entries
+* Step 28 should result memory and cpu numbers in hostconfig
 
 # Possible Problems:
 None
