@@ -590,8 +590,8 @@ func (v *ImageStore) ListImages(op trace.Operation, store *url.URL, IDs []string
 	return images, nil
 }
 
-func (v *ImageStore) GetImageStorageUsage(op trace.Operation) (int64, error) {
-	return v.Helper.GetFilesSize(op, "", true, "*.vmdk")
+func (v *ImageStore) GetImageStorageUsage(op trace.Operation, storeName string) (int64, error) {
+	return v.Helper.GetFilesSize(op, v.imageStorePath(storeName), true, "*.vmdk")
 }
 
 // DeleteImage deletes an image from the image store.  If the image is in

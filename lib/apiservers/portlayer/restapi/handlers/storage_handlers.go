@@ -733,12 +733,12 @@ func (h *StorageHandlersImpl) StatPath(params storage.StatPathParams) middleware
 
 }
 
-// ListImages returns a list of images in a store
+// GetImageStorageUsage returns images storage usage for this VCH
 func (h *StorageHandlersImpl) GetImageStorageUsage(params storage.GetImageStorageUsageParams) middleware.Responder {
 	op := trace.NewOperationFromID(context.Background(), params.OpID, "GetImageStorageUsage(%s)", params.StoreName)
 	defer trace.End(trace.Begin("GetImageStorageUsage", op))
 
-	result, err := h.imageCache.DataStore.GetImageStorageUsage(op)
+	result, err := h.imageCache.DataStore.GetImageStorageUsage(op, params.StoreName)
 	if err != nil {
 		op.Errorf("Error gettting image storage usage: %s", err)
 		return storage.NewGetImageStorageUsageDefault(500)
