@@ -18,9 +18,7 @@
 [ -n "$DEBUG" ] && set -x
 BASE_DIR=$(dirname $(readlink -f "$BASH_SOURCE"))
 
-if [ -z ${BUILD_NUMBER+x} ]; then
-  BUILD_NUMBER=0
-fi
+BUILD_NUMBER=${BUILD_NUMBER:-0}
 
 VERSION=`git describe --abbrev=0 --tags`-${BUILD_NUMBER}-`git rev-parse --short HEAD`
 

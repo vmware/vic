@@ -62,7 +62,7 @@ drone exec
 
 To build inside a Docker container:
 ```shell
-docker run -v $(pwd):/go/src/github.com/vmware/vic gcr.io/eminent-nation-87317/vic-build-image:tdnf make all
+docker run -v $GOPATH/bin:/go/bin -v $(pwd):/go/src/github.com/vmware/vic gcr.io/eminent-nation-87317/vic-build-image:tdnf make all
 ```
 
 To build directly, you also need the Go 1.8 toolchain installed:

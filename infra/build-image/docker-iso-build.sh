@@ -34,7 +34,7 @@ function main {
   -v $GOPATH/src/github.com/vmware/vic/bin:/go/src/github.com/vmware/vic/bin \
   -e DEBUG=${DEBUG} \
   -e BUILD_NUMBER=${BUILD_NUMBER} \
-  gcr.io/eminent-nation-87317/vic-build-image:${PKGMGR:-tdnf} /bin/bash -c "$*"
+  gcr.io/eminent-nation-87317/vic-build-image:${PKGMGR:-tdnf} "$*"
 }
 
 REPO="photon-2.0"

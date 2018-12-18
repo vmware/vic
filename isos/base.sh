@@ -21,7 +21,7 @@ DIR=$(dirname $(readlink -f "$0"))
 . $DIR/base/utils.sh
 
 function usage() {
-echo "Usage: $0 -p package-name(tgz) [-c package-cache]" 1>&2
+echo "Usage: $0 -p package-name(tgz) [-c package-cache] [-r repo]" 1>&2
 exit 1
 }
 
