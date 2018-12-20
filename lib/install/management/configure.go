@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/opsuser"
 	"github.com/vmware/vic/pkg/errors"
@@ -386,7 +387,7 @@ func (d *Dispatcher) ensureRollbackReady(conf *config.VirtualContainerHostConfig
 func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, isoFile string) error {
 	defer trace.End(trace.Begin(isoFile, d.op))
 
-	spec := &types.VirtualMachineConfigSpec{}
+	spec := &types.VirtualMachineConfigSpec{AlternateGuestName: constants.DefaultAltVCHGuestName()}
 
 	if isoFile != "" {
 		deviceChange, err := d.switchISO(isoFile)
