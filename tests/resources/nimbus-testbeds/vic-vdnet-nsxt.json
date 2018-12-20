@@ -1,6 +1,8 @@
 {
   "options": {
     "collectlogs": 1,
+    "sharedstorage": "${NFS}:/vdnet-sharedStore",
+    "vmrepos": "10.92.98.149:/vdnet-vmrepos",
     "product": {
       "nsxt": {
         "feature_switch": {
@@ -103,12 +105,14 @@
           }
         },
         "cpus": {
-          "cores": 8
+          "cores": 8,
+          "reservation": 50
         },
         "installtype": "linkedclone",
         "build": "${ESX_VERSION}",
         "memory": {
-          "size": 32000
+          "size": 32768,
+          "reservation": 70
         },
         "disk": {
           "[1]": {
@@ -124,7 +128,8 @@
           }
         },
         "cpus": {
-          "cores": 2
+          "cores": 8,
+          "reservation": 50
         },
         "installtype": "linkedclone",
         "configure_package": {
@@ -138,7 +143,8 @@
         },
         "build": "${ESX_VERSION}",
         "memory": {
-          "size": 32000
+          "size": 32768,
+          "reservation": 70
         },
         "disk": {
           "[1]": {
