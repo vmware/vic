@@ -3731,6 +3731,10 @@
 				},
 				"memorySizeMB": {
 					"type": "integer"
+				},
+				"numCpu": {
+					"type": "integer",
+					"format": "int32"
 				}
 			}
 		},

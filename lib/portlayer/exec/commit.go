@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/retry"
@@ -78,6 +79,15 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 
 		h.vm.DisableDestroy(op)
 		c = newContainer(&h.containerBase)
+
+		var o mo.VirtualMachine
+		if err := h.vm.Properties(op, h.vm.Reference(), []string{"summary"}, &o); err != nil {
+			op.Errorf("An error occurred while retrieving summary information from the vm.")
+			return err
+		}
+		c.MemorySizeMB = o.Summary.Config.MemorySizeMB
+		c.NumCPU = o.Summary.Config.NumCpu
+
 		Containers.Put(c)
 
 		err = Config.addToVMGroup(op)

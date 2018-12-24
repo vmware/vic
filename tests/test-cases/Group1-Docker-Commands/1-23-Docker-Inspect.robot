@@ -196,3 +196,14 @@ Docker inspect container with multiple specified DNS
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
     Should Be Equal As Integers  ${rc}  0
 
+Docker inspect for cpu and memory settings
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${container}
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Evaluate  json.loads(r'''${output}''')  json
+    ${hostconfig}=  Get From Dictionary  ${output[0]}  HostConfig
+    ${mem}=  Get From Dictionary  ${hostconfig}  Memory
+    Should Be Equal As Integers  ${mem}  2048
+    ${cpu}=  Get From Dictionary  ${hostconfig}  CpusetCpus
+    Should Be Equal As Integers  ${cpu}  2

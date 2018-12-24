@@ -1249,7 +1249,8 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 	//
 	// The values we fill out below is an abridged list of the original struct.
 	resourceConfig := container.Resources{
-		Memory: info.ContainerConfig.MemorySizeMB,
+		Memory:     info.ContainerConfig.MemorySizeMB,
+		CpusetCpus: strconv.FormatInt((int64)(info.ContainerConfig.NumCPU), 10),
 		// Applicable to all platforms
 		//			CPUShares int64 `json:"CpuShares"` // CPU shares (relative weight vs. other containers)
 		//			Memory    int64 // Memory limit (in bytes)
