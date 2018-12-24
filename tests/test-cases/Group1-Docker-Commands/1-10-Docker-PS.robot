@@ -362,3 +362,34 @@ Docker ps with volume and network filters
     Should Contain  ${output}  buzFooContainer
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  2
+
+
+Docker ps container with specified static IP
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+
+    # published via the container-network with specified static ip
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8080:80 --net=public --ip 60.0.9.150 ${nginx}
+    Should Contain  ${output}  Cannot set static IP (60.0.9.150) when default gateway is not set for network public
+
+    Set Suite Variable  ${old-vch}  %{VCH-NAME}
+    Set Suite Variable  ${old-vch-params}  %{VCH-PARAMS}
+    Set Suite Variable  ${old-vch-bridge}  %{BRIDGE_NETWORK}
+    Set Suite Variable  ${old-vic-admin}  %{VIC-ADMIN}
+    Install VIC Appliance To Test Server  additional-args=--container-network-gateway %{CONTAINER_NETWORK}:50.0.9.1/24 --container-network-firewall=%{CONTAINER_NETWORK}:open
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 8080:80 --net=public --ip 50.0.9.150 ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
+    Log To Console  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  50.0.9.150:8080->80/tcp
+
+    Cleanup VIC Appliance On Test Server
+    Set Environment Variable  VCH-NAME  ${old-vch}
+    Set Environment Variable  BRIDGE_NETWORK  ${old-vch-bridge}
+    Set Environment Variable  VCH-PARAMS  ${old-vch-params}
+    Set Environment Variable  VIC-ADMIN  ${old-vic-admin}
