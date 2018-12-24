@@ -784,6 +784,10 @@ Upgrade with ID
 Check Upgraded Version
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux version
     @{vers}=  Split String  ${output}
+    ${releaseNumber}=  Run  echo @{vers}[2] | awk -F'-' '{print $1}'
+    ${rc}  ${out}=  Run And Return Rc And Output  govc vm.info %{VCH-NAME} 
+    Should Contain  ${out}  ${releaseNumber}
+    Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
     Log  ${output}
     Should Contain  ${output}  Completed successfully
