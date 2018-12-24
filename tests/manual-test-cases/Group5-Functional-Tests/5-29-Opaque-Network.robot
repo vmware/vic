@@ -32,6 +32,11 @@ ${ESX_VERSION}  ob-7389243
 ${nsxt_username}  admin
 ${nsxt_password}  Admin\!23Admin
 
+${NIMBUS_NSXT_USER}  svc.victestuser
+${NIMBUS_NSXT_PASSWORD}  Q2D6EEi8k7hcWL2xj99
+
+${nimbus_personal_user_cache}  %{NIMBUS_PERSONAL_USER}
+
 *** Keywords ***
 Vdnet NSXT Topology Setup
     [Timeout]    180 minutes
@@ -40,22 +45,27 @@ Vdnet NSXT Topology Setup
     ${file}=  Replace Variables  ${json}
     Create File  /tmp/vic-vdnet-nsxt.json  ${file}
 
+    # Unset NIMBUS_PERSONAL_USER, replace value to NSXT user so that all nimbus commands executed by NSXT user
+    Remove Environment Variable  NIMBUS_PERSONAL_USER
+    Set Environment Variable  NIMBUS_PERSONAL_USER  ${NIMBUS_NSXT_USER}
+
     Open Connection  ${VDNET_LAUNCHER_HOST}
-    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    #Login account must be the value of variable in this test suit, otherwise other pulic accounts will have no right to perform on 10.160.201.180. 
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  ${NIMBUS_NSXT_USER}  ${NIMBUS_NSXT_PASSWORD}
 
     Put File  /tmp/vic-vdnet-nsxt.json  destination=/tmp/vic-vdnet-nsxt.json
     #Deploy the testbed
-    ${result}=  Execute Command  cd /src/nsx-qe/automation && VDNET_MC_SETUP=${VDNET_MC_SETUP} USE_LOCAL_TOOLCHAIN=${USE_LOCAL_TOOLCHAIN} NIMBUS_BASE=${NIMBUS_BASE} vdnet3/test.py --config /tmp/vic-vdnet-nsxt.json /src/nsx-qe/automation/TDS/NSXTransformers/Openstack/HybridEdge/OSDeployTds.yaml::DeployOSMHTestbed --testbed save
+    ${result}=  Execute Command  cd /src/nsx-qe/automation && VDNET_MC_SETUP=${VDNET_MC_SETUP} USE_LOCAL_TOOLCHAIN=${USE_LOCAL_TOOLCHAIN} NIMBUS_BASE=${NIMBUS_BASE} vdnet3/test.py --config /tmp/vic-vdnet-nsxt.json /src/nsx-qe/automation/TDS/NSXTransformers/Openstack/HybridEdge/OSDeployTds.yaml::DeployOSMHTestbed --testbed save 2>&1
     Log  ${result}
     Should Not Contain  ${result}  failed
     #Run the test cases to customize NSXT and vCenter
-    ${result}=  Execute Command  cd /src/nsx-qe/automation && VDNET_MC_SETUP=${VDNET_MC_SETUP} USE_LOCAL_TOOLCHAIN=${USE_LOCAL_TOOLCHAIN} NIMBUS_BASE=${NIMBUS_BASE} vdnet3/test.py --config /tmp/vic-vdnet-nsxt.json /src/nsx-qe/automation/TDS/NSXTransformers/Openstack/HybridEdge/OSDeployTds.yaml::DeployOSMHTestbed --testbed reuse
+    ${result}=  Execute Command  cd /src/nsx-qe/automation && VDNET_MC_SETUP=${VDNET_MC_SETUP} USE_LOCAL_TOOLCHAIN=${USE_LOCAL_TOOLCHAIN} NIMBUS_BASE=${NIMBUS_BASE} vdnet3/test.py --config /tmp/vic-vdnet-nsxt.json /src/nsx-qe/automation/TDS/NSXTransformers/Openstack/HybridEdge/OSDeployTds.yaml::DeployOSMHTestbed --testbed reuse 2>&1
     Log  ${result}
     Should Not Contain  ${result}  failed
     Close connection
 
     Open Connection  %{NIMBUS_GW}
-    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  ${NIMBUS_NSXT_USER}  ${NIMBUS_NSXT_PASSWORD}
     ${vc-ip}=  Get IP  vdnet-vc-${VC_VERSION}-1-${TESTRUNID}
     ${nsxt-mgr-ip}=  Get IP  vdnet-nsxmanager-${NSX_VERSION}-1-${TESTRUNID}
     ${pod}=  Fetch POD  vdnet-nsxmanager-${NSX_VERSION}-1-${TESTRUNID}
@@ -85,10 +95,15 @@ Vdnet NSXT Topology Setup
 Vdnet NSXT Topology Cleanup
     [Timeout]    180 minutes
     [Arguments]    ${pod_name}  ${testrunid}
+
+    #Reset NIMBUS_PERSONAL_USER value to the initial value
+    Remove Environment Variable  NIMBUS_PERSONAL_USER
+    Set Environment Variable  NIMBUS_PERSONAL_USER  ${nimbus_personal_user_cache}
+
     Open Connection  %{NIMBUS_GW}
-    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Execute Command  ${NIMBUS_LOCATION_FULL} nimbus-ctl --nimbus=${pod_name} kill *${testrunid}*
-    Execute Command  ${NIMBUS_LOCATION_FULL} nimbus-ctl --nimbus=${pod_name} kill *isolated-06-gw
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  ${NIMBUS_NSXT_USER}  ${NIMBUS_NSXT_PASSWORD}
+    Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl --nimbus=${pod_name} kill *${testrunid}*
+    Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl --nimbus=${pod_name} kill *isolated-06-gw
     Close Connection
 
 *** Test Cases ***
@@ -119,4 +134,3 @@ Basic VIC Tests with NSXT Topology
     Should Not Contain  ${output}  Error
 
     Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
-

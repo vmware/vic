@@ -59,7 +59,7 @@ Gather All vSphere Logs
     #This does not work currently, as the VM has been migrated out of the vApp
 
 Step 6-9
-    Set Test Variable  ${user}  %{NIMBUS_USER}
+    Set Test Variable  ${user}  %{NIMBUS_PERSONAL_USER}
     Set Suite Variable  @{list}  ${user}-vic-vmotion-13-1.vcva-${VC_VERSION}  ${user}-vic-vmotion-13-1.esx.0  ${user}-vic-vmotion-13-1.esx.1  ${user}-vic-vmotion-13-1.esx.2  ${user}-vic-vmotion-13-1.esx.3  ${user}-vic-vmotion-13-1.nfs.0  ${user}-vic-vmotion-13-1.iscsi.0
     Install VIC Appliance To Test Server
     Run Regression Tests

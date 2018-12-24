@@ -23,16 +23,16 @@ SDRS Datastore Setup
     [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     {out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --customizeTestbed '/esx desiredPassword=e2eFunctionalTest' --noSupportBundles --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-sdrs-fc-fullInstall-vcva --runName vic-fc
-    Set Suite Variable  @{list}  %{NIMBUS_USER}-vic-fc.vcva-${VC_VERSION}  %{NIMBUS_USER}-vic-fc.esx.0  %{NIMBUS_USER}-vic-fc.esx.1  %{NIMBUS_USER}-vic-fc.fc.0
+    Set Suite Variable  @{list}  %{NIMBUS_PERSONAL_USER}-vic-fc.vcva-${VC_VERSION}  %{NIMBUS_PERSONAL_USER}-vic-fc.esx.0  %{NIMBUS_PERSONAL_USER}-vic-fc.esx.1  %{NIMBUS_PERSONAL_USER}-vic-fc.fc.0
     Should Contain  ${out}  "deployment_result"=>"PASS"
 
-    ${out}=  Execute Command  nimbus-ctl ip %{NIMBUS_USER}-vic-fc.vcva-${VC_VERSION} | grep %{NIMBUS_USER}-vic-fc.vcva-${VC_VERSION}
+    ${out}=  Execute Command  USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl ip %{NIMBUS_PERSONAL_USER}-vic-fc.vcva-${VC_VERSION} | grep %{NIMBUS_PERSONAL_USER}-vic-fc.vcva-${VC_VERSION}
     ${vc-ip}=  Fetch From Right  ${out}  ${SPACE}
     
-    ${out}=  Execute Command  nimbus-ctl ip %{NIMBUS_USER}-vic-fc.esx.0 | grep %{NIMBUS_USER}-vic-fc.esx.0
+    ${out}=  Execute Command  USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl ip %{NIMBUS_PERSONAL_USER}-vic-fc.esx.0 | grep %{NIMBUS_PERSONAL_USER}-vic-fc.esx.0
     ${esx0-ip}=  Fetch From Right  ${out}  ${SPACE}
     
-    ${out}=  Execute Command  nimbus-ctl ip %{NIMBUS_USER}-vic-fc.esx.1 | grep %{NIMBUS_USER}-vic-fc.esx.1
+    ${out}=  Execute Command  USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl ip %{NIMBUS_PERSONAL_USER}-vic-fc.esx.1 | grep %{NIMBUS_PERSONAL_USER}-vic-fc.esx.1
     ${esx1-ip}=  Fetch From Right  ${out}  ${SPACE}
 
     Set Environment Variable  GOVC_URL  ${esx0-ip}
