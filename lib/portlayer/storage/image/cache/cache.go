@@ -50,12 +50,16 @@ type NameLookupCache struct {
 
 	// The image store implementation.  This mutates the actual disk images.
 	DataStore image.ImageStorer
+
+	// Track image layers storage usage
+	imageStorageUsage int64
 }
 
 func NewLookupCache(ds image.ImageStorer) *NameLookupCache {
 	return &NameLookupCache{
-		DataStore:  ds,
-		storeCache: make(map[url.URL]*index.Index),
+		DataStore:         ds,
+		storeCache:        make(map[url.URL]*index.Index),
+		imageStorageUsage: -1,
 	}
 }
 
@@ -265,6 +269,10 @@ func (c *NameLookupCache) WriteImage(op trace.Operation, parent *image.Image, ID
 		return nil, err
 	}
 
+	if err = c.UpdateStorageUsage(op, i.Store, i.ID); err != nil {
+		return nil, err
+	}
+
 	c.storeCacheLock.Lock()
 	indx := c.storeCache[*parent.Store]
 	c.storeCacheLock.Unlock()
@@ -275,6 +283,25 @@ func (c *NameLookupCache) WriteImage(op trace.Operation, parent *image.Image, ID
 	}
 
 	return i, nil
+}
+
+func (c *NameLookupCache) UpdateStorageUsage(op trace.Operation, store *url.URL, id string) error {
+	storeName, err := util.ImageStoreName(store)
+	if err != nil {
+		return err
+	}
+	size, err := c.DataStore.GetImageLayerStorageUsage(op, storeName, id)
+	if err != nil {
+		op.Errorf("Get image layer size of %s failed with: %s", id, err)
+		// size is 0 and continue
+	}
+
+	if size > 0 {
+		c.storeCacheLock.Lock()
+		c.imageStorageUsage += size
+		c.storeCacheLock.Unlock()
+	}
+	return nil
 }
 
 func (c *NameLookupCache) Export(op trace.Operation, store *url.URL, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
@@ -424,10 +451,29 @@ func (c *NameLookupCache) DeleteImage(op trace.Operation, img *image.Image) (*im
 		return nil, &image.ErrImageInUse{Msg: img.Self() + " in use by child images"}
 	}
 
+	// Get image layer storage usage
+	storeName, err := util.ImageStoreName(img.Store)
+	if err != nil {
+		return nil, err
+	}
+
+	size, err := c.DataStore.GetImageLayerStorageUsage(op, storeName, img.ID)
+	if err != nil {
+		op.Errorf("Get image layer size of %s failed with: %s", img.ID, err)
+		// size is 0 and continue
+	}
+
 	// The datastore will tell us if the image is attached
 	if _, err = c.DataStore.DeleteImage(op, img); err != nil {
 		op.Errorf("%s", err)
 		return nil, err
+	}
+
+	// update image storage usage
+	if size > 0 {
+		c.storeCacheLock.Lock()
+		c.imageStorageUsage -= size
+		c.storeCacheLock.Unlock()
 	}
 
 	// Remove the image from the cache
@@ -506,4 +552,16 @@ func (c *NameLookupCache) DeleteBranch(op trace.Operation, img *image.Image, kee
 	}
 
 	return deletedImages, nil
+}
+
+func (c *NameLookupCache) ImageStorageUsage() int64 {
+	c.storeCacheLock.Lock()
+	defer c.storeCacheLock.Unlock()
+	return c.imageStorageUsage
+}
+
+func (c *NameLookupCache) SetImageStorageUsage(value int64) {
+	c.storeCacheLock.Lock()
+	defer c.storeCacheLock.Unlock()
+	c.imageStorageUsage = value
 }

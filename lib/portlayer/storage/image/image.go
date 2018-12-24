@@ -79,6 +79,9 @@ type ImageStorer interface {
 	// GetImageStorageUsage gets the image storage usage from the image store.
 	GetImageStorageUsage(op trace.Operation, storeName string) (int64, error)
 
+	// GetImageLayerStorageUsage gets the image layer storage usage from the image store.
+	GetImageLayerStorageUsage(op trace.Operation, storeName, ID string) (int64, error)
+
 	storage.Resolver
 	storage.Importer
 	storage.Exporter
