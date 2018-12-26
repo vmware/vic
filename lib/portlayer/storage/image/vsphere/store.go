@@ -122,7 +122,7 @@ func (v *ImageStore) imageStorePath(storeName string) string {
 
 // Returns the path to the image relative to the given
 // store.  The dir structure for an image in the datastore is
-// `/VIC/imageStoreName (currently the vch uuid)/imageName/imageName.vmkd`
+// `/VIC/imageStoreName (currently the vch uuid)/imageName/imageName.vmdk`
 func (v *ImageStore) imageDirPath(storeName, imageName string) string {
 	return path.Join(v.imageStorePath(storeName), imageName)
 }
@@ -592,6 +592,10 @@ func (v *ImageStore) ListImages(op trace.Operation, store *url.URL, IDs []string
 
 func (v *ImageStore) GetImageStorageUsage(op trace.Operation, storeName string) (int64, error) {
 	return v.Helper.GetFilesSize(op, v.imageStorePath(storeName), true, "*.vmdk")
+}
+
+func (v *ImageStore) GetImageLayerStorageUsage(op trace.Operation, storeName, ID string) (int64, error) {
+	return v.Helper.GetFilesSize(op, v.imageDirPath(storeName, ID), true, "*.vmdk")
 }
 
 // DeleteImage deletes an image from the image store.  If the image is in

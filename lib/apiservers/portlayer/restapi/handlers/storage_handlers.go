@@ -738,13 +738,19 @@ func (h *StorageHandlersImpl) GetImageStorageUsage(params storage.GetImageStorag
 	op := trace.NewOperationFromID(context.Background(), params.OpID, "GetImageStorageUsage(%s)", params.StoreName)
 	defer trace.End(trace.Begin("GetImageStorageUsage", op))
 
-	result, err := h.imageCache.DataStore.GetImageStorageUsage(op, params.StoreName)
-	if err != nil {
-		op.Errorf("Error gettting image storage usage: %s", err)
-		return storage.NewGetImageStorageUsageDefault(500)
+	cachedResult := h.imageCache.ImageStorageUsage()
+	// If cache is not set, read it from datastore
+	if cachedResult < 0 {
+		result, err := h.imageCache.DataStore.GetImageStorageUsage(op, params.StoreName)
+		if err != nil {
+			op.Errorf("Error getting image storage usage from datastore: %s", err)
+			return storage.NewGetImageStorageUsageDefault(500)
+		}
+		h.imageCache.SetImageStorageUsage(result)
+		cachedResult = result
 	}
 
-	return storage.NewGetImageStorageUsageOK().WithPayload(result)
+	return storage.NewGetImageStorageUsageOK().WithPayload(cachedResult)
 }
 
 //utility functions
