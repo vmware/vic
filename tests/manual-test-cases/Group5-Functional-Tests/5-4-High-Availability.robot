@@ -225,7 +225,7 @@ Test
     ${testContainerHost}=  Get VM Host Name  ${testContainerName}
     Log  ${testContainerHost}
     Run Keyword If  "${testContainerHost}" == "${curHost}"  Wait Until Keyword Succeeds  30x  10s  VM Host Has Changed  ${curHost}  ${testContainerName}
-
+    Sleep  30s
     # Remove Mount Data Test Container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${containerMountDataTestID}
     Should Be Equal As Integers  ${rc}  0
