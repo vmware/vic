@@ -463,7 +463,7 @@ func validateStorageQuota() error {
 	if vchConfig.Cfg.StorageQuota == 0 {
 		return nil
 	}
-	vmStorageUsage := cache.ContainerCache().VMStorageSize()
+	vmStorageUsage := cache.ContainerCache().VMStorageUsage()
 	imageStorageUsage, err := cache.ImageCache().GetImageStorageUsage()
 	if err != nil {
 		log.Errorf("failed to get image storage usage: %v", err)

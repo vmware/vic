@@ -36,7 +36,8 @@ type CCache struct {
 	containersByName   map[string]*container.VicContainer
 	containersByExecID map[string]*container.VicContainer
 
-	vmStorageUsage int64
+	vmStorageUsage     int64
+	storageReservation int64
 }
 
 var containerCache *CCache
@@ -209,6 +210,24 @@ func (cc *CCache) ReleaseName(name string) {
 	delete(cc.containersByName, name)
 }
 
-func (cc *CCache) VMStorageSize() int64 {
+func (cc *CCache) VMStorageUsage() int64 {
 	return cc.vmStorageUsage
+}
+
+func (cc *CCache) StorageReservation() int64 {
+	return cc.storageReservation
+}
+
+func (cc *CCache) AddStorageReservation(r int64) int64 {
+	cc.m.Lock()
+	defer cc.m.Unlock()
+	cc.storageReservation += r
+	return cc.storageReservation
+}
+
+func (cc *CCache) RemoveStorageReservation(r int64) int64 {
+	cc.m.Lock()
+	defer cc.m.Unlock()
+	cc.storageReservation -= r
+	return cc.storageReservation
 }
