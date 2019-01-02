@@ -111,7 +111,7 @@ pipeline:
       status: success
 
   vic-integration-test-on-pr:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
+    image: 'gcr.io/eminent-nation-87317/vic-integration-test:docker17.06'
     pull: true
     privileged: true
     environment:

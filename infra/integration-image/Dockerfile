@@ -72,8 +72,11 @@ RUN curl -sSL https://get.docker.com/ | sh && \
     curl -fsSLO https://get.docker.com/builds/Linux/x86_64/docker-1.13.0.tgz && \
     tar --strip-components=1 -xvzf docker-1.13.0.tgz -C /usr/bin && \
     mv /usr/bin/docker /usr/bin/docker1.13 && \
-    ln -s /usr/bin/docker1.13 /usr/bin/docker && \
-    curl -L https://github.com/docker/compose/releases/download/1.11.2/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose && \
+    curl -fsSLO https://download.docker.com/linux/static/stable/x86_64/docker-17.06.0-ce.tgz && \
+    tar --strip-components=1 -xvzf docker-17.06.0-ce.tgz -C /usr/bin && \
+    mv /usr/bin/docker /usr/bin/docker17.06 && \
+    ln -s /usr/bin/docker17.06 /usr/bin/docker && \
+    curl -L https://github.com/docker/compose/releases/download/1.23.2/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose && \
     chmod +x /usr/local/bin/docker-compose
 
 COPY vmware-ovftool /usr/lib/vmware-ovftool
