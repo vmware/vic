@@ -289,7 +289,7 @@ func (t *tether) setNetworks() error {
 		if !network.Internal {
 			continue
 		}
-		if err := t.ops.Apply(network); err != nil {
+		if err := t.ops.Apply(network, ""); err != nil {
 			return fmt.Errorf("failed to apply network endpoint config: %s", err)
 		}
 	}
@@ -297,7 +297,16 @@ func (t *tether) setNetworks() error {
 		if network.Internal {
 			continue
 		}
-		if err := t.ops.Apply(network); err != nil {
+		full := t.config.Hostname
+		if t.config.Hostname != "" && t.config.Domainname != "" {
+			full = fmt.Sprintf("%s.%s", t.config.Hostname, t.config.Domainname)
+		}
+		var hostname string
+		if full != "" {
+			hostname = full
+		}
+		// Adding hostname for dns dynamic update, for more information refer to issue 8397
+		if err := t.ops.Apply(network, hostname); err != nil {
 			return fmt.Errorf("failed to apply network endpoint config: %s", err)
 		}
 	}

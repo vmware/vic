@@ -83,8 +83,8 @@ func (t *operations) SetHostname(name string, aliases ...string) error {
 	return t.BaseOperations.SetHostname(aliases[0])
 }
 
-func (t *operations) Apply(endpoint *tether.NetworkEndpoint) error {
-	return t.BaseOperations.Apply(endpoint)
+func (t *operations) Apply(endpoint *tether.NetworkEndpoint, hostname string) error {
+	return t.BaseOperations.Apply(endpoint, hostname)
 }
 
 // Log will redirect logging to both a file on disk and to stdout for the process
