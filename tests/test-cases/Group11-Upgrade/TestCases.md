@@ -10,3 +10,7 @@ Group 11 - Upgrade
 -
 [Test 11-04 - Configure](11-04-Configure.md)
 -
+[Test 11-05 - Upgrade Photon](11-05-Upgrade-Photon.md)
+-
+[Test 11-06 - Upgrade StorageQuota](11-06-Upgrade-StorageQuota.md)
+-
