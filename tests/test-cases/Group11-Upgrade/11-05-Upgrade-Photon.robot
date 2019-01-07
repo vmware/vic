@@ -1,4 +1,4 @@
-# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2019 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 11-05 - Upgrade from 1.4.3 to latest
+Documentation  Test 11-05 - Upgrade from 1.4.3 to latest for testing photon version
 Resource  ../../resources/Util.robot
 Suite Setup  Disable Ops User And Install VIC To Test Server
 Suite Teardown  Re-Enable Ops User And Clean Up VIC Appliance
