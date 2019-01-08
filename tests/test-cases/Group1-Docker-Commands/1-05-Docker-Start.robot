@@ -114,11 +114,10 @@ Start a container with removed network
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${container}
     Should Be Equal As Integers  ${rc}  0
+    # due to issue 8405 7128 and 8052, the network will not be unbound from containers besides the container is deleted.
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network rm test-network
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  network test-network not found
+    Should Contain  ${output}  test-network has active endpoints
 
 Simple start with attach
     Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}

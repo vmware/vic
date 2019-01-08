@@ -1412,6 +1412,64 @@ func (c *Context) deleteScope(s *Scope) {
 	delete(c.scopes, s.Name())
 }
 
+// When invoking docker rename operation, the container name is changed
+// This method is to change the container name in network and alias for dns query
+func (c *Context) UpdateContainerNameInScope(h *exec.Handle) error {
+	defer trace.End(trace.Begin("UpdateContainerNameInScope"))
+	c.Lock()
+	defer c.Unlock()
+
+	if h == nil {
+		return fmt.Errorf("handle is required")
+	}
+
+	con, err := c.container(h)
+	if err != nil {
+		return fmt.Errorf("container is not found")
+	}
+
+	// aliases to remove for container's old name
+	var aliases []string
+	// aliases for dns look up based container's new name
+	newAliases := make(map[string]*Container)
+	for _, ne := range h.ExecConfig.Networks {
+		s, ok := c.scopes[ne.Network.Name]
+		if !ok {
+			fmt.Errorf("scope is not found")
+		}
+
+		if ep := con.Endpoint(s); ep != nil {
+			ep.Container().name = h.ExecConfig.Name
+		}
+
+		c, ok := s.containers[con.id]
+		if !ok || c != con {
+			// do nothing
+			continue
+		}
+		if err = s.UpdateContainer(con, h.ExecConfig.Name); err != nil {
+			fmt.Errorf("failed to update container")
+		}
+		aliases = append(aliases, fmt.Sprintf("%s:%s", s.Name(), con.name))
+		// dns lookup aliases
+		newAliases[fmt.Sprintf("%s:%s", s.Name(), h.ExecConfig.Name)] = con
+	}
+	c.removeAliases(aliases, con)
+	// long id
+	c.containers[con.id.String()] = con
+	// short id
+	c.containers[con.id.Truncate().String()] = con
+	// name
+	c.containers[h.ExecConfig.Name] = con
+	// aliases
+	for k, v := range newAliases {
+		log.Debugf("adding alias %s -> %s", k, v.Name())
+		cons := c.aliases[k]
+		c.aliases[k] = append(cons, v)
+	}
+	return nil
+}
+
 func atoiOrZero(a string) int32 {
 	// #nosec: Errors unhandled.
 	i, _ := strconv.Atoi(a)

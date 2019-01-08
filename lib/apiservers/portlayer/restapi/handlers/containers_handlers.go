@@ -41,6 +41,7 @@ import (
 	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/metrics"
+	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
@@ -53,6 +54,7 @@ const (
 
 // ContainersHandlersImpl is the receiver for all of the exec handler methods
 type ContainersHandlersImpl struct {
+	netCtx     *network.Context
 	handlerCtx *HandlerContext
 }
 
@@ -73,6 +75,7 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 	api.ContainersGetContainerStatsHandler = containers.GetContainerStatsHandlerFunc(handler.GetContainerStatsHandler)
 
 	handler.handlerCtx = handlerCtx
+	handler.netCtx = network.DefaultContext
 }
 
 // CreateHandler creates a new container
@@ -513,6 +516,8 @@ func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.
 	}
 
 	h = h.Rename(op, params.Name)
+	// container's name is also saved in docker network, so we need also to update network information
+	handler.netCtx.UpdateContainerNameInScope(h)
 
 	return containers.NewContainerRenameOK().WithPayload(h.String())
 }
