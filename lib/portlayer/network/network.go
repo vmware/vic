@@ -144,10 +144,10 @@ func handleEvent(netctx *Context, ie events.Event) {
 			return
 		}
 
-		if _, err := netctx.UnbindContainer(op, handle); err != nil {
-			op.Warnf("Failed to unbind container %s: %s", ie.Reference(), err)
-			return
-		}
+		//if _, err := netctx.UnbindContainer(op, handle); err != nil {
+		//	op.Warnf("Failed to unbind container %s: %s", ie.Reference(), err)
+		//	return
+		//}
 
 		if err := handle.Commit(op, nil, nil); err != nil {
 			op.Warnf("Failed to commit handle after network unbind for container %s: %s", ie.Reference(), err)

@@ -1079,12 +1079,12 @@ func (c *ContainerBackend) containerStart(op trace.Operation, name string, hostC
 		endpoints = bindRes.Payload.Endpoints
 
 		// unbind in case we fail later
-		defer func() {
-			if err != nil {
-				op.Debugf("Unbinding %s due to error - %s", id, err.Error())
-				client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(op).WithOpID(&opID).WithHandle(handle))
-			}
-		}()
+		//defer func() {
+		//	if err != nil {
+		//		op.Debugf("Unbinding %s due to error - %s", id, err.Error())
+		//		client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(op).WithOpID(&opID).WithHandle(handle))
+		//	}
+		//}()
 
 		// unmap ports that vc needs if they're not being used by previously mapped container
 		err = c.cleanupPortBindings(op, vc)
@@ -1245,7 +1245,7 @@ func (c *ContainerBackend) containerStop(op trace.Operation, name string, second
 	}
 
 	operation := func() error {
-		return c.containerProxy.Stop(op, vc, name, seconds, true)
+		return c.containerProxy.Stop(op, vc, name, seconds, false)
 	}
 
 	config := retry.NewBackoffConfig()
