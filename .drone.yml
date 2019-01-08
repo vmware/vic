@@ -58,7 +58,7 @@ pipeline:
       status: success
 
   vic-engine:
-    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
+    image: 'gcr.io/eminent-nation-87317/vic-build-image:tdnf'
     pull: true
     environment:
       BIN: bin
@@ -72,7 +72,41 @@ pipeline:
     commands:
       - export BUILD_NUMBER=${DRONE_BUILD_NUMBER}
       - make all
+    when:
+      status: success
+
+  vic-unit-test:
+    image: 'wdc-harbor-ci.eng.vmware.com/default-project/vic-integration-test:1.48'
+    pull: true
+    environment:
+      BIN: bin
+      GOPATH: /go
+      SHELL: /bin/bash
+    secrets:
+      - drone_server
+      - drone_token
+      - github_automation_api_key
+      - codecov_token
+    commands:
       - tests/unit-test-check.sh
+    when:
+      status: success
+
+  custom-bootstrap-iso:
+    image: 'gcr.io/eminent-nation-87317/vic-build-image:yum'
+    pull: true
+    environment:
+      BIN: bin
+      GOPATH: /go
+      SHELL: /bin/bash
+    secrets:
+    - drone_server
+    - drone_token
+    - github_automation_api_key
+    - codecov_token
+    commands:
+    - export BUILD_NUMBER=${DRONE_BUILD_NUMBER}
+    - ./tests/generate-custom-iso.sh centos-6.9
     when:
       status: success
 

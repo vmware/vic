@@ -26,7 +26,7 @@ Gather All vSphere Logs
 
 *** Test Cases ***
 Test
-    Set Test Variable  ${user}  %{NIMBUS_USER}
+    Set Test Variable  ${user}  %{NIMBUS_PERSONAL_USER}
     Set Suite Variable  @{list}  ${user}-vic-vmotion-13-2.vcva-${VC_VERSION}  ${user}-vic-vmotion-13-2.esx.0  ${user}-vic-vmotion-13-2.esx.1  ${user}-vic-vmotion-13-2.esx.2  ${user}-vic-vmotion-13-2.esx.3  ${user}-vic-vmotion-13-2.nfs.0  ${user}-vic-vmotion-13-2.iscsi.0
     Install VIC Appliance To Test Server
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox

@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2018 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,6 +33,9 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/stretchr/testify/assert"
 
+	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/go-units"
+
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/convert"
@@ -42,6 +45,7 @@ import (
 	plscopes "github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	plmodels "github.com/vmware/vic/lib/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
@@ -56,6 +60,15 @@ type CreateHandleMockData struct {
 	retID           string
 	retHandle       string
 	retErr          error
+	createErrSubstr string
+}
+
+type AddImageMockData struct {
+	retHandle       string
+	retErr          error
+	deltaID         string
+	layerID         string
+	imageID         string
 	createErrSubstr string
 }
 
@@ -99,6 +112,7 @@ type LogMockData struct {
 type MockContainerProxy struct {
 	mockRespIndices        []int
 	mockCreateHandleData   []CreateHandleMockData
+	mockAddImageData       []AddImageMockData
 	mockAddToScopeData     []AddToScopeMockData
 	mockAddVolumesData     []AddVolumesMockData
 	mockAddInteractionData []AddInteractionMockData
@@ -135,8 +149,9 @@ var dummyContainers = []string{dummyContainerID, dummyContainerIDTTY}
 
 func NewMockContainerProxy() *MockContainerProxy {
 	return &MockContainerProxy{
-		mockRespIndices:        make([]int, 6),
+		mockRespIndices:        make([]int, 7),
 		mockCreateHandleData:   MockCreateHandleData(),
+		mockAddImageData:       MockAddImageData(),
 		mockAddToScopeData:     MockAddToScopeData(),
 		mockAddVolumesData:     MockAddVolumesData(),
 		mockAddInteractionData: MockAddInteractionData(),
@@ -164,6 +179,10 @@ func MockCreateHandleData() []CreateHandleMockData {
 	}
 
 	return mockCreateHandleData
+}
+
+func MockAddImageData() []AddImageMockData {
+	return nil
 }
 
 func MockAddToScopeData() []AddToScopeMockData {
@@ -422,11 +441,20 @@ func AddMockContainerToCache() {
 
 	image, err := cache.ImageCache().Get("e732471cb81a564575aad46b9510161c5945deaf18e9be3db344333d72f0b4b2")
 	if err == nil {
+		cache.SetVMScratchSize(8 * units.GiB)
+
 		vc := viccontainer.NewVicContainer()
 		vc.ImageID = image.ID
 		vc.Config = image.Config //Set defaults.  Overrides will get copied below.
 		vc.Config.Tty = false
 		vc.ContainerID = dummyContainerID
+		resources := containertypes.Resources{
+			Memory: 2048,
+		}
+		hostConfig := containertypes.HostConfig{
+			Resources: resources,
+		}
+		vc.HostConfig = &hostConfig
 		cache.ContainerCache().AddContainer(vc)
 
 		vc = viccontainer.NewVicContainer()
@@ -434,6 +462,7 @@ func AddMockContainerToCache() {
 		vc.Config = image.Config
 		vc.Config.Tty = true
 		vc.ContainerID = dummyContainerIDTTY
+		vc.HostConfig = &hostConfig
 		cache.ContainerCache().AddContainer(vc)
 
 		vc = viccontainer.NewVicContainer()
@@ -441,6 +470,7 @@ func AddMockContainerToCache() {
 		vc.Config = image.Config
 		vc.Config.Tty = false
 		vc.ContainerID = fakeContainerID
+		vc.HostConfig = &hostConfig
 		cache.ContainerCache().AddContainer(vc)
 	}
 }
@@ -459,6 +489,10 @@ func (s *MockStorageProxy) VolumeInfo(ctx context.Context, name string) (*plmode
 
 func (s *MockStorageProxy) Remove(ctx context.Context, name string) error {
 	return nil
+}
+
+func (s *MockStorageProxy) AddImageToContainer(ctx context.Context, handle, id, layerID, imageID string, config types.ContainerCreateConfig) (string, error) {
+	return "", nil
 }
 
 func (s *MockStorageProxy) AddVolumesToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
@@ -504,10 +538,12 @@ func (sp *MockStreamProxy) StreamContainerStats(ctx context.Context, config *con
 // cache
 func TestContainerCreateEmptyImageCache(t *testing.T) {
 	mockContainerProxy := NewMockContainerProxy()
+	mockStorageProxy := NewMockStorageProxy()
 
 	// Create our personality Container backend
 	cb := &ContainerBackend{
 		containerProxy: mockContainerProxy,
+		storageProxy:   mockStorageProxy,
 	}
 
 	// mock a container create config
@@ -528,10 +564,22 @@ func TestContainerCreateEmptyImageCache(t *testing.T) {
 // then vicbackends.ContainerCreate() should return errors from that.
 func TestCreateHandle(t *testing.T) {
 	mockContainerProxy := NewMockContainerProxy()
+	mockStorageProxy := NewMockStorageProxy()
 
 	// Create our personality Container backend
 	cb := &ContainerBackend{
 		containerProxy: mockContainerProxy,
+		storageProxy:   mockStorageProxy,
+	}
+
+	storagecfg := config.Storage{
+		StorageQuota: 0,
+	}
+	cfg := &config.VirtualContainerHostConfigSpec{
+		Storage: storagecfg,
+	}
+	vchConfig = &dynConfig{
+		Cfg: cfg,
 	}
 
 	AddMockImageToCache()
@@ -573,10 +621,12 @@ func TestCreateHandle(t *testing.T) {
 // possible input/outputs for adding container to scope and calls vicbackends.ContainerCreate()
 func TestContainerAddToScope(t *testing.T) {
 	mockContainerProxy := NewMockContainerProxy()
+	mockStorageProxy := NewMockStorageProxy()
 
 	// Create our personality Container backend
 	cb := &ContainerBackend{
 		containerProxy: mockContainerProxy,
+		storageProxy:   mockStorageProxy,
 	}
 
 	AddMockImageToCache()

@@ -61,10 +61,11 @@ type Context struct {
 }
 
 type AddContainerOptions struct {
-	Scope   string
-	IP      net.IP
-	Aliases []string
-	Ports   []string
+	Scope       string
+	IP          net.IP
+	Aliases     []string
+	Ports       []string
+	Nameservers []string
 }
 
 func NewContext(config *Configuration, kv kvstore.KeyValueStore) (*Context, error) {
@@ -1114,6 +1115,15 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 	}
 
 	if s.Type() == constants.ExternalScopeType {
+		// Check that specified static IP address for container network should only be
+		// allow when gateway is set
+		if len(options.IP) > 0 && !ip.IsUnspecifiedIP(options.IP) {
+			if ip.IsUnspecifiedIP(s.Gateway()) {
+				err = fmt.Errorf("Cannot set static IP (%s) when default gateway is not set for network %s", options.IP.String(), s.Name())
+				log.Errorln(err)
+				return err
+			}
+		}
 		// Check that ports are only opened on published network firewall configuration.
 		// Redirects are allow for all network types other than Closed and Outbound
 		if len(options.Ports) > 0 {
@@ -1198,7 +1208,17 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 		ne.Network.Pools[i] = *p
 	}
 
+	ne.Network.Nameservers = make([]net.IP, 0)
+	if len(options.Nameservers) > 0 {
+		for _, dns := range options.Nameservers {
+			if dns != "" {
+				ne.Network.Nameservers = append(ne.Network.Nameservers, net.ParseIP(dns))
+			}
+		}
+	}
+
 	ne.Static = false
+
 	if len(options.IP) > 0 && !ip.IsUnspecifiedIP(options.IP) {
 		ne.Static = true
 		ne.IP = &net.IPNet{
@@ -1206,7 +1226,6 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 			Mask: s.Subnet().Mask,
 		}
 	}
-
 	h.ExecConfig.Networks[s.Name()] = ne
 	return nil
 }

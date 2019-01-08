@@ -22,6 +22,7 @@ import (
 
 	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/pkg/truncindex"
+	"github.com/docker/go-units"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
 )
@@ -34,9 +35,13 @@ type CCache struct {
 	containersByID     map[string]*container.VicContainer
 	containersByName   map[string]*container.VicContainer
 	containersByExecID map[string]*container.VicContainer
+
+	vmStorageUsage     int64
+	storageReservation int64
 }
 
 var containerCache *CCache
+var vmScratchSize int64
 
 func init() {
 	containerCache = &CCache{
@@ -50,6 +55,10 @@ func init() {
 // ContainerCache returns a reference to the container cache
 func ContainerCache() *CCache {
 	return containerCache
+}
+
+func SetVMScratchSize(size int64) {
+	vmScratchSize = size
 }
 
 func (cc *CCache) getContainerByName(nameOnly string) *container.VicContainer {
@@ -101,6 +110,7 @@ func (cc *CCache) AddContainer(container *container.VicContainer) {
 	}
 	cc.containersByID[container.ContainerID] = container
 	cc.containersByName[container.Name] = container
+	cc.vmStorageUsage += container.HostConfig.Memory*units.MiB + vmScratchSize*units.KB
 }
 
 func (cc *CCache) DeleteContainer(nameOrID string) {
@@ -123,6 +133,8 @@ func (cc *CCache) DeleteContainer(nameOrID string) {
 	for _, id := range container.List() {
 		container.Delete(id)
 	}
+
+	cc.vmStorageUsage -= container.HostConfig.Memory*units.MiB + vmScratchSize*units.KB
 }
 
 func (cc *CCache) AddExecToContainer(container *container.VicContainer, eid string) {
@@ -196,4 +208,26 @@ func (cc *CCache) ReleaseName(name string) {
 	}
 
 	delete(cc.containersByName, name)
+}
+
+func (cc *CCache) VMStorageUsage() int64 {
+	return cc.vmStorageUsage
+}
+
+func (cc *CCache) StorageReservation() int64 {
+	return cc.storageReservation
+}
+
+func (cc *CCache) AddStorageReservation(r int64) int64 {
+	cc.m.Lock()
+	defer cc.m.Unlock()
+	cc.storageReservation += r
+	return cc.storageReservation
+}
+
+func (cc *CCache) RemoveStorageReservation(r int64) int64 {
+	cc.m.Lock()
+	defer cc.m.Unlock()
+	cc.storageReservation -= r
+	return cc.storageReservation
 }

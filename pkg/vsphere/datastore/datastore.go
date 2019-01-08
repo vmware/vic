@@ -212,12 +212,21 @@ func (d *Helper) Ls(ctx context.Context, p string, match ...string) (*types.Host
 	return &res, nil
 }
 
+func (d *Helper) LsDirs(ctx context.Context, p string, match ...string) (*types.ArrayOfHostDatastoreBrowserSearchResults, error) {
+	return d.LsDirsWithPatterns(ctx, p, match)
+}
+
 // LsDirs returns a list of dirents at the given path (relative to root)
-func (d *Helper) LsDirs(ctx context.Context, p string) (*types.ArrayOfHostDatastoreBrowserSearchResults, error) {
+func (d *Helper) LsDirsWithPatterns(ctx context.Context, p string, match []string) (*types.ArrayOfHostDatastoreBrowserSearchResults, error) {
+	if len(match) == 0 {
+		match = []string{"*"}
+	}
+
 	spec := &types.HostDatastoreBrowserSearchSpec{
-		MatchPattern: []string{"*"},
+		MatchPattern: match,
 		Details: &types.FileQueryFlags{
 			FileType:  true,
+			FileSize:  true,
 			FileOwner: types.NewBool(true),
 		},
 	}
@@ -239,6 +248,24 @@ func (d *Helper) LsDirs(ctx context.Context, p string) (*types.ArrayOfHostDatast
 
 	res := info.Result.(types.ArrayOfHostDatastoreBrowserSearchResults)
 	return &res, nil
+}
+
+func (d *Helper) GetFilesSize(ctx context.Context, p string, noscratch bool, match ...string) (int64, error) {
+	res, err := d.LsDirsWithPatterns(ctx, p, match)
+	if err != nil {
+		return 0, err
+	}
+
+	size := int64(0)
+	for _, dir := range res.HostDatastoreBrowserSearchResults {
+		for _, f := range dir.File {
+			if noscratch && strings.HasPrefix(f.GetFileInfo().Path, "scratch") {
+				continue
+			}
+			size += f.GetFileInfo().FileSize
+		}
+	}
+	return size, nil
 }
 
 func (d *Helper) Upload(ctx context.Context, r io.Reader, pth string) error {

@@ -203,6 +203,32 @@ func (vm *VirtualMachine) getNetworkName(op trace.Operation, nic types.BaseVirtu
 	return nic.GetVirtualEthernetCard().DeviceInfo.GetDescription().Summary, nil
 }
 
+func (vm *VirtualMachine) GetMacAddressBasedSpecifiedNetworkName(ctx context.Context, ipaddress string) (string, error) {
+	op := trace.FromContext(ctx, "GetMacAddressBasedSpecifiedNetworkName")
+
+	var err error
+	var mvm mo.VirtualMachine
+
+	if err = vm.VirtualMachine.Properties(op, vm.Reference(), []string{"guest.net"}, &mvm); err != nil {
+		op.Errorf("Unable to get vm guest net info: %s", err)
+		return "", err
+	}
+
+	if mvm.Guest == nil || mvm.Guest.Net == nil {
+		return "", errors.New("Guest net info back nil, the vm was likely is not ready")
+	}
+
+	guestNicInfos := mvm.Guest.Net
+	for _, guestNicInfo := range guestNicInfos {
+		for _, address := range guestNicInfo.IpAddress {
+			if ipaddress == address {
+				return guestNicInfo.MacAddress, nil
+			}
+		}
+	}
+	return "", errors.New("No network information for the specified network name")
+}
+
 func (vm *VirtualMachine) FetchExtraConfigBaseOptions(ctx context.Context) ([]types.BaseOptionValue, error) {
 	op := trace.FromContext(ctx, "FetchExtraConfigBaseOptions")
 
@@ -954,8 +980,20 @@ func (vm *VirtualMachine) powerOnDRS(op trace.Operation) error {
 	case types.ClusterPowerOnVmResult:
 		attempts := len(r.Attempted)
 		if attempts != 1 {
-			return fmt.Errorf("Attempted to power on the wrong number of VMs. Expected 1, attempted %d", attempts)
+			msg := "unable to place VM for power on"
+			action := "no recommended action"
+
+			if len(r.NotAttempted) > 0 {
+				msg = r.NotAttempted[0].Fault.LocalizedMessage
+			}
+
+			if len(r.Recommendations) > 0 {
+				action = fmt.Sprintf("%s - %s", r.Recommendations[0].ReasonText, r.Recommendations[0].WarningText)
+			}
+
+			return fmt.Errorf("power on failed: %s, %s", msg, action)
 		}
+
 		info := r.Attempted[0]
 		task := object.NewTask(vm.Session.Vim25(), *info.Task)
 		_, err := task.WaitForResult(op, nil)

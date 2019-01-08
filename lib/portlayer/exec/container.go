@@ -147,6 +147,9 @@ type ContainerInfo struct {
 
 	state State
 
+	MemorySizeMB int32
+	NumCPU       int32
+
 	// Size of the leaf (unused)
 	VMUnsharedDisk int64
 }
@@ -430,7 +433,20 @@ func (c *Container) start(op trace.Operation) error {
 	//   Starting - if the power on event was received before the process reported success or failure
 	//   Running - if the power on event was received after the process reported success
 	if err = c.transitionState(op, StateStarting, StateRunning); err != nil {
+		// We have observed powerOn events not being delivered (unknown if they're generated or not)
+		// If waitForSession has returned successfully then we are guaranteed that the VM has powered on as
+		// the key we're waiting on is set from the guest.
+		// We cannot make any assumptions for a cVM that's being restarted as it's initial state is Stopped and
+		// we could legitimately have started, run, and stopped before this code runs. However for first execution
+		// which is the most common case we can assert that it should not be in Created state at this time.
 		op.Debugf(err.Error())
+
+		if c.State() == StateCreated {
+			op.Debugf("Attempting conditional transition to Running assuming missing PoweredOn event")
+			if err = c.transitionState(op, StateCreated, StateRunning); err != nil {
+				op.Debugf(err.Error())
+			}
+		}
 	}
 
 	return nil
@@ -544,7 +560,7 @@ func (c *Container) LogReader(op trace.Operation, tail int, follow bool, since i
 
 			entry, err := iolog.ParseLogEntry(buf)
 			if err != nil {
-				op.Errorf("Error parsing log entry: %s", err.Error())
+				op.Errorf("Error parsing log entry at line %d: %s", line, err.Error())
 				return false
 			}
 
@@ -733,8 +749,9 @@ func (c *Container) onEvent(op trace.Operation, newState State, e events.Event) 
 
 	if !stateEvent {
 		if (newState == StateStarting && !started) || newState == StateStopping {
-			// inherently transient state. Starting with started == true is just accounting that will
-			// happen below and doesn't need a refresh.
+			// inherently transient state.
+			// We filter out `Starting && started == true` as that's just accounting and an update will
+			// happen below without a refresh.
 			refresh = true
 		}
 
@@ -932,6 +949,9 @@ func convertInfraContainers(ctx context.Context, sess *session.Session, vms []mo
 		if v.Summary.Storage != nil {
 			c.VMUnsharedDisk = v.Summary.Storage.Unshared
 		}
+
+		c.MemorySizeMB = v.Summary.Config.MemorySizeMB
+		c.NumCPU = v.Summary.Config.NumCpu
 
 		cons = append(cons, c)
 	}

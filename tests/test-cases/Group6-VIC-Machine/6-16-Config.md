@@ -43,7 +43,7 @@ This test requires that a vSphere server is running and available
 30. Run vic-machine inspect config
 31. Configure VCH resources
 32. Verify VCH configuration through vic-machine inspect
-33. Configure VCH resources with too small values
+33. Configure VCH resources with too small or too large values
 34. Verify VCH configuration is rollback to old value
 35. Configure the VCH by adding a new volume store
 36. Run vic-machine inspect config

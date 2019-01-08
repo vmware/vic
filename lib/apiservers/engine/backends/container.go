@@ -53,6 +53,7 @@ import (
 	engerr "github.com/vmware/vic/lib/apiservers/engine/errors"
 	"github.com/vmware/vic/lib/apiservers/engine/network"
 	"github.com/vmware/vic/lib/apiservers/engine/proxy"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -685,9 +686,18 @@ func (c *ContainerBackend) ContainerCreate(config types.ContainerCreateConfig) (
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
 
+	reserved, err := checkStorageQuota(PortLayerClient(), &config)
+	if reserved > 0 {
+		defer cache.ContainerCache().RemoveStorageReservation(reserved)
+	}
+
+	if err != nil {
+		return containertypes.ContainerCreateCreatedBody{}, err
+	}
+
 	// Create a container representation in the personality server.  This representation
 	// will be stored in the cache if create succeeds in the port layer.
-	container, err := createInternalVicContainer(image, &config)
+	container, err := createInternalVicContainer(image)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
@@ -748,6 +758,11 @@ func (c *ContainerBackend) containerCreate(op trace.Operation, vc *viccontainer.
 	}
 
 	id, h, err := c.containerProxy.CreateContainerHandle(op, vc, config)
+	if err != nil {
+		return "", err
+	}
+
+	h, err = c.storageProxy.AddImageToContainer(op, h, id, vc.LayerID, vc.ImageID, config)
 	if err != nil {
 		return "", err
 	}
@@ -945,7 +960,10 @@ func (c *ContainerBackend) ContainerRm(name string, config *types.ContainerRmCon
 			return c.containerProxy.Remove(op, vc, config)
 		}
 
-		return retry.Do(op, operation, engerr.IsConflictError)
+		err := retry.Do(op, operation, engerr.IsConflictError)
+		if err != nil {
+			return err
+		}
 	}
 
 	return c.containerProxy.Remove(op, vc, config)
@@ -1828,7 +1846,7 @@ func clientFriendlyContainerName(name string) string {
 
 // createInternalVicContainer() creates an container representation (for docker personality)
 // This is called by ContainerCreate()
-func createInternalVicContainer(image *metadata.ImageConfig, config *types.ContainerCreateConfig) (*viccontainer.VicContainer, error) {
+func createInternalVicContainer(image *metadata.ImageConfig) (*viccontainer.VicContainer, error) {
 	// provide basic container config via the image
 	container := viccontainer.NewVicContainer()
 	container.LayerID = image.V1Image.ID // store childmost layer ID to map to the proper vmdk
@@ -2055,6 +2073,8 @@ func copyConfigOverrides(vc *viccontainer.VicContainer, config types.ContainerCr
 	vc.Config.StdinOnce = config.Config.StdinOnce
 	vc.Config.StopSignal = config.Config.StopSignal
 	vc.Config.Volumes = config.Config.Volumes
+	vc.Config.Hostname = config.Config.Hostname
+	vc.Config.Domainname = config.Config.Domainname
 	vc.HostConfig = config.HostConfig
 }
 
@@ -2111,6 +2131,31 @@ func (c *ContainerBackend) validateContainerLogsConfig(vc *viccontainer.VicConta
 	}
 
 	return tailLines, since.Unix(), nil
+}
+
+// Reserve storage during parallel requests and rollback reservation if quota exceeds.
+func checkStorageQuota(client *client.PortLayer, config *types.ContainerCreateConfig) (int64, error) {
+	// 0 means unlimited
+	if vchConfig.Cfg.StorageQuota == 0 {
+		return 0, nil
+	}
+
+	imageStorageUsage, err := cache.ImageCache().GetImageStorageUsage()
+	if err != nil {
+		log.Errorf("failed to get image storage usage: %v", err)
+		return 0, err
+	}
+	vmCapacity := config.HostConfig.Memory*units.MiB + vchConfig.Cfg.ScratchSize*units.KB
+	vmStorageUsage := cache.ContainerCache().VMStorageUsage()
+	storageReservation := cache.ContainerCache().AddStorageReservation(vmCapacity)
+
+	if vchConfig.Cfg.StorageQuota >= imageStorageUsage+vmStorageUsage+storageReservation {
+		return vmCapacity, nil
+	}
+
+	cache.ContainerCache().RemoveStorageReservation(vmCapacity)
+	return 0, fmt.Errorf("Storage quota exceeds. Storage quota: %dGB, image storage usage: %.3fGB, container storage usage: %.3fGB, storage reservation: %.3fGB",
+		vchConfig.Cfg.StorageQuota/units.GiB, (float32)(imageStorageUsage)/units.GiB, (float32)(vmStorageUsage)/units.GiB, (float32)(storageReservation)/units.GiB)
 }
 
 func CreateContainerEventActorWithAttributes(vc *viccontainer.VicContainer, attributes map[string]string) eventtypes.Actor {

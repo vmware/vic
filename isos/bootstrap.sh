@@ -14,6 +14,8 @@
 # limitations under the License.
 
 # File list to estimate the size of the target tempfs in bootstrap
+# TODO: this should be pulled from the install files for entropy and iptables
+# in the repo specific init.sh files (or where ever this list ends up)
 tempfs_target_list=('/lib/modules/*' \
     '/bin/tether' \
     '/bin/unpack' \
@@ -29,26 +31,23 @@ tempfs_target_list=('/lib/modules/*' \
     '/lib64/ld-*' \
     '/usr/lib/iptables' \
     '/lib/libhavege.so.1' \
-    '/usr/sbin/haveged')
+    '/usr/sbin/haveged' \
+    '/sbin/rngd' \
+    )
 
 # Build the bootstrap filesystem ontop of the base
 
 # exit on failure
-set -e
-
-if [ -n "$DEBUG" ]; then
-    set -x
-fi
-
+set -e && [ -n "$DEBUG" ] && set -x
 DIR=$(dirname $(readlink -f "$0"))
 . $DIR/base/utils.sh
 
 function usage() {
-echo "Usage: $0 -p staged-package(tgz) -b binary-dir -d <activates debug when set>" 1>&2
+echo "Usage: $0 -p staged-package(tgz) -b binary-dir" 1>&2
 exit 1
 }
 
-while getopts "p:b:d:" flag
+while getopts "p:b:o:" flag
 do
     case $flag in
 
@@ -61,9 +60,9 @@ do
             # Required. Target for iso and source for components
             BIN="$OPTARG"
             ;;
-        d)
-            # Optional. directs script to make a debug iso instead of a production iso.
-            debug="$OPTARG"
+        o)
+            # Optional. Name of the generated ISO
+            ISONAME="$OPTARG"
             ;;
         *)
 
@@ -88,41 +87,67 @@ PKGDIR=$(mktemp -d)
 
 unpack $package $PKGDIR
 
+# load the repo to use from the package if not explicit in env
+REPO=${REPO:-$(cat $PKGDIR/repo.cfg)}
+REPODIR="$DIR/base/repos/${REPO}/"
+PACKAGE_MANAGER=${PACKAGE_MANAGER:-$(cat $REPODIR/repo-spec.json | jq -r '.packagemanager')}
+PACKAGE_MANAGER=${PACKAGE_MANAGER:-tdnf}
+setup_pm $REPODIR $PKGDIR $PACKAGE_MANAGER $REPO
+
+
 #selecting the init script as our entry point.
-if [ -v debug ]; then
-    export ISONAME="bootstrap-debug.iso"
-    cp ${DIR}/bootstrap/bootstrap.debug $(rootfs_dir $PKGDIR)/bin/bootstrap
-    cp ${BIN}/rpctool $(rootfs_dir $PKGDIR)/sbin/
-else
-    export ISONAME="bootstrap.iso"
-    cp ${DIR}/bootstrap/bootstrap $(rootfs_dir $PKGDIR)/bin/bootstrap
-fi
+export ISONAME=${ISONAME:-bootstrap.iso}
+cp ${DIR}/bootstrap/bootstrap $(rootfs_dir $PKGDIR)/bin/bootstrap
 
 # copy in our components
 cp ${BIN}/tether-linux $(rootfs_dir $PKGDIR)/bin/tether
 cp ${BIN}/unpack $(rootfs_dir $PKGDIR)/bin/unpack
 
-# kick off our components at boot time
-mkdir -p $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants
-cp ${DIR}/bootstrap/tether.service $(rootfs_dir $PKGDIR)/etc/systemd/system/
-cp ${DIR}/appliance/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/
-ln -s /etc/systemd/system/tether.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
-ln -sf /etc/systemd/system/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/default.target
+if [ -d $(rootfs_dir $PKGDIR)/etc/systemd ]; then
+    echo "Preparing systemd for bootstrap"
 
-# disable networkd given we manage the link state directly
-rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/systemd-networkd.service
-rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/sockets.target.wants/systemd-networkd.socket
+    # copy in systemd entry script
+    cp ${DIR}/bootstrap/systemd-init $(rootfs_dir $PKGDIR)/bin/init
 
-# do not use the systemd dhcp client
-rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
-cp ${DIR}/base/no-dhcp.network $(rootfs_dir $PKGDIR)/etc/systemd/network/
+    # kick off our components at boot time
+    mkdir -p $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants
+    cp ${DIR}/bootstrap/tether.service $(rootfs_dir $PKGDIR)/etc/systemd/system/
+    cp ${DIR}/appliance/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/
+    ln -s /etc/systemd/system/tether.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
+    ln -sf /etc/systemd/system/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/default.target
+
+    # disable networkd given we manage the link state directly
+    rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/systemd-networkd.service
+    rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/sockets.target.wants/systemd-networkd.socket
+
+    # do not use the systemd dhcp client
+    rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
+
+    # some systemd distros (centos-7) do not use systemd-networkd
+    [ -e $(rootfs_dir $PKGDIR)/etc/systemd/network/ ] && cp ${DIR}/base/no-dhcp.network $(rootfs_dir $PKGDIR)/etc/systemd/network/
+else
+    echo "Preparing systemV init for bootstrap"
+    
+    # copy in sysv-init entry script
+    cp ${DIR}/bootstrap/sysv-init $(rootfs_dir $PKGDIR)/bin/init
+
+    # kick off our components at boot time
+    cp ${DIR}/bootstrap/tether $(rootfs_dir $PKGDIR)/etc/rc.d/init.d/
+    chmod +x $(rootfs_dir $PKGDIR)/etc/rc.d/init.d/tether
+    ln -sf /etc/rc.d/init.d/tether $(rootfs_dir $PKGDIR)/etc/rc.d/rc1.d/S90tether
+
+    # set the default run level for sysvinit
+    # networking disabled on rc1
+    cp ${DIR}/bootstrap/inittab $(rootfs_dir $PKGDIR)/etc/inittab
+fi
+cp ${REPODIR}/init.sh $(rootfs_dir $PKGDIR)/bin/repoinit
 
 # compute the size of the target tempfs,
 # the list of directories/files in ${tempfs_target_list} should
 # match the directories/files that are actually copied into tempfs
-# by the script isos/bootstrap/bootstrap
+# by the script isos/bootstrap/bootstrap and the repo specific init.sh scripts.
 target_list=$(rootfs_prepend $PKGDIR "${tempfs_target_list[@]}")
-size=$(du -m --total ${target_list} | tail -1 | cut -f 1)
+size=$(du -m --total ${target_list} 2>/dev/null | tail -1 | cut -f 1)
 # 20% overhead should give a little more than 80M for stripped binaries
 overhead=$(( size / 5 ))
 size=$(( size + overhead ))
@@ -131,4 +156,5 @@ echo Total tempfs size: ${size}
 echo "${tempfs_target_list[@]}" > $(rootfs_dir $PKGDIR)/.tempfs_list
 echo ${size} > $(rootfs_dir $PKGDIR)/.tempfs_size
 
-generate_iso $PKGDIR $BIN/$ISONAME /lib/systemd/systemd
+INIT=$(cat $REPODIR/repo-spec.json | jq -r '.init')
+generate_iso $PKGDIR $BIN/$ISONAME $INIT

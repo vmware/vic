@@ -34,9 +34,6 @@ type VirtualMachineConfigSpecConfig struct {
 	BiosUUID   string
 	VMFullName string
 
-	// ParentImageID of the VM
-	ParentImageID string
-
 	// Name of the VM
 	Name string
 
@@ -195,13 +192,6 @@ func (s *VirtualMachineConfigSpec) ID() string {
 	return s.config.ID
 }
 
-// ParentImageID returns the ID of the image that VM is based on
-func (s *VirtualMachineConfigSpec) ParentImageID() string {
-	defer trace.End(trace.Begin(s.config.ParentImageID))
-
-	return s.config.ParentImageID
-}
-
 // BootMediaPath returns the image path
 func (s *VirtualMachineConfigSpec) BootMediaPath() string {
 	defer trace.End(trace.Begin(s.config.ID))
@@ -214,20 +204,6 @@ func (s *VirtualMachineConfigSpec) VMPathName() string {
 	defer trace.End(trace.Begin(s.config.ID))
 
 	return s.config.VMPathName
-}
-
-// ImageStoreName returns the image store name
-func (s *VirtualMachineConfigSpec) ImageStoreName() string {
-	defer trace.End(trace.Begin(s.config.ID))
-
-	return s.config.ImageStoreName
-}
-
-// ImageStorePath returns the image store url
-func (s *VirtualMachineConfigSpec) ImageStorePath() *url.URL {
-	defer trace.End(trace.Begin(s.config.ID))
-
-	return s.config.ImageStorePath
 }
 
 func (s *VirtualMachineConfigSpec) generateNextKey() int32 {

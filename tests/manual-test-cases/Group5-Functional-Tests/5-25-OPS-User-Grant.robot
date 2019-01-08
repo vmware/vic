@@ -26,7 +26,7 @@ Ops User Create
     Set Suite Variable  ${cluster}  cls1
     ${esx1}  ${esx2}  ${esx3}  ${vc}  ${esx1-ip}  ${esx2-ip}  ${esx3-ip}  ${vc-ip}=  Create a Simple VC Cluster  ${datacenter}  ${cluster}
     Log To Console  Finished Creating Cluster ${vc}
-    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  %{NIMBUS_USER}-${vc}
+    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  %{NIMBUS_PERSONAL_USER}-${vc}
     ${vc}=  Set Variable  vcname
 
     Set Suite Variable  ${ops_user_base_name}  vch-user

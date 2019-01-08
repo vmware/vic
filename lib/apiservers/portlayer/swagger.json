@@ -637,6 +637,67 @@
 					}
 				}
 			},
+			"post": {
+				"description": "Sets the image a container will use as its filesystem",
+				"operationId": "ImageJoin",
+				"tags": [
+					"storage"
+				],
+				"consumes": [
+					"application/json"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "store_name",
+						"type": "string",
+						"in": "path",
+						"required": true
+					},
+					{
+						"name": "id",
+						"required": true,
+						"type": "string",
+						"in": "path"
+					},
+					{
+						"name": "config",
+						"in": "body",
+						"required": true,
+						"schema": {
+							"$ref": "#/definitions/ImageJoinConfig"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/ImageJoinResponse"
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "ServerError",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"default": {
+						"description": "error",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			},
 			"delete": {
 				"description": "Delete an image by id in an image store",
 				"summary": "Delete an image",
@@ -688,6 +749,44 @@
 						"description": "In use",
 						"schema": {
 							"$ref": "#/definitions/Error"
+						}
+					},
+					"default": {
+						"description": "error",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			}
+		},
+		"/storage/{store_name}/usage": {
+			"parameters": [
+				{
+					"$ref": "#/parameters/operationID"
+				}
+			],
+			"get": {
+				"description": "Get images storage usage in an image store",
+				"summary": "Get images storage usage",
+				"tags": [
+					"storage"
+				],
+				"operationId": "GetImageStorageUsage",
+				"parameters": [
+					{
+						"name": "store_name",
+						"type": "string",
+						"in": "path",
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"type": "integer",
+							"format": "int64"
 						}
 					},
 					"default": {
@@ -1964,12 +2063,12 @@
 							"$ref": "#/definitions/Error"
 						}
 					},
-            "409": {
-              "description": "Task failed due to power state change",
-              "schema": {
-                  "$ref": "#/definitions/Error"
-              }
-            },
+					"409": {
+						"description": "Task failed due to power state change",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
 					"500": {
 						"description": "Inspect of task failed",
 						"schema": {
@@ -3129,6 +3228,41 @@
 				}
 			}
 		},
+		"ImageJoinConfig": {
+			"type": "object",
+			"required": [
+				"handle",
+				"deltaID"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				},
+				"deltaID": {
+					"x-nullable": false,
+					"type": "string"
+				},
+				"imageID": {
+					"x-nullable": false,
+					"type": "string"
+				},
+				"repoName": {
+					"x-nullable": false,
+					"type": "string"
+				}
+			}
+		},
+		"ImageJoinResponse": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
 		"ScopeConfig": {
 			"type": "object",
 			"required": [
@@ -3245,6 +3379,10 @@
 				"direct": {
 					"x-nullable": false,
 					"type": "boolean"
+				},
+				"macaddress": {
+					"x-nullable": false,
+					"type": "string"
 				}
 			}
 		},
@@ -3252,18 +3390,6 @@
 			"type": "object",
 			"properties": {
 				"name": {
-					"type": "string"
-				},
-				"imageStore": {
-					"$ref": "#/definitions/ImageStore"
-				},
-				"image": {
-					"type": "string"
-				},
-				"layer": {
-					"type": "string"
-				},
-				"repoName": {
 					"type": "string"
 				},
 				"numCPUs": {
@@ -3346,6 +3472,12 @@
 					}
 				},
 				"ports": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"nameservers": {
 					"type": "array",
 					"items": {
 						"type": "string"
@@ -3596,6 +3728,13 @@
 				},
 				"storageSize": {
 					"type": "integer"
+				},
+				"memorySizeMB": {
+					"type": "integer"
+				},
+				"numCpu": {
+					"type": "integer",
+					"format": "int32"
 				}
 			}
 		},

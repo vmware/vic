@@ -92,9 +92,12 @@ Create VCH - custom base disk
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
-    ${output}=  Run  docker %{VCH-PARAMS} logs $(docker %{VCH-PARAMS} start $(docker %{VCH-PARAMS} create --name customDiskContainer ${busybox} /bin/df -h) && sleep 10) | grep /dev/sda | awk '{print $2}'
+    ${output}=  Run  docker %{VCH-PARAMS} logs $(docker %{VCH-PARAMS} start $(docker %{VCH-PARAMS} create --name customDiskContainer ${busybox} /bin/df -Pha) && sleep 10) | awk '$NF == "/" {print $2}'
     # df shows GiB and vic-machine takes in GB so 6GB on cmd line == 5.5GB in df
-    Should Be Equal As Strings  ${output}  5.5G
+    ${unit}=  Get Substring  ${output}  -1
+    Should Be Equal  ${unit}  G
+    ${size}=  Get Substring  ${output}  0  -1
+    Should Be True  ${size} > 5.0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f customDiskContainer
     Should Be Equal As Integers  ${rc}  0
 
@@ -116,6 +119,17 @@ Create VCH - URL without user and password
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
     Should Contain  ${output}  vSphere user must be specified
+
+    # Delete the portgroup added by env vars keyword
+    Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Cleanup VCH Bridge Network
+
+Create VCH - invalid storage quota
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --storage-quota=1200
+    Should Contain  ${output}  Storage quota exceeds datastore free space
 
     # Delete the portgroup added by env vars keyword
     Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Cleanup VCH Bridge Network

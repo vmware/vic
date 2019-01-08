@@ -18,6 +18,10 @@ Resource  ../../resources/Util.robot
 Suite Setup  Nimbus Suite Setup  Enhanced Link Mode Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
+*** Variables ***
+${NIMBUS_LOCATION}  sc
+${NIMBUS_LOCATION_FULL}  NIMBUS_LOCATION=${NIMBUS_LOCATION}
+
 *** Keywords ***
 # Insert elements from dict2 into dict1, overwriting conflicts in dict1 & returning new dict
 Combine Dictionaries
@@ -32,10 +36,10 @@ Enhanced Link Mode Setup
     [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${name}=  Evaluate  'els-' + str(random.randint(1000,9999))  modules=random
-    Set Suite Variable  ${user}  %{NIMBUS_USER}
+    Set Suite Variable  ${user}  %{NIMBUS_PERSONAL_USER}
     Log To Console  \nDeploying Nimbus Testbed: ${name}
 
-    ${pid}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-testbeddeploy --lease 0.25 --noStatsDump --noSupportBundles --plugin test-vpx --testbedName test-vpx-m2n2-vcva-3esx-pxeBoot-8gbmem --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --runName ${name}'
+    ${pid}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  '${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-testbeddeploy --lease 0.25 --noStatsDump --noSupportBundles --plugin test-vpx --testbedName test-vpx-m2n2-vcva-3esx-pxeBoot-8gbmem --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --runName ${name}'
 
     &{esxes}=  Create Dictionary
     ${num_of_esxes}=  Evaluate  3

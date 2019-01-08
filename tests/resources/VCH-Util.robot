@@ -15,6 +15,9 @@
 *** Settings ***
 Documentation  This resource contains all keywords related to creating, deleting, maintaining VCHs
 
+*** Variables ***
+${BOOTSTRAP-ISO}  bin/bootstrap.iso
+
 *** Keywords ***
 Set Test Environment Variables
     # Finish setting up environment variables
@@ -293,7 +296,7 @@ Use Target VIC Appliance
     [Return]  ${True}
 
 Conditional Install VIC Appliance To Test Server
-    [Arguments]  ${certs}=${true}  ${init}=${False}
+    [Arguments]  ${certs}=${true}  ${init}=${False}  ${additional-args}=${EMPTY}
     ${target-vch}=  Get Environment Variable  TARGET_VCH  ${EMPTY}
     ${multi-vch}=  Get Environment Variable  MULTI_VCH  ${EMPTY}
 
@@ -301,7 +304,7 @@ Conditional Install VIC Appliance To Test Server
     Run Keyword If  '${target-vch}' != '${EMPTY}'  Use Target VIC Appliance  target-vch=${target-vch}
     Return From Keyword If  '${target-vch}' != '${EMPTY}'  ${True}
 
-    Install VIC Appliance To Test Server  certs=${certs}
+    Install VIC Appliance To Test Server  certs=${certs}  additional-args=${additional-args}
 
     # If MULT_VCH set to 1, then we are in multi VCH mode, otherwise, we are in single VCH mode
     ${single-vch-mode}=  Run Keyword If  '${multi-vch}' == '1'  Set Variable  ${False}
@@ -311,7 +314,7 @@ Conditional Install VIC Appliance To Test Server
     Run Keyword If  ${init}  Set Environment Variable  TARGET_VCH  %{VCH-NAME}
 
 Install VIC Appliance To Test Server
-    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${additional-args}=${EMPTY}
+    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=${BOOTSTRAP-ISO}  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${additional-args}=${EMPTY}
     Set Test Environment Variables
     ${opsuser-args}=  Get Ops User Args
     ${output}=  Install VIC Appliance To Test Server With Current Environment Variables  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${cleanup}  ${debug}  ${opsuser-args}  ${additional-args}
@@ -319,7 +322,7 @@ Install VIC Appliance To Test Server
     [Return]  ${output}
 
 Install VIC Appliance To Test Server With Current Environment Variables
-    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${opsuser-args}=${EMPTY}  ${additional-args}=${EMPTY}
+    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=${BOOTSTRAP-ISO}  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${debug}=1  ${opsuser-args}=${EMPTY}  ${additional-args}=${EMPTY}
     # disable firewall
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
     # Attempt to cleanup old/canceled tests
@@ -358,11 +361,14 @@ Install VIC Appliance To Test Server With Current Environment Variables
 Run VIC Machine Command
     [Tags]  secret
     [Arguments]  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${debug}  ${opsuser-args}  ${additional-args}
-    ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug ${debug} --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry wdc-harbor-ci.eng.vmware.com --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:${vol} --container-network=%{PUBLIC_NETWORK}:public ${vicmachinetls} ${opsuser-args} ${additional-args}
+    ${status}  ${message} =  Run Keyword And Ignore Error  Environment Variable Should Be Set  CONTAINER_NETWORK
+    Run Keyword If  "${status}" == "FAIL"  Set Environment Variable  CONTAINER_NETWORK  %{PUBLIC_NETWORK}
+
+    ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug ${debug} --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry wdc-harbor-ci.eng.vmware.com --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:${vol} --container-network=%{CONTAINER_NETWORK}:public ${vicmachinetls} ${opsuser-args} ${additional-args}
     Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
 
-    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug ${debug} --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry wdc-harbor-ci.eng.vmware.com --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:${vol} --container-network=%{PUBLIC_NETWORK}:public --no-tlsverify ${opsuser-args} ${additional-args}
+    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug ${debug} --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry wdc-harbor-ci.eng.vmware.com --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:${vol} --container-network=%{CONTAINER_NETWORK}:public --no-tlsverify ${opsuser-args} ${additional-args}
     Run Keyword Unless  ${certs}  Should Contain  ${output}  Installer completed successfully
     [Return]  ${output}
 
@@ -444,16 +450,19 @@ Portlayer Log Should Match Regexp
     ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b ${cookies} | grep -ie \'${pattern1}\' | grep -iqe \'${pattern2}\'
     Should Be Equal As Integers  ${rc}  0
 
+# Grab the vSphere logs for a VCH. This takes two optional parameters:
+# name-suffix: a suffix to append to the log bundle to allow for capture before/after reboot of VCH for example
+# name: override the default use of %{VCH-NAME} and specify a specific VCH name
 Gather Logs From Test Server
-    [Arguments]  ${name-suffix}=${EMPTY}
-    Run Keyword And Continue On Failure  Run  zip %{VCH-NAME}-certs -r %{VCH-NAME}
+    [Arguments]  ${name-suffix}=${EMPTY}  ${name}=%{VCH-NAME}
+    Run Keyword And Continue On Failure  Run  zip ${name}-certs -r ${name}
     Curl Container Logs  ${name-suffix}
-    ${host}=  Wait Until Keyword Succeeds  12x  10s  Get VM Host Name  %{VCH-NAME}
+    ${host}=  Wait Until Keyword Succeeds  12x  10s  Get VM Host Name  ${name}
     Log  ${host}
-    ${out}=  Run  govc datastore.download -host ${host} %{VCH-NAME}/vmware.log %{VCH-NAME}-vmware${name-suffix}.log
+    ${out}=  Run  govc datastore.download -host ${host} ${name}/vmware.log ${name}-vmware${name-suffix}.log
     Log  ${out}
     Should Contain  ${out}  OK
-    ${out}=  Run  govc datastore.download -host ${host} %{VCH-NAME}/tether.debug %{VCH-NAME}-tether${name-suffix}.debug
+    ${out}=  Run  govc datastore.download -host ${host} ${name}/tether.debug ${name}-tether${name-suffix}.debug
     Log  ${out}
     Should Contain  ${out}  OK
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc logs -log=vmkernel -n=10000 > vmkernel${name-suffix}.log
@@ -775,6 +784,10 @@ Upgrade with ID
 Check Upgraded Version
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux version
     @{vers}=  Split String  ${output}
+    ${releaseNumber}=  Run  echo @{vers}[2] | awk -F'-' '{print $1}'
+    ${rc}  ${out}=  Run And Return Rc And Output  govc vm.info %{VCH-NAME} 
+    Should Contain  ${out}  ${releaseNumber}
+    Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
     Log  ${output}
     Should Contain  ${output}  Completed successfully

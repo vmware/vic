@@ -60,6 +60,11 @@ func (i *ImageBackend) Commit(name string, config *backend.ContainerCommitConfig
 	op := trace.NewOperation(context.Background(), "Commit: %s", name)
 	defer trace.End(trace.Audit(name, op))
 
+	err = validateStorageQuota()
+	if err != nil {
+		return "", err
+	}
+
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {

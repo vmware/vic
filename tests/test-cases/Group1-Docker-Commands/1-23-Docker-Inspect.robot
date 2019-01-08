@@ -98,6 +98,13 @@ Docker inspect container with multiple networks
     Should Contain  ${out}  net-one
     Should Be Equal As Integers  ${rc}  0
 
+Docker inspect container with correct gateway
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name=test-gateway -d ${busybox} sleep 600
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}' test-gateway
+    Should Contain  ${out}  172.16.0.1
+    Should Not Contain  ${out}  /
+
 Docker inspect invalid object
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect fake
     Should Be Equal As Integers  ${rc}  1
@@ -155,3 +162,48 @@ Docker inspect container status
     # keyword at top of file
     ${stopped}=  Get container inspect status  ${container}
     Should Contain  ${stopped}  exited
+
+Docker inspect container with specified hostname
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -h testhostname --name=test-hostname -d ${busybox} sleep 600
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Config.Hostname}}' test-hostname
+    Should Be Equal  ${out}  testhostname
+
+Docker inspect for macaddress
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name=test-macaddress -d busybox sleep 600
+    Should Be Equal As Integers  ${rc}  0
+    Sleep  60s
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{range .NetworkSettings.Networks}}{{.MacAddress}}{{end}}' ${container}
+    Should Be Equal As Integers  ${rc}  0
+    Should Match Regexp  ${output}  ^([0-9a-f]{2}[:-]){5}([0-9a-f]{2})$
+
+Docker inspect container with specified DNS
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --dns=8.8.8.8 --name=test-with-specified-dns busybox sleep 600
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${container}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  8.8.8.8
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
+    Should Be Equal As Integers  ${rc}  0
+
+Docker inspect container with multiple specified DNS
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --dns=8.8.8.8 --dns=8.8.8.9 --name=test-with-multiple-specified-dns busybox sleep 600
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${container}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  8.8.8.8
+    Should Contain  ${output}  8.8.8.9
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
+    Should Be Equal As Integers  ${rc}  0
+
+Docker inspect for cpu and memory settings
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${container}
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Evaluate  json.loads(r'''${output}''')  json
+    ${hostconfig}=  Get From Dictionary  ${output[0]}  HostConfig
+    ${mem}=  Get From Dictionary  ${hostconfig}  Memory
+    Should Be Equal As Integers  ${mem}  2048
+    ${cpu}=  Get From Dictionary  ${hostconfig}  CpusetCpus
+    Should Be Equal As Integers  ${cpu}  2

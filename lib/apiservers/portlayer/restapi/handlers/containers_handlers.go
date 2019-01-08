@@ -80,8 +80,6 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	op := trace.NewOperationFromID(context.Background(), params.OpID, "containers.CreateHandler(%s)", params.CreateConfig.Name)
 	defer trace.End(trace.Begin("CreateHandler", op))
 
-	var err error
-
 	session := handler.handlerCtx.Session
 	id := uid.New().String()
 
@@ -106,9 +104,6 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		CreateTime: time.Now().UTC().UnixNano(),
 		Version:    version.GetBuild(),
 		Key:        pem.EncodeToMemory(&privateKeyBlock),
-		LayerID:    params.CreateConfig.Layer,
-		ImageID:    params.CreateConfig.Image,
-		RepoName:   params.CreateConfig.RepoName,
 		Hostname:   params.CreateConfig.Hostname,
 		Domainname: params.CreateConfig.Domainname,
 	}
@@ -122,9 +117,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 
 	// Create the executor.ExecutorCreateConfig
 	c := &exec.ContainerCreateConfig{
-		Metadata:       m,
-		ParentImageID:  params.CreateConfig.Layer,
-		ImageStoreName: params.CreateConfig.ImageStore.Name,
+		Metadata: m,
 		Resources: exec.Resources{
 			NumCPUs:  params.CreateConfig.NumCpus,
 			MemoryMB: params.CreateConfig.MemoryMB,
@@ -133,7 +126,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 
 	h, err := exec.Create(op, session, c)
 	if err != nil {
-		log.Errorf("ContainerCreate error: %s", err.Error())
+		op.Errorf("ContainerCreate error: %s", err.Error())
 		return containers.NewCreateNotFound().WithPayload(&models.Error{Message: err.Error()})
 	}
 
@@ -590,6 +583,8 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 	info.ContainerConfig.Names = []string{container.ExecConfig.Name}
 	info.ContainerConfig.RestartCount = int64(container.ExecConfig.Diagnostics.ResurrectionCount)
 	info.ContainerConfig.StorageSize = container.VMUnsharedDisk
+	info.ContainerConfig.MemorySizeMB = int64(container.MemorySizeMB)
+	info.ContainerConfig.NumCPU = container.NumCPU
 
 	if container.ExecConfig.Annotations != nil && len(container.ExecConfig.Annotations) > 0 {
 		info.ContainerConfig.Annotations = make(map[string]string)
@@ -648,20 +643,30 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 			Aliases:     make([]string, 0),
 			Nameservers: make([]string, 0),
 			Trust:       endpoint.Network.TrustLevel.String(),
+			Macaddress:  "",
 			Direct:      endpoint.Network.Type == constants.ExternalScopeType,
 		}
 
-		if !ip.IsUnspecifiedIP(endpoint.Network.Gateway.IP) {
-			ep.Gateway = endpoint.Network.Gateway.String()
+		// for static endpoints we may not have forced a state refresh and therefore not have the address copied into the Assigned fields.
+		// In this case we used the configured data directly.
+		if !ip.IsUnspecifiedIP(endpoint.Network.Assigned.Gateway.IP) {
+			ep.Gateway = endpoint.Network.Assigned.Gateway.IP.String()
+		} else if endpoint.Static {
+			ep.Gateway = endpoint.Network.Gateway.IP.String()
 		}
 
 		if !ip.IsUnspecifiedIP(endpoint.Assigned.IP) {
 			ep.Address = endpoint.Assigned.String()
+		} else if endpoint.Static {
+			ep.Address = endpoint.IP.String()
 		}
 
 		if len(endpoint.Ports) > 0 {
 			ep.Ports = append(ep.Ports, endpoint.Ports...)
 		}
+
+		macaddress, _ := container.GetContainerVM().GetMacAddressBasedSpecifiedNetworkName(context.Background(), endpoint.Assigned.IP.String())
+		ep.Macaddress = macaddress
 
 		for _, alias := range endpoint.Network.Aliases {
 			parts := strings.Split(alias, ":")

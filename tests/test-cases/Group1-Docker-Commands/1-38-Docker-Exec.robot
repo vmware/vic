@@ -46,11 +46,9 @@ Verify LS Output For Busybox
        Should Contain  ${output}  home
        Should Contain  ${output}  lib
        Should Contain  ${output}  lost+found
-       Should Contain  ${output}  mnt
        Should Contain  ${output}  proc
        Should Contain  ${output}  root
        Should Contain  ${output}  run
-       Should Contain  ${output}  sbin
        Should Contain  ${output}  sys
        Should Contain  ${output}  tmp
        Should Contain  ${output}  usr
@@ -227,16 +225,24 @@ Concurrent Simple Exec
     Should Be Equal As Integers  ${rc}  0
 
     :FOR  ${idx}  IN RANGE  1  50
-    \   Start Process  docker %{VCH-PARAMS} exec ${id} /bin/ls  alias=exec-simple-%{VCH-NAME}-${idx}  shell=true
+    \   ${docker_cmd}=  Set Variable  docker %{VCH-PARAMS} exec -e idx=${idx} ${id} sh -c 'echo index is:${idx};/bin/ls'
+    \   Start Process  ${docker_cmd}  alias=exec-simple-%{VCH-NAME}-${idx}  shell=true
+
+    ${error_count}=  Set Variable  ${0}
 
     :FOR  ${idx}  IN RANGE  1  50
     \   ${result}=  Wait For Process  exec-simple-%{VCH-NAME}-${idx}  timeout=300s
-    \   Should Be Equal As Integers  ${result.rc}  0
-    \   Verify LS Output For Busybox  ${result.stdout}
+    \   Run Keyword If  ${result.rc} == 0  Log To Console  rc=0 is expected.  ELSE  Log To Console  rc should be 0.
+    \   ${status}=  Run Keyword And Return Status  Verify LS Output For Busybox  ${result.stdout}
+    \   Log  ${result.stdout}  
+    \   Run Keyword If  "${status}" == "${True}"  Log To Console  ${result.stdout} expected result has been found.  ELSE  Log To Console  ${status} is not expected data.
+    \   ${error_count}=  Run Keyword If  "${status}" == "${False}"  Evaluate  int(${error_count}) + 1  ELSE  Evaluate  int(${error_count}) + 0
+
+    Log To Console  failed count:${error_count}    
     # stop the container now that we have a successful series of concurrent execs
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} stop ${id}
     Should Be Equal As Integers  ${rc}  0
-
+    Should Be Equal As Integers  ${error_count}  0
 
 Concurrent Simple Exec Detached
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
@@ -305,7 +311,7 @@ Exec During Poweroff Of A Container Performing A Short Running Task
     ## the /bin/top should stay open the entire life of the container from start of the exec.
     ${rc}  ${output}=  Run And Return Rc And output  docker %{VCH-PARAMS} exec ${id} /bin/top
     # We should see tether every time since it is required to run the container.
-    Should Contain  ${output}  /.tether/tether
+    Should Contain  ${output}  .tether/tether
 
     # Docker behaviour is as the commented out assertions below (137 and no error output)
     #Should Be Equal As Integers  ${rc}  137

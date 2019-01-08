@@ -102,7 +102,7 @@ High Availability Setup
     @{esx_names}=  Get Dictionary Keys  ${esxes}
     @{esx_ips}=  Get Dictionary Values  ${esxes}
 
-    Set Suite Variable  @{list}  @{esx_names}[0]  @{esx_names}[1]  @{esx_names}[2]  %{NIMBUS_USER}-${vc}
+    Set Suite Variable  @{list}  @{esx_names}[0]  @{esx_names}[1]  @{esx_names}[2]  %{NIMBUS_PERSONAL_USER}-${vc}
 
     # Finish vCenter deploy
     ${output}=  Wait For Process  ${pid}
@@ -218,6 +218,13 @@ Test
     Log  ${info}
 
     Verify Volume Inspect Info  After Host Power OFF  ${containerMountDataTestID}  ${checkList}
+
+    #Check if container and VCH are on the same host
+    ${shortContainerID}=  Get Substring  ${containerMountDataTestID}  0  12
+    ${testContainerName}=  Set Variable  ${mntDataTestContainer}-${shortContainerID}
+    ${testContainerHost}=  Get VM Host Name  ${testContainerName}
+    Log  ${testContainerHost}
+    Run Keyword If  "${testContainerHost}" == "${curHost}"  Wait Until Keyword Succeeds  30x  10s  VM Host Has Changed  ${curHost}  ${testContainerName}
 
     # Remove Mount Data Test Container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${containerMountDataTestID}

@@ -23,4 +23,6 @@ Group 23 - VIC Machine Service
 [Test 23-10 - VCH Debug](23-10-VCH-Debug.md)
 -
 [Test 23-11 - VCH Firewall](23-11-VCH-Firewall.md)
+
+[Test 23-13 - VCH Tdnf](23-13-VCH-Tdnf.md)
 -

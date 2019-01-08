@@ -237,10 +237,11 @@ func (handler *ScopesHandlersImpl) ScopesAddContainer(params scopes.AddContainer
 		}
 
 		options := &network.AddContainerOptions{
-			Scope:   params.Config.NetworkConfig.NetworkName,
-			IP:      ip,
-			Aliases: params.Config.NetworkConfig.Aliases,
-			Ports:   params.Config.NetworkConfig.Ports,
+			Scope:       params.Config.NetworkConfig.NetworkName,
+			IP:          ip,
+			Aliases:     params.Config.NetworkConfig.Aliases,
+			Ports:       params.Config.NetworkConfig.Ports,
+			Nameservers: params.Config.NetworkConfig.Nameservers,
 		}
 		return handler.netCtx.AddContainer(h, options)
 	}()

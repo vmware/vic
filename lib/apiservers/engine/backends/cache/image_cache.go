@@ -15,6 +15,7 @@
 package cache
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -30,9 +31,12 @@ import (
 	"github.com/docker/docker/reference"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/kv"
+	"github.com/vmware/vic/lib/apiservers/engine/errors"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
 // ICache is an in-memory cache of image metadata. It is refreshed at startup
@@ -318,6 +322,27 @@ func (ic *ICache) Save() error {
 	ic.dirty = false
 
 	return nil
+}
+
+func (ic *ICache) GetImageStorageUsage() (int64, error) {
+	op := trace.NewOperation(context.Background(), "backends.GetImageStorageUsage")
+	defer trace.End(trace.Begin("", op))
+
+	opID := op.ID()
+	host, err := sys.UUID()
+	if err != nil {
+		return 0, errors.InternalServerError(fmt.Sprintf("Failed to get host name: %s", err))
+	}
+	r, err := ic.client.Storage.GetImageStorageUsage(
+		storage.NewGetImageStorageUsageParamsWithContext(op).
+			WithOpID(&opID).
+			WithStoreName(host),
+	)
+	if err != nil {
+		log.Errorf("Unable to get image storage usage: %s", err.Error())
+		return 0, err
+	}
+	return r.Payload, nil
 }
 
 // copyImageConfig performs and returns deep copy of an ImageConfig struct

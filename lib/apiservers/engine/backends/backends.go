@@ -95,7 +95,7 @@ type dynConfig struct {
 	lastCfg *dynConfig
 }
 
-func Init(portLayerAddr, product string, port uint, config *config.VirtualContainerHostConfigSpec) error {
+func Init(portLayerAddr, product string, port uint, staticConfig *config.VirtualContainerHostConfigSpec) error {
 	op := trace.NewOperation(context.Background(), "backends.Init")
 
 	network.Init()
@@ -106,14 +106,14 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 		return err
 	}
 
-	if config == nil {
+	if staticConfig == nil {
 		return fmt.Errorf("docker API server requires VCH config")
 	}
 
 	productName = product
 
-	if config.Version != nil {
-		productVersion = config.Version.ShortVersion()
+	if staticConfig.Version != nil {
+		productVersion = staticConfig.Version.ShortVersion()
 	}
 	if productVersion == "" {
 		portLayerName = product + " Backend Engine"
@@ -121,7 +121,7 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 		portLayerName = product + " " + productVersion + " Backend Engine"
 	}
 
-	if vchConfig, err = newDynConfig(op, config); err != nil {
+	if vchConfig, err = newDynConfig(op, staticConfig); err != nil {
 		return err
 	}
 
@@ -313,6 +313,8 @@ func syncContainerCache(op trace.Operation) error {
 
 	log.Debugf("Found %d containers", len(containme.Payload))
 	cc := cache.ContainerCache()
+	cache.SetVMScratchSize(vchConfig.Cfg.ScratchSize)
+
 	var errs []string
 	for _, info := range containme.Payload {
 		container := proxy.ContainerInfoToVicContainer(*info, portLayerName)

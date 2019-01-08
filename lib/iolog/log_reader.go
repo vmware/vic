@@ -63,21 +63,36 @@ func ParseLogEntry(r io.Reader) (*Entry, error) {
 		ts   time.Time
 	)
 
-	ehdr := make([]byte, encodedHeaderLengthBytes)
-	// read a header
-	n = 0
-	for n < encodedHeaderLengthBytes {
-		w, err = r.Read(ehdr[n:])
-		n += w
-		if err != nil {
-			return nil, err
-		}
-	}
+	enc := base64.StdEncoding
 
-	// decode base64 header
-	hdr, err := base64.StdEncoding.DecodeString(string(ehdr))
-	if err != nil {
-		return nil, err
+	// 1. assume aligned header
+	// 2. if full header doesn't parse, jump to byte after non-base64 and try again.
+	hdr := make([]byte, enc.DecodedLen(encodedHeaderLengthBytes))
+	ehdr := make([]byte, encodedHeaderLengthBytes)
+
+	// read a header worth of bytes
+	for {
+		for ; n < encodedHeaderLengthBytes; n += w {
+			w, err = r.Read(ehdr[n:])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// decode the header
+		m, err := enc.Decode(hdr, ehdr)
+		if err == nil {
+			break
+		}
+
+		// m bytes were good, so byte at index m is bad.
+		// restarting at m+1
+		nextIdx := m + 1
+		n = encodedHeaderLengthBytes - nextIdx
+
+		for i := 0; i < n; i++ {
+			ehdr[i] = ehdr[nextIdx+i]
+		}
 	}
 
 	// parse header

@@ -31,7 +31,7 @@ Non vSphere Local Cluster Install Setup
     &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  3  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${ESX_VERSION}
     @{esx_names}=  Get Dictionary Keys  ${esxes}
     @{esx_ips}=  Get Dictionary Values  ${esxes}
-    Set Suite Variable  @{list}  @{esx_names}[0]  @{esx_names}[1]  @{esx_names}[2]  %{NIMBUS_USER}-${vc}
+    Set Suite Variable  @{list}  @{esx_names}[0]  @{esx_names}[1]  @{esx_names}[2]  %{NIMBUS_PERSONAL_USER}-${vc}
 
     # Finish vCenter deploy
     ${output}=  Wait For Process  ${pid}  timeout=70 minutes  on_timeout=terminate

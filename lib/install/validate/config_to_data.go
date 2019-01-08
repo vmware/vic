@@ -216,6 +216,7 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 	if err = setImageStore(d, conf); err != nil {
 		return
 	}
+
 	setVolumeLocations(op, d, conf)
 	d.InsecureRegistries = conf.InsecureRegistries
 	d.WhitelistRegistries = conf.RegistryWhitelist
@@ -230,6 +231,10 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 
 	d.ContainerNameConvention = conf.ContainerNameConvention
 	d.UseVMGroup = conf.UseVMGroup
+	if conf.StorageQuota != 0 {
+		quotaGB := (int)(conf.StorageQuota / units.GiB)
+		d.StorageQuotaGB = &quotaGB
+	}
 	return
 }
 

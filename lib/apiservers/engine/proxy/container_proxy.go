@@ -169,14 +169,6 @@ func (c *ContainerProxy) CreateContainerHandle(ctx context.Context, vc *vicconta
 		return "", "", errors.NillPortlayerClientError("ContainerProxy")
 	}
 
-	if vc.ImageID == "" {
-		return "", "", errors.NotFoundError("No image specified")
-	}
-
-	if vc.LayerID == "" {
-		return "", "", errors.NotFoundError("No layer specified")
-	}
-
 	// Call the Exec port layer to create the container
 	host, err := sys.UUID()
 	if err != nil {
@@ -186,12 +178,6 @@ func (c *ContainerProxy) CreateContainerHandle(ctx context.Context, vc *vicconta
 	plCreateParams := dockerContainerCreateParamsToPortlayer(ctx, config, vc, host).WithOpID(&opID)
 	createResults, err := c.client.Containers.Create(plCreateParams)
 	if err != nil {
-		if _, ok := err.(*containers.CreateNotFound); ok {
-			cerr := fmt.Errorf("No such image: %s", vc.ImageID)
-			log.Errorf("%s (%s)", cerr, err)
-			return "", "", errors.NotFoundError(cerr.Error())
-		}
-
 		// If we get here, most likely something went wrong with the port layer API server
 		return "", "", errors.InternalServerError(err.Error())
 	}
@@ -1083,20 +1069,8 @@ func dockerContainerCreateParamsToPortlayer(ctx context.Context, cc types.Contai
 	config.NumCpus = cc.HostConfig.CPUCount
 	config.MemoryMB = cc.HostConfig.Memory
 
-	// Layer/vmdk to use
-	config.Layer = vc.LayerID
-
-	// Image ID
-	config.Image = vc.ImageID
-
-	// Repo Requested
-	config.RepoName = cc.Config.Image
-
 	//copy friendly name
 	config.Name = cc.Name
-
-	// image store
-	config.ImageStore = &models.ImageStore{Name: imageStore}
 
 	// network
 	config.NetworkDisabled = cc.Config.NetworkDisabled
@@ -1152,6 +1126,13 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 		nc.Ports = append(nc.Ports, fromPortbinding(p, cc.HostConfig.PortBindings[p])...)
 	}
 
+	if len(cc.HostConfig.DNS) > 0 {
+		for _, dns := range cc.HostConfig.DNS {
+			if dns != "" {
+				nc.Nameservers = append(nc.Nameservers, dns)
+			}
+		}
+	}
 	return nc
 }
 
@@ -1268,27 +1249,28 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 	//
 	// The values we fill out below is an abridged list of the original struct.
 	resourceConfig := container.Resources{
-	// Applicable to all platforms
-	//			CPUShares int64 `json:"CpuShares"` // CPU shares (relative weight vs. other containers)
-	//			Memory    int64 // Memory limit (in bytes)
+		Memory:     info.ContainerConfig.MemorySizeMB,
+		CpusetCpus: strconv.FormatInt((int64)(info.ContainerConfig.NumCPU), 10),
+		// Applicable to all platforms
+		//			CPUShares int64 `json:"CpuShares"` // CPU shares (relative weight vs. other containers)
+		//			Memory    int64 // Memory limit (in bytes)
 
-	//			// Applicable to UNIX platforms
-	//			DiskQuota            int64           // Disk limit (in bytes)
+		//			// Applicable to UNIX platforms
+		//			DiskQuota            int64           // Disk limit (in bytes)
 	}
 
 	hostConfig.VolumeDriver = portlayerName
 	hostConfig.Resources = resourceConfig
 	hostConfig.DNS = make([]string, 0)
 
-	if len(info.Endpoints) > 0 {
-		for _, ep := range info.Endpoints {
-			for _, dns := range ep.Nameservers {
-				if dns != "" {
-					hostConfig.DNS = append(hostConfig.DNS, dns)
-				}
+	if len(vc.HostConfig.DNS) > 0 {
+		for _, dns := range vc.HostConfig.DNS {
+			if dns != "" {
+				hostConfig.DNS = append(hostConfig.DNS, dns)
 			}
 		}
-
+	}
+	if len(info.Endpoints) > 0 {
 		hostConfig.NetworkMode = container.NetworkMode(info.Endpoints[0].Scope)
 	}
 
@@ -1355,7 +1337,7 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 	// Copy the working copy of our container's config
 	container := *vc.Config
 
-	if info.ContainerConfig.ContainerID != "" {
+	if container.Hostname == "" && info.ContainerConfig.ContainerID != "" {
 		container.Hostname = stringid.TruncateID(info.ContainerConfig.ContainerID) // Hostname
 	}
 	if info.ContainerConfig.AttachStdin != nil {
@@ -1454,7 +1436,7 @@ func networkFromContainerInfo(vc *viccontainer.VicContainer, info *models.Contai
 			IPv6Gateway:         "", //Get from Scope PL
 			GlobalIPv6Address:   "", //Get from Scope PL
 			GlobalIPv6PrefixLen: 0,  //Get from Scope PL
-			MacAddress:          "", //Container endpoints currently do not have mac addr yet
+			MacAddress:          ep.Macaddress,
 		}
 
 		if ep.Address != "" {
