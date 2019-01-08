@@ -21,7 +21,8 @@ Suite Teardown  Vdnet NSXT Topology Cleanup  ${NIMBUS_POD}  ${testrunid}
 *** Variables ***
 ${NIMBUS_LOCATION}  sc
 ${NIMBUS_LOCATION_FULL}  NIMBUS_LOCATION=${NIMBUS_LOCATION}
-${VDNET_LAUNCHER_HOST}  10.160.201.180
+${VDNET_LAUNCHER_HOST}  10.193.10.33
+${NFS}  10.161.137.16
 ${USE_LOCAL_TOOLCHAIN}  0
 ${VDNET_MC_SETUP}  0
 ${NIMBUS_BASE}  /mts/git
@@ -39,15 +40,16 @@ ${nimbus_personal_user_cache}  %{NIMBUS_PERSONAL_USER}
 
 *** Keywords ***
 Vdnet NSXT Topology Setup
-    [Timeout]    180 minutes
+    [Timeout]    120 minutes
+    Run Keyword If  "${NIMBUS_LOCATION}" == "wdc"  Set Suite Variable  ${NFS}  10.92.98.149
+    # Unset NIMBUS_PERSONAL_USER, replace value to NSXT user so that all nimbus commands executed by NSXT user
+    #Remove Environment Variable  NIMBUS_PERSONAL_USER
+    Set Environment Variable  NIMBUS_PERSONAL_USER  ${NIMBUS_NSXT_USER}
+
     ${TESTRUNID}=  Evaluate  'NSXT' + str(random.randint(1000,9999))  modules=random
     ${json}=  OperatingSystem.Get File  tests/resources/nimbus-testbeds/vic-vdnet-nsxt.json
     ${file}=  Replace Variables  ${json}
     Create File  /tmp/vic-vdnet-nsxt.json  ${file}
-
-    # Unset NIMBUS_PERSONAL_USER, replace value to NSXT user so that all nimbus commands executed by NSXT user
-    Remove Environment Variable  NIMBUS_PERSONAL_USER
-    Set Environment Variable  NIMBUS_PERSONAL_USER  ${NIMBUS_NSXT_USER}
 
     Open Connection  ${VDNET_LAUNCHER_HOST}
     #Login account must be the value of variable in this test suit, otherwise other pulic accounts will have no right to perform on 10.160.201.180. 
@@ -79,7 +81,7 @@ Vdnet NSXT Topology Setup
     Set Environment Variable  TEST_DATASTORE  vdnetSharedStorage
     Set Environment Variable  TEST_DATACENTER  /os-test-dc
     Set Environment Variable  TEST_RESOURCE  os-compute-cluster-1
-    Set Environment Variable  TEST_TIMEOUT  30m
+    Set Environment Variable  TEST_TIMEOUT  45m
 
     Set Environment Variable  GOVC_INSECURE  1
     Set Environment Variable  GOVC_URL  ${vc-ip}
@@ -93,7 +95,7 @@ Vdnet NSXT Topology Setup
     OperatingSystem.Remove File  /tmp/vic-vdnet-nsxt.json
 
 Vdnet NSXT Topology Cleanup
-    [Timeout]    180 minutes
+    [Timeout]    30 minutes
     [Arguments]    ${pod_name}  ${testrunid}
 
     #Reset NIMBUS_PERSONAL_USER value to the initial value
@@ -106,8 +108,52 @@ Vdnet NSXT Topology Cleanup
     Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl --nimbus=${pod_name} kill *isolated-06-gw
     Close Connection
 
+Wait Until Selenium Hub Is Ready
+    [Arguments]  ${hub-name}
+    :FOR  ${idx}  IN RANGE  1  60
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${hub-name}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${output}  Selenium Grid hub is up and running
+    \   Return From Keyword If  ${status}
+    \   Sleep  3
+    Fail  Selenium Hub failed to start properly
+
+Wait Until Selenium Node Is Ready
+    [Arguments]  ${node-name}
+    :FOR  ${idx}  IN RANGE  1  60
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${node-name}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${output}  The node is registered to the hub and ready to use
+    \   Return From Keyword If  ${status}
+    \   Sleep  3
+    Fail  Selenium node ${node-name} failed to start properly
+
+Install VIC Appliance and Run Selenium Grid Test
+    [Arguments]  ${name}  ${certs}=${false}  ${cleanup}=${true}
+    Install VIC Appliance To Test Server  certs=${certs}  cleanup=${cleanup}  additional-args=--bridge-network-range 200.1.1.0/16
+    
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create --subnet 220.1.1.0/24 grid 
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 4444:4444 --net grid --name selenium-hub selenium/hub:3.9.1
+    Should Be Equal As Integers  ${rc}  0
+    Wait Until Selenium Hub Is Ready  selenium-hub
+
+    :FOR  ${idx}  IN RANGE  1  4
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --cpus 1 --memory 1G --net grid -e HOME=/home/seluser -e HUB_HOST=selenium-hub --name chrome-${idx} selenium/node-chrome:3.9.1
+    \   Should Be Equal As Integers  ${rc}  0
+
+    :FOR  ${idx}  IN RANGE  1  4
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --cpus 1 --memory 1G --net grid -e HOME=/home/seluser -e HUB_HOST=selenium-hub --name firefox-${idx} selenium/node-firefox:3.9.1
+    \   Should Be Equal As Integers  ${rc}  0
+
+    :FOR  ${idx}  IN RANGE  1  4
+    \   Wait Until Selenium Node Is Ready  chrome-${idx}
+
+    :FOR  ${idx}  IN RANGE  1  4
+    \   Wait Until Selenium Node Is Ready  firefox-${idx}
+
+
 *** Test Cases ***
 Basic VIC Tests with NSXT Topology
+    [Timeout]  60 minutes
     Log To Console  \nStarting test...
     ${bridge_ls_name}=  Evaluate  'vic-bridge-ls'
     ${result}=  Create Nsxt Logical Switch  %{NSXT_MANAGER_URI}  ${nsxt_username}  ${nsxt_password}  ${bridge_ls_name}
@@ -134,3 +180,47 @@ Basic VIC Tests with NSXT Topology
     Should Not Contain  ${output}  Error
 
     Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
+
+Selenium Grid Test in NSXT
+    [Timeout]  90 minutes
+    Log To Console  Starting Selenium Grid test in NSXT...
+    ${bridge_ls_name_1}=  Evaluate  'vic-selenium-bridge-ls-1'
+ 
+    ${result}=  Create Nsxt Logical Switch  %{NSXT_MANAGER_URI}  ${nsxt_username}  ${nsxt_password}  ${bridge_ls_name_1}
+    Should Not Be Equal  ${result}  null
+
+    ${bridge_ls_name_2}=  Evaluate  'vic-selenium-bridge-ls-2'
+    ${result}=  Create Nsxt Logical Switch  %{NSXT_MANAGER_URI}  ${nsxt_username}  ${nsxt_password}  ${bridge_ls_name_2}
+    Should Not Be Equal  ${result}  null
+
+    ${container_ls_name}=  Evaluate  'vic-container-ls'
+    ${result}=  Create Nsxt Logical Switch  %{NSXT_MANAGER_URI}  ${nsxt_username}  ${nsxt_password}  ${container_ls_name}
+    Should Not Be Equal    ${result}    null
+    Set Environment Variable  CONTAINER_NETWORK  ${container_ls_name}
+    
+    #Wait for 5 mins to make sure the logical switches is synchronized with vCenter
+    Sleep  300
+ 
+    Set Environment Variable  BRIDGE_NETWORK  ${bridge_ls_name_1}
+    Install VIC Appliance and Run Selenium Grid Test  Grid1
+
+    Set Suite Variable  ${vch_params_1}  %{VCH-PARAMS}
+    Set Suite Variable  ${vch_name_1}  %{VCH-NAME}
+    Set Suite Variable  ${vic_admin_1}  %{VIC-ADMIN}
+
+    Set Environment Variable  BRIDGE_NETWORK  ${bridge_ls_name_2}
+    Install VIC Appliance and Run Selenium Grid Test  Grid2  cleanup=${false}
+  
+    ${status}=  Get State Of Github Issue  8435
+    Run Keyword If  '${status}' == 'closed'  Fail this case now that Issue #8435 has been resolved
+    
+#    uncoment the followings when #8435 is resolved
+#    Sleep  300
+#    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
+#
+#    Set Environment Variable  VCH-NAME  ${vch_name_1}
+#    Set Environment Variable  BRIDGE_NETWORK  ${bridge_ls_name_1}
+#    Set Environment Variable  VCH-PARAMS  ${vch_params_1}
+#    Set Environment Variable  VIC-ADMIN  ${vic_admin_1}
+#
+#    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
