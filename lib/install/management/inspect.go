@@ -245,6 +245,7 @@ func (d *Dispatcher) GetDockerAPICommand(conf *config.VirtualContainerHostConfig
 		}
 	}
 	dEnv = append(dEnv, fmt.Sprintf("DOCKER_HOST=%s:%s", d.HostIP, d.DockerPort))
+	dEnv = append(dEnv, "COMPOSE_TLS_VERSION=TLSv1_2")
 
 	cmd = fmt.Sprintf("docker -H %s:%s%s info", d.HostIP, d.DockerPort, tls)
 	env = strings.Join(dEnv, " ")

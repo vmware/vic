@@ -233,7 +233,7 @@ func (s *SystemBackend) SystemInfo() (*types.Info, error) {
 		if err != nil {
 			op.Infof("Unable to get the image storage usage : %s", err.Error())
 		}
-		vmStorageUsage := cache.ContainerCache().VMStorageSize()
+		vmStorageUsage := cache.ContainerCache().VMStorageUsage()
 		storageUsage := [2]string{systemStatusStorageUsage, units.BytesSize(float64(imageStorageUsage + vmStorageUsage))}
 		info.SystemStatus = append(info.SystemStatus, storageUsage)
 		if imageStorageUsage > 0 {

@@ -686,7 +686,11 @@ func (c *ContainerBackend) ContainerCreate(config types.ContainerCreateConfig) (
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
 
-	err = checkStorageQuota(PortLayerClient(), &config)
+	reserved, err := checkStorageQuota(PortLayerClient(), &config)
+	if reserved > 0 {
+		defer cache.ContainerCache().RemoveStorageReservation(reserved)
+	}
+
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
@@ -2129,26 +2133,29 @@ func (c *ContainerBackend) validateContainerLogsConfig(vc *viccontainer.VicConta
 	return tailLines, since.Unix(), nil
 }
 
-// initial implementation: read value from kvstore/storage_usage + container vm's mem(swap) + image_disk_size
-// TODO improve implementation to consider log files
-func checkStorageQuota(client *client.PortLayer, config *types.ContainerCreateConfig) error {
+// Reserve storage during parallel requests and rollback reservation if quota exceeds.
+func checkStorageQuota(client *client.PortLayer, config *types.ContainerCreateConfig) (int64, error) {
 	// 0 means unlimited
 	if vchConfig.Cfg.StorageQuota == 0 {
-		return nil
+		return 0, nil
 	}
 
-	vmStorageUsage := cache.ContainerCache().VMStorageSize()
 	imageStorageUsage, err := cache.ImageCache().GetImageStorageUsage()
 	if err != nil {
 		log.Errorf("failed to get image storage usage: %v", err)
-		return err
+		return 0, err
+	}
+	vmCapacity := config.HostConfig.Memory*units.MiB + vchConfig.Cfg.ScratchSize*units.KB
+	vmStorageUsage := cache.ContainerCache().VMStorageUsage()
+	storageReservation := cache.ContainerCache().AddStorageReservation(vmCapacity)
+
+	if vchConfig.Cfg.StorageQuota >= imageStorageUsage+vmStorageUsage+storageReservation {
+		return vmCapacity, nil
 	}
 
-	if vchConfig.Cfg.StorageQuota >= imageStorageUsage+vmStorageUsage+config.HostConfig.Memory*units.MiB+vchConfig.Cfg.ScratchSize*units.KB {
-		return nil
-	}
-	return fmt.Errorf("Storage quota exceeds. Storage quota: %dGB, image storage usage: %.3fGB, container storage usage: %.3fGB",
-		vchConfig.Cfg.StorageQuota/units.GiB, (float32)(imageStorageUsage)/units.GiB, (float32)(vmStorageUsage)/units.GiB)
+	cache.ContainerCache().RemoveStorageReservation(vmCapacity)
+	return 0, fmt.Errorf("Storage quota exceeds. Storage quota: %dGB, image storage usage: %.3fGB, container storage usage: %.3fGB, storage reservation: %.3fGB",
+		vchConfig.Cfg.StorageQuota/units.GiB, (float32)(imageStorageUsage)/units.GiB, (float32)(vmStorageUsage)/units.GiB, (float32)(storageReservation)/units.GiB)
 }
 
 func CreateContainerEventActorWithAttributes(vc *viccontainer.VicContainer, attributes map[string]string) eventtypes.Actor {
