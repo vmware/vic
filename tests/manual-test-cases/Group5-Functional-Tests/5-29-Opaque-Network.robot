@@ -41,7 +41,7 @@ ${nimbus_personal_user_cache}  %{NIMBUS_PERSONAL_USER}
 *** Keywords ***
 Vdnet NSXT Topology Setup
     [Timeout]    120 minutes
-    Run Keyword If  "${NIMBUS_LOCATION}" == "wdc"  Set Suite Variable  ${NFS}  10.92.98.149
+    Run Keyword If  "${NIMBUS_LOCATION}" == "wdc"  Set Suite Variable  ${NFS}  10.92.103.33
     # Unset NIMBUS_PERSONAL_USER, replace value to NSXT user so that all nimbus commands executed by NSXT user
     #Remove Environment Variable  NIMBUS_PERSONAL_USER
     Set Environment Variable  NIMBUS_PERSONAL_USER  ${NIMBUS_NSXT_USER}
