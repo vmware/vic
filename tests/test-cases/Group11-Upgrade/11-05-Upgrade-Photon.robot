@@ -20,9 +20,9 @@ Suite Teardown  Re-Enable Ops User And Clean Up VIC Appliance
 Default Tags
 
 *** Variables ***
-${volume1}=  volume1
-${volume2}=  volume2
-${volume3}=  volume3
+${volume1}=  volume1_photon2
+${volume2}=  volume2_photon2
+${volume3}=  volume3_photon2
 ${nginx_test1}=  nginx-test1
 ${nginx_test2}=  nginx-test2
 ${nginx_test3}=  nginx-test3
@@ -139,6 +139,7 @@ Actions After Upgrade
     ${rc}  ${volume3_container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${volume3}:${mydata} ${busybox} sh -c "echo '<p>HelloWorld3</p>' > /${mydata}/index.html"
     Log  ${volume3_container}
     Should Be Equal As Integers  ${rc}  0
+    Wait Until Container Stops  ${volume3_container}    
     
     # Check running container and total container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -q
