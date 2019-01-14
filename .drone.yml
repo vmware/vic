@@ -205,7 +205,7 @@ pipeline:
     secrets:
       - google_key
     source: bundle
-    target: vic-engine-pr-builds/pull/${DRONE_PULL_REQUEST}/
+    target: vic-engine-builds/
     acl:
       - 'allUsers:READER'
     cache_control: 'public,max-age=3600'
