@@ -53,3 +53,10 @@ Group 5 - Functional Tests
 [Test 5-27 - Selenium Grid](5-27-Selenium-Grid.md)
 -
 [Test 5-28 - VICAdmin Isolated](5-28-VICAdmin-Isolated.md)
+-
+[Test 5-29 - Opaque Network](5-29-Opaque-Network.md)
+-
+[Test 5-30 - Docker Compose ELK](5-30-Docker-Compose-ELK.md)
+
+
+
