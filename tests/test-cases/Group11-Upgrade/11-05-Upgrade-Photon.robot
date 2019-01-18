@@ -67,11 +67,11 @@ Create Containers With Volumes
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${volume1_container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${volume1}:${mydata} ${busybox} sh -c "echo '<p>HelloWorld1</p>' > /${mydata}/index.html"
+    ${rc}  ${volume1_container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${volume1}:${mydata} ${busybox} sh -c "echo '<p>HelloWorld1</p>' > ${mydata}/index.html"
     Log  ${volume1_container}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${volume2_container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${volume2}:${mydata} ${busybox} sh -c "echo '<p>HelloWorld2</p>' > /${mydata}/index.html"
+    ${rc}  ${volume2_container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${volume2}:${mydata} ${busybox} sh -c "echo '<p>HelloWorld2</p>' > ${mydata}/index.html"
     Log  ${volume2_container}
     Should Be Equal As Integers  ${rc}  0
 
@@ -136,7 +136,7 @@ Actions After Upgrade
     Should Contain  ${output}  ${volume2}  
     Should Contain  ${output}  ${volume3}
 
-    ${rc}  ${volume3_container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${volume3}:${mydata} ${busybox} sh -c "echo '<p>HelloWorld3</p>' > /${mydata}/index.html"
+    ${rc}  ${volume3_container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${volume3}:${mydata} ${busybox} sh -c "echo '<p>HelloWorld3</p>' > ${mydata}/index.html"
     Log  ${volume3_container}
     Should Be Equal As Integers  ${rc}  0
     Wait Until Container Stops  ${volume3_container}    
