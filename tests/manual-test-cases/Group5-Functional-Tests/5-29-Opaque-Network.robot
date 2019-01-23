@@ -15,8 +15,9 @@
 *** Settings ***
 Documentation  Test 5-29 - Opaque Network
 Resource  ../../resources/Util.robot
-Suite Setup  Vdnet NSXT Topology Setup
-Suite Teardown  Vdnet NSXT Topology Cleanup  ${NIMBUS_POD}  ${testrunid}
+Suite Setup  Debug
+#Suite Setup  Vdnet NSXT Topology Setup
+#Suite Teardown  Vdnet NSXT Topology Cleanup  ${NIMBUS_POD}  ${testrunid}
 
 *** Variables ***
 ${NIMBUS_LOCATION}  sc
@@ -39,6 +40,25 @@ ${NIMBUS_NSXT_PASSWORD}  Q2D6EEi8k7hcWL2xj99
 ${nimbus_personal_user_cache}  %{NIMBUS_PERSONAL_USER}
 
 *** Keywords ***
+Debug
+    Set Environment Variable  DRONE_BUILD_NUMBER  0
+    Log To Console  Set environment variables up for GOVC
+    Set Environment Variable  TEST_URL_ARRAY  10.92.251.32
+    Set Environment Variable  TEST_URL  10.92.251.32
+    Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  TEST_PASSWORD  Admin\!23
+    Set Environment Variable  TEST_DATASTORE  vdnetSharedStorage
+    Set Environment Variable  TEST_DATACENTER  /os-test-dc
+    Set Environment Variable  TEST_RESOURCE  os-compute-cluster-1
+    Set Environment Variable  TEST_TIMEOUT  45m
+
+    Set Environment Variable  GOVC_INSECURE  1
+    Set Environment Variable  GOVC_URL  10.92.251.32
+    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  GOVC_PASSWORD  Admin\!23
+
+    Set Environment Variable  NSXT_MANAGER_URI  10.92.241.208
+    
 Vdnet NSXT Topology Setup
     [Timeout]    120 minutes
     Run Keyword If  "${NIMBUS_LOCATION}" == "wdc"  Set Suite Variable  ${NFS}  10.92.103.33
@@ -182,7 +202,7 @@ Basic VIC Tests with NSXT Topology
     Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
 
 Selenium Grid Test in NSXT
-    [Timeout]  90 minutes
+    [Timeout]  180 minutes
     Log To Console  Starting Selenium Grid test in NSXT...
     ${bridge_ls_name_1}=  Evaluate  'vic-selenium-bridge-ls-1'
  
@@ -211,16 +231,16 @@ Selenium Grid Test in NSXT
     Set Environment Variable  BRIDGE_NETWORK  ${bridge_ls_name_2}
     Install VIC Appliance and Run Selenium Grid Test  Grid2  cleanup=${false}
   
-    ${status}=  Get State Of Github Issue  8435
-    Run Keyword If  '${status}' == 'closed'  Fail this case now that Issue #8435 has been resolved
+ #   ${status}=  Get State Of Github Issue  8435
+ #   Run Keyword If  '${status}' == 'closed'  Fail this case now that Issue #8435 has been resolved
     
-#    uncoment the followings when #8435 is resolved
-#    Sleep  300
-#    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
-#
-#    Set Environment Variable  VCH-NAME  ${vch_name_1}
-#    Set Environment Variable  BRIDGE_NETWORK  ${bridge_ls_name_1}
-#    Set Environment Variable  VCH-PARAMS  ${vch_params_1}
-#    Set Environment Variable  VIC-ADMIN  ${vic_admin_1}
-#
-#    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
+    #uncoment the followings when #8435 is resolved
+    Sleep  300
+    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
+
+    Set Environment Variable  VCH-NAME  ${vch_name_1}
+    Set Environment Variable  BRIDGE_NETWORK  ${bridge_ls_name_1}
+    Set Environment Variable  VCH-PARAMS  ${vch_params_1}
+    Set Environment Variable  VIC-ADMIN  ${vic_admin_1}
+
+    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
