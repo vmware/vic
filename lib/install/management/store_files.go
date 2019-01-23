@@ -173,7 +173,7 @@ func (d *Dispatcher) deleteFilesIteratively(m *object.DatastoreFileManager, ds *
 		}
 
 		for _, path := range res {
-			if err = d.deleteVMFSFiles(m, ds, path); err != nil {
+			if err = d.deleteVMFSFiles(m, ds, path); err != nil && !types.IsFileNotFound(err) {
 				return err
 			}
 		}
