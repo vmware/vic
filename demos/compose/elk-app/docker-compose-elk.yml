@@ -1,0 +1,165 @@
+version: '2'
+services:
+  vic-elasticsearch-1:
+    image: elasticsearch:6.4.2
+    container_name: elastic1
+    command: |
+      sh -c 'sysctl -w vm.max_map_count=262144 && /usr/local/bin/docker-entrypoint.sh eswrapper'
+    environment:
+      - cluster.name=vic-cluster
+      - node.name=vic-elasticsearch-1
+      - discovery.type=zen
+      - "discovery.zen.ping.unicast.hosts=vic-elasticsearch-2,vic-elasticsearch-3"
+      - discovery.zen.minimum_master_nodes=2
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - ELASTIC_PASSWORD=changeme
+      - ALLOW_INSECURE_DEFAULT_TLS_CERT="true"
+    volumes:
+      - esdata1:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+      - 9300:9300
+    networks:
+      - es--net
+
+  vic-elasticsearch-2:
+    image: elasticsearch:6.4.2
+    container_name: elastic2
+    command: |
+      sh -c 'sysctl -w vm.max_map_count=262144 && /usr/local/bin/docker-entrypoint.sh eswrapper'
+    environment:
+      - cluster.name=vic-cluster
+      - node.name=vic-elasticsearch-2
+      - discovery.type=zen
+      - "discovery.zen.ping.unicast.hosts=vic-elasticsearch-1,vic-elasticsearch-3"
+      - discovery.zen.minimum_master_nodes=2
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - ELASTIC_PASSWORD=changeme
+      - ALLOW_INSECURE_DEFAULT_TLS_CERT="true"
+    volumes:
+      - esdata2:/usr/share/elasticsearch/data
+    ports:
+      - 9201:9200
+      - 9301:9300
+    networks:
+      - es--net
+
+  vic-elasticsearch-3:
+    image: elasticsearch:6.4.2
+    container_name: elastic3
+    command: |
+      sh -c 'sysctl -w vm.max_map_count=262144 && /usr/local/bin/docker-entrypoint.sh eswrapper'
+    environment:
+      - cluster.name=vic-cluster
+      - node.name=vic-elasticsearch-3
+      - discovery.type=zen
+      - "discovery.zen.ping.unicast.hosts=vic-elasticsearch-1,vic-elasticsearch-2"
+      - discovery.zen.minimum_master_nodes=2
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - ELASTIC_PASSWORD=changeme
+      - ALLOW_INSECURE_DEFAULT_TLS_CERT="true"
+    volumes:
+      - esdata3:/usr/share/elasticsearch/data
+    ports:
+      - 9202:9200
+      - 9302:9300
+    networks:
+      - es--net
+
+  logstash-1:
+    image: logstash:6.4.2
+    container_name: logstash1
+    ports:
+      - 5000:5000
+      - 5044:5044
+      - 9600:9600
+    environment:
+      - "LS_JAVA_OPTS=-Xms1g -Xmx1g"
+      - "NODE_NAME=logstash-1"
+      - XPACK_MONITORING_ELASTICSEARCH_URL=[ "vic-elasticsearch-1", "vic-elasticsearch-2","vic-elasticsearch-3"]
+#      - "LOG_LEVEL=debug"
+#      - "XPACK_MONITORING_ENABLED"
+# https://www.elastic.co/guide/en/logstash/current/logstash-settings-file.html
+# All environement variables can be found in the link above
+# Replace . with _ in the options and convert alphabets to all caps for environment variable name
+# These environment variables are written in all capitals, with underscores as word separators
+    networks:
+      - es--net
+    depends_on:
+      - vic-elasticsearch-1
+      - vic-elasticsearch-2
+      - vic-elasticsearch-3
+
+  logstash-2:
+    image: logstash:6.4.2
+    container_name: logstash2
+    ports:
+      - 5001:5000
+      - 5045:5044
+      - 9601:9600
+    environment:
+      - "LS_JAVA_OPTS=-Xms1g -Xmx1g"
+      - "NODE_NAME=logstash-2"
+      - XPACK_MONITORING_ELASTICSEARCH_URL=[ "vic-elasticsearch-1", "vic-elasticsearch-2","vic-elasticsearch-3"]
+    networks:
+      - es--net
+    depends_on:
+      - vic-elasticsearch-1
+      - vic-elasticsearch-2
+      - vic-elasticsearch-3
+
+  kibana-1:
+    image: kibana:6.4.2
+    container_name: kibana1
+    ports:
+      - 5601:5601
+    environment:
+#    Kibana doesn't support talking directly to multiple elasticsearch nodes now
+      - ELASTICSEARCH_URL="http://vic-elasticsearch-1:9200"
+      - XPACK_SECURITY_ENCRYPTIONKEY="something_at_least_32_characters"
+# https://www.elastic.co/guide/en/kibana/current/settings.html
+# All environment variable for Kibana can be found in the link above
+# These environment variables are written in all capitals, with underscores as word separators
+    networks:
+      - es--net
+    depends_on:
+      - vic-elasticsearch-1
+      - vic-elasticsearch-2
+      - vic-elasticsearch-3
+      - logstash-1
+      - logstash-2
+
+  kibana-2:
+    image: kibana:6.4.2
+    container_name: kibana2
+    ports:
+      - 5602:5601
+    environment:
+#    Kibana doesn't support talking directly to multiple elasticsearch nodes now
+      - ELASTICSEARCH_URL="http://vic-elasticsearch-2:9200"
+      - XPACK_SECURITY_ENCRYPTIONKEY="something_at_least_32_characters"
+    networks:
+      - es--net
+    depends_on:
+      - vic-elasticsearch-1
+      - vic-elasticsearch-2
+      - vic-elasticsearch-3
+      - logstash-1
+      - logstash-2
+
+volumes:
+  esdata1:
+    driver: vsphere
+    driver_opts:
+      capacity: 10GB
+  esdata2:
+    driver: vsphere
+    driver_opts:
+      capacity: 10GB
+  esdata3:
+    driver: vsphere
+    driver_opts:
+      capacity: 10GB
+
+networks:
+  es--net:
