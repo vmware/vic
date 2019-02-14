@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 const (
@@ -36,10 +37,14 @@ const (
 	dsScheme   = "ds"
 )
 
-func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec, vch *vm.VirtualMachine) error {
 	defer trace.End(trace.Begin("", d.op))
 	var errs []string
 
+	uuid, err := vch.UUID(d.op)
+	if err != nil {
+		return err
+	}
 	d.op.Info("Removing image stores")
 
 	for _, imageDir := range conf.ImageStores {
@@ -58,7 +63,7 @@ func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) e
 		}
 
 		// delete images subfolder
-		imagePath := path.Join(imageDir.Path, constants.StorageParentDir)
+		imagePath := path.Join(imageDir.Path, constants.StorageParentDir, uuid)
 		if _, err = d.deleteDatastoreFiles(imageDSes[0], imagePath, true); err != nil {
 			errs = append(errs, err.Error())
 		}
@@ -83,7 +88,7 @@ func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) e
 			continue
 		}
 
-		if len(children) == 0 {
+		if len(children) == 1 { // when image store path is given, we need to delete VIC dir too when it is empty.
 			d.op.Debugf("Removing empty image store parent directory [%s] %s", imageDir.Host, imageDir.Path)
 			if _, err = d.deleteDatastoreFiles(imageDSes[0], imageDir.Path, true); err != nil {
 				errs = append(errs, err.Error())
@@ -103,7 +108,7 @@ func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) e
 func (d *Dispatcher) deleteParent(ds *object.Datastore, root string) (bool, error) {
 	defer trace.End(trace.Begin("", d.op))
 
-	// alway forcing delete images
+	// always forcing delete images
 	return d.deleteDatastoreFiles(ds, root, true)
 }
 
