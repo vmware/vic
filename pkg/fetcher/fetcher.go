@@ -67,6 +67,8 @@ type Fetcher interface {
 
 // Token represents https://docs.docker.com/registry/spec/auth/token/
 type Token struct {
+	// An oauth 2.0 token format
+	AccessToken string `json:"access_token"`
 	// An opaque Bearer token that clients should supply to subsequent requests in the Authorization header.
 	Token string `json:"token"`
 	// (Optional) The duration in seconds since the token was issued that it will remain valid. When omitted, this defaults to 60 seconds.
@@ -228,6 +230,9 @@ func (u *URLFetcher) FetchAuthToken(ctx context.Context, url *url.URL) (*Token, 
 		token.Expires = time.Now().Add(DefaultTokenExpirationDuration)
 	} else {
 		token.Expires = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
+	}
+	if token.Token == "" {
+		token.Token = token.AccessToken
 	}
 
 	return token, nil
