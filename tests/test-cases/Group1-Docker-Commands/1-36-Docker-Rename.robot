@@ -124,15 +124,15 @@ Name resolution for a running container after renaming it
     ${status}=  Get State Of Github Issue  4375
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-35-Docker-Rename needs to be updated now that #4375 is closed
 
-    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --name cont9-name1 busybox
-    # Should Be Equal As Integers  ${rc}  0
-    # Should Not Contain  ${output}  Error
-    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename cont9-name1 cont9-name2
-    # Should Be Equal As Integers  ${rc}  0
-    # Should Not Contain  ${output}  Error
-    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --link cont9-name2:cont9alias busybox ping -c2 cont9alias
-    # Should Be Equal As Integers  ${rc}  0
-    # Should Contain  ${output}  2 packets transmitted, 2 packets received
-    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run busybox ping -c2 cont9-name2
-    # Should Be Equal As Integers  ${rc}  0
-    # Should Contain  ${output}  2 packets transmitted, 2 packets received
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --name cont9-name1 busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename cont9-name1 cont9-name2
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --link cont9-name2:cont9alias busybox ping -c2 cont9alias
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  2 packets transmitted, 2 packets received
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run busybox ping -c2 cont9-name2
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  2 packets transmitted, 2 packets received

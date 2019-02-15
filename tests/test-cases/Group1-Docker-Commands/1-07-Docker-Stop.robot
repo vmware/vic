@@ -167,3 +167,13 @@ Stop a container with Docker 1.13 CLI
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} stop ${container}
     Should Be Equal As Integers  ${rc}  0
+
+Inspect the bridge network including the stopped container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name test ${busybox} top
+    Should Be Equal As Integers  ${rc}  0
+    ${ip}=  Get Container IP  %{VCH-PARAMS}  test  bridge
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop test
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network inspect -f '{{.Containers}}' bridge
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${ip}

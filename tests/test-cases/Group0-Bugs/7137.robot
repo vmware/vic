@@ -47,9 +47,9 @@ Check for die events when forcing update via state refresh
     Should Contain  ${events}  die
     Should Not Contain  ${events}  stop
 
-    # network endpoints should have been unbound regardless of which state update was hit (inline triggered by inspect or event based from vsphere)
+    # due to issue 8405 7128 and 8052, the network will not be unbound from containers besides the container is deleted.
     ${rc}  ${bridge}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network inspect bridge
     Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${bridge}  ${id}
+    Should Contain  ${bridge}  ${id}
 
 

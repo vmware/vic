@@ -144,10 +144,12 @@ func handleEvent(netctx *Context, ie events.Event) {
 			return
 		}
 
-		if _, err := netctx.UnbindContainer(op, handle); err != nil {
-			op.Warnf("Failed to unbind container %s: %s", ie.Reference(), err)
-			return
-		}
+		// due to issue 8405, 7128 and 8052, we will not clear out assigned IP address when container is unbounded
+		// when restarted, the container is still using the assigned IP address at the first time
+		//if _, err := netctx.UnbindContainer(op, handle); err != nil {
+		//	op.Warnf("Failed to unbind container %s: %s", ie.Reference(), err)
+		//	return
+		//}
 
 		if err := handle.Commit(op, nil, nil); err != nil {
 			op.Warnf("Failed to commit handle after network unbind for container %s: %s", ie.Reference(), err)

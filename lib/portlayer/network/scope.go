@@ -161,6 +161,7 @@ func (s *Scope) reserveEndpointIP(e *Endpoint) error {
 				e.ip = eip
 				return nil
 			}
+			err = fmt.Errorf("No available IP address in current network %s", s.name)
 		}
 	}
 
@@ -240,6 +241,25 @@ func (s *Scope) RemoveContainer(con *Container) error {
 
 	op.Debugf("Container %s removed from the scope %s(%s)", con.id, s.name, s.id)
 
+	return nil
+}
+
+func (s *Scope) UpdateContainer(con *Container, name string) error {
+	s.Lock()
+	defer s.Unlock()
+
+	if con == nil {
+		return fmt.Errorf("container is nil")
+	}
+
+	op := trace.NewOperation(context.Background(), "Updating container name in the scope")
+	c, ok := s.containers[con.id]
+	if !ok || c != con {
+		op.Debugf("Container %s not found in the scope %s(%s)", con.id, s.name, s.id)
+		return fmt.Errorf("container is not found")
+	}
+	c.name = name
+	s.containers[con.id] = c
 	return nil
 }
 
