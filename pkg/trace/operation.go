@@ -48,18 +48,25 @@ type Operation struct {
 type operation struct {
 	t  []Message
 	id string
+	// TODO: might want to do this via a Formatter, but just testing here
+	indent string
 }
 
-func newOperation(ctx context.Context, id string, skip int, msg string) Operation {
+func newOperation(ctx context.Context, id string, skip int, msg string) *Operation {
 	op := operation{
 
 		// Can be used to trace based on this number which is unique per chain
 		// of operations
 		id: id,
-
-		// Start the trace.
-		t: []Message{*newTrace(msg, skip, id)},
 	}
+
+	o := &Operation{
+		Context:   ctx,
+		operation: op,
+	}
+
+	// Start the trace.
+	o.operation.t = []Message{*newTrace(msg, skip, o)}
 
 	// We need to be able to identify this operation across API (and process)
 	// boundaries.  So add the trace as a value to the embedded context.  We
@@ -72,11 +79,6 @@ func newOperation(ctx context.Context, id string, skip int, msg string) Operatio
 	// For example if the op.id was 299.16 hostd would show
 	// verbose hostd[12281B70] [Originator@6876 sub=PropertyProvider opID=299.16-5b05 user=root]
 	ctx = context.WithValue(ctx, types.ID{}, op.id)
-
-	o := Operation{
-		Context:   ctx,
-		operation: op,
-	}
 
 	return o
 }
@@ -97,7 +99,7 @@ func (o Operation) Err() error {
 		buf := &bytes.Buffer{}
 
 		// Add a frame for this Err call, then walk the stack
-		currFrame := newTrace("Err", 2, o.id)
+		currFrame := newTrace("Err", 2, &o)
 		fmt.Fprintf(buf, "%s: %s error: %s\n", currFrame.funcName, o.t[0].msg, err)
 
 		// handle the carriage return
@@ -140,7 +142,7 @@ func (o *Operation) Infof(format string, args ...interface{}) {
 func (o *Operation) Info(args ...interface{}) {
 	msg := fmt.Sprint(args...)
 
-	Logger.Infof("%s: %s", o.header(), msg)
+	Logger.Infof("%s: %s%s", o.header(), o.indent, msg)
 
 	if o.Logger != nil {
 		o.Logger.Info(msg)
@@ -154,7 +156,7 @@ func (o *Operation) Debugf(format string, args ...interface{}) {
 func (o *Operation) Debug(args ...interface{}) {
 	msg := fmt.Sprint(args...)
 
-	Logger.Debugf("%s: %s", o.header(), msg)
+	Logger.Debugf("%s: %s%s", o.header(), o.indent, msg)
 
 	if o.Logger != nil {
 		o.Logger.Debug(msg)
@@ -168,7 +170,7 @@ func (o *Operation) Warnf(format string, args ...interface{}) {
 func (o *Operation) Warn(args ...interface{}) {
 	msg := fmt.Sprint(args...)
 
-	Logger.Warnf("%s: %s", o.header(), msg)
+	Logger.Warnf("%s: %s%s", o.header(), o.indent, msg)
 
 	if o.Logger != nil {
 		o.Logger.Warn(msg)
@@ -182,7 +184,7 @@ func (o *Operation) Errorf(format string, args ...interface{}) {
 func (o *Operation) Error(args ...interface{}) {
 	msg := fmt.Sprint(args...)
 
-	Logger.Errorf("%s: %s", o.header(), msg)
+	Logger.Errorf("%s: %s%s", o.header(), o.indent, msg)
 
 	if o.Logger != nil {
 		o.Logger.Error(msg)
@@ -196,7 +198,7 @@ func (o *Operation) Panicf(format string, args ...interface{}) {
 func (o *Operation) Panic(args ...interface{}) {
 	msg := fmt.Sprint(args...)
 
-	Logger.Panicf("%s: %s", o.header(), msg)
+	Logger.Panicf("%s: %s%s", o.header(), o.indent, msg)
 
 	if o.Logger != nil {
 		o.Logger.Panic(msg)
@@ -210,25 +212,29 @@ func (o *Operation) Fatalf(format string, args ...interface{}) {
 func (o *Operation) Fatal(args ...interface{}) {
 	msg := fmt.Sprint(args...)
 
-	Logger.Fatalf("%s: %s", o.header(), msg)
+	Logger.Fatalf("%s: %s%s", o.header(), o.indent, msg)
 
 	if o.Logger != nil {
 		o.Logger.Fatal(msg)
 	}
 }
 
-func (o Operation) newChildCommon(ctx context.Context, opID string, msg string) Operation {
+func (o *Operation) newChildCommon(ctx context.Context, opID string, msg string) *Operation {
 	child := newOperation(ctx, opID, 5, msg)
 	child.t = append(child.t, o.t...)
 	child.Logger = o.Logger
+	// increase the indent
+	child.indent = o.indent + "  "
+
+	o.Debugf("[ChildOperation: %s] %s", child.id, msg)
 	return child
 }
 
-func (o Operation) newChild(ctx context.Context, msg string) Operation {
-	return o.newChildCommon(ctx, o.id, msg)
+func (o *Operation) newChild(ctx context.Context, msg string) *Operation {
+	return o.newChildCommon(ctx, opID(atomic.AddUint64(&opCount, 1)), msg)
 }
 
-func (o Operation) newChildWithChainedID(ctx context.Context, msg string) Operation {
+func (o *Operation) newChildWithChainedID(ctx context.Context, msg string) *Operation {
 	childOpID := fmt.Sprintf("%s.%d", o.id, atomic.AddUint64(&opCount, 1))
 	return o.newChildCommon(ctx, childOpID, msg)
 }
@@ -239,10 +245,15 @@ func opID(opNum uint64) string {
 
 // NewOperation will return a new operation with operationID added as a value to the context
 func NewOperation(ctx context.Context, format string, args ...interface{}) Operation {
-	o := newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, fmt.Sprintf(format, args...))
+	return *decoratedNewOperation(ctx, "NewOperation", format, args...)
+}
+
+func decoratedNewOperation(ctx context.Context, decoration, format string, args ...interface{}) *Operation {
+	detail := fmt.Sprintf(format, args...)
+	o := newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 4, detail)
 
 	frame := o.t[0]
-	o.Debugf("[NewOperation] %s [%s:%d]", o.header(), frame.funcName, frame.lineNo)
+	o.Debugf("[%s][%s:%d] %s", decoration, frame.funcName, frame.lineNo, detail)
 	return o
 }
 
@@ -253,10 +264,10 @@ func NewOperation(ctx context.Context, format string, args ...interface{}) Opera
 func NewOperationFromID(ctx context.Context, ID *string, format string, args ...interface{}) Operation {
 	var o Operation
 	if ID == nil || *ID == "" {
-		o = newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, fmt.Sprintf(format, args...))
+		o = *newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, fmt.Sprintf(format, args...))
 	} else {
 		msg := fmt.Sprintf(format, args...)
-		o = newOperation(ctx, *ID, 3, msg).newChildWithChainedID(ctx, msg)
+		o = *newOperation(ctx, *ID, 3, msg).newChildWithChainedID(ctx, msg)
 	}
 
 	frame := o.t[0]
@@ -281,7 +292,7 @@ func WithTimeout(parent *Operation, timeout time.Duration, format string, args .
 	ctx, cancelFunc := context.WithTimeout(parent.Context, timeout)
 	op := parent.newChild(ctx, fmt.Sprintf(format, args...))
 
-	return op, cancelFunc
+	return *op, cancelFunc
 }
 
 // WithDeadline creates a new operation from parent with context.WithDeadline
@@ -289,7 +300,7 @@ func WithDeadline(parent *Operation, expiration time.Time, format string, args .
 	ctx, cancelFunc := context.WithDeadline(parent.Context, expiration)
 	op := parent.newChild(ctx, fmt.Sprintf(format, args...))
 
-	return op, cancelFunc
+	return *op, cancelFunc
 }
 
 // WithCancel creates a new operation from parent with context.WithCancel
@@ -297,7 +308,7 @@ func WithCancel(parent *Operation, format string, args ...interface{}) (Operatio
 	ctx, cancelFunc := context.WithCancel(parent.Context)
 	op := parent.newChild(ctx, fmt.Sprintf(format, args...))
 
-	return op, cancelFunc
+	return *op, cancelFunc
 }
 
 // WithValue creates a new operation from parent with context.WithValue
@@ -305,45 +316,72 @@ func WithValue(parent *Operation, key, val interface{}, format string, args ...i
 	ctx := context.WithValue(parent.Context, key, val)
 	op := parent.newChild(ctx, fmt.Sprintf(format, args...))
 
-	return op
+	return *op
 }
 
 // FromOperation creates a child operation from the one supplied
 // uses the same context as the parent
 func FromOperation(parent Operation, format string, args ...interface{}) Operation {
-	return parent.newChild(parent.Context, fmt.Sprintf(format, args...))
+	return *parent.newChild(parent.Context, fmt.Sprintf(format, args...))
 }
 
-// FromContext will return an Operation
+// fromContext will return an Operation
+//
+// The Operation returned will be one of the following:
+//   The operation in the context value
+//   The operation passed as the context param
+//   nil if neither of the above are true
+func fromContext(ctx context.Context) *Operation {
+
+	// do we have an operation - if we do we're creating a new child from the one in the context
+	// While we could just use it directly we'd be losing the presumably valuable message
+	if op, ok := ctx.(Operation); ok {
+		return &op
+	}
+
+	// do we have a context w/the op added as a value
+	op, ok := ctx.Value(OpTraceKey).(operation)
+	if !ok || op.id == "" {
+		return nil
+	}
+
+	// return an operation based off the context value
+	return &Operation{
+		Context:   ctx,
+		operation: op,
+	}
+}
+
+// FromContext will return an Operation. The message will only be used in the case of
+// a new Operation being created, i.e. there was no operation found in the context
 //
 // The Operation returned will be one of the following:
 //   The operation in the context value
 //   The operation passed as the context param
 //   A new operation
 func FromContext(ctx context.Context, message string, args ...interface{}) Operation {
-
-	// do we have an operation
-	if op, ok := ctx.(Operation); ok {
-		return op
+	cop := fromContext(ctx)
+	if cop != nil {
+		return *cop
 	}
 
-	// do we have a context w/the op added as a value
-	if op, ok := ctx.Value(OpTraceKey).(operation); ok {
-		// ensure we have an initialized operation
-		if op.id == "" {
-			return NewOperation(ctx, message, args...)
-		}
-		// return an operation based off the context value
-		return Operation{
-			Context:   ctx,
-			operation: op,
-		}
+	return *decoratedNewOperation(ctx, "NewOperationFromContext", message, args...)
+}
+
+// ChildFromContext will return an Operation
+//
+// The Operation returned will be one of the following:
+//   A child of the operation in the context value
+//   A child of the operation passed as the context param
+//   A new operation
+func ChildFromContext(ctx context.Context, message string, args ...interface{}) Operation {
+
+	// do we have an operation - if we do we're creating a new child from the one in the context
+	// While we could just use it directly we'd be losing the presumably valuable message
+	parent := fromContext(ctx)
+	if parent != nil {
+		return *parent.newChild(parent.Context, fmt.Sprintf(message, args...))
 	}
 
-	op := newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, fmt.Sprintf(message, args...))
-	frame := op.t[0]
-	Logger.Debugf("%s: [OperationFromContext] [%s:%d]", op.id, frame.funcName, frame.lineNo)
-
-	// return the new operation
-	return op
+	return *decoratedNewOperation(ctx, "NewChildFromContext", message, args...)
 }
