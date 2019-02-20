@@ -14,7 +14,7 @@
     "dontupgstafsdk": 1,
     "noTools": 1,
     "racetrack": "jarvis@racetrack.eng.vmware.com",
-    "params": "/src/nsx-qe/vdnet/automation/TDS/NSXTransformers/Openstack/HybridEdge/OSDeployTds.yaml::DeployOSMHTestbed  --exit-on-workload CreateIPDiscoveryProfile --testdata /src/nsx-qe/vdnet/automation/TDS/NSXTransformers/Common/JarvisTestData.yaml",
+    "params": "/src/%{NIMBUS_PERSONAL_USER}/nsx-qe/vdnet/automation/TDS/NSXTransformers/Openstack/HybridEdge/OSDeployTds.yaml::DeployOSMHTestbed  --exit-on-workload CreateIPDiscoveryProfile --testdata /src/%{NIMBUS_PERSONAL_USER}/nsx-qe/vdnet/automation/TDS/NSXTransformers/Common/JarvisTestData.yaml",
     "useSamePod": 1,
     "nimbus_location": "${NIMBUS_LOCATION}",
     "env_user": "%{NIMBUS_PERSONAL_USER}",
@@ -44,7 +44,7 @@
     },
     "network": {
       "[1]": {
-        "name": "isolated-06"
+        "name": "isolated-06-${TESTRUNID}"
       }
     },
     "nsxedge": {
