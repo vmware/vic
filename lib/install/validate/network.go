@@ -318,13 +318,8 @@ func (v *Validator) network(op trace.Operation, input *data.Data, conf *config.V
 	// we also need to have the appliance attached to the bridge network to allow
 	// port forwarding
 	conf.AddNetwork(bridgeNet)
-
-	// make sure that the bridge IP pool is large enough for bridge networks
-	err = v.checkBridgeIPRange(input.BridgeIPRange)
-	if err != nil {
-		v.NoteIssue(err)
-	}
 	conf.BridgeIPRange = input.BridgeIPRange
+	conf.BridgeNetworkWidth = input.BridgeNetworkWidth
 
 	op.Debug("Network configuration:")
 	for net, val := range conf.ExecutorConfig.Networks {

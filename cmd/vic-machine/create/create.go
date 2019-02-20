@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"path"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -60,8 +61,9 @@ type Create struct {
 	memoryReservLimits string
 	cpuReservLimits    string
 
-	help          common.Help
-	BridgeIPRange string
+	help               common.Help
+	BridgeIPRange      string
+	BridgeNetworkWidth string
 
 	Proxies common.Proxies
 
@@ -131,6 +133,13 @@ func (c *Create) Flags() []cli.Flag {
 			Value:       "172.16.0.0/12",
 			Usage:       "The IP range from which bridge networks are allocated",
 			Destination: &c.BridgeIPRange,
+			Hidden:      true,
+		},
+		cli.StringFlag{
+			Name:        "bridge-network-width, bnw",
+			Value:       "16",
+			Usage:       "The default width of each new bridge network",
+			Destination: &c.BridgeNetworkWidth,
 			Hidden:      true,
 		},
 
@@ -420,6 +429,16 @@ func (c *Create) ProcessBridgeNetwork() error {
 	if err != nil {
 		return cli.NewExitError(fmt.Sprintf("Error parsing bridge network ip range: %s. Range must be in CIDR format, e.g., 172.16.0.0/12", err), 1)
 	}
+	width, err := strconv.Atoi(c.BridgeNetworkWidth)
+	if err != nil || width > 30 {
+		return cli.NewExitError(fmt.Sprintf("Error parsing bridge network width: %s. Width must be an integer less than 31.", err), 1)
+	}
+	s, _ := c.Data.BridgeIPRange.Mask.Size()
+	if width < s {
+		return cli.NewExitError(fmt.Sprintf("Error specifying bridge network width: %d. Width must be larger than prefix of bridge network ip range.", width), 1)
+	}
+	w := net.CIDRMask(width, 32)
+	c.Data.BridgeNetworkWidth = &w
 	return nil
 }
 

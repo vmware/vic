@@ -60,7 +60,8 @@ type Data struct {
 	common.ContainerNetworks `cmd:"container-network"`
 	common.ResourceLimits
 
-	BridgeIPRange *net.IPNet `cmd:"bridge-network-range"`
+	BridgeIPRange      *net.IPNet  `cmd:"bridge-network-range"`
+	BridgeNetworkWidth *net.IPMask `cmd:"bridge-network-width"`
 
 	InsecureRegistries  []string `cmd:"insecure-registry"`
 	WhitelistRegistries []string `cmd:"whitelist-registry"`

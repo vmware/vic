@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/go-openapi/runtime/middleware"
@@ -182,6 +183,7 @@ func (h *vchCreate) buildCreate(op trace.Operation, d *data.Data, finder client.
 				}
 				c.BridgeNetworkName = path
 				c.BridgeIPRange = decode.FromCIDR(&vch.Network.Bridge.IPRange)
+				c.BridgeNetworkWidth = strconv.Itoa(int(vch.Network.Bridge.NetworkWidth))
 
 				if err := c.ProcessBridgeNetwork(); err != nil {
 					return nil, errors.WrapError(http.StatusBadRequest, err)

@@ -371,6 +371,7 @@ func setBridgeNetwork(op trace.Operation, finder Finder, d *data.Data, conf *con
 	}
 	d.BridgeNetworkName = name
 	d.BridgeIPRange = conf.Network.BridgeIPRange
+	d.BridgeNetworkWidth = conf.Network.BridgeNetworkWidth
 
 	return nil
 }

@@ -92,6 +92,8 @@ func NewContext(config *Configuration, kv kvstore.KeyValueStore) (*Context, erro
 
 	pones, pbits := bridgeRange.Mask.Size()
 	mones, mbits := bridgeWidth.Size()
+	log.Debugf("Bridge network width is: %d", mones)
+
 	if pbits != mbits || mones < pones {
 		return nil, fmt.Errorf("bridge mask is not compatible with bridge pool mask")
 	}
