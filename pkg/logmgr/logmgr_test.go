@@ -37,27 +37,23 @@ func TestContentIsGeneratedAndSaved(t *testing.T) {
 	}
 	expectedConfig := `/var/log/test.log {
     compress
-    hourly
     rotate 3
     size 10000
-    minsize 9999
     copytruncate
     dateext
     dateformat -%Y%m%d-%s
 }
 
 /var/log/test1.log {
-    daily
     rotate 2
     size 20000
-    minsize 19999
     copytruncate
     dateext
     dateformat -%Y%m%d-%s
 }
 `
-	m.AddLogRotate("/var/log/test.log", Hourly, 10000, 3, true)
-	m.AddLogRotate("/var/log/test1.log", Daily, 20000, 2, false)
+	m.AddLogRotate("/var/log/test.log", 10000, 3, true)
+	m.AddLogRotate("/var/log/test1.log", 20000, 2, false)
 	actualConfig := m.buildConfig()
 	assert.Equal(t, expectedConfig, actualConfig)
 
@@ -86,8 +82,8 @@ func TestStartAndStop(t *testing.T) {
 	if !assert.Nil(t, e) {
 		return
 	}
-	m.AddLogRotate("/var/log/test.log", Hourly, 10000, 3, true)
-	m.AddLogRotate("/var/log/test1.log", Daily, 20000, 2, false)
+	m.AddLogRotate("/var/log/test.log", 10000, 3, true)
+	m.AddLogRotate("/var/log/test1.log", 20000, 2, false)
 
 	go func() {
 		assert.Nil(t, m.Start(nil))
