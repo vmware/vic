@@ -30,9 +30,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-// RotateInterval defines a type for a log rotate frequency.
-type RotateInterval uint32
-
 // LogRotateBinary points to a logrotate path in the system. For testing purposes it should be overwritten to be empty.
 var LogRotateBinary = "/usr/sbin/logrotate"
 
