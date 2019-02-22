@@ -159,6 +159,15 @@ High Availability Setup
     Set Environment Variable  TEST_DATASTORE  nfsDatastore
     Set Environment Variable  TEST_TIMEOUT  30m
 
+Check All VM Migration Succeed
+    [Arguments]  ${poweroff_host_ip}
+    :FOR  ${index}  IN RANGE  15
+    \     ${info}=  Run  govc vm.info \\*
+    \     ${status}=  Run Keyword And Return Status  Should Not Contain  ${info}  ${poweroff_host_ip}
+    \     Exit For Loop If  ${status}
+    \     Sleep  1m
+    Log  ${info}
+
 *** Test Cases ***
 Test
     Install VIC Appliance To Test Server  certs=${false}  vol=default
@@ -223,14 +232,15 @@ Test
     ${shortContainerID}=  Get Substring  ${containerMountDataTestID}  0  12
     ${testContainerName}=  Set Variable  ${mntDataTestContainer}-${shortContainerID}
     ${testContainerHost}=  Get VM Host Name  ${testContainerName}
-    Log  ${testContainerHost}
+    Log  ${testContainerHost} ${curHost}
     Run Keyword If  "${testContainerHost}" == "${curHost}"  Wait Until Keyword Succeeds  30x  10s  VM Host Has Changed  ${curHost}  ${testContainerName}
 
     # Remove Mount Data Test Container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${containerMountDataTestID}
     Should Be Equal As Integers  ${rc}  0
     Wait Until Keyword Succeeds  10x  6s  Check That VM Is Removed  ${containerMountDataTestID}
-
+    
+    Check All VM Migration Succeed  ${curHost}
     # check running containers are still running
     :FOR  ${c}  IN  @{running}
     \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --format '{{.State.Status}}' ${c}
