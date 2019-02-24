@@ -35,14 +35,10 @@ Re-Enable Ops User And Clean Up VIC Appliance
 
     Reload VCH Related Environment Variables  ${vchName1}  ${vchIP1}  ${vchParams1}  ${vchAdmin1}
     Clean up VIC Appliance And Local Binary
-# the first rm vch failure, this issue is same to https://github.com/vmware/vic-product/issues/2197.
     Reload VCH Related Environment Variables  ${vchName2}  ${vchIP2}  ${vchParams2}  ${vchAdmin2}
-    Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
+    Cleanup VIC Appliance On Test Server
     Reload VCH Related Environment Variables  ${vchName3}  ${vchIP3}  ${vchParams3}  ${vchAdmin3}
     Cleanup VIC Appliance On Test Server
-# the second rm vch success, ensure test environment is clean. 
-    Reload VCH Related Environment Variables  ${vchName2}  ${vchIP2}  ${vchParams2}  ${vchAdmin2}
-    Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
 
 Create Containers For VCH_1
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name c-vm1 -id busybox
