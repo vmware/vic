@@ -89,6 +89,9 @@ func (i *Range) Network() *net.IPNet {
 		if l != last[j] {
 			return nil
 		}
+		if f != (f & mask[j]) {
+			return nil
+		}
 	}
 
 	return &net.IPNet{IP: first, Mask: mask}

@@ -311,7 +311,9 @@ func (s *AddressSpace) ReserveIP4Range(firstIP net.IP, lastIP net.IP) (*AddressS
 			firstIP.String(), lastIP.String(), s.Pool.FirstIP, s.Pool.LastIP)
 	}
 
-	log.Errorf(err.Error())
+	// For some cases, it is not an error if the IP range cannot be reserved in an existing pool
+	// For example, --container-network-ip-range cnr:192.168.10.10-192.168.10.100 --container-network-gateway cnr:192.168.10.1/24
+	log.Infof(err.Error())
 
 	return nil, err
 }
