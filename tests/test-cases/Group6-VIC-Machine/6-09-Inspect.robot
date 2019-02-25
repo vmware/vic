@@ -44,6 +44,7 @@ Inspect VCH Basic
     Should Contain  ${output}  VCH Admin Portal
     Should Contain  ${output}  Published ports can be reached at
     Should Contain  ${output}  Connect to docker
+    Should Contain  ${output}  VCH Default Bridge Network
 
 Inspect VCH Configuration
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect config --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} --compute-resource=%{TEST_RESOURCE}
@@ -61,6 +62,7 @@ Inspect VCH Configuration
     Should Not Contain  ${output}  --memory-shares
     Should Not Contain  ${output}  --base-image-size
     Should Not Contain  ${output}  --bridge-network-range
+    Should Not Contain  ${output}  --bridge-network-width
     Should Be Equal As Integers  0  ${rc}
 
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect config --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} --compute-resource=%{TEST_RESOURCE} --format raw
@@ -78,6 +80,7 @@ Inspect VCH Configuration
     Should Not Contain  ${output}  --memory-shares
     Should Not Contain  ${output}  --base-image-size
     Should Not Contain  ${output}  --bridge-network-range
+    Should Not Contain  ${output}  --bridge-network-width
     Should Not Contain  ${output}  INFO
     Should Not Contain  ${output}  WARN
     Should Be Equal As Integers  0  ${rc}

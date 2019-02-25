@@ -25,7 +25,7 @@ import (
 
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
-	cli "gopkg.in/urfave/cli.v1"
+	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/govmomi/list"
 	"github.com/vmware/govmomi/vim25/types"
@@ -97,7 +97,8 @@ func TestCreateVCH(t *testing.T) {
 		},
 		Network: &models.VCHNetwork{
 			Bridge: &models.VCHNetworkBridge{
-				IPRange: "17.16.0.0/12",
+				IPRange:      "17.16.0.0/12",
+				NetworkWidth: 16,
 				PortGroup: &models.ManagedObject{
 					ID:   "bridge", // required for mocked finder to work
 					Name: "bridge",
@@ -185,6 +186,7 @@ func newCreate() *create.Create {
 	ca.Compute = common.Compute{DisplayName: "TestCluster"}
 	ca.ImageDatastorePath = "ds://test/datastore"
 	ca.BridgeIPRange = "17.16.0.0/12"
+	ca.BridgeNetworkWidth = "16"
 	ca.BridgeNetworkName = "bridge"
 	ca.PublicNetworkName = "public"
 	ca.Certs.Cname = "vch.example.com"

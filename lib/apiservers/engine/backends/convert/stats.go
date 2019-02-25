@@ -134,7 +134,7 @@ func (cs *ContainerStats) Listen() *io.PipeWriter {
 	doc := json.NewEncoder(cs.config.Out)
 
 	// channel to transfer metric from decoder to encoder
-	metric := make(chan performance.VMMetrics)
+	metric := make(chan *types.StatsJSON)
 
 	// if we aren't streaming and the container is not running, then create an empty
 	// docker stat to return
@@ -145,7 +145,6 @@ func (cs *ContainerStats) Listen() *io.PipeWriter {
 	// go routine to stop on Context.Cancel
 	go func() {
 		<-cs.config.Ctx.Done()
-		close(metric)
 		cs.Stop()
 	}()
 
@@ -155,6 +154,7 @@ func (cs *ContainerStats) Listen() *io.PipeWriter {
 		for {
 			select {
 			case <-cs.config.Ctx.Done():
+				close(metric)
 				return
 			default:
 				for dec.More() {
@@ -163,10 +163,20 @@ func (cs *ContainerStats) Listen() *io.PipeWriter {
 					if err != nil {
 						log.Errorf("container metric decoding error for container(%s): %s", cs.config.ContainerID, err)
 						cs.config.Cancel()
+						close(metric)
+						return
+					}
+					// convert the Stat to docker struct
+					stat, err := cs.ToContainerStats(&vmm)
+					if err != nil {
+						log.Errorf("container metric conversion error for container(%s): %s", cs.config.ContainerID, err)
+						cs.config.Cancel()
+						close(metric)
+						return
 					}
 					// send the decoded metric for transform and encoding
 					if cs.IsListening() {
-						metric <- vmm
+						metric <- stat
 					}
 				}
 			}
@@ -183,13 +193,7 @@ func (cs *ContainerStats) Listen() *io.PipeWriter {
 			case <-cs.config.Ctx.Done():
 				ticker.Stop()
 				return
-			case nm := <-metric:
-				// convert the Stat to docker struct
-				stat, err := cs.ToContainerStats(&nm)
-				if err != nil {
-					log.Errorf("container metric conversion error for container(%s): %s", cs.config.ContainerID, err)
-					cs.config.Cancel()
-				}
+			case stat := <-metric:
 				if stat != nil {
 					cs.preDockerStat = stat
 				}

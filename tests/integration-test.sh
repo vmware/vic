@@ -86,6 +86,16 @@ outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT".zip"
 ( cd $bootstrapdir && for f in *; do mv $f ../$bootstrapdir"_"$f; done)
 zip -9 -j $outfile $bootstrapdir"_"* output.xml log.html report.html package.list *container-logs*.zip *.log /var/log/vic-machine-server/vic-machine-server.log *.debug
 
+LOG_SERVER_IP='10.160.126.166'
+LOG_SERVER_USERNAME='root'
+LOG_SERVER_PWD=${TEST_PASSWORD}
+save_dir=${DRONE_BUILD_NUMBER}
+unzip_cmd="unzip -q /var/www/html/${save_dir}/$outfile -d /var/www/html/${save_dir}/"
+sshpass -p ${LOG_SERVER_PWD} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${LOG_SERVER_USERNAME}@${LOG_SERVER_IP} mkdir -p /var/www/html/${save_dir}
+sshpass -p ${LOG_SERVER_PWD} scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $outfile ${LOG_SERVER_USERNAME}@${LOG_SERVER_IP}:/var/www/html/${save_dir}
+sshpass -p ${LOG_SERVER_PWD} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${LOG_SERVER_USERNAME}@${LOG_SERVER_IP} ${unzip_cmd}
+sshpass -p ${LOG_SERVER_PWD} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${LOG_SERVER_USERNAME}@${LOG_SERVER_IP} rm -rf /var/www/html/${save_dir}/$outfile
+
 # GC credentials
 keyfile="/root/vic-ci-logs.key"
 botofile="/root/.boto"
@@ -112,7 +122,8 @@ if [ -f "$outfile" ]; then
 
   echo "----------------------------------------------"
   echo "View test logs:"
-  echo "https://vic-logs.vcna.io/$DRONE_BUILD_NUMBER/"
+#  echo "https://vic-logs.vcna.io/$DRONE_BUILD_NUMBER/"
+  echo "Please visit to http://${LOG_SERVER_IP}/${save_dir}/ for looking over ci log."
   echo "Download test logs:"
   echo "https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/$outfile?authuser=1"
   echo "----------------------------------------------"

@@ -372,13 +372,24 @@ Bridge network - invalid bridge network range
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --bridge-network-range 1.1.1.1/17 ${vicmachinetls}
-    Should Contain  ${output}  --bridge-network-range must be /16 or larger network
+    Should Contain  ${output}  Error specifying bridge network width: 16
 
     # Delete the portgroup added by env vars keyword
     Run Keyword If  %{DRONE_BUILD_NUMBER} != 0  Cleanup VCH Bridge Network
 
 Bridge network - valid with IP range
-    Pass execution  Test not implemented
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --bridge-network-range 50.0.0.0/16 --bridge-network-width 24 ${vicmachinetls}
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: %{VCH-NAME}
+
+    Run Regression Tests
+    Cleanup VIC Appliance On Test Server
 
 Container network - space in network name invalid
     Set Test Environment Variables

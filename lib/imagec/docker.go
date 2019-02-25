@@ -364,12 +364,7 @@ func FetchImageManifest(op trace.Operation, options Options, schemaVersion int, 
 		return nil, "", err
 	}
 
-	// Cleanup function for the error case
-	defer func() {
-		if err != nil {
-			os.Remove(manifestFileName)
-		}
-	}()
+	defer os.Remove(manifestFileName)
 
 	switch schemaVersion {
 	case 1: //schema 1, signed manifest

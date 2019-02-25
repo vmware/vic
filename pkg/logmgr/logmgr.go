@@ -30,25 +30,10 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-// RotateInterval defines a type for a log rotate frequency.
-type RotateInterval uint32
-
 // LogRotateBinary points to a logrotate path in the system. For testing purposes it should be overwritten to be empty.
 var LogRotateBinary = "/usr/sbin/logrotate"
 
-const (
-	// Daily to trim logs daily.
-	Daily RotateInterval = iota
-	// Hourly to trim logs hourly.
-	Hourly
-	// Weekly to trim logs weekly.
-	Weekly
-	// Monthly to trim logs monthly.
-	Monthly
-)
-
 type logRotateConfig struct {
-	rotateInterval  RotateInterval
 	logFilePath     string
 	logFileName     string
 	maxLogSizeBytes int64
@@ -63,26 +48,9 @@ func (lrc *logRotateConfig) ConfigFileContent() string {
 		b = append(b, "compress")
 	}
 
-	switch lrc.rotateInterval {
-	case Hourly:
-		b = append(b, string("hourly"))
-	case Daily:
-		b = append(b, string("daily"))
-	case Weekly:
-		b = append(b, string("weekly"))
-	case Monthly:
-		fallthrough
-	default:
-		b = append(b, string("monthly"))
-	}
-
 	b = append(b, fmt.Sprintf("rotate %d", lrc.maxLogFiles))
 	if lrc.maxLogSizeBytes > 0 {
 		b = append(b, fmt.Sprintf("size %d", lrc.maxLogSizeBytes))
-	}
-
-	if lrc.maxLogSizeBytes > 2 {
-		b = append(b, fmt.Sprintf("minsize %d", lrc.maxLogSizeBytes-1))
 	}
 
 	// VIC doesn't support HUP yet, thus we are using logrotate copytruncate option that
@@ -140,9 +108,8 @@ func NewLogManager(runInterval time.Duration) (*LogManager, error) {
 }
 
 // AddLogRotate adds a log to rotate.
-func (lm *LogManager) AddLogRotate(logFilePath string, ri RotateInterval, maxSize, maxLogFiles int64, compress bool) {
+func (lm *LogManager) AddLogRotate(logFilePath string, maxSize, maxLogFiles int64, compress bool) {
 	lm.logFiles = append(lm.logFiles, &logRotateConfig{
-		rotateInterval:  ri,
 		logFilePath:     logFilePath,
 		logFileName:     filepath.Base(logFilePath),
 		maxLogSizeBytes: maxSize,

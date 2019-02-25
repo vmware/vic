@@ -352,7 +352,7 @@ func (v *Validator) ValidateStorageQuota(ctx context.Context, quotaGB int, conf 
 		if err != nil {
 			return 0, err
 		}
-		imageStorageUsage, err = v.getImageStorageUsage(op, conf)
+		imageStorageUsage, err = v.getImageStorageUsage(op, conf, vch)
 		if err != nil {
 			return 0, err
 		}
@@ -409,11 +409,16 @@ func (v *Validator) getVMStorageUsage(op trace.Operation, vch *vm.VirtualMachine
 	return total, nil
 }
 
-func (v *Validator) getImageStorageUsage(op trace.Operation, conf *config.VirtualContainerHostConfigSpec) (int64, error) {
+func (v *Validator) getImageStorageUsage(op trace.Operation, conf *config.VirtualContainerHostConfigSpec, vch *vm.VirtualMachine) (int64, error) {
+	uuid, err := vch.UUID(op)
+	if err != nil {
+		return 0, err
+	}
+
 	imageURL := conf.ImageStores[0]
 	// get a ds helper for this ds url
 	dsHelper, err := datastore.NewHelper(trace.NewOperation(op, "datastore helper creation"), v.session,
-		v.session.Datastore, fmt.Sprintf("%s/%s", imageURL.Path, constants.StorageParentDir))
+		v.session.Datastore, fmt.Sprintf("%s/%s/%s", imageURL.Path, constants.StorageParentDir, uuid))
 	if err != nil {
 		return 0, err
 	}

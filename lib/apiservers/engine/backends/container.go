@@ -1096,10 +1096,12 @@ func (c *ContainerBackend) containerStart(op trace.Operation, name string, hostC
 		handle = bindRes.Payload.Handle
 		endpoints = bindRes.Payload.Endpoints
 
+		// due to issue 8405, 7128 and 8052, we will not clear out assigned IP address besides container is removed
 		// unbind in case we fail later
 		//defer func() {
 		//	if err != nil {
 		//		op.Debugf("Unbinding %s due to error - %s", id, err.Error())
+		//op.Debugf("Unbinding %s due to error - %s", id, err.Error())
 		//		client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(op).WithOpID(&opID).WithHandle(handle))
 		//	}
 		//}()

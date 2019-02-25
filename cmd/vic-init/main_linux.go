@@ -125,10 +125,10 @@ func main() {
 	logrotate, err := logmgr.NewLogManager(time.Second * 300)
 	const maxLogSizeBytes = 20 * 1024 * 1024
 	if err == nil {
-		logrotate.AddLogRotate("/var/log/vic/port-layer.log", logmgr.Daily, maxLogSizeBytes, 2, true)
-		logrotate.AddLogRotate("/var/log/vic/init.log", logmgr.Daily, maxLogSizeBytes, 2, true)
-		logrotate.AddLogRotate("/var/log/vic/docker-personality.log", logmgr.Daily, maxLogSizeBytes, 2, true)
-		logrotate.AddLogRotate("/var/log/vic/vicadmin.log", logmgr.Daily, maxLogSizeBytes, 2, true)
+		logrotate.AddLogRotate("/var/log/vic/port-layer.log", maxLogSizeBytes, 2, true)
+		logrotate.AddLogRotate("/var/log/vic/init.log", maxLogSizeBytes, 2, true)
+		logrotate.AddLogRotate("/var/log/vic/docker-personality.log", maxLogSizeBytes, 2, true)
+		logrotate.AddLogRotate("/var/log/vic/vicadmin.log", maxLogSizeBytes, 2, true)
 		tthr.Register("logrotate", logrotate)
 	} else {
 		log.Error(err)
