@@ -72,7 +72,7 @@ func TestParseGatewaySpec(t *testing.T) {
 func TestFlags(t *testing.T) {
 	c := NewCreate()
 	flags := c.Flags()
-	numberOfFlags := 63
+	numberOfFlags := 64
 	assert.Equal(t, numberOfFlags, len(flags), "Missing flags during Create.")
 }
 
@@ -84,8 +84,14 @@ func TestProcessBridgeNetwork(t *testing.T) {
 	assert.NotNil(t, improperBridgeIPRange)
 
 	c.BridgeIPRange = "172.16.0.0/12"
+	c.BridgeNetworkWidth = "16"
 	properBridgeIPRange := c.ProcessBridgeNetwork()
 	assert.Nil(t, properBridgeIPRange, "Bridge Network IP Range can't be parsed. Range must be in CIDR format, e.g., 172.16.0.0/12.")
+
+	c.BridgeIPRange = "172.16.0.0/22"
+	c.BridgeNetworkWidth = "16"
+	improperBridgeNetWidth := c.ProcessBridgeNetwork()
+	assert.NotNil(t, improperBridgeNetWidth)
 }
 
 func TestSetFields(t *testing.T) {

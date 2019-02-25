@@ -337,6 +337,32 @@ Create VCH - Existing RP on ESX
     ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy %{TEST_RESOURCE}/%{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
 
+Create VCH - Customize Default Bridge Network Width
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store %{TEST_DATASTORE}/vic-machine-test-images --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --bridge-network-range=172.16.1.0/24 --bridge-network-width=28 --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} ${vicmachinetls} --insecure-registry wdc-harbor-ci.eng.vmware.com
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: %{VCH-NAME}
+    Run Regression Tests
+    # Check docker network inspect bridge with specified default width 28
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network inspect bridge
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  172.16.1.0/28
+
+    Cleanup VIC Appliance On Test Server
+
+Create VCH - Invalid Default Bridge Network Width
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store %{TEST_DATASTORE}/vic-machine-test-images --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --bridge-network-range=172.16.1.0/24 --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} ${vicmachinetls} --insecure-registry wdc-harbor-ci.eng.vmware.com
+    Should Contain  ${output}  Error specifying bridge network width
+
 Creation log file uploaded to datastore
 
     Set Test Environment Variables

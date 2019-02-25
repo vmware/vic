@@ -181,6 +181,21 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 	d.op.Infof("https://%s:%d", d.HostIP, constants.VchAdminPortalPort)
 
 	d.op.Info("")
+	bridgeRange := conf.BridgeIPRange
+	if bridgeRange == nil || len(bridgeRange.IP) == 0 || bridgeRange.IP.IsUnspecified() {
+		d.op.Infof("VCH Default Bridge Network Range: %s", constants.DefaultBridgeRange)
+	} else {
+		d.op.Infof("VCH Default Bridge Network Range: %s", conf.BridgeIPRange.String())
+	}
+	bridgeWidth := conf.BridgeNetworkWidth
+	if bridgeWidth == nil || len(*bridgeWidth) == 0 {
+		d.op.Infof("VCH Default Bridge Network Width: 16")
+	} else {
+		mones, _ := bridgeWidth.Size()
+		d.op.Infof("VCH Default Bridge Network Width: %d", mones)
+	}
+
+	d.op.Info("")
 	publicIP := conf.ExecutorConfig.Networks["public"].Assigned.IP
 	d.op.Info("Published ports can be reached at:")
 	d.op.Infof("%s", publicIP.String())
