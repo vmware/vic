@@ -141,16 +141,16 @@ Install VIC Appliance and Run Selenium Grid Test
     
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create --subnet 220.1.1.0/24 grid 
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 4444:4444 --net grid --name selenium-hub selenium/hub:3.9.1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 4444:4444 --net grid --name selenium-hub selenium/hub:latest
     Should Be Equal As Integers  ${rc}  0
     Wait Until Selenium Hub Is Ready  selenium-hub
 
     :FOR  ${idx}  IN RANGE  1  4
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --cpus 1 --memory 1G --net grid -e HOME=/home/seluser -e HUB_HOST=selenium-hub --name chrome-${idx} selenium/node-chrome:3.9.1
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --cpus 1 --memory 1G --net grid -e HOME=/home/seluser -e HUB_HOST=selenium-hub --name chrome-${idx} selenium/node-chrome:latest
     \   Should Be Equal As Integers  ${rc}  0
 
     :FOR  ${idx}  IN RANGE  1  4
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --cpus 1 --memory 1G --net grid -e HOME=/home/seluser -e HUB_HOST=selenium-hub --name firefox-${idx} selenium/node-firefox:3.9.1
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --cpus 1 --memory 1G --net grid -e HOME=/home/seluser -e HUB_HOST=selenium-hub --name firefox-${idx} selenium/node-firefox:latest
     \   Should Be Equal As Integers  ${rc}  0
 
     :FOR  ${idx}  IN RANGE  1  4
