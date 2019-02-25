@@ -35,6 +35,7 @@ type CCache struct {
 	containersByID     map[string]*container.VicContainer
 	containersByName   map[string]*container.VicContainer
 	containersByExecID map[string]*container.VicContainer
+	containersCount    int
 
 	vmStorageUsage     int64
 	storageReservation int64
@@ -214,10 +215,6 @@ func (cc *CCache) VMStorageUsage() int64 {
 	return cc.vmStorageUsage
 }
 
-func (cc *CCache) StorageReservation() int64 {
-	return cc.storageReservation
-}
-
 func (cc *CCache) AddStorageReservation(r int64) int64 {
 	cc.m.Lock()
 	defer cc.m.Unlock()
@@ -230,4 +227,18 @@ func (cc *CCache) RemoveStorageReservation(r int64) int64 {
 	defer cc.m.Unlock()
 	cc.storageReservation -= r
 	return cc.storageReservation
+}
+
+func (cc *CCache) IncreaseContainersCount() int {
+	cc.m.Lock()
+	defer cc.m.Unlock()
+	cc.containersCount++
+	return cc.containersCount
+}
+
+func (cc *CCache) DecreaseContainerCount() int {
+	cc.m.Lock()
+	defer cc.m.Unlock()
+	cc.containersCount--
+	return cc.containersCount
 }
