@@ -670,7 +670,7 @@ func (c *ContainerBackend) ContainerCreate(config types.ContainerCreateConfig) (
 	if err = checkContainerCount(op, PortLayerClient()); err != nil {
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
-	defer cache.ContainerCache().DecreaseContainerCount()
+	defer cache.ContainerCache().DecreaseContainersReservation()
 
 	log.Infof("** createconfig = %#v", config)
 	log.Infof("** container config = %#v", config.Config)
@@ -2159,9 +2159,9 @@ func checkContainerCount(op context.Context, client *client.PortLayer) error {
 	}
 
 	count := vchConfig.Cfg.ContainerCount
-	countReservation := cache.ContainerCache().IncreaseContainersCount()
+	countReservation := cache.ContainerCache().IncreaseContainersReservation()
 	if countReservation+len(containme.Payload) > count {
-		cache.ContainerCache().DecreaseContainerCount()
+		cache.ContainerCache().DecreaseContainersReservation()
 		return fmt.Errorf("Container count exceeds limit %d. containers: %d, reservation: %d", count, len(containme.Payload), countReservation)
 	}
 	return nil

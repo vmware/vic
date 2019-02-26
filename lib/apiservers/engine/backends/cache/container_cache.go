@@ -31,11 +31,11 @@ import (
 type CCache struct {
 	m sync.RWMutex
 
-	idIndex            *truncindex.TruncIndex
-	containersByID     map[string]*container.VicContainer
-	containersByName   map[string]*container.VicContainer
-	containersByExecID map[string]*container.VicContainer
-	containersCount    int
+	idIndex               *truncindex.TruncIndex
+	containersByID        map[string]*container.VicContainer
+	containersByName      map[string]*container.VicContainer
+	containersByExecID    map[string]*container.VicContainer
+	containersReservation int
 
 	vmStorageUsage     int64
 	storageReservation int64
@@ -229,16 +229,16 @@ func (cc *CCache) RemoveStorageReservation(r int64) int64 {
 	return cc.storageReservation
 }
 
-func (cc *CCache) IncreaseContainersCount() int {
+func (cc *CCache) IncreaseContainersReservation() int {
 	cc.m.Lock()
 	defer cc.m.Unlock()
-	cc.containersCount++
-	return cc.containersCount
+	cc.containersReservation++
+	return cc.containersReservation
 }
 
-func (cc *CCache) DecreaseContainerCount() int {
+func (cc *CCache) DecreaseContainersReservation() int {
 	cc.m.Lock()
 	defer cc.m.Unlock()
-	cc.containersCount--
-	return cc.containersCount
+	cc.containersReservation--
+	return cc.containersReservation
 }
