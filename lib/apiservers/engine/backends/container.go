@@ -667,6 +667,11 @@ func (c *ContainerBackend) ContainerCreate(config types.ContainerCreateConfig) (
 
 	var err error
 
+	if err = checkContainerCount(op, PortLayerClient()); err != nil {
+		return containertypes.ContainerCreateCreatedBody{}, err
+	}
+	defer cache.ContainerCache().DecreaseContainersReservation()
+
 	log.Infof("** createconfig = %#v", config)
 	log.Infof("** container config = %#v", config.Config)
 
@@ -686,7 +691,7 @@ func (c *ContainerBackend) ContainerCreate(config types.ContainerCreateConfig) (
 		return containertypes.ContainerCreateCreatedBody{}, err
 	}
 
-	reserved, err := checkStorageQuota(PortLayerClient(), &config)
+	reserved, err := checkStorageQuota(&config)
 	if reserved > 0 {
 		defer cache.ContainerCache().RemoveStorageReservation(reserved)
 	}
@@ -2134,8 +2139,36 @@ func (c *ContainerBackend) validateContainerLogsConfig(vc *viccontainer.VicConta
 	return tailLines, since.Unix(), nil
 }
 
+func checkContainerCount(op context.Context, client *client.PortLayer) error {
+	// 0 means unlimited
+	if vchConfig.Cfg.ContainerCount == 0 {
+		return nil
+	}
+
+	all := true
+	containme, err := client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(op).WithAll(&all))
+	if err != nil {
+		switch err := err.(type) {
+
+		case *containers.GetContainerListInternalServerError:
+			return fmt.Errorf("Error invoking GetContainerList: %s", err.Payload.Message)
+
+		default:
+			return fmt.Errorf("Error invoking GetContainerList: %s", err.Error())
+		}
+	}
+
+	count := vchConfig.Cfg.ContainerCount
+	countReservation := cache.ContainerCache().IncreaseContainersReservation()
+	if countReservation+len(containme.Payload) > count {
+		cache.ContainerCache().DecreaseContainersReservation()
+		return fmt.Errorf("Container count exceeds limit %d. containers: %d, reservation: %d", count, len(containme.Payload), countReservation)
+	}
+	return nil
+}
+
 // Reserve storage during parallel requests and rollback reservation if quota exceeds.
-func checkStorageQuota(client *client.PortLayer, config *types.ContainerCreateConfig) (int64, error) {
+func checkStorageQuota(config *types.ContainerCreateConfig) (int64, error) {
 	// 0 means unlimited
 	if vchConfig.Cfg.StorageQuota == 0 {
 		return 0, nil

@@ -136,6 +136,8 @@ type Container struct {
 	VMGroupName string
 	// Permitted datastore URLs for container storage for this virtual container host
 	ContainerStores []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	// Total number of containers that can exist in this virtual container host
+	ContainerCount int `vic:"0.1" scope:"read-only" key:"container_count"`
 }
 
 // RegistryConfig defines the registries virtual container host can talk to

@@ -107,10 +107,11 @@ func (c *Configure) Flags() []cli.Flag {
 	registries := c.registries.Flags()
 	help := c.help.HelpFlags()
 	squota := c.VCHStorageQuotaFlag()
+	cvms := c.VCHContainerCountFlag()
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, ops, id, compute, affinity, container, volume, dns, cNetwork, memory, cpu, squota, certificates, registries, proxies, util, debug, help} {
+	for _, f := range [][]cli.Flag{target, ops, id, compute, affinity, container, volume, dns, cNetwork, memory, cpu, squota, cvms, certificates, registries, proxies, util, debug, help} {
 		flags = append(flags, f...)
 	}
 
@@ -511,6 +512,15 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 			vchConfig.StorageQuota = 0
 		} else {
 			vchConfig.StorageQuota = int64(*c.StorageQuotaGB) * units.GiB
+		}
+	}
+
+	if c.ContainerCount != nil {
+		// Treat minus values as unlimited
+		if *c.ContainerCount <= 0 {
+			vchConfig.ContainerCount = 0
+		} else {
+			vchConfig.ContainerCount = *c.ContainerCount
 		}
 	}
 

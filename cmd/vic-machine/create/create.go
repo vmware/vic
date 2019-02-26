@@ -296,10 +296,11 @@ func (c *Create) Flags() []cli.Flag {
 	debug := c.DebugFlags(true)
 	help := c.help.HelpFlags()
 	squota := c.VCHStorageQuotaFlag()
+	cvms := c.VCHContainerCountFlag()
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, compute, ops, create, affinity, container, volume, dns, networks, cNetwork, memory, cpu, squota, tls, registries, proxies, syslog, iso, util, debug, help} {
+	for _, f := range [][]cli.Flag{target, compute, ops, create, affinity, container, volume, dns, networks, cNetwork, memory, cpu, squota, cvms, tls, registries, proxies, syslog, iso, util, debug, help} {
 		flags = append(flags, f...)
 	}
 
@@ -719,6 +720,10 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 			return err
 		}
 		vchConfig.StorageQuota = quotaBytes
+	}
+
+	if c.ContainerCount != nil && *c.ContainerCount > 0 {
+		vchConfig.ContainerCount = *c.ContainerCount
 	}
 
 	// persist cli args used to create the VCH

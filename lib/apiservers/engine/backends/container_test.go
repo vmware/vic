@@ -546,6 +546,16 @@ func TestContainerCreateEmptyImageCache(t *testing.T) {
 		storageProxy:   mockStorageProxy,
 	}
 
+	containercfg := config.Container{
+		ContainerCount: 0,
+	}
+	cfg := &config.VirtualContainerHostConfigSpec{
+		Container: containercfg,
+	}
+	vchConfig = &dynConfig{
+		Cfg: cfg,
+	}
+
 	// mock a container create config
 	var config types.ContainerCreateConfig
 
