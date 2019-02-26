@@ -145,9 +145,10 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 			op.Error(err)
 		}
 
-		// if an error has been logged skip volume store cache addition
+		// if an error has been logged, stop starting port-layer which would cause port-layer-server to restart continually
 		if err != nil {
-			continue
+			op.Errorf("%s:%s volume store error %s", dsurl.String(), name, err)
+			os.Exit(1)
 		}
 
 		op.Infof("Adding volume store %s (%s)", name, dsurl.String())
