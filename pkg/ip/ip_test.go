@@ -137,7 +137,7 @@ func TestRangeNetwork(t *testing.T) {
 		r *Range
 		n *net.IPNet
 	}{
-		{ParseRange("10.10.10.10/24"), &net.IPNet{IP: net.ParseIP("10.10.10.10"), Mask: net.CIDRMask(24, 32)}},
+		{ParseRange("10.10.10.10/24"), nil},
 		{ParseRange("10.10.10.10-10.10.14.11"), nil},
 		{ParseRange("10.10.10.10-10.10.10.11"), &net.IPNet{IP: net.ParseIP("10.10.10.10"), Mask: net.CIDRMask(31, 32)}},
 	}
@@ -165,13 +165,13 @@ func TestRangeNetworkStringer(t *testing.T) {
 		input  string
 		result string
 	}{
-		{"10.10.10.10/24", symmetric},
+		{"10.10.10.10/24", "10.10.10.10-10.10.10.255"},
 		{"10.10.10.10-10.10.14.11", symmetric},
 		{"10.10.10.10-10.10.10.11", "10.10.10.10/31"},
 		{"10.10.10.128-10.10.10.129", "10.10.10.128/31"},
 		// test the boundaries of full subnets where the range is not the full subnet
-		{"10.10.10.125-10.10.10.127", "10.10.10.125/30"},
-		{"10.10.10.5-10.10.10.127", "10.10.10.5/25"},
+		{"10.10.10.125-10.10.10.127", symmetric},
+		{"10.10.10.5-10.10.10.127", symmetric},
 		{"10.10.10.0-10.10.10.127", "10.10.10.0/25"},
 		{"10.10.10.128-10.10.10.254", symmetric},
 		{"10.10.10.252-10.10.10.255", "10.10.10.252/30"},

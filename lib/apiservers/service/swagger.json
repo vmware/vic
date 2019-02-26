@@ -690,7 +690,7 @@
               "type": "object",
               "properties": {
                 "ip_range": { "$ref": "#/definitions/CIDR" },
-                "network_width": { "type": "integer", "minimum": 8, "maximum": 30, "default": 16},
+                "network_width": { "type": "integer", "minimum": 1, "maximum": 30, "default": 16},
                 "port_group": { "$ref": "#/definitions/Managed_Object" }
               }
             },
