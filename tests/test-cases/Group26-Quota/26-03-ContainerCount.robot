@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation     Suite 26-03 - ContainerCount
 Resource          ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server  additional-args='--storage-quota=15'
+Suite Setup  Install VIC Appliance To Test Server  additional-args='--containers=1'
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  30 minutes
 
