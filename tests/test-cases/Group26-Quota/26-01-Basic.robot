@@ -16,7 +16,7 @@
 Documentation     Suite 26-01 - Basic
 Resource          ../../resources/Util.robot
 Resource          ../../resources/Group26-Storage-Quota-Util.robot
-Suite Setup  Install VIC Appliance To Test Server  additional-args='--containers=1'
+Suite Setup  Install VIC Appliance To Test Server  additional-args='--storage-quota=15'
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  30 minutes
 
