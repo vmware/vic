@@ -20,9 +20,6 @@ Suite Teardown  Re-Enable Ops User And Clean Up VIC Appliance
 Default Tags
 
 *** Variables ***
-${volume1}=  volume1_photon2
-${volume2}=  volume2_photon2
-${volume3}=  volume3_photon2
 ${nginx_test1}=  nginx-test1
 ${nginx_test2}=  nginx-test2
 ${nginx_test3}=  nginx-test3
@@ -36,6 +33,10 @@ Disable Ops User And Install VIC To Test Server
     ${run-as-ops-user}=  Get Environment Variable  RUN_AS_OPS_USER  0
     Set Environment Variable  RUN_AS_OPS_USER  0
     Install VIC with version to Test Server  ${old_version}  additional-args=--cpu-reservation 1 --cpu-shares normal --memory-reservation 1 --memory-shares normal --endpoint-cpu 1 --endpoint-memory 2048 --base-image-size 8GB --volume-store %{TEST_DATASTORE}/VCH-${old_version}-VOL:volumes_${old_version} --bridge-network-range 172.16.0.0/12 --container-network-firewall vm-network:published --certificate-key-size 2048
+    ${rand_suffix}=  Evaluate  random.randint(10000, sys.maxint)  modules=random, sys
+    Set Suite Variable  ${volume1}  volume1_${rand_suffix}
+    Set Suite Variable  ${volume2}  volume2_${rand_suffix}
+    Set Suite Variable  ${volume3}  volume3_${rand_suffix}
 
 Re-Enable Ops User And Clean Up VIC Appliance
     Set Environment Variable  RUN_AS_OPS_USER  ${run-as-ops-user}
