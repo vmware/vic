@@ -16,21 +16,30 @@
 Documentation  Test 5-11 - Multiple Clusters
 Resource  ../../resources/Util.robot
 Suite Setup  Nimbus Suite Setup  Multiple Cluster Setup
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-11-multiple-cluster*'  ${false}
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Pod Cleanup  ${nimbus_pod}  ${testbedname}
 Test Teardown  Cleanup VIC Appliance On Test Server
 
 *** Keywords ***
 Multiple Cluster Setup
-    [Timeout]    110 minutes
-    Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-11-multiple-cluster*'  ${false}
+    [Timeout]  60 minutes
+    ${name}=  Evaluate  'vic-multi-cluster-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nStarting testbed deploy...
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  spec=vic-multiple-cluster.rb  args=--noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-multiple-cluster --runName 5-11-multiple-cluster
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  spec=vic-multi-cls.rb  args=--noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-multi-cls --runName ${name}
     Log  ${out}
+    Should Contain  ${out}  "deployment_result"=>"PASS"
 
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${vc-ip}=  Get IP  5-11-multiple-cluster.vc.0
+    ${vc-ip}=  Get IP  ${name}.vc.0
+    Log  ${vc-ip}
+    ${esx0_ip}=  Get IP  ${name}.esx.0
+    Log  ${esx0_ip}
+    ${pod}=  Fetch Pod  ${name}
+    Log  ${pod}
     Close Connection
+    
+    Set Suite Variable  ${nimbus_pod}  ${pod}
+    Set Suite Variable  ${testbedname}  ${name}
     
     Log To Console  Set environment variables up for GOVC
     Set Environment Variable  GOVC_URL  ${vc-ip}
@@ -45,13 +54,19 @@ Multiple Cluster Setup
     Set Environment Variable  PUBLIC_NETWORK  vm-network
     Remove Environment Variable  TEST_DATACENTER
     Set Environment Variable  TEST_TIMEOUT  15m
-    Set Environment Variable  TEST_RESOURCE  cls
 
-    # Get one of the hosts in the cluster we want and make sure we use the correct local datastore
-    ${hosts}=  Run  govc ls -t HostSystem host/cls
-    @{hosts}=  Split To Lines  ${hosts}
-    ${datastore}=  Get Name of First Local Storage For Host  @{hosts}[0]
-    Set Environment Variable  TEST_DATASTORE  "${datastore}"
+    # Get one of the hosts in the cluster we want and make sure we use the correct  datastore
+
+    ${rc}  ${test_resource}=  Run And Return Rc And Output  govc host.info ${esx0_ip} | grep Path | awk -F: '{print $2}'
+    Log  ${test_resource}
+    ${test_resource}=  Remove String  ${test_resource}  /${esx0_ip}
+    ${test_resource}=  Strip String  ${test_resource}
+    Log  ${test_resource}
+    Set Environment Variable  TEST_RESOURCE  ${test_resource}
+    
+    ${rc}  ${datastore}=  Run And Return Rc And Output  govc host.info -host.ip=${esx0_ip} -json | jq -r '.HostSystems[].Config.FileSystemVolume.MountInfo[].Volume | select(.Type == "VMFS" and .Local == false) | .Name'
+    Log  ${datastore}
+    Set Environment Variable  TEST_DATASTORE  ${datastore}
 
 *** Test Cases ***
 Test

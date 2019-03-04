@@ -16,20 +16,26 @@
 Documentation  Test 5-15 - NFS Datastore
 Resource  ../../resources/Util.robot
 Suite Setup  Nimbus Suite Setup  NFS Datastore Setup
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-15-nfs-datastore*'
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Pod Cleanup  ${nimbus_pod}  ${testbedname}
 
 *** Keywords ***
 NFS Datastore Setup
-    [Timeout]    110 minutes
-    Run Keyword And Ignore Error  Nimbus Cleanup Single VM  '*5-15-nfs-datastore*'  ${false}
+    [Timeout]  60 minutes
+    ${name}=  Evaluate  'vic-nfs' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nStarting testbed deploy...    
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  spec=vic-simple-cluster.rb  args=--noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-simple-cluster --runName 5-15-nfs-datastore
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  spec=vic-nfs.rb  args=--noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-simple-cluster --runName ${name}
     Log  ${out}
-
+    Should Contain  ${out}  "deployment_result"=>"PASS"
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${vc-ip}=  Get IP  5-15-nfs-datastore.vc.0
+    ${vc-ip}=  Get IP  ${name}.vc.0
+    Log  ${vc-ip}
+    ${pod}=  Fetch Pod  ${name}
+    Log  ${pod}
     Close Connection
+
+    Set Suite Variable  ${nimbus_pod}  ${pod}
+    Set Suite Variable  ${testbedname}  ${name}
 
     Log To Console  Set environment variables up for GOVC
     Set Environment Variable  GOVC_URL  ${vc-ip}
@@ -44,7 +50,7 @@ NFS Datastore Setup
     Set Environment Variable  PUBLIC_NETWORK  vm-network
     Remove Environment Variable  TEST_DATACENTER
     Set Environment Variable  TEST_DATASTORE  nfs0-1
-    Set Environment Variable  TEST_RESOURCE  cls
+    Set Environment Variable  TEST_RESOURCE  cls1
     Set Environment Variable  TEST_TIMEOUT  15m
 
 *** Test Cases ***

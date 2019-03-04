@@ -16,61 +16,47 @@
 Documentation  Test 5-13 - Invalid ESXi Install
 Resource  ../../resources/Util.robot
 Suite Setup  Nimbus Suite Setup  Invalid ESXi Install Setup
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Pod Cleanup  ${nimbus_pod}  ${testbedname}
 
 *** Keywords ***
 Invalid ESXi Install Setup
-    [Timeout]    110 minutes
-    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
-    Set Suite Variable  ${datacenter}  datacenter1
-    Set Suite Variable  ${cluster}  cls
+    [Timeout]  60 minutes
+    ${name}=  Evaluate  'vic-iscsi-cluster-' + str(random.randint(1000,9999))  modules=random
+    Log To Console  Create a new simple vc cluster with spec vic-cluster-2esxi-iscsi.rb...
+    ${out}=  Deploy Nimbus Testbed  spec=vic-cluster-2esxi-iscsi.rb  args=--noSupportBundles --plugin testng --vcvaBuild "${VC_VERSION}" --esxBuild "${ESX_VERSION}" --testbedName vic-iscsi-cluster --runName ${name}
+    Log  ${out}
+    Should Contain  ${out}  "deployment_result"=>"PASS"
+    Log To Console  Finished creating cluster ${name}
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc-ip}=  Get IP  ${name}.vc.0
+    Log  ${vc-ip}
+    ${esx1-ip}=  Get IP  ${name}.esx.1
+    Log  ${esx1-ip}
+    ${pod}=  Fetch Pod  ${name}
+    Log  ${pod}
+    Close Connection
 
-    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX1}  ${esx1}
+    Set Suite Variable  ${nimbus_pod}  ${pod}
+    Set Suite Variable  ${testbedname}  ${name}
     Set Suite Variable  ${esx1-ip}  ${esx1-ip}
-    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX2}  ${esx2}
-    Set Suite Variable  ${esx2-ip}  ${esx2-ip}
-    
-    ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${VC}  ${vc}
-    Set Suite Variable  ${vc-ip}  ${vc-ip}
+    Set Suite Variable  ${vc-ip}  ${vc-ip}     
 
-    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${vc}
+    Log To Console  Set environment variables up for GOVC
+    Set Environment Variable  GOVC_URL  ${vc-ip}
+    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  GOVC_PASSWORD  Admin\!23
 
-    Log To Console  Create a datacenter on the VC
-    ${out}=  Run  govc datacenter.create ${datacenter}
-    Should Be Empty  ${out}
-
-    Log To Console  Create a cluster on the VC
-    ${out}=  Run  govc cluster.create ${cluster}
-    Should Be Empty  ${out}
-
-    Log To Console  Add ESX host to the VC
-    ${out}=  Run  govc cluster.add -hostname=${esx1-ip} -username=root -dc=${datacenter} -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc cluster.add -hostname=${esx2-ip} -username=root -dc=${datacenter} -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-    
-    Log To Console  Create a distributed switch
-    ${out}=  Run  govc dvs.create -dc=${datacenter} test-ds
-    Should Contain  ${out}  OK
-
-    Log To Console  Create three new distributed switch port groups for management and vm network traffic
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=${datacenter} -dvs=test-ds management
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=${datacenter} -dvs=test-ds vm-network
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=${datacenter} -dvs=test-ds bridge
-    Should Contain  ${out}  OK
-
-    Log To Console  Add all the hosts to the distributed switch
-    ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 /${datacenter}/host/${cluster}
-    Should Contain  ${out}  OK
-
-    Log To Console  Enable DRS on the cluster
-    ${out}=  Run  govc cluster.change -drs-enabled /${datacenter}/host/${cluster}
-    Should Be Empty  ${out}
+    Log To Console  Deploy VIC to the VC cluster
+    Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
+    Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  TEST_PASSWORD  Admin\!23
+    Set Environment Variable  BRIDGE_NETWORK  bridge
+    Set Environment Variable  PUBLIC_NETWORK  vm-network
+    Remove Environment Variable  TEST_DATACENTER
+    Set Environment Variable  TEST_DATASTORE  sharedVmfs-0
+    Set Environment Variable  TEST_RESOURCE  cls
+    Set Environment Variable  TEST_TIMEOUT  30m
 
 *** Test Cases ***
 Test

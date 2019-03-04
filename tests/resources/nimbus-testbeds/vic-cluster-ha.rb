@@ -2,32 +2,30 @@ oneGB = 1 * 1000 * 1000 # in KB
  
 $testbed = Proc.new do
   {
-    "name" => "vic-nfs-cluster",
+    "name" => "vic-cluster-ha",
     "version" => 3,
-    "esx" => (0..1).map do | idx |
+    "esx" => (0..2).map do | idx |
       {
         "name" => "esx.#{idx}",
         "vc" => "vc.0",
         'cpus' => 8,
-        'cpuReservation' => 4800,
+        'cpuReservation' => 2400,
         "style" => "fullInstall",
-        "desiredPassword" => "ca$hc0w",
-        "memory" => 32768, # 2x default
-        'memoryReservation' => 16384,
-        "disk" => [ 100 * oneGB, 100 * oneGB],
+        "desiredPassword" => "e2eFunctionalTest",
+        "memory" => 16384, # 2x default
+        'memoryReservation' => 4096,
+        "disk" => [ 30 * oneGB],
         "nics" => 2,
-        "mountNfsWithPath" => true,
-        "mountNfs" => ["nfs.0:/exports/nfs-share"],
-        "clusterName" => "cls1",
+        "iScsi" => ["iscsi.0"],
+        "clusterName" => "cls",
       }
     end,
 
-    "nfs" => [
+    "iscsi" => [
       {
-        "name" => "nfs.0",
-        "type" => "NFS41",
-        "disks" => [400 * oneGB],
-        "mountPoints" => ["nfs-share"]
+        "name" => "iscsi.0",
+        "luns" => [200],
+        "iqnRandom" => "nimbus1"
       }
     ],
 
@@ -38,7 +36,7 @@ $testbed = Proc.new do
         'cpuReservation' => 2400,
         'memoryReservation' => 4096,
         "dcName" => "dc1",
-        "clusters" => [{"name" => "cls1", "vsan" => false, "enableDrs" => true, "enableHA" => true}],
+        "clusters" => [{"name" => "cls", "vsan" => false, "enableDrs" => true, "enableHA" => true}],
         "addHosts" => "allInSameCluster",
       }
     ],

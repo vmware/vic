@@ -2,32 +2,31 @@ oneGB = 1 * 1000 * 1000 # in KB
  
 $testbed = Proc.new do
   {
-    "name" => "vic-nfs-cluster",
+    "name" => "no-cluster",
     "version" => 3,
-    "esx" => (0..1).map do | idx |
+    "esx" => (0..2).map do | idx |
       {
         "name" => "esx.#{idx}",
         "vc" => "vc.0",
         'cpus' => 8,
         'cpuReservation' => 4800,
         "style" => "fullInstall",
-        "desiredPassword" => "ca$hc0w",
+        "desiredPassword" => "e2eFunctionalTest",
         "memory" => 32768, # 2x default
         'memoryReservation' => 16384,
-        "disk" => [ 100 * oneGB, 100 * oneGB],
+        "disk" => [ 30 * oneGB ],
         "nics" => 2,
-        "mountNfsWithPath" => true,
-        "mountNfs" => ["nfs.0:/exports/nfs-share"],
-        "clusterName" => "cls1",
+        "iScsi" => [ "iscsi.1" ],
+        'localDatastoreNamePrefix' => "esx#{idx}-vmfs",
+        'sharedDatastoreNamePrefix' => "sharedVmfs-",
       }
     end,
 
-    "nfs" => [
+    "iscsi" => [
       {
-        "name" => "nfs.0",
-        "type" => "NFS41",
-        "disks" => [400 * oneGB],
-        "mountPoints" => ["nfs-share"]
+        "name" => "iscsi.1",
+        "luns" => [512],
+        "iqnRandom" => "nimbus1"
       }
     ],
 
@@ -38,8 +37,7 @@ $testbed = Proc.new do
         'cpuReservation' => 2400,
         'memoryReservation' => 4096,
         "dcName" => "dc1",
-        "clusters" => [{"name" => "cls1", "vsan" => false, "enableDrs" => true, "enableHA" => true}],
-        "addHosts" => "allInSameCluster",
+        "addHosts" => "allStandalone",
       }
     ],
 
@@ -56,10 +54,13 @@ $testbed = Proc.new do
       raise "Couldn't find a Datacenter precreated"  if datacenters.length == 0
       datacenter = datacenters.first
       Log.info "Found a datacenter successfully in the system, name: #{datacenter.name}"
-      clusters = datacenter.hostFolder.children
-      raise "Couldn't find a cluster precreated"  if clusters.length == 0
-      cluster = clusters.first
-      Log.info "Found a cluster successfully in the system, name: #{cluster.name}"
+     
+      all_hosts = Array.new
+      datacenter.hostFolder.children.each do |domain|
+        domain.host.each do |host|
+          all_hosts << host
+        end
+      end
 
       dvs = datacenter.networkFolder.CreateDVS_Task(
         :spec => {
@@ -107,7 +108,7 @@ $testbed = Proc.new do
       onecluster_pnic_spec = [ VIM::DistributedVirtualSwitchHostMemberPnicSpec({:pnicDevice => 'vmnic1'}) ]
       dvs_config = VIM::DVSConfigSpec({
         :configVersion => dvs.config.configVersion,
-        :host => cluster.host.map do |host|
+        :host => all_hosts.map do |host|
         {
           :operation => :add,
           :host => host,

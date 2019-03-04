@@ -16,7 +16,7 @@
 Documentation  Test 5-17 - FC Datastore
 Resource  ../../resources/Util.robot
 Suite Setup  Nimbus Suite Setup  FC Datastore Setup
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Pod Cleanup  ${nimbus_pod}  ${testbedname}
 
 *** Variables ***
 ${NIMBUS_LOCATION}  sc
@@ -27,10 +27,12 @@ FC Datastore Setup
     [Timeout]    110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${name}=  Evaluate  'vic-fc-' + str(random.randint(1000,9999))  modules=random
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --customizeTestbed '/esx desiredPassword=e2eFunctionalTest' --noSupportBundles --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-sdrs-fc-fullInstall-vcva --runName ${name}
-    Set Suite Variable  @{list}  %{NIMBUS_PERSONAL_USER}-${name}.vcva-${VC_VERSION}  %{NIMBUS_PERSONAL_USER}-${name}.esx.0  %{NIMBUS_PERSONAL_USER}-${name}.esx.1  %{NIMBUS_PERSONAL_USER}-${name}.fc.0
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  args=--plugin testng --customizeTestbed '/esx desiredPassword=e2eFunctionalTest' --noSupportBundles --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-sdrs-fc-fullInstall-vcva --runName ${name}
     Should Contain  ${out}  "deployment_result"=>"PASS"
 
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${pod}=  Fetch Pod  ${name}
+    Log  ${pod}
     ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl ip %{NIMBUS_PERSONAL_USER}-${name}.vcva-${VC_VERSION} | grep %{NIMBUS_PERSONAL_USER}-${name}.vcva-${VC_VERSION}
     ${vc-ip}=  Fetch From Right  ${out}  ${SPACE}
     
@@ -39,6 +41,10 @@ FC Datastore Setup
     
     ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl ip %{NIMBUS_PERSONAL_USER}-${name}.esx.1 | grep %{NIMBUS_PERSONAL_USER}-${name}.esx.1
     ${esx1-ip}=  Fetch From Right  ${out}  ${SPACE}
+    Close Connection
+
+    Set Suite Variable  ${nimbus_pod}  ${pod}
+    Set Suite Variable  ${testbedname}  ${name}
 
     Set Environment Variable  GOVC_URL  ${esx0-ip}
     Set Environment Variable  GOVC_USERNAME  root
