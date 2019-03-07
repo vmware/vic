@@ -77,21 +77,24 @@ Deploy Proxified VCH
     Log  ${output}
     Gather Logs From Test Server  name=VCH-XPLT
     Should Be Equal As Integers  ${rc}  0
-
     ${br2}=  Get Environment Variable  BRIDGE_NETWORK
     Set Environment Variable  BRIDGE_NETWORK_2  ${br2}
     # suite teardown fails if we don't set this back, and we're informed not to edit the Suite Teardown at the top of the file, so
     Set Environment Variable  BRIDGE_NETWORK  ${br1}
-
+    # the test env is ascii encode, not support the character encoding, so need to replace.
+    ${output}=  Replace String Using Regexp  ${output}  \[µ\]  u
+    Log  ${output}
     ${rc}  ${vch2-params}=  Run And Return Rc And Output  echo '${output}' | grep -A1 "Connect to docker" | tail -n1 | cut -d' ' -f4- | sed 's/ info" $//g'
-
+    Log  ${rc}
+    Log  ${vch2-params}
     # this comment fixes syntax highlighting "
     Should Be Equal As Integers  ${rc}  0
 
     ${rc}  ${vch2-IP}=  Run And Return Rc And Output  echo '${output}' | grep -A1 "Published ports" | tail -n1 | awk '{print $NF}' | cut -d= -f2
+    Log  ${vch2-IP}
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${vch2-IP}  ${vch2-params}
-
+ 
 Destroy Proxified VCH
     Run  bin/vic-machine-linux delete --name=VCH-XPLT --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true
     ${br1}=  Get Environment Variable  BRIDGE_NETWORK

@@ -32,6 +32,8 @@ type ResourceLimits struct {
 
 	StorageQuotaGB *int `cmd:"storage-quota"`
 
+	ContainerCount *int `cmd:"containers"`
+
 	IsSet bool
 }
 
@@ -85,6 +87,16 @@ func (r *ResourceLimits) VCHStorageQuotaFlag() []cli.Flag {
 			Name:  "storage-quota, sq",
 			Value: flags.NewOptionalInt(&r.StorageQuotaGB),
 			Usage: "Storage quota for images and containers in GB (unlimited=0)",
+		},
+	}
+}
+
+func (r *ResourceLimits) VCHContainerCountFlag() []cli.Flag {
+	return []cli.Flag{
+		cli.GenericFlag{
+			Name:  "containers",
+			Value: flags.NewOptionalInt(&r.ContainerCount),
+			Usage: "Total number of containers that can exist in VCH (unlimited=0)",
 		},
 	}
 }

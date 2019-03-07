@@ -136,7 +136,6 @@ func (s *Scope) pools() []*ip.Range {
 			pools[i] = r
 			continue
 		}
-
 		pools[i] = sp.Pool
 	}
 

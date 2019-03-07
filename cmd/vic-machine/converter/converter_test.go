@@ -319,10 +319,12 @@ func TestConvertLimitsInfo(t *testing.T) {
 	}
 	quota := 100
 	data.StorageQuotaGB = &quota
+	containers := 10
+	data.ContainerCount = &containers
 
 	options, err := DataToOption(data)
 	assert.Empty(t, err)
-	assert.Equal(t, 8, len(options), "should not have other option generated")
+	assert.Equal(t, 9, len(options), "should not have other option generated")
 	assert.Equal(t, "2", options["endpoint-cpu"][0], "not expected endpoint-cpu option")
 	assert.Equal(t, "4096", options["endpoint-memory"][0], "not expected endpoint-memory option")
 	assert.Equal(t, "13144", options["memory"][0], "not expected memory option")
@@ -331,6 +333,7 @@ func TestConvertLimitsInfo(t *testing.T) {
 	assert.Equal(t, "1024", options["cpu-reservation"][0], "not expected cpu-reservation option")
 	assert.Equal(t, "6000", options["cpu-shares"][0], "not expected cpu-shares option")
 	assert.Equal(t, "100", options["storage-quota"][0], "not expected storage-quota option")
+	assert.Equal(t, "10", options["containers"][0], "not expected containers option")
 }
 
 func TestGuestInfo(t *testing.T) {

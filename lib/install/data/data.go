@@ -359,6 +359,10 @@ func (d *Data) CopyNonEmpty(src *Data) error {
 		d.StorageQuotaGB = src.StorageQuotaGB
 		resourceIsSet = true
 	}
+	if src.ContainerCount != nil {
+		d.ContainerCount = src.ContainerCount
+		resourceIsSet = true
+	}
 	d.ResourceLimits.IsSet = resourceIsSet
 
 	d.Timeout = src.Timeout

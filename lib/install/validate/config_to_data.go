@@ -235,6 +235,9 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 		quotaGB := (int)(conf.StorageQuota / units.GiB)
 		d.StorageQuotaGB = &quotaGB
 	}
+	if conf.ContainerCount != 0 {
+		d.ContainerCount = &conf.ContainerCount
+	}
 	return
 }
 

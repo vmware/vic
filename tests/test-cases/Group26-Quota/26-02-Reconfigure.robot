@@ -13,7 +13,7 @@
 # limitations under the License
 
 *** Settings ***
-Documentation     Suite 26-01 - Basic
+Documentation     Suite 26-02 - Reconfigure
 Resource          ../../resources/Util.robot
 Resource          ../../resources/Group26-Storage-Quota-Util.robot
 Suite Setup  Install VIC Appliance To Test Server
