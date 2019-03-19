@@ -469,7 +469,7 @@ func (s *server) logoutHandler(res http.ResponseWriter, req *http.Request) {
 	http.Redirect(res, req, "/authentication", http.StatusTemporaryRedirect)
 }
 
-func (s *server) bundleContainerLogs(res http.ResponseWriter, req *http.Request, f format) {
+func (s *server) bundleContainerLogs(res http.ResponseWriter, req *http.Request, f format, dsLog bool) {
 	defer trace.End(trace.Begin(""))
 	logrotateLock := filelock.NewFileLock(filelock.LogRotateLockName)
 	if err := logrotateLock.Acquire(); err != nil {
@@ -486,16 +486,18 @@ func (s *server) bundleContainerLogs(res http.ResponseWriter, req *http.Request,
 		return
 	}
 
-	logs, err := findDatastoreLogs(c)
-	if err != nil {
-		log.Warningf("error searching datastore: %s", err)
-	} else {
-		for key, rdr := range logs {
-			readers[key] = rdr
+	if dsLog {
+		logs, err := findDatastoreLogs(c)
+		if err != nil {
+			log.Warningf("error searching datastore: %s", err)
+		} else {
+			for key, rdr := range logs {
+				readers[key] = rdr
+			}
 		}
 	}
 
-	logs, err = findDiagnosticLogs(c)
+	logs, err := findDiagnosticLogs(c)
 	if err != nil {
 		log.Warningf("error collecting diagnostic logs: %s", err)
 	} else {
@@ -510,13 +512,13 @@ func (s *server) bundleContainerLogs(res http.ResponseWriter, req *http.Request,
 func (s *server) tarDefaultLogs(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 
-	s.bundleLogs(res, req, configureReaders(), formatTGZ)
+	s.bundleContainerLogs(res, req, formatTGZ, false)
 }
 
 func (s *server) zipDefaultLogs(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 
-	s.bundleLogs(res, req, configureReaders(), formatZip)
+	s.bundleContainerLogs(res, req, formatTGZ, false)
 }
 
 func (s *server) bundleLogs(res http.ResponseWriter, req *http.Request, readers map[string]entryReader, f format) {
@@ -541,11 +543,11 @@ func (s *server) bundleLogs(res http.ResponseWriter, req *http.Request, readers 
 }
 
 func (s *server) tarContainerLogs(res http.ResponseWriter, req *http.Request) {
-	s.bundleContainerLogs(res, req, formatTGZ)
+	s.bundleContainerLogs(res, req, formatTGZ, true)
 }
 
 func (s *server) zipContainerLogs(res http.ResponseWriter, req *http.Request) {
-	s.bundleContainerLogs(res, req, formatZip)
+	s.bundleContainerLogs(res, req, formatZip, true)
 }
 
 func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []string) {
