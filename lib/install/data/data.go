@@ -369,6 +369,8 @@ func (d *Data) CopyNonEmpty(src *Data) error {
 
 	d.DNS = src.DNS
 
+	d.Rollback = src.Rollback
+
 	d.RegistryCAs = src.RegistryCAs
 
 	d.ContainerConfig.ContainerNameConvention = src.ContainerConfig.ContainerNameConvention
