@@ -204,7 +204,7 @@ func newCreate() *create.Create {
 		InsecureRegistriesArg:  cli.StringSlice{"https://insecure.example.com"},
 		WhitelistRegistriesArg: cli.StringSlice{"10.0.0.0/8"},
 	}
-	ca.SyslogAddr = "tcp://syslog.example.com:4444"
+	ca.Syslog = common.Syslog{"tcp://syslog.example.com:4444"}
 	ca.ContainerNameConvention = "container-{id}"
 	ca.Certs.CertPath = "test-vch"
 	ca.Certs.NoSaveToDisk = true
@@ -226,6 +226,9 @@ func compare(a, b reflect.Value, index int) (err error) {
 	case reflect.Interface:
 		return compare(a.Elem(), b.Elem(), index)
 	case reflect.Struct:
+		if a.Type().Field(0).Name == "SyslogAddr" {
+			return nil
+		}
 		for i := 0; i < a.NumField(); i++ {
 			if err = compare(a.Field(i), b.Field(i), i); err != nil {
 				fmt.Printf("Field name a: %s, b: %s, index: %d\n", a.Type().Field(i).Name, b.Type().Field(i).Name, i)

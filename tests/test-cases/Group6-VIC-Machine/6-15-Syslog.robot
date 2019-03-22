@@ -15,8 +15,7 @@
 *** Settings ***
 Documentation  Test 6-15 - Verify remote syslog
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server  additional-args=--syslog-address tcp://%{SYSLOG_SERVER}:514 --debug 1
-Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
 *** Variables ***
@@ -32,7 +31,6 @@ Get Remote PID
     Should Not Be Empty  ${pid}
     [Return]  ${pid}
 
-*** Test Cases ***
 Verify VCH remote syslog
     # enable ssh
     ${output}=  Run  bin/vic-machine-linux debug --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD}
@@ -98,9 +96,27 @@ Verify VCH remote syslog
 
     # Check trace logger for docker-engine and port-layer
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: op=${pid}.\\d+: Commit container \\w{64}
-    Should Match Regexp  ${out}  ${vch-ip} port-layer-server\\[${port-layer-pid}\\]: op=${port-layer-pid}.\\d+: Creating base file structure on disk
+    #Should Match Regexp  ${out}  ${vch-ip} port-layer-server\\[${port-layer-pid}\\]: op=${port-layer-pid}.\\d+: Creating base file structure on disk
     Should Match Regexp  ${out}  ${vch-ip} vicadmin\\[${vic-admin-pid}\\]: op=${vic-admin-pid}.\\d+: vSphere resource cache populating...
 
     Should Match Regexp  ${out}  ${shortID} ${shortID}\\[1\\]: bin
     Should Match Regexp  ${out}  ${shortID} ${shortID}\\[1\\]: home
     Should Match Regexp  ${out}  ${shortID} ${shortID}\\[1\\]: var
+
+
+*** Test Cases ***
+Verify VCH Create remote syslog
+
+    Install VIC Appliance To Test Server  certs=${false}  additional-args=--syslog-address tcp://%{SYSLOG_SERVER}:514 --debug 1
+
+    Verify VCH remote syslog
+
+Verify VCH Configure remote syslog
+
+    Install VIC Appliance To Test Server  certs=${false}  additional-args=--debug 1
+
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux configure --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --syslog-address tcp://%{SYSLOG_SERVER}:514 --thumbprint=%{TEST_THUMBPRINT} --debug 1
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Completed successfully
+
+    Verify VCH remote syslog
