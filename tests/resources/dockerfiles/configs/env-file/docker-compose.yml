@@ -1,3 +1,4 @@
+version: '3'
 web:
   image: busybox
   command: /bin/true

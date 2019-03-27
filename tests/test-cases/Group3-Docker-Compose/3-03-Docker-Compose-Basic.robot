@@ -19,11 +19,11 @@ Suite Setup  Install VIC Appliance To Test Server  certs=${true}
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Variables ***
-${yml}  version: "2"\nservices:\n${SPACE}web:\n${SPACE}${SPACE}image: python:2.7\n${SPACE}${SPACE}ports:\n${SPACE}${SPACE}- "5000:5000"\n${SPACE}${SPACE}depends_on:\n${SPACE}${SPACE}- redis\n${SPACE}redis:\n${SPACE}${SPACE}image: redis\n${SPACE}${SPACE}ports:\n${SPACE}${SPACE}- "5001:5001"
-${link-yml}  version: "2"\nservices:\n${SPACE}redis1:\n${SPACE}${SPACE}image: redis:alpine\n${SPACE}${SPACE}container_name: redis1\n${SPACE}${SPACE}ports: ["6379"]\n${SPACE}web1:\n${SPACE}${SPACE}image: busybox\n${SPACE}${SPACE}container_name: a.b.c\n${SPACE}${SPACE}links:\n${SPACE}${SPACE}- redis1:aaa\n${SPACE}${SPACE}command: ["ping", "aaa"]
-${rename-yml-1}  version: "2"\nservices:\n${SPACE}web:\n${SPACE}${SPACE}image: busybox\n${SPACE}${SPACE}command: ["/bin/top"]
-${rename-yml-2}  version: "2"\nservices:\n${SPACE}web:\n${SPACE}${SPACE}image: ubuntu\n${SPACE}${SPACE}command: ["date"]
-${hello-yml}  version: "2"\nservices:\n${SPACE}top:\n${SPACE}${SPACE}image: busybox\n${SPACE}${SPACE}container_name: top\n${SPACE}${SPACE}command: ["echo", "hello, world"]
+${yml}  version: "3"\nservices:\n${SPACE}web:\n${SPACE}${SPACE}image: python:2.7\n${SPACE}${SPACE}ports:\n${SPACE}${SPACE}- "5000:5000"\n${SPACE}${SPACE}depends_on:\n${SPACE}${SPACE}- redis\n${SPACE}redis:\n${SPACE}${SPACE}image: redis\n${SPACE}${SPACE}ports:\n${SPACE}${SPACE}- "5001:5001"
+${link-yml}  version: "3"\nservices:\n${SPACE}redis1:\n${SPACE}${SPACE}image: redis:alpine\n${SPACE}${SPACE}container_name: redis1\n${SPACE}${SPACE}ports: ["6379"]\n${SPACE}web1:\n${SPACE}${SPACE}image: busybox\n${SPACE}${SPACE}container_name: a.b.c\n${SPACE}${SPACE}links:\n${SPACE}${SPACE}- redis1:aaa\n${SPACE}${SPACE}command: ["ping", "aaa"]
+${rename-yml-1}  version: "3"\nservices:\n${SPACE}web:\n${SPACE}${SPACE}image: busybox\n${SPACE}${SPACE}command: ["/bin/top"]
+${rename-yml-2}  version: "3"\nservices:\n${SPACE}web:\n${SPACE}${SPACE}image: ubuntu\n${SPACE}${SPACE}command: ["date"]
+${hello-yml}  version: "3"\nservices:\n${SPACE}top:\n${SPACE}${SPACE}image: busybox\n${SPACE}${SPACE}container_name: top\n${SPACE}${SPACE}command: ["echo", "hello, world"]
 
 *** Keywords ***
 Check Compose Logs

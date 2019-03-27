@@ -1,2 +1,3 @@
+version: '3'
 web:
   command: top

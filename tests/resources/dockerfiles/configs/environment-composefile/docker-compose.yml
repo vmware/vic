@@ -1,3 +1,4 @@
+version: '3'
 service:
   image: busybox:latest
   command: top
