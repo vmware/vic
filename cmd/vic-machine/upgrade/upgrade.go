@@ -224,7 +224,7 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 	}
 
 	if !u.Data.Rollback {
-		err = executor.Configure(vchConfig, vConfig)
+		err = executor.Configure(vchConfig, vConfig, true)
 	} else {
 		err = executor.Rollback(vchConfig, vConfig)
 	}

@@ -52,7 +52,7 @@ var (
 )
 
 // Configure will try to reconfigure vch appliance. If failed will try to roll back to original status.
-func (d *Dispatcher) Configure(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (err error) {
+func (d *Dispatcher) Configure(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData, upgrade bool) (err error) {
 	defer trace.End(trace.Begin(conf.Name, d.op))
 
 	// set the folerName for ISO uploads
@@ -111,7 +111,12 @@ func (d *Dispatcher) Configure(conf *config.VirtualContainerHostConfigSpec, sett
 		s.Started = ""
 	}
 
-	snapshotName := fmt.Sprintf("%s %s", ConfigurePrefix, conf.Version.BuildNumber)
+	snapshotName := ""
+	if upgrade {
+		snapshotName = fmt.Sprintf("%s %s", UpgradePrefix, conf.Version.BuildNumber)
+	} else {
+		snapshotName = fmt.Sprintf("%s %s", ConfigurePrefix, conf.Version.BuildNumber)
+	}
 	snapshotName = strings.TrimSpace(snapshotName)
 	// check for old snapshot
 	oldSnapshot, err := d.appliance.GetCurrentSnapshotTree(d.op)
@@ -151,8 +156,10 @@ func (d *Dispatcher) Configure(conf *config.VirtualContainerHostConfigSpec, sett
 		}
 	}
 
-	// compatible with old version's upgrade snapshot name
-	if oldSnapshot != nil && (vm.IsConfigureSnapshot(oldSnapshot, ConfigurePrefix) || vm.IsConfigureSnapshot(oldSnapshot, UpgradePrefix)) {
+	// Fixes vic#8437: we need to give different names for upgrade and configure snapshots, so we can
+	// rollback to old version even we do some configurations after upgrade. The old upgrade snapshot
+	// needs to be kept when we configure after upgrade.
+	if oldSnapshot != nil && (upgrade || snapshotName == oldSnapshot.Name) && (vm.IsConfigureSnapshot(oldSnapshot, ConfigurePrefix) || vm.IsConfigureSnapshot(oldSnapshot, UpgradePrefix)) {
 		d.deleteSnapshot(&oldSnapshot.Snapshot, oldSnapshot.Name, conf.Name)
 	}
 

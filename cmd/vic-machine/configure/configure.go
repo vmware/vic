@@ -559,7 +559,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	}()
 
 	if !c.Data.Rollback {
-		err = executor.Configure(vchConfig, vConfig)
+		err = executor.Configure(vchConfig, vConfig, false)
 	} else {
 		executor.Action = management.ActionRollback
 		err = executor.Rollback(vchConfig, vConfig)
