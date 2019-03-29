@@ -231,6 +231,12 @@ Configure VCH With Storage Quota
     Log  ${output}
     Should Contain  ${output}  Completed successfully
 
+Configure Rollback
+    [Arguments]  ${vchName}
+    ${output}=  Run  bin/vic-machine-linux configure --name=${vchName} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --rollback
+    Log  ${output}
+    Should Contain  ${output}  Completed successfully
+
 Get Docker Info Exec Time
     [Arguments]  ${info}
     ${execTimeline}=  Get Lines Containing String  ${info}  elapsed
@@ -333,14 +339,11 @@ Test Storage Quota
     Check After Upgrade  ${output}  2  2  0  0  2  22  24
     Should Not Contain  ${output}  VCH storage limit:
 
-    ${status}=  Get State Of Github Issue  8437
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-06-Upgrade-StorageQuota.robot needs to be updated now that Issue #8437 has been resolved
-
- #   Reload VCH Related Environment Variables  ${vchName1}  ${vchIP1}  ${vchParams1}  ${vchAdmin1}
- #   Rollback
- #   Check Original Version
- #   Upgrade with ID
- #   ${output}=  Run Docker Info Cmd  ${vchParams1}
- #   ${output}=  Run Docker Info Cmd  ${vchParams1}
- #   Check After Upgrade  ${output}  4  2  0  2  2  36  40
-
+    Reload VCH Related Environment Variables  ${vchName1}  ${vchIP1}  ${vchParams1}  ${vchAdmin1}
+    Configure Rollback  ${vchName1}
+    Rollback
+    Check Original Version
+    Upgrade with ID
+    ${output}=  Run Docker Info Cmd  ${vchParams1}
+    ${output}=  Run Docker Info Cmd  ${vchParams1}
+    Check After Upgrade  ${output}  4  2  0  2  2  36  40
