@@ -20,7 +20,7 @@ import (
 	"os"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // DynamicMultiWriter adds dynamic add/remove to the base multiwriter behaviour

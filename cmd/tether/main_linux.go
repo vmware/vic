@@ -22,7 +22,7 @@ import (
 	"strings"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/tether"
 	viclog "github.com/vmware/vic/pkg/log"

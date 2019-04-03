@@ -19,7 +19,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/go-openapi/loads"
 	"github.com/jessevdk/go-flags"
 

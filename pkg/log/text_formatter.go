@@ -14,7 +14,7 @@
 
 package log
 
-import "github.com/Sirupsen/logrus"
+import "github.com/sirupsen/logrus"
 
 // level strings padded to match the length of the longest level,
 // which is "UNKNOWN" currently. Indexed according to levels in

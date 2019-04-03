@@ -14,7 +14,7 @@
 
 package telnet
 
-import log "github.com/Sirupsen/logrus"
+import log "github.com/sirupsen/logrus"
 
 type state int
 

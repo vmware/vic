@@ -27,7 +27,7 @@ import (
 	"sync"
 	"testing"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/crypto/ssh"
 

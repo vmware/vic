@@ -22,7 +22,7 @@ import (
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/reexec"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libnetwork"

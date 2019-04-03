@@ -20,7 +20,7 @@ import (
 	"net/url"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/migration/errors"
 	"github.com/vmware/vic/lib/migration/feature"

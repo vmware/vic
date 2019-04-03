@@ -18,7 +18,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 )

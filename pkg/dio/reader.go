@@ -19,7 +19,7 @@ import (
 	"io"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // DynamicMultiReader adds dynamic add/remove to the base multireader behaviour

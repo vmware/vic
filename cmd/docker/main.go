@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"os"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	apiserver "github.com/docker/docker/api/server"
 	"github.com/docker/docker/api/server/middleware"
 	"github.com/docker/docker/api/server/router"
