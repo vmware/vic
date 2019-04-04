@@ -149,10 +149,13 @@ Wait For NFS And VCH
 *** Test Cases ***
 VIC Appliance Install with Read Only NFS Volume
     Setup ENV Variables for VIC Appliance Install
-
-    ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${NFS_READONLY_IP}/exports/storage1?uid=0&gid=0:${nfsReadOnlyVolumeStore}"
+    Set Test Environment Variables
+    ${output}=   Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --no-tlsverify --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry wdc-harbor-ci.eng.vmware.com --container-network=%{PUBLIC_NETWORK}:public --volume-store="nfs://${NFS_READONLY_IP}/exports/storage1?uid=0&gid=0:${nfsReadOnlyVolumeStore}"
+    #${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${NFS_READONLY_IP}/exports/storage1?uid=0&gid=0:${nfsReadOnlyVolumeStore}"
     Log  ${output}
     Should Contain  ${output}  create failed: Creating VCH exceeded time limit
+    #Since vic'pr #8457, portlayer-server wouldn't start successfully if given volume-store fails to work well. Thus, Read-only and Fake nfs volume-store would cause vch not to start, leading creating vch timeout. 
+    
     #Should Contain  ${output}  Installer completed successfully
     #Should Contain  ${output}  VolumeStore (${nfsReadOnlyVolumeStore}) cannot be brought online - check network, nfs server, and --volume-store configurations
     #Should Contain  ${output}  Not all configured volume stores are online - check port layer log via vicadmin
@@ -165,10 +168,13 @@ VIC Appliance Install with Read Only NFS Volume
 
 VIC Appliance Install With Fake NFS Server
     Setup ENV Variables for VIC Appliance Install
+    Set Test Environment Variables
+    ${output}=   Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --no-tlsverify --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry wdc-harbor-ci.eng.vmware.com --container-network=%{PUBLIC_NETWORK}:public --volume-store="nfs://${nfs_bogon_ip}/store?uid=0&gid=0:${nfsFakeVolumeStore}"
 
-    ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${nfs_bogon_ip}/store?uid=0&gid=0:${nfsFakeVolumeStore}"
+    #${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${nfs_bogon_ip}/store?uid=0&gid=0:${nfsFakeVolumeStore}"
     Log  ${output}
     Should Contain  ${output}  create failed: Creating VCH exceeded time limit
+    # Since vic'pr #8457, portlayer-server wouldn't start successfully if given volume-store fails to work well. Thus, Read-only and Fake nfs volume-store would cause vch not to start, leading creating vch timeout. 
     #Should Contain  ${output}  VolumeStore (${nfsFakeVolumeStore}) cannot be brought online - check network, nfs server, and --volume-store configurations
 
 VIC Appliance Install With Correct NFS Server
