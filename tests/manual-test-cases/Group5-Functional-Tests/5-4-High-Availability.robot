@@ -16,12 +16,10 @@
 Documentation  Test 5-4 - High Availability
 Resource  ../../resources/Util.robot
 Suite Setup  Nimbus Suite Setup  High Availability Setup
-Suite Teardown  Nimbus Cleanup  ${list}
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Pod Cleanup  ${nimbus_pod}  ${testbedname}
 Test Teardown  Run Keyword If Test Failed  Gather vSphere Logs
 
 *** Variables ***
-${esx_number}=  3
-${datacenter}=  ha-datacenter
 ${namedVolume}=  named-volume
 ${mntDataTestContainer}=  mount-data-test
 ${mntTest}=  /mnt/test
@@ -90,83 +88,50 @@ Run Regression Test With More Log Information
     Scrape Logs For The Password
 
 High Availability Setup
-    [Timeout]    110 minutes
-    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
-    ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
-    ${pid}=  Deploy Nimbus vCenter Server Async  ${vc}
-    Set Suite Variable  ${VC}  ${vc}
-
-    Log To Console  \nStarting test...
-    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  3  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-
-    @{esx_names}=  Get Dictionary Keys  ${esxes}
-    @{esx_ips}=  Get Dictionary Values  ${esxes}
-
-    Set Suite Variable  @{list}  @{esx_names}[0]  @{esx_names}[1]  @{esx_names}[2]  %{NIMBUS_PERSONAL_USER}-${vc}
-
-    # Finish vCenter deploy
-    ${output}=  Wait For Process  ${pid}
-    Should Contain  ${output.stdout}  Overall Status: Succeeded
-
+    [Timeout]  60 minutes
+    ${name}=  Evaluate  'vic-iscsi-cluster-' + str(random.randint(1000,9999))  modules=random
+    Log To Console  Create a new simple vc cluster with spec vic-cluster-ha.rb...
+    ${out}=  Deploy Nimbus Testbed  spec=vic-cluster-ha.rb  args=--noSupportBundles --plugin testng --vcvaBuild "${VC_VERSION}" --esxBuild "${ESX_VERSION}" --testbedName vic-cluster-ha --runName ${name}
+    Log  ${out}
+    Should Contain  ${out}  "deployment_result"=>"PASS"
+    Log To Console  Finished creating cluster ${name}
     Open Connection  %{NIMBUS_GW}
-    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${vc_ip}=  Get IP  ${vc}
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc-ip}=  Get IP  ${name}.vc.0
+    Log  ${vc-ip}
+    ${pod}=  Fetch Pod  ${name}
+    Log  ${pod}
     Close Connection
+    
+    Set Suite Variable  ${nimbus_pod}  ${pod}
+    Set Suite Variable  ${testbedname}  ${name}
 
     Set Environment Variable  GOVC_INSECURE  1
     Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
     Set Environment Variable  GOVC_PASSWORD  Admin!23
-    Set Environment Variable  GOVC_URL  ${vc_ip}
-
-    Log To Console  Create a datacenter on the VC
-    ${out}=  Run  govc datacenter.create ${datacenter}
-    Should Be Empty  ${out}
-
-    Log To Console  Create a cluster on the VC
-    ${out}=  Run  govc cluster.create cls
-    Should Be Empty  ${out}
-
-    Create A Distributed Switch  ${datacenter}
-
-    Create Three Distributed Port Groups  ${datacenter}
-
-    Log To Console  Add ESX hosts to the cluster
-    :FOR  ${IDX}  IN RANGE  ${esx_number}
-    \   ${out}=  Run  govc cluster.add -hostname=@{esx_ips}[${IDX}] -username=root -dc=${datacenter} -password=${NIMBUS_ESX_PASSWORD} -noverify=true
-    \   Should Contain  ${out}  OK
-
-    Log To Console  Add all the hosts to the distributed switch
-    Add Host To Distributed Switch  /${datacenter}/host/cls
-
-    Log To Console  Enable HA and DRS on the cluster
-    ${out}=  Run  govc cluster.change -drs-enabled -ha-enabled /${datacenter}/host/cls
-    Should Be Empty  ${out}
-
-    ${name}  ${ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Append To List  ${list}  ${name}
-
-    ${out}=  Run  govc datastore.create -mode readWrite -type nfs -name nfsDatastore -remote-host ${ip} -remote-path /store /ha-datacenter/host/cls
-    Should Be Empty  ${out}
+    Set Environment Variable  GOVC_URL  ${vc-ip}
 
     Log To Console  Deploy VIC to the VC cluster
-    Set Environment Variable  TEST_URL_ARRAY  ${vc_ip}
+    Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
     Set Environment Variable  TEST_RESOURCE  cls
     Remove Environment Variable  TEST_DATACENTER
-    Set Environment Variable  TEST_DATASTORE  nfsDatastore
+    Set Environment Variable  TEST_DATASTORE  sharedVmfs-0
     Set Environment Variable  TEST_TIMEOUT  30m
 
 Check All VM Migration Succeed
     [Arguments]  ${poweroff_host_ip}
-    :FOR  ${index}  IN RANGE  15
+    :FOR  ${index}  IN RANGE  30
     \     ${info}=  Run  govc vm.info \\*
     \     ${status}=  Run Keyword And Return Status  Should Not Contain  ${info}  ${poweroff_host_ip}
     \     Exit For Loop If  ${status}
     \     Sleep  1m
     Log  ${info}
+    Return From Keyword If  ${status}
+    Fail  the vms migration failed.
 
 *** Test Cases ***
 Test

@@ -173,11 +173,14 @@ Is Exist Home Directory
     Open Connection  ${VDNET_LAUNCHER_HOST}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${vdnet_root}  ${vdnet_root_pwd}
     Write  su - %{NIMBUS_PERSONAL_USER}
+    ${switch_result}=  Read
+    Log  ${switch_result}
     Write  pwd
+    Sleep  1
     ${result}=  Read Until  %{NIMBUS_PERSONAL_USER}@
     Log  ${result}
     Close Connection
-    ${status}=  Run Keyword And Return Status  Should Contain  ${result}  /%{NIMBUS_PERSONAL_USER} 
+    ${status}=  Run Keyword And Return Status  Should Contain  ${result}  /home
     Return From Keyword If  ${status}  ${True}
     Return From Keyword  ${False}
 
@@ -186,6 +189,7 @@ Generate RSA Key
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${vdnet_root}  ${vdnet_root_pwd}
     Write  su - %{NIMBUS_PERSONAL_USER}
     Write  [ ! -f ~/.ssh/id_rsa ] && ssh-keygen -t rsa -N '' -f ~/.ssh/id_rsa
+    Sleep  3
     ${result}=  Read Until  %{NIMBUS_PERSONAL_USER}@
     Log  ${result}
     Close Connection

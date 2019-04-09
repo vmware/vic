@@ -39,7 +39,7 @@ Get IP
 
 Fetch POD
       [Arguments]  ${name}
-      ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl list | grep ${name}
+      ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl list | grep ${name} | awk '{print $1}' | uniq
       Should Not Be Empty  ${out}
       ${len}=  Get Line Count  ${out}
       Should Be Equal As Integers  ${len}  1
@@ -197,17 +197,24 @@ Deploy Nimbus vCenter Server Async
 # args [optional] - args to pass into testbeddeploy
 # spec [optional] - name of spec file in tests/resources/nimbus-testbeds
 Deploy Nimbus Testbed
-    [Arguments]  ${user}  ${password}  ${args}=  ${spec}=${EMPTY}
+    [Arguments]  ${user}=%{NIMBUS_USER}  ${password}=%{NIMBUS_PASSWORD}  ${spec}=${EMPTY}  ${args}=${EMPTY}
 
     Run Keyword And Ignore Error  Cleanup Nimbus Folders  deletePXE=${true}
+    ${suffix}=  Generate Random String  5
+    ${specarg}=  Set Variable If  '${spec}' == '${EMPTY}'  ${EMPTY}  --testbedSpecRubyFile ./%{BUILD_TAG}/testbeds/${spec}-${suffix}
 
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
-    ${specarg}=  Set Variable If  '${spec}' == '${EMPTY}'  ${EMPTY}  --testbedSpecRubyFile ./%{BUILD_TAG}/testbeds/${spec}    
-
     :FOR  ${IDX}  IN RANGE  1  5
-    \   Run Keyword Unless  '${spec}' == '${EMPTY}'  Put File  tests/resources/nimbus-testbeds/${spec}  destination=./%{BUILD_TAG}/testbeds/
+    \   Exit For Loop If  '${spec}' == '${EMPTY}'
+    \   ${status}=  Run Keyword And Return Status  Put File  tests/resources/nimbus-testbeds/${spec}  destination=./%{BUILD_TAG}/testbeds/${spec}-${suffix}
+    \   Log  ${status}
+    \   Sleep  3
+    \   ${status}=  Run Keyword And Return Status  SSHLibrary.File Should Exist  ./%{BUILD_TAG}/testbeds/${spec}-${suffix}
+    \   Log  ${status}
+    \   Run Keyword If  ${status}== False  Continue For Loop
+    \   Sleep  3
     \   ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-testbeddeploy --lease 0.25 ${specarg} ${args}
     \   Log  ${out}
     \   # Make sure the deploy actually worked
@@ -215,6 +222,19 @@ Deploy Nimbus Testbed
     \   Return From Keyword If  ${status}  ${out}
     \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 1 minute
     \   Sleep  1 minutes
+    
+    :FOR  ${IDX}  IN RANGE  1  5
+    \   Exit For Loop If  '${spec}' != '${EMPTY}'
+    \   ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-testbeddeploy --lease 0.25 ${specarg} ${args}
+    \   Log  ${out}
+    \   # Make sure the deploy actually worked
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  "deployment_result"=>"PASS"
+    \   Return From Keyword If  ${status}  ${out}
+    \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 1 minute
+    \   Sleep  1 minutes
+  
+    Run Keyword Unless  '${spec}' == '${EMPTY}'  Execute Command  rm -rf ./%{BUILD_TAG}/testbeds/${spec}-${suffix}
+
     Fail  Deploy Nimbus Testbed Failed 5 times over the course of more than 5 minutes
 
 Kill Nimbus Server
@@ -226,20 +246,37 @@ Kill Nimbus Server
     Close connection
 
 Cleanup Nimbus Folders
-    [Arguments]  ${deletePXE}=${false}
+    [Arguments]  ${deletePXE}=${True}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     # TODO: this may need pabot shared resource locking around it for multiple jobs. We're likely making use of the
     # retry paths currently but it's not good practice.
-    Run Keyword If  ${deletePXE}  Execute Command  ${NIMBUS_LOCATION_FULL} rm -rf public_html/pxe/* public_html/pxeinstall/*
+    ${process_status}=  Check Nimbus Deploy Process
+    Run Keyword If  ${deletePXE} and ${process_status} == ${False}  Execute Command  ${NIMBUS_LOCATION_FULL} rm -rf public_html/pxe/* public_html/pxeinstall/*
     Execute Command  ${NIMBUS_LOCATION_FULL} rm -rf %{BUILD_TAG}
     Close connection
+
+Check Nimbus Deploy Process
+    ${count_esx}=   Execute Command  ps -ef | grep "nimbus-esxdeploy" | grep -v grep | wc -l
+    ${count_vc}=   Execute Command  ps -ef | grep "nimbus-vcvadeploy" | grep -v grep | wc -l
+    Log  ${count_esx}
+    Log  ${count_vc}
+    Return From Keyword If  ${count_esx} != 0 or ${count_vc} != 0  ${True}
+    Return From Keyword  ${False}
 
 # Cleans up a list of VMs and deletes the pxe folder on nimbus gateway
 Nimbus Cleanup
     [Arguments]  ${vm_list}  ${collect_log}=True  ${dontDelete}=${false}
     ${list}=  Catenate  @{vm_list}
     Run Keyword   Nimbus Cleanup Single VM  ${list}  ${collect_log}  ${dontDelete}  ${true}
+
+Nimbus Pod Cleanup
+    [Arguments]  ${nimbus_pod_name}  ${testbedname}
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Execute Command  USER=%{NIMBUS_PERSONAL_USER} NIMBUS=${nimbus_pod_name} nimbus-ctl --nimbusLocation=${NIMBUS_LOCATION} --testbed kill ${testbedname}
+    Close Connection
+    Run Keyword And Ignore Error  Cleanup Nimbus Folders  deletePXE=${True}
 
 # Cleans up a vm (or space separated string list of vms) but does not delete pxe folder on nimbus gateway
 Nimbus Cleanup Single VM
@@ -293,7 +330,6 @@ Create a VSAN Cluster
     Log To Console  Add all the hosts to the distributed switch
     ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 /vcqaDC/host/cls
     Should Contain  ${out}  OK
-
     Log To Console  Enable DRS and VSAN on the cluster
     ${out}=  Run  govc cluster.change -drs-enabled /vcqaDC/host/cls
     Should Be Empty  ${out}
@@ -405,6 +441,8 @@ Create Three Distributed Port Groups
 Add Host To Distributed Switch
     [Arguments]  ${host}  ${dvs}=test-ds
     Log To Console  \nAdd host(s) to the distributed switch
+    Log  ${host}
+    Log  ${dvs}
     ${out}=  Wait Until Keyword Succeeds  10x  30s  Run  govc dvs.add -dvs=${dvs} -pnic=vmnic1 ${host}
     Should Contain  ${out}  OK
 

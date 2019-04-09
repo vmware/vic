@@ -16,70 +16,39 @@
 Documentation  Test 5-5 - Heterogeneous ESXi
 Resource  ../../resources/Util.robot
 Suite Setup  Nimbus Suite Setup  Heterogenous ESXi Setup
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Pod Cleanup  ${nimbus_pod}  ${testbedname}
 Force Tags  hetero
 
 *** Keywords ***
 Heterogenous ESXi Setup
-    [Timeout]    110 minutes
-    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
-    ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
-    ${pid-vc}=  Deploy Nimbus vCenter Server Async  ${vc}
-    Set Suite Variable  @{list}  %{NIMBUS_PERSONAL_USER}-${vc}
-
-    Run Keyword And Ignore Error  Cleanup Nimbus Folders  True
-    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  3029944
-    Append To List  ${list}  ${esx1}
-
-    Run Keyword And Ignore Error  Cleanup Nimbus Folders  True
-    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  5572656
-    Append To List  ${list}  ${esx2}
-
-    Run Keyword And Ignore Error  Cleanup Nimbus Folders  True
-    ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Append To List  ${list}  ${esx3}
-
-    # Finish vCenter deploy
-    ${output}=  Wait For Process  ${pid-vc}  timeout=40 minutes  on_timeout=terminate
-    Log  ${output.stdout}
-    Log  ${output.stderr}
-    ${status}=  Run Keyword And Return Status  Should Contain  ${output.stdout}  Overall Status: Succeeded
-
+    [Timeout]  60 minutes
+    ${name}=  Evaluate  'vic-hetegeneous-' + str(random.randint(1000,9999))  modules=random
+    Log To Console  Create a new simple vc cluster with spec vic-hetegeneous.rb...
+    ${out}=  Deploy Nimbus Testbed  spec=vic-hetegeneous.rb  args=--noSupportBundles --plugin testng --vcvaBuild "${VC_VERSION}" --esxBuild "${ESX_VERSION}" --testbedName vic-hetegeneous --runName ${name}
+    Log  ${out}
+    Should Contain  ${out}  "deployment_result"=>"PASS"
+    Log To Console  Finished creating cluster ${name}
     Open Connection  %{NIMBUS_GW}
-    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${vc-ip}=  Get IP  ${vc}
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc-ip}=  Get IP  ${name}.vc.0
+    Log  ${vc-ip}
+    ${pod}=  Fetch Pod  ${name}
+    Log  ${pod}
     Close Connection
+
+    Set Suite Variable  ${nimbus_pod}  ${pod}
+    Set Suite Variable  ${testbedname}  ${name}
 
     Set Environment Variable  GOVC_INSECURE  1
     Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
     Set Environment Variable  GOVC_PASSWORD  Admin!23
     Set Environment Variable  GOVC_URL  ${vc-ip}
-
-    Log To Console  Create a datacenter on the VC
-    ${out}=  Run  govc datacenter.create ha-datacenter
-    Should Be Empty  ${out}
-
-    Log To Console  Create a cluster on the VC
-    ${out}=  Run  govc cluster.create cls
-    Should Be Empty  ${out}
-
-    Log To Console  Add ESX host to the VC
-    Add Host To VCenter  ${esx1-ip}  root  ha-datacenter  e2eFunctionalTest
-    Add Host To VCenter  ${esx2-ip}  root  ha-datacenter  e2eFunctionalTest
-    ${vc-ver}=  Run  govc about | grep Version:
-    ${vc-ver}=  Fetch From Right  ${vc-ver}  ${SPACE}
-    Run Keyword If  '${vc-ver}' == '6.5.0'  Add Host To VCenter  ${esx3-ip}  root  ha-datacenter  e2eFunctionalTest
-
     ${out}=  Run  govc dvs.create -product-version 5.5.0 -dc=ha-datacenter test-ds
     Should Contain  ${out}  OK
 
-    Create Three Distributed Port Groups  ha-datacenter
+    Create Three Distributed Port Groups  dc1
 
-    Add Host To Distributed Switch  /ha-datacenter/host/cls
-
-    Log To Console  Enable DRS on the cluster
-    ${out}=  Run  govc cluster.change -drs-enabled /ha-datacenter/host/cls
-    Should Be Empty  ${out}
+    Add Host To Distributed Switch  /dc1/host/cls1
 
     Log To Console  Deploy VIC to the VC cluster
     Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
@@ -88,16 +57,9 @@ Heterogenous ESXi Setup
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
     Remove Environment Variable  TEST_DATACENTER
-    Set Environment Variable  TEST_RESOURCE  cls
+    Set Environment Variable  TEST_RESOURCE  cls1
     Set Environment Variable  TEST_TIMEOUT  30m
-
-    ${name}  ${ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Append To List  ${list}  ${name}
-
-    ${out}=  Run  govc datastore.create -mode readWrite -type nfs -name nfsDatastore -remote-host ${ip} -remote-path /store /ha-datacenter/host/cls
-    Should Be Empty  ${out}
-
-    Set Environment Variable  TEST_DATASTORE  nfsDatastore
+    Set Environment Variable  TEST_DATASTORE  sharedVmfs-0 
 
 *** Test Cases ***
 Test

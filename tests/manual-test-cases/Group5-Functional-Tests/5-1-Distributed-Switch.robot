@@ -15,54 +15,37 @@
 *** Settings ***
 Documentation  Test 5-1 - Distributed Switch
 Resource  ../../resources/Util.robot
-Suite Setup  Nimbus Suite Setup  Distributed Switch Setup
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
-
-*** Variables ***
-${esx_number}=  3
-${datacenter}=  ha-datacenter
+Suite Setup  Nimbus Suite Setup  No Cluster Setup
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Pod Cleanup  ${nimbus_pod}  ${testbedname}
 
 *** Keywords ***
-Distributed Switch Setup
-    [Timeout]    110 minutes
-    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
-    ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
-    ${pid}=  Deploy Nimbus vCenter Server Async  ${vc}
-    Set Suite Variable  ${VC}  ${vc}
+No Cluster Setup
+    [Timeout]  60 minutes
+    ${name}=  Evaluate  'vic-no-cluster' + str(random.randint(1000,9999))  modules=random,time
 
-    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  3  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    @{esx_names}=  Get Dictionary Keys  ${esxes}
-    @{esx_ips}=  Get Dictionary Values  ${esxes}
-
-    Set Suite Variable  @{list}  @{esx_names}[0]  @{esx_names}[1]  @{esx_names}[2]  %{NIMBUS_PERSONAL_USER}-${vc}
-
-    # Finish vCenter deploy
-    ${output}=  Wait For Process  ${pid}
-    Should Contain  ${output.stdout}  Overall Status: Succeeded
-
+    Log To Console  Create a new simple vc cluster with spec vic-no-cls.rb...
+    ${out}=  Deploy Nimbus Testbed  spec=vic-no-cls.rb  args=--noSupportBundles --plugin testng --vcvaBuild "${VC_VERSION}" --esxBuild "${ESX_VERSION}" --testbedName vic-no-cluster --runName ${name}
+    Log  ${out}
+    Should Contain  ${out}  "deployment_result"=>"PASS"
+    Log To Console  Finished creating cluster ${name}
+    
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${vc_ip}=  Get IP  ${vc}
+    ${vc_ip}=  Get IP  ${name}.vc.0
+    Log  ${vc_ip}
+    ${esx0_ip}=  Get IP  ${name}.esx.0
+    Log  ${esx0_ip}
+    ${pod}=  Fetch Pod  ${name}
+    Log  ${pod}
     Close Connection
+
+    Set Suite Variable  ${nimbus_pod}  ${pod}
+    Set Suite Variable  ${testbedname}  ${name}
 
     Set Environment Variable  GOVC_INSECURE  1
     Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
     Set Environment Variable  GOVC_PASSWORD  Admin!23
     Set Environment Variable  GOVC_URL  ${vc_ip}
-
-    Log To Console  Create a datacenter on the VC
-    ${out}=  Run  govc datacenter.create ${datacenter}
-    Should Be Empty  ${out}
-
-    Create A Distributed Switch  ${datacenter}
-
-    Create Three Distributed Port Groups  ${datacenter}
-
-    Log To Console  Add ESX host to the VC and Distributed Switch
-    :FOR  ${IDX}  IN RANGE  ${esx_number}
-    \   ${out}=  Run  govc host.add -hostname=@{esx_ips}[${IDX}] -username=root -dc=${datacenter} -password=${NIMBUS_ESX_PASSWORD} -noverify=true
-    \   Should Contain  ${out}  OK
-    \   Add Host To Distributed Switch  @{esx_ips}[${IDX}]
 
     Log To Console  Deploy VIC to the VC cluster
     Set Environment Variable  TEST_URL_ARRAY  ${vc_ip}
@@ -70,9 +53,9 @@ Distributed Switch Setup
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
-    Set Environment Variable  TEST_RESOURCE  /ha-datacenter/host/@{esx_ips}[0]/Resources
+    Set Environment Variable  TEST_RESOURCE  /dc1/host/${esx0_ip}/Resources
     Set Environment Variable  TEST_TIMEOUT  30m
-    Set Environment Variable  TEST_DATASTORE  datastore1
+    Set Environment Variable  TEST_DATASTORE  sharedVmfs-0
 
 *** Test Cases ***
 Test
