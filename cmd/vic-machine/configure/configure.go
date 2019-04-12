@@ -52,8 +52,9 @@ type Configure struct {
 
 	executor *management.Dispatcher
 
-	Force bool
-	help  common.Help
+	Force  bool
+	help   common.Help
+	Syslog common.Syslog
 }
 
 func NewConfigure() *Configure {
@@ -108,10 +109,11 @@ func (c *Configure) Flags() []cli.Flag {
 	help := c.help.HelpFlags()
 	squota := c.VCHStorageQuotaFlag()
 	cvms := c.VCHContainerCountFlag()
+	syslog := c.Syslog.SyslogFlags()
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, ops, id, compute, affinity, container, volume, dns, cNetwork, memory, cpu, squota, cvms, certificates, registries, proxies, util, debug, help} {
+	for _, f := range [][]cli.Flag{target, ops, id, compute, affinity, container, volume, dns, cNetwork, memory, cpu, squota, cvms, certificates, registries, proxies, syslog, util, debug, help} {
 		flags = append(flags, f...)
 	}
 
@@ -160,6 +162,12 @@ func (c *Configure) processParams(op trace.Operation) error {
 		return err
 	}
 	c.Data.RegistryCAs = c.registries.RegistryCAs
+
+	if u, err := c.Syslog.ProcessSyslog(); err == nil {
+		c.SyslogConfig.Addr = u
+	} else {
+		return err
+	}
 
 	return nil
 }
@@ -259,6 +267,10 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 
 	if n.RegistryCertificateAuthorities != nil {
 		o.RegistryCertificateAuthorities = n.RegistryCertificateAuthorities
+	}
+
+	if c.SyslogConfig.Addr != nil {
+		o.Diagnostics.SysLogConfig = n.Diagnostics.SysLogConfig
 	}
 
 	o.UseVMGroup = n.UseVMGroup
