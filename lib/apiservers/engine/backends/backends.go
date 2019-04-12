@@ -349,7 +349,7 @@ func setPortMapping(op trace.Operation, info *models.ContainerInfo, backend *Con
 		return err
 	}
 	for _, e := range endpointsOK.Payload {
-		if len(e.Ports) > 0 && e.Scope == constants.BridgeScopeType {
+		if len(e.Ports) > 0 && !e.Direct {
 			if err = network.MapPorts(container, e, container.ContainerID); err != nil {
 				log.Errorf(err.Error())
 				return err

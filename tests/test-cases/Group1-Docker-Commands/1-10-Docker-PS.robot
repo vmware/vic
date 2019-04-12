@@ -363,6 +363,29 @@ Docker ps with volume and network filters
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  2
 
+Docker ps port mapping with non-default bridge network
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} network create somenet
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 1111:80 --net=somenet ${nginx}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
+    Log To Console  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  1111->80/tcp
+    # Reboot VCH from vSphere
+    Reboot VM  %{VCH-NAME}
+    Wait For VCH Initialization  12x  20 seconds
+
+    # Check the port mapping exists
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
+    Log To Console  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  1111->80/tcp
 
 Docker ps container with specified static IP
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull ${nginx}
@@ -393,3 +416,4 @@ Docker ps container with specified static IP
     Set Environment Variable  BRIDGE_NETWORK  ${old-vch-bridge}
     Set Environment Variable  VCH-PARAMS  ${old-vch-params}
     Set Environment Variable  VIC-ADMIN  ${old-vic-admin}
+
