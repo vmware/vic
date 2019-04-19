@@ -21,6 +21,10 @@ set +x
 dpkg -l > package.list
 
 set -x
+
+wget -c https://storage.googleapis.com/vic-engine-releases/vic_v1.5.2.tar.gz
+tar zxvf vic_v1.5.2.tar.gz -C bin/ --strip 1
+
 buildinfo=$(drone build info vmware/vic $DRONE_BUILD_NUMBER)
 prNumber=$(drone build info --format "{{ .Ref }}" vmware/vic $DRONE_BUILD_NUMBER | cut -f 3 -d'/')
 set +x
