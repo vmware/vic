@@ -38,7 +38,7 @@ Set Test Environment Variables
     ${len}=  Set Variable if  %{DRONE_BUILD_NUMBER}  5  1
     ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
 
-    Set Environment Variable  TEST_URL  @{URLs}[${IDX+5}]
+    Set Environment Variable  TEST_URL  @{URLs}[4]
     Set Environment Variable  GOVC_URL  %{TEST_URL}
     Set Environment Variable  GOVC_USERNAME  %{TEST_USERNAME}
     Set Environment Variable  GOVC_PASSWORD  %{TEST_PASSWORD}
@@ -377,7 +377,7 @@ Run VIC Machine Command
 Run Secret VIC Machine Delete Command
     [Tags]  secret
     [Arguments]  ${vch-name}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout 5m
     [Return]  ${rc}  ${output}
 
 Run Secret VIC Machine Inspect Command
