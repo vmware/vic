@@ -35,10 +35,11 @@ Set Test Environment Variables
     @{URLs}=  Split String  %{TEST_URL_ARRAY}
     #${len}=  Get Length  ${URLs}
     # hardcode the TEST_URL_Array number as 10 since the other 6 HAAS servers are taken for other usage
-    ${len}=  Set Variable if  %{DRONE_BUILD_NUMBER}  5  1
+    ${len}=  Set Variable if  %{DRONE_BUILD_NUMBER}  4  1
     ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
 
-    Set Environment Variable  TEST_URL  @{URLs}[${IDX+5}]
+    Run Keyword If  %{DRONE_BUILD_NUMBER} != 1  Set Environment Variable  TEST_URL  @{URLs}[${IDX+5}]
+    ...         ELSE  Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
     Set Environment Variable  GOVC_URL  %{TEST_URL}
     Set Environment Variable  GOVC_USERNAME  %{TEST_USERNAME}
     Set Environment Variable  GOVC_PASSWORD  %{TEST_PASSWORD}
