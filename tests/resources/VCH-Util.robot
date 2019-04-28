@@ -38,7 +38,7 @@ Set Test Environment Variables
     ${len}=  Set Variable if  %{DRONE_BUILD_NUMBER}  4  1
     ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
 
-    Run Keyword If  %{DRONE_BUILD_NUMBER} != 1  Set Environment Variable  TEST_URL  @{URLs}[${IDX+5}]
+    Run Keyword If  %{DRONE_BUILD_NUMBER}  Set Environment Variable  TEST_URL  @{URLs}[${IDX+5}]
     ...         ELSE  Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
     Set Environment Variable  GOVC_URL  %{TEST_URL}
     Set Environment Variable  GOVC_USERNAME  %{TEST_USERNAME}
