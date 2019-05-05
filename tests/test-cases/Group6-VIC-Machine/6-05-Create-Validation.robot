@@ -74,7 +74,7 @@ Default image datastore
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Cleanup VIC Appliance On Test Server
 
     # VCH creation should fail on VC
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  Suggested values for --image-store
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain Any  ${output}  Suggested values for --image-store  Using default datastore: datastore1
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  vic-machine-linux create failed
 
 Custom image datastore
