@@ -17,6 +17,7 @@ Documentation  Test 5-29 - Opaque Network
 Resource  ../../resources/Util.robot
 Suite Setup  Vdnet NSXT Topology Setup
 Suite Teardown  Vdnet NSXT Topology Cleanup  ${NIMBUS_POD}  ${testrunid}
+Force Tags  nsx
 
 *** Variables ***
 ${NIMBUS_LOCATION}  sc
