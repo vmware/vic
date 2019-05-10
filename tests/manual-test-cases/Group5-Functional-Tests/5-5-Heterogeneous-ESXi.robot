@@ -24,7 +24,7 @@ Heterogenous ESXi Setup
     [Timeout]  60 minutes
     ${name}=  Evaluate  'vic-hetegeneous-' + str(random.randint(1000,9999))  modules=random
     Log To Console  Create a new simple vc cluster with spec vic-hetegeneous.rb...
-    ${out}=  Deploy Nimbus Testbed  spec=vic-hetegeneous.rb  args=--noSupportBundles --plugin testng --vcvaBuild "${VC_VERSION}" --esxBuild "${ESX_VERSION}" --testbedName vic-hetegeneous --runName ${name}
+    ${out}=  Deploy Nimbus Testbed  spec=vic-hetergeneous-esxi.rb  args=--noSupportBundles --plugin testng --vcvaBuild "${VC_VERSION}" --esxBuild "${ESX_VERSION}" --testbedName vic-hetegeneous --runName ${name}
     Log  ${out}
     Should Contain  ${out}  "deployment_result"=>"PASS"
     Log To Console  Finished creating cluster ${name}
@@ -43,7 +43,7 @@ Heterogenous ESXi Setup
     Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
     Set Environment Variable  GOVC_PASSWORD  Admin!23
     Set Environment Variable  GOVC_URL  ${vc-ip}
-    ${out}=  Run  govc dvs.create -product-version 5.5.0 -dc=ha-datacenter test-ds
+    ${out}=  Run  govc dvs.create -product-version 5.5.0 -dc=dc1 test-ds
     Should Contain  ${out}  OK
 
     Create Three Distributed Port Groups  dc1

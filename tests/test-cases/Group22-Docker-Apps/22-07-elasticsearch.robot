@@ -15,14 +15,14 @@
 *** Settings ***
 Documentation  Test 22-07 - elasticsearch
 Resource  ../../resources/Util.robot
-#Suite Setup  Install VIC Appliance To Test Server
-#Suite Teardown  Cleanup VIC Appliance On Test Server
+Suite Setup  Install VIC Appliance To Test Server
+Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Simple background elasticsearch
-    ${status}=  Get State Of Github Issue  3624
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 22-07-elasticsearch.robot needs to be updated now that Issue #3624 has been resolved
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name es1 -d elasticsearch
-    #Log  ${output}
-    #Should Be Equal As Integers  ${rc}  0
-    #${ip}=  Get IP Address of Container  es1
+    #${status}=  Get State Of Github Issue  3624
+    #Run Keyword If  '${status}' == 'closed'  Fail  Test 22-07-elasticsearch.robot needs to be updated now that Issue #3624 has been resolved
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name es1 -d elasticsearch:7.0.0
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    ${ip}=  Get IP Address of Container  es1

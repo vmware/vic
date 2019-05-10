@@ -15,11 +15,15 @@
 *** Settings ***
 Documentation  Test 1-02 - Docker Pull
 Resource  ../../resources/Util.robot
-Suite Setup  Conditional Install VIC Appliance To Test Server
+Suite Setup  Setup Common Environment
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Timeout  20 minutes
 
 *** Keywords ***
+Setup Common Environment
+    Set Environment Variable  TEST_TIMEOUT  10m
+    Conditional Install VIC Appliance To Test Server
+
 Get And Run MITMProxy Container
     # Need to change this container? Read README.md in vic/tests/resources/dockerfiles/docker-pull-mitm-proxy
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  victest/docker-layer-injection-proxy:latest

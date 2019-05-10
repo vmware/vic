@@ -373,6 +373,8 @@ func (d *Data) CopyNonEmpty(src *Data) error {
 
 	d.RegistryCAs = src.RegistryCAs
 
+	d.SyslogConfig = src.SyslogConfig
+
 	d.ContainerConfig.ContainerNameConvention = src.ContainerConfig.ContainerNameConvention
 
 	return nil
