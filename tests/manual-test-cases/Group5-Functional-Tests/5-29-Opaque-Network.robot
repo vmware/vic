@@ -40,7 +40,7 @@ ${vdnet_root_pwd}  ca$hc0w
 *** Keywords ***
 Vdnet NSXT Topology Setup
     [Timeout]    120 minutes
-    Run Keyword If  "${NIMBUS_LOCATION}" == "wdc"  Set Suite Variable  ${NFS}  10.92.103.33
+    Run Keyword If  "${NIMBUS_LOCATION}" == "wdc"  Set Suite Variable  ${NFS}  10.158.214.206
     ${TESTRUNID}=  Evaluate  'NSXT' + str(random.randint(1000,9999))  modules=random
     ${json}=  OperatingSystem.Get File  tests/resources/nimbus-testbeds/vic-vdnet-nsxt.json
     ${file}=  Replace Variables  ${json}
@@ -65,7 +65,7 @@ Vdnet NSXT Topology Setup
     #Deploy the testbed
     Write  su - %{NIMBUS_PERSONAL_USER}
     Write  cd /src/%{NIMBUS_PERSONAL_USER}/nsx-qe/automation && VDNET_MC_SETUP=${VDNET_MC_SETUP} USE_LOCAL_TOOLCHAIN=${USE_LOCAL_TOOLCHAIN} NIMBUS_BASE=${NIMBUS_BASE} vdnet3/test.py --config /tmp/%{NIMBUS_PERSONAL_USER}/vic-vdnet-nsxt.json /src/%{NIMBUS_PERSONAL_USER}/nsx-qe/automation/TDS/NSXTransformers/Openstack/HybridEdge/OSDeployTds.yaml::DeployOSMHTestbed --testbed save 2>&1
-    Sleep  10s
+    Sleep  20s
     ${temp_output}=  Read
     Log  ${temp_output}
     ${result}=  Custom Read Until

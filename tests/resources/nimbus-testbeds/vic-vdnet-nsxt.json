@@ -2,7 +2,7 @@
   "options": {
     "collectlogs": 1,
     "sharedstorage": "${NFS}:/vdnet-sharedStore",
-    "vmrepos": "10.92.103.33:/vdnet-vmrepos",
+    "vmrepos": "10.158.214.206:/vdnet-vmrepos",
     "product": {
       "nsxt": {
         "feature_switch": {
