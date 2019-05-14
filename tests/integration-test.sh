@@ -86,7 +86,7 @@ outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT".zip"
 ( cd $bootstrapdir && for f in *; do mv $f ../$bootstrapdir"_"$f; done)
 zip -9 -j $outfile $bootstrapdir"_"* output.xml log.html report.html package.list *container-logs*.zip *.log /var/log/vic-machine-server/vic-machine-server.log *.debug
 
-LOG_SERVER_IP='10.160.126.166'
+LOG_SERVER_IP='10.158.214.81'
 LOG_SERVER_USERNAME='root'
 LOG_SERVER_PWD=${TEST_PASSWORD}
 save_dir=${DRONE_BUILD_NUMBER}

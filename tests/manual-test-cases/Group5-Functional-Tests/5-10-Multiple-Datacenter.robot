@@ -16,65 +16,52 @@
 Documentation  Test 5-10 - Multiple Datacenters
 Resource  ../../resources/Util.robot
 Suite Setup  Nimbus Suite Setup  Multiple Datacenter Setup
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Pod Cleanup  ${nimbus_pod}  ${testbedname}
 
 *** Keywords ***
-# Insert elements from dict2 into dict1, overwriting conflicts in dict1 & returning new dict
-Combine Dictionaries
-    [Arguments]  ${dict1}  ${dict2}
-    ${dict2keys}=  Get Dictionary Keys  ${dict2}
-    :FOR  ${key}  IN  @{dict2keys}
-    \    ${elem}=  Get From Dictionary  ${dict2}  ${key}
-    \    Set To Dictionary  ${dict1}  ${key}  ${elem}
-    [Return]  ${dict1}
-
 Multiple Datacenter Setup
-    [Timeout]    110 minutes
-    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
-    &{esxes}=  Create Dictionary
-    ${num_of_esxes}=  Evaluate  2
-    :FOR  ${i}  IN RANGE  3
-    # Deploy some ESXi instances
-    \    &{new_esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  ${num_of_esxes}  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    \    ${esxes}=  Combine Dictionaries  ${esxes}  ${new_esxes}
+    [Timeout]  60 minutes
+    ${name}=  Evaluate  'vic-multi-dc-' + str(random.randint(1000,9999))  modules=random
+    Log To Console  Create a new simple vc cluster with spec vic-multi-dc.rb...
+    ${out}=  Deploy Nimbus Testbed  spec=vic-multi-dc.rb  args=--noSupportBundles --plugin testng --vcvaBuild "${VC_VERSION}" --esxBuild "${ESX_VERSION}" --testbedName vic-multi-dc --runName ${name}
+    Log  ${out}
+    Should Contain  ${out}  "deployment_result"=>"PASS"
+    Log To Console  Finished creating cluster ${name}
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc-ip}=  Get IP  ${name}.vc.0
+    Log  ${vc-ip}
+    ${pod}=  Fetch Pod  ${name}
+    Log  ${pod}
+    Close Connection
 
-    # Investigate to see how many were actually deployed
-    \    ${len}=  Get Length  ${esxes}
-    \    ${num_of_esxes}=  Evaluate  ${num_of_esxes} - ${len}
+    Set Suite Variable  ${nimbus_pod}  ${pod}
+    Set Suite Variable  ${testbedname}  ${name}
+    
+    Log To Console  Set environment variables up for GOVC
+    Set Environment Variable  GOVC_URL  ${vc-ip}
+    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  GOVC_PASSWORD  Admin\!23
+    Set Environment Variable  GOVC_INSECURE  1
 
-    # Exit if we've got enough & continue loop if we don't
-    \    Exit For Loop If  ${len} >= 2
-    \    Log To Console  Only got ${len} ESXi instance(s); Trying again
+    Log To Console  Deploy VIC to the VC cluster
+    Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
+    Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  TEST_PASSWORD  Admin\!23
+    Set Environment Variable  BRIDGE_NETWORK  bridge
+    Set Environment Variable  PUBLIC_NETWORK  vm-network
+    Set Environment Variable  TEST_DATASTORE  sharedVmfs-0
+    Set Environment Variable  TEST_RESOURCE   /dc1/host/cls1
+    Set Environment Variable  TEST_TIMEOUT  30m
 
-    @{esx-names}=  Get Dictionary Keys  ${esxes}
-    @{esx-ips}=  Get Dictionary Values  ${esxes}
-    ${esx1}=  Get From List  ${esx-names}  0
-    ${esx2}=  Get From List  ${esx-names}  1
-    ${esx1-ip}=  Get From List  ${esx-ips}  0
-    ${esx2-ip}=  Get From List  ${esx-ips}  1
-
-    ${esx3}  ${esx4}  ${esx5}  ${vc}  ${esx3-ip}  ${esx4-ip}  ${esx5-ip}  ${vc-ip}=  Create a Simple VC Cluster  datacenter1  cls1
-    Set Suite Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${esx4}  ${esx5}  %{NIMBUS_PERSONAL_USER}-${vc}
-
-    Log To Console  Create datacenter2 on the VC
-    ${out}=  Run  govc datacenter.create datacenter2
-    Should Be Empty  ${out}
-    ${out}=  Run  govc host.add -hostname=${esx1-ip} -username=root -dc=datacenter2 -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-
-    Log To Console  Create datacenter3 on the VC
-    ${out}=  Run  govc datacenter.create datacenter3
-    Should Be Empty  ${out}
-    ${out}=  Run  govc host.add -hostname=${esx2-ip} -username=root -dc=datacenter3 -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-
-    Set Environment Variable  TEST_DATACENTER  /datacenter1
-    Set Environment Variable  GOVC_DATACENTER  /datacenter1
+    Set Environment Variable  TEST_DATACENTER  /dc1
+    Set Environment Variable  GOVC_DATACENTER  /dc1
 
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
     Install VIC Appliance To Test Server  certs=${false}  vol=default
     Run Regression Tests
+
     Remove Environment Variable  TEST_DATACENTER
     Remove Environment Variable  GOVC_DATACENTER

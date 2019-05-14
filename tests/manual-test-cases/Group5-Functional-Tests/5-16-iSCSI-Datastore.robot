@@ -16,7 +16,7 @@
 Documentation  Test 5-16 - iSCSI Datastore
 Resource  ../../resources/Util.robot
 Suite Setup  Wait Until Keyword Succeeds  10x  10s  iSCSI Datastore Setup
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Pod Cleanup  ${nimbus_pod}  ${testbedname}
 
 *** Variables ***
 ${NIMBUS_LOCATION}  sc
@@ -24,43 +24,28 @@ ${NIMBUS_LOCATION_FULL}  NIMBUS_LOCATION=${NIMBUS_LOCATION}
 
 *** Keywords ***
 iSCSI Datastore Setup
-    [Timeout]    110 minutes
-    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
-    ${name}=  Evaluate  'vic-iscsi-' + str(random.randint(1000,9999))  modules=random
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --customizeTestbed '/esx desiredPassword=e2eFunctionalTest' --noSupportBundles --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-sdrs-iscsi-fullInstall-vcva --runName vic-iscsi
-    Set Suite Variable  @{list}  %{NIMBUS_PERSONAL_USER}-vic-iscsi.vcva-${VC_VERSION}  %{NIMBUS_PERSONAL_USER}-vic-iscsi.esx.0  %{NIMBUS_PERSONAL_USER}-vic-iscsi.esx.1  %{NIMBUS_PERSONAL_USER}-vic-iscsi.iscsi.0
+    [Timeout]  60 minutes
+    ${name}=  Evaluate  'vic-iscsi-cluster-' + str(random.randint(1000,9999))  modules=random
+    Log To Console  Create a new simple vc cluster with spec vic-cluster-2esxi-iscsi.rb...
+    ${out}=  Deploy Nimbus Testbed  spec=vic-cluster-2esxi-iscsi.rb  args=--noSupportBundles --plugin testng --vcvaBuild "${VC_VERSION}" --esxBuild "${ESX_VERSION}" --testbedName vic-iscsi-cluster --runName ${name}
+    Log  ${out}
     Should Contain  ${out}  "deployment_result"=>"PASS"
-
-    ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl ip %{NIMBUS_PERSONAL_USER}-vic-iscsi.vcva-${VC_VERSION} | grep %{NIMBUS_PERSONAL_USER}-vic-iscsi.vcva-${VC_VERSION}
-    ${vc-ip}=  Fetch From Right  ${out}  ${SPACE}
+    Log To Console  Finished creating cluster ${name}
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc-ip}=  Get IP  ${name}.vc.0
+    Log  ${vc-ip}
+    ${pod}=  Fetch Pod  ${name}
+    Log  ${pod}
+    Close Connection
     
-    ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl ip %{NIMBUS_PERSONAL_USER}-vic-iscsi.esx.0 | grep %{NIMBUS_PERSONAL_USER}-vic-iscsi.esx.0
-    ${esx0-ip}=  Fetch From Right  ${out}  ${SPACE}
-    
-    ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl ip %{NIMBUS_PERSONAL_USER}-vic-iscsi.esx.1 | grep %{NIMBUS_PERSONAL_USER}-vic-iscsi.esx.1
-    ${esx1-ip}=  Fetch From Right  ${out}  ${SPACE}
-
-    Set Environment Variable  GOVC_URL  ${esx0-ip}
-    Set Environment Variable  GOVC_USERNAME  root
-    Set Environment Variable  GOVC_PASSWORD  e2eFunctionalTest
-    Run  govc host.esxcli network firewall set -e false
-    Set Environment Variable  GOVC_URL  ${esx1-ip}
-    Run  govc host.esxcli network firewall set -e false
+    Set Suite Variable  ${nimbus_pod}  ${pod}
+    Set Suite Variable  ${testbedname}  ${name}
 
     Log To Console  Set environment variables up for GOVC
     Set Environment Variable  GOVC_URL  ${vc-ip}
     Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
     Set Environment Variable  GOVC_PASSWORD  Admin\!23
-
-    Create A Distributed Switch  vcqaDC
-
-    Create Three Distributed Port Groups  vcqaDC
-
-    Add Host To Distributed Switch  /vcqaDC/host/cls
-
-    Log To Console  Enable DRS on the cluster
-    ${out}=  Run  govc cluster.change -drs-enabled /vcqaDC/host/cls
-    Should Be Empty  ${out}
 
     Log To Console  Deploy VIC to the VC cluster
     Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}

@@ -9,7 +9,7 @@ FROM photon:2.0
 
 RUN set -eux; \
      tdnf distro-sync --refresh -y; \
-     tdnf install shadow -y; \
+     tdnf install shadow-4.2.1-16.ph2 -y; \
      tdnf info installed; \
      tdnf clean all
 

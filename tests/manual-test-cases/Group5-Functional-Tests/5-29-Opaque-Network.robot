@@ -17,6 +17,7 @@ Documentation  Test 5-29 - Opaque Network
 Resource  ../../resources/Util.robot
 Suite Setup  Vdnet NSXT Topology Setup
 Suite Teardown  Vdnet NSXT Topology Cleanup  ${NIMBUS_POD}  ${testrunid}
+Force Tags  nsx
 
 *** Variables ***
 ${NIMBUS_LOCATION}  sc
@@ -39,7 +40,7 @@ ${vdnet_root_pwd}  ca$hc0w
 *** Keywords ***
 Vdnet NSXT Topology Setup
     [Timeout]    120 minutes
-    Run Keyword If  "${NIMBUS_LOCATION}" == "wdc"  Set Suite Variable  ${NFS}  10.92.103.33
+    Run Keyword If  "${NIMBUS_LOCATION}" == "wdc"  Set Suite Variable  ${NFS}  10.158.214.206
     ${TESTRUNID}=  Evaluate  'NSXT' + str(random.randint(1000,9999))  modules=random
     ${json}=  OperatingSystem.Get File  tests/resources/nimbus-testbeds/vic-vdnet-nsxt.json
     ${file}=  Replace Variables  ${json}
@@ -64,7 +65,7 @@ Vdnet NSXT Topology Setup
     #Deploy the testbed
     Write  su - %{NIMBUS_PERSONAL_USER}
     Write  cd /src/%{NIMBUS_PERSONAL_USER}/nsx-qe/automation && VDNET_MC_SETUP=${VDNET_MC_SETUP} USE_LOCAL_TOOLCHAIN=${USE_LOCAL_TOOLCHAIN} NIMBUS_BASE=${NIMBUS_BASE} vdnet3/test.py --config /tmp/%{NIMBUS_PERSONAL_USER}/vic-vdnet-nsxt.json /src/%{NIMBUS_PERSONAL_USER}/nsx-qe/automation/TDS/NSXTransformers/Openstack/HybridEdge/OSDeployTds.yaml::DeployOSMHTestbed --testbed save 2>&1
-    Sleep  10s
+    Sleep  20s
     ${temp_output}=  Read
     Log  ${temp_output}
     ${result}=  Custom Read Until
@@ -173,11 +174,14 @@ Is Exist Home Directory
     Open Connection  ${VDNET_LAUNCHER_HOST}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${vdnet_root}  ${vdnet_root_pwd}
     Write  su - %{NIMBUS_PERSONAL_USER}
+    ${switch_result}=  Read
+    Log  ${switch_result}
     Write  pwd
+    Sleep  1
     ${result}=  Read Until  %{NIMBUS_PERSONAL_USER}@
     Log  ${result}
     Close Connection
-    ${status}=  Run Keyword And Return Status  Should Contain  ${result}  /%{NIMBUS_PERSONAL_USER} 
+    ${status}=  Run Keyword And Return Status  Should Contain  ${result}  /home
     Return From Keyword If  ${status}  ${True}
     Return From Keyword  ${False}
 
@@ -186,6 +190,7 @@ Generate RSA Key
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${vdnet_root}  ${vdnet_root_pwd}
     Write  su - %{NIMBUS_PERSONAL_USER}
     Write  [ ! -f ~/.ssh/id_rsa ] && ssh-keygen -t rsa -N '' -f ~/.ssh/id_rsa
+    Sleep  3
     ${result}=  Read Until  %{NIMBUS_PERSONAL_USER}@
     Log  ${result}
     Close Connection

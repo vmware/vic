@@ -16,65 +16,44 @@
 Documentation  Test 5-24 - Non vSphere Local Cluster
 Resource  ../../resources/Util.robot
 Suite Setup  Nimbus Suite Setup  Non vSphere Local Cluster Install Setup
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Pod Cleanup  ${nimbus_pod}  ${testbedname}
 Test Teardown  Cleanup VIC Appliance On Test Server
 
 *** Keywords ***
 Non vSphere Local Cluster Install Setup
-    [Timeout]    110 minutes
-    Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
-
-    Log To Console  \nStarting simple VC cluster deploy...
-    ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
-    ${pid}=  Deploy Nimbus vCenter Server Async  ${vc} --dirDomain vic.test
-
-    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  3  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${ESX_VERSION}
-    @{esx_names}=  Get Dictionary Keys  ${esxes}
-    @{esx_ips}=  Get Dictionary Values  ${esxes}
-    Set Suite Variable  @{list}  @{esx_names}[0]  @{esx_names}[1]  @{esx_names}[2]  %{NIMBUS_PERSONAL_USER}-${vc}
-
-    # Finish vCenter deploy
-    ${output}=  Wait For Process  ${pid}  timeout=70 minutes  on_timeout=terminate
-    Log  ${output.stdout}
-    Log  ${output.stderr}
-    Should Contain  ${output.stdout}  Overall Status: Succeeded
-
+    [Timeout]   60 minutes
+    ${name}=  Evaluate  'vic-custom-domain-' + str(random.randint(1000,9999))  modules=random
+    Log To Console  Create a new simple vc cluster with spec vic-custom-domain.rb...
+    ${out}=  Deploy Nimbus Testbed  spec=vic-custom-domain.rb  args=--noSupportBundles --plugin testng --vcvaBuild "${VC_VERSION}" --esxBuild "${ESX_VERSION}" --testbedName vic-custom-domain --runName ${name}
+    Log  ${out}
+    Should Contain  ${out}  "deployment_result"=>"PASS"
+    Log To Console  Finished creating cluster ${name}
     Open Connection  %{NIMBUS_GW}
-    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${vc_ip}=  Get IP  ${vc}
+    Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc-ip}=  Get IP  ${name}.vc.0
+    Log  ${vc-ip}
+    ${pod}=  Fetch Pod  ${name}
+    Log  ${pod}
     Close Connection
 
+    Set Suite Variable  ${nimbus_pod}  ${pod}
+    Set Suite Variable  ${testbedname}  ${name}
+
+    Log To Console  Set environment variables up for GOVC
     Set Environment Variable  GOVC_INSECURE  1
+    Set Environment Variable  GOVC_URL  ${vc-ip}
     Set Environment Variable  GOVC_USERNAME  Administrator@vic.test
-    Set Environment Variable  GOVC_PASSWORD  Admin!23
-    Set Environment Variable  GOVC_URL  ${vc_ip}
+    Set Environment Variable  GOVC_PASSWORD  Admin\!23
 
-    Log To Console  Create a datacenter on the VC
-    ${out}=  Run  govc datacenter.create dc1
-    Should Be Empty  ${out}
-
-    Log To Console  Create a cluster on the VC
-    ${out}=  Run  govc cluster.create cls
-    Should Be Empty  ${out}
-
-    Log To Console  Add ESX host to the VC
-    :FOR  ${IDX}  IN RANGE  3
-    \   ${out}=  Run  govc cluster.add -hostname=@{esx_ips}[${IDX}] -username=root -dc=dc1 -password=${NIMBUS_ESX_PASSWORD} -noverify=true
-    \   Should Contain  ${out}  OK
-
-    Setup Network For Simple VC Cluster  3  dc1  cls
-
-    Log To Console  Enable DRS on the cluster
-    ${out}=  Run  govc cluster.change -drs-enabled /dc1/host/cls
-    Should Be Empty  ${out}
-
-    Set Environment Variable  TEST_URL_ARRAY  ${vc_ip}
-    Set Environment Variable  TEST_URL  ${vc_ip}
+    Log To Console  Deploy VIC to the VC cluster
+    Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
     Set Environment Variable  TEST_USERNAME  Administrator@vic.test
     Set Environment Variable  TEST_PASSWORD  Admin\!23
-    Set Environment Variable  TEST_DATASTORE  datastore1
+    Set Environment Variable  BRIDGE_NETWORK  bridge
+    Set Environment Variable  PUBLIC_NETWORK  vm-network
     Set Environment Variable  TEST_DATACENTER  /dc1
-    Set Environment Variable  TEST_RESOURCE  cls
+    Set Environment Variable  TEST_DATASTORE  sharedVmfs-0
+    Set Environment Variable  TEST_RESOURCE  cls1
     Set Environment Variable  TEST_TIMEOUT  30m
 
 *** Test Cases ***

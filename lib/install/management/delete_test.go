@@ -113,7 +113,7 @@ func testUpgrade(op trace.Operation, computePath string, name string, v *validat
 
 		t.Errorf("Failed to get vch configuration: %s", err)
 	}
-	if err := d.Configure(conf, settings); err != nil {
+	if err := d.Configure(conf, settings, true); err != nil {
 		t.Errorf("Failed to upgrade: %s", err)
 	}
 }

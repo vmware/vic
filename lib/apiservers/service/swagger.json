@@ -633,7 +633,7 @@
     },
     "PEM": {
       "type": "string",
-      "pattern": "^.*-----BEGIN [A-Z ]+-----\\s+[A-Za-z0-9+\/\\s]+={0,2}\\s-----END [A-Z ]+-----\\s*$"
+      "pattern": "^.*-----BEGIN [A-Z ]+-----\\s+[A-Za-z0-9+\/\\s]+={0,2}\\s+-----END [A-Z ]+-----\\s*$"
     },
     "X509_Data": {
       "type": "object",

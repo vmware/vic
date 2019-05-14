@@ -24,7 +24,7 @@ ${NIMBUS_LOCATION_FULL}  NIMBUS_LOCATION=${NIMBUS_LOCATION}
 
 *** Keywords ***
 Deploy Environment
-    [Timeout]    110 minutes
+    [Timeout]  110 minutes
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${name}=  Evaluate  'vic-iscsi-' + str(random.randint(1000,9999))  modules=random
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  spec=vic-cluster-2esxi-iscsi.rb  args= --plugin testng --noSupportBundles --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-cluster-iscsi --runName ${name}
