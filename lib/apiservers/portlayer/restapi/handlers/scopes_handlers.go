@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/scopes"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/pkg/ip"
@@ -398,12 +399,18 @@ func toEndpointConfig(e *network.Endpoint) *models.EndpointConfig {
 		ecports[i] = p.FullString()
 	}
 
-	return &models.EndpointConfig{
+	ret := models.EndpointConfig{
 		Address:   addr,
 		Container: e.ID().String(),
 		ID:        e.ID().String(),
 		Name:      e.Name(),
 		Scope:     e.Scope().Name(),
 		Ports:     ecports,
+		Gateway:   e.Gateway().String(),
 	}
+
+	if e.Scope().Type() != constants.BridgeScopeType {
+		ret.Direct = true
+	}
+	return &ret
 }

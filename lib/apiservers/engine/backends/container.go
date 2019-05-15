@@ -1105,6 +1105,7 @@ func (c *ContainerBackend) containerStart(op trace.Operation, name string, hostC
 		// unbind in case we fail later
 		//defer func() {
 		//	if err != nil {
+		//		op.Debugf("Unbinding %s due to error - %s", id, err.Error())
 		//op.Debugf("Unbinding %s due to error - %s", id, err.Error())
 		//		client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(op).WithOpID(&opID).WithHandle(handle))
 		//	}
