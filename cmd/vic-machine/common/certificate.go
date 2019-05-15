@@ -247,7 +247,7 @@ func (c *CertFactory) loadCertificates(op trace.Operation, debug int) ([]byte, *
 		}
 
 		op.Debugf("Unable to locate existing server certificate in cert path")
-		return nil, nil, nil
+		return certs, nil, nil
 	}
 
 	// check that any supplied cname matches the server cert CN
@@ -262,7 +262,7 @@ func (c *CertFactory) loadCertificates(op trace.Operation, debug int) ([]byte, *
 	} else {
 		// We just do a direct equality check here - trying to be clever is liable to lead to hard
 		// to diagnose errors
-		if cert.Leaf.Subject.CommonName != c.Cname {
+		if c.Cname != "" && cert.Leaf.Subject.CommonName != c.Cname {
 			op.Errorf("Provided cname does not match that in existing server certificate: %s", cert.Leaf.Subject.CommonName)
 			if debug > 2 {
 				op.Debugf("Certificate does not match provided cname: %#+v", cert.Leaf)
