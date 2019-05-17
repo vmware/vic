@@ -16,7 +16,7 @@
 Documentation  Test 5-29 - Opaque Network
 Resource  ../../resources/Util.robot
 Suite Setup  Vdnet NSXT Topology Setup
-Suite Teardown  Vdnet NSXT Topology Cleanup  ${NIMBUS_POD}  ${testrunid}
+Suite Teardown  Vdnet NSXT Topology Cleanup
 Force Tags  nsx
 
 *** Variables ***
@@ -42,6 +42,7 @@ Vdnet NSXT Topology Setup
     [Timeout]    120 minutes
     Run Keyword If  "${NIMBUS_LOCATION}" == "wdc"  Set Suite Variable  ${NFS}  10.158.214.206
     ${TESTRUNID}=  Evaluate  'NSXT' + str(random.randint(1000,9999))  modules=random
+    Set Suite Variable  ${testrunid}  ${TESTRUNID}
     ${json}=  OperatingSystem.Get File  tests/resources/nimbus-testbeds/vic-vdnet-nsxt.json
     ${file}=  Replace Variables  ${json}
     Create File  /tmp/vic-vdnet-nsxt.json  ${file}
@@ -86,7 +87,6 @@ Vdnet NSXT Topology Setup
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     ${vc-ip}=  Get IP  vdnet-vc-${VC_VERSION}-1-${TESTRUNID}
     ${nsxt-mgr-ip}=  Get IP  vdnet-nsxmanager-${NSX_VERSION}-1-${TESTRUNID}
-    ${pod}=  Fetch POD  vdnet-nsxmanager-${NSX_VERSION}-1-${TESTRUNID}
     Close Connection
 
     Log To Console  Set environment variables up for GOVC
@@ -105,17 +105,15 @@ Vdnet NSXT Topology Setup
     Set Environment Variable  GOVC_PASSWORD  Admin\!23
 
     Set Environment Variable  NSXT_MANAGER_URI  ${nsxt-mgr-ip}
-    Set Suite Variable  ${NIMBUS_POD}  ${pod}
-    Set Suite Variable  ${testrunid}  ${TESTRUNID}
 
     OperatingSystem.Remove File  /tmp/vic-vdnet-nsxt.json
 
 Vdnet NSXT Topology Cleanup
     [Timeout]    30 minutes
-    [Arguments]    ${pod_name}  ${testrunid}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl --nimbus=${pod_name} kill *${testrunid}*
+    ${pod}=  Fetch POD  vdnet-nsxmanager-${NSX_VERSION}-1-${TESTRUNID}
+    Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl --nimbus=${pod} kill *${testrunid}*
     Close Connection
 
 Wait Until Selenium Hub Is Ready
@@ -181,7 +179,7 @@ Is Exist Home Directory
     ${result}=  Read Until  %{NIMBUS_PERSONAL_USER}@
     Log  ${result}
     Close Connection
-    ${status}=  Run Keyword And Return Status  Should Contain  ${result}  /home
+    ${status}=  Run Keyword And Return Status  Should Contain  ${result}  home
     Return From Keyword If  ${status}  ${True}
     Return From Keyword  ${False}
 
@@ -249,7 +247,7 @@ Clean Tmp Directory Shared File And Folder
 Is Test Env Running
     Open Connection  ${VDNET_LAUNCHER_HOST}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${vdnet_root}  ${vdnet_root_pwd}
-    ${count}=   Execute Command  ps -ef | grep "test\.py" | grep -v grep | wc -l
+    ${count}=   Execute Command  ps -ef | grep -i "deploytestbed" | grep -v grep | wc -l
     Log  ${count}
     Close Connection 
     Return From Keyword If  ${count} != 0  ${True}
