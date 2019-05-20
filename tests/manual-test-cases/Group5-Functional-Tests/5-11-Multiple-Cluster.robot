@@ -53,7 +53,7 @@ Multiple Cluster Setup
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
     Remove Environment Variable  TEST_DATACENTER
-    Set Environment Variable  TEST_TIMEOUT  15m
+    Set Environment Variable  TEST_TIMEOUT  30m
 
     # Get one of the hosts in the cluster we want and make sure we use the correct  datastore
 
