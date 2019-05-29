@@ -133,7 +133,7 @@ func (t *Mocker) SetupFirewall(cxt context.Context, conf *tether.ExecutorConfig)
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
-func (t *Mocker) Apply(endpoint *tether.NetworkEndpoint) error {
+func (t *Mocker) Apply(endpoint *tether.NetworkEndpoint, hostname string) error {
 	defer trace.End(trace.Begin("mocking endpoint configuration for " + endpoint.Network.Name))
 	t.IPs[endpoint.Network.Name] = endpoint.Assigned.IP
 

@@ -152,8 +152,8 @@ func (t *Mocker) SetupFirewall(ctx context.Context, config *tether.ExecutorConfi
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
-func (t *Mocker) Apply(endpoint *tether.NetworkEndpoint) error {
-	return tether.ApplyEndpoint(t, &t.Base, endpoint)
+func (t *Mocker) Apply(endpoint *tether.NetworkEndpoint, hostname string) error {
+	return tether.ApplyEndpoint(t, &t.Base, endpoint, hostname)
 }
 
 // MountLabel performs a mount with the source treated as a disk label

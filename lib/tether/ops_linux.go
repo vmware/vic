@@ -362,7 +362,7 @@ func gratuitous(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error {
 	return client.WriteTo(gratuitousPacket, ethernet.Broadcast)
 }
 
-func getDynamicIP(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) (client.Client, error) {
+func getDynamicIP(t Netlink, link netlink.Link, endpoint *NetworkEndpoint, hostname string) (client.Client, error) {
 	var ack *dhcp.Packet
 	var err error
 
@@ -381,7 +381,13 @@ func getDynamicIP(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) (clie
 		log.Debugf("No name servers configured. Asking DHCP.")
 		params = append(params, byte(dhcp4.OptionDomainNameServer))
 	}
-
+	if hostname != "" {
+		log.Debugf("Setting dynamic DNS update information with %s", hostname)
+		params = append(params, byte(dhcp4.OptionHostName))
+		for _, v := range []byte(hostname) {
+			params = append(params, byte(v))
+		}
+	}
 	dc.SetParameterRequestList(params...)
 
 	err = dc.Request()
@@ -612,13 +618,13 @@ func (t *BaseOperations) updateNameservers(endpoint *NetworkEndpoint) error {
 	return nil
 }
 
-func (t *BaseOperations) Apply(endpoint *NetworkEndpoint) error {
+func (t *BaseOperations) Apply(endpoint *NetworkEndpoint, hostname string) error {
 	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
-	return ApplyEndpoint(t, t, endpoint)
+	return ApplyEndpoint(t, t, endpoint, hostname)
 }
 
-func ApplyEndpoint(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
+func ApplyEndpoint(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint, hostname string) error {
 	if endpoint.configured {
 		log.Infof("skipping applying config for network %s as it has been applied already", endpoint.Network.Name)
 		return nil // already applied
@@ -670,7 +676,7 @@ func ApplyEndpoint(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) err
 	log.Debugf("%+v", endpoint)
 	if endpoint.IsDynamic() {
 		if endpoint.DHCP == nil {
-			dc, err = getDynamicIP(nl, link, endpoint)
+			dc, err = getDynamicIP(nl, link, endpoint, hostname)
 			if err != nil {
 				return err
 			}
@@ -800,7 +806,7 @@ func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc cli
 
 			// TODO: determine if there are actually any changes to apply before performing updates
 			e.configured = false
-			t.Apply(e)
+			t.Apply(e, "")
 			if err = t.config.UpdateNetworkEndpoint(e); err != nil {
 				log.Error(err)
 			}
@@ -813,7 +819,7 @@ func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc cli
 
 				d.DHCP = e.DHCP
 				d.configured = false
-				t.Apply(d)
+				t.Apply(d, "")
 				if err = t.config.UpdateNetworkEndpoint(d); err != nil {
 					log.Error(err)
 				}
