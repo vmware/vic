@@ -30,7 +30,8 @@ Make sure container starts
 
 Verify container is running and remove it
     [Arguments]  ${containerName}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps --format '{{.Names}}' | xargs
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  ${containerName}
@@ -196,10 +197,12 @@ Docker run mysql container
     Verify container is running and remove it  test-mysql
 
 Docker run mariadb container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -e MYSQL_ROOT_PASSWORD=pw --name test-mariadb mariadb
+    [Tags]  centos69-inValid  
+    ${suffix}=  Evaluate  str(random.randint(1000,9999))  modules=random
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -e MYSQL_ROOT_PASSWORD=pw --name test-mariadb-${suffix} mariadb
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Verify container is running and remove it  test-mariadb
+    Verify container is running and remove it  test-mariadb-${suffix}
 
 Docker run postgres container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name test-postgres postgres
@@ -246,3 +249,31 @@ Docker run --rm concurrent
     \   Wait Until Keyword Succeeds  10x  3s  Verify container is removed  rm-concurrent-${idx}-LOL
 
     Sleep  1 minutes
+
+Docker run with label
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull nginx:alpine
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${test_labels_id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it -d --name test_labels --label "com.test.label.overwriteImage=test1" --label "com.test.label=test2" -p 8080:80 nginx:alpine
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${test_labels_id} -f '{{.Config.Labels}}'
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  test1
+    Should Contain  ${output}  test2
+    Should Not Contain  ${output}  maintainer
+    
+    ${rc}  ${test_nolabel_id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it -d --name test_nolabel -p 9090:80 nginx:alpine 
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${test_nolabel_id} -f '{{.Config.Labels}}'
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  map[]
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} image inspect nginx:alpine -f '{{.ContainerConfig.Labels}}'
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  maintainer
+    Should Not Contain Any  ${output}  test1  test2
+    Stop All Containers
+   
+   
