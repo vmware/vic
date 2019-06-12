@@ -1,6 +1,6 @@
 open_source_licenses.txt
 
-vSphere Integrated Containers Engine 1.5.0 GA
+vSphere Integrated Containers Engine 1.5.3 GA
 
 ======================================================================
 
@@ -212,7 +212,7 @@ limitations under the License.
 
 ======================================================================
 
-vSphere Integrated Containers Engine v1.5.0 GA includes a number of 
+vSphere Integrated Containers Engine v1.5.3 GA includes a number of 
 components with separate copyright notices and license terms.  This 
 product does not necessarily use all the open source components referred 
 to below. Your use of the source code for these components is subject to 
@@ -232,7 +232,6 @@ Product.
 The VMware Product that includes this file does not necessarily use all
 the open source software packages referred to below and may also only
 use portions of a given package.
-
 
 
 =============== TABLE OF CONTENTS =============================
@@ -412,34 +411,35 @@ SECTION 1: Academic Free License, V2.1
 
 SECTION 2: Apache License, V2.0
 
+   >>> filesystem-1.1-3.ph2
    >>> photon-release-2.0-2.ph2
 
 
 SECTION 3: BSD-STYLE, MIT-STYLE, OR SIMILAR STYLE LICENSES
 
    >>> bzip2-1.0.6-8.ph2
-   >>> curl-7.59.0-3.ph2
+   >>> curl-7.59.0-6.ph2
    >>> expat-2.2.4-1.ph2
    >>> iputils-20151218-4.ph2
    >>> krb5-1.16-2.ph2
-   >>> libarchive-3.3.1-2.ph2
+   >>> libarchive-3.3.1-3.ph2
    >>> libcap-2.25-7.ph2
    >>> libdb-5.3.28-1.ph2
    >>> libffi-3.2.1-5.ph2
-   >>> libsolv-0.6.26-3.ph2
-   >>> libssh2-1.8.0-1.ph2
-   >>> libtirpc-1.0.1-7.ph2
+   >>> libsolv-0.6.26-4.ph2
+   >>> libssh2-1.8.2-1.ph2
+   >>> libtirpc-1.0.1-8.ph2
    >>> linux-pam-1.3.0-1.ph2
    >>> lsof-4.89-2.ph2
    >>> ncurses-6.0-14.ph2
-   >>> openssh-7.5p1-10.ph2
-   >>> openssl-1.0.2p-1.ph2
+   >>> openssh-7.5p1-13.ph2
+   >>> openssl-1.0.2r-1.ph2
    >>> pcre-8.41-1.ph2
    >>> popt-1.16-5.ph2
    >>> shadow-4.2.1-16.ph2
-   >>> sqlite-3.22.0-3.ph2
+   >>> sqlite-3.27.2-2.ph2
    >>> sudo-1.8.20p2-5.ph2
-   >>> vim-8.0.0533-5.ph2
+   >>> vim-8.0.0533-6.ph2
    >>> xz-5.2.3-2.ph2
    >>> zlib-1.2.11-1.ph2
 
@@ -448,15 +448,15 @@ SECTION 4: GNU General Public License, V2.0
 
    >>> e2fsprogs-1.43.4-2.ph2
    >>> gcc-6.3.0-7.ph2
-   >>> iproute2-4.10.0-3.ph2
+   >>> iproute2-4.10.0-4.ph2
    >>> iptables-1.6.1-4.ph2
-   >>> linux-esx-4.9.137-1.ph2
+   >>> linux-esx-4.9.173-2.ph2
    >>> logrotate-3.11.0-3.ph2
    >>> mingetty-1.08-2.ph2
    >>> net-tools-1.60-11.ph2
    >>> procps-ng-3.3.15-2.ph2
    >>> rpm-4.13.0.2-1.ph2
-   >>> tdnf-1.2.3-4.ph2
+   >>> tdnf-1.2.3-8.ph2
    >>> util-linux-2.32-1.ph2
 
 
@@ -474,12 +474,12 @@ SECTION 5: GNU General Public License, V3.0
 SECTION 6: GNU Lesser General Public License, V2.1
 
    >>> cracklib-2.9.6-8.ph2
-   >>> glibc-2.26-13.ph2
+   >>> glibc-2.26-16.ph2
    >>> hawkey-2017.1-6.ph2
    >>> kmod-24-3.ph2
    >>> libgcrypt-1.8.1-2.ph2
    >>> libgpg-error-1.27-1.ph2
-   >>> systemd-233-16.ph2
+   >>> systemd-233-19.ph2
 
 
 SECTION 7: GNU Lesser General Public License, V3.0
@@ -494,13 +494,12 @@ SECTION 8: GNU Library General Public License, V2.0
 
 SECTION 9: Mozilla Public License, V2.0
 
-   >>> ca-certificates-20180919-1.ph2
+   >>> ca-certificates-20190509-1.ph2
    >>> nspr-4.15-1.ph2
    >>> nss-3.31.1-1.ph2
 
 
 APPENDIX. Standard License Files
-
 
    >>> Apache License, V2.0
 
@@ -554,7 +553,7 @@ APPENDIX. Standard License Files
 
 
 
-====================PART 1. VIRTUAL APPLIANCE: APPLICATION LAYERAPPLICATION LAYER ====================
+====================PART 1. VIRTUAL APPLIANCE: APPLICATION LAYER ====================
 
 
 --------------- SECTION 1: Apache License, V2.0 ----------
@@ -1379,17 +1378,6 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
-> BSD Style
-
-
-distribution-28602af35aceda2f8d571bad7ca37a54cf0250bc.tar.gz\distribution-28602af35aceda2f8d571bad7ca37a54cf0250bc.tar\distribution-28602af35aceda2f8d571bad7ca37a54cf0250bc\vendor\gopkg.in\check.v1\benchmark.go
-
-
-Copyright 2009 The Go Authors. All rights reserved.
-Use of this source code is governed by a BSD-style
-license that can be found in the LICENSE file.
 
 >>> docker_go-events-aa2e3b613fbbfdddbe055a7b9e3ce271cfd83eca
 
@@ -7320,16 +7308,6 @@ rights granted to you under this License for this implementation of Go
 shall terminate as of the date such litigation is filed.
 
 
-> BSD Style
-
-
-tools-381149a2d6e5d8f319ccf04bfefc71e03a78b868.tar.gz\tools-381149a2d6e5d8f319ccf04bfefc71e03a78b868.tar\tools-381149a2d6e5d8f319ccf04bfefc71e03a78b868\benchmark\parse\parse.go
-
-Copyright 2014 The Go Authors. All rights reserved.
-Use of this source code is governed by a BSD-style
-license that can be found in the LICENSE file.
-
-
 > MIT
 
 
@@ -7681,7 +7659,7 @@ LICENSE: MPL 2.0
 
 License: MPL 2.0
 
-====================PART 2. VIRTUAL APPLIANCE: OPERATING SYSTEM LAYER ====================
+====================PART 2.VIRTUAL APPLIANCE: OPERATING SYSTEM LAYER ====================
 
 
 --------------- SECTION 1: Academic Free License, V2.1 ----------
@@ -7860,6 +7838,22 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 Apache License, V2.0 is applicable to the following component(s).
 
 
+>>> filesystem-1.1-3.ph2
+
+Copyright (c) .NET Foundation and Contributors
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
 >>> photon-release-2.0-2.ph2
 
 License:    Apache License
@@ -7928,188 +7922,9 @@ http://www.bzip.org/downloads.html
 For more information about bzip2, please visit:
 http://www.bzip.org/
 
->>> curl-7.59.0-3.ph2
+>>> curl-7.59.0-6.ph2
 
-COPYRIGHT AND PERMISSION NOTICE
-
-Copyright (c) 1996 - 2016, Daniel Stenberg, <daniel@haxx.se>, and many
-contributors, see the THANKS file.
-
-All rights reserved.
-
-Permission to use, copy, modify, and distribute this software for any purpose
-with or without fee is hereby granted, provided that the above copyright
-notice and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS. IN
-NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
-OR OTHER DEALINGS IN THE SOFTWARE.
-
-Except as contained in this notice, the name of a copyright holder shall not
-be used in advertising or otherwise to promote the sale, use or other dealings
-in this Software without prior written authorization of the copyright holder.
-
-ADDITIONAL LICENSE INFORMATION:
-
-> BSD-3 Clause
-
-curl-7.59.0-3.ph2.src-1.rpm\curl-7.59.0-3.ph2.src.cpio\curl-7.59.0.tar.gz\curl-7.59.0.tar\curl-7.59.0\lib\krb5.c
-
-Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
-(Royal Institute of Technology, Stockholm, Sweden).
-Copyright (c) 2004 - 2016 Daniel Stenberg
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
-
-1. Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in the
-documentation and/or other materials provided with the distribution.
-
-3. Neither the name of the Institute nor the names of its contributors
-may be used to endorse or promote products derived from this software
-without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-SUCH DAMAGE.
-
-
-> Public Domain
-
-curl-7.59.0-3.ph2.src-1.rpm\curl-7.59.0-3.ph2.src.cpio\curl-7.59.0.tar.gz\curl-7.59.0.tar\curl-7.59.0\lib\md4.c
-
-Author:
-Alexander Peslyak, better known as Solar Designer <solar at openwall.com>
-
-This software was written by Alexander Peslyak in 2001.  No copyright is
-claimed, and the software is hereby placed in the public domain.  In case
-this attempt to disclaim copyright and place the software in the public
-domain is deemed null and void, then the software is Copyright (c) 2001
-Alexander Peslyak and it is hereby released to the general public under the
-following terms:
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted.
-
-There's ABSOLUTELY NO WARRANTY, express or implied.
-
-(This is a heavily cut-down "BSD license".)
-
-This differs from Colin Plumb's older public domain implementation in that
-no exactly 32-bit integer data type is required (any 32-bit or wider
-unsigned integer data type will do), there's no compile-time endianness
-configuration, and the function prototypes match OpenSSL's.  No code from
-Colin Plumb's implementation has been reused; this comment merely compares
-the properties of the two independent implementations.
-
-The primary goals of this implementation are portability and ease of use.
-It is meant to be fast, but not as fast as possible.  Some known
-optimizations are not included to reduce source code size and avoid
-compile-time configuration.
-
-> MIT-STYLE
-
-curl-7.59.0-3.ph2.src-1.rpm\curl-7.59.0-3.ph2.src.cpio\curl-7.59.0.tar.gz\curl-7.59.0.tar\curl-7.59.0\src\macos\src\macos_main.cpp
-
-Copyright (C) 2001 Eric Lavigne
-
-Permission is granted to anyone to use this software for any purpose on any
-computer system, and to redistribute it freely, subject to the following
-restrictions:
-- The author is not responsible for the consequences of use of this
-software, no matter how awful, even if they arise from defects in it.
-- The origin of this software must not be misrepresented, either by
-explicit claim or by omission.
-- You are allowed to distributed modified copies of the software, in source
-and binary form, provided they are marked plainly as altered versions, and
-are not misrepresented as being the original software.
-
-> Openssl
-
-curl-7.59.0-3.ph2.src-1.rpm\curl-7.59.0-3.ph2.src.cpio\curl-7.59.0.tar.gz\curl-7.59.0.tar\curl-7.59.0\docs\examples\curlx.c
-
-Copyright (c) 2003 The OpenEvidence Project.  All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
-
-1. Redistributions of source code must retain the above copyright
-notice, this list of conditions, the following disclaimer,
-and the original OpenSSL and SSLeay Licences below.
-
-2. Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions, the following disclaimer
-and the original OpenSSL and SSLeay Licences below in
-the documentation and/or other materials provided with the
-distribution.
-
-3. All advertising materials mentioning features or use of this
-software must display the following acknowledgments:
-"This product includes software developed by the Openevidence Project
-for use in the OpenEvidence Toolkit. (http://www.openevidence.org/)"
-This product includes software developed by the OpenSSL Project
-for use in the OpenSSL Toolkit (https://www.openssl.org/)"
-This product includes cryptographic software written by Eric Young
-(eay@cryptsoft.com).  This product includes software written by Tim
-Hudson (tjh@cryptsoft.com)."
-
-4. The names "OpenEvidence Toolkit" and "OpenEvidence Project" must not be
-used to endorse or promote products derived from this software without
-prior written permission. For written permission, please contact
-openevidence-core@openevidence.org.
-
-5. Products derived from this software may not be called "OpenEvidence"
-nor may "OpenEvidence" appear in their names without prior written
-permission of the OpenEvidence Project.
-
-6. Redistributions of any form whatsoever must retain the following
-acknowledgments:
-"This product includes software developed by the OpenEvidence Project
-for use in the OpenEvidence Toolkit (http://www.openevidence.org/)
-This product includes software developed by the OpenSSL Project
-for use in the OpenSSL Toolkit (https://www.openssl.org/)"
-This product includes cryptographic software written by Eric Young
-(eay@cryptsoft.com).  This product includes software written by Tim
-Hudson (tjh@cryptsoft.com)."
-
-THIS SOFTWARE IS PROVIDED BY THE OpenEvidence PROJECT ``AS IS'' AND ANY
-EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenEvidence PROJECT OR
-ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-OF THE POSSIBILITY OF SUCH DAMAGE.
-====================================================================
-
-This product includes software developed by the OpenSSL Project
-for use in the OpenSSL Toolkit (https://www.openssl.org/)
-This product includes cryptographic software written by Eric Young
-(eay@cryptsoft.com).  This product includes software written by Tim
-Hudson (tjh@cryptsoft.com).
+LICENSE: MIT
 
 >>> expat-2.2.4-1.ph2
 
@@ -9621,7 +9436,7 @@ krb5-1.16-2.ph2.src.rpm\krb5-1.16-2.ph2.src.cpio\krb5-1.16.tar.gz\krb5-1.16.tar\
 This file of the Kerberos V5 software is derived from public-domain code
 contributed by Daniel J. Bernstein, <brnstnd@acf10.nyu.edu>.
 
->>> libarchive-3.3.1-2.ph2
+>>> libarchive-3.3.1-3.ph2
 
 Copyright (c) 2003-2009 <author(s)>
 All rights reserved.
@@ -9649,18 +9464,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ADDITIONAL LICENSE INFORMATION:
 
->MIT Style
-
-libarchive-3.3.1.tar.gz\libarchive-3.3.1.tar\libarchive-3.3.1\build\autoconf\ax_require_defined.m4
-
-Copyright (c) 2014 Mike Frysinger <vapier@gentoo.org>
-
-Copying and distribution of this file, with or without modification, are
-permitted in any medium without royalty provided the copyright notice
-and this notice are preserved. This file is offered as-is, without any
-warranty.
-
->Apache 2.0
+> Apache2.0
 
 libarchive-3.3.1.tar.gz\libarchive-3.3.1.tar\libarchive-3.3.1\contrib\android\Android.mk
 
@@ -9678,7 +9482,38 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
->BSD – 4Clause
+> BSD-3
+
+libarchive-3.3.1.tar.gz\libarchive-3.3.1.tar\libarchive-3.3.1\libarchive\mtree.5
+
+Copyright (c) 1989, 1990, 1993
+The Regents of the University of California.  All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+4. Neither the name of the University nor the names of its contributors
+may be used to endorse or promote products derived from this software
+without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+
+> BSD-4
 
 libarchive-3.3.1.tar.gz\libarchive-3.3.1.tar\libarchive-3.3.1\contrib\shar\shar.1
 
@@ -9713,7 +9548,18 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 SUCH DAMAGE.
 
->MIT
+> MIT
+
+libarchive-3.3.1.tar.gz\libarchive-3.3.1.tar\libarchive-3.3.1\build\autoconf\ax_require_defined.m4
+
+Copyright (c) 2014 Mike Frysinger <vapier@gentoo.org>
+
+Copying and distribution of this file, with or without modification, are
+permitted in any medium without royalty provided the copyright notice
+and this notice are preserved. This file is offered as-is, without any
+warranty.
+
+> MIT
 
 libarchive-3.3.1.tar.gz\libarchive-3.3.1.tar\libarchive-3.3.1\doc\mdoc2man.awk
 
@@ -9731,7 +9577,7 @@ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
->Public Domain
+> PublicDomain
 
 libarchive-3.3.1.tar.gz\libarchive-3.3.1.tar\libarchive-3.3.1\libarchive\archive_getdate.c
 
@@ -9746,37 +9592,6 @@ work to the public domain, I feel compelled to match their
 generosity.
 
 Tim Kientzle, February 2009.
-
->BSD – 3Clause
-
-libarchive-3.3.1.tar.gz\libarchive-3.3.1.tar\libarchive-3.3.1\libarchive\mtree.5
-
-Copyright (c) 1989, 1990, 1993
-The Regents of the University of California.  All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
-1. Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in the
-documentation and/or other materials provided with the distribution.
-4. Neither the name of the University nor the names of its contributors
-may be used to endorse or promote products derived from this software
-without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-SUCH DAMAGE.
 
 >>> libcap-2.25-7.ph2
 
@@ -10220,7 +10035,7 @@ Doug Lea and released to the public domain, as explained at
 http://creativecommons.org/licenses/publicdomain.  Send questions,
 comments, complaints, performance data, etc to dl@cs.oswego.edu
 
->>> libsolv-0.6.26-3.ph2
+>>> libsolv-0.6.26-4.ph2
 
 Copyright (c) 2000-2001, Aaron D. Gifford
 All rights reserved.
@@ -10257,50 +10072,50 @@ libsolv-0.6.26.tar.gz\libsolv-0.6.26.tar\libsolv-0.6.26\src\sha1.h
 
 this file is in the public domain
 
->>> libssh2-1.8.0-1.ph2
+>>> libssh2-1.8.2-1.ph2
 
 Copyright (c) 2004-2007 Sara Golemon <sarag@libssh2.org>
- Copyright (c) 2005,2006 Mikhail Gusarov <dottedmag@dottedmag.net>
- Copyright (c) 2006-2007 The Written Word, Inc.
- Copyright (c) 2007 Eli Fant <elifantu@mail.ru>
- Copyright (c) 2009-2014 Daniel Stenberg
- Copyright (C) 2008, 2009 Simon Josefsson
- All rights reserved.
+Copyright (c) 2005,2006 Mikhail Gusarov <dottedmag@dottedmag.net>
+Copyright (c) 2006-2007 The Written Word, Inc.
+Copyright (c) 2007 Eli Fant <elifantu@mail.ru>
+Copyright (c) 2009-2014 Daniel Stenberg
+Copyright (C) 2008, 2009 Simon Josefsson
+All rights reserved.
 
- Redistribution and use in source and binary forms,
- with or without modification, are permitted provided
- that the following conditions are met:
+Redistribution and use in source and binary forms,
+with or without modification, are permitted provided
+that the following conditions are met:
 
-   Redistributions of source code must retain the above
-   copyright notice, this list of conditions and the
-   following disclaimer.
+Redistributions of source code must retain the above
+copyright notice, this list of conditions and the
+following disclaimer.
 
-   Redistributions in binary form must reproduce the above
-   copyright notice, this list of conditions and the following
-   disclaimer in the documentation and/or other materials
-   provided with the distribution.
+Redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the following
+disclaimer in the documentation and/or other materials
+provided with the distribution.
 
-   Neither the name of the copyright holder nor the names
-   of any other contributors may be used to endorse or
-   promote products derived from this software without
-   specific prior written permission.
+Neither the name of the copyright holder nor the names
+of any other contributors may be used to endorse or
+promote products derived from this software without
+specific prior written permission.
 
- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
- CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
- INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
- USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
- OF SUCH DAMAGE.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
+OF SUCH DAMAGE.
 
->>> libtirpc-1.0.1-7.ph2
+>>> libtirpc-1.0.1-8.ph2
 
 Copyright (c) Copyright (c) Bull S.A.  2005  All Rights Reserved.
 Redistribution and use in source and binary forms, with or without
@@ -10327,9 +10142,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ADDITIONAL LICENSE INFORMATION:
 
-> GPL 2.0
+>GPL 2.0
 
-libtirpc-1.0.1.tar-2.bz2\libtirpc-1.0.1.tar-2\libtirpc-1.0.1\src\debug.h
+libtirpc-1.0.1\src\debug.h
 
 Copyright (C) 2014  Red Hat, Steve Dickson <steved@redhat.com>
 
@@ -10348,9 +10163,9 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor,
 Boston, MA 02110-1301, USA.
 
-> LGPL 2.1
+>LGPL 2.1
 
-libtirpc-1.0.1.tar-2.bz2\libtirpc-1.0.1.tar-2\libtirpc-1.0.1\src\des_impl.c
+libtirpc-1.0.1\src\des_impl.c
 
 Copyright (C) 1992 Eric Young
 Collected from libdes and modified for SECURE RPC by Martin Kuck 1994
@@ -10359,9 +10174,9 @@ Public License, version 2.1 or later - see the file COPYING.LIB for details.
 If you did not receive a copy of the license with this program, please
 see <http://www.gnu.org/licenses/> to obtain a copy.
 
-> Sun Microsystem (MIT Style):
+>Sun Microsystem (MIT-Style)
 
-libtirpc-1.0.1.tar-2.bz2\libtirpc-1.0.1.tar-2\libtirpc-1.0.1\tirpc\rpc\key_prot.h
+libtirpc-1.0.1\tirpc\rpc\key_prot.h
 
 Sun RPC is a product of Sun Microsystems, Inc. and is provided for
 unrestricted use provided that this legend is included on all tape
@@ -10752,7 +10567,7 @@ Public License can be found in '/usr/share/common-licenses/GPL-2'
 
 -- vile: txtmode file-encoding=utf-8
 
->>> openssh-7.5p1-10.ph2
+>>> openssh-7.5p1-13.ph2
 
 This file is part of the OpenSSH software.
 
@@ -11092,10 +10907,11 @@ authorization.
 ------
 $OpenBSD: LICENCE,v 1.19 2004/08/30 09:18:08 markus Exp $
 
->>> openssl-1.0.2p-1.ph2
+>>> openssl-1.0.2r-1.ph2
 
 LICENSE ISSUES
 ==============
+
 The OpenSSL toolkit stays under a double license, i.e. both the conditions of
 the OpenSSL License and the original SSLeay license apply to the toolkit.
 See below for the actual license texts. Actually both licenses are BSD-style
@@ -11104,8 +10920,9 @@ please contact openssl-core@openssl.org.
 
 OpenSSL License
 ---------------
+
 ====================================================================
-Copyright (c) 1998-2017 The OpenSSL Project.  All rights reserved.
+Copyright (c) 1998-2016 The OpenSSL Project.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions
@@ -11151,12 +10968,14 @@ STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 OF THE POSSIBILITY OF SUCH DAMAGE.
 ====================================================================
+
 This product includes cryptographic software written by Eric Young
 (eay@cryptsoft.com).  This product includes software written by Tim
 Hudson (tjh@cryptsoft.com).
 
 Original SSLeay License
 -----------------------
+
 Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
 All rights reserved.
 
@@ -11210,53 +11029,14 @@ SUCH DAMAGE.
 
 The licence and distribution terms for any publically available version or
 derivative of this code cannot be changed.  i.e. this code cannot simply be
-copied and put under another distribution licence [including the GNU Public Licence.]
+copied and put under another distribution licence
+[including the GNU Public Licence.]
 
 ADDITIONAL LICENSE INFORMATION:
 
->Public Domain
+> Apache2.0
 
-openssl-1.0.2p-1.ph2.src.rpm\openssl-1.0.2p-1.ph2.src.cpio\openssl-1.0.2p.tar.gz\openssl-1.0.2p.tar\openssl-1.0.2p\crypto\aes\asm\vpaes-x86.pl
-
-By Mike Hamburg (Stanford University), 2009
-Public domain.
-
-For details see http://shiftleft.org/papers/vector_aes/ and
-http://crypto.stanford.edu/vpaes/.
-
->OpenSSL
-
-openssl-1.0.2p-1.ph2.src.rpm\openssl-1.0.2p-1.ph2.src.cpio\openssl-1.0.2p.tar.gz\openssl-1.0.2p.tar\openssl-1.0.2p\crypto\aes\asm\bsaes-armv7.pl
-
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBCOMPONENT UNDER THE TERMS OF THE OPENSSL LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
-project. The module is, however, dual licensed under OpenSSL and
-CRYPTOGAMS licenses depending on where you obtain it. For further
-details see http://www.openssl.org/~appro/cryptogams/.
-
-Specific modes and adaptation for Linux kernel by Ard Biesheuvel
-<ard.biesheuvel@linaro.org>. Permission to use under GPL terms is
-granted.
-
->BSD
-
-openssl-1.0.2p-1.ph2.src.rpm\openssl-1.0.2p-1.ph2.src.cpio\openssl-1.0.2p.tar.gz\openssl-1.0.2p.tar\openssl-1.0.2p\crypto\camellia\asm\cmll-x86_64.pl
-
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBCOMPONENT UNDER THE TERMS OF THE BSD LICENSE. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE]
-
-Copyright (c) 2008 Andy Polyakov <appro@openssl.org>
-
-This module may be used under the terms of either the GNU General
-Public License version 2 or later, the GNU Lesser General Public
-License version 2.1 or later, the Mozilla Public License version
-1.1 or the BSD License. The exact terms of either license are
-distributed along with this module. For further details see
-http://www.openssl.org/~appro/camellia/.
-
->Apache 2.0
-
-openssl-1.0.2p-1.ph2.src.rpm\openssl-1.0.2p-1.ph2.src.cpio\openssl-1.0.2p.tar.gz\openssl-1.0.2p.tar\openssl-1.0.2p\crypto\ec\ecp_nistputil.c
+openssl-1.0.2r-1.ph2.src.rpm\openssl-1.0.2r-1.ph2.src.cpio\openssl-1.0.2r.tar.gz\openssl-1.0.2r.tar\openssl-1.0.2r\crypto\ec\ecp_nistputil.c
 
 Copyright 2011 Google Inc.
 
@@ -11273,34 +11053,51 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
->MIT
+> BSD
 
-openssl-1.0.2p-1.ph2.src.rpm\openssl-1.0.2p-1.ph2.src.cpio\openssl-1.0.2p.tar.gz\openssl-1.0.2p.tar\openssl-1.0.2p\crypto\md5\asm\md5-ia64.S
+openssl-1.0.2r-1.ph2.src.rpm\openssl-1.0.2r-1.ph2.src.cpio\openssl-1.0.2r.tar.gz\openssl-1.0.2r.tar\openssl-1.0.2r\crypto\camellia\asm\cmll-x86_64.pl
 
-Copyright (c) 2005 Hewlett-Packard Development Company, L.P.
+[NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE BSD LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
 
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
+Copyright (c) 2008 Andy Polyakov <appro@openssl.org>
 
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
+This module may be used under the terms of either the GNU General
+Public License version 2 or later, the GNU Lesser General Public
+License version 2.1 or later, the Mozilla Public License version
+1.1 or the BSD License. The exact terms of either license are
+distributed along with this module. For further details see
+http://www.openssl.org/~appro/camellia/.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+> BSD-2
 
->BSD-3 Clause
+openssl-1.0.2r-1.ph2.src.rpm\openssl-1.0.2r-1.ph2.src.cpio\openssl-1.0.2r.tar.gz\openssl-1.0.2r.tar\openssl-1.0.2r\crypto\seed\seed.c
 
-openssl-1.0.2p-1.ph2.src.rpm\openssl-1.0.2p-1.ph2.src.cpio\openssl-1.0.2p.tar.gz\openssl-1.0.2p.tar\openssl-1.0.2p\crypto\x509v3\v3_pci.c
+Copyright (c) 2007 KISA(Korea Information Security Agency). All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+2. Neither the name of author nor the names of its contributors may
+be used to endorse or promote products derived from this software
+without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+
+> BSD-3
+
+openssl-1.0.2r-1.ph2.src.rpm\openssl-1.0.2r-1.ph2.src.cpio\openssl-1.0.2r.tar.gz\openssl-1.0.2r.tar\openssl-1.0.2r\crypto\x509v3\v3_pci.c
 
 Copyright (c) 2004 Kungliga Tekniska HÃ¶gskolan
 (Royal Institute of Technology, Stockholm, Sweden).
@@ -11333,11 +11130,11 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 SUCH DAMAGE.
 
-> BSD-4 Clause
+> BSD-4
 
-openssl-1.0.2p-1.ph2.src.rpm\openssl-1.0.2p-1.ph2.src.cpio\openssl-1.0.2p.tar.gz\openssl-1.0.2p.tar\openssl-1.0.2p\demos\easy_tls\easy-tls.c
+openssl-1.0.2r-1.ph2.src.rpm\openssl-1.0.2r-1.ph2.src.cpio\openssl-1.0.2r.tar.gz\openssl-1.0.2r.tar\openssl-1.0.2r\demos\easy_tls\easy-tls.c
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE BSD-4 CLAUSE LICENSE. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+[NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE BSD-4 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
 
 Copyright 1999 Bodo Moeller.  All rights reserved.
 
@@ -11395,32 +11192,55 @@ STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 OF THE POSSIBILITY OF SUCH DAMAGE.
 
-> BSD- 2 Clause
+> MIT
 
-openssl-1.0.2p-1.ph2.src.rpm\openssl-1.0.2p-1.ph2.src.cpio\openssl-1.0.2p.tar.gz\openssl-1.0.2p.tar\openssl-1.0.2p\crypto\seed\seed.c
+openssl-1.0.2r-1.ph2.src.rpm\openssl-1.0.2r-1.ph2.src.cpio\openssl-1.0.2r.tar.gz\openssl-1.0.2r.tar\openssl-1.0.2r\crypto\md5\asm\md5-ia64.S
 
-Copyright (c) 2007 KISA(Korea Information Security Agency). All rights reserved.
+Copyright (c) 2005 Hewlett-Packard Development Company, L.P.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
-1. Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.
-2. Neither the name of author nor the names of its contributors may
-be used to endorse or promote products derived from this software
-without specific prior written permission.
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
 
-THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-SUCH DAMAGE.
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+> OpenSSL
+
+openssl-1.0.2r-1.ph2.src.rpm\openssl-1.0.2r-1.ph2.src.cpio\openssl-1.0.2r.tar.gz\openssl-1.0.2r.tar\openssl-1.0.2r\crypto\aes\asm\bsaes-armv7.pl
+
+[NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE OPENSSL LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+project. The module is, however, dual licensed under OpenSSL and
+CRYPTOGAMS licenses depending on where you obtain it. For further
+details see http://www.openssl.org/~appro/cryptogams/.
+
+Specific modes and adaptation for Linux kernel by Ard Biesheuvel
+<ard.biesheuvel@linaro.org>. Permission to use under GPL terms is
+granted.
+
+> PublicDomain
+
+openssl-1.0.2r-1.ph2.src.rpm\openssl-1.0.2r-1.ph2.src.cpio\openssl-1.0.2r.tar.gz\openssl-1.0.2r.tar\openssl-1.0.2r\crypto\aes\asm\vpaes-x86.pl
+
+By Mike Hamburg (Stanford University), 2009
+Public domain.
+
+For details see http://shiftleft.org/papers/vector_aes/ and
+http://crypto.stanford.edu/vpaes/.
 
 >>> pcre-8.41-1.ph2
 
@@ -11770,7 +11590,7 @@ man pages are NOT obsolete!
 <ragnar@maculanet>
 TH su 1 "18 August 1999" "GNU Shell Utilities 20"
 
->>> sqlite-3.22.0-3.ph2
+>>> sqlite-3.27.2-2.ph2
 
 The author disclaims copyright to this source code.  In place of
 a legal notice, here is a blessing:
@@ -11781,11 +11601,11 @@ May you share freely, never taking more than you give.
 
 ADDITIONAL LICENSE INFORMATION:
 
-> MIT-Style
+> MIT
 
-sqlite-autoconf-3220000.tar.gz\sqlite-autoconf-3220000.tar\sqlite-autoconf-3220000\aclocal.m4
+sqlite-3.27.2-2.ph2.src.rpm\sqlite-3.27.2-2.ph2.src.cpio\sqlite-autoconf-3270200.tar.gz\sqlite-autoconf-3270200.tar\sqlite-autoconf-3270200\aclocal.m4
 
-Copyright (C) 1996-2014 Free Software Foundation, Inc.
+Copyright (C) 1996-2017 Free Software Foundation, Inc.
 
 This file is free software; the Free Software Foundation
 gives unlimited permission to copy and/or distribute it,
@@ -11992,7 +11812,7 @@ sudo-1.8.20p2.tar.gz\sudo-1.8.20p2.tar\sudo-1.8.20p2\lib\util\regress\glob\globt
 
 Public domain, 2008, Todd C. Miller Todd.Miller@courtesan.com
 
->>> vim-8.0.0533-5.ph2
+>>> vim-8.0.0533-6.ph2
 
 Vim is Charityware.  You can use and copy it as much as you like, but you are
 encouraged to make a donation to help orphans in Uganda.  Please read the file
@@ -12885,7 +12705,7 @@ THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
 IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
->>> iproute2-4.10.0-3.ph2
+>>> iproute2-4.10.0-4.ph2
 
 Copyright (C) 1999  Pavel Golubev <pg@ksi-linux.com>
 Copyright (C) 2001-2004  Lubomir Bulej <pallas@kadan.cz>
@@ -13060,7 +12880,7 @@ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
->>> linux-esx-4.9.137-1.ph2
+>>> linux-esx-4.9.173-2.ph2
 
 Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
 Written by David Howells (dhowells@redhat.com)
@@ -13070,67 +12890,63 @@ modify it under the terms of the GNU General Public Licence
 as published by the Free Software Foundation; either version
 2 of the Licence, or (at your option) any later version.
 
+
 ADDITIONAL LICENSE INFORMATION:
 
-> MIT
+> Third Party
 
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\arch\arm\boot\dts\arm-realview-pb1176.dts
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\microblaze\lib\memcpy.c
 
-Copyright 2014 Linaro Ltd
+Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
+Copyright (C) 2008-2009 PetaLogix
+Copyright (C) 2007 John Williams
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Reasonably optimised generic C-code for memcpy on Microblaze
+This is generic C code to do efficient, alignment-aware memcpy.
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+It is based on demo code originally Copyright 2001 by Intel Corp, taken from
+http://www.embedded.com/showArticle.jhtml?articleID=19205567
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+Attempts were made, unsuccessfully, to contact the original
+author of this code (Michael Morrow, Intel).  Below is the original
+copyright notice.
 
-> OpenSSL
+This software has been developed by Intel Corporation.
+Intel specifically disclaims all warranties, express or
+implied, and all liability, including consequential and
+other indirect damages, for the use of this program, including
+liability for infringement of any proprietary rights,
+and including the warranties of merchantability and fitness
+for a particular purpose. Intel does not assume any
+responsibility for and errors which may appear in this program
+not any responsibility to update it.
 
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\arch\arm\crypto\aes-armv4.S
+> Third Party Agreement (Microsoft Developer Service Agreement)
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE OPENSSL LICENSE.PLEASE SEE BELOW FOR THE FULL TEXT OF THE OPENSSL LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE].
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\Documentation\usb\ linux-cdc-acm.inf
 
-Written by Andy Polyakov <approfy.chalmers.se> for the OpenSSL
-project. The module is, however, dual licensed under OpenSSL and
-CRYPTOGAMS licenses depending on where you obtain it. For further
-details see http://www.openssl.org/~appro/cryptogams/.
+Based on INF template which was:
+Copyright (c) 2000 Microsoft Corporation
+Copyright (c) 2007 Microchip Technology Inc.
+likely to be covered by the MLPL as found at:
+<http://msdn.microsoft.com/en-us/cc300389.aspx#MLPL>
 
+> Apache2.0
 
-> GPL 3.0
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\drivers\staging\android\ashmem.h
 
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\arch\arm\mach-imx\pm-imx27.c
+Copyright 2008 Google Inc.
+Author: Robert Love
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License.
+This file is dual licensed.  It may be redistributed and/or modified
+under the terms of the Apache 2.0 License OR version 2 of the GNU
+General Public License.
 
-> LGPL 2.0
+> BSD
 
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\arch\arm\mach-orion5x\dns323-setup.c
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\arm\nwfpe\milieu.h
 
-Copyright (C) 2010 Benjamin Herrenschmidt <benh@kernel.crashing.org>
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as
-published by the Free Software Foundation; either version 2 of the
-License, or (at your option) any later version.
-
-> BSD- Style
-
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\arch\arm\nwfpe\milieu.h
-
-his C header file is part of the SoftFloat IEC/IEEE Floating-point
+This C header file is part of the SoftFloat IEC/IEEE Floating-point
 Arithmetic Package, Release 2.
 
 Written by John R. Hauser.  This work was made possible in part by the
@@ -13154,55 +12970,46 @@ Derivative works are acceptable, even for commercial purposes, so long as
 include prominent notice akin to these three paragraphs for those parts of
 this code that are retained.
 
-> BSD- 3 Clause
+> BSD
 
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\arch\blackfin\Clear_BSD.txt
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\mips\sgi-ip22\ip22-eisa.c
 
-Copyright (c) 2012, Analog Devices, Inc.  All rights reserved.
+[NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE BSD LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted (subject to the limitations in the
-disclaimer below) provided that the following conditions are met:
+(C) 2002 Pascal Dameme <netinet@freesurf.fr>
+and Marc Zyngier <mzyngier@freesurf.fr>
 
-* Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.
+This code is released under both the GPL version 2 and BSD
+licenses.  Either license may be used.
 
-* Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in the
-documentation and/or other materials provided with the
-distribution.
+This code offers a very basic support for this EISA bus present in
+the SGI Indigo-2. It currently only supports PIO (forget about DMA
+for the time being). This is enough for a low-end ethernet card,
+but forget about your favorite SCSI card...
 
-* Neither the name of Analog Devices, Inc.  nor the names of its
-contributors may be used to endorse or promote products derived
-from this software without specific prior written permission.
+> BSD
 
-NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
-GRANTED BY THIS LICENSE.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
-HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
-WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
-OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\Documentation\scsi\dpti.txt
 
-> BSD-3 Clause
+Redistribution and use in source form, with or without modification, are
+permitted provided that redistributions of source code must retain the
+above copyright notice, this list of conditions and the following disclaimer.
 
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\arch\blackfin\include\asm\bfin_pfmon.h
+This software is provided `as is' by Adaptec and
+any express or implied warranties, including, but not limited to, the
+implied warranties of merchantability and fitness for a particular purpose,
+are disclaimed. In no event shall Adaptec be
+liable for any direct, indirect, incidental, special, exemplary or
+consequential damages (including, but not limited to, procurement of
+substitute goods or services; loss of use, data, or profits; or business
+interruptions) however caused and on any theory of liability, whether in
+contract, strict liability, or tort (including negligence or otherwise)
+arising in any way out of the use of this driver software, even if advised
+of the possibility of such damage.
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE BSD- 3 CLAUSE LICENSE. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+> BSD-2
 
-Copyright 2005-2011 Analog Devices Inc.
-
-Licensed under the Clear BSD license or GPL-2 (or later).
-
-> BSD- 2 Clause
-
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\arch\cris\arch-v10\lib\memset.c
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\cris\arch-v10\lib\memset.c
 
 Copyright (C) 1999-2005 Axis Communications.
 All rights reserved.
@@ -13231,120 +13038,11 @@ STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-> MIT- Style
+> BSD-2
 
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\arch\m68k\fpsp040\README
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\mips\include\asm\netlogic\xlp-hal\bridge.h
 
-M68040 Software Package Copyright (c) 1993, 1994 Motorola Inc.
-All rights reserved.
-
-THE SOFTWARE is provided on an "AS IS" basis and without warranty.
-To the maximum extent permitted by applicable law,
-MOTOROLA DISCLAIMS ALL WARRANTIES WHETHER EXPRESS OR IMPLIED,
-INCLUDING IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A
-PARTICULAR PURPOSE and any warranty against infringement with
-regard to the SOFTWARE (INCLUDING ANY MODIFIED VERSIONS THEREOF)
-and any accompanying written materials.
-
-To the maximum extent permitted by applicable law,
-IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
-(INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS
-PROFITS, BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR
-OTHER PECUNIARY LOSS) ARISING OF THE USE OR INABILITY TO USE THE
-SOFTWARE.  Motorola assumes no responsibility for the maintenance
-and support of the SOFTWARE.
-
-You are hereby granted a copyright license to use, modify, and
-distribute the SOFTWARE so long as this entire notice is retained
-without alteration in any modified and/or redistributed versions,
-and that such modified versions are clearly identified as such.
-No licenses are granted by implication, estoppel or otherwise
-under any patents or trademarks of Motorola, Inc.
-
-> GPL 2.0 with Special Exception
-
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\arch\m68k\lib\divsi3.S
-
-Copyright (C) 1994, 1996, 1997, 1998 Free Software Foundation, Inc.
-
-This file is part of GNU CC.
-
-GNU CC is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the
-Free Software Foundation; either version 2, or (at your option) any
-later version.
-
-In addition to the permissions in the GNU General Public License, the
-Free Software Foundation gives you unlimited permission to link the
-compiled version of this file with other programs, and to distribute
-those programs without any restriction coming from the use of this
-file.  (The General Public License restrictions do apply in other
-respects; for example, they cover modification of the file, and
-distribution when not linked into another program.)
-
-This file is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.
-
-As a special exception, if you link this library with files
-compiled with GCC to produce an executable, this does not cause
-the resulting executable to be covered by the GNU General Public License.
-This exception does not however invalidate any other reasons why
-the executable file might be covered by the GNU General Public License.
-
-> MIT- Style
-
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\arch\m68k\math-emu\fp_log.c
-
-Copyright (c) 1998-1999 David Huggins-Daines / Roman Zippel.
-
-I hereby give permission, free of charge, to copy, modify, and
-redistribute this software, in source or binary form, provided that
-the above copyright notice and the following disclaimer are included
-in all such copies.
-
-THIS SOFTWARE IS PROVIDED "AS IS", WITH ABSOLUTELY NO WARRANTY, REAL
-OR IMPLIED.
-
-> Third Party
-
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\arch\microblaze\lib\memcpy.c
-
-Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
-Copyright (C) 2008-2009 PetaLogix
-Copyright (C) 2007 John Williams
-
-Reasonably optimised generic C-code for memcpy on Microblaze
-This is generic C code to do efficient, alignment-aware memcpy.
-
-It is based on demo code originally Copyright 2001 by Intel Corp, taken from
-http://www.embedded.com/showArticle.jhtml?articleID=19205567
-
-Attempts were made, unsuccessfully, to contact the original
-author of this code (Michael Morrow, Intel).  Below is the original
-copyright notice.
-
-This software has been developed by Intel Corporation.
-Intel specifically disclaims all warranties, express or
-implied, and all liability, including consequential and
-other indirect damages, for the use of this program, including
-liability for infringement of any proprietary rights,
-and including the warranties of merchantability and fitness
-for a particular purpose. Intel does not assume any
-responsibility for and errors which may appear in this program
-not any responsibility to update it.
-
-> BSD- 2 Clause
-
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\arch\mips\include\asm\netlogic\xlp-hal\bridge.h
-
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE BSD- 2 CLAUSE LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+[NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE BSD-2 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
 
 Copyright 2003-2011 NetLogic Microsystems, Inc. (NetLogic). All rights
 reserved.
@@ -13378,74 +13076,159 @@ WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-> BSD
+> BSD-2
 
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\arch\mips\sgi-ip22\ip22-eisa.c
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\drivers\input\keyboard\hil_kbd.c
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE BSD LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+[NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE BSD-2 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
 
-(C) 2002 Pascal Dameme <netinet@freesurf.fr>
-and Marc Zyngier <mzyngier@freesurf.fr>
+Copyright (c) 2001 Brian S. Julin
+All rights reserved.
 
-This code is released under both the GPL version 2 and BSD
-licenses.  Either license may be used.
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+notice, this list of conditions, and the following disclaimer,
+without modification.
+2. The name of the author may not be used to endorse or promote products
+derived from this software without specific prior written permission.
 
-This code offers a very basic support for this EISA bus present in
-the SGI Indigo-2. It currently only supports PIO (forget about DMA
-for the time being). This is enough for a low-end ethernet card,
-but forget about your favorite SCSI card...
+Alternatively, this software may be distributed under the terms of the
+GNU General Public License ("GPL").
 
-> LGPL 2.1
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\arch\parisc\lib\memset.c
+> BSD-2
 
-Copyright (C) 1991, 1997 Free Software Foundation, Inc.
-This file is part of the GNU C Library.
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\cris\arch-v10\lib\memset.c
 
-The GNU C Library is free software; you can redistribute it and/or
-modify it under the terms of the GNU Lesser General Public
-License as published by the Free Software Foundation; either
-version 2.1 of the License, or (at your option) any later version.
+Copyright (C) 1999-2005 Axis Communications.
+All rights reserved.
 
-The GNU C Library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-Lesser General Public License for more details.
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
 
-You should have received a copy of the GNU Lesser General Public
-License along with the GNU C Library; if not, write to the Free
-Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-02111-1307 USA.
+1. Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
 
-> GPL 1.0
+2. Neither the name of Axis Communications nor the names of its
+contributors may be used to endorse or promote products derived
+from this software without specific prior written permission.
 
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\arch\powerpc\xmon\ppc.h
+THIS SOFTWARE IS PROVIDED BY AXIS COMMUNICATIONS AND ITS CONTRIBUTORS
+``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL AXIS
+COMMUNICATIONS OR ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
 
-Copyright 1994, 1995, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
-Free Software Foundation, Inc.
-Written by Ian Lance Taylor, Cygnus Support
+> BSD-3
 
-This file is part of GDB, GAS, and the GNU binutils.
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\blackfin\Clear_BSD.txt
 
-GDB, GAS, and the GNU binutils are free software; you can redistribute
-them and/or modify them under the terms of the GNU General Public
-License as published by the Free Software Foundation; either version
-1, or (at your option) any later version.
+Copyright (c) 2012, Analog Devices, Inc.  All rights reserved.
 
-GDB, GAS, and the GNU binutils are distributed in the hope that they
-will be useful, but WITHOUT ANY WARRANTY; without even the implied
-warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
-the GNU General Public License for more details.
+Redistribution and use in source and binary forms, with or without
+modification, are permitted (subject to the limitations in the
+disclaimer below) provided that the following conditions are met:
 
-You should have received a copy of the GNU General Public License
-along with this file; see the file COPYING.  If not, write to the Free
-Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+* Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
 
-> BSD- 3 Clause
+* Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the
+distribution.
 
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\crypto\drbg.c
+* Neither the name of Analog Devices, Inc.  nor the names of its
+contributors may be used to endorse or promote products derived
+from this software without specific prior written permission.
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE BSD- 3 Clause LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
+GRANTED BY THIS LICENSE.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
+HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+> BSD-3
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\blackfin\include\asm\bfin_pfmon.h
+
+[NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE BSD-3 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+Copyright 2005-2011 Analog Devices Inc.
+
+Licensed under the Clear BSD license or GPL-2 (or later).
+
+> BSD-3
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\powerpc\include\asm\ibmebus.h
+
+[NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE BSD-3 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+Copyright (c) 2005 IBM Corporation
+Joachim Fenkes <fenkes@de.ibm.com>
+Heiko J Schick <schickhj@de.ibm.com>
+
+All rights reserved.
+
+This source code is distributed under a dual license of GPL v2.0 and OpenIB
+BSD.
+
+OpenIB BSD License
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+
+Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials
+provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+> BSD-3
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\crypto\drbg.c
+
+[NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE BSD-3 LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
 
 Copyright Stephan Mueller <smueller@chronox.de>, 2014
 
@@ -13481,187 +13264,9 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 USE OF THIS SOFTWARE, EVEN IF NOT ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
 
-> GFDL 1.1
+> BSD-4
 
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\Documentation\DocBook\media_api.tmpl
-
-Copyright 2009-2012
-LinuxTV Developers
-
-Permission is granted to copy, distribute and/or modify
-this document under the terms of the GNU Free Documentation License,
-Version 1.1 or any later version published by the Free Software
-Foundation. A copy of the license is included in the chapter entitled
-"GNU Free Documentation License".
-
-> Open Software License1.1
-
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\Documentation\DocBook\libata.tmpl
-
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE OPEN SOFTWARE LICENSE1.1 LICENSE].  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE OPEN SOFTWARE LICENSE1.1 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE]
-
-Copyright
-
-The contents of this file are subject to the Open Software License version 1.1 that can be found at
-"http://fedoraproject.org/wiki/Licensing:OSL1.1" and is included herein by reference.
-
-Alternatively, the contents of this file may be used under the terms
-of the GNU General Public License version 2 (the "GPL") as distributed
-in the kernel source COPYING file, in which case the provisions of
-the GPL are applicable instead of the above.  If you wish to allow
-the use of your version of this file only under the terms of the
-GPL and not to allow others to use your version of this file under
-the OSL, indicate your decision by deleting the provisions above and
-replace them with the notice and other provisions required by the GPL.
-If you do not delete the provisions above, a recipient may use your
-version of this file under either the OSL or the GPL.
-
-> CC-Attribution-ShareAlike 2.0
-
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\Documentation\PCI\pci.txt
-
-A more complete resource is the third edition of "Linux Device Drivers"
-by Jonathan Corbet, Alessandro Rubini, and Greg Kroah-Hartman.
-LDD3 is available for free (under Creative Commons License) from:
-
-http://lwn.net/Kernel/LDD3/
-
-However, keep in mind that all documents are subject to "bit rot".
-Refer to the source code if things are not working as described here.
-
-Please send questions/comments/patches about Linux PCI API to the
-"Linux PCI" <linux-pci@atrey.karlin.mff.cuni.cz> mailing list.
-
-> BSD- Style
-
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\Documentation\scsi\dpti.txt
-
-Redistribution and use in source form, with or without modification, are
-permitted provided that redistributions of source code must retain the
-above copyright notice, this list of conditions and the following disclaimer.
-
-This software is provided `as is' by Adaptec and
-any express or implied warranties, including, but not limited to, the
-implied warranties of merchantability and fitness for a particular purpose,
-are disclaimed. In no event shall Adaptec be
-liable for any direct, indirect, incidental, special, exemplary or
-consequential damages (including, but not limited to, procurement of
-substitute goods or services; loss of use, data, or profits; or business
-interruptions) however caused and on any theory of liability, whether in
-contract, strict liability, or tort (including negligence or otherwise)
-arising in any way out of the use of this driver software, even if advised
-of the possibility of such damage.
-
-> GFDL 1.2
-
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\Documentation\trace\ftrace.txt
-
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE GFDL 1.2 LICENSE. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-Copyright 2008 Red Hat Inc.
-Author:   Steven Rostedt <srostedt@redhat.com>
-License:   The GNU Free Documentation License, Version 1.2
-(dual licensed under the GPL v2)
-
-> MS-LPL
-
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\Documentation\usb\linux-cdc-acm.inf
-
-Based on INF template which was:
-Copyright (c) 2000 Microsoft Corporation
-Copyright (c) 2007 Microchip Technology Inc.
-likely to be covered by the MLPL as found at:
-<http://msdn.microsoft.com/en-us/cc300389.aspx#MLPL>
-
-> Public Domain
-
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\Documentation\vDSO\parse_vdso.c
-
-Written by Andrew Lutomirski, 2011-2014.
-
-This code is meant to be linked in to various programs that run on Linux.
-As such, it is available with as few restrictions as possible.  This file
-is licensed under the Creative Commons Zero License, version 1.0,
-available at http://creativecommons.org/publicdomain/zero/1.0/legalcode
-
-> GPL 2.0
-
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\drivers\ide\ide-cs.c
-
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE GPL 2.0 LICENSE. PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE GPL 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-The contents of this file are subject to the Mozilla Public
-License Version 1.1 (the "License"); you may not use this file
-except in compliance with the License. You may obtain a copy of
-the License at http://www.mozilla.org/MPL/
-
-Software distributed under the License is distributed on an "AS
-IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
-implied. See the License for the specific language governing
-rights and limitations under the License.
-
-The initial developer of the original code is David A. Hinds
-<dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
-are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
-
-Alternatively, the contents of this file may be used under the
-terms of the GNU General Public License version 2 (the "GPL"), in
-which case the provisions of the GPL are applicable instead of the
-above.  If you wish to allow the use of your version of this file
-only under the terms of the GPL and not to allow others to use
-your version of this file under the MPL, indicate your decision
-by deleting the provisions above and replace them with the notice
-and other provisions required by the GPL.  If you do not delete
-the provisions above, a recipient may use your version of this
-file under either the MPL or the GPL.
-
-> Apache 2.0
-
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\drivers\staging\android\ashmem.h
-
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE APACHE 2.0 LICENSE.  PLEASE SEE APPENDIX FOR THE FULL TEXT OF THE APACHE 2.0 LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-Copyright 2008 Google Inc.
-Author: Robert Love
-
-This file is dual licensed.  It may be redistributed and/or modified
-under the terms of the Apache 2.0 License OR version 2 of the GNU
-General Public License.
-
-> BSD- 2 Clause
-
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\drivers\input\keyboard\hil_kbd.c
-
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE BSD- 2 Clause LICENSE.  THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
-
-Copyright (c) 2001 Brian S. Julin
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
-1. Redistributions of source code must retain the above copyright
-notice, this list of conditions, and the following disclaimer,
-without modification.
-2. The name of the author may not be used to endorse or promote products
-derived from this software without specific prior written permission.
-
-Alternatively, this software may be distributed under the terms of the
-GNU General Public License ("GPL").
-
-THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-
-> BSD- 4 Clause
-
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\drivers\net\ppp\bsd_comp.c
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\drivers\net\ppp\bsd_comp.c
 
 Copyright (c) 1985, 1986 The Regents of the University of California.
 All rights reserved.
@@ -13698,9 +13303,141 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 SUCH DAMAGE.
 
-> GPL 2.0 with Special Exception
+> CC-Attribution-ShareAlike2.0
 
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\fs\jffs2\LICENCE
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\Documentation\PCI\pci.txt
+
+A more complete resource is the third edition of "Linux Device Drivers"
+by Jonathan Corbet, Alessandro Rubini, and Greg Kroah-Hartman.
+LDD3 is available for free (under Creative Commons License) from:
+
+http://lwn.net/Kernel/LDD3/
+
+However, keep in mind that all documents are subject to "bit rot".
+Refer to the source code if things are not working as described here.
+
+Please send questions/comments/patches about Linux PCI API to the
+"Linux PCI" <linux-pci@atrey.karlin.mff.cuni.cz> mailing list.
+
+> GFDL1.1
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\Documentation\DocBook\media_api.tmpl
+
+Copyright 2009-2012
+LinuxTV Developers
+
+Permission is granted to copy, distribute and/or modify
+this document under the terms of the GNU Free Documentation License,
+Version 1.1 or any later version published by the Free Software
+Foundation. A copy of the license is included in the chapter entitled
+"GNU Free Documentation License".
+
+> GFDL1.2
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\Documentation\trace\ftrace.txt
+
+[NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE GFDL1.2 LICENSE, THE TEXT OF WHICH IS SET FORTH IN THE APPENDIX. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+Copyright 2008 Red Hat Inc.
+Author:   Steven Rostedt <srostedt@redhat.com>
+License:   The GNU Free Documentation License, Version 1.2
+(dual licensed under the GPL v2)
+
+> GPL1.0
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\powerpc\xmon\ppc.h
+
+Copyright 1994, 1995, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+Free Software Foundation, Inc.
+Written by Ian Lance Taylor, Cygnus Support
+
+This file is part of GDB, GAS, and the GNU binutils.
+
+GDB, GAS, and the GNU binutils are free software; you can redistribute
+them and/or modify them under the terms of the GNU General Public
+License as published by the Free Software Foundation; either version
+1, or (at your option) any later version.
+
+GDB, GAS, and the GNU binutils are distributed in the hope that they
+will be useful, but WITHOUT ANY WARRANTY; without even the implied
+warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
+the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this file; see the file COPYING.  If not, write to the Free
+Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+
+> GPL2.0
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\m68k\lib\divsi3.S
+
+Copyright (C) 1994, 1996, 1997, 1998 Free Software Foundation, Inc.
+
+This file is part of GNU CC.
+
+GNU CC is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 2, or (at your option) any
+later version.
+
+In addition to the permissions in the GNU General Public License, the
+Free Software Foundation gives you unlimited permission to link the
+compiled version of this file with other programs, and to distribute
+those programs without any restriction coming from the use of this
+file.  (The General Public License restrictions do apply in other
+respects; for example, they cover modification of the file, and
+distribution when not linked into another program.)
+
+This file is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; see the file COPYING.  If not, write to
+the Free Software Foundation, 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.
+
+As a special exception, if you link this library with files
+compiled with GCC to produce an executable, this does not cause
+the resulting executable to be covered by the GNU General Public License.
+This exception does not however invalidate any other reasons why
+the executable file might be covered by the GNU General Public License.
+
+> GPL2.0
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\drivers\ide\ide-cs.c
+
+[NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE GPL2.0 LICENSE, THE TEXT OF WHICH IS SET FORTH IN THE APPENDIX. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+The contents of this file are subject to the Mozilla Public
+License Version 1.1 (the "License"); you may not use this file
+except in compliance with the License. You may obtain a copy of
+the License at http://www.mozilla.org/MPL/
+
+Software distributed under the License is distributed on an "AS
+IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+implied. See the License for the specific language governing
+rights and limitations under the License.
+
+The initial developer of the original code is David A. Hinds
+<dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
+are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+
+Alternatively, the contents of this file may be used under the
+terms of the GNU General Public License version 2 (the "GPL"), in
+which case the provisions of the GPL are applicable instead of the
+above.  If you wish to allow the use of your version of this file
+only under the terms of the GPL and not to allow others to use
+your version of this file under the MPL, indicate your decision
+by deleting the provisions above and replace them with the notice
+and other provisions required by the GPL.  If you do not delete
+the provisions above, a recipient may use your version of this
+file under either the MPL or the GPL.
+
+> GPL2.0
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\fs\jffs2\LICENCE
 
 Copyright Â© 2001-2007 Red Hat, Inc. and others
 
@@ -13729,11 +13466,128 @@ of the GNU General Public License.
 This exception does not invalidate any other reasons why a work based on
 this file might be covered by the GNU General Public License.
 
+> GPL3.0
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\arm\mach-imx\pm-imx27.c
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License.
+
+> LGPL2.0
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\arm\mach-orion5x\dns323-setup.c
+
+Copyright (C) 2010 Benjamin Herrenschmidt <benh@kernel.crashing.org>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as
+published by the Free Software Foundation; either version 2 of the
+License, or (at your option) any later version.
+
+> LGPL2.1
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\parisc\lib\memset.c
+
+Copyright (C) 1991, 1997 Free Software Foundation, Inc.
+This file is part of the GNU C Library.
+
+The GNU C Library is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 2.1 of the License, or (at your option) any later version.
+
+The GNU C Library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public
+License along with the GNU C Library; if not, write to the Free
+Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+02111-1307 USA.
+
+> LGPL3.0
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\include\uapi\linux\dm-ioctl.h
+
+Copyright (C) 2001 - 2003 Sistina Software (UK) Limited.
+Copyright (C) 2004 - 2009 Red Hat, Inc. All rights reserved.
+
+This file is released under the LGPL.
+
 > MIT
 
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\include\dt-bindings\clock\sun4i-a10-pll2.h
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\arm\boot\dts\arm-realview-pb1176.dts
 
-[PLEASE NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS COMPONENT UNDER THE TERMS OF THE MIT LICENSE. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+Copyright 2014 Linaro Ltd
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+> MIT
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\m68k\fpsp040\README
+
+M68040 Software Package Copyright (c) 1993, 1994 Motorola Inc.
+All rights reserved.
+
+THE SOFTWARE is provided on an "AS IS" basis and without warranty.
+To the maximum extent permitted by applicable law,
+MOTOROLA DISCLAIMS ALL WARRANTIES WHETHER EXPRESS OR IMPLIED,
+INCLUDING IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A
+PARTICULAR PURPOSE and any warranty against infringement with
+regard to the SOFTWARE (INCLUDING ANY MODIFIED VERSIONS THEREOF)
+and any accompanying written materials.
+
+To the maximum extent permitted by applicable law,
+IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
+(INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS
+PROFITS, BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR
+OTHER PECUNIARY LOSS) ARISING OF THE USE OR INABILITY TO USE THE
+SOFTWARE.  Motorola assumes no responsibility for the maintenance
+and support of the SOFTWARE.
+
+You are hereby granted a copyright license to use, modify, and
+distribute the SOFTWARE so long as this entire notice is retained
+without alteration in any modified and/or redistributed versions,
+and that such modified versions are clearly identified as such.
+No licenses are granted by implication, estoppel or otherwise
+under any patents or trademarks of Motorola, Inc.
+
+> MIT
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\m68k\math-emu\fp_log.c
+
+Copyright (c) 1998-1999 David Huggins-Daines / Roman Zippel.
+
+I hereby give permission, free of charge, to copy, modify, and
+redistribute this software, in source or binary form, provided that
+the above copyright notice and the following disclaimer are included
+in all such copies.
+
+THIS SOFTWARE IS PROVIDED "AS IS", WITH ABSOLUTELY NO WARRANTY, REAL
+OR IMPLIED.
+
+> MIT
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\include\dt-bindings\clock\sun4i-a10-pll2.h
+
+[NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE MIT LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
 
 Copyright 2015 Maxime Ripard
 
@@ -13777,14 +13631,58 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
-> LGPL 3.0
+> MS-LPL
 
-linux-esx-4.9.137-1.ph2.src.rpm\linux-esx-4.9.137-1.ph2.src.cpio\linux-4.9.137.tar.xz\linux-4.9.137.tar\linux-4.9.137\include\uapi\linux\dm-ioctl.h
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\Documentation\usb\linux-cdc-acm.inf
 
-Copyright (C) 2001 - 2003 Sistina Software (UK) Limited.
-Copyright (C) 2004 - 2009 Red Hat, Inc. All rights reserved.
+Copyright (c) 2000 Microsoft Corporation
+Copyright (c) 2007 Microchip Technology Inc.
+likely to be covered by the MLPL as found at
+<http//msdn.microsoft.com/en-us/cc300389.aspx#MLPL>.
 
-This file is released under the LGPL.
+> OpenSSL
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\arch\arm\crypto\aes-armv4.S
+
+[NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE OPENSSL LICENSE, THE TEXT OF WHICH IS SET FORTH BELOW. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+Written by Andy Polyakov <approfy.chalmers.se> for the OpenSSL
+project. The module is, however, dual licensed under OpenSSL and
+CRYPTOGAMS licenses depending on where you obtain it. For further
+details see http://www.openssl.org/~appro/cryptogams/.
+
+> OSL1.1
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\Documentation\DocBook\libata.tmpl
+
+[NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE OSL1.1 LICENSE, THE TEXT OF WHICH IS SET FORTH IN THE APPENDIX. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+Copyright
+
+The contents of this file are subject to the Open Software License version 1.1 that can be found at
+"http://fedoraproject.org/wiki/Licensing:OSL1.1" and is included herein by reference.
+
+Alternatively, the contents of this file may be used under the terms
+of the GNU General Public License version 2 (the "GPL") as distributed
+in the kernel source COPYING file, in which case the provisions of
+the GPL are applicable instead of the above.  If you wish to allow
+the use of your version of this file only under the terms of the
+GPL and not to allow others to use your version of this file under
+the OSL, indicate your decision by deleting the provisions above and
+replace them with the notice and other provisions required by the GPL.
+If you do not delete the provisions above, a recipient may use your
+version of this file under either the OSL or the GPL.
+
+> PublicDomain
+
+linux-4.4.67.tar.xz\linux-4.4.67.tar\linux-4.4.67\Documentation\vDSO\parse_vdso.c
+
+Written by Andrew Lutomirski, 2011-2014.
+
+This code is meant to be linked in to various programs that run on Linux.
+As such, it is available with as few restrictions as possible.  This file
+is licensed under the Creative Commons Zero License, version 1.0,
+available at http://creativecommons.org/publicdomain/zero/1.0/legalcode
 
 >>> logrotate-3.11.0-3.ph2
 
@@ -14089,7 +13987,7 @@ Original author: Noah Friedman <friedman@prep.ai.mit.edu>
 Created: 1993-05-16
 Public domain.
 
->>> tdnf-1.2.3-4.ph2
+>>> tdnf-1.2.3-8.ph2
 
 Copyright (C) 2015 VMware, Inc. All Rights Reserved.
 
@@ -15251,7 +15149,7 @@ translation of cracklib.po to
 This file is put in the public domain.
 , 2003
 
->>> glibc-2.26-13.ph2
+>>> glibc-2.26-16.ph2
 
 Copyright (C) 1991-2017 Free Software Foundation, Inc.
 This file is part of the GNU C Library.
@@ -16180,11 +16078,11 @@ January 9, 2013
 
 1 Definitions
 
-1.1 â€œLicensorâ€ means Phillip Rogaway.
+1.1 â€œLicensorâ€ means Phillip Rogaway.
 
-1.2 â€œLicensed Patentsâ€ means any patent that claims priority to United
+1.2 â€œLicensed Patentsâ€ means any patent that claims priority to United
 States Patent Application No. 09/918,615 entitled â€œMethod and Apparatus
-for Facilitating Efficient Authenticated Encryption,â€ and any utility,
+for Facilitating Efficient Authenticated Encryption,â€ and any utility,
 divisional, provisional, continuation, continuations-in-part, reexamination,
 reissue, or foreign counterpart patents that may issue with respect to the
 aforesaid patent application. This includes, but is not limited to, United
@@ -16192,16 +16090,16 @@ States Patent No. 7,046,802; United States Patent No. 7,200,227; United
 States Patent No. 7,949,129; United States Patent No. 8,321,675 ; and any
 patent that issues out of United States Patent Application No. 13/669,114.
 
-1.3 â€œUseâ€ means any practice of any invention claimed in the Licensed Patents.
+1.3 â€œUseâ€ means any practice of any invention claimed in the Licensed Patents.
 
-1.4 â€œSoftware Implementationâ€ means any practice of any invention
+1.4 â€œSoftware Implementationâ€ means any practice of any invention
 claimed in the Licensed Patents that takes the form of software executing on
 a user-programmable, general-purpose computer or that takes the form of a
 computer-readable medium storing such software. Software Implementation does
 not include, for example, application-specific integrated circuits (ASICs),
 field-programmable gate arrays (FPGAs), embedded systems, or IP cores.
 
-1.5 â€œOpen Source Softwareâ€ means software whose source code is published
+1.5 â€œOpen Source Softwareâ€ means software whose source code is published
 and made available for inspection and use by anyone because either (a) the
 source code is subject to a license that permits recipients to copy, modify,
 and distribute the source code without payment of fees or royalties, or
@@ -16212,7 +16110,7 @@ licenses identified on the creativecommons.org website as of January 9,
 2013, including the Public License Fallback of the CC0 waiver, satisfy these
 requirements for the purposes of this license.
 
-1.6 â€œOpen Source Software Implementationâ€ means a Software
+1.6 â€œOpen Source Software Implementationâ€ means a Software
 Implementation in which the software implicating the Licensed Patents is
 Open Source Software. Open Source Software Implementation does not include
 any Software Implementation in which the software implicating the Licensed
@@ -16543,7 +16441,7 @@ License along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307,
 USA.
 
->>> systemd-233-16.ph2
+>>> systemd-233-19.ph2
 
 This file is part of systemd.
 
@@ -16567,14 +16465,9 @@ ADDITIONAL LICENSE INFORMATION:
 
 > GPL 2.0
 
-systemd-233-16.ph2.src.rpm\systemd-233-16.ph2.src.cpio\systemd-233.tar.gz\systemd-233.tar\systemd-233\src\shared\linux\auto_dev-ioctl.h
+systemd-233.tar.gz\systemd-233.tar\systemd-233\LICENSE.GPL2
 
-Copyright 2008 Red Hat, Inc. All rights reserved.
-Copyright 2008 Ian Kent <raven@themaw.net>
-
-This file is part of the Linux kernel and is made available under
-the terms of the GNU General Public License, version 2, or at your
-option, any later version, incorporated herein by reference.
+License: GPL 2.0
 
 > MIT
 
@@ -16988,11 +16881,11 @@ glib-2.52.1.tar.xz\glib-2.52.1.tar\glib-2.52.1\glib\valgrind.h
 Mozilla Public License, V2.0 is applicable to the following component(s).
 
 
->>> ca-certificates-20180919-1.ph2
+>>> ca-certificates-20190509-1.ph2
 
 This Source Code Form is subject to the terms of the Mozilla Public
- License, v. 2.0. If a copy of the MPL was not distributed with this
- file, You can obtain one at http://mozilla.org/MPL/2.0/.
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 >>> nspr-4.15-1.ph2
 
@@ -17074,6 +16967,14 @@ DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
 PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
+
+> MPL-2.0
+
+nspr-4.15.tar.gz\..\stage\v4.15\src\nspr-4.15.tar\nspr-4.15\nspr\pkg\linux\sun-nspr.spec
+
+[NOTE:  VMWARE, INC. ELECTS TO USE AND DISTRIBUTE THIS SUBPACKAGE UNDER THE TERMS OF THE MPL-2.0 LICENSE, THE TEXT OF WHICH IS SET FORTH IN THE APPENDIX. THE ORIGINAL LICENSE TERMS ARE REPRODUCED BELOW ONLY AS A REFERENCE.]
+
+Under "MPL/GPL" license.
 
 >>> nss-3.31.1-1.ph2
 
@@ -17220,7 +17121,6 @@ nss-3.31.1.tar.gz\..\stage\NSS_3_31_1_RTM\src\nss-3.31.1.tar\nss-3.31.1\nss\pkg\
 Under "MPL/GPL" license.
 
 =============== APPENDIX. Standard License Files ============== 
-
 
 
 --------------- SECTION 1: Apache License, V2.0 -----------
@@ -24180,4 +24080,4 @@ All such requests should clearly specify: OPEN SOURCE FILES REQUEST, Attention G
 VMware shall mail a copy of the Source Files to you on a CD or equivalent physical medium. 
 This offer to obtain a copy of the Source Files is valid for three years from the date you acquired this Software product. 
 
-[VIC15GAMS010319]
+[VIC153GAAB060719]
