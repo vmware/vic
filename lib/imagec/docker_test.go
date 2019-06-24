@@ -60,22 +60,6 @@ const (
       {
          "v1Compatibility": "{\"id\":\"454970bd163ba95435b50e963edd63b2b2fff4c1845e5d3cd03d5ba8afb8a08d\",\"created\":\"2016-03-03T21:38:46.169812943Z\",\"container\":\"c24ffee5b2b808674d335e2c42c9c47aa9aff1b368eb5920018cde7dd26f2046\",\"container_config\":{\"Hostname\":\"c24ffee5b2b8\",\"Domainname\":\"\",\"User\":\"\",\"AttachStdin\":false,\"AttachStdout\":false,\"AttachStderr\":false,\"Tty\":false,\"OpenStdin\":false,\"StdinOnce\":false,\"Env\":null,\"Cmd\":[\"/bin/sh\",\"-c\",\"#(nop) ADD file:b9504126dc55908988977286e89c43c7ea73a506d43fae82c29ef132e21b6ece in /\"],\"Image\":\"\",\"Volumes\":null,\"WorkingDir\":\"\",\"Entrypoint\":null,\"OnBuild\":null,\"Labels\":null},\"docker_version\":\"1.9.1\",\"config\":{\"Hostname\":\"c24ffee5b2b8\",\"Domainname\":\"\",\"User\":\"\",\"AttachStdin\":false,\"AttachStdout\":false,\"AttachStderr\":false,\"Tty\":false,\"OpenStdin\":false,\"StdinOnce\":false,\"Env\":null,\"Cmd\":null,\"Image\":\"\",\"Volumes\":null,\"WorkingDir\":\"\",\"Entrypoint\":null,\"OnBuild\":null,\"Labels\":null},\"architecture\":\"amd64\",\"os\":\"linux\",\"Size\":187763841}"
       }
-   ],
-   "signatures": [
-      {
-         "header": {
-            "jwk": {
-               "crv": "P-256",
-               "kid": "G2JA:NPRD:EWRM:EFEJ:4PHQ:TRZR:6W6O:D5LC:UJ36:RHOE:ZN7D:N55I",
-               "kty": "EC",
-               "x": "NrETepARqTLeOBcTdBCE8K8jbQJgiTH1p7XJ78zBxjk",
-               "y": "ay0SmJatkJs-JdnW80807CcNPWHElsh6MW_JTh7NdbU"
-            },
-            "alg": "ES256"
-         },
-         "signature": "kHbWdD1NQw2RIAQ8uYnKmolU3Z_WeUW8DfRtJRprVDzK7AZaF-ChI4V9Lh74HnjSNwoNZ_QRhUQDl_Nezb0Hgw",
-         "protected": "eyJmb3JtYXRMZW5ndGgiOjY3NzksImZvcm1hdFRhaWwiOiJDbjAiLCJ0aW1lIjoiMjAxNy0wNS0xN1QxODowMjozMFoifQ"
-      }
    ]
 }
 `
