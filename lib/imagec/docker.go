@@ -349,6 +349,7 @@ func FetchImageManifest(op trace.Operation, options Options, schemaVersion int, 
 	reqHeaders := make(http.Header)
 	if schemaVersion == 2 {
 		reqHeaders.Add("Accept", schema2.MediaTypeManifest)
+	} else {
 		reqHeaders.Add("Accept", schema1.MediaTypeManifest)
 	}
 
