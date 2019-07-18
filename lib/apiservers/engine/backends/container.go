@@ -1588,12 +1588,11 @@ payloadLoop:
 		dockerState := convert.State(t)
 
 		var labels map[string]string
-		if config.Filters.Include("label") {
-			err = convert.ContainerAnnotation(t.ContainerConfig.Annotations, convert.AnnotationKeyLabels, &labels)
-			if err != nil {
-				return nil, fmt.Errorf("unable to convert vic annotations to docker labels (%s)", t.ContainerConfig.ContainerID)
-			}
+		err = convert.ContainerAnnotation(t.ContainerConfig.Annotations, convert.AnnotationKeyLabels, &labels)
+		if err != nil {
+			return nil, fmt.Errorf("unable to convert vic annotations to docker labels (%s)", t.ContainerConfig.ContainerID)
 		}
+
 		listContext.Labels = labels
 		listContext.ExitCode = dockerState.ExitCode
 		listContext.ID = t.ContainerConfig.ContainerID
@@ -1667,6 +1666,7 @@ payloadLoop:
 			SizeRw:  t.ContainerConfig.StorageSize,
 			Ports:   ports,
 			State:   filter.DockerState(t.ContainerConfig.State),
+			Labels:  labels,
 		}
 
 		// The container should be included in the list
