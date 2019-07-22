@@ -45,6 +45,7 @@ This test requires that a vSphere server is running and available
 32. Issue docker run run -it -d --name test_nolabel -p 9090:80 nginx:alpine
 33. Issue docker inspect test_nolabel -f "{{.Config.Labels}}"
 34. Issue docker image inspect nginx:alpine -f "{{.ContainerConfig.Labels}}"
+35. Issue curl -k -s https://VCH-IP:2376/containers/json --cert cert_path --key cert_key_path --cacert ca_cert_path
 
 # Expected Outcome:
 * Step 2 and 3 should result in success and print the dmesg of the container
@@ -76,7 +77,8 @@ docker: Error parsing reference: "fakeImage" is not a valid repository/tag.
 * Step 29 should result in all containers being removed as expected on exit
 * Step 31 only show setting label information
 * Step 33 not show any label information
-* Step 34 show origin docker image label information
+* Step 34 show original docker image label information
+* Step 35 should show correct container label information
 
 # Possible Problems:
 None

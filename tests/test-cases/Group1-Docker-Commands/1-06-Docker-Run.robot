@@ -274,6 +274,14 @@ Docker run with label
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  maintainer
     Should Not Contain Any  ${output}  test1  test2
+
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -k -s https://%{VCH-IP}:2376/containers/json --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem --cacert %{DOCKER_CERT_PATH}/ca.pem | jq '.[].Labels' 
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  test1
+    Should Contain  ${output}  test2
+    Should Contain  ${output}  null
+
     Stop All Containers
    
    
