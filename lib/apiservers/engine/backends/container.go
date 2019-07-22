@@ -1105,6 +1105,7 @@ func (c *ContainerBackend) containerStart(op trace.Operation, name string, hostC
 		// unbind in case we fail later
 		//defer func() {
 		//	if err != nil {
+		//		op.Debugf("Unbinding %s due to error - %s", id, err.Error())
 		//op.Debugf("Unbinding %s due to error - %s", id, err.Error())
 		//		client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(op).WithOpID(&opID).WithHandle(handle))
 		//	}
@@ -1587,12 +1588,11 @@ payloadLoop:
 		dockerState := convert.State(t)
 
 		var labels map[string]string
-		if config.Filters.Include("label") {
-			err = convert.ContainerAnnotation(t.ContainerConfig.Annotations, convert.AnnotationKeyLabels, &labels)
-			if err != nil {
-				return nil, fmt.Errorf("unable to convert vic annotations to docker labels (%s)", t.ContainerConfig.ContainerID)
-			}
+		err = convert.ContainerAnnotation(t.ContainerConfig.Annotations, convert.AnnotationKeyLabels, &labels)
+		if err != nil {
+			return nil, fmt.Errorf("unable to convert vic annotations to docker labels (%s)", t.ContainerConfig.ContainerID)
 		}
+
 		listContext.Labels = labels
 		listContext.ExitCode = dockerState.ExitCode
 		listContext.ID = t.ContainerConfig.ContainerID
@@ -1666,6 +1666,7 @@ payloadLoop:
 			SizeRw:  t.ContainerConfig.StorageSize,
 			Ports:   ports,
 			State:   filter.DockerState(t.ContainerConfig.State),
+			Labels:  labels,
 		}
 
 		// The container should be included in the list
@@ -2081,6 +2082,7 @@ func copyConfigOverrides(vc *viccontainer.VicContainer, config types.ContainerCr
 	vc.Config.Volumes = config.Config.Volumes
 	vc.Config.Hostname = config.Config.Hostname
 	vc.Config.Domainname = config.Config.Domainname
+	vc.Config.Labels = config.Config.Labels
 	vc.HostConfig = config.HostConfig
 }
 

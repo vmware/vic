@@ -38,7 +38,7 @@ type Operations interface {
 
 	SetHostname(hostname string, aliases ...string) error
 	SetupFirewall(ctx context.Context, config *ExecutorConfig) error
-	Apply(endpoint *NetworkEndpoint) error
+	Apply(endpoint *NetworkEndpoint, hostname string) error
 	MountLabel(ctx context.Context, label, target string) error
 	MountTarget(ctx context.Context, source url.URL, target string, mountOptions string) error
 	CopyExistingContent(source string) error

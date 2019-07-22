@@ -155,8 +155,8 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
-func (t *Mocker) Apply(endpoint *NetworkEndpoint) error {
-	return ApplyEndpoint(t, &t.Base, endpoint)
+func (t *Mocker) Apply(endpoint *NetworkEndpoint, hostname string) error {
+	return ApplyEndpoint(t, &t.Base, endpoint, hostname)
 }
 
 // MountLabel performs a mount with the source treated as a disk label
