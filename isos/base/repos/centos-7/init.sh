@@ -23,20 +23,19 @@ set -x
 # arg1: root of destination filesystem
 install-entropy () {
     # copy rngd and libraries to target from current root
-    mkdir -p $1/{bin,lib64}
+    mkdir -p $1/{opt/config,bin/lib64,lib64}
     cp -Ln /lib64/ld-linux-x86-64.so.2 $1/lib64/ 
     cp -Ln /lib64/libc.so.6 $1/lib64/ 
     cp /sbin/rngd $1/bin/rngd
 
+    cp -Ln /lib64/lib{com_err.*,*crypt*,c.so*,curl.*,dl.*,freebl*,gpg-error*,gssapi*,idn.so*,keyutils*,krb*,lber*,ldap*,lzma*,m.so*,nspr*,nss*,pcre.*,plc*,plds*,pthread.so.*,resolv.so.*,rt.so*,sasl2*,selinux.so.*,smime*,ssh*,ssl*,sysfs*,xml2*,z.so.*} $1/lib64/
+
     # TODO: stop assuming sh - can we replace with:
     # a. json config with rtld, rtld args, binary, binary args, chroot?
     # b. Go plugins for tether extensions
-    cat - > $1/bin/entropy <<ENTROPY
-#!/bin/sh
-exec /.tether/lib64/ld-linux-x86-64.so.2 --library-path /.tether/lib64/ /.tether/bin/rngd -v --no-tpm=1
+    cat - > $1/opt/config/entropy.txt <<ENTROPY
+/.tether/lib64/ld-linux-x86-64.so.2 --library-path /.tether/lib64/ /.tether/bin/rngd -f
 ENTROPY
-
-    chmod a+x $1/bin/entropy
 }
 
 # Usage: copies iptables tools to target system. Creates the following
@@ -61,6 +60,7 @@ ENTROPY
 install-iptables () {
     # copy iptables and all associated libraries to target from current root
     mkdir -p $1/{bin,lib64}
+    mkdir -p $1/usr/lib64
     cp -Ln /lib64/ld-linux-x86-64.so.2 $1/lib64/
     cp -L /sbin/iptables $1/bin/iptables
     # Temp until changing tether exec path
@@ -77,8 +77,10 @@ install-iptables () {
     # /lib64/xtables/libxt_standard.so
     # /lib64/xtables/libxt_state.so
 
-    cp -Ln /lib64/lib{m.*,m-*,gcc_s*,ip*tc*,xtables*,dl*,c.so*,c-*} $1/lib64/
+    cp -Ln /lib64/lib{sysfs*,m.*,m-*,gcc_s*,ip*tc*,xtables*,dl*,c.so*,c-*} $1/lib64/
     cp -a /lib64/xtables $1/lib64/
+    cp -Ln /lib64/lib{sysfs*,m.*,m-*,gcc_s*,ip*tc*,xtables*,dl*,c.so*,c-*} $1/usr/lib64/
+    cp -a /lib64/xtables $1/usr/lib64/
 
     # TODO: stop assuming bash - can we replace with:
     # a. json config with rtld, rtld args, binary, binary args, chroot?
