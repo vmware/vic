@@ -393,6 +393,7 @@ func (v *Validator) network(op trace.Operation, input *data.Data, conf *config.V
 				v.suggestNetwork(op, "--container-network", true)
 				suggestedMapped = true
 			}
+			continue
 		}
 		mappedNet := &executor.ContainerNetwork{
 			Common: executor.Common{
