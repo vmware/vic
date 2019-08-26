@@ -17,12 +17,14 @@ package portmap
 import (
 	"fmt"
 	"net"
+	"os/exec"
 	"strconv"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/iptables"
 	//viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
+	"github.com/docker/go-connections/nat"
 )
 
 type Operation int
@@ -51,7 +53,7 @@ type PortMapper interface {
 
 type bindKey struct {
 	ip   string
-	port int
+	port nat.Port
 }
 
 type portMapper struct {
@@ -69,8 +71,12 @@ func (p *portMapper) isPortAvailable(proto string, ip net.IP, port int) bool {
 	if ip != nil && !ip.IsUnspecified() {
 		addr = ip.String()
 	}
-
-	if _, ok := p.bindings[bindKey{addr, port}]; ok {
+	portWithProto, err := nat.NewPort(proto, strconv.Itoa(port))
+	if err != nil {
+		log.Debugf(err.Error())
+		return false
+	}
+	if _, ok := p.bindings[bindKey{addr, portWithProto}]; ok {
 		return false
 	}
 
@@ -82,8 +88,21 @@ func (p *portMapper) isPortAvailable(proto string, ip net.IP, port int) bool {
 		}
 	}()
 
-	if err != nil {
+	if err != nil && proto == "tcp" {
 		return true
+	}
+
+	if proto == "udp" {
+		routeCmd := "/usr/bin/netstat -an | /usr/bin/grep udp | /usr/bin/grep " + strconv.Itoa(port) + " | wc -l"
+		cmd := exec.Command("/usr/bin/bash", "-c", routeCmd)
+		if output, err := cmd.Output(); err != nil {
+			count, _ := strconv.Atoi(string(output))
+			if count <= 1 {
+				log.Debugf("query port %d using netstat with error %s", port, err)
+				log.Debugf("output to query udp port: %s", output)
+				return true
+			}
+		}
 	}
 
 	return false
@@ -168,7 +187,12 @@ func (p *portMapper) forward(op Operation, ip net.IP, port int, proto, destAddr 
 		ipStr = ip.String()
 	}
 
-	key := bindKey{ip: ipStr, port: port}
+	portWithProto, err := nat.NewPort(proto, strconv.Itoa(port))
+	if err != nil {
+		return err
+	}
+
+	key := bindKey{ip: ipStr, port: portWithProto}
 	switch op {
 	case Unmap:
 		// lookup commands to reverse
@@ -176,7 +200,7 @@ func (p *portMapper) forward(op Operation, ip net.IP, port int, proto, destAddr 
 			if err := iptablesDelete(args); err != nil {
 				return err
 			}
-			delete(p.bindings, bindKey{ipStr, port})
+			delete(p.bindings, bindKey{ipStr, portWithProto})
 			return nil
 		}
 		return fmt.Errorf("Failed to find unmap data for %s:%d", ipStr, port)

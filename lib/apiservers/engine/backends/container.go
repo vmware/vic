@@ -979,15 +979,15 @@ func (c *ContainerBackend) ContainerRm(name string, config *types.ContainerRmCon
 func (c *ContainerBackend) cleanupPortBindings(op trace.Operation, vc *viccontainer.VicContainer) error {
 	defer trace.End(trace.Begin(vc.ContainerID))
 	for ctrPort, hostPorts := range vc.HostConfig.PortBindings {
+		proto, _ := nat.SplitProtoPort(string(ctrPort))
 		for _, hostPort := range hostPorts {
-			hPort := hostPort.HostPort
-
-			mappedCtr, mapped := network.ContainerWithPort(hPort)
+			hPortWithProto := hostPort.HostPort + "/" + proto
+			mappedCtr, mapped := network.ContainerWithPortWithProto(hPortWithProto)
 			if !mapped {
 				continue
 			}
 
-			log.Debugf("Container %q maps host port %s to container port %s", mappedCtr, hPort, ctrPort)
+			log.Debugf("Container %q maps host port %s to container port %s", mappedCtr, hPortWithProto, ctrPort)
 			// check state of the previously bound container with PL
 			cc := cache.ContainerCache().GetContainer(mappedCtr)
 			if cc == nil {
@@ -1010,7 +1010,7 @@ func (c *ContainerBackend) cleanupPortBindings(op trace.Operation, vc *viccontai
 			}
 
 			if state != nil && state.Running {
-				log.Debugf("Running container %q still holds port %s", mappedCtr, hPort)
+				log.Debugf("Running container %q still holds port %s", mappedCtr, hPortWithProto)
 				continue
 			}
 
@@ -1018,7 +1018,7 @@ func (c *ContainerBackend) cleanupPortBindings(op trace.Operation, vc *viccontai
 			err = network.UnmapPorts(cc.ContainerID, vc)
 			if err != nil {
 				return fmt.Errorf("Failed to unmap host port %s for container %q: %s",
-					hPort, mappedCtr, err)
+					hPortWithProto, mappedCtr, err)
 			}
 		}
 	}
