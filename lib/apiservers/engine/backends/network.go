@@ -176,6 +176,9 @@ func (n *NetworkBackend) CreateNetwork(nc types.NetworkCreateRequest) (*types.Ne
 	}
 
 	// Marshal and encode the labels for transport and storage in the portlayer
+	if nc.Labels == nil {
+		nc.Labels = make(map[string]string, 0)
+	}
 	if labelsBytes, err := json.Marshal(nc.Labels); err == nil {
 		encodedLabels := base64.StdEncoding.EncodeToString(labelsBytes)
 		cfg.Annotations[convert.AnnotationKeyLabels] = encodedLabels
