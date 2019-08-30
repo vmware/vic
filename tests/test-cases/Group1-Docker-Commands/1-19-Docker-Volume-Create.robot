@@ -59,7 +59,7 @@ Docker volume create named volume
 
 Docker volume create image volume
     Set Suite Variable  ${ContainerName}  imageVolContainer
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${ContainerName} -d mongo /bin/df -Ph
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${ContainerName} -d mongo:3 /bin/df -Ph
     Should Be Equal As Integers  ${rc}  0
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} wait ${ContainerName}
     Should Be Equal As Integers  ${ContainerRC}  0
