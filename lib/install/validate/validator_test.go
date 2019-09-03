@@ -57,7 +57,7 @@ func TestValidator(t *testing.T) {
 	for i, model := range []*simulator.Model{simulator.ESX(), simulator.VPX()} {
 		t.Logf("%d", i)
 		model.Datastore = 3
-		model.Portgroup = 1
+		model.Portgroup = 2
 		defer model.Remove()
 		err := model.Create()
 		if err != nil {
@@ -807,18 +807,23 @@ func TestValidateWithFolders(t *testing.T) {
 func testNetwork(ctx context.Context, v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
 	op := trace.FromContext(ctx, "testNetwork")
 	tests := []struct {
-		path   string
-		vc     bool
-		hasErr bool
+		bridgePath     string
+		mappedNetworks map[string]string
+		hasErr         bool
 	}{
-		{"/DC0/network/DC0_DVPG0", true, false},
-		{"DC0_DVPG0", true, false},
-		{"bridge", true, true},
+		{"/DC0/network/DC0_DVPG0", map[string]string{}, false},
+		{"DC0_DVPG0", map[string]string{}, false},
+		{"DC0_DVPG0", map[string]string{"containernet1": "DC0_DVPG1"}, false},
+		{"DC0_DVPG0", map[string]string{"containernet1": "noexist"}, true},
+		{"DC0_DVPG0", map[string]string{"containernet1": "DC0_DVPG0"}, true},
+		{"DC0_DVPG0", map[string]string{"bridge": "DC0_DVPG1"}, true},
+		{"bridge", map[string]string{}, true},
 	}
 	// Throw exception if there is no network
 	for _, test := range tests {
 		t.Logf("%+v", test)
-		input.BridgeNetworkName = test.path
+		input.BridgeNetworkName = test.bridgePath
+		input.MappedNetworks = test.mappedNetworks
 		v.network(op, input, conf)
 		v.ListIssues(op)
 		if !test.hasErr {
