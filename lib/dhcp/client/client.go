@@ -35,6 +35,9 @@ type Client interface {
 	// SetTimeout sets the timeout for a subsequent DHCP request
 	SetTimeout(t time.Duration)
 
+	// SetHostName sets the client hostname to DHCP discovery packet for DDNS
+	SetHostName(hostname string)
+
 	// Request sends a full DHCP request, resulting in a DHCP lease.
 	// On a successful lease, returns a DHCP acknowledgment packet
 	Request() error
@@ -55,10 +58,11 @@ type Client interface {
 }
 
 type client struct {
-	timeout time.Duration
-	id      ID
-	params  []byte
-	ack     dhcp4.Packet
+	timeout  time.Duration
+	id       ID
+	params   []byte
+	ack      dhcp4.Packet
+	hostname string
 }
 
 // The default timeout for the client
@@ -80,9 +84,11 @@ func NewClient(ifIndex int, hwaddr net.HardwareAddr) (Client, error) {
 }
 
 func (c *client) SetTimeout(t time.Duration) {
-	defer trace.End(trace.Begin(""))
-
 	c.timeout = t
+}
+
+func (c *client) SetHostName(hostname string) {
+	c.hostname = hostname
 }
 
 // Note that the Go runtime sets SA_RESTART for syscalls which retries them automatically if they interrupted.
@@ -402,6 +408,10 @@ func (c *client) setOptions(p dhcp4.Packet) (dhcp4.Packet, error) {
 		dirty = true
 	}
 
+	if c.hostname != "" {
+		opts[dhcp4.OptionHostName] = []byte(c.hostname)
+		dirty = true
+	}
 	// finally reset the options on the packet, if necessary
 	if dirty {
 		// strip out all options, and add them back in with the new changed options;
