@@ -50,15 +50,15 @@ var (
 	// the container stops or is removed
 	btbRules map[string][]string
 
-	cbpLock         sync.Mutex
-	ContainerByPort map[string]string // port:containerID
-	once            sync.Once
+	cbpLock                  sync.Mutex
+	ContainerByPortWithProto map[string]string // "port/proto":containerID
+	once                     sync.Once
 )
 
 func init() {
 	portMapper = portmap.NewPortMapper()
 	btbRules = make(map[string][]string)
-	ContainerByPort = make(map[string]string)
+	ContainerByPortWithProto = make(map[string]string)
 }
 
 func Init() {
@@ -170,23 +170,27 @@ func MapPorts(vc *viccontainer.VicContainer, endpoint *models.EndpointConfig, co
 
 	for _, p := range mappings {
 		// update mapped ports
-		if ContainerByPort[p.strHostPort] == containerID {
-			log.Debugf("Skipping mapping for already mapped port %s for %s", p.strHostPort, containerID)
+		hPortWithProto := p.strHostPort + "/" + p.portProto.Proto()
+		log.Debugf(hPortWithProto)
+		if ContainerByPortWithProto[hPortWithProto] == containerID {
+			log.Debugf("Skipping mapping for already mapped port %s for %s", hPortWithProto, containerID)
 			continue
 		}
 
 		if err = portMapper.MapPort(nil, p.intHostPort, p.portProto.Proto(), containerIP.String(), p.portProto.Int(), publicIfaceName, bridgeIfaceName); err != nil {
+			log.Debugf(err.Error())
 			return err
 		}
 
 		// bridge-to-bridge pin hole for traffic from containers for exposed port
 		if err = interBridgeTraffic(portmap.Map, p.strHostPort, p.portProto.Proto(), containerIP.String(), p.portProto.Port()); err != nil {
+			log.Debugf(err.Error())
 			return err
 		}
 
 		// update mapped ports
-		ContainerByPort[p.strHostPort] = containerID
-		log.Debugf("mapped port %s for container %s", p.strHostPort, containerID)
+		ContainerByPortWithProto[hPortWithProto] = containerID
+		log.Debugf("mapped port %s for container %s with protocol %s", p.strHostPort, containerID, p.portProto.Proto())
 	}
 	return nil
 }
@@ -211,7 +215,8 @@ func UnmapPorts(id string, vc *viccontainer.VicContainer) error {
 
 	for _, p := range mappings {
 		// check if we should actually unmap based on current mappings
-		mappedID, mapped := ContainerByPort[p.strHostPort]
+		hPortWithProto := p.strHostPort + "/" + p.portProto.Proto()
+		mappedID, mapped := ContainerByPortWithProto[hPortWithProto]
 		if !mapped {
 			log.Debugf("skipping already unmapped %s", p.strHostPort)
 			continue
@@ -233,8 +238,8 @@ func UnmapPorts(id string, vc *viccontainer.VicContainer) error {
 		}
 
 		// update mapped ports
-		delete(ContainerByPort, p.strHostPort)
-		log.Debugf("unmapped port %s", p.strHostPort)
+		delete(ContainerByPortWithProto, hPortWithProto)
+		log.Debugf("unmapped port %s with protocol %s", p.strHostPort, p.portProto.Proto())
 	}
 	return nil
 }
@@ -324,9 +329,9 @@ func PortMapFromContainer(vc *viccontainer.VicContainer, t *models.ContainerInfo
 	return mappings
 }
 
-func ContainerWithPort(hostPort string) (string, bool) {
+func ContainerWithPortWithProto(hostPortWithProto string) (string, bool) {
 	cbpLock.Lock()
-	mappedCtr, mapped := ContainerByPort[hostPort]
+	mappedCtr, mapped := ContainerByPortWithProto[hostPortWithProto]
 	cbpLock.Unlock()
 
 	return mappedCtr, mapped
@@ -530,9 +535,10 @@ func DirectPortInformation(t *models.ContainerInfo) []types.Port {
 			}
 			port.PublicPort = uint16(public)
 
-			// If port is on container network then a different container could be forwarding the same port via the endpoint
+			// If port with protocol is on container network then a different container could be forwarding the same port via the endpoint
 			// so must check for explicit ID match. If a match then it's definitely not accessed directly.
-			if ContainerByPort[mapping[0]] == t.ContainerConfig.ContainerID {
+			portWithProto := mapping[0] + "/" + port.Type
+			if ContainerByPortWithProto[portWithProto] == t.ContainerConfig.ContainerID {
 				continue
 			}
 
@@ -594,8 +600,9 @@ func PortForwardingInformation(vc *viccontainer.VicContainer, ips []string) []ty
 			for i := 0; i < len(hostPortBindings); i++ {
 				// If port is on container network then a different container could be forwarding the same port via the endpoint
 				// so must check for explicit ID match. If no match, definitely not forwarded via endpoint.
-				//if ContainerByPort[hostPortBindings[i].HostPort] != t.ContainerConfig.ContainerID {
-				if ContainerByPort[hostPortBindings[i].HostPort] != vc.ContainerID {
+				//if ContainerByPortWithProto[hostPortBindings[i].HostPort] != t.ContainerConfig.ContainerID {
+				hPortWithProto := hostPortBindings[i].HostPort + "/" + proto
+				if ContainerByPortWithProto[hPortWithProto] != vc.ContainerID {
 					continue
 				}
 

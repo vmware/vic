@@ -283,5 +283,10 @@ Docker run with label
     Should Contain  ${output}  null
 
     Stop All Containers
-   
+
+Docker run with exposed udp/tcp port
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it -d --name test_udp_port -p 9090:80/udp -p 9090:80/tcp nginx:alpine
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
    

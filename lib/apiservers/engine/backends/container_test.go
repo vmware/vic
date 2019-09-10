@@ -846,11 +846,11 @@ func TestPortInformation(t *testing.T) {
 	co.Name = "bar"
 	cache.ContainerCache().AddContainer(co)
 
-	// unless there are entries in vicnetwork.ContainerByPort we won't report them as bound
+	// unless there are entries in vicnetwork.ContainerByPortWithProto we won't report them as bound
 	ports := network.PortForwardingInformation(nil, ips)
 	assert.Empty(t, ports, "No ports should be returned for nil container")
 
-	// unless there are entries in vicnetwork.ContainerByPort we won't report them as bound
+	// unless there are entries in vicnetwork.ContainerByPortWithProto we won't report them as bound
 	ports = network.PortForwardingInformation(co, ips)
 	assert.Empty(t, ports, "There should be no bound IPs at this point for forwarding")
 
@@ -858,7 +858,7 @@ func TestPortInformation(t *testing.T) {
 	ports = network.DirectPortInformation(mockContainerInfo)
 	assert.NotEmpty(t, ports, "There should be a direct port")
 
-	network.ContainerByPort["8000"] = containerID
+	network.ContainerByPortWithProto["8000/tcp"] = containerID
 	ports = network.PortForwardingInformation(co, ips)
 	assert.NotEmpty(t, ports, "There should be bound IPs")
 	assert.Equal(t, 1, len(ports), "Expected 1 port binding, found %d", len(ports))
@@ -875,7 +875,7 @@ func TestPortInformation(t *testing.T) {
 
 	// forwarding of 00 should never happen, but this is allowing us to confirm that
 	// it's kicked out by the function even if present in the map
-	network.ContainerByPort["00"] = containerID
+	network.ContainerByPortWithProto["00/tcp"] = containerID
 	ports = network.PortForwardingInformation(co, ips)
 	assert.NotEmpty(t, ports, "There should be 1 bound IP")
 	assert.Equal(t, 1, len(ports), "Expected 1 port binding, found %d", len(ports))
@@ -886,7 +886,7 @@ func TestPortInformation(t *testing.T) {
 		HostPort: "800",
 	}
 	portMap[port] = portBindings
-	network.ContainerByPort["800"] = containerID
+	network.ContainerByPortWithProto["800/tcp"] = containerID
 	ports = network.PortForwardingInformation(co, ips)
 	assert.Equal(t, 2, len(ports), "Expected 2 port binding, found %d", len(ports))
 }
