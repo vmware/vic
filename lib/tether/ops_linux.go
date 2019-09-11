@@ -381,15 +381,12 @@ func getDynamicIP(t Netlink, link netlink.Link, endpoint *NetworkEndpoint, hostn
 		log.Debugf("No name servers configured. Asking DHCP.")
 		params = append(params, byte(dhcp4.OptionDomainNameServer))
 	}
-	if hostname != "" {
-		log.Debugf("Setting dynamic DNS update information with %s", hostname)
-		params = append(params, byte(dhcp4.OptionHostName))
-		for _, v := range []byte(hostname) {
-			params = append(params, byte(v))
-		}
-	}
 	dc.SetParameterRequestList(params...)
 
+	if hostname != "" {
+		log.Debugf("Setting dynamic DNS update information with %s", hostname)
+		dc.SetHostName(hostname)
+	}
 	err = dc.Request()
 	if err != nil {
 		log.Errorf("error sending dhcp request: %s", err)
