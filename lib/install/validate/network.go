@@ -259,7 +259,7 @@ func (v *Validator) network(op trace.Operation, input *data.Data, conf *config.V
 	conf.AddNetwork(e)
 
 	// Management net - defaults to connect to the same portgroup as client
-	e, err = v.getEndpoint(op, conf, input.ManagementNetwork, config.ManagementNetworkName, config.ManagementNetworkName, false, input.DNS)
+	e, err = v.getEndpoint(op, conf, input.ManagementNetwork, "", config.ManagementNetworkName, false, input.DNS)
 	if err != nil {
 		v.NoteIssue(fmt.Errorf("Error checking network for --management-network: %s", err))
 		v.suggestNetwork(op, "--management-network", true)
