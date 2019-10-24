@@ -37,8 +37,11 @@ Set Test Environment Variables
     # hardcode the TEST_URL_Array number as 10 since the other 6 HAAS servers are taken for other usage
     ${len}=  Set Variable if  %{DRONE_BUILD_NUMBER}  4  1
     ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
+    Set Environment Variable  TEST_PASSWORD  Admin\!23
+    Set Environment Variable  TEST_TIMEOUT    30m
+    Set Environment Variable  TEST_DATASTORE  sharedVmfs-0
 
-    Run Keyword If  %{DRONE_BUILD_NUMBER}  Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
+    Run Keyword If  %{DRONE_BUILD_NUMBER}  Set Environment Variable  TEST_URL  10.160.122.116
     ...         ELSE  Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
     Set Environment Variable  GOVC_URL  %{TEST_URL}
     Set Environment Variable  GOVC_USERNAME  %{TEST_USERNAME}
@@ -362,7 +365,6 @@ Install VIC Appliance To Test Server With Current Environment Variables
     [Return]  ${output}
 
 Run VIC Machine Command
-    [Tags]  secret
     [Arguments]  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${debug}  ${opsuser-args}  ${additional-args}
     ${status}  ${message} =  Run Keyword And Ignore Error  Environment Variable Should Be Set  CONTAINER_NETWORK
     Run Keyword If  "${status}" == "FAIL"  Set Environment Variable  CONTAINER_NETWORK  %{PUBLIC_NETWORK}
