@@ -19,7 +19,7 @@ $testbed = Proc.new do
         "iScsi" => ["iscsi.#{idx%3+1}"],
         "clusterName" => "cls#{idx%3+1}",
         'localDatastoreNamePrefix' => "esx#{idx}-vmfs",
-        'sharedDatastoreNamePrefix' => "sharedVmfs-",
+        'sharedDatastoreNamePrefix' => "sharedVmfs#{idx}-",
       }
     end,
 
