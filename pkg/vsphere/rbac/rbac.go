@@ -293,9 +293,10 @@ func (am *AuthzManager) AddPermission(ctx context.Context, ref types.ManagedObje
 		Propagate: resource.Propagate,
 		Group:     isGroup,
 	}
-	permissions = append(permissions, permission)
 
-	if err = am.authzManager.SetEntityPermissions(ctx, ref, permissions); err != nil {
+	newPermission := []types.Permission{permission}
+
+	if err = am.authzManager.SetEntityPermissions(ctx, ref, newPermission); err != nil {
 		return nil, err
 	}
 
