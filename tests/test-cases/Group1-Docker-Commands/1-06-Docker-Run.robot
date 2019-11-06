@@ -197,7 +197,7 @@ Docker run mysql container
     Verify container is running and remove it  test-mysql
 
 Docker run mariadb container
-    [Tags]  centos69-inValid  
+    [Tags]  centos69-invalid  
     ${suffix}=  Evaluate  str(random.randint(1000,9999))  modules=random
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -e MYSQL_ROOT_PASSWORD=pw --name test-mariadb-${suffix} mariadb
     Should Be Equal As Integers  ${rc}  0
