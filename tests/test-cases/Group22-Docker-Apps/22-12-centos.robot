@@ -20,11 +20,11 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Latest centos container
+    [Tags]  centos69-invalid
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run centos yum list
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  Loaded plugins: fastestmirror, ovl
-    Should Contain  ${output}  yum-plugin-versionlock.noarch
+    Should Contain  ${output}  Installed Packages
 
 Centos:6 container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run centos:6 yum list

@@ -71,7 +71,7 @@ elif (echo $prBody | grep -q "\[specific ci="); then
     buildtype=$(echo $prBody | grep "\[specific ci=")
     testsuite=$(echo $buildtype | awk -F"\[specific ci=" '{sub(/\].*/,"",$2);print $2}')
     pabot --verbose --processes $jobs --removekeywords TAG:secret --suite $testsuite --suite 7-01-Regression tests/test-cases && \
-    pabot --verbose --processes $jobs --removekeywords TAG:secret -v BOOTSTRAP-ISO:$bootstrapiso --outputdir $bootstrapdir --exclude centos69-inValid --suite $testsuite --suite 7-01-Regression tests/test-cases
+    pabot --verbose --processes $jobs --removekeywords TAG:secret -v BOOTSTRAP-ISO:$bootstrapiso --outputdir $bootstrapdir --exclude centos69-invalid --suite $testsuite --suite 7-01-Regression tests/test-cases
 else
     echo "Running regressions"
     pabot --verbose --processes $jobs --removekeywords TAG:secret --exclude skip --include regression tests/test-cases && \
