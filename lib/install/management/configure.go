@@ -548,7 +548,8 @@ func (d *Dispatcher) GuestInfoSecret(vchName, vmPath string, ds *object.Datastor
 	path := fmt.Sprintf("%s.vmx", vchName)
 	rc, err := helper.Download(d.op, path)
 	if err != nil {
-		return nil, err
+		dp := object.DatastorePath{Datastore: ds.Name(), Path: path}
+		return nil, fmt.Errorf("failed to download %q: %s", dp, err)
 	}
 
 	secret, err := extractSecretFromFile(rc)
