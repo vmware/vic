@@ -946,16 +946,16 @@ func (c *ContainerBackend) ContainerRm(name string, config *types.ContainerRmCon
 		case proxy.ContainerRunning:
 			running = true
 		}
+	}
 
-		handle, err := c.containerProxy.Handle(op, id, name)
-		if err != nil {
-			return err
-		}
+	handle, err := c.containerProxy.Handle(op, id, name)
+	if err != nil {
+		return err
+	}
 
-		_, err = c.containerProxy.UnbindContainerFromNetwork(op, vc, handle)
-		if err != nil {
-			return err
-		}
+	_, err = c.containerProxy.UnbindContainerFromNetwork(op, vc, handle)
+	if err != nil {
+		return err
 	}
 
 	// Retry remove operation if container is not in running state.  If in running state, we only try
