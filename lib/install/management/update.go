@@ -22,7 +22,8 @@ import (
 type State int
 
 // ruleset ID from /etc/vmware/firewall/service.xml
-const RulesetID string = "vSPC"
+const RulesetID string = "vic-engine"
+const VSPCRulesetID string = "vSPC"
 const (
 	enable State = iota
 	disable
@@ -78,8 +79,16 @@ func (d *Dispatcher) modifyFirewall(state State) error {
 		switch state {
 		case enable:
 			err = fs.EnableRuleset(d.op, RulesetID)
+			// Before vSphere 6.7, there is no 'vic-engine' rule.
+			if err != nil {
+				err = fs.EnableRuleset(d.op, VSPCRulesetID)
+			}
 		case disable:
 			err = fs.DisableRuleset(d.op, RulesetID)
+			// Before vSphere 6.7, there is no 'vic-engine' rule.
+			if err != nil {
+				err = fs.DisableRuleset(d.op, VSPCRulesetID)
+			}
 		}
 		if err != nil {
 			d.op.Errorf("Failed to %s ruleset %q on host %q: %s", state.String(), RulesetID, host.Name(), err)
