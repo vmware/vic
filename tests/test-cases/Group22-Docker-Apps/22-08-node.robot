@@ -43,7 +43,7 @@ Simple background node application
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp app copier:/mydata
     Should Be Equal As Integers  ${rc}  0
     
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name node1 -v vol1:/usr/src -d node sh -c "npm config set proxy http://proxy.vmware.com:3128 && cd /usr/src/app && echo 'Installing...' && npm install && echo 'Starting...' && npm start"
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name node1 -v vol1:/usr/src -d node sh -c "cd /usr/src/app && echo 'Installing...' && npm --registry http://build-artifactory.eng.vmware.com/artifactory/api/npm/npm install && echo 'Starting...' && npm start"
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${ip}=  Get IP Address of Container  node1
@@ -68,7 +68,7 @@ Simple background node application on alpine
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp app copier2:/mydata
     Should Be Equal As Integers  ${rc}  0
     
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name node2 -v vol2:/usr/src -d node:alpine sh -c "npm config set proxy http://proxy.vmware.com:3128 && cd /usr/src/app && npm install && npm start"
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name node2 -v vol2:/usr/src -d node:alpine sh -c "cd /usr/src/app && npm --registry http://build-artifactory.eng.vmware.com/artifactory/api/npm/npm install && npm start"
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${ip}=  Get IP Address of Container  node2
