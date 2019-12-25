@@ -21,10 +21,10 @@ kubernetes*,linux-docs*,linux-sound*,linux-tools*,docbook*,httpd*,go-*,jna*,\
 linux-debuginfo*,linux-dev*,linux-docs*,linux-drivers*,linux-oprofile*,linux-sound*,\
 linux-tools*,linux-esx-debuginfo*,linux-esx-devel*,linux-esx-docs*,nginx*,sysdig*"
 
-RUN wget -qO- https://dl.bintray.com/vmware/photon_release_2.0_x86_64/x86_64/ | grep -Po '(?<=href=":)[^"]*.rpm' | xargs -I {} wget -e robots=off -nH -nd -np -R $EXCLUDE_LIST https://dl.bintray.com/vmware/photon_release_2.0_x86_64/x86_64/{} -P /usr/share/nginx/html/photon/x86_64/
-RUN wget -qO- https://dl.bintray.com/vmware/photon_release_2.0_x86_64/noarch/ | grep -Po '(?<=href=":)[^"]*.rpm' | xargs -I {} wget -e robots=off -nH -nd -np -R $EXCLUDE_LIST https://dl.bintray.com/vmware/photon_release_2.0_x86_64/noarch/{} -P /usr/share/nginx/html/photon/noarch/
-RUN wget -qO- https://dl.bintray.com/vmware/photon_updates_2.0_x86_64/x86_64/ | grep -Po '(?<=href=":)[^"]*.rpm' | xargs -I {} wget -e robots=off -nH -nd -np -R $EXCLUDE_LIST https://dl.bintray.com/vmware/photon_updates_2.0_x86_64/x86_64/{} -P /usr/share/nginx/html/photon-updates/x86_64/
-RUN wget -qO- https://dl.bintray.com/vmware/photon_updates_2.0_x86_64/noarch/ | grep -Po '(?<=href=":)[^"]*.rpm' | xargs -I {} wget -e robots=off -nH -nd -np -R $EXCLUDE_LIST https://dl.bintray.com/vmware/photon_updates_2.0_x86_64/noarch/{} -P /usr/share/nginx/html/photon-updates/noarch/
+RUN wget -qO- https://dl.bintray.com/vmware/photon_release_2.0_x86_64/x86_64/ | grep -Po '(?<=href=":)[^"]*.rpm' | xargs -I {} wget -e robots=off -r -nH -nd -np -R $EXCLUDE_LIST https://dl.bintray.com/vmware/photon_release_2.0_x86_64/x86_64/{} -P /usr/share/nginx/html/photon/x86_64/
+RUN wget -qO- https://dl.bintray.com/vmware/photon_release_2.0_x86_64/noarch/ | grep -Po '(?<=href=":)[^"]*.rpm' | xargs -I {} wget -e robots=off -r -nH -nd -np -R $EXCLUDE_LIST https://dl.bintray.com/vmware/photon_release_2.0_x86_64/noarch/{} -P /usr/share/nginx/html/photon/noarch/
+RUN wget -qO- https://dl.bintray.com/vmware/photon_updates_2.0_x86_64/x86_64/ | grep -Po '(?<=href=":)[^"]*.rpm' | xargs -I {} wget -e robots=off -r -nH -nd -np -R $EXCLUDE_LIST https://dl.bintray.com/vmware/photon_updates_2.0_x86_64/x86_64/{} -P /usr/share/nginx/html/photon-updates/x86_64/
+RUN wget -qO- https://dl.bintray.com/vmware/photon_updates_2.0_x86_64/noarch/ | grep -Po '(?<=href=":)[^"]*.rpm' | xargs -I {} wget -e robots=off -r -nH -nd -np -R $EXCLUDE_LIST https://dl.bintray.com/vmware/photon_updates_2.0_x86_64/noarch/{} -P /usr/share/nginx/html/photon-updates/noarch/
 
 RUN createrepo /usr/share/nginx/html/photon
 RUN createrepo /usr/share/nginx/html/photon-updates
