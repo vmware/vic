@@ -25,7 +25,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/go-openapi/runtime"
 	rtclient "github.com/go-openapi/runtime/client"
 	strfmt "github.com/go-openapi/strfmt"

@@ -30,7 +30,7 @@ import (
 
 	"context"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/google/uuid"
 	gorillacontext "github.com/gorilla/context"

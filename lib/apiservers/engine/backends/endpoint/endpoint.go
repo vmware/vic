@@ -17,7 +17,7 @@ package endpoint
 import (
 	"fmt"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	apinet "github.com/docker/docker/api/types/network"
 )
 

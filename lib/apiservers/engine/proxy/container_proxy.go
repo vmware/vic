@@ -40,7 +40,7 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"

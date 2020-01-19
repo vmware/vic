@@ -20,7 +20,7 @@ import (
 	"io"
 	"net/http"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/go-openapi/runtime"
 
 	"github.com/vmware/vic/pkg/trace"

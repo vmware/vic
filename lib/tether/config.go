@@ -21,7 +21,7 @@ import (
 	"os/exec"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/dio"

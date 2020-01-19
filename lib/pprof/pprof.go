@@ -26,7 +26,7 @@ import (
 	_ "net/http/pprof"
 	"net/url"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"

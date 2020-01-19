@@ -21,7 +21,7 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/d2g/dhcp4"
 	"github.com/d2g/dhcp4client"
 

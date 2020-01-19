@@ -26,7 +26,7 @@ import (
 	"runtime"
 	"testing"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/govmomi/vim25/types"

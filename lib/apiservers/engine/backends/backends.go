@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/docker/docker/daemon/events"
 	"github.com/go-openapi/runtime"
 	rc "github.com/go-openapi/runtime/client"
