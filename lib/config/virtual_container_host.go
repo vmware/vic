@@ -199,7 +199,7 @@ type Connection struct {
 	Username string `vic:"0.1" scope:"read-only" key:"username"`
 	// Token is an SSO token or password
 	Token string `vic:"0.1" scope:"secret" key:"token"`
-	// TargetThumbprint is the SHA-1 digest of the Target's public certificate
+	// TargetThumbprint is the SHA-256 digest of the Target's public certificate
 	TargetThumbprint string `vic:"0.1" scope:"read-only" key:"target_thumbprint"`
 	// The session timeout
 	Keepalive time.Duration `vic:"0.1" scope:"read-only" key:"keepalive"`

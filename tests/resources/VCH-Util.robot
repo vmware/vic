@@ -50,7 +50,7 @@ Set Test Environment Variables
     Run Keyword If  ${IN_OVERFLOW}  Log To Console  Test Server is in Nimbus
     Run Keyword If  ${IN_OVERFLOW}  Set Environment Variable  TEST_TIMEOUT  %{OVERFLOW_TEST_TIMEOUT}
 
-    ${rc}  ${thumbprint}=  Run And Return Rc And Output  govc about.cert -k -json | jq -r .ThumbprintSHA1
+    ${rc}  ${thumbprint}=  Run And Return Rc And Output  govc about.cert -k -json | jq -r .ThumbprintSHA256
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  TEST_THUMBPRINT  ${thumbprint}
     Log To Console  \nTEST_URL=%{TEST_URL}

@@ -20,7 +20,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -277,11 +277,11 @@ func (c *Client) loadThumbprints(name string) error {
 	return scanner.Err()
 }
 
-// ThumbprintSHA1 returns the thumbprint of the given cert in the same format used by the SDK and Client.SetThumbprint.
+// ThumbprintSHA256 returns the thumbprint of the given cert in the same format used by the SDK and Client.SetThumbprint.
 //
 // See: SSLVerifyFault.Thumbprint, SessionManagerGenericServiceTicket.Thumbprint, HostConnectSpec.SslThumbprint
-func ThumbprintSHA1(cert *x509.Certificate) string {
-	sum := sha1.Sum(cert.Raw)
+func ThumbprintSHA256(cert *x509.Certificate) string {
+	sum := sha256.Sum256(cert.Raw)
 	hex := make([]string, len(sum))
 	for i, b := range sum {
 		hex[i] = fmt.Sprintf("%02X", b)
@@ -318,7 +318,7 @@ func (c *Client) dialTLS(network string, addr string) (net.Conn, error) {
 	}
 
 	cert := conn.ConnectionState().PeerCertificates[0]
-	peer := ThumbprintSHA1(cert)
+	peer := ThumbprintSHA256(cert)
 	if thumbprint != peer {
 		_ = conn.Close()
 

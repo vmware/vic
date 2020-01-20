@@ -23731,7 +23731,7 @@
         "fingerprint" : {
           "type" : "string",
           "example" : "example string",
-          "description" : "The fingerprint of the certificate in SHA-1 form. "
+          "description" : "The fingerprint of the certificate in SHA-256 form. "
         },
         "issuerName" : {
           "type" : "string",
@@ -28350,7 +28350,7 @@
         "fingerprint" : {
           "type" : "string",
           "example" : "example string",
-          "description" : "The fingerprint of the certificate in SHA-1 form. "
+          "description" : "The fingerprint of the certificate in SHA-256 form. "
         },
         "issuerName" : {
           "type" : "string",

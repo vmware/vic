@@ -102,12 +102,12 @@ func NewSessionConfig(ctx context.Context, input *data.Data) (*session.Config, e
 			if !input.Force {
 				// TODO: prompt user / check ./known_hosts
 				op.Errorf("Failed to verify certificate for target=%s (thumbprint=%s)",
-					tURL.Host, cert.ThumbprintSHA1)
+					tURL.Host, cert.ThumbprintSHA256)
 				return nil, cert.Err
 			}
 		}
 
-		input.Thumbprint = cert.ThumbprintSHA1
+		input.Thumbprint = cert.ThumbprintSHA256
 		op.Debugf("Accepting host %q thumbprint %s", tURL.Host, input.Thumbprint)
 	}
 

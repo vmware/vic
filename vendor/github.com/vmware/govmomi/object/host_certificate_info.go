@@ -57,7 +57,7 @@ func (info *HostCertificateInfo) FromCertificate(cert *x509.Certificate) *HostCe
 	info.NotAfter = &cert.NotAfter
 	info.Subject = info.fromName(info.subjectName)
 
-	info.ThumbprintSHA1 = soap.ThumbprintSHA1(cert)
+	info.ThumbprintSHA1 = soap.ThumbprintSHA256(cert)
 
 	// SHA-256 for info purposes only, API fields all use SHA-1
 	sum := sha256.Sum256(cert.Raw)
