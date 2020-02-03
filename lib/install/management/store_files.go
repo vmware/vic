@@ -88,13 +88,13 @@ func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec, v
 			continue
 		}
 
-		if len(children) == 1 { // when image store path is given, we need to delete VIC dir too when it is empty.
+		if len(children) == 1 || len(children) == 0 { // when image store path is given, we need to delete VIC dir too when it is empty.
 			d.op.Debugf("Removing empty image store parent directory [%s] %s", imageDir.Host, imageDir.Path)
 			if _, err = d.deleteDatastoreFiles(imageDSes[0], imageDir.Path, true); err != nil {
 				errs = append(errs, err.Error())
 			}
 		} else {
-			d.op.Debug("Image store parent directory not empty, leaving in place. Still contains the following entries: %q", strings.Join(children, ", "))
+			d.op.Debugf("Image store parent directory not empty, leaving in place. Still contains the following entries: %q", strings.Join(children, ", "))
 		}
 	}
 
