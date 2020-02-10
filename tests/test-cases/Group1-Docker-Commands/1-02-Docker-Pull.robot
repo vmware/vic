@@ -120,12 +120,12 @@ Pull non-default tag
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  nginx:alpine
 
 Pull images based on digest
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull nginx@sha256:7281cf7c854b0dfc7c68a6a4de9a785a973a14f1481bc028e2022bcd6a8d9f64
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull nginx@sha256:62f787b94e5faddb79f96c84ac0877aaf28fb325bfc3601b9c0934d4c107ba94
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  No such image:
-    Should Contain  ${output}  Digest: sha256:7281cf7c854b0dfc7c68a6a4de9a785a973a14f1481bc028e2022bcd6a8d9f64
-    Should Contain  ${output}  Status: Downloaded newer image for library/nginx:sha256:7281cf7c854b0dfc7c68a6a4de9a785a973a14f1481bc028e2022bcd6a8d9f64
+    Should Contain  ${output}  Digest: sha256:62f787b94e5faddb79f96c84ac0877aaf28fb325bfc3601b9c0934d4c107ba9a4
+    Should Contain  ${output}  Status: Downloaded newer image for library/nginx:sha256:62f787b94e5faddb79f96c84ac0877aaf28fb325bfc3601b9c0934d4c107ba94
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
     Log  ${output}
