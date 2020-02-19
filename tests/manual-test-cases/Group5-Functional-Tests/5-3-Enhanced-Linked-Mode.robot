@@ -17,6 +17,7 @@ Documentation  Test 5-3 - Enhanced Linked Mode
 Resource  ../../resources/Util.robot
 Suite Setup  Nimbus Suite Setup  Enhanced Link Mode Setup
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Pod Cleanup  ${nimbus_pod}  ${testbedname}
+Force Tags  vsphere70-not-support
 
 *** Variables ***
 ${NIMBUS_LOCATION}  sc
