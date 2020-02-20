@@ -205,7 +205,7 @@ Docker run mariadb container
     Verify container is running and remove it  test-mariadb-${suffix}
 
 Docker run postgres container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name test-postgres postgres
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name test-postgres -e POSTGRES_PASSWORD=password postgres
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Verify container is running and remove it  test-postgres
