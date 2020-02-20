@@ -30,6 +30,7 @@ services:
     image: postgres:9.4
     environment:
       - PGDATA=/var/lib/postgresql/data/data
+      - POSTGRES_PASSWORD=password
 
   result:
     image: victest/vote-result
