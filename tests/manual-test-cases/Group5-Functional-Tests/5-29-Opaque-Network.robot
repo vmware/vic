@@ -22,7 +22,6 @@ Force Tags  nsx
 *** Variables ***
 ${NIMBUS_LOCATION}  sc
 ${NIMBUS_LOCATION_FULL}  NIMBUS_LOCATION=${NIMBUS_LOCATION}
-${VDNET_LAUNCHER_HOST}  10.160.87.130
 ${NFS}  10.161.137.16
 ${USE_LOCAL_TOOLCHAIN}  0
 ${VDNET_MC_SETUP}  0
@@ -50,7 +49,7 @@ Vdnet NSXT Topology Setup
     ${isTestEnvRunning}=  Is Test Env Running
     Run Keyword If  ${isTestEnvRunning}  Fail  The test env is being used by other user, please wait a moment ☺.   
     
-    Open Connection  ${VDNET_LAUNCHER_HOST}
+    Open Connection  %{VDNET_LAUNCHER_HOST}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${vdnet_root}  ${vdnet_root_pwd}
     Clean Tmp Directory Shared File And Folder
     Close Connection      
@@ -58,7 +57,7 @@ Vdnet NSXT Topology Setup
     ${isExistSourceCode}=  Is Exist Source Code
     Run Keyword Unless  ${isExistSourceCode}  Precondition Settings
 
-    Open Connection  ${VDNET_LAUNCHER_HOST}
+    Open Connection  %{VDNET_LAUNCHER_HOST}
     #Login account must be the value of variable in this test suit, otherwise other pulic accounts will have no right to perform on 10.160.201.180. 
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${vdnet_root}  ${vdnet_root_pwd}
 
@@ -159,7 +158,7 @@ Install VIC Appliance and Run Selenium Grid Test
     \   Wait Until Selenium Node Is Ready  firefox-${idx}
 
 Create Home Directory
-    Open Connection  ${VDNET_LAUNCHER_HOST} 
+    Open Connection  %{VDNET_LAUNCHER_HOST} 
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${vdnet_root}  ${vdnet_root_pwd}
     ${result}=  Execute Command  [ ! -d /home/%{NIMBUS_PERSONAL_USER} ] && mkdir /home/%{NIMBUS_PERSONAL_USER}
     Log  ${result}
@@ -169,7 +168,7 @@ Create Home Directory
     Close Connection
 
 Is Exist Home Directory
-    Open Connection  ${VDNET_LAUNCHER_HOST}
+    Open Connection  %{VDNET_LAUNCHER_HOST}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${vdnet_root}  ${vdnet_root_pwd}
     Write  su - %{NIMBUS_PERSONAL_USER}
     ${switch_result}=  Read
@@ -184,7 +183,7 @@ Is Exist Home Directory
     Return From Keyword  ${False}
 
 Generate RSA Key
-    Open Connection  ${VDNET_LAUNCHER_HOST}
+    Open Connection  %{VDNET_LAUNCHER_HOST}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${vdnet_root}  ${vdnet_root_pwd}
     Write  su - %{NIMBUS_PERSONAL_USER}
     Write  [ ! -f ~/.ssh/id_rsa ] && ssh-keygen -t rsa -N '' -f ~/.ssh/id_rsa
@@ -194,7 +193,7 @@ Generate RSA Key
     Close Connection
 
 Get Resource
-    Open Connection  ${VDNET_LAUNCHER_HOST}
+    Open Connection  %{VDNET_LAUNCHER_HOST}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${vdnet_root}  ${vdnet_root_pwd}
     ${result}=  Execute Command  [ ! -d /src/%{NIMBUS_PERSONAL_USER} ] && mkdir -p /src/%{NIMBUS_PERSONAL_USER} && chown %{NIMBUS_PERSONAL_USER}:root /src/%{NIMBUS_PERSONAL_USER}
     Log  ${result}
@@ -203,7 +202,7 @@ Get Resource
     Close Connection
 
 Create Config File Directory
-    Open Connection  ${VDNET_LAUNCHER_HOST}
+    Open Connection  %{VDNET_LAUNCHER_HOST}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${vdnet_root}  ${vdnet_root_pwd}
     ${result}=  Execute Command  [ ! -d /tmp/%{NIMBUS_PERSONAL_USER} ] && mkdir /tmp/%{NIMBUS_PERSONAL_USER} && chown %{NIMBUS_PERSONAL_USER}:root /tmp/%{NIMBUS_PERSONAL_USER}
     Log  ${result}
@@ -217,7 +216,7 @@ Precondition Settings
     Create Config File Directory
 
 Is Exist Source Code
-    Open Connection  ${VDNET_LAUNCHER_HOST}
+    Open Connection  %{VDNET_LAUNCHER_HOST}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${vdnet_root}  ${vdnet_root_pwd}
     ${result}=  Execute Command  [ -d /src/%{NIMBUS_PERSONAL_USER}/nsx-qe ] && echo "yes"
     Close Connection
@@ -245,7 +244,7 @@ Clean Tmp Directory Shared File And Folder
     Log  ${del_result} 
     
 Is Test Env Running
-    Open Connection  ${VDNET_LAUNCHER_HOST}
+    Open Connection  %{VDNET_LAUNCHER_HOST}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${vdnet_root}  ${vdnet_root_pwd}
     ${count}=   Execute Command  ps -ef | grep -i "deploytestbed" | grep -v grep | wc -l
     Log  ${count}
