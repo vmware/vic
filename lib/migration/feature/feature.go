@@ -32,6 +32,15 @@ const (
 	// VM folder support for the VCH.
 	VCHFolderSupportVersion
 
+	// Requires minimum ESX patch versions to support live update of guest visible
+	// fields while VM is running.
+	// Migrates Name back to guest visible - undoes this specific portion of the
+	// AddCommonSpecForContainerVersion migration.
+	// There are two plugin versions because we cannot combine changes to appliance
+	// and container configs
+	ContainerGuestVisibleName
+	ApplianceGuestVisibleName
+
 	// Add new feature flag here
 
 	// MaxPluginVersion must be the last
