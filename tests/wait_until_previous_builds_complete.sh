@@ -15,8 +15,8 @@
 
 unit_test_array=($TEST_URL_ARRAY)
 numServers=${#unit_test_array[@]}
-#hardcode number as 3, since the other HAAS servers are taken for other usage
-numServers=3
+#hardcode number as 2, since the other HAAS servers are taken for other usage
+numServers=2
 DRONE_BUILD_NUMBER=${DRONE_BUILD_NUMBER:=0}
 prevBuildNumber=$(( $DRONE_BUILD_NUMBER-$numServers ))
 prevBuildStatus=`drone build info --format='{{.Status}}' vmware/vic $prevBuildNumber`
