@@ -34,8 +34,8 @@ Set Test Environment Variables
 
     @{URLs}=  Split String  %{TEST_URL_ARRAY}
     #${len}=  Get Length  ${URLs}
-    # hardcode the TEST_URL_Array number as 3 since the other HAAS servers are taken for other usage
-    ${len}=  Set Variable if  %{DRONE_BUILD_NUMBER}  3  1
+    # hardcode the TEST_URL_Array number as 2 since the other HAAS servers are taken for other usage
+    ${len}=  Set Variable if  %{DRONE_BUILD_NUMBER}  2  1
     ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
 
     Run Keyword If  %{DRONE_BUILD_NUMBER}  Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
