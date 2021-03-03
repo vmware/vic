@@ -132,6 +132,7 @@ Docker run immediate exit
     Should Be Empty  ${output}
 
 Docker run verify container start and stop time
+    [Tags]  skip
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
