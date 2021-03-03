@@ -1,13 +1,13 @@
 [photon-2.0]
 name=VMware WDC Photon Linux 2.0(x86_64)
-baseurl=http://wdc-yum-builder-ci.eng.vmware.com/photon
+baseurl=https://packages.vmware.com/photon/2.0/photon_release_2.0_x86_64/
 gpgkey=file:///etc/pki/rpm-gpg/VMWARE-RPM-GPG-KEY
 gpgcheck=1
 enabled=1
 
 [photon-updates-2.0]
 name=VMware WDC Photon Linux 2.0(x86_64) Updates
-baseurl=http://wdc-yum-builder-ci.eng.vmware.com/photon-updates
+baseurl=https://packages.vmware.com/photon/2.0/photon_updates_2.0_x86_64/
 gpgkey=file:///etc/pki/rpm-gpg/VMWARE-RPM-GPG-KEY
 gpgcheck=1
 enabled=1
