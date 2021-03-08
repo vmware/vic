@@ -18,6 +18,11 @@ Library  OperatingSystem
 Library  Process
 
 *** Keywords ***
+Docker Login
+    [Arguments]  ${docker-params}  ${username}  ${password}
+    ${rc}=  Run And Return Rc  docker ${docker-params} login --username=${username} --password=${password}
+    Should Be Equal As Integers  ${rc}  0
+
 Run Docker Info
     [Arguments]  ${docker-params}
     ${rc}=  Run And Return Rc  docker ${docker-params} info

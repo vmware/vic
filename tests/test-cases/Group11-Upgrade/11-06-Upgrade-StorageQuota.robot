@@ -41,6 +41,7 @@ Re-Enable Ops User And Clean Up VIC Appliance
     Cleanup VIC Appliance On Test Server
 
 Create Containers For VCH_1
+    Docker Login  %{VCH-PARAMS}  victest  %{REGISTRY_PASSWORD}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name c-vm1 -id busybox
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
@@ -184,6 +185,7 @@ Get Storage Quota Limit
     [Return]  ${limitval}
 
 Create Containers And Volume For VCH_2
+    Docker Login  %{VCH-PARAMS}  victest  %{REGISTRY_PASSWORD}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name c-vm1 -id busybox
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
@@ -205,6 +207,7 @@ Create Containers And Volume For VCH_2
     Should Be Equal As Integers  ${rc}  0
 
 Create Containers For VCH_3
+    Docker Login  %{VCH-PARAMS}  victest  %{REGISTRY_PASSWORD}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name c-vm1 -id busybox
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0

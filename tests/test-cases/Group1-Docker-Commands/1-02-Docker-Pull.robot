@@ -265,4 +265,4 @@ Pull from docker store
     Should Contain  ${output}  Login Succeeded
     Should Be Equal As Integers  ${rc}  0
 
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  store/ibmcorp/mqadvanced-server-dev:9.0.5.0
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  victest/busybox:latest

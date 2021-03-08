@@ -15,6 +15,8 @@
 *** Settings ***
 Documentation  This resource contains all keywords related to creating, deleting, maintaining VCHs
 
+Resource  Docker-Util.robot
+
 *** Variables ***
 ${BOOTSTRAP-ISO}  bin/bootstrap.iso
 
@@ -322,6 +324,7 @@ Install VIC Appliance To Test Server
     ${opsuser-args}=  Get Ops User Args
     ${output}=  Install VIC Appliance To Test Server With Current Environment Variables  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${cleanup}  ${debug}  ${opsuser-args}  ${additional-args}
     Log  ${output}
+    Run Keyword And Ignore Error  Docker Login  %{VCH-PARAMS}  victest  %{REGISTRY_PASSWORD}
     [Return]  ${output}
 
 Install VIC Appliance To Test Server With Current Environment Variables
