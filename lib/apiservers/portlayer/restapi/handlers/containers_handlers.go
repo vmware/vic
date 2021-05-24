@@ -198,7 +198,10 @@ func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) m
 	op := trace.NewOperationFromID(context.Background(), params.OpID, "containers.GetHandler(%s)", params.ID)
 	defer trace.End(trace.Begin("GetHandler", op))
 
-	h := exec.GetContainer(context.Background(), uid.Parse(params.ID))
+	h, err := exec.GetContainer(context.Background(), uid.Parse(params.ID))
+	if err != nil {
+		return containers.NewGetDefault(503).WithPayload(&models.Error{Message: err.Error()})
+	}
 	if h == nil {
 		return containers.NewGetNotFound().WithPayload(&models.Error{Message: fmt.Sprintf("container %s not found", params.ID)})
 	}

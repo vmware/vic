@@ -129,7 +129,11 @@ func handleEvent(netctx *Context, ie events.Event) {
 		op := trace.NewOperation(context.Background(), fmt.Sprintf("handleEvent(%s)", ie.EventID()))
 		op.Infof("Handling Event: %s", ie.EventID())
 		// grab the operation from the event
-		handle := exec.GetContainer(op, uid.Parse(ie.Reference()))
+		handle, err := exec.GetContainer(op, uid.Parse(ie.Reference()))
+		if err != nil {
+			op.Errorf("Could not find container: %s", err)
+			return
+		}
 		if handle == nil {
 			_, err := netctx.RemoveIDFromScopes(op, ie.Reference())
 			if err != nil {
@@ -196,7 +200,10 @@ func engageContext(op trace.Operation, netctx *Context, em event.EventManager) e
 	defer s.Resume()
 	for _, c := range exec.Containers.Containers(nil) {
 		log.Debugf("adding container %s", c)
-		h := c.NewHandle(op)
+		h, err := c.NewHandle(op)
+		if err != nil {
+			return err
+		}
 		defer h.Close()
 
 		// add any user created networks that show up in container's config

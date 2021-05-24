@@ -73,9 +73,9 @@ func eventCallback(ie events.Event) {
 		operation := func() error {
 			var err error
 
-			handle := container.NewHandle(op)
-			if handle == nil {
-				err = fmt.Errorf("Handle for %s cannot be created", ie.Reference())
+			handle, err := container.NewHandle(op)
+			if err != nil {
+				err = fmt.Errorf("Handle for %s cannot be created: %s", ie.Reference(), err)
 				log.Error(err)
 				return err
 			}
