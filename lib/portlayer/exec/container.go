@@ -217,14 +217,14 @@ func newContainer(base *containerBase) *Container {
 	return c
 }
 
-func GetContainer(ctx context.Context, id uid.UID) *Handle {
+func GetContainer(ctx context.Context, id uid.UID) (*Handle, error) {
 	// get from the cache
 	container := Containers.Container(id.String())
 	if container != nil {
 		return container.NewHandle(ctx)
 	}
 
-	return nil
+	return nil, nil
 }
 
 func (c *ContainerInfo) String() string {
@@ -318,20 +318,20 @@ func (c *Container) WaitForState(s State) <-chan struct{} {
 	return eventChan
 }
 
-func (c *Container) NewHandle(ctx context.Context) *Handle {
+func (c *Container) NewHandle(ctx context.Context) (*Handle, error) {
 	// Call property collector to fill the data
 	if c.vm != nil {
 		op := trace.FromContext(ctx, "")
 		// FIXME: this should be calling the cache to decide if a refresh is needed
 		if err := c.Refresh(op); err != nil {
 			op.Errorf("refreshing container %s failed: %s", c, err)
-			return nil // nil indicates error
+			return nil, err
 		}
 	}
 
 	// return a handle that represents zero changes over the current configuration
 	// for this container
-	return newHandle(c)
+	return newHandle(c), nil
 }
 
 // Refresh updates config and runtime info, holding a lock only while swapping

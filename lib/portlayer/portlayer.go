@@ -148,9 +148,9 @@ func TakeCareOfSerialPorts(op trace.Operation, sess *session.Session) {
 
 		operation := func() error {
 			// Obtain a container handle
-			handle := containers[i].NewHandle(op)
-			if handle == nil {
-				err := fmt.Errorf("unable to obtain a handle for container %s", containerID)
+			handle, err := containers[i].NewHandle(op)
+			if err != nil {
+				err := fmt.Errorf("unable to obtain a handle for container %s: %s", containerID, err)
 				op.Errorf("%s", err)
 
 				return err

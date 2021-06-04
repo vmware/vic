@@ -101,7 +101,10 @@ func (c *Container) Refresh(ctx context.Context) error {
 
 	// this will "refresh" the container executor config that contains
 	// the current ip addresses
-	h := exec.GetContainer(ctx, c.ID())
+	h, err := exec.GetContainer(ctx, c.ID())
+	if err != nil {
+		return fmt.Errorf("could not find container %s: %s", c.ID(), err)
+	}
 	if h == nil {
 		return fmt.Errorf("could not find container %s", c.ID())
 	}
