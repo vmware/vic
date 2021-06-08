@@ -315,7 +315,9 @@ pipeline:
     repo: eminent-nation-87317/vic-machine-server
     dockerfile: cmd/vic-machine-server/Dockerfile
     custom_dns: 10.142.7.21, 10.142.7.22, 10.166.17.90
-    secrets: [ token ]
+    secrets: [token, registry_password]
+    commands:
+      - docker login --username=victest --password=${REGISTRY_PASSWORD}
     when:
       repo: vmware/vic
       event: [push, tag]
