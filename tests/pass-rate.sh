@@ -18,8 +18,8 @@
 # sprint calendar in each new calendar year.
 sprint_start=$(gdate -d "last wednesday-$(( ($(gdate +%W 2>/dev/null)+0)%2 )) weeks" "+%Y-%m-%dT%H:%M:%S" 2>/dev/null) || sprint_start=$(date -d "last wednesday-$(( ($(date +%W)+0)%2 )) weeks" "+%Y-%m-%dT%H:%M:%S")
 
-commits=$(curl -s https://api.github.com/repos/vmware/vic/commits?access_token=$GITHUB_AUTOMATION_API_KEY\&since=$sprint_start | jq -r ' map(.sha) | join(",")')
-curl -s https://api.github.com/repos/vmware/vic/status/{$commits}?access_token=$GITHUB_AUTOMATION_API_KEY | jq '.statuses[] | select(.context == "continuous-integration/vic/push") | "\(.target_url): \(.state)"' | tee status.out
+commits=$(curl -s -H "Authorization: token $GITHUB_AUTOMATION_API_KEY" https://api.github.com/repos/vmware/vic/commits?since=$sprint_start | jq -r ' map(.sha) | join(",")')
+curl -s -H "Authorization: token $GITHUB_AUTOMATION_API_KEY" https://api.github.com/repos/vmware/vic/status/{$commits} | jq '.statuses[] | select(.context == "continuous-integration/vic/push") | "\(.target_url): \(.state)"' | tee status.out
 
 failures=$(cat status.out | grep -c failure)
 successes=$(cat status.out | grep -c success)
