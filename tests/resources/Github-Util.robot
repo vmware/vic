@@ -19,8 +19,10 @@ Documentation  This resource provides keywords to interact with Github
 Get State Of Github Issue
     [Arguments]  ${num}
     [Tags]  secret
+    ${headers_str} =  Evaluate  str("token %{GITHUB_AUTOMATION_API_KEY}")
+    &{headers} =  Create Dictionary  Authorization=${headers_str}
     :FOR  ${idx}  IN RANGE  0  5
-    \   ${status}  ${result}=  Run Keyword And Ignore Error  Get  https://api.github.com/repos/vmware/vic/issues/${num}  headers={"Authorization": "token %{GITHUB_AUTOMATION_API_KEY}"}
+    \   ${status}  ${result}=  Run Keyword And Ignore Error  Get  https://api.github.com/repos/vmware/vic/issues/${num}  headers=${headers}
     \   Exit For Loop If  '${status}'
     \   Sleep  1
     Should Be Equal  ${result.status_code}  ${200}
@@ -30,8 +32,10 @@ Get State Of Github Issue
 Post Comment To Github Issue
     [Arguments]  ${num}  ${comment}
     [Tags]  secret
+    ${headers_str} =  Evaluate  str("token %{GITHUB_AUTOMATION_API_KEY}")
+    &{headers} =  Create Dictionary  Authorization=${headers_str}
     :FOR  ${idx}  IN RANGE  0  5
-    \   ${status}  ${result}=  Run Keyword And Ignore Error  Post  https://api.github.com/repos/vmware/vic/issues/${num}/comments  data={"body": "${comment}"}  headers={"Authorization": "token %{GITHUB_AUTOMATION_API_KEY}"}
+    \   ${status}  ${result}=  Run Keyword And Ignore Error  Post  https://api.github.com/repos/vmware/vic/issues/${num}/comments  data={"body": "${comment}"}  headers=${headers}
     \   Exit For Loop If  '${status}'
     \   Sleep  1
     Should Be Equal  ${result.status_code}  ${201}
@@ -39,8 +43,10 @@ Post Comment To Github Issue
 Check VMware Organization Membership
     [Arguments]  ${username}
     [Tags]  secret
+    ${headers_str} =  Evaluate  str("token %{GITHUB_AUTOMATION_API_KEY}")
+    &{headers} =  Create Dictionary  Authorization=${headers_str}
     :FOR  ${idx}  IN RANGE  0  5
-    \   ${status}  ${result}=  Run Keyword And Ignore Error  Get  https://api.github.com/orgs/vmware/members/${username}  headers={"Authorization": "token %{GITHUB_AUTOMATION_API_KEY}"}
+    \   ${status}  ${result}=  Run Keyword And Ignore Error  Get  https://api.github.com/orgs/vmware/members/${username}  headers=${headers}
     \   Exit For Loop If  '${status}'
     \   Sleep  1
     ${isMember}=  Run Keyword And Return Status  Should Be Equal  ${result.status_code}  ${204}
