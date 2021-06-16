@@ -40,8 +40,8 @@ MISSPELL ?= $(GOPATH)/bin/misspell$(BIN_ARCH)
 DOCKER_BUILD := $(BASE_DIR)/infra/build-image/docker-iso-build.sh
 
 .PHONY: all tools clean test check distro \
-	goversion goimports gopath govet gofmt misspell gas golint \
-	isos tethers apiservers copyright
+	goversion goimports gopath govet gofmt misspell gas golint copyright enforce-deps \
+	isos tethers apiservers
 
 .DEFAULT_GOAL := all
 
@@ -162,7 +162,7 @@ misspell: $(MISSPELL)
 # convenience targets
 all: components tethers isos vic-machine imagec
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) $(MISSPELL) goversion
-check: goversion goimports gofmt misspell govet golint copyright whitespace gas
+check: goversion goimports gofmt misspell govet golint copyright whitespace gas enforce-deps
 apiservers: $(portlayerapi) $(docker-engine-api) $(serviceapi)
 components: check apiservers $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
@@ -247,6 +247,11 @@ govet:
 
 gas: $(GAS)
 	@echo checking security problems
+
+# requires swagger generation to avoid warnings about unused rules
+enforce-deps: $(portlayerapi-client) $(portlayerapi-server) $(serviceapi-server)
+	@echo checking dependencies...
+	@infra/scripts/go-deps-enforcement.sh
 
 vendor: $(GVT)
 	@echo restoring vendor
@@ -493,10 +498,10 @@ clean: cleandeps
 	@rm -f ./lib/apiservers/portlayer/restapi/doc.go
 	@rm -f ./lib/apiservers/portlayer/restapi/embedded_spec.go
 	@rm -f ./lib/apiservers/portlayer/restapi/server.go
-	@rm -rf ./lib/apiservers/portlayer/client/
-	@rm -rf ./lib/apiservers/portlayer/cmd/
-	@rm -rf ./lib/apiservers/portlayer/models/
-	@rm -rf ./lib/apiservers/portlayer/restapi/operations/
+	@rm -rf ./lib/apiservers/portlayer/client/*
+	@rm -rf ./lib/apiservers/portlayer/cmd/*
+	@rm -rf ./lib/apiservers/portlayer/models/*
+	@rm -rf ./lib/apiservers/portlayer/restapi/operations/*
 	@rm -rf ./lib/config/dynamic/admiral/client
 	@rm -rf ./lib/config/dynamic/admiral/models
 	@rm -rf ./lib/config/dynamic/admiral/operations
@@ -504,9 +509,9 @@ clean: cleandeps
 	@rm -f ./lib/apiservers/service/restapi/doc.go
 	@rm -f ./lib/apiservers/service/restapi/embedded_spec.go
 	@rm -f ./lib/apiservers/service/restapi/server.go
-	@rm -rf ./lib/apiservers/service/restapi/cmd/
-	@rm -rf ./lib/apiservers/service/restapi/models/
-	@rm -rf ./lib/apiservers/service/restapi/operations/
+	@rm -rf ./lib/apiservers/service/restapi/cmd/*
+	@rm -rf ./lib/apiservers/service/restapi/models/*
+	@rm -rf ./lib/apiservers/service/restapi/operations/*
 
 	@rm -f *.log
 	@rm -f *.pem

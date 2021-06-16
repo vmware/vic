@@ -1,0 +1,8 @@
+# By default, packages in cmd should depend only on packages under lib, pkg or vendor
+^lib/*
+^pkg/*
+^vendor/*
+
+# TODO[#8296]: vic-machine-server transitively depends on vic-machine code, but should not
+^cmd/vic-machine/common/*
+^cmd/vic-machine/create/*

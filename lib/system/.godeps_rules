@@ -1,0 +1,6 @@
+# By default, packages in lib should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# lib/system can depend on lib/etcconf
+^lib/etcconf/*

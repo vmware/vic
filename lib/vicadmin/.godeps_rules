@@ -1,0 +1,19 @@
+# By default, packages in lib should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# vicadmin also depends on lib/config, lib/guest, lib/install/validate, lib/tether/shared and their transitive dependencies
+^lib/config/*
+^lib/constants/*
+^lib/etcconf/*
+^lib/guest/*
+^lib/install/*
+^lib/spec/*
+^lib/system/*
+^lib/tether/shared/*
+
+# TODO[#8299]: pkg/version depends on lib/migration/feature
+^lib/migration/feature/*
+
+# TODO[#8296]: vicadmin currently depends on code from cmd/vic-machine/common, but it should not
+^cmd/vic-machine/common/*

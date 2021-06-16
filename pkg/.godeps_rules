@@ -1,0 +1,3 @@
+# By default, packages in pkg should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
