@@ -226,7 +226,9 @@ func (h *Handle) Commit(op trace.Operation, sess *session.Session, waitTime *int
 		// any values set with VM powered off are inherently persistent
 		filter = ^extraconfig.NonPersistent
 	} else {
-		filter = extraconfig.NonPersistent | extraconfig.Hidden
+		// API side changes should no longer convert persistent keys to non-persistent while VM is running
+		// allow write of everything
+		filter = ^0
 	}
 
 	extraconfig.Encode(extraconfig.ScopeFilterSink(uint(filter), extraconfig.MapSink(cfg)), h.ExecConfig)
