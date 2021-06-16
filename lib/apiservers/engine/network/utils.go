@@ -160,7 +160,10 @@ func MapPorts(vc *viccontainer.VicContainer, endpoint *models.EndpointConfig, co
 	defer func() {
 		if err != nil {
 			// if we didn't succeed then make sure we clean up
-			UnmapPorts(containerID, vc)
+			e := UnmapPorts(containerID, vc)
+			if e != nil {
+				log.Debugf("Error encountered during cleanup: %s", e)
+			}
 		}
 	}()
 

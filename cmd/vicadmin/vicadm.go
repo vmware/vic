@@ -104,8 +104,7 @@ type logfile struct {
 }
 
 func Init() {
-	// #nosec: Errors unhandled.
-	_ = pprof.StartPprof("vicadmin", pprof.VicadminPort)
+	pprof.StartPprof("vicadmin", pprof.VicadminPort)
 
 	defer trace.End(trace.Begin(""))
 
@@ -550,20 +549,6 @@ func vSphereSessionGet(sessconfig *session.Config) (*session.Session, error) {
 		return nil, err
 	}
 	return s, nil
-}
-
-func (s *server) getSessionFromRequest(ctx context.Context, r *http.Request) (*session.Session, error) {
-	sessionData, err := s.uss.cookies.Get(r, sessionCookieKey)
-	if err != nil {
-		return nil, err
-	}
-	var d interface{}
-	var ok bool
-	if d, ok = sessionData.Values[sessionKey]; !ok {
-		return nil, fmt.Errorf("User-provided cookie did not contain a session ID -- it is corrupt or tampered")
-	}
-	c, err := s.uss.VSphere(ctx, d.(string))
-	return c, err
 }
 
 type flushWriter struct {

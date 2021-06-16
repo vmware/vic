@@ -210,9 +210,15 @@ func setupGlobalMiddleware(handler http.Handler) http.Handler {
 	return addLogging(addPanicRecovery(c.Handler(handler)))
 }
 
+func operationForRequest(r *http.Request) trace.Operation {
+	op := trace.NewOperation(r.Context(), "%s %s request to %s", r.Proto, r.Method, r.URL.Path)
+
+	return op
+}
+
 func addLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		op := trace.NewOperation(r.Context(), "%s %s request to %s", r.Proto, r.Method, r.URL.Path)
+		op := operationForRequest(r)
 
 		lr := r.WithContext(op)
 		lw := NewLoggingResponseWriter(w)
@@ -234,7 +240,10 @@ func configureLogger() *logrus.Logger {
 	l := trace.Logger
 
 	if _, err := os.Stat(loggingOption.Directory); os.IsNotExist(err) {
-		os.MkdirAll(loggingOption.Directory, 0700)
+		err = os.MkdirAll(loggingOption.Directory, 0700)
+		if err != nil {
+			log.Printf("Failed to create log directory %s: %s", loggingOption.Directory, err)
+		}
 	}
 
 	path := loggingOption.Directory + "/vic-machine-server.log"
@@ -263,7 +272,8 @@ func addPanicRecovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				op := trace.FromContext(r.Context(), "Panic Recovery")
+				op := operationForRequest(r)
+
 				buf := make([]byte, 4096)
 				bytes := goruntime.Stack(buf, false)
 				stack := string(buf[:bytes])
@@ -272,7 +282,10 @@ func addPanicRecovery(next http.Handler) http.Handler {
 
 				w.WriteHeader(http.StatusInternalServerError)
 				e := models.Error{Message: fmt.Sprint(err)}
-				json.NewEncoder(w).Encode(e)
+				encodingErr := json.NewEncoder(w).Encode(e)
+				if encodingErr != nil {
+					op.Warnf("Unable to encode error: %s", encodingErr)
+				}
 			}
 		}()
 

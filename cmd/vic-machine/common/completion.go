@@ -102,9 +102,9 @@ func BashComplete(flagsFunc func() []cli.Flag, subcommands ...string) cli.BashCo
 				}
 
 				if len(n) == 1 {
-					fmt.Fprintln(c.App.Writer, "-"+n)
+					write(c, "-"+n)
 				} else {
-					fmt.Fprintln(c.App.Writer, "--"+n)
+					write(c, "--"+n)
 				}
 			}
 		}
@@ -114,8 +114,14 @@ func BashComplete(flagsFunc func() []cli.Flag, subcommands ...string) cli.BashCo
 		// command and subcommand, like `inspect --target ... config ...` is unsupported).
 		if c.NArg() == 0 && c.NumFlags() == 0 {
 			for _, s := range subcommands {
-				fmt.Fprintln(c.App.Writer, s)
+				write(c, s)
 			}
 		}
 	}
+}
+
+// Write the supplied string to the CLI context's writer, ignoring any errors.
+func write(c *cli.Context, s string) {
+	// #nosec: Errors unhandled.
+	fmt.Fprintln(c.App.Writer, s)
 }
