@@ -165,14 +165,14 @@ unset DOCKER_HOST DOCKER_TLS_VERIFY DOCKER_CERT_PATH
 rm -f bin/tether-linux bin/unpack  
 
 # builds vic-machine binaries and both appliance.iso and bootstrap.iso with photon-2.0
-docker run -v $(pwd):/go/src/github.com/vmware/vic  gcr.io/eminent-nation-87317/vic-build-image:tdnf  rm -f bin/tether-linux bin/unpack \&\& make isos vic-machine
+docker run -v $GOPATH/bin:/go/bin -v $(pwd):/go/src/github.com/vmware/vic  gcr.io/eminent-nation-87317/vic-build-image:tdnf  rm -f bin/tether-linux bin/unpack \&\& make isos vic-machine
 
 # builds appliance.iso with photon-2.0 and bootstrap.iso by photon-1.0
-docker run -v $(pwd):/go/src/github.com/vmware/vic  -e REPO=photon-1.0  gcr.io/eminent-nation-87317/vic-build-image:tdnf  rm -f bin/tether-linux bin/unpack \&\& make appliance bootstrap-custom
+docker run -v $GOPATH/bin:/go/bin -v $(pwd):/go/src/github.com/vmware/vic  -e REPO=photon-1.0  gcr.io/eminent-nation-87317/vic-build-image:tdnf  rm -f bin/tether-linux bin/unpack \&\& make appliance bootstrap-custom
 
 
 # builds a bootstrap iso with a centos-6.9 kernel and package layout
-docker run -v $(pwd):/go/src/github.com/vmware/vic  -e REPO=centos-6.9  gcr.io/eminent-nation-87317/vic-build-image:yum  rm -f bin/tether-linux bin/unpack \&\& make bootstrap-custom
+docker run -v $GOPATH/bin:/go/bin -v $(pwd):/go/src/github.com/vmware/vic  -e REPO=centos-6.9  gcr.io/eminent-nation-87317/vic-build-image:yum  rm -f bin/tether-linux bin/unpack \&\& make bootstrap-custom
 ```
 
 The output from these files will be in `bin/` titled `bootstrap[-repo].iso`. The default bootstrap build from the `bootstrap` make target will produce the `bootstrap.iso` file with no suffix.
