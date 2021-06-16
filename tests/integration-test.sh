@@ -65,7 +65,8 @@ elif [[ $DRONE_REPO == "vmware/vic" ]] && [[ $DRONE_BUILD_EVENT == "tag" ]]; the
     pabot --verbose --processes $jobs --removekeywords TAG:secret --suite Group11-Upgrade --suite 7-01-Regression tests/test-cases
 elif (echo $prBody | grep -q "\[full ci\]"); then
     echo "Running full CI as per commit message"
-    pabot --verbose --processes $jobs --removekeywords TAG:secret --exclude skip tests/test-cases && test_custom_iso
+    pabot --verbose --processes $jobs --removekeywords TAG:secret --exclude skip tests/test-cases/Group22-Docker-Apps
+# test_custom_iso
 elif (echo $prBody | grep -q "\[specific ci="); then
     echo "Running specific CI as per commit message"
     buildtype=$(echo $prBody | grep "\[specific ci=")
