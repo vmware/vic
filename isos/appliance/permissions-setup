@@ -3,3 +3,6 @@
 # Allow access to VM uuid for self-reflection
 chmod 444 /sys/devices/virtual/dmi/id/product_serial
 chmod 444 /sys/class/dmi/id/product_serial
+
+# Give port-layer capabilities to mount image disks and bind 53 port
+setcap cap_net_bind_service,cap_sys_admin=+ep /sbin/port-layer-server
