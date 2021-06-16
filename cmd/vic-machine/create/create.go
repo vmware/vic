@@ -67,7 +67,7 @@ type Create struct {
 
 	Proxies common.Proxies
 
-	Syslog common.Syslog
+	SyslogAddr string
 
 	executor *management.Dispatcher
 }
@@ -252,6 +252,16 @@ func (c *Create) Flags() []cli.Flag {
 			Usage: "Specify a list of permitted whitelist registry server addresses (insecure addresses still require the --insecure-registry option in addition)",
 		})
 
+	syslog := []cli.Flag{
+		cli.StringFlag{
+			Name:        "syslog-address",
+			Value:       "",
+			Usage:       "Address of the syslog server to send Virtual Container Host logs to. Must be in the format transport://host[:port], where transport is udp or tcp. port defaults to 514 if not specified",
+			Destination: &c.SyslogAddr,
+			Hidden:      true,
+		},
+	}
+
 	util := []cli.Flag{
 		// miscellaneous
 		cli.BoolFlag{
@@ -287,7 +297,6 @@ func (c *Create) Flags() []cli.Flag {
 	help := c.help.HelpFlags()
 	squota := c.VCHStorageQuotaFlag()
 	cvms := c.VCHContainerCountFlag()
-	syslog := c.Syslog.SyslogFlags()
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
@@ -382,9 +391,7 @@ func (c *Create) ProcessParams(op trace.Operation) error {
 	c.HTTPSProxy = sproxy
 	c.NoProxy = nproxy
 
-	if u, err := c.Syslog.ProcessSyslog(); err == nil {
-		c.SyslogConfig.Addr = u
-	} else {
+	if err = c.ProcessSyslog(); err != nil {
 		return err
 	}
 
@@ -518,6 +525,20 @@ func (c *Create) ProcessNetwork(op trace.Operation, network *data.NetworkConfig,
 		network.Gateway.Mask = network.IP.Mask
 	}
 
+	return nil
+}
+
+func (c *Create) ProcessSyslog() error {
+	if len(c.SyslogAddr) == 0 {
+		return nil
+	}
+
+	u, err := url.Parse(c.SyslogAddr)
+	if err != nil {
+		return err
+	}
+
+	c.SyslogConfig.Addr = u
 	return nil
 }
 

@@ -424,10 +424,8 @@ func (h *vchCreate) buildCreate(op trace.Operation, d *data.Data, finder client.
 		}
 
 		if vch.SyslogAddr != "" {
-			c.Syslog.SyslogAddr = vch.SyslogAddr.String()
-			if u, err := c.Syslog.ProcessSyslog(); err == nil {
-				c.SyslogConfig.Addr = u
-			} else {
+			c.SyslogAddr = vch.SyslogAddr.String()
+			if err := c.ProcessSyslog(); err != nil {
 				return nil, errors.NewError(http.StatusBadRequest, "error processing syslog server address: %s", err)
 			}
 		}
