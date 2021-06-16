@@ -17,6 +17,7 @@ package filter
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 
@@ -213,14 +214,8 @@ func DockerState(containerState string) string {
 	switch containerState {
 	case "Stopped":
 		state = "exited"
-	case "Running":
-		state = "running"
-	case "Created":
-		state = "created"
 	default:
-		// not sure what to do, so just return
-		// what was given
-		state = containerState
+		state = strings.ToLower(containerState)
 	}
 	return state
 }

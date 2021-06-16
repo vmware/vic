@@ -116,11 +116,14 @@ const (
 	forceLogType = "json-file" //Use in inspect to allow docker logs to work
 	ShortIDLen   = 12
 
-	ContainerRunning = "running"
-	ContainerError   = "error"
-	ContainerStopped = "stopped"
-	ContainerExited  = "exited"
-	ContainerCreated = "created"
+	// Values from the final container inspect state.  This may not be the same as the values coming from the portlayer.
+	// Any calls to VicContainerProxy.State() should check state against these consts.
+	ContainerStarting = "starting"
+	ContainerRunning  = "running"
+	ContainerError    = "error"
+	ContainerStopped  = "stopped"
+	ContainerExited   = "exited"
+	ContainerCreated  = "created"
 )
 
 // NewContainerProxy will create a new proxy
