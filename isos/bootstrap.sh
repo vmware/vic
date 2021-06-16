@@ -33,6 +33,47 @@ tempfs_target_list=('/lib/modules/*' \
     '/lib/libhavege.so.1' \
     '/usr/sbin/haveged' \
     '/sbin/rngd' \
+    '/lib64/libcurl.*' \
+    '/lib64/libdl.*' \
+    '/lib64/libfreebl*' \
+    '/lib64/libgpg-error*' \
+    '/lib64/libgssapi*' \
+    '/lib64/libidn.so*' \
+    '/lib64/libkeyutils*' \
+    '/lib64/libkrb*' \
+    '/lib64/liblber*' \
+    '/lib64/libldap*' \
+    '/lib64/liblzma*' \
+    '/lib64/libm.so*' \
+    '/lib64/libnspr*' \
+    '/lib64/libnss*' \
+    '/lib64/libpcre.*' \
+    '/lib64/libplc*' \
+    '/lib64/libplds*' \
+    '/lib64/libpthread.so.*' \
+    '/lib64/libresolv.so.*' \
+    '/lib64/librt.so*' \
+    '/lib64/libsasl2*' \
+    '/lib64/libselinux.so.*' \
+    '/lib64/libsmime*' \
+    '/lib64/libssh*' \
+    '/lib64/libssl*' \
+    '/lib64/libsysfs*' \
+    '/lib64/libxml2*' \
+    '/lib64/libz.so.*' \
+    '/lib64/libgcc_s*' \
+    '/lib64/libip*tc*' \
+    '/lib64/libxtables*' \
+    '/lib64/libdl*' \
+    '/lib64/libc.so*' \
+    '/lib64/libc-*' \
+    '/usr/lib64/libgcc_s*' \
+    '/usr/lib64/libip*tc*' \
+    '/usr/lib64/libxtables*' \
+    '/usr/lib64/libdl*' \
+    '/usr/lib64/libc.so*' \
+    '/usr/lib64/libc-*' \
+    '/usr/lib64/xtables' \
     )
 
 # Build the bootstrap filesystem ontop of the base
