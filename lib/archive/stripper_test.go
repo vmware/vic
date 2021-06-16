@@ -16,6 +16,7 @@ package archive
 
 import (
 	"archive/tar"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -32,9 +33,9 @@ import (
 // based on that data. It returns:
 // index of entry names in the archive
 // archive byte stream
-func generateArchive(name string, num, size int) ([]string, io.Reader) {
-	r, w := io.Pipe()
-	tw := tar.NewWriter(w)
+func generateArchive(t *testing.T, name string, num, size int) ([]string, io.Reader) {
+	buf := &bytes.Buffer{}
+	tw := tar.NewWriter(buf)
 
 	// stable reference for expected archive entries
 	index := make([]string, num)
@@ -45,36 +46,33 @@ func generateArchive(name string, num, size int) ([]string, io.Reader) {
 	// our file contents are zeros - this is the worst case for stripping trailing headers
 	zeros := make([]byte, size)
 
-	go func() {
-		for i := 0; i < num; i++ {
-			// we only really care about two things in the header
-			hdr := &tar.Header{
-				Name: index[i],
-				Size: int64(size),
-			}
-
-			fmt.Printf("Writing header for file %s:%d\n", name, i)
-			err := tw.WriteHeader(hdr)
-			if err != nil {
-				panic(err)
-			}
-
-			fmt.Printf("Writing data for file %s:%d\n", name, i)
-			n, err := tw.Write(zeros)
-			if err != nil {
-				panic(err)
-			}
-			if n != size {
-				panic(fmt.Sprintf("Failed to write all bytes: %d != %d", n, size))
-			}
+	for i := 0; i < num; i++ {
+		// we only really care about two things in the header
+		hdr := &tar.Header{
+			Name: index[i],
+			Size: int64(size),
 		}
 
-		// add the end-of-archive
-		tw.Close()
-		w.Close()
-	}()
+		t.Logf("writing header for file %s:%d\n", name, i)
+		err := tw.WriteHeader(hdr)
+		if err != nil {
+			panic(err)
+		}
 
-	return index, r
+		t.Logf("writing data for file %s:%d\n", name, i)
+		n, err := tw.Write(zeros)
+		if err != nil {
+			panic(err)
+		}
+		if n != size {
+			panic(fmt.Sprintf("Failed to write all bytes: %d != %d", n, size))
+		}
+	}
+
+	// add the end-of-archive
+	tw.Close()
+
+	return index, buf
 }
 
 // TestSingleStripper ensures that basic function (stripping end-of-archive footer) works as
@@ -84,7 +82,7 @@ func generateArchive(name string, num, size int) ([]string, io.Reader) {
 func TestSingleStripper(t *testing.T) {
 	size := 2048
 	count := 5
-	index, reader := generateArchive("single", count, size)
+	index, reader := generateArchive(t, "single", count, size)
 
 	source := tar.NewReader(reader)
 	stripper := NewStripper(trace.NewOperation(context.Background(), "strip"), source, nil)
@@ -99,7 +97,7 @@ func TestSingleStripper(t *testing.T) {
 		pw.Close()
 
 		wg.Done()
-		fmt.Printf("Done copying from stripper: %d, %s\n", n, err)
+		t.Logf("Done copying from stripper: %d, %s\n", n, err)
 		if !assert.NoError(t, err, "Expected nil error from io.Copy on end-of-file") {
 			t.FailNow()
 		}
@@ -107,16 +105,18 @@ func TestSingleStripper(t *testing.T) {
 	}()
 
 	for i := 0; i <= len(index); i++ {
-		fmt.Printf("Reading header for file %d\n", i)
+		t.Logf("Reading header for file %d\n", i)
 		header, err := tr.Next()
+
 		if err == io.EOF {
-			fmt.Printf("End-of-file")
+			t.Log("End-of-file")
 			// TODO: is this pass or fail?
 			return
 		}
+		t.Logf("header name: %s", header.Name)
 
 		if err != nil {
-			fmt.Printf("Error from archive: %s\n", err)
+			t.Logf("Error from archive: %s\n", err)
 			t.FailNow()
 		}
 
@@ -132,17 +132,19 @@ func TestSingleStripper(t *testing.T) {
 		}
 
 		// make the buf just that little bit bigger to allow for errrors in the copy if they would occur
-		buf := make([]byte, size+10)
+		buf := make([]byte, size)
 
-		fmt.Printf("Reading data for file %d\n", i)
+		t.Logf("Reading data for file %d\n", i)
 		n, err := tr.Read(buf)
 
-		if !assert.NoError(t, err, "No expected errors from file data copy") {
-			t.FailNow()
-		}
 		if !assert.Equal(t, n, size, "Expected file data size to match target generated size") {
 			t.FailNow()
 		}
+		if err != io.EOF && err != nil {
+			t.Errorf("Unexpected error: %s", err)
+			t.FailNow()
+		}
+
 	}
 
 	wg.Wait()
@@ -160,7 +162,7 @@ func TestConjoinedStrippers(t *testing.T) {
 
 	for m := 0; m < multiplicity; m++ {
 		var reader io.Reader
-		indices[m], reader = generateArchive(fmt.Sprintf("archive-%d", m), count, size)
+		indices[m], reader = generateArchive(t, fmt.Sprintf("archive-%d", m), count, size)
 		source := tar.NewReader(reader)
 		strippers[m] = NewStripper(trace.NewOperation(context.Background(), fmt.Sprintf("strip-%d", m)), source, nil)
 	}
@@ -177,7 +179,7 @@ func TestConjoinedStrippers(t *testing.T) {
 		pw.Close()
 
 		wg.Done()
-		fmt.Printf("Done copying from strippers: %d, %s\n", n, err)
+		t.Logf("Done copying from strippers: %d, %s\n", n, err)
 		if !assert.NoError(t, err, "Expected nil error from io.Copy on end-of-file") {
 			t.FailNow()
 		}
@@ -185,16 +187,16 @@ func TestConjoinedStrippers(t *testing.T) {
 
 	expectedEntries := count * multiplicity
 	for i := 0; i <= expectedEntries; i++ {
-		fmt.Printf("Reading header for file %d\n", i)
+		t.Logf("Reading header for file %d\n", i)
 		header, err := tr.Next()
 		if err == io.EOF {
-			fmt.Printf("End-of-file\n")
+			t.Logf("End-of-file\n")
 			// TODO: is this pass or fail?
 			return
 		}
 
 		if err != nil {
-			fmt.Printf("Error from archive: %s\n", err)
+			t.Logf("Error from archive: %s\n", err)
 			t.FailNow()
 		}
 
@@ -215,13 +217,14 @@ func TestConjoinedStrippers(t *testing.T) {
 		// make the buf just that little bit bigger to allow for errrors in the copy if they would occur
 		buf := make([]byte, size+10)
 
-		fmt.Printf("Reading data for file %d\n", i)
+		t.Logf("Reading data for file %d\n", i)
 		n, err := tr.Read(buf)
 
-		if !assert.NoError(t, err, "No expected errors from file data copy") {
+		if !assert.Equal(t, n, size, "Expected file data size to match target generated size") {
 			t.FailNow()
 		}
-		if !assert.Equal(t, n, size, "Expected file data size to match target generated size") {
+
+		if err != io.EOF && !assert.NoError(t, err, "No expected errors from file data copy") {
 			t.FailNow()
 		}
 	}
@@ -242,14 +245,14 @@ func TestConjoinedStrippersWithCloser(t *testing.T) {
 
 	for m := 0; m < multiplicity; m++ {
 		var reader io.Reader
-		indices[m], reader = generateArchive(fmt.Sprintf("archive-%d", m), count, size)
+		indices[m], reader = generateArchive(t, fmt.Sprintf("archive-%d", m), count, size)
 		source := tar.NewReader(reader)
 
 		if m < multiplicity-1 {
-			fmt.Printf("added stripper\n")
+			t.Log("added stripper\n")
 			readers[m] = NewStripper(trace.NewOperation(context.Background(), fmt.Sprintf("strip-%d", m)), source, nil)
 		} else {
-			fmt.Printf("added raw\n")
+			t.Log("added raw\n")
 			readers[m] = reader
 		}
 	}
@@ -266,7 +269,7 @@ func TestConjoinedStrippersWithCloser(t *testing.T) {
 		pw.Close()
 
 		wg.Done()
-		fmt.Printf("Done copying from all sources: %d, %s\n", n, err)
+		t.Logf("Done copying from all sources: %d, %s\n", n, err)
 		if !assert.NoError(t, err, "Expected nil error from io.Copy on end-of-file") {
 			t.FailNow()
 		}
@@ -274,17 +277,17 @@ func TestConjoinedStrippersWithCloser(t *testing.T) {
 
 	expectedEntries := count * multiplicity
 	for i := 0; i <= expectedEntries; i++ {
-		fmt.Printf("Reading header for file %d\n", i)
+		t.Logf("Reading header for file %d\n", i)
 		header, err := tr.Next()
 		if err == io.EOF {
-			fmt.Printf("End-of-file\n")
+			t.Logf("End-of-file\n")
 
 			wg.Wait()
 			return
 		}
 
 		if err != nil {
-			fmt.Printf("Error from archive: %s\n", err)
+			t.Logf("Error from archive: %s\n", err)
 			t.FailNow()
 		}
 
@@ -305,10 +308,10 @@ func TestConjoinedStrippersWithCloser(t *testing.T) {
 		// make the buf just that little bit bigger to allow for errrors in the copy if they would occur
 		buf := make([]byte, size+10)
 
-		fmt.Printf("Reading data for file %d\n", i)
+		t.Logf("Reading data for file %d\n", i)
 		n, err := tr.Read(buf)
 
-		if !assert.NoError(t, err, "No expected errors from file data copy") {
+		if err != io.EOF && !assert.NoError(t, err, "No expected errors from file data copy") {
 			t.FailNow()
 		}
 		if !assert.Equal(t, n, size, "Expected file data size to match target generated size") {
