@@ -120,7 +120,7 @@ Create a debian container and commit to an image successfully
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec commit1 apt-get update
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec commit1 apt-get install nano
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec commit1 apt-get install nano -y
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop -t1 commit1
     Should Be Equal As Integers  ${rc}  0

@@ -134,8 +134,8 @@ Pull images based on digest
     Should Contain  ${output}  Digest: sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
     Should Contain  ${output}  Status: Downloaded newer image for library/ubuntu:sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
 
-Pull an image with the full docker registry URL
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  registry.hub.docker.com/library/hello-world
+#Pull an image with the full docker registry URL
+#    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  registry.hub.docker.com/library/hello-world
 
 Pull an image with all tags
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  --all-tags nginx

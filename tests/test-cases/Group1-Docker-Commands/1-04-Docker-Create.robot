@@ -143,7 +143,7 @@ Create linked containers that can ping
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs busy2
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  2 packets transmitted, 2 packets received
+    Should Contain  ${output}  2 packets transmitted, 2 received
 
 Create a container after the last container is removed
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}

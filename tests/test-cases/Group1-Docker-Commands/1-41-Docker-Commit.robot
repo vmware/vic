@@ -25,7 +25,7 @@ Commit nano to image
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec commit1 apt-get update
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec commit1 apt-get install nano
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec commit1 apt-get install nano -y
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop -t1 commit1
     Should Be Equal As Integers  ${rc}  0
@@ -51,7 +51,7 @@ Unsupported commit command
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop -t1 commit3
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} commit -c "RUN apt-get install nginx" commit3 debian-env
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} commit -c "RUN apt-get install nginx -y" commit3 debian-env
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Error response from daemon: run is not a valid change command
 

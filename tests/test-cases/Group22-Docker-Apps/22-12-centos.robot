@@ -27,7 +27,7 @@ Latest centos container
     Should Contain  ${output}  Installed Packages
 
 Centos:7 container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run centos:7 yum list
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run centos:centos7 yum list
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Loaded plugins: fastestmirror, ovl
