@@ -24,7 +24,6 @@ SDRS Datastore Setup
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     {out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --customizeTestbed '/esx desiredPassword=e2eFunctionalTest' --noSupportBundles --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-sdrs-fc-fullInstall-vcva --runName vic-fc
     Set Suite Variable  @{list}  %{NIMBUS_PERSONAL_USER}-vic-fc.vcva-${VC_VERSION}  %{NIMBUS_PERSONAL_USER}-vic-fc.esx.0  %{NIMBUS_PERSONAL_USER}-vic-fc.esx.1  %{NIMBUS_PERSONAL_USER}-vic-fc.fc.0
-    Should Contain  ${out}  "deployment_result"=>"PASS"
 
     ${out}=  Execute Command  USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl ip %{NIMBUS_PERSONAL_USER}-vic-fc.vcva-${VC_VERSION} | grep %{NIMBUS_PERSONAL_USER}-vic-fc.vcva-${VC_VERSION}
     ${vc-ip}=  Fetch From Right  ${out}  ${SPACE}

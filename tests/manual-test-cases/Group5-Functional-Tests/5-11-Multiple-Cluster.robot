@@ -26,7 +26,6 @@ Multiple Cluster Setup
     Log To Console  \nStarting testbed deploy...
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  spec=vic-multi-cls.rb  args=--noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-multi-cls --runName ${name}
     Log  ${out}
-    Should Contain  ${out}  "deployment_result"=>"PASS"
 
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}

@@ -29,7 +29,6 @@ Deploy Environment
     ${name}=  Evaluate  'vic-iscsi-' + str(random.randint(1000,9999))  modules=random
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  spec=vic-cluster-2esxi-iscsi.rb  args= --plugin testng --noSupportBundles --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-cluster-iscsi --runName ${name}
     Set Suite Variable  @{list}  %{NIMBUS_PERSONAL_USER}-${name}.vc.0  %{NIMBUS_PERSONAL_USER}-${name}.esx.0  %{NIMBUS_PERSONAL_USER}-${name}.esx.1  %{NIMBUS_PERSONAL_USER}-${name}.iscsi.0
-    Should Contain  ${out}  "deployment_result"=>"PASS"
 
     ${out}=  Execute Command  ${NIMBUS_LOCATION_FULL} USER=%{NIMBUS_PERSONAL_USER} nimbus-ctl ip %{NIMBUS_PERSONAL_USER}-${name}.vc.0 | grep %{NIMBUS_PERSONAL_USER}-${name}.vc.0
     ${vc-ip}=  Fetch From Right  ${out}  ${SPACE}

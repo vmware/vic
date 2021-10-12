@@ -30,7 +30,6 @@ Enhanced Link Mode Setup
     Log To Console  Create a new simple vc cluster with spec vic-enhancedlinkmode.rb...
     ${out}=  Deploy Nimbus Testbed  spec=vic-enhancedlinkmode.rb  args=--noSupportBundles --plugin testng --vcvaBuild "${VC_VERSION}" --esxBuild "${ESX_VERSION}" --testbedName vic-enhancedlinkmode --runName ${name}
     Log  ${out}
-    Should Contain  ${out}  "deployment_result"=>"PASS"
     Log To Console  Finished creating cluster ${name}
     
     Open Connection  %{NIMBUS_GW}
