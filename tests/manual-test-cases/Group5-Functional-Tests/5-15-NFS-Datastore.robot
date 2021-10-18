@@ -25,7 +25,6 @@ NFS Datastore Setup
     Log To Console  \nStarting testbed deploy...    
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  spec=vic-nfs.rb  args=--noSupportBundles --plugin testng --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-simple-cluster --runName ${name}
     Log  ${out}
-    Should Contain  ${out}  "deployment_result"=>"PASS"
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     ${vc-ip}=  Get IP  ${name}.vc.0

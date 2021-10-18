@@ -26,7 +26,6 @@ Heterogenous ESXi Setup
     Log To Console  Create a new simple vc cluster with spec vic-hetegeneous.rb...
     ${out}=  Deploy Nimbus Testbed  spec=vic-hetergeneous-esxi.rb  args=--noSupportBundles --plugin testng --vcvaBuild "${VC_VERSION}" --esxBuild "${ESX_VERSION}" --testbedName vic-hetegeneous --runName ${name}
     Log  ${out}
-    Should Contain  ${out}  "deployment_result"=>"PASS"
     Log To Console  Finished creating cluster ${name}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}

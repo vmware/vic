@@ -26,7 +26,6 @@ No Cluster Setup
     Log To Console  Create a new simple vc cluster with spec vic-no-cls.rb...
     ${out}=  Deploy Nimbus Testbed  spec=vic-no-cls.rb  args=--noSupportBundles --plugin testng --vcvaBuild "${VC_VERSION}" --esxBuild "${ESX_VERSION}" --testbedName vic-no-cluster --runName ${name}
     Log  ${out}
-    Should Contain  ${out}  "deployment_result"=>"PASS"
     Log To Console  Finished creating cluster ${name}
     
     Open Connection  %{NIMBUS_GW}

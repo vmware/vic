@@ -28,7 +28,6 @@ FC Datastore Setup
     Run Keyword And Ignore Error  Nimbus Cleanup  ${list}  ${false}
     ${name}=  Evaluate  'vic-fc-' + str(random.randint(1000,9999))  modules=random
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  args=--plugin testng --customizeTestbed '/esx desiredPassword=e2eFunctionalTest' --noSupportBundles --vcvaBuild ${VC_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-sdrs-fc-fullInstall-vcva --runName ${name}
-    Should Contain  ${out}  "deployment_result"=>"PASS"
 
     Wait Until Keyword Succeeds  10 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     ${pod}=  Fetch Pod  ${name}
