@@ -94,7 +94,7 @@ Run after exit remapping mapped ports
 
     ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo1
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -id --name ctr1 -p 1900:9999 -p 2200:2222 busybox /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -id --name ctr1 -p 1900:9999 -p 2200:2222 ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} attach ctr1 < /tmp/fifo1
     Should Be Equal As Integers  ${rc}  0
@@ -111,7 +111,7 @@ Run after exit remapping mapped ports
 
     ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo2
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -id --name ctr2 -p 1900:9999 -p 3300:3333 busybox /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -id --name ctr2 -p 1900:9999 -p 3300:3333 ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} attach ctr2 < /tmp/fifo2
     Should Be Equal As Integers  ${rc}  0
@@ -131,7 +131,7 @@ Remap mapped ports after OOB Stop
 
     ${rc}  ${since}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info --format '{{json .SystemTime}}'
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name ctr3 busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name ctr3 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ctr3
@@ -141,7 +141,7 @@ Remap mapped ports after OOB Stop
     Power Off VM OOB  ctr3*
     Wait Until Keyword Succeeds  10x  3s  Check For Container Event  ctr3  die  ${since}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 20000:22222 --name ctr4 busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 20000:22222 --name ctr4 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ctr4
@@ -171,7 +171,7 @@ Container to container traffic via VCH public interface
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${nginx}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
 
     ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net bridge -p 8085:80 ${nginx}
@@ -188,23 +188,23 @@ Container to container traffic via VCH public interface
     ${nginx-ip}=  Set Variable  @{ip}[0]
     ${nginx-ip}=  Strip String  ${nginx-ip}  characters="
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name anjunabeats busybox /bin/ash -c "wget -O index.html %{EXT-IP}:8085; md5sum index.html"
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name anjunabeats ${busybox} /bin/ash -c "wget -O index.html %{EXT-IP}:8085; md5sum index.html"
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     # Verify hash of nginx default index.html
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs anjunabeats
     Log  ${output}
-    Should Contain  ${output}  e3eb0a1df437f3f97a64aca5952c8ea0
+    Should Contain  ${output}  7df3d7cf3358af3f470ac7229387ef94
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name abgt250 busybox /bin/ash -c "wget -O index.html ${nginx-ip}:80; md5sum index.html"
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name abgt250 ${busybox} /bin/ash -c "wget -O index.html ${nginx-ip}:80; md5sum index.html"
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     # Verify hash of nginx default index.html
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs abgt250
     Log  ${output}
-    Should Contain  ${output}  e3eb0a1df437f3f97a64aca5952c8ea0
+    Should Contain  ${output}  7df3d7cf3358af3f470ac7229387ef94
 
 Remap mapped port after stop container, and then remove stopped container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f $(docker %{VCH-PARAMS} ps -aq)

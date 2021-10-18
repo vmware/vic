@@ -46,7 +46,7 @@ Connect containers to multiple bridge networks overlapping
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow cross1-container2
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  2 packets transmitted, 2 packets received
+    Should Contain  ${output}  2 packets transmitted, 2 received
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name cross1-container3 --net cross1-network ${busybox} ping -c2 cross1-container3
     Should Be Equal As Integers  ${rc}  0
@@ -107,11 +107,11 @@ Connect containers to multiple networks non-overlapping
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net cross2-network2 --name cross2-container2 ${debian} ping -c2 ${ip}
     Should Not Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  2 packets transmitted, 0 packets received, 100% packet loss
+    Should Contain  ${output}  2 packets transmitted, 0 received, 100% packet loss
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow cross2-container2
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  2 packets transmitted, 0 packets received, 100% packet loss
+    Should Contain  ${output}  2 packets transmitted, 0 received, 100% packet loss
 
     # verify that an exposed port on the container does not break down bridge isolation
     ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net cross2-network -p 8080:80 ${nginx}
@@ -120,11 +120,11 @@ Connect containers to multiple networks non-overlapping
     ${ip}=  Get Container IP  %{VCH-PARAMS}  ${containerID}  cross2-network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net cross2-network2 --name cross2-container3 ${debian} ping -c2 ${ip}
     Should Not Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  2 packets transmitted, 0 packets received, 100% packet loss
+    Should Contain  ${output}  2 packets transmitted, 0 received, 100% packet loss
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow cross2-container3
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  2 packets transmitted, 0 packets received, 100% packet loss
+    Should Contain  ${output}  2 packets transmitted, 0 received, 100% packet loss
 
 Connect containers to an internal network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create --internal internal-net
