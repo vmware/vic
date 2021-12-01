@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-set -ex
+set -e
 
 echo ${DRONE_COMMIT_AUTHOR}
 echo $SKIP_CHECK_MEMBERSHIP
