@@ -197,7 +197,7 @@ $(GOVC): vendor/manifest
 
 $(GAS): vendor/manifest
 	@echo building $(GAS)...
-	@$(GO) build $(RACE) -o $(GAS) ./vendor/github.com/GoASTScanner/gas
+	@echo "Skip..."
 
 $(MISSPELL): vendor/manifest
 	@echo building $(MISSPELL)...

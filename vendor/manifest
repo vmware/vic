@@ -49,14 +49,6 @@
 			"notests": true
 		},
 		{
-			"importpath": "github.com/GoASTScanner/gas",
-			"repository": "https://github.com/GoASTScanner/gas",
-			"vcs": "",
-			"revision": "1beec25f7754273c9672a3368ea7048d4e73138e",
-			"branch": "master",
-			"notests": true
-		},
-		{
 			"importpath": "github.com/Microsoft/go-winio",
 			"repository": "https://github.com/Microsoft/go-winio",
 			"vcs": "",
