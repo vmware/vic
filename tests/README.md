@@ -1,6 +1,6 @@
 # VIC Engine Integration & Functional Test Suite
 
-Integration tests can be run locally in several different ways.
+integration tests can be run locally in several different ways.
 
 ## Automatic with defaults
 
