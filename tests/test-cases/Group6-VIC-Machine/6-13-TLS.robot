@@ -61,18 +61,18 @@ Create VCH - defaults custom cert path
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    ${output}=  Run  bin/vic-machine-linux create ${vicmachinetls} --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --tls-cert-path=${EXECDIR}/foo-bar-certs/ --insecure-registry wdc-harbor-ci.eng.vmware.com
-    Should Contain  ${output}  --tlscacert=\\"${EXECDIR}/foo-bar-certs/ca.pem\\" --tlscert=\\"${EXECDIR}/foo-bar-certs/cert.pem\\" --tlskey=\\"${EXECDIR}/foo-bar-certs/key.pem\\"
-    Should Contain  ${output}  Generating CA certificate/key pair - private key in ${EXECDIR}/foo-bar-certs/ca-key.pem
-    Should Contain  ${output}  Generating server certificate/key pair - private key in ${EXECDIR}/foo-bar-certs/server-key.pem
-    Should Contain  ${output}  Generating client certificate/key pair - private key in ${EXECDIR}/foo-bar-certs/key.pem
-    Should Contain  ${output}  Generated browser friendly PFX client certificate - certificate in ${EXECDIR}/foo-bar-certs/cert.pfx
+    ${output}=  Run  bin/vic-machine-linux create ${vicmachinetls} --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --tls-cert-path=6-13-TLS/foo-bar-certs/ --insecure-registry wdc-harbor-ci.eng.vmware.com
+    Should Contain  ${output}  --tlscacert=\\"6-13-TLS/foo-bar-certs/ca.pem\\" --tlscert=\\"6-13-TLS/foo-bar-certs/cert.pem\\" --tlskey=\\"6-13-TLS/foo-bar-certs/key.pem\\"
+    Should Contain  ${output}  Generating CA certificate/key pair - private key in 6-13-TLS/foo-bar-certs/ca-key.pem
+    Should Contain  ${output}  Generating server certificate/key pair - private key in 6-13-TLS/foo-bar-certs/server-key.pem
+    Should Contain  ${output}  Generating client certificate/key pair - private key in 6-13-TLS/foo-bar-certs/key.pem
+    Should Contain  ${output}  Generated browser friendly PFX client certificate - certificate in 6-13-TLS/foo-bar-certs/cert.pfx
 
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
 
-    ${save_env}=  Run  cat ${EXECDIR}/foo-bar-certs/%{VCH-NAME}.env
-    Should Contain  ${save_env}  DOCKER_CERT_PATH=${EXECDIR}/foo-bar-certs
+    ${save_env}=  Run  cat 6-13-TLS/foo-bar-certs/%{VCH-NAME}.env
+    Should Contain  ${save_env}  DOCKER_CERT_PATH=6-13-TLS/foo-bar-certs
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
     Run Regression Tests
@@ -194,14 +194,17 @@ Create VCH - Server cert with untrusted CA
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     # Generate CA and wildcard cert for *.<DOMAIN>
-    Generate Certificate Authority
-    Generate Wildcard Server Certificate
+    ${rc}  ${tmp}=  Run And Return Rc And Output  mktemp -d -p /tmp
+    Should Be Equal As Integers  ${rc}  0
 
-    ${out}=  Run  cp /root/ca/cert-bundle.tgz .; tar xvf cert-bundle.tgz
+    Generate Certificate Authority  OUT_DIR=${tmp}
+    Generate Wildcard Server Certificate  OUT_DIR=${tmp}
+
+    ${out}=  Run  tar xvf ${tmp}/cert-bundle.tgz
     Log  ${out}
 
     # Run vic-machine install, supply server cert and key
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-server-key "bundle/*.${domain}.key.pem" --tls-server-cert "bundle/*.${domain}.cert.pem" --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --debug 1
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-server-key "${tmp}/bundle/*.${domain}.key.pem" --tls-server-cert "${tmp}/bundle/*.${domain}.cert.pem" --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --debug 1
     Log  ${output}
     Should Contain  ${output}  Loaded server certificate bundle
     Should Contain  ${output}  Unable to locate existing CA in cert path
@@ -215,9 +218,6 @@ Create VCH - Server cert with untrusted CA
     Log  ${output}
     Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
 
-    Run  rm -rf bundle
-    Run  rm -f cert-bundle.tgz
-    Run  rm -rf /root/ca
     Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
 
 
@@ -231,15 +231,18 @@ Create VCH - Server cert with trusted CA
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     # Generate CA and wildcard cert for *.<DOMAIN>, install CA into root store
-    Generate Certificate Authority
-    Generate Wildcard Server Certificate
-    Trust Certificate Authority
+    ${rc}  ${tmp}=  Run And Return Rc And Output  mktemp -d -p /tmp
+    Should Be Equal As Integers  ${rc}  0
 
-    ${out}=  Run  cp /root/ca/cert-bundle.tgz .; tar xvf cert-bundle.tgz
+    Generate Certificate Authority  OUT_DIR=${tmp}
+    Generate Wildcard Server Certificate  OUT_DIR=${tmp}
+    Trust Certificate Authority  OUT_DIR=${tmp}
+
+    ${out}=  Run  tar xvf ${tmp}/cert-bundle.tgz
     Log  ${out}
 
     # Run vic-machine install, supply server cert and key
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-server-key "bundle/*.%{DOMAIN}.key.pem" --tls-server-cert "bundle/*.%{DOMAIN}.cert.pem" --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --debug 1
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-server-key "${tmp}/bundle/*.%{DOMAIN}.key.pem" --tls-server-cert "${tmp}/bundle/*.%{DOMAIN}.cert.pem" --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --debug 1
     Log  ${output}
     Should Contain  ${output}  Loaded server certificate bundle
     Should Contain  ${output}  Unable to locate existing CA in cert path
@@ -251,10 +254,6 @@ Create VCH - Server cert with trusted CA
     ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
     Log  ${output}
     Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
-
-    Run  rm -rf bundle
-    Run  rm -f cert-bundle.tgz
-    Run  rm -rf /root/ca
 
     Reload Default Certificate Authorities
 

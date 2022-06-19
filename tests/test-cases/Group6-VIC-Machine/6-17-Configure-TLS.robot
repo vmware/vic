@@ -17,7 +17,6 @@ Documentation  Test 6-17 - Verify vic-machine configure TLS options
 Resource  ../../resources/Util.robot
 Suite Teardown  Run Keyword  Cleanup VIC Appliance On Test Server
 Suite Setup  Run Keyword  Setup Test Environment
-Test Teardown  Run Keyword  Test Cleanup
 Test Timeout  20 minutes
 
 *** Keywords ***
@@ -30,36 +29,36 @@ Setup Test Environment
     ${domain}=  Get Environment Variable  DOMAIN  ''
     Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
 
-    ${output}=  Run  bin/vic-machine-linux create ${vicmachinetls} --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --tls-cert-path=${EXECDIR}/foo-bar-certs/
-    Should Contain  ${output}  --tlscacert=\\"${EXECDIR}/foo-bar-certs/ca.pem\\" --tlscert=\\"${EXECDIR}/foo-bar-certs/cert.pem\\" --tlskey=\\"${EXECDIR}/foo-bar-certs/key.pem\\"
-    Should Contain  ${output}  Generating CA certificate/key pair - private key in ${EXECDIR}/foo-bar-certs/ca-key.pem
-    Should Contain  ${output}  Generating server certificate/key pair - private key in ${EXECDIR}/foo-bar-certs/server-key.pem
-    Should Contain  ${output}  Generating client certificate/key pair - private key in ${EXECDIR}/foo-bar-certs/key.pem
-    Should Contain  ${output}  Generated browser friendly PFX client certificate - certificate in ${EXECDIR}/foo-bar-certs/cert.pfx
+    ${output}=  Run  bin/vic-machine-linux create ${vicmachinetls} --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --tls-cert-path=${EXECDIR}/6-17-Configure-TLS/foo-bar-certs/
+    Should Contain  ${output}  --tlscacert=\\"${EXECDIR}/6-17-Configure-TLS/foo-bar-certs/ca.pem\\" --tlscert=\\"${EXECDIR}/6-17-Configure-TLS/foo-bar-certs/cert.pem\\" --tlskey=\\"${EXECDIR}/6-17-Configure-TLS/foo-bar-certs/key.pem\\"
+    Should Contain  ${output}  Generating CA certificate/key pair - private key in ${EXECDIR}/6-17-Configure-TLS/foo-bar-certs/ca-key.pem
+    Should Contain  ${output}  Generating server certificate/key pair - private key in ${EXECDIR}/6-17-Configure-TLS/foo-bar-certs/server-key.pem
+    Should Contain  ${output}  Generating client certificate/key pair - private key in ${EXECDIR}/6-17-Configure-TLS/foo-bar-certs/key.pem
+    Should Contain  ${output}  Generated browser friendly PFX client certificate - certificate in ${EXECDIR}/6-17-Configure-TLS/foo-bar-certs/cert.pfx
 
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
 
-    ${save_env}=  Run  cat ${EXECDIR}/foo-bar-certs/%{VCH-NAME}.env
-    Should Contain  ${save_env}  DOCKER_CERT_PATH=${EXECDIR}/foo-bar-certs
+    ${save_env}=  Run  cat ${EXECDIR}/6-17-Configure-TLS/foo-bar-certs/%{VCH-NAME}.env
+    Should Contain  ${save_env}  DOCKER_CERT_PATH=${EXECDIR}/6-17-Configure-TLS/foo-bar-certs
     Log To Console  Installer completed successfully: %{VCH-NAME}
-
-Test Cleanup
-    Run  rm -rf bundle cert-bundle.tgz out-bundle /root/ca ${EXECDIR}/foo-bar-certs
 
 *** Test Cases ***
 Configure VCH - Server cert with untrusted CA
     ${domain}=  Get Environment Variable  DOMAIN  ''
     Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
     # Generate CA and wildcard cert for *.<DOMAIN>
-    Generate Certificate Authority
-    Generate Wildcard Server Certificate
+    ${rc}  ${tmp}=  Run And Return Rc And Output  mktemp -d -p /tmp
+    Should Be Equal As Integers  ${rc}  0
 
-    ${out}=  Run  cp /root/ca/cert-bundle.tgz .; tar xvf cert-bundle.tgz
+    Generate Certificate Authority  OUT_DIR=${tmp}
+    Generate Wildcard Server Certificate  OUT_DIR=${tmp}
+
+    ${out}=  Run  tar xvf ${tmp}/cert-bundle.tgz
     Log  ${out}
 
     # Run vic-machine configure, supply server cert and key
-    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-server-key "bundle/*.${domain}.key.pem" --tls-server-cert "bundle/*.${domain}.cert.pem" ${vicmachinetls} --tls-cert-path "out-bundle" --debug 1
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-server-key "${tmp}/bundle/*.${domain}.key.pem" --tls-server-cert "${tmp}/bundle/*.${domain}.cert.pem" ${vicmachinetls} --tls-cert-path "6-17-Configure-TLS/out-bundle" --debug 1
     Log  ${output}
     Should Contain  ${output}  Completed successfully
 
@@ -79,15 +78,18 @@ Configure VCH - Server cert with trusted CA
     Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
 
     # Generate CA and wildcard cert for *.<DOMAIN>, install CA into root store
-    Generate Certificate Authority
-    Generate Wildcard Server Certificate
-    Trust Certificate Authority
+    ${rc}  ${tmp}=  Run And Return Rc And Output  mktemp -d -p /tmp
+    Should Be Equal As Integers  ${rc}  0
 
-    ${out}=  Run  cp /root/ca/cert-bundle.tgz .; tar xvf cert-bundle.tgz
+    Generate Certificate Authority  OUT_DIR=${tmp}
+    Generate Wildcard Server Certificate  OUT_DIR=${tmp}
+    Trust Certificate Authority  OUT_DIR=${tmp}
+
+    ${out}=  Run  tar xvf ${tmp}/cert-bundle.tgz
     Log  ${out}
 
     # Run vic-machine install, supply server cert and key
-    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-server-key "bundle/*.%{DOMAIN}.key.pem" --tls-server-cert "bundle/*.%{DOMAIN}.cert.pem" ${vicmachinetls} --debug 1
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-server-key "${tmp}/bundle/*.%{DOMAIN}.key.pem" --tls-server-cert "${tmp}/bundle/*.%{DOMAIN}.cert.pem" ${vicmachinetls} --debug 1
     Log  ${output}
     Should Contain  ${output}  Loaded server certificate bundle
     Should Contain  ${output}  Unable to locate existing CA in cert path
@@ -110,16 +112,19 @@ Configure VCH - Run Configure Without Cert Options & Ensure Certs Are Unchanged
     Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
 
     # Generate CA and wildcard cert for *.<DOMAIN>, install CA into root store
-    Generate Certificate Authority
-    Generate Wildcard Server Certificate
-    Trust Certificate Authority
+    ${rc}  ${tmp}=  Run And Return Rc And Output  mktemp -d -p /tmp
+    Should Be Equal As Integers  ${rc}  0
 
-    ${out}=  Run  cp /root/ca/cert-bundle.tgz .; tar xvf cert-bundle.tgz
+    Generate Certificate Authority  OUT_DIR=${tmp}
+    Generate Wildcard Server Certificate  OUT_DIR=${tmp}
+    Trust Certificate Authority  OUT_DIR=${tmp}
+
+    ${out}=  Run  tar xvf ${tmp}/cert-bundle.tgz
     Log  ${out}
 
-    Run  rm -rf foo-bar-certs
+    Run  rm -rf 6-17-Configure-TLS/foo-bar-certs
     # Run vic-machine configure, supply server cert and key
-    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} ${vicmachinetls} --tls-server-key "bundle/*.%{DOMAIN}.key.pem" --tls-server-cert "bundle/*.%{DOMAIN}.cert.pem" --tls-cert-path=foo-bar-certs --debug 1
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} ${vicmachinetls} --tls-server-key "${tmp}/bundle/*.%{DOMAIN}.key.pem" --tls-server-cert "${tmp}/bundle/*.%{DOMAIN}.cert.pem" --tls-cert-path=6-17-Configure-TLS/foo-bar-certs --debug 1
     Log  ${output}
     Should Contain  ${output}  Loaded server certificate bundle
     Should Contain  ${output}  Unable to locate existing CA in cert path
@@ -133,11 +138,6 @@ Configure VCH - Run Configure Without Cert Options & Ensure Certs Are Unchanged
     ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
     Log  ${output}
     Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
-
-
-    Run  rm -rf bundle
-    Run  rm -f cert-bundle.tgz
-    Run  rm -rf /root/ca
 
     Reload Default Certificate Authorities
 
@@ -163,10 +163,10 @@ Configure VCH - Replace certificates with self-signed --no-tlsverify
     ${domain}=  Get Environment Variable  DOMAIN  ''
     Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
 
-    Run  rm -rf foo-bar-certs
-    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-cert-path "foo-bar-certs" --debug 1 --no-tlsverify
+    Run  rm -rf 6-17-Configure-TLS/foo-bar-certs
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-cert-path "6-17-Configure-TLS/foo-bar-certs" --debug 1 --no-tlsverify
 
-    Should Contain  ${output}  Generating self-signed certificate/key pair - private key in foo-bar-certs/server-key.pem
+    Should Contain  ${output}  Generating self-signed certificate/key pair - private key in 6-17-Configure-TLS/foo-bar-certs/server-key.pem
 
     Should Contain  ${output}  Completed successfully
 
@@ -189,12 +189,12 @@ Configure VCH - Replace certificates with self-signed --tls-cname
     ${domain}=  Get Environment Variable  DOMAIN  ''
     Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
 
-    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-cert-path "new-bar-certs" --debug 1 --tls-cname="*.eng.vmware.com"
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-cert-path "6-17-Configure-TLS/new-bar-certs" --debug 1 --tls-cname="*.eng.vmware.com"
 
-    Should Contain  ${output}  Generating CA certificate/key pair - private key in new-bar-certs/ca-key.pem
-    Should Contain  ${output}  Generating server certificate/key pair - private key in new-bar-certs/server-key.pem
-    Should Contain  ${output}  Generating client certificate/key pair - private key in new-bar-certs/key.pem
-    Should Contain  ${output}  Generated browser friendly PFX client certificate - certificate in new-bar-certs/cert.pfx
+    Should Contain  ${output}  Generating CA certificate/key pair - private key in 6-17-Configure-TLS/new-bar-certs/ca-key.pem
+    Should Contain  ${output}  Generating server certificate/key pair - private key in 6-17-Configure-TLS/new-bar-certs/server-key.pem
+    Should Contain  ${output}  Generating client certificate/key pair - private key in 6-17-Configure-TLSnew-bar-certs/key.pem
+    Should Contain  ${output}  Generated browser friendly PFX client certificate - certificate in 6-17-Configure-TLS/new-bar-certs/cert.pfx
     Should Contain  ${output}  Completed successfully
 
     ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2376
@@ -213,4 +213,4 @@ Configure VCH - Replace certificates with self-signed --tls-cname
     Should Contain  ${output}  CN = *.eng.vmware.com
 
 
-    [Teardown]  Run  rm -rf ./new-bar-certs
+    [Teardown]  Run  rm -rf ./6-17-Configure-TLS/new-bar-certs
