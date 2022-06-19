@@ -1,0 +1,11 @@
+# By default, packages in lib should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# lib/migration also depends on lib/config
+^lib/config/*
+
+# lib/migration/plugins also depend other lib/migration sub-packages
+^lib/migration/errors/*
+^lib/migration/feature/*
+^lib/migration/manager/*

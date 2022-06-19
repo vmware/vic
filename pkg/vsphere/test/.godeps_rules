@@ -1,0 +1,12 @@
+# By default, packages in pkg should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# TODO[#8300]: pkg/vsphere/session/session.go currently depends on lib/config, but should not
+^lib/config/*
+^lib/config/executor/*
+^lib/migration/feature/*
+
+# TODO[#8301]: pkg/vsphere/test/test.go currently depends on lib/spec, but should not
+^lib/constants/*
+^lib/spec/*

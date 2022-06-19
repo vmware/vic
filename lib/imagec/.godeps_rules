@@ -1,0 +1,13 @@
+# By default, packages in lib should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# lib/imagec depends on several other lib packages
+^lib/apiservers/engine/backends/*
+^lib/apiservers/portlayer/client/*
+^lib/apiservers/portlayer/models/*
+^lib/constants/*
+^lib/metadata/*
+
+# TODO[#8299]: pkg/version depends on lib/migration/feature
+^lib/migration/feature/*

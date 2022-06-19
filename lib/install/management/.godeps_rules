@@ -1,0 +1,28 @@
+# By default, packages in lib should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# All lib/install sub-packages can depend on lib/config (which in turn depends on lib/migration/feature)
+^lib/config/*
+^lib/config/executor/*
+^lib/migration/feature/*
+
+# lib/install/management also depends on other libraries
+^lib/constants/*
+^lib/etcconf/*
+^lib/migration/*
+^lib/spec/*
+^lib/system/*
+^lib/tether/shared/*
+
+# lib/install/management also depends on other lib/install sub-packages
+^lib/install/data/*
+^lib/install/opsuser/*
+^lib/install/validate/*
+^lib/install/vchlog/*
+
+# TODO[#8303]: lib/install/management also depends on portlayer utilities
+^lib/portlayer/util/*
+
+# TODO[#8296]: lib/install/management also depends on code from cmd/vic-machine/common, but it should not
+^cmd/vic-machine/common/*

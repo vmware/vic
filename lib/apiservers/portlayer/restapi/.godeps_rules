@@ -1,0 +1,25 @@
+# By default, packages in lib should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# lib/apiservers/portlayer/restapi depends on several other lib packages
+^lib/apiservers/portlayer/models/*
+^lib/apiservers/portlayer/restapi/operations/*
+^lib/archive/*
+^lib/config/*
+^lib/constants/*
+^lib/iolog/*
+^lib/migration/*
+^lib/portlayer/*
+^lib/tether/shared/*
+
+# lib/portlayer also depends on several other lib packages
+^lib/guest/*
+^lib/spec/*
+^lib/tether/msgs/*
+
+# lib/tether/shared also depends on lib/system
+^lib/system/*
+
+# lib/system also depends on lib/etcconf
+^lib/etcconf/*

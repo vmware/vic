@@ -1,0 +1,6 @@
+# By default, packages in pkg should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# TODO[#8299]: pkg/version/version.go currently depends on lib/migration/feature, but should not
+^lib/migration/feature/*

@@ -1,0 +1,6 @@
+# By default, packages in lib should depend only on packages under pkg or vendor
+#^pkg/*
+^vendor/*
+
+# service API operations may reference service API model objects
+^lib/apiservers/service/models/*

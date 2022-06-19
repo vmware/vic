@@ -1,0 +1,29 @@
+# By default, packages in lib should depend only on packages under pkg or vendor
+^pkg/*
+^vendor/*
+
+# lib/apiservers/service and handler code can depend on models, operations, and
+# utility subpackages
+^lib/apiservers/service/models/*
+^lib/apiservers/service/restapi/operations/*
+^lib/apiservers/service/restapi/handlers/client/*
+^lib/apiservers/service/restapi/handlers/errors/*
+
+# lib/apiservers/service depends on lib/install and its subpackages
+^lib/install/*
+
+# lib/apiservers/service also depends on lib packages
+^lib/config/*
+^lib/constants/*
+
+# lib/install/* also depends on lib packages
+^lib/etcconf/*
+^lib/migration/*
+^lib/portlayer/util/*
+^lib/spec/*
+^lib/system/*
+^lib/tether/shared/*
+
+# TODO[#8295]: lib/apiservers/service handlers depend on code from vic-machine
+^cmd/vic-machine/common/*
+^cmd/vic-machine/create/*
