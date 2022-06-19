@@ -73,6 +73,7 @@ func (u *UserSessionStore) Delete(id string) {
 	us := u.sessions[id]
 	if us != nil && us.vsphere != nil {
 		log.Infof("Logging out vSphere session for %s", id)
+		// #nosec: Errors unhandled.
 		us.vsphere.Logout(context.Background())
 	}
 

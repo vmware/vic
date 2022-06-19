@@ -99,7 +99,7 @@ func getEndpoint(component PprofPort, debug int) *url.URL {
 	return endpoint
 }
 
-func StartPprof(name string, component PprofPort) error {
+func StartPprof(name string, component PprofPort) {
 	go func() {
 		url := getEndpoint(component, debugLevel)
 		if url == nil {
@@ -117,5 +117,5 @@ func StartPprof(name string, component PprofPort) error {
 		log.Info(http.ListenAndServe(location, nil))
 	}()
 
-	return nil
+	return
 }

@@ -37,6 +37,7 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 	s := session.NewSession(config)
 	_, err := s.Connect(ctx)
 	if err != nil {
+		// #nosec: Errors unhandled.
 		s.Client.Logout(ctx)
 		t.Log(err.Error())
 		t.SkipNow()

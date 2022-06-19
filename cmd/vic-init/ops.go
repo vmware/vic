@@ -49,7 +49,8 @@ func (t *operations) Setup(sink tether.Config) error {
 		return err
 	}
 
-	return pprof.StartPprof("vch-init", pprof.VCHInitPort)
+	pprof.StartPprof("vch-init", pprof.VCHInitPort)
+	return nil
 }
 
 func (t *operations) Cleanup() error {

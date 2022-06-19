@@ -53,6 +53,7 @@ func init() {
 func main() {
 	defer func() {
 		if r := recover(); r != nil {
+			// #nosec: Errors unhandled.
 			fmt.Fprintf(os.Stderr, fmt.Sprintf("%s : %s", r, debug.Stack()))
 		}
 	}()
