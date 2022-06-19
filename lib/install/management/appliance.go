@@ -673,6 +673,8 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	)
 
 	cfg := &executor.SessionConfig{
+		User:    "vicadmin",
+		Group:   "vicadmin",
 		Cmd: executor.Cmd{
 			Path: "/sbin/port-layer-server",
 			Args: []string{
