@@ -176,6 +176,7 @@ pipeline:
       - 'cp $BIN/vic-machine* $BIN_TEMP_DIR'
       - 'cp $BIN/appliance.iso $BIN_TEMP_DIR'
       - 'cp $BIN/bootstrap.iso $BIN_TEMP_DIR'
+      - 'cp $BIN/bootstrap-centos-6.9.iso $BIN_TEMP_DIR'
       - 'mkdir -p $BIN_TEMP_DIR/autocomplete/bash'
       - 'cp infra/scripts/bash_autocomplete $BIN_TEMP_DIR/autocomplete/bash/vic-machine-darwin'
       - 'cp infra/scripts/bash_autocomplete $BIN_TEMP_DIR/autocomplete/bash/vic-machine-linux'
