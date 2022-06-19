@@ -157,18 +157,6 @@ Attempt To Create Resource Pool
     Should Contain  ${output}  Permission to perform this operation was denied
 
 *** Test Cases ***
-vic-machine create grants ops-user perms
-    Install VIC Appliance To Test Server  additional-args=--ops-user ${ops_user_name} --ops-password ${ops_user_password} --ops-grant-perms
-
-    # Run a govc test to check that access is denied on some resources
-    Attempt To Disable DRS
-
-    Run Regression Tests
-
-    Run privilege-dependent docker operations
-
-    [Teardown]  Cleanup VIC Appliance On Test Server
-
 granted ops-user perms work after upgrade
     [Tags]  vsphere70-not-support
     Install VIC with version to Test Server  v1.4.0  additional-args=--ops-user ${ops_user_name} --ops-password ${ops_user_password} --ops-grant-perms
@@ -183,30 +171,3 @@ granted ops-user perms work after upgrade
     Run Regression Tests
 
     Run privilege-dependent docker operations
-
-    [Teardown]  Cleanup VIC Appliance On Test Server
-
-Test with VM-Host Affinity
-    Log To Console  \nStarting test...
-    Install VIC Appliance To Test Server  additional-args=--ops-user ${ops_user_name} --ops-password ${ops_user_password} --ops-grant-perms --affinity-vm-group
-
-    # Run a govc test to check that access is denied on some resources
-    Attempt To Create Resource Pool
-
-    Run Regression Tests
-
-    Run privilege-dependent docker operations
-
-    [Teardown]  Cleanup VIC Appliance On Test Server
-
-vic-machine configure grants ops-user perms
-    Install VIC Appliance To Test Server
-
-    Reconfigure VCH With Ops User
-
-    # Run a govc test to check that access is denied on some resources
-    Attempt To Disable DRS
-
-    Run privilege-dependent docker operations
-
-    [Teardown]  Cleanup VIC Appliance On Test Server
