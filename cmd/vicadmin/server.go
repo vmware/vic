@@ -518,7 +518,7 @@ func (s *server) tarDefaultLogs(res http.ResponseWriter, req *http.Request) {
 func (s *server) zipDefaultLogs(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 
-	s.bundleContainerLogs(res, req, formatTGZ, false)
+	s.bundleContainerLogs(res, req, formatZip, false)
 }
 
 func (s *server) bundleLogs(res http.ResponseWriter, req *http.Request, readers map[string]entryReader, f format) {
