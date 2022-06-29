@@ -158,6 +158,7 @@ pipeline:
     volumes:
       - /tmp
     when:
+      event: [push]
       status: success
 
   bundle:
