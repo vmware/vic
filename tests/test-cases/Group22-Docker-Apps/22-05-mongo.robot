@@ -21,7 +21,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Keywords ***
 Check mongo container
     [Arguments]  ${ip}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --rm mongo sh -c 'mongo "${ip}/27017" --quiet --eval "db.adminCommand( { listDatabases: 1 } )"'
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --rm mongo:3 sh -c 'mongo "${ip}/27017" --quiet --eval "db.adminCommand( { listDatabases: 1 } )"'
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  "name" : "admin"
@@ -29,7 +29,7 @@ Check mongo container
 
 *** Test Cases ***
 Simple background mongo
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name mongo1 -d mongo
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name mongo1 -d mongo:3
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${ip}=  Get IP Address of Container  mongo1
