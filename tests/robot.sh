@@ -18,6 +18,7 @@
 # ./tests/robot.sh tests/test-cases/Group6-VIC-Machine/6-04-Create-Basic.robot
 
 export GITHUB_TOKEN=''
+
 export GOVC_URL=root:password@1.1.1.1
 export GOVC_URL_HOST=1.1.1.1
 export GOVC_USERNAME=root
