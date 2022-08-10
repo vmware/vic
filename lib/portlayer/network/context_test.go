@@ -346,7 +346,6 @@ func TestContextNewScope(t *testing.T) {
 
 		if err != nil {
 			t.Fatalf("got: %s, expected: nil", err)
-			continue
 		}
 
 		setCalls++
@@ -359,7 +358,6 @@ func TestContextNewScope(t *testing.T) {
 
 		if s.Type() != te.out.scopeType {
 			t.Fatalf("s.Type() => %s, want %s", s.Type(), te.out.scopeType)
-			continue
 		}
 
 		if s.Name() != te.out.name {
@@ -385,13 +383,11 @@ func TestContextNewScope(t *testing.T) {
 
 			if !found {
 				t.Fatalf("s.DNS() => %q, want %q", s.DNS(), te.out.dns)
-				break
 			}
 		}
 
 		if s.Type() == constants.BridgeScopeType && s.Network() != testBridgeNetwork {
 			t.Fatalf("s.NetworkName => %v, want %s", s.Network(), testBridgeNetwork)
-			continue
 		}
 
 		hasPools := len(te.in.pools) > 0
@@ -491,12 +487,10 @@ func TestScopes(t *testing.T) {
 		if te.out == nil {
 			if err == nil {
 				t.Fatalf("Scopes() => (_, nil), want (_, err)")
-				continue
 			}
 		} else {
 			if err != nil {
 				t.Fatalf("Scopes() => (_, %s), want (_, nil)", err)
-				continue
 			}
 		}
 
@@ -504,12 +498,10 @@ func TestScopes(t *testing.T) {
 		if te.in == nil {
 			if len(l) != len(te.out)+5 {
 				t.Fatalf("len(scopes) => %d != %d", len(l), len(te.out)+5)
-				continue
 			}
 		} else {
 			if len(l) != len(te.out) {
 				t.Fatalf("len(scopes) => %d != %d", len(l), len(te.out))
-				continue
 			}
 		}
 
@@ -524,7 +516,6 @@ func TestScopes(t *testing.T) {
 
 			if !found {
 				t.Fatalf("got=%v, want=%v", l, te.out)
-				break
 			}
 		}
 	}

@@ -220,7 +220,6 @@ func TestMain(m *testing.M) {
 	// replace the Sys variable with a mock
 	r, err := ioutil.TempDir("", "tether-root")
 	if err != nil {
-		os.Exit(1)
 		log.Fatalf("Failed to create tmpdir for test root filesytem: %s", err)
 	}
 

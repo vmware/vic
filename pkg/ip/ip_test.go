@@ -36,7 +36,6 @@ func TestRangeMarshalText(t *testing.T) {
 		b, err := te.ipr.MarshalText()
 		if te.err != nil && err == nil {
 			t.Fatalf("MarshalText() => (%v, nil) want (nil, err)", b)
-			continue
 		}
 
 		if string(b) != te.s {
