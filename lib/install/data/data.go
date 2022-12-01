@@ -127,6 +127,8 @@ type InstallerData struct {
 	ResourcePoolPath       string
 	ApplianceInventoryPath string
 
+	MaxConcurrentConnections *int
+
 	Datacenter types.ManagedObjectReference
 	Cluster    types.ManagedObjectReference
 
@@ -376,6 +378,8 @@ func (d *Data) CopyNonEmpty(src *Data) error {
 	d.SyslogConfig = src.SyslogConfig
 
 	d.ContainerConfig.ContainerNameConvention = src.ContainerConfig.ContainerNameConvention
+
+	d.MaxConcurrentConnections = src.MaxConcurrentConnections
 
 	return nil
 }

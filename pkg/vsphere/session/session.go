@@ -21,7 +21,6 @@
 // each corresponding value in Config. The Session is returned and
 // the user can use the cached govmomi objects in the exported fields of
 // Session instead of directly using a govmomi Client.
-//
 package session
 
 import (
@@ -45,13 +44,13 @@ import (
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/constants"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 const (
-	defaultMaxInFlight  = 32
 	tlsHandshakeTimeout = 30 * time.Second
 )
 
@@ -69,6 +68,7 @@ type Config struct {
 	Thumbprint string
 	// Keep alive duration
 	Keepalive time.Duration
+	// Maximum
 	// User-Agent to identify login sessions (see: govc session.ls)
 	UserAgent string
 
@@ -232,9 +232,9 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 
 	soapClient.SetThumbprint(soapURL.Host, s.Thumbprint)
 
-	maxInFlight := defaultMaxInFlight
+	maxInFlight := constants.DefaultMaxConcurrentRequests
 	if e := os.Getenv("VIC_MAX_IN_FLIGHT"); e != "" {
-		if i, err := strconv.Atoi(e); err == nil {
+		if i, err := strconv.Atoi(e); err == nil && i > 0 {
 			maxInFlight = i
 		}
 	}

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -212,6 +213,11 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 		updateSessionEnv(portlayerSession, config.PortLayerCSPath, v.Session().Cluster.InventoryPath)
 		updateSessionEnv(portlayerSession, config.PortLayerPoolPath, v.Session().PoolPath)
 		updateSessionEnv(portlayerSession, config.PortLayerDCPath, v.Session().Datacenter.Name())
+	}
+
+	// if mcc is explicitly set, apply it
+	if c.Data.MaxConcurrentConnections != nil {
+		updateSessionEnv(portlayerSession, config.PortLayerMaxConcurrentConnections, strconv.Itoa(*c.Data.MaxConcurrentConnections))
 	}
 
 	if c.Debug.Debug != nil {

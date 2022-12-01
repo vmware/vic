@@ -119,7 +119,8 @@ type ExitLog struct {
 // MountSpec details a mount that must be executed within the executor
 // A mount is a URI -> path mapping with a credential of some kind
 // In the case of a labeled disk:
-// 	label://<label name> => </mnt/path>
+//
+//	label://<label name> => </mnt/path>
 type MountSpec struct {
 	// A URI->path mapping, e.g.
 	// May contain credentials
@@ -281,6 +282,40 @@ type SessionConfig struct {
 	// Detail contains create/started/stopped timestamps. It is placed last in the structure so that all
 	// other state serialization is complete by the time this is updated when iterating in order.
 	Detail `vic:"0.1" scope:"read-write" key:"detail"`
+}
+
+// GetEnv returns
+// * the value of the specified environment variable if present
+// * nil if not present
+func (sc *SessionConfig) GetEnv(name string) *string {
+	if sc == nil {
+		return nil
+	}
+
+	for _, env := range sc.Cmd.Env {
+		if strings.HasPrefix(env, name+"=") {
+			val := strings.TrimPrefix(env, name+"=")
+			return &val
+		}
+	}
+
+	return nil
+}
+
+// SetEnv sets the value of the specified environment variable, returning:
+// * the old value if present
+// * nil if not present
+func (sc *SessionConfig) SetEnv(name, value string) *string {
+	for i, env := range sc.Cmd.Env {
+		if strings.HasPrefix(env, name+"=") {
+			sc.Cmd.Env[i] = name + "=" + value
+			val := strings.TrimPrefix(env, name+"=")
+			return &val
+		}
+	}
+
+	sc.Cmd.Env = append(sc.Cmd.Env, name+"="+value)
+	return nil
 }
 
 type Detail struct {

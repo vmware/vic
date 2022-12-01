@@ -719,6 +719,8 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 
 	vConfig.Timeout = c.Data.Timeout
 
+	vConfig.MaxConcurrentConnections = c.MaxConcurrentConnections
+
 	// separate initial validation from dispatch of creation task
 	op.Info("")
 
