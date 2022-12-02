@@ -133,7 +133,7 @@ func (v *VolumeLookupCache) VolumeCreate(op trace.Operation, ID string, store *u
 
 	// TODO: construct a proper async cache
 	// this is done because this path was blocking any concurrent volume create
-	v.vlc[ID] = Volume{
+	v.vlc[ID] = volume.Volume{
 		ID: "pending",
 	}
 

@@ -36,7 +36,7 @@ type batchMember struct {
 
 // lazyDeviceChange adds a lazy deferral mechanism for device change operations (specifically disk at this time).
 // This is due to the fact that reconfigure operations are unintentionally serializing parallel operations and
-// causing performance impacts (concurrent volume create as a primary example which impacts concurrent contianer start if
+// causing performance impacts (concurrent volume create as a primary example which impacts concurrent container start if
 // there are anonymous volumes - worse if there are multiple volumes per container)
 func lazyDeviceChange(ctx context.Context, batch chan batchMember, operation func(operation trace.Operation, data []interface{}) error) {
 	op := trace.FromContext(ctx, "Lazy batching of disk operations")

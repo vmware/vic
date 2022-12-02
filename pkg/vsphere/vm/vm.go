@@ -1061,7 +1061,11 @@ func (vm *VirtualMachine) Device(op trace.Operation) (object.VirtualDeviceList, 
 		return nil, err
 	}
 
-	// TODO: consider whether we need to duplicate this list for each caller
+	if shared {
+		// TODO: consider whether we need to duplicate this list for each caller
+		return devlist.(object.VirtualDeviceList), nil
+	}
+
 	return devlist.(object.VirtualDeviceList), nil
 }
 
