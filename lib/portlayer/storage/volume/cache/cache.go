@@ -31,6 +31,10 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
+// pendingID is used as the ID inside a Volume before the ID is known. This is used to allow concurrent
+// volume creation
+const pendingID string = "pending"
+
 // VolumeLookupCache caches Volume references to volumes in the system.
 type VolumeLookupCache struct {
 
@@ -131,10 +135,25 @@ func (v *VolumeLookupCache) VolumeCreate(op trace.Operation, ID string, store *u
 		return nil, os.ErrExist
 	}
 
+	// if we exit this function without having replaced the placeholder Volume in the cache
+	// there was an error and we should delete the placeholder so a subsequent attempt at the
+	// same ID can proceed.
+	defer func() {
+		v.vlcLock.Lock()
+
+		vol, ok := v.vlc[ID]
+		if ok {
+			if vol.ID == pendingID {
+				delete(v.vlc, ID)
+			}
+		}
+		v.vlcLock.Unlock()
+	}()
+
 	// TODO: construct a proper async cache
 	// this is done because this path was blocking any concurrent volume create
 	v.vlc[ID] = volume.Volume{
-		ID: "pending",
+		ID: pendingID,
 	}
 
 	v.vlcLock.Unlock()
@@ -149,7 +168,7 @@ func (v *VolumeLookupCache) VolumeCreate(op trace.Operation, ID string, store *u
 		return nil, err
 	}
 
-	// Add it to the cache
+	// Replace the pending entry with the actual entry
 	v.vlcLock.Lock()
 	v.vlc[ID] = *vol
 	v.vlcLock.Unlock()

@@ -93,6 +93,8 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 			&types.OptionValue{Key: "disk.EnableUUID", Value: "true"},
 			// needed to avoid the questions that occur when attaching multiple disks with the same uuid (bugzilla 1362918)
 			&types.OptionValue{Key: "answer.msg.disk.duplicateUUID", Value: "Yes"},
+			// if we hit out of space errors then ensure we don't block other operations - observed during testing parallel anonymous volume create
+			&types.OptionValue{Key: "answer.msg.hbacommon.outofspace", Value: "Cancel"},
 			// needed to avoid the question that occur when opening a file backed serial port
 			&types.OptionValue{Key: "answer.msg.serial.file.open", Value: "Append"},
 

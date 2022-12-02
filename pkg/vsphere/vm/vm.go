@@ -689,7 +689,7 @@ func (vm *VirtualMachine) IsInvalidState(ctx context.Context) bool {
 func (vm *VirtualMachine) WaitForResult(ctx context.Context, f func(context.Context) (tasks.Task, error)) (*types.TaskInfo, error) {
 	op := trace.FromContext(ctx, "WaitForResult")
 
-	info, err := tasks.WaitForResult(op, f)
+	info, err := tasks.WaitForResultAndRetryIf(op, f, tasks.IsTransientError)
 	if err == nil || !vm.needsFix(op, err) {
 		return info, err
 	}

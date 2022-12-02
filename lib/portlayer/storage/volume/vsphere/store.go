@@ -118,7 +118,15 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO: handle the error that can come back from detach - if we hit this path nothing is going to attempt to detach this disk.
+	// That will mean:
+	// * the disk cannot be attached to a container (assuming it was prepped correctly)
+	// * we've leaked one of the limited number of disks that can be attached to the VCH at a time
+	// v.Detach has been modified to use async batching, so likely requires more structural revision, eg. a disk manager thread
+	// responsible for detach that this specific functional path can confidently delegate to instead of trying to handle inline.
 	defer v.Detach(op, vmdisk.VirtualDiskConfig)
+
 	vol, err := volume.NewVolume(store, ID, info, vmdisk, executor.CopyNew)
 	if err != nil {
 		return nil, err
@@ -149,7 +157,7 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 		return nil, err
 	}
 
-	op.Infof("volumestore: %s (%s)", ID, vol.SelfLink)
+	op.Infof("VolumeStore: %s (%s)", ID, vol.SelfLink)
 	return vol, nil
 }
 
