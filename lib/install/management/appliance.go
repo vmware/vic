@@ -383,7 +383,16 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 			MemoryMB:           memory,
 			// Encode the config both here and after the VMs created so that it can be identified as a VCH appliance as soon as
 			// creation is complete.
-			ExtraConfig: append(vmomi.OptionValueFromMap(cfg, true), &types.OptionValue{Key: "answer.msg.serial.file.open", Value: "Append"}),
+			ExtraConfig: append(
+				vmomi.OptionValueFromMap(cfg, true),
+				// if we hit out of space errors then ensure we don't block other operations - observed during testing parallel anonymous volume create
+				// tried Cancel initially but that results in the following in vmware.log for the VM. Hopefully retry is more useful for us
+				// 2022-12-03T00:10:30.208Z In(05) vmx - MsgQuestion: msg.hbacommon.outofspace reply=1
+				// 2022-12-03T00:10:30.208Z Cr(01) vmx - PANIC: Exiting because of failed disk operation.
+				&types.OptionValue{Key: "answer.msg.hbacommon.outofspace", Value: "Retry"},
+				// needed to avoid the question that occur when opening a file backed serial port - this will happen all the time given our logging mechanism
+				&types.OptionValue{Key: "answer.msg.serial.file.open", Value: "Append"},
+			),
 		},
 	}
 

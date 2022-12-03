@@ -26,6 +26,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/sync/singleflight"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25/methods"
@@ -45,6 +47,9 @@ const (
 	DestroyTask  = "Destroy_Task"
 	UpdateStatus = "UpdateInProgress"
 )
+
+// deduplication of calls to update device list
+var deviceGroup singleflight.Group
 
 type InvalidState struct {
 	r types.ManagedObjectReference
@@ -684,7 +689,7 @@ func (vm *VirtualMachine) IsInvalidState(ctx context.Context) bool {
 func (vm *VirtualMachine) WaitForResult(ctx context.Context, f func(context.Context) (tasks.Task, error)) (*types.TaskInfo, error) {
 	op := trace.FromContext(ctx, "WaitForResult")
 
-	info, err := tasks.WaitForResult(op, f)
+	info, err := tasks.WaitForResultAndRetryIf(op, f, tasks.IsTransientError)
 	if err == nil || !vm.needsFix(op, err) {
 		return info, err
 	}
@@ -695,7 +700,13 @@ func (vm *VirtualMachine) WaitForResult(ctx context.Context, f func(context.Cont
 		return info, err
 	}
 	op.Debug("Fixed")
-	return tasks.WaitForResult(op, f)
+
+	taskInfo, err := tasks.WaitForResult(op, f)
+
+	// TODO: only really needed after a reconfigure operation
+	deviceGroup.Forget(vm.Reference().String())
+
+	return taskInfo, err
 }
 
 func (vm *VirtualMachine) Properties(ctx context.Context, r types.ManagedObjectReference, ps []string, o *mo.VirtualMachine) error {
@@ -1037,6 +1048,25 @@ func (vm *VirtualMachine) InCluster(op trace.Operation) bool {
 	cls := vm.Cluster.Reference().Type == "ClusterComputeResource"
 	op.Debugf("vm compute resource: %s", vm.Cluster.Name())
 	return cls
+}
+
+func (vm *VirtualMachine) Device(op trace.Operation) (object.VirtualDeviceList, error) {
+	devices := func() (interface{}, error) {
+		return vm.VirtualMachine.Device(op)
+	}
+
+	// TODO: do we need to call Forget during Reconfigure?
+	devlist, err, shared := deviceGroup.Do(vm.Reference().String(), devices)
+	if err != nil || devlist == nil {
+		return nil, err
+	}
+
+	if shared {
+		// TODO: consider whether we need to duplicate this list for each caller
+		return devlist.(object.VirtualDeviceList), nil
+	}
+
+	return devlist.(object.VirtualDeviceList), nil
 }
 
 // IsAlreadyPoweredOffError is an accessor method because of the number of times package name and

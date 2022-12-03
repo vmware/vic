@@ -31,6 +31,10 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
+// pendingID is used as the ID inside a Volume before the ID is known. This is used to allow concurrent
+// volume creation
+const pendingID string = "pending"
+
 // VolumeLookupCache caches Volume references to volumes in the system.
 type VolumeLookupCache struct {
 
@@ -122,13 +126,37 @@ func (v *VolumeLookupCache) VolumeStoresList(op trace.Operation) ([]string, erro
 
 func (v *VolumeLookupCache) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*volume.Volume, error) {
 	v.vlcLock.Lock()
-	defer v.vlcLock.Unlock()
 
 	// check if it exists
 	_, ok := v.vlc[ID]
 	if ok {
+		v.vlcLock.Unlock()
+		// TODO: make this block until success/fail is known
 		return nil, os.ErrExist
 	}
+
+	// if we exit this function without having replaced the placeholder Volume in the cache
+	// there was an error and we should delete the placeholder so a subsequent attempt at the
+	// same ID can proceed.
+	defer func() {
+		v.vlcLock.Lock()
+
+		vol, ok := v.vlc[ID]
+		if ok {
+			if vol.ID == pendingID {
+				delete(v.vlc, ID)
+			}
+		}
+		v.vlcLock.Unlock()
+	}()
+
+	// TODO: construct a proper async cache
+	// this is done because this path was blocking any concurrent volume create
+	v.vlc[ID] = volume.Volume{
+		ID: pendingID,
+	}
+
+	v.vlcLock.Unlock()
 
 	vs, err := v.volumeStore(store)
 	if err != nil {
@@ -136,11 +164,14 @@ func (v *VolumeLookupCache) VolumeCreate(op trace.Operation, ID string, store *u
 	}
 
 	vol, err := vs.VolumeCreate(op, ID, store, capacityKB, info)
-	if err != nil {
+	if err != nil || vol == nil {
 		return nil, err
 	}
-	// Add it to the cache.
-	v.vlc[vol.ID] = *vol
+
+	// Replace the pending entry with the actual entry
+	v.vlcLock.Lock()
+	v.vlc[ID] = *vol
+	v.vlcLock.Unlock()
 
 	return vol, nil
 }
@@ -194,6 +225,10 @@ func (v *VolumeLookupCache) VolumesList(op trace.Operation) ([]*volume.Volume, e
 	// look in the cache, return the list
 	l := make([]*volume.Volume, 0, len(v.vlc))
 	for _, vol := range v.vlc {
+		if vol.ID == "pending" {
+			continue
+		}
+
 		// this is idiotic
 		var e volume.Volume
 		e = vol

@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/google/uuid"
@@ -95,7 +96,7 @@ var SupportedVolDrivers = map[string]struct{}{
 	"local":   {},
 }
 
-//Validation pattern for Volume Names
+// Validation pattern for Volume Names
 var volumeNameRegex = regexp.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
 
 func NewStorageProxy(client *client.PortLayer) VicStorageProxy {
@@ -248,6 +249,7 @@ func (s *StorageProxy) Remove(ctx context.Context, name string) error {
 // - imageID is the current label by which we address this image and is recorded as metadata
 // - repoName is the repository for the image and is recorded as metadata
 // returns:
+//
 //	modified handle
 func (s *StorageProxy) AddImageToContainer(ctx context.Context, handle, deltaID, layerID, imageID string, config types.ContainerCreateConfig) (string, error) {
 	op := trace.FromContext(ctx, "AddImageToContainer: %s", deltaID)
@@ -299,6 +301,7 @@ func (s *StorageProxy) AddImageToContainer(ctx context.Context, handle, deltaID,
 // If an error is returned, the returned handle should not be used.
 //
 // returns:
+//
 //	modified handle
 func (s *StorageProxy) AddVolumesToContainer(ctx context.Context, handle string, config types.ContainerCreateConfig) (string, error) {
 	op := trace.FromContext(ctx, "AddVolumesToContainer: %s", handle)
@@ -340,33 +343,52 @@ func (s *StorageProxy) AddVolumesToContainer(ctx context.Context, handle string,
 		}
 	}
 
-	// Create and join volumes.
+	// Create volumes in parallel
+	results := make(chan error, len(volList))
+	wg := sync.WaitGroup{}
+	wg.Add(len(volList))
 	for _, fields := range volList {
-		// We only set these here for volumes made on a docker create
-		volumeData := make(map[string]string)
-		volumeData[DriverArgFlagKey] = fields.Flags
-		volumeData[DriverArgContainerKey] = config.Name
-		volumeData[DriverArgImageKey] = config.Config.Image
+		go func(id, flags string) {
+			defer wg.Done()
 
-		// NOTE: calling volumeCreate regardless of whether the volume is already
-		// present can be avoided by adding an extra optional param to VolumeJoin,
-		// which would then call volumeCreate if the volume does not exist.
-		_, err := s.volumeCreate(op, fields.ID, "vsphere", volumeData, nil)
-		if err != nil {
+			// We only set these here for volumes made on a docker create
+			volumeData := make(map[string]string)
+			volumeData[DriverArgFlagKey] = flags
+			volumeData[DriverArgContainerKey] = config.Name
+			volumeData[DriverArgImageKey] = config.Config.Image
+
+			// NOTE: calling volumeCreate regardless of whether the volume is already
+			// present can be avoided by adding an extra optional param to VolumeJoin,
+			// which would then call volumeCreate if the volume does not exist.
+			_, err := s.volumeCreate(op, id, "vsphere", volumeData, nil)
+			if err == nil {
+				log.Infof("volumeCreate succeeded. Volume mount section ID: %s", id)
+				return
+			}
+
 			switch err := err.(type) {
 			case *storage.CreateVolumeConflict:
 				// Implicitly ignore the error where a volume with the same name
 				// already exists. We can just join the said volume to the container.
-				log.Infof("a volume with the name %s already exists", fields.ID)
+				log.Infof("a volume with the name %s already exists", id)
 			case *storage.CreateVolumeNotFound:
-				return handle, errors.VolumeCreateNotFoundError(volumeStore(volumeData))
+				results <- errors.VolumeCreateNotFoundError(volumeStore(volumeData))
 			default:
-				return handle, errors.InternalServerError(err.Error())
+				results <- errors.InternalServerError(err.Error())
 			}
-		} else {
-			log.Infof("volumeCreate succeeded. Volume mount section ID: %s", fields.ID)
-		}
+		}(fields.ID, fields.Flags)
+	}
 
+	wg.Wait()
+	if len(results) > 0 {
+		// TODO: should we attempt to do anything with errors other than the first?
+		// given we're not logging errors at this point prior to the parallelization I don't
+		// think it's needed.
+		return handle, <-results
+	}
+
+	// Attach volumes.
+	for _, fields := range volList {
 		flags := make(map[string]string)
 		//NOTE: for now we are passing the flags directly through. This is NOT SAFE and only a stop gap.
 		flags[constants.Mode] = fields.Flags

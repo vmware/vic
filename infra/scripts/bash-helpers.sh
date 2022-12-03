@@ -30,7 +30,7 @@ fi
 # 1: release numnber, e.g. 1.4.1 or 1.4.1-rc2, or build id, e.g. 19653
 vic-set-version () {
     version="$1"
-    
+
     if [ "$1" == "" ]; then
         unset VIC_VERSION
         return
@@ -63,7 +63,7 @@ init-profile () {
 
 unset-vic () {
     unset TARGET_URL MAPPED_NETWORKS NETWORKS IMAGE_STORE DATASTORE COMPUTE VOLUME_STORES IPADDR TLS THUMBPRINT OPS_CREDS VIC_NAME PRESERVE_VOLUMES
-    unset GOVC_URL GOVC_INSECURE GOVC_DATACENTER GOVC_USERNAME GOVC_PASSWORD GOVC_DATASTORE GOVC_CERTIFICATE 
+    unset GOVC_URL GOVC_INSECURE GOVC_DATACENTER GOVC_USERNAME GOVC_PASSWORD GOVC_DATASTORE GOVC_CERTIFICATE
 
     unset vsphere datacenter user password opsuser opspass opsgrant timeout compute datastore dns publicNet publicIP publicGW bridgeNet bridgeRange
     unset clientNet clientIP clientGW managementNet managementIP managementGW tls volumestores preserveVolumestores containernet
@@ -79,7 +79,7 @@ vic-create () {
     base=$(pwd)
     (
         cd "$(vic-path)"/bin || return
-        "$(vic-path)/bin/${VIC_VERSION}/vic-machine-$OS" create --target="$TARGET_URL" "${OPS_CREDS[@]}" --image-store="$IMAGE_STORE" --compute-resource="$COMPUTE" "${TLS[@]}" ${TLS_OPTS} --name="${VIC_NAME:-${USER}test}" "${MAPPED_NETWORKS[@]}" "${VOLUME_STORES[@]}" "${NETWORKS[@]}" ${IPADDR} ${TIMEOUT} --thumbprint="$THUMBPRINT" --ai="${VIC_VERSION}/appliance.iso" --bi="${VIC_VERSION}/bootstrap.iso" "$@"
+        "$(vic-path)/bin/${VIC_VERSION}/vic-machine-$OS" create --target="$TARGET_URL" "${OPS_CREDS[@]}" --image-store="$IMAGE_STORE" --compute-resource="$COMPUTE" "${TLS[@]}" ${TLS_OPTS} --name="${VIC_NAME:-${USER}test}" "${MAPPED_NETWORKS[@]}" "${VOLUME_STORES[@]}" "${NETWORKS[@]}" ${IPADDR} --timeout=${TIMEOUT} --thumbprint="$THUMBPRINT" --ai="${VIC_VERSION}/appliance.iso" --bi="${VIC_VERSION}/bootstrap.iso" "$@"
     )
 
     vic-select

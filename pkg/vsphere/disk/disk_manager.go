@@ -35,9 +35,10 @@ import (
 )
 
 const (
-	// You can assign the device to (1:z ), where 1 is SCSI controller 1 and z is a virtual device node from 0 to 15.
+	// You can assign the device to (1:z ), where 1 is SCSI controller 1 and z is a virtual device node from 0 to 14.
 	// https://pubs.vmware.com/vsphere-65/index.jsp#com.vmware.vsphere.vm_admin.doc/GUID-5872D173-A076-42FE-8D0B-9DB0EB0E7362.html
-	MaxAttachedDisks = 16
+	// From vSphere 6.7 the pvscsi limit is increased to 64 so we should make this number dynamic based on backend version
+	MaxAttachedDisks = 15
 )
 
 // Manager manages disks for the vm it runs on.  The expectation is this is run
@@ -69,8 +70,12 @@ type Manager struct {
 
 	// map of URIs to VirtualDisk structs so that we can return the same instance to the caller, required for ref counting
 	Disks map[uint64]*VirtualDisk
+
 	// used for locking the disk cache
 	disksLock sync.Mutex
+
+	// device batching queue
+	batchQueue chan batchMember
 }
 
 // NewDiskManager creates a new Manager instance associated with the caller VM
@@ -89,7 +94,10 @@ func NewDiskManager(op trace.Operation, session *session.Session, v *view.Contai
 		return nil, err
 	}
 
-	return &Manager{
+	// start the batching code
+	// TODO: can probably make this a lazy trigger from the queue function so that we will
+	// restart it implicitly if it dies
+	manager := &Manager{
 		maxAttached:  make(chan bool, MaxAttachedDisks),
 		vm:           vm,
 		vdMngr:       object.NewVirtualDiskManager(vm.Vim25()),
@@ -97,7 +105,12 @@ func NewDiskManager(op trace.Operation, session *session.Session, v *view.Contai
 		controller:   controller,
 		byPathFormat: byPathFormat,
 		Disks:        make(map[uint64]*VirtualDisk),
-	}, nil
+		batchQueue:   make(chan batchMember, MaxBatchSize),
+	}
+
+	go lazyDeviceChange(trace.NewOperation(op, "lazy disk dispatcher"), manager.batchQueue, manager.dequeueBatch)
+
+	return manager, nil
 }
 
 // toSpec converts the given config to VirtualDisk spec
@@ -181,7 +194,7 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 	// if it is then it's indicative of an error because it wasn't found in the cache, but this lets us recover
 	_, ferr := findDiskByFilename(op, m.vm, d.DatastoreURI.String(), d.IsPersistent())
 	if os.IsNotExist(ferr) {
-		if err := m.attach(op, config); err != nil {
+		if err := m.attach(op, config, nil); err != nil {
 			return nil, errors.Trace(err)
 		}
 	} else {
@@ -205,7 +218,7 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 			op.Debugf("findDiskByFilename(%s) failed with %s", d.DatastoreURI, errors.ErrorStack(findErr))
 		}
 
-		if detachErr := m.detach(op, disk); detachErr != nil {
+		if detachErr := m.detach(op, disk, nil); detachErr != nil {
 			op.Debugf("detach(%s) failed with %s", d.DatastoreURI, errors.ErrorStack(detachErr))
 		}
 
@@ -325,8 +338,67 @@ func (m *Manager) DiskParent(op trace.Operation, config *VirtualDiskConfig) (*ob
 //	return nil
 // }
 
-// Attach attempts to attach a virtual disk
-func (m *Manager) attach(op trace.Operation, config *VirtualDiskConfig) error {
+// queueBatch adds a disk operation into the batching queue.
+// TODO: need to test what occurs if attach/detach for the SAME disk are batched together
+// Note that the error handler needs to be careful with locking as this function does not handle it
+func (m *Manager) queueBatch(op trace.Operation, change types.BaseVirtualDeviceConfigSpec, errHandler func(err error)) error {
+	chg := batchMember{
+		op:   op,
+		err:  make(chan error),
+		data: change,
+	}
+
+	op.Debugf("Queuing disk change operation (%s:%+v)", change.GetVirtualDeviceConfigSpec().Operation, *(change.GetVirtualDeviceConfigSpec().Device.GetVirtualDevice().Backing.(types.BaseVirtualDeviceFileBackingInfo)).GetVirtualDeviceFileBackingInfo())
+	m.batchQueue <- chg
+
+	if errHandler == nil {
+		// this will block until the batch is performed
+		return <-chg.err
+	}
+
+	// this will run the error processing in the background
+	go func() {
+		errHandler(<-chg.err)
+	}()
+
+	return nil
+}
+
+func (m *Manager) dequeueBatch(op trace.Operation, data []interface{}) error {
+	// convert to device change array
+	changes := make([]types.BaseVirtualDeviceConfigSpec, 0, len(data))
+
+	for i := range data {
+		changeSpec := data[i].(types.BaseVirtualDeviceConfigSpec)
+		dev := changeSpec.GetVirtualDeviceConfigSpec().Device.GetVirtualDevice()
+		// VC requires that the keys be unique within a config spec
+		if changeSpec.GetVirtualDeviceConfigSpec().Operation == types.VirtualDeviceConfigSpecOperationAdd && dev.Key == -1 {
+			dev.Key = int32(-1 - i)
+		}
+		op.Debugf("Appending change spec: %s:%+v", changeSpec.GetVirtualDeviceConfigSpec().Operation, *(changeSpec.GetVirtualDeviceConfigSpec().Device.GetVirtualDevice().Backing.(types.BaseVirtualDeviceFileBackingInfo)).GetVirtualDeviceFileBackingInfo())
+		changes = append(changes, changeSpec)
+	}
+
+	machineSpec := types.VirtualMachineConfigSpec{}
+	machineSpec.DeviceChange = changes
+
+	_, err := m.vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
+		t, er := m.vm.Reconfigure(ctx, machineSpec)
+
+		if t != nil {
+			op.Debugf("Batched disk reconfigure (%d batched operations) task=%s", len(machineSpec.DeviceChange), t.Reference())
+		}
+
+		return t, er
+	})
+
+	return err
+}
+
+// attach attempts to attach the specified disk to the VM.
+// if there is an error handling function, then this removal is queued and dispatched async.
+// if the handling function is nil this blocks until operation is complete
+func (m *Manager) attach(op trace.Operation, config *VirtualDiskConfig, errHandler func(error)) error {
 	defer trace.End(trace.Begin(""))
 
 	disk := m.toSpec(config)
@@ -342,69 +414,93 @@ func (m *Manager) attach(op trace.Operation, config *VirtualDiskConfig) error {
 	machineSpec := types.VirtualMachineConfigSpec{}
 	machineSpec.DeviceChange = append(machineSpec.DeviceChange, changeSpec...)
 
-	// ensure we abide by max attached disks limits
+	// ensure we abide by max attached disks limits at all times
+	// we undo this in error handling if we fail the attach
 	m.maxAttached <- true
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
 
 	// make sure the op is still valid as the above line could block for a long time
 	select {
 	case <-op.Done():
-		return op.Err()
-	default:
-	}
-
-	_, err = m.vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
-		t, er := m.vm.Reconfigure(ctx, machineSpec)
-
-		if t != nil {
-			op.Debugf("Attach reconfigure task=%s", t.Reference())
-		}
-
-		return t, er
-	})
-
-	if err != nil {
+		// if the op has been cancelled then we need to undo our allocation of an available disk slot
 		select {
 		case <-m.maxAttached:
 		default:
 		}
 
-		op.Errorf("vmdk storage driver failed to attach disk: %s", errors.ErrorStack(err))
-		return errors.Trace(err)
+		return op.Err()
+	default:
 	}
 
-	return nil
+	handler := func(err error) {
+		if err != nil {
+			select {
+			case <-m.maxAttached:
+			default:
+			}
+
+			op.Errorf("vmdk storage driver failed to attach disk: %s", errors.ErrorStack(err))
+		}
+
+		if errHandler != nil {
+			errHandler(err)
+		}
+	}
+
+	var wrapper func(error)
+	if errHandler != nil {
+		wrapper = handler
+	}
+
+	// batch the operation
+	// run the error handling in the background when the batch completes if a handler is provided
+	err = m.queueBatch(op, changeSpec[0], wrapper)
+	if errHandler == nil {
+		handler(err)
+	}
+
+	return err
 }
 
 // Detach attempts to detach a virtual disk
 func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 	defer trace.End(trace.Begin(""))
 
-	// we have to hold the cache lock until we're done deleting the cache entry
-	// or until we know we're not going to delete the entry
 	m.disksLock.Lock()
-	defer m.disksLock.Unlock()
 
 	d, err := NewVirtualDisk(op, config, m.Disks)
 	if err != nil {
+		m.disksLock.Unlock()
 		return errors.Trace(err)
 	}
 
 	d.l.Lock()
 	defer d.l.Unlock()
 
+	// if there is a second operation trying to detach the same disk then
+	// one of them will likely return due to reference count being greater than zero, but
+	// even if not then we check here whether the disk is still attached no we have the disk lock.
+	// This is leveraging the DevicePath as that is cleared on successful detach
+	if d.DevicePath == "" {
+		op.Debugf("detach returning early as no action required for %s", d.DatastoreURI)
+		m.disksLock.Unlock()
+		return nil
+	}
+
 	count := d.attachedRefs.Decrement()
 	op.Debugf("decremented attach count for %s: %d", d.DatastoreURI, count)
 	if count > 0 {
+		m.disksLock.Unlock()
 		return nil
 	}
 
 	if err := d.canBeDetached(); err != nil {
+		m.disksLock.Unlock()
 		op.Errorf("disk needs to be detached but is still in use: %s", err)
 		return errors.Trace(err)
 	}
+
+	// unlocking the cache here allows for parallel detach operations to occur, enabling batching
+	m.disksLock.Unlock()
 
 	op.Infof("Detaching disk %s", d.DevicePath)
 
@@ -413,14 +509,21 @@ func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 		return errors.Trace(err)
 	}
 
-	if err = m.detach(op, disk); err != nil {
-		op.Errorf("detach for %s failed with %s", d.DevicePath, errors.ErrorStack(err))
-		return errors.Trace(err)
+	// run the result handler in the batch error handler
+	resultHandler := func(err error) {
+		if err != nil {
+			op.Errorf("detach for %s failed with %s", d.DevicePath, errors.ErrorStack(err))
+			return
+		}
+
+		// this deletes the disk from the disk cache
+		m.disksLock.Lock()
+		d.setDetached(op, m.Disks)
+		m.disksLock.Unlock()
 	}
 
-	// this deletes the disk from the disk cache
-	d.setDetached(op, m.Disks)
-
+	// execution is async with a result handler, so no error processing here
+	m.detach(op, disk, resultHandler)
 	return nil
 }
 
@@ -433,47 +536,51 @@ func (m *Manager) DetachAll(op trace.Operation) error {
 	}
 
 	for _, disk := range disks {
-		if err2 := m.detach(op, disk); err != nil {
-			op.Errorf("error detaching disk: %s", err2.Error())
-			// return the last error on the return of this function
-			err = err2
-			// if we failed here that means we have a disk attached, ensure we abide by max attached disks limits
-			m.maxAttached <- true
-		}
+		// it's packed into m.detach to not drain the reference counting channel on error
+		// but providing an error handler here allows this to happen in parallel
+		m.detach(op, disk, func(err error) {
+			op.Errorf("vmdk storage driver failed to detach disk: %s", errors.ErrorStack(err))
+		})
 	}
 
 	return err
 }
 
-func (m *Manager) detach(op trace.Operation, disk *types.VirtualDisk) error {
-	config := []types.BaseVirtualDeviceConfigSpec{
-		&types.VirtualDeviceConfigSpec{
-			Device:    disk,
-			Operation: types.VirtualDeviceConfigSpecOperationRemove,
-		},
+// detach removes the specified disk from the VM.
+// if there is an error handling function, then this removal is queued and dispatched async.
+// if the handling function is nil this blocks until operation is complete
+func (m *Manager) detach(op trace.Operation, disk *types.VirtualDisk, errHandler func(error)) error {
+	config := &types.VirtualDeviceConfigSpec{
+		Device:    disk,
+		Operation: types.VirtualDeviceConfigSpecOperationRemove,
 	}
 
-	spec := types.VirtualMachineConfigSpec{}
-	spec.DeviceChange = config
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	_, err := m.vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
-		t, er := m.vm.Reconfigure(ctx, spec)
-
-		if t != nil {
-			op.Debugf("Detach reconfigure task=%s", t.Reference())
+	handler := func(err error) {
+		if err != nil {
+			// can only enter here if the errHandler is nil, when this blocks until the op is completed
+			op.Errorf("vmdk storage driver failed to detach disk: %s", errors.ErrorStack(err))
+		} else {
+			select {
+			case <-m.maxAttached:
+			default:
+			}
 		}
 
-		return t, er
-	})
-
-	if err == nil {
-		select {
-		case <-m.maxAttached:
-		default:
+		if errHandler != nil {
+			errHandler(err)
 		}
+	}
+
+	var wrapper func(error)
+	if errHandler != nil {
+		wrapper = handler
+	}
+
+	// batch the operation
+	// run the error handling in the background when the batch completes if a handler is provided
+	err := m.queueBatch(op, config, wrapper)
+	if errHandler == nil {
+		handler(err)
 	}
 
 	return err
