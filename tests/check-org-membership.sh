@@ -24,7 +24,11 @@ if [ "$SKIP_CHECK_MEMBERSHIP" == "true" ]; then
   exit 0
 fi
 
-if [ ! $(curl --silent -H "Authorization: token $GITHUB_AUTOMATION_API_KEY" "https://api.github.com/orgs/vmware/members/${DRONE_COMMIT_AUTHOR}") ]; then
+# assuming that the logic here is both a successful curl AND no output.
+# testing with a bad auth token shows a 0 return code for curl, but json blob with error
+# good auth token is just empty response
+result=$(curl --silent -H "Authorization: token $GITHUB_AUTOMATION_API_KEY" "https://api.github.com/orgs/vmware/members/${DRONE_COMMIT_AUTHOR}")
+if [ "$?" -eq 0 -o -n "$result" ]; then
   echo "checked origin membership successfully"
 else
   echo "failed to check origin membership"
