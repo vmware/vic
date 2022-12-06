@@ -84,6 +84,15 @@ const (
 	TaskCreatedState = "created"
 	TaskFailedState  = "failed"
 	TaskUnknownState = "unknown"
+
+	// DefaultMaxConcurrentRequests limits the maximum number of SOAP operations in flight
+	// This has the effect of modifying the MaxIdleConnsPerHost field of the soap transport
+	DefaultMaxConcurrentRequests = 32
+	// MaximumMaxConcurrentRequests limits the upper bound that can be specified for concurrent connections
+	MaximumMaxConcurrentRequests = 255
+	// MinMaxConcurrentRequests is necessary because testing shows the port layer doesn't fully initialize if
+	// lower than this
+	MinMaxConcurrentRequests = 2
 )
 
 func DefaultAltVCHGuestName() string {

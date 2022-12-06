@@ -33,6 +33,8 @@ type Target struct {
 	Password    *string
 	CloneTicket string
 	Thumbprint  string `cmd:"thumbprint"`
+
+	MaxConcurrentConnections *int `cmd:"max-concurrent-connections"`
 }
 
 func NewTarget() *Target {
@@ -67,11 +69,20 @@ func (t *Target) TargetFlags() []cli.Flag {
 			Usage:       "ESX or vCenter host certificate thumbprint",
 			EnvVar:      "VIC_MACHINE_THUMBPRINT",
 		},
+		cli.GenericFlag{
+			Name:   "max-concurrent-connections, mcc",
+			Value:  flags.NewOptionalInt(&t.MaxConcurrentConnections),
+			Usage:  "Determines maximum number of connections (not sessions) to vCenter. Integer value, greater than 0",
+			EnvVar: "VIC_MACHINE_MAX_CONCURRENT_CONNECTIONS",
+			Hidden: true,
+		},
 	}
 }
 
 // HasCredentials check that the credentials have been supplied by any of the permitted mechanisms
 func (t *Target) HasCredentials(op trace.Operation) error {
+	defer trace.End(trace.Begin("", op))
+
 	if t.URL == nil {
 		return cli.NewExitError("--target argument must be specified", 1)
 	}

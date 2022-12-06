@@ -29,7 +29,7 @@ func TestFlags(t *testing.T) {
 	target := NewTarget()
 	flags := target.TargetFlags()
 
-	if len(flags) != 4 {
+	if len(flags) != 5 {
 		t.Errorf("Wrong flag numbers")
 	}
 }
@@ -49,6 +49,10 @@ func TestProcess(t *testing.T) {
 		URL      *url.URL
 		User     string
 		Password *string
+
+		// MaxConcurrentConnections is not tested here as there's no explicit validation at this stage
+		// Validation of input type is via flags package, and validation of values is via validator
+		/// mcc *int
 
 		err    error
 		result *url.URL

@@ -490,22 +490,25 @@ func (v *Validator) sessionValid(op trace.Operation, errMsg string) bool {
 		v.NoteIssue(errors.New(errMsg))
 		return false
 	}
+
 	return true
 }
 
 func (v *Validator) target(op trace.Operation, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin("", op))
 
-	// check if host is managed by VC
 	v.managedbyVC(op)
+	v.connectionManagement(op, input, conf)
 }
 
+// managedbyVC checks if host is managed by VC and is blocked from direct interaction
 func (v *Validator) managedbyVC(op trace.Operation) {
 	defer trace.End(trace.Begin("", op))
 
 	if v.isVC() {
 		return
 	}
+
 	host, err := v.session.Finder.DefaultHostSystem(op)
 	if err != nil {
 		v.NoteIssue(fmt.Errorf("Failed to get host system: %s", err))
@@ -522,6 +525,26 @@ func (v *Validator) managedbyVC(op trace.Operation) {
 	if ip := mh.Summary.ManagementServerIp; ip != "" {
 		v.NoteIssue(fmt.Errorf("Target is managed by vCenter server %q, please change --target to vCenter server address or select a standalone ESXi", ip))
 	}
+
+	return
+}
+
+func (v *Validator) connectionManagement(op trace.Operation, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin("", op))
+
+	if input.MaxConcurrentConnections == nil {
+		return
+	}
+
+	// unsure if we need to set a maximum bound as well. Adding something sane, but above the
+	// default that's been in force since 2017
+	if *input.MaxConcurrentConnections < constants.MinMaxConcurrentRequests || *input.MaxConcurrentConnections > constants.MaximumMaxConcurrentRequests {
+		op.Debugf("Validating max connection failed")
+
+		v.NoteIssue(fmt.Errorf("Maximum concurrent connections must be between %d - %d inclusive", constants.MinMaxConcurrentRequests, constants.MaximumMaxConcurrentRequests))
+		return
+	}
+
 	return
 }
 

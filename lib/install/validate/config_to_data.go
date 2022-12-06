@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/docker/go-units"
@@ -161,6 +162,16 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 	d.OpsCredentials.OpsUser = &conf.Connection.Username
 	d.OpsCredentials.OpsPassword = &conf.Connection.Token
 	d.Thumbprint = conf.Connection.TargetThumbprint
+
+	maxConcurrent := conf.ExecutorConfig.Sessions[config.PortLayerService].GetEnv(config.PortLayerMaxConcurrentConnections)
+	if maxConcurrent != nil {
+		var max int
+		max, err = strconv.Atoi(*maxConcurrent)
+		if err != nil {
+			return
+		}
+		d.MaxConcurrentConnections = &max
+	}
 
 	d.AsymmetricRouting = conf.AsymmetricRouting
 

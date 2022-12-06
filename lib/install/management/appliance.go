@@ -693,6 +693,11 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		Active:  true,
 	}
 
+	if settings.MaxConcurrentConnections != nil {
+		d.op.Debugf("Setting max concurrent connections in portlayer environment to %d", *settings.MaxConcurrentConnections)
+		cfg.Cmd.Env = append(cfg.Cmd.Env, fmt.Sprintf("%s=%s", config.PortLayerMaxConcurrentConnections, strconv.Itoa(*settings.MaxConcurrentConnections)))
+	}
+
 	conf.AddComponent(config.PortLayerService, cfg)
 
 	// fix up those parts of the config that depend on the final applianceVM folder name
